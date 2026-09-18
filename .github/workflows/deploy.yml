@@ -67,7 +67,7 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: upload
           app_location: web
-          api_location: ''
+          api_location: ""
           output_location: dist
 
   close_web_preview:
@@ -97,17 +97,17 @@ jobs:
       - name: Azure login
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.SPENDEAZYAPI_AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.SPENDEAZYAPI_AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.SPENDEAZYAPI_AZURE_SUBSCRIPTION_ID }}
+          client-id: ${{ secrets.SPENDEAZYAPI2_AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.SPENDEAZYAPI2_AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.SPENDEAZYAPI2_AZURE_SUBSCRIPTION_ID }}
       - name: Build and deploy container image
         uses: azure/container-apps-deploy-action@v2
         with:
           appSourcePath: ${{ github.workspace }}/api
           dockerfilePath: Dockerfile
           registryUrl: docker.io
-          registryUsername: ${{ secrets.SPENDEAZYAPI_REGISTRY_USERNAME }}
-          registryPassword: ${{ secrets.SPENDEAZYAPI_REGISTRY_PASSWORD }}
+          registryUsername: ${{ secrets.SPENDEAZYAPI2_REGISTRY_USERNAME }}
+          registryPassword: ${{ secrets.SPENDEAZYAPI2_REGISTRY_PASSWORD }}
           containerAppName: spendeazy-api
           resourceGroup: spendeazy-dev
           imageToBuild: syoro/spendeazy-api:${{ github.sha }}

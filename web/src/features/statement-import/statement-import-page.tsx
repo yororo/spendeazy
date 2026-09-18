@@ -41,10 +41,11 @@ function StatementImportPage({ onViewTransactions }: StatementImportPageProps) {
   const renderedStatementLifetime = statementLifetimeRef.current;
   const [stage, setStage] = useState<ImportStage>("upload");
   const [importedFile, setImportedFile] = useState<File | null>(null);
-  const [statement, setStatement] =
-    useState<CategorizedStatement | null>(null);
-  const [hasAcknowledgedProbableDuplicates, setHasAcknowledgedProbableDuplicates] =
-    useState(false);
+  const [statement, setStatement] = useState<CategorizedStatement | null>(null);
+  const [
+    hasAcknowledgedProbableDuplicates,
+    setHasAcknowledgedProbableDuplicates,
+  ] = useState(false);
   const probableDuplicateAcknowledgementAttemptedRef = useRef(false);
 
   function acceptCategorizedStatement(
@@ -61,9 +62,7 @@ function StatementImportPage({ onViewTransactions }: StatementImportPageProps) {
     setStage("categorize");
   }
 
-  function setTransactions(
-    update: SetStateAction<CategorizedTransaction[]>,
-  ) {
+  function setTransactions(update: SetStateAction<CategorizedTransaction[]>) {
     setStatement((current) => {
       if (
         !current ||
@@ -320,8 +319,8 @@ function StatementImportPage({ onViewTransactions }: StatementImportPageProps) {
                     {item.transactionCount} Transactions ·{" "}
                     {[item.provider, item.accountType]
                       .filter(Boolean)
-                      .join(" · ")} ·{" "}
-                    {item.statementDate}
+                      .join(" · ")}{" "}
+                    · {item.statementDate}
                   </p>
                 </li>
               ))}

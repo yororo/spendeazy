@@ -1,31 +1,12 @@
-# Project
+# Web agent guidance
 
-Read `README.md` for the product overview and `CONTEXT.md` for domain vocabulary.
+This file supplements [root AGENTS.md](../AGENTS.md) for `web/`. Read [README.md](README.md) for setup and [the shared glossary](../CONTEXT.md) for domain terms. Paths below are relative to `web/`.
 
-# Architecture
+- For code creation, modification, or review, read [coding standards](docs/CODING_STANDARDS.md).
+- For feature creation, structural refactors, or cross-feature reuse, read [architecture](docs/ARCHITECTURE.md) and relevant [ADRs](docs/adr/).
+- For UI/UX changes, read [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md). It owns visual tokens, interaction and accessibility rules; architecture owns code placement. `design/ui-design.pen` is the visual reference.
+- For endpoint changes, also inspect the [API guidance](../api/AGENTS.md) and generated contract in `../api/docs/openapi.json`. The separate `docs/SPENDEAZY_API_SPEC.yml` copy is not the contract authority.
 
-For feature creation, structural refactors, or cross-feature reuse, read `docs/ARCHITECTURE.md` before editing.
+Run `npm run lint`, `npm run build`, and `npm test` from `web/` for code changes. For authenticated financial workflows, validate the affected browser/API flow and report any live validation that could not run. See `package.json` for available scripts.
 
-# UI/UX Design Changes
-
-For any UI/UX visual style creation, modification, or review, read `DESIGN_SYSTEM.md` before editing.
-
-It is the implementation source of truth for UI architecture, tokens, typography, component variants, responsive behavior, accessibility, validation, and deviations from `design/ui-design.pen`. Treat the Pen file as the visual reference.
-
-# Coding Standards
-
-For any code creation, modification, or review, read `docs/CODING_STANDARDS.md` before editing.
-
-## Agent skills
-
-### Issue tracker
-
-Issues and specifications are tracked in GitHub Issues. See `docs/agents/issue-tracker.md`.
-
-### Triage labels
-
-The project uses the default triage-label vocabulary. See `docs/agents/triage-labels.md`.
-
-### Domain docs
-
-This is a single-context repository with a root glossary and system-wide ADRs. See `docs/agents/domain.md`.
+Shared issue, triage, and domain-documentation guidance is linked from root `AGENTS.md`; keep repository policy there.

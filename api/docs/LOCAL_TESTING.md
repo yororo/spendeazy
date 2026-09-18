@@ -1,5 +1,7 @@
 # Local API Testing with Clerk
 
+Run these commands from `api/`, not the monorepo root. Shell examples use Bash; on Windows use Git Bash/WSL or equivalent PowerShell commands. See [API setup](../README.md) and [web setup](../../web/README.md).
+
 All `/api/v1` endpoints require a valid Clerk session token except the public
 health and documentation endpoints. Use the Clerk **development instance** for
 local testing. Never commit Clerk secret keys, user IDs, session IDs, or tokens.
@@ -57,7 +59,7 @@ its machine-readable form is at <http://localhost:3000/docs-json>.
 ## Run with Docker
 
 After configuring `.env` and applying the migrations above, build the local
-image from the repository root:
+image from the API project directory:
 
 ```bash
 docker build -t spendeazy-api:local .
@@ -104,7 +106,7 @@ Use this only with a development-instance secret key. The script creates an
 active session for an existing development user and then mints a short-lived
 session token. It requires `curl` and Node.js.
 
-From the repository root, run:
+From the API project directory, run:
 
 ```bash
 ./get-clerk-session-token.sh SECRET_KEY TEST_USER_ID
@@ -163,7 +165,7 @@ interactive API client.
 
 ## Automated tests
 
-The repository's unit and end-to-end tests use test doubles and do not require
+The API project's unit and end-to-end tests use test doubles and do not require
 real Clerk credentials:
 
 ```bash

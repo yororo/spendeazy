@@ -1,5 +1,7 @@
 # Issue #8 live validation
 
+Historical evidence from before the self-scoped authentication boundary. The explicit User-ID routes below are not current API usage; see [the accepted authentication ADR](../adr/0002-authenticated-self-scoped-api-boundary.md).
+
 Validation date: 2026-08-30 (UTC)
 
 ## Scope and safety

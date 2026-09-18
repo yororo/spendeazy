@@ -2,17 +2,11 @@
 
 This document is the implementation source of truth for Spendeazy UI. The Pen file at `design/ui-design.pen` remains the visual reference. When the Pen file contains accidental inconsistencies, follow the normalized rules documented here.
 
-## Architecture
+## Code placement
 
-```text
-Semantic tokens (`src/index.css`)
-  -> generic primitives (`src/components/ui`)
-    -> application modules (`src/components/app`)
-      -> layouts (`src/layouts`)
-        -> pages (`src/pages`)
-```
+Paths in this document are relative to `web/`. Follow [web architecture](docs/ARCHITECTURE.md) for dependency direction and feature ownership, and [root CONTEXT.md](../CONTEXT.md) for domain language.
 
-Generic primitives contain presentation and accessible interaction behavior, never Spendeazy business rules. Application modules compose primitives around domain concepts such as spending, categories, and transactions.
+Semantic tokens live in `src/index.css`; generic accessible primitives live in `src/components/ui`. Feature-specific presentation stays in its owning `src/features/<feature>` directory. Application composition belongs in `src/components/app` and `src/layouts`; proven reusable domain UI belongs in `src/shared`. Business pages live in features, while `src/pages` holds routes such as Not Found.
 
 ## Foundations
 
@@ -191,7 +185,7 @@ Tabs, popovers, switches, toasts, tooltips, and other catalog items have not bee
 
 ## Application modules
 
-Application modules live in `src/components/app` or in a focused `src/shared` domain module when they carry proven cross-feature behavior:
+Place these components by ownership, following architecture: navigation and product identity belong to application composition; Dashboard-only metrics and charts belong to Dashboard; domain UI with proven cross-feature use belongs in `src/shared`. Examples:
 
 - `LedgerMark` — product identity
 - `PrimarySidebar` — authenticated navigation and profile summary
@@ -221,7 +215,7 @@ Dashboard callers provide typed spending points, labels, and an accessible summa
 ## Development rules
 
 1. Search `src/components/ui` before creating a generic primitive.
-2. Search `src/components/app` before creating a Spendeazy-specific module.
+2. Search the owning feature and existing shared domain UI before creating a Spendeazy-specific module.
 3. Use semantic color tokens instead of literals in JSX.
 4. Use the established spacing and square-radius rules instead of arbitrary measurements.
 5. Keep page-specific data and business behavior out of generic primitives.
@@ -277,7 +271,7 @@ Incorrect generic coupling:
 | Neon green used as text on white                                       | Reserve neon for surfaces/indicators; use dark success text                                                                     |
 | Desktop frames and a 390px mobile Dashboard reference                  | Apply the viewport-based responsive rules documented above; the design system takes precedence over illustrative mockup styling |
 | Floating-point artifacts in category amounts                           | Treat them as source-data defects; format currency values at the data boundary                                                  |
-| “Map” and “Confirm” workflow naming                                    | Use Statement Import: Upload → Categorize → Review, as defined in `CONTEXT.md`                                                  |
+| “Map” and “Confirm” workflow naming                                    | Use Statement Import: Upload → Categorize → Review, as defined in root `CONTEXT.md`                                                  |
 
 ## Adding a new pattern
 

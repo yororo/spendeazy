@@ -1,10 +1,10 @@
 # Architecture
 
-Read this document before changing module boundaries, dependency direction, persistence seams, request-wide behavior, or cross-feature workflows. Use `CONTEXT.md` for domain language, `docs/adr/` for binding decisions, and `docs/DATABASE_DESIGN.md` for relational constraints.
+Read this document before changing module boundaries, dependency direction, persistence seams, request-wide behavior, or cross-feature workflows. Use [root CONTEXT.md](../CONTEXT.md) for domain language, `docs/adr/` for API decisions, and `docs/DATABASE_DESIGN.md` for the persistence overview and schema sources. Paths are relative to `api/`; the [root integration overview](../README.md) describes the web/API boundary.
 
 ## Shape
 
-Spendeazy is a modular monolith built with NestJS and TypeORM. It exposes a versioned REST API and stores data in PostgreSQL. The code is organized primarily by feature under `src/`; shared technical concerns have their own top-level modules.
+The Spendeazy API is a modular monolith built with NestJS and TypeORM. It exposes a versioned REST API and stores data in PostgreSQL. The code is organized primarily by feature under `src/`; shared technical concerns have their own top-level modules.
 
 ```text
 HTTP request
@@ -90,7 +90,7 @@ OpenAPI assembly lives under `src/docs/`. When an endpoint contract changes, upd
 
 When adding behavior:
 
-1. Identify the owning feature using the vocabulary in `CONTEXT.md`.
+1. Identify the owning feature using the vocabulary in root `CONTEXT.md`.
 2. Put orchestration and business rules in an application service or a focused pure helper beside it.
 3. Express required persistence as a narrow application-owned port.
 4. Implement that port in the feature's infrastructure layer and bind it in the feature module.

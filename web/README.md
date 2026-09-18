@@ -1,6 +1,6 @@
 # Spendeazy Web
 
-A web based application for tracking expenses and managing budgets.
+The browser application for Spendeazy, backed by the sibling [API project](../api/README.md). Read the [shared glossary](../CONTEXT.md) for domain terms and [architecture](docs/ARCHITECTURE.md) for code placement. All commands and paths below are relative to `web/`.
 
 ## Main Features
 
@@ -13,6 +13,10 @@ A web based application for tracking expenses and managing budgets.
 ## Tech stack
 
 React, TypeScript, Tailwind CSS, Vite, and Node.js.
+
+## Setup and run
+
+From `web/`, run `npm install`, configure the environment below, then run `npm run dev`. Start the API separately using its README. Use `npm run lint`, `npm run build`, and `npm test` to validate web code changes.
 
 ## Authentication and API setup
 
@@ -27,7 +31,7 @@ Enable Google as a social connection in that Clerk instance. Add the deployed `/
 for local development, use the equivalent URL on the Vite development origin.
 No Clerk secret key is used by this client-only application.
 
-`VITE_API_BASE_URL` is the HTTP(S) origin of the Expense Tracker API. The current Clerk session authenticates every private API request, and the API resolves ownership from that session through self-scoped `/api/v1/users/me` routes.
+`VITE_API_BASE_URL` is the HTTP(S) origin of the Spendeazy API. The current Clerk session authenticates every private API request, and the API resolves ownership from that session through self-scoped `/api/v1/users/me` routes.
 
 Authenticated Dashboard, Transactions, Categories, and Statement Import data all come from the persisted API—there is no bundled financial-data fallback.
 

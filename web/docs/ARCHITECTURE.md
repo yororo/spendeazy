@@ -1,6 +1,6 @@
 # Architecture
 
-Spendeazy uses vertical slices. [`CONTEXT.md`](../CONTEXT.md) defines domain language; this document defines code placement and dependency direction.
+The Spendeazy web project uses vertical slices. [Root CONTEXT.md](../../CONTEXT.md) defines shared domain language; this document defines web code placement and dependency direction. Paths are relative to `web/`. See the [root integration overview](../../README.md) for the boundary with the API.
 
 ## Dependency direction
 
@@ -72,7 +72,7 @@ Use these rules when a placement choice is unclear:
 
 For feature creation or structural refactoring:
 
-1. Use the capability name from `CONTEXT.md`; update the glossary only after resolving a new domain term.
+1. Use the capability name from root `CONTEXT.md`; update the glossary only after resolving a new domain term.
 2. Put capability-specific code in `src/features/<feature>` and export the smallest useful interface from its root `index.ts`.
 3. Preserve the dependency direction and the `page -> query -> service -> API client` boundary where applicable.
 4. Before sharing code, name its current callers and apply the deletion test: removing it should scatter meaningful logic.

@@ -1,14 +1,10 @@
-import type {
-  CategorizedStatement,
-} from "./statement-categorizer";
+import type { CategorizedStatement } from "./statement-categorizer";
 import { normalizeDescription } from "./statement-import-utils";
 
 const GCASH_PROVIDER = "GCash";
 const GCASH_MOBILE_NUMBER_PATTERN = /^09\d{9}$/u;
 
-function isGcashStatement(
-  statement: Pick<CategorizedStatement, "summary">,
-) {
+function isGcashStatement(statement: Pick<CategorizedStatement, "summary">) {
   return statement.summary.provider === GCASH_PROVIDER;
 }
 
@@ -45,7 +41,11 @@ function applyGcashRecipientExclusion(
   return {
     ...statement,
     transactions: statement.transactions.map((transaction) => {
-      if (!transferToRecipientPattern.test(normalizeDescription(transaction.description))) {
+      if (
+        !transferToRecipientPattern.test(
+          normalizeDescription(transaction.description),
+        )
+      ) {
         return transaction;
       }
 

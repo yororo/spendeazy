@@ -1,0 +1,294 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-success-surface: var(--success-surface);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-warning-surface: var(--warning-surface);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-provider-google: var(--provider-google);
+  --color-category-coral: var(--category-coral);
+  --color-category-scarlet: var(--category-scarlet);
+  --color-category-crimson: var(--category-crimson);
+  --color-category-rose: var(--category-rose);
+  --color-category-magenta: var(--category-magenta);
+  --color-category-orchid: var(--category-orchid);
+  --color-category-plum: var(--category-plum);
+  --color-category-violet: var(--category-violet);
+  --color-category-indigo: var(--category-indigo);
+  --color-category-cobalt: var(--category-cobalt);
+  --color-category-azure: var(--category-azure);
+  --color-category-sky: var(--category-sky);
+  --color-category-cyan: var(--category-cyan);
+  --color-category-teal: var(--category-teal);
+  --color-category-emerald: var(--category-emerald);
+  --color-category-forest: var(--category-forest);
+  --color-category-lime: var(--category-lime);
+  --color-category-olive: var(--category-olive);
+  --color-category-gold: var(--category-gold);
+  --color-category-amber: var(--category-amber);
+  --color-category-copper: var(--category-copper);
+  --color-category-cocoa: var(--category-cocoa);
+  --color-category-slate: var(--category-slate);
+  --color-category-steel: var(--category-steel);
+  --color-category-housing: var(--category-housing);
+  --color-category-groceries: var(--category-groceries);
+  --color-category-transport: var(--category-transport);
+  --color-category-dining: var(--category-dining);
+  --color-category-utilities: var(--category-utilities);
+  --color-category-subscriptions: var(--category-subscriptions);
+  --color-category-health: var(--category-health);
+  --color-category-shopping: var(--category-shopping);
+  --color-category-entertainment: var(--category-entertainment);
+  --color-category-travel: var(--category-travel);
+  --color-category-other: var(--category-other);
+  --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, monospace;
+  --radius-sm: var(--radius);
+  --radius-md: var(--radius);
+  --radius-lg: var(--radius);
+  --radius-xl: var(--radius);
+}
+
+:root {
+  color-scheme: light;
+  --sidebar: #000000;
+  --sidebar-foreground: #ffffff;
+  --sidebar-border: #ffffff40;
+  --background: #ffffff;
+  --foreground: #000000;
+  --card: #ffffff;
+  --card-foreground: #000000;
+  --popover: #ffffff;
+  --popover-foreground: #000000;
+  --primary: #00ff00;
+  --primary-foreground: #000000;
+  --secondary: #000000;
+  --secondary-foreground: #ffffff;
+  --muted: #f5f5f5;
+  --muted-foreground: #666666;
+  --accent: #f5f5f5;
+  --accent-foreground: #000000;
+  --destructive: #a30000;
+  --destructive-foreground: #ffffff;
+  --border: #cccccc;
+  --input: #cccccc;
+  --ring: #000000;
+  --success: #245a24;
+  --success-foreground: #ffffff;
+  --success-surface: #f7fff7;
+  --warning: #804200;
+  --warning-foreground: #ffffff;
+  --warning-surface: #fff8eb;
+  --info: #005a9c;
+  --info-foreground: #ffffff;
+  --provider-google: #4285f4;
+  --radius: 0px;
+  --mobile-tab-bar-height: 4rem;
+
+  --category-coral: #f97316;
+  --category-scarlet: #dc2626;
+  --category-crimson: #e11d48;
+  --category-rose: #f43f5e;
+  --category-magenta: #db2777;
+  --category-orchid: #c026d3;
+  --category-plum: #9333ea;
+  --category-violet: #7c3aed;
+  --category-indigo: #4f46e5;
+  --category-cobalt: #2563eb;
+  --category-azure: #0369a1;
+  --category-sky: #0284c7;
+  --category-cyan: #0891b2;
+  --category-teal: #0f766e;
+  --category-emerald: #059669;
+  --category-forest: #15803d;
+  --category-lime: #65a30d;
+  --category-olive: #4d7c0f;
+  --category-gold: #ca8a04;
+  --category-amber: #d97706;
+  --category-copper: #b45309;
+  --category-cocoa: #92400e;
+  --category-slate: #475569;
+  --category-steel: #64748b;
+
+  --category-housing: #ff8400;
+  --category-groceries: #64a36f;
+  --category-transport: #5188c7;
+  --category-dining: #d95e47;
+  --category-utilities: #8d6ccf;
+  --category-subscriptions: #667085;
+  --category-health: #3b9b8f;
+  --category-shopping: #c76a9a;
+  --category-entertainment: #d0a02e;
+  --category-travel: #4675a8;
+  --category-other: #8a8a8a;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --background: #111111;
+  --foreground: #ffffff;
+  --card: #1a1a1a;
+  --card-foreground: #ffffff;
+  --popover: #1a1a1a;
+  --popover-foreground: #ffffff;
+  --primary-foreground: #111111;
+  --sidebar: #18181b;
+  --sidebar-foreground: #fafafa;
+  --sidebar-border: #ffffff1a;
+  --secondary: #2e2e2e;
+  --secondary-foreground: #ffffff;
+  --muted: #2e2e2e;
+  --muted-foreground: #b8b9b6;
+  --accent: #2e2e2e;
+  --accent-foreground: #ffffff;
+  --border: #2e2e2e;
+  --input: #2e2e2e;
+  --ring: #ffffff;
+  --destructive: #ff9999;
+  --destructive-foreground: #111111;
+  --success: #8cdb8c;
+  --success-foreground: #111111;
+  --success-surface: #182b18;
+  --warning: #ffc078;
+  --warning-foreground: #111111;
+  --warning-surface: #302418;
+  --info: #80c7ff;
+  --info-foreground: #111111;
+}
+
+@layer components {
+  .compact-app-header {
+    height: calc(4rem + env(safe-area-inset-top, 0px));
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-left: max(1rem, env(safe-area-inset-left, 0px));
+    padding-right: max(1rem, env(safe-area-inset-right, 0px));
+  }
+
+  .mobile-tab-bar {
+    position: fixed;
+    inset-inline: 0;
+    bottom: 0;
+    z-index: 40;
+    background: var(--sidebar);
+    color: var(--sidebar-foreground);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+  }
+
+  .mobile-navigation-content {
+    padding-top: calc(4rem + env(safe-area-inset-top, 0px));
+    padding-bottom: calc(var(--mobile-tab-bar-height) + env(safe-area-inset-bottom, 0px));
+  }
+
+  @media (width >= 48rem) {
+    .mobile-tab-bar {
+      display: none;
+    }
+
+    .mobile-navigation-content {
+      padding-bottom: 0;
+    }
+  }
+
+  @media (width >= 64rem) {
+    .mobile-navigation-content {
+      padding-top: 0;
+    }
+  }
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  html {
+    background: var(--background);
+    font-family: var(--font-sans);
+  }
+
+  body {
+    min-width: 20rem;
+    min-height: 100vh;
+    margin: 0;
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    font-size: 0.875rem;
+    line-height: 1.5;
+    text-rendering: optimizeLegibility;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]) {
+    cursor: pointer;
+  }
+
+  ::selection {
+    background: var(--primary);
+    color: var(--primary-foreground);
+  }
+}
+
+@utility text-label {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  line-height: 1.25rem;
+  text-transform: uppercase;
+}
+
+@utility text-metric {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+}
+
+@utility focus-ledger {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+
+  &:focus-visible {
+    box-shadow:
+      0 0 0 2px var(--background),
+      0 0 0 4px var(--ring);
+  }
+}

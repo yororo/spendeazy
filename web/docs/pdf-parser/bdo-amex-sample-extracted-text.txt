@@ -1,0 +1,366 @@
+MR FOO BAR NAME
+ADDRESS 1
+ADDRESS 2
+BRGY. ABC
+XYZ CITY
+1635 METRO MANILA
+*111122223333444FFBARR*
+Statement of Account
+AMEX EXPLORER (PHP)
+Statement Date June 18, 2026
+Cardmember Number 1111-222233-33444
+Credit Limit ₱ 500,000
+Cash Advance Limit ₱ 150,000
+Interest Rate per Month 3.00%
+Minimum Amount Due ₱ 1,681.20
+Total Amount Due ₱ 56,040.04
+Payment Due Date Jul 13, 2026
+Your Account Summary
+Previous Balance
+₱ 169,252.98
+Purchases and Advances (+)
+₱ 56,040.04
+Finance Charge (+)
+₱ 0.00
+Fees/Other Debits (+)
+₱ 0.00
+Late Charge (+)
+₱ 0.00
+Payments/Other Credits (-)
+₱ 169,252.98
+Total Amount Due
+₱ 56,040.04
+Your Membership Rewards Points Summary
+Previous Balance
+5,491.00
+(+) Points Earned
+1,846.00
+(+/-) Adjustment
+0.00
+(-) Points Redeemed
+0.00
+Total Available Points
+7,337.00
+Sale Date Post Date Transaction Details Amount
+PREVIOUS STATEMENT BALANCE 169,252.98
+CARD NUMBER 1111-222233-33444
+05/17/26 05/19/26 FIX ONE AYALA MAKATI MAKATI PH 500.00
+05/17/26 05/19/26 TATERS GLORIETTA 4 MAKATI PH 145.00
+05/17/26 05/19/26 TITTOS AND RM 16 PASIG PASIG CITY PH 957.00
+05/19/26 05/20/26 PAYMENT RECEIVED - THANK YOU -169,252.98
+05/21/26 05/24/26 BUN RUN MAKATI MAKATI PH 579.46
+05/22/26 05/24/26 MAZZA SOLARIS MAKATI PH 830.36
+05/22/26 05/24/26 STARBUCKS 279 ST LUKE TAGUIG PH 450.00
+05/22/26 05/24/26 LLAOLLAO BGCFT XYZ CITY PH 436.29
+05/22/26 05/24/26 TANG KOREAN FLAVOURS TAGUIG PH 2,227.00
+05/23/26 05/24/26 BORED & HUNGRY-OPUS QUEZON CITY PH 416.16
+05/23/26 05/25/26 EPIC EATS OPUS MALL QUEZON CITY PH 416.16
+05/23/26 05/25/26 MED EXPRESS DRUGSTORE ST TAGUIG PH 3,785.04
+05/24/26 05/24/26 WATSONS-SM MAKATI MALL MAKATI PH 1,553.50
+05/24/26 05/24/26 CRISOSTOMO-ONE AYALA MAKATI PH 1,495.00
+05/24/26 05/24/26 SM STORE-MAKATI MAKATI PH 1,439.10
+05/24/26 05/26/26 ARMYNAVY JUPITER MAKATI PH 730.00
+05/24/26 05/26/26 LLAOLLAO ONE AYALA MAKATI CITY PH 308.00
+05/27/26 05/27/26 TOBYS SPORTS ARENA MAKATI PH 3,540.00
+American Express is a registered trademark of American Express.
+This Card is issued by BDO pursuant to a license from American Express.
+BDO Unibank, Inc. is regulated by the Bangko Sentral ng Pilipinas: https://www.bsp.gov.ph
+The BDO, BDO Unibank, and other BDO-related trademarks are owned by BDO
+Unibank, Inc. All Rights Reserved.
+For more details, please log on to americanexpress.com.ph or call our BDO Customer Contact Center at (+632) 8888-0000,
+International Toll-Free at (IAC)+800-8-CALLBDO (2255236)
+Page 1 of 4
+MR FOO BAR NAME
+ADDRESS 1
+ADDRESS 2
+BRGY. ABC
+XYZ CITY
+1635 METRO MANILA
+*111122223333444FFBARR*
+Statement of Account
+AMEX EXPLORER (PHP)
+Statement Date June 18, 2026
+Cardmember Number 1111-222233-33444
+Credit Limit ₱ 500,000
+Cash Advance Limit ₱ 150,000
+Interest Rate per Month 3.00%
+Minimum Amount Due ₱ 1,681.20
+Total Amount Due ₱ 56,040.04
+Payment Due Date Jul 13, 2026
+Your Account Summary
+Previous Balance
+₱ 169,252.98
+Purchases and Advances (+)
+₱ 56,040.04
+Finance Charge (+)
+₱ 0.00
+Fees/Other Debits (+)
+₱ 0.00
+Late Charge (+)
+₱ 0.00
+Payments/Other Credits (-)
+₱ 169,252.98
+Total Amount Due
+₱ 56,040.04
+Your Membership Rewards Points Summary
+Previous Balance
+5,491.00
+(+) Points Earned
+1,846.00
+(+/-) Adjustment
+0.00
+(-) Points Redeemed
+0.00
+Total Available Points
+7,337.00
+Sale Date Post Date Transaction Details Amount
+05/27/26 05/27/26 ITALIANNIS GLORIETTA 4 MAKATI CITY PH 1,263.57
+05/27/26 05/27/26 SCOUTS HONOR BGC TAGUIG PH 1,121.96
+05/27/26 05/28/26 AUNTIE ANNES UPTOWN MA TAGUIG PH 220.00
+05/27/26 05/31/26 BLK 513 UPTOWN TAGUIG PH 165.00
+05/31/26 06/02/26 URBAN TRAVELLER TAGUIG PH 2,000.00
+06/01/26 06/03/26 LLAOLLAO VENICE TAGUIG PH 139.00
+06/02/26 06/02/26 SM STORE BICUTAN PARANAQUE PH 2,838.30
+06/04/26 06/07/26 MARUGAME TAGUIG PH 830.00
+06/05/26 06/07/26 ATMOS OTAKU OBHS XYZ CITY PH 230.00
+06/06/26 06/07/26 JAMBA JUICE BURGOS TAGUIG PH 430.00
+06/06/26 06/07/26 PANCAKE HOUSE BURGOS C TAGUIG PH 1,131.43
+06/07/26 06/07/26 LITTLE WAY FLOWER SHOP PASAY PH 850.00
+06/07/26 06/09/26 LANDMARK BGC SUPERMARKET XYZ CITY PH 2,787.25
+06/09/26 06/11/26 PLK PHILIPPINES MAKATI PH 165.00
+06/10/26 06/14/26 LLAOLLAO BGC FD XYZ CITY PH 198.00
+06/10/26 06/14/26 GOOBNE TAGUIG XYZ CITY PH 790.71
+06/11/26 06/14/26 MERCURYDRUGCORP364 CALAMBA PH 787.25
+06/13/26 06/15/26 BOB MAIN TAGAYTAY PH 340.00
+06/14/26 06/14/26 S&R MEMBERSHIP FORT TAGUIG PH 14,473.50
+SUBTOTAL 50,569.04
+American Express is a registered trademark of American Express.
+This Card is issued by BDO pursuant to a license from American Express.
+BDO Unibank, Inc. is regulated by the Bangko Sentral ng Pilipinas: https://www.bsp.gov.ph
+The BDO, BDO Unibank, and other BDO-related trademarks are owned by BDO
+Unibank, Inc. All Rights Reserved.
+For more details, please log on to americanexpress.com.ph or call our BDO Customer Contact Center at (+632) 8888-0000,
+International Toll-Free at (IAC)+800-8-CALLBDO (2255236)
+Page 2 of 4
+MR FOO BAR NAME
+ADDRESS 1
+ADDRESS 2
+BRGY. ABC
+XYZ CITY
+1635 METRO MANILA
+*111122223333444FFBARR*
+Statement of Account
+AMEX EXPLORER (PHP)
+Statement Date June 18, 2026
+Cardmember Number 1111-222233-33444
+Credit Limit ₱ 500,000
+Cash Advance Limit ₱ 150,000
+Interest Rate per Month 3.00%
+Minimum Amount Due ₱ 1,681.20
+Total Amount Due ₱ 56,040.04
+Payment Due Date Jul 13, 2026
+Your Account Summary
+Previous Balance
+₱ 169,252.98
+Purchases and Advances (+)
+₱ 56,040.04
+Finance Charge (+)
+₱ 0.00
+Fees/Other Debits (+)
+₱ 0.00
+Late Charge (+)
+₱ 0.00
+Payments/Other Credits (-)
+₱ 169,252.98
+Total Amount Due
+₱ 56,040.04
+Your Membership Rewards Points Summary
+Previous Balance
+5,491.00
+(+) Points Earned
+1,846.00
+(+/-) Adjustment
+0.00
+(-) Points Redeemed
+0.00
+Total Available Points
+7,337.00
+Sale Date Post Date Transaction Details Amount
+CARD NUMBER 3751-880054-18231
+05/18/26 05/21/26 LAZADA PH MAKATI PH 1,590.00
+05/19/26 05/20/26 APPLE.COM/BILL HOLLYHILL IE 399.00
+Reference: MX5XGZW3XKA0
+05/26/26 05/27/26 APPLE.COM/BILL HOLLYHILL IE 399.00
+Reference: MX5XHQ82HFA0
+06/02/26 06/03/26 APPLE.COM/BILL HOLLYHILL IE 399.00
+Reference: MX5XJFBZV8A0
+06/03/26 06/04/26 APPLE.COM/BILL HOLLYHILL IE 999.00
+Reference: MX5XJZZM6QA0
+06/06/26 06/07/26 APPLE.COM/BILL HOLLYHILL IE 139.00
+Reference: MX5XK997BWA0
+06/09/26 06/10/26 APPLE.COM/BILL HOLLYHILL IE 399.00
+Reference: MX5XK5F32SA0
+06/11/26 06/14/26 APPLE.COM/BILL HOLLYHILL IE 599.00
+Reference: MX5XKT5BZVA0
+06/12/26 06/14/26 APPLE.COM/BILL HOLLYHILL IE 548.00
+Reference: MX5XKL57VTA0
+SUBTOTAL 5,471.00
+American Express is a registered trademark of American Express.
+This Card is issued by BDO pursuant to a license from American Express.
+BDO Unibank, Inc. is regulated by the Bangko Sentral ng Pilipinas: https://www.bsp.gov.ph
+The BDO, BDO Unibank, and other BDO-related trademarks are owned by BDO
+Unibank, Inc. All Rights Reserved.
+For more details, please log on to americanexpress.com.ph or call our BDO Customer Contact Center at (+632) 8888-0000,
+International Toll-Free at (IAC)+800-8-CALLBDO (2255236)
+Page 3 of 4
+MR FOO BAR NAME
+ADDRESS 1
+ADDRESS 2
+BRGY. ABC
+XYZ CITY
+1635 METRO MANILA
+*111122223333444FFBARR*
+Statement of Account
+AMEX EXPLORER (PHP)
+Statement Date June 18, 2026
+Cardmember Number 1111-222233-33444
+Credit Limit ₱ 500,000
+Cash Advance Limit ₱ 150,000
+Interest Rate per Month 3.00%
+Minimum Amount Due ₱ 1,681.20
+Total Amount Due ₱ 56,040.04
+Payment Due Date Jul 13, 2026
+Your Account Summary
+Previous Balance
+₱ 169,252.98
+Purchases and Advances (+)
+₱ 56,040.04
+Finance Charge (+)
+₱ 0.00
+Fees/Other Debits (+)
+₱ 0.00
+Late Charge (+)
+₱ 0.00
+Payments/Other Credits (-)
+₱ 169,252.98
+Total Amount Due
+₱ 56,040.04
+Your Membership Rewards Points Summary
+Previous Balance
+5,491.00
+(+) Points Earned
+1,846.00
+(+/-) Adjustment
+0.00
+(-) Points Redeemed
+0.00
+Total Available Points
+7,337.00
+Sale Date Post Date Transaction Details Amount
+TOTAL 56,040.04
+American Express is a registered trademark of American Express.
+This Card is issued by BDO pursuant to a license from American Express.
+BDO Unibank, Inc. is regulated by the Bangko Sentral ng Pilipinas: https://www.bsp.gov.ph
+The BDO, BDO Unibank, and other BDO-related trademarks are owned by BDO
+Unibank, Inc. All Rights Reserved.
+For more details, please log on to americanexpress.com.ph or call our BDO Customer Contact Center at (+632) 8888-0000,
+International Toll-Free at (IAC)+800-8-CALLBDO (2255236)
+Page 4 of 4
+•
+•
+•
+•
+•
+BDO Online Banking
+BDO Branches & Network Bank Branches
+BDO Automated Teller Machines (ATMs)
+• BDO Cash Acceptance Machines (CAMs)
+Auto-Debit Arrangement (ADA) Payment Facility	•
+• BancNet
+Savemore Market Branches
+SM Bills Payment Counters (including
+SM Supermarket and SM Hypermarket)
+Choose Your Credit Card Payment Channels:
+PAYMENT POSTED ON THE SAME BANKING DAY 	PAYMENT POSTED ON THE NEXT BANKING DAY
+•
+•
+•
+BDO Credit Card payments made via BDO Online, ATMs, and Cash Deposit Machines will be reflected within the same banking day.
+Payments to all other billers made after 10PM are considered next banking day transactions.
+For BDO Online Banking and ADA Payment Facility, enrollment is via any BDO Branch or bdo.com.ph.
+For Check Payment (Peso and Dollar), payment is subject to clearing cut-off.
+For American Express Dollar Charge Cards and accounts with Dual Currency feature, USD payments for your Dollar
+account/s are accepted only via: BDO Branches, BDO Online Banking (USD account) and ADA Payment Facility (USD
+account). For American Express Dollar Charge Cards, ADA payment is scheduled 25 days from Statement Date.
+Notes:
+Peso Payment to Peso Card
+Payment Type
+Dollar Payment to Dollar Card
+Peso Payment to Dollar Card
+0800
+Institution Code
+0802
+0803
+When making credit card payments, please be reminded of the following:
+To pay at any BDO branch, present the upper portion of the statement and keep the machine validated
+copy as proof of payment or you may accomplish a transaction slip and indicate the applicable Institution
+Code to ensure that payment will be properly posted to the account.
+For check payments*, please make the check payable to “BDO Unibank, Inc.”. Indicate the Account Name,
+Account Number/Card Number and Contact Number at the back of the check.
+Pay at least the Minimum Amount Due on or before your Payment Due Date to avoid late payment charges.
+* Normal banking regulations on the acceptance and clearing or collection of check payments apply. Post dated checks and
+foreign checks drawn on banks outside the Philippines are not accepted as payments.
+UPDATES ON INSTALLMENT AVAILMENT FEE AND INSTALLMENT PROCESSING FEE
+Effective January 1, 2026, there will be changes to BDO Credit Cards’ Installment Availment Fee and
+Installment Processing Fee:
+For details, visit the BDO website and search Credit Cards Fees and Charges Update.
+Cash Installment
+Installment
+Products 	Installment Availment Fee
+P350 for every approved transaction
+P350 for every approved transaction
+N/A
+P350 for every approved Peso transaction
+US$10 for every approved Dollar transaction
+P100 for every approved Peso transaction for amounts up to
+P20,000, and P200 for amounts above P20,000
+US$5 for every approved Dollar transaction
+Installment Processing Fee
+5% of the total remaining balance
+or P500 for PHP-denominated
+transactions, USD10 for USD-
+denominated transactions,
+whichever is higher.
+Balance Transfer
+Balance Convert
+Purchase Convert
+Buy Now Pay Later
+UPDATE ON THE CREDIT CARD TERMS AND CONDITIONS
+Starting May 18, 2026, the BDO Credit Card and BDO-issued American Express Credit Card Terms and Conditions
+will be updated to introduce additional events of default and related changes to those events, and to distinguish
+legal and contractual set-off.
+To view the complete Section 21 and Section 22 (b), and full terms and conditions, visit the BDO website and
+search Credit Card Terms and Conditions Update.
+IMPORTANT REMINDER
+Paying less than the total amount due will increase the amount of
+interest and other charges you pay and the time it takes to repay your
+balance.
+Applicable Monthly Effective Interest Rate (MEIR) will be imposed on
+the account if:
+No payment was made on the Card on Payment Due Date,
+Payment made was less than the Total Outstanding Balance stated in the
+Statement of Account (SOA),
+Outstanding Balance is paid in full by its Payment Due Date, but with
+unsettled balances from the previous SOA reflected in the current SOA, or
+There is a cash advance transaction.
+1.
+2.
+a.
+b.
+c.
+d.
+Terms & Conditions 	Fees & Charges
+To view the latest version of the Terms & Conditions,
+visit bdo.com.ph/amex-card-terms
+To view the latest version of the Fees & Charges,
+visit bdo.com.ph/amex-card-fees

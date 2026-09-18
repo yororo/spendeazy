@@ -1,0 +1,282 @@
+[
+  {
+    "user_id": "1",
+    "category_id": "14",
+    "pattern": "Netflix",
+    "normalized_pattern": "netflix",
+    "match_type": "exact"
+  },
+  {
+    "user_id": "2",
+    "category_id": "16",
+    "pattern": "ISSUE 8 VALIDATION MERCHANT 1788087968338",
+    "normalized_pattern": "issue 8 validation merchant 1788087968338",
+    "match_type": "exact"
+  },
+  {
+    "user_id": "1",
+    "category_id": "4",
+    "pattern": "FIX ONE AYALA MAKATI MAKATI PH",
+    "normalized_pattern": "fix one ayala makati makati ph",
+    "match_type": "exact"
+  },
+  {
+    "user_id": "1",
+    "category_id": "1",
+    "pattern": "TATERS GLORIETTA 4 MAKATI PH",
+    "normalized_pattern": "taters glorietta 4 makati ph",
+    "match_type": "exact"
+  },
+  {
+    "user_id": "1",
+    "category_id": "1",
+    "pattern": "TITTOS AND RM 16 PASIG PASIG CITY PH",
+    "normalized_pattern": "tittos and rm 16 pasig pasig city ph",
+    "match_type": "exact"
+  },
+  {
+    "user_id": "1",
+    "category_id": "1",
+    "pattern": "BUN RUN MAKATI MAKATI PH",
+    "normalized_pattern": "bun run makati makati ph",
+    "match_type": "exact"
+  },
+  {
+    "user_id": "1",
+    "category_id": "1",
+    "pattern": "MAZZA SOLARIS MAKATI PH",
+    "normalized_pattern": "mazza solaris makati ph",
+    "match_type": "exact"
+  },
+  {
+    "user_id": "1",
+    "category_id": "1",
+    "pattern": "STARBUCKS 279 ST LUKE TAGUIG PH",
+    "normalized_pattern": "starbucks 279 st luke taguig ph",
+    "match_type": "exact"
+  },
+  {
+    "user_id": "1",
+    "category_id": "1",
+    "pattern": "LLAOLLAO BGCFT TAGUIG CITY PH",
+    "normalized_pattern": "llaollao bgcft taguig city ph",
+    "match_type": "exact"
+  },
+  {
+    "user_id": "1",
+    "category_id": "1",
+    "pattern": "TANG KOREAN FLAVOURS TAGUIG PH",
+    "normalized_pattern": "tang korean flavours taguig ph",
+    "match_type": "exact"
+  },
+  {
+    "user_id": "1",
+    "category_id": "1",
+    "pattern": "BORED & HUNGRY-OPUS QUEZON CITY PH",
+    "normalized_pattern": "bored & hungry-opus quezon city ph",
+    "match_type": "exact"
+  },
+  {
+    "user_id": "1",
+    "category_id": "1",
+    "pattern": "EPIC EATS OPUS MALL QUEZON CITY PH",
+    "normalized_pattern": "epic eats opus mall quezon city ph",
+    "match_type": "exact"
+  },
+  {
+    "user_id": "1",
+    "category_id": "4",
+    "pattern": "MED EXPRESS DRUGSTORE ST TAGUIG PH",
+    "normalized_pattern": "med express drugstore st taguig ph",
+    "match_type": "exact"
+  },
+  {
+    "user_id": "1",
+    "category_id": "4",
+    "pattern": "WATSONS-SM MAKATI MALL MAKATI PH",
+    "normalized_pattern": "watsons-sm makati mall makati ph",
+    "match_type": "exact"
+  },
+  {
+    "user_id": "1",
+    "category_id": "1",
+    "pattern": "CRISOSTOMO-ONE AYALA MAKATI PH",
+    "normalized_pattern": "crisostomo-one ayala makati ph",
+    "match_type": "exact"
+  },
+  {
+    "user_id": "1",
+    "category_id": "5",
+    "pattern": "SM STORE-MAKATI MAKATI PH",
+    "normalized_pattern": "sm store-makati makati ph",
+    "match_type": "exact"
+  },
+  {
+    "user_id": "1",
+    "category_id": "1",
+    "pattern": "ARMYNAVY JUPITER MAKATI PH",
+    "normalized_pattern": "armynavy jupiter makati ph",
+    "match_type": "exact"
+  },
+  {
+    "user_id": "1",
+    "category_id": "1",
+    "pattern": "LLAOLLAO ONE AYALA MAKATI CITY PH",
+    "normalized_pattern": "llaollao one ayala makati city ph",
+    "match_type": "exact"
+  },
+  {
+    "user_id": "1",
+    "category_id": "4",
+    "pattern": "TOBYS SPORTS ARENA MAKATI PH",
+    "normalized_pattern": "tobys sports arena makati ph",
+    "match_type": "exact"
+  },
+  {
+    "user_id": "1",
+    "category_id": "1",
+    "pattern": "ITALIANNIS GLORIETTA 4 MAKATI CITY PH",
+    "normalized_pattern": "italiannis glorietta 4 makati city ph",
+    "match_type": "exact"
+  },
+  {
+    "user_id": "1",
+    "category_id": "1",
+    "pattern": "SCOUTS HONOR BGC TAGUIG PH",
+    "normalized_pattern": "scouts honor bgc taguig ph",
+    "match_type": "exact"
+  },
+  {
+    "user_id": "1",
+    "category_id": "1",
+    "pattern": "AUNTIE ANNES UPTOWN MA TAGUIG PH",
+    "normalized_pattern": "auntie annes uptown ma taguig ph",
+    "match_type": "exact"
+  },
+  {
+    "user_id": "1",
+    "category_id": "1",
+    "pattern": "BLK 513 UPTOWN TAGUIG PH",
+    "normalized_pattern": "blk 513 uptown taguig ph",
+    "match_type": "exact"
+  },
+  {
+    "user_id": "1",
+    "category_id": "5",
+    "pattern": "URBAN TRAVELLER TAGUIG PH",
+    "normalized_pattern": "urban traveller taguig ph",
+    "match_type": "exact"
+  },
+  {
+    "user_id": "1",
+    "category_id": "1",
+    "pattern": "LLAOLLAO VENICE TAGUIG PH",
+    "normalized_pattern": "llaollao venice taguig ph",
+    "match_type": "exact"
+  },
+  {
+    "user_id": "1",
+    "category_id": "5",
+    "pattern": "SM STORE BICUTAN PARANAQUE PH",
+    "normalized_pattern": "sm store bicutan paranaque ph",
+    "match_type": "exact"
+  },
+  {
+    "user_id": "1",
+    "category_id": "1",
+    "pattern": "MARUGAME TAGUIG PH",
+    "normalized_pattern": "marugame taguig ph",
+    "match_type": "exact"
+  },
+  {
+    "user_id": "1",
+    "category_id": "1",
+    "pattern": "ATMOS OTAKU OBHS TAGUIG CITY PH",
+    "normalized_pattern": "atmos otaku obhs taguig city ph",
+    "match_type": "exact"
+  },
+  {
+    "user_id": "1",
+    "category_id": "1",
+    "pattern": "JAMBA JUICE BURGOS TAGUIG PH",
+    "normalized_pattern": "jamba juice burgos taguig ph",
+    "match_type": "exact"
+  },
+  {
+    "user_id": "1",
+    "category_id": "1",
+    "pattern": "PANCAKE HOUSE BURGOS C TAGUIG PH",
+    "normalized_pattern": "pancake house burgos c taguig ph",
+    "match_type": "exact"
+  },
+  {
+    "user_id": "1",
+    "category_id": "5",
+    "pattern": "LITTLE WAY FLOWER SHOP PASAY PH",
+    "normalized_pattern": "little way flower shop pasay ph",
+    "match_type": "exact"
+  },
+  {
+    "user_id": "1",
+    "category_id": "9",
+    "pattern": "LANDMARK BGC SUPERMARKET TAGUIG CITY PH",
+    "normalized_pattern": "landmark bgc supermarket taguig city ph",
+    "match_type": "exact"
+  },
+  {
+    "user_id": "1",
+    "category_id": "1",
+    "pattern": "PLK PHILIPPINES MAKATI PH",
+    "normalized_pattern": "plk philippines makati ph",
+    "match_type": "exact"
+  },
+  {
+    "user_id": "1",
+    "category_id": "1",
+    "pattern": "LLAOLLAO BGC FD TAGUIG CITY PH",
+    "normalized_pattern": "llaollao bgc fd taguig city ph",
+    "match_type": "exact"
+  },
+  {
+    "user_id": "1",
+    "category_id": "1",
+    "pattern": "GOOBNE TAGUIG TAGUIG CITY PH",
+    "normalized_pattern": "goobne taguig taguig city ph",
+    "match_type": "exact"
+  },
+  {
+    "user_id": "1",
+    "category_id": "4",
+    "pattern": "MERCURYDRUGCORP364 CALAMBA PH",
+    "normalized_pattern": "mercurydrugcorp364 calamba ph",
+    "match_type": "exact"
+  },
+  {
+    "user_id": "1",
+    "category_id": "1",
+    "pattern": "BOB MAIN TAGAYTAY PH",
+    "normalized_pattern": "bob main tagaytay ph",
+    "match_type": "exact"
+  },
+  {
+    "user_id": "1",
+    "category_id": "5",
+    "pattern": "S&R MEMBERSHIP FORT TAGUIG PH",
+    "normalized_pattern": "s&r membership fort taguig ph",
+    "match_type": "exact"
+  },
+  {
+    "user_id": "1",
+    "category_id": "5",
+    "pattern": "LAZADA PH MAKATI PH",
+    "normalized_pattern": "lazada ph makati ph",
+    "match_type": "exact"
+  },
+  {
+    "user_id": "1",
+    "category_id": "14",
+    "pattern": "APPLE.COM/BILL HOLLYHILL IE",
+    "normalized_pattern": "apple.com/bill hollyhill ie",
+    "match_type": "exact"
+  }
+]

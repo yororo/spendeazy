@@ -1,0 +1,167 @@
+import type { EntityManager } from 'typeorm';
+import { StatementImportEntity } from '../../database/entities/statement-import.entity';
+import { TransactionEntity } from '../../database/entities/transaction.entity';
+import type {
+  StatementImportHistoryRecord,
+  StatementImportRecord,
+} from '../application/statement-import-store';
+import { TypeOrmStatementImportStore } from './typeorm-statement-import-store';
+
+describe('TypeOrmStatementImportStore', () => {
+  it('finds a statement import only within the requested user scope', async () => {
+    const entity = statementImportEntity({ id: '108', userId: '42' });
+    const repository = {
+      findOne: jest.fn().mockResolvedValue(entity),
+    };
+    const store = new TypeOrmStatementImportStore(entityManagerFor(repository));
+
+    await expect(store.findById('42', '108')).resolves.toEqual(
+      statementImportRecord({ id: '108', userId: '42' }),
+    );
+    expect(repository.findOne).toHaveBeenCalledWith({
+      where: { id: '108', userId: '42' },
+    });
+  });
+
+  it('queries a stable filtered page with transaction counts and a forward-only boundary', async () => {
+    const entities = [
+      statementImportEntity({ id: '3', statementDate: '2026-08-03' }),
+      statementImportEntity({ id: '2', statementDate: '2026-08-03' }),
+    ];
+    const query = statementImportPageQuery(entities, [
+      { transactionCount: '12' },
+      { transactionCount: '0' },
+    ]);
+    const repository = {
+      createQueryBuilder: jest.fn().mockReturnValue(query),
+    };
+    const store = new TypeOrmStatementImportStore(entityManagerFor(repository));
+
+    await expect(
+      store.findPage({
+        userId: '7',
+        filters: {
+          fromDate: '2026-08-01',
+          toDate: '2026-08-31',
+        },
+        after: { statementDate: '2026-08-15', statementImportId: '100' },
+        pageSize: 2,
+      }),
+    ).resolves.toEqual([
+      statementImportHistoryRecord({
+        id: '3',
+        statementDate: '2026-08-03',
+        transactionCount: '12',
+      }),
+      statementImportHistoryRecord({
+        id: '2',
+        statementDate: '2026-08-03',
+        transactionCount: '0',
+      }),
+    ]);
+
+    expect(query.where).toHaveBeenCalledWith(
+      'statementImport.userId = :userId',
+      { userId: '7' },
+    );
+    expect(query.andWhere).toHaveBeenCalledWith(
+      'statementImport.statementDate >= :fromDate',
+      { fromDate: '2026-08-01' },
+    );
+    expect(query.andWhere).toHaveBeenCalledWith(
+      'statementImport.statementDate <= :toDate',
+      { toDate: '2026-08-31' },
+    );
+    expect(query.andWhere).toHaveBeenCalledWith(
+      '(statementImport.statementDate < :cursorDate OR (statementImport.statementDate = :cursorDate AND statementImport.id < :cursorId))',
+      { cursorDate: '2026-08-15', cursorId: '100' },
+    );
+    expect(query.leftJoin).toHaveBeenCalledWith(
+      TransactionEntity,
+      'transaction',
+      'transaction.statementImportId = statementImport.id AND transaction.userId = statementImport.userId',
+    );
+    expect(query.addSelect).toHaveBeenCalledWith(
+      'COUNT(transaction.id)',
+      'transactionCount',
+    );
+    expect(query.groupBy).toHaveBeenCalledWith('statementImport.id');
+    expect(query.orderBy).toHaveBeenCalledWith(
+      'statementImport.statementDate',
+      'DESC',
+    );
+    expect(query.addOrderBy).toHaveBeenCalledWith('statementImport.id', 'DESC');
+    expect(query.take).toHaveBeenCalledWith(3);
+  });
+});
+
+function entityManagerFor(repository: object): EntityManager {
+  return {
+    getRepository: jest.fn().mockReturnValue(repository),
+  } as unknown as EntityManager;
+}
+
+function statementImportPageQuery(
+  entities: StatementImportEntity[],
+  raw: object[],
+): Record<string, jest.Mock> {
+  return {
+    leftJoin: jest.fn().mockReturnThis(),
+    addSelect: jest.fn().mockReturnThis(),
+    where: jest.fn().mockReturnThis(),
+    andWhere: jest.fn().mockReturnThis(),
+    groupBy: jest.fn().mockReturnThis(),
+    orderBy: jest.fn().mockReturnThis(),
+    addOrderBy: jest.fn().mockReturnThis(),
+    take: jest.fn().mockReturnThis(),
+    getRawAndEntities: jest.fn().mockResolvedValue({ entities, raw }),
+  };
+}
+
+function statementImportEntity(
+  overrides: Partial<StatementImportEntity> = {},
+): StatementImportEntity {
+  return {
+    id: '1',
+    userId: '7',
+    fileName: 'august.pdf',
+    fileHash: 'a'.repeat(64),
+    statementDate: '2026-08-01',
+    bank: 'Example Bank',
+    cardType: 'visa',
+    importedAt: new Date('2026-08-29T00:00:00.000Z'),
+    ...overrides,
+  };
+}
+
+function statementImportRecord(
+  overrides: Partial<StatementImportEntity> = {},
+): StatementImportRecord {
+  return {
+    id: '1',
+    userId: '7',
+    fileName: 'august.pdf',
+    fileHash: 'a'.repeat(64),
+    statementDate: '2026-08-01',
+    bank: 'Example Bank',
+    cardType: 'visa',
+    importedAt: new Date('2026-08-29T00:00:00.000Z'),
+    ...overrides,
+  };
+}
+
+function statementImportHistoryRecord(
+  overrides: Partial<StatementImportHistoryRecord> = {},
+): StatementImportHistoryRecord {
+  return {
+    id: '1',
+    userId: '7',
+    fileName: 'august.pdf',
+    statementDate: '2026-08-01',
+    bank: 'Example Bank',
+    cardType: 'visa',
+    importedAt: new Date('2026-08-29T00:00:00.000Z'),
+    transactionCount: '2',
+    ...overrides,
+  };
+}

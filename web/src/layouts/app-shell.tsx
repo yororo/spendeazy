@@ -1,0 +1,93 @@
+import { useEffect, useRef, useState } from "react";
+import { MenuIcon } from "lucide-react";
+import { Outlet, useLocation } from "react-router-dom";
+
+import { LedgerMark } from "@/components/app/ledger-mark";
+import { MobileTabBar } from "@/components/app/mobile-tab-bar";
+import { PrimarySidebar } from "@/components/app/primary-sidebar";
+import { Button } from "@/components/ui/button";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+
+const pageTitles: Record<string, string> = {
+  "/": "Dashboard · Spendeazy",
+  "/imports": "Statement Import · Spendeazy",
+  "/transactions": "Transactions · Spendeazy",
+  "/categories": "Budget overview · Spendeazy",
+};
+
+function AppShell() {
+  const [navigationOpen, setNavigationOpen] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const mainRef = useRef<HTMLElement>(null);
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    document.title = pageTitles[pathname] ?? "Page not found · Spendeazy";
+    window.scrollTo({ top: 0, behavior: "auto" });
+    contentRef.current?.scrollTo({ top: 0, behavior: "auto" });
+    mainRef.current?.focus({ preventScroll: true });
+  }, [pathname]);
+
+  return (
+    <div className="min-h-screen bg-background lg:flex lg:h-screen lg:overflow-hidden">
+      <aside className="hidden h-screen w-56 shrink-0 self-start lg:sticky lg:top-0 lg:block">
+        <PrimarySidebar className="h-full" />
+      </aside>
+
+      <header className="compact-app-header fixed inset-x-0 top-0 z-40 flex items-center justify-between bg-sidebar text-sidebar-foreground lg:hidden">
+        <LedgerMark />
+        <Sheet open={navigationOpen} onOpenChange={setNavigationOpen}>
+          <SheetTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="text-sidebar-foreground hover:bg-sidebar-foreground/10 hover:text-sidebar-foreground"
+            >
+              <MenuIcon className="size-5" />
+              <span className="sr-only">Open navigation</span>
+            </Button>
+          </SheetTrigger>
+          <SheetContent
+            side="left"
+            onEscapeKeyDown={(event) => {
+              // Let an open nested menu consume Escape before closing the Sheet.
+              if (event.target instanceof Element && event.target.closest('[role="menu"]')) {
+                event.preventDefault();
+              }
+            }}
+            className="gap-0 border-0 bg-sidebar p-0 text-sidebar-foreground"
+          >
+            <SheetHeader className="sr-only">
+              <SheetTitle>Primary navigation</SheetTitle>
+              <SheetDescription>Navigate through Spendeazy.</SheetDescription>
+            </SheetHeader>
+            <PrimarySidebar
+              className="h-dvh flex-1 overflow-hidden pt-[max(1.75rem,env(safe-area-inset-top,0px))] pb-[max(1.75rem,env(safe-area-inset-bottom,0px))]"
+              onNavigate={() => setNavigationOpen(false)}
+            />
+          </SheetContent>
+        </Sheet>
+      </header>
+
+      <div
+        ref={contentRef}
+        className="mobile-navigation-content min-w-0 flex-1 lg:min-h-0 lg:overflow-y-auto"
+      >
+        <main id="main-content" ref={mainRef} tabIndex={-1}>
+          <Outlet />
+        </main>
+      </div>
+      <MobileTabBar />
+    </div>
+  );
+}
+
+export { AppShell };

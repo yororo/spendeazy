@@ -1,0 +1,2500 @@
+openapi: 3.0.3
+paths:
+  /health:
+    get:
+      operationId: Health_getHealth
+      parameters: []
+      responses:
+        '200':
+          description: Database is ready.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponseDto'
+        '503':
+          description: Database is unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponseDto'
+      security: []
+      summary: Check database readiness.
+      tags:
+        - Health
+  /api/v1/users/me:
+    put:
+      operationId: Users_provisionUser
+      parameters: []
+      responses:
+        '200':
+          description: User synchronized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponseDto'
+        '201':
+          description: User provisioned.
+          headers:
+            Location:
+              required: true
+              description: Relative canonical URI of the created User.
+              schema:
+                type: string
+                example: /api/v1/users/me
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponseDto'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthenticatedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '406':
+          $ref: '#/components/responses/NotAcceptableError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailableError'
+      summary: Provision or synchronize my User profile. The request body is ignored.
+      tags:
+        - Users
+    get:
+      operationId: Users_getUser
+      parameters: []
+      responses:
+        '200':
+          description: User.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponseDto'
+        '401':
+          $ref: '#/components/responses/UnauthenticatedError'
+        '403':
+          $ref: '#/components/responses/UserNotProvisionedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '406':
+          $ref: '#/components/responses/NotAcceptableError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      summary: Get my User profile.
+      tags:
+        - Users
+  /api/v1/users/me/categories:
+    post:
+      description: Category names are trimmed before storage and uniqueness checking; uniqueness is case-insensitive.
+      operationId: Categories_createCategory
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCategoryDto'
+      responses:
+        '201':
+          description: Category created.
+          headers:
+            Location:
+              required: true
+              description: Relative canonical URI of the created Category.
+              schema:
+                type: string
+                example: /api/v1/users/me/categories/42
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryResponseDto'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthenticatedError'
+        '403':
+          $ref: '#/components/responses/UserNotProvisionedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '406':
+          $ref: '#/components/responses/NotAcceptableError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '413':
+          $ref: '#/components/responses/HttpError'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaTypeError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      summary: Create a category.
+      tags:
+        - Categories
+    get:
+      operationId: Categories_listCategories
+      parameters: []
+      responses:
+        '200':
+          description: Categories.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CategoryResponseDto'
+        '401':
+          $ref: '#/components/responses/UnauthenticatedError'
+        '403':
+          $ref: '#/components/responses/UserNotProvisionedError'
+        '406':
+          $ref: '#/components/responses/NotAcceptableError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      summary: List all owned categories in ascending ID order.
+      tags:
+        - Categories
+  /api/v1/users/me/categories/{categoryId}:
+    get:
+      operationId: Categories_getCategory
+      parameters:
+        - name: categoryId
+          required: true
+          in: path
+          description: Positive bigint identifier encoded as a decimal JSON string.
+          schema:
+            type: string
+            pattern: ^[1-9]\d*$
+            example: '42'
+      responses:
+        '200':
+          description: Category.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryResponseDto'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthenticatedError'
+        '403':
+          $ref: '#/components/responses/UserNotProvisionedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '406':
+          $ref: '#/components/responses/NotAcceptableError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      summary: Get a category.
+      tags:
+        - Categories
+    patch:
+      description: Inactive Categories retain their historical relationships and cannot receive a new Budget, although an existing Budget may still be replaced.
+      operationId: Categories_updateCategory
+      parameters:
+        - name: categoryId
+          required: true
+          in: path
+          description: Positive bigint identifier encoded as a decimal JSON string.
+          schema:
+            type: string
+            pattern: ^[1-9]\d*$
+            example: '42'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCategoryDto'
+      responses:
+        '200':
+          description: Category updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryResponseDto'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthenticatedError'
+        '403':
+          $ref: '#/components/responses/UserNotProvisionedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '406':
+          $ref: '#/components/responses/NotAcceptableError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '413':
+          $ref: '#/components/responses/HttpError'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaTypeError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      summary: Edit or activate/deactivate a category.
+      tags:
+        - Categories
+  /api/v1/users/me/categories/{categoryId}/budget:
+    put:
+      description: A new Budget returns 201 with Location; replacing an existing Budget returns 200. An inactive Category cannot receive a new Budget, although an existing Budget may still be replaced.
+      operationId: Budgets_putBudget
+      parameters:
+        - name: categoryId
+          required: true
+          in: path
+          description: Positive bigint identifier encoded as a decimal JSON string.
+          schema:
+            type: string
+            pattern: ^[1-9]\d*$
+            example: '42'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpsertBudgetDto'
+      responses:
+        '200':
+          description: Budget replaced.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BudgetResponseDto'
+        '201':
+          description: Budget created.
+          headers:
+            Location:
+              required: true
+              description: Relative canonical URI of the created Budget.
+              schema:
+                type: string
+                example: /api/v1/users/me/categories/42/budget
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BudgetResponseDto'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthenticatedError'
+        '403':
+          $ref: '#/components/responses/UserNotProvisionedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '406':
+          $ref: '#/components/responses/NotAcceptableError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '413':
+          $ref: '#/components/responses/HttpError'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaTypeError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      summary: Create or replace the category budget.
+      tags:
+        - Budgets
+    get:
+      operationId: Budgets_getBudget
+      parameters:
+        - name: categoryId
+          required: true
+          in: path
+          description: Positive bigint identifier encoded as a decimal JSON string.
+          schema:
+            type: string
+            pattern: ^[1-9]\d*$
+            example: '42'
+      responses:
+        '200':
+          description: Budget.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BudgetResponseDto'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthenticatedError'
+        '403':
+          $ref: '#/components/responses/UserNotProvisionedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '406':
+          $ref: '#/components/responses/NotAcceptableError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      summary: Get a category budget.
+      tags:
+        - Budgets
+    delete:
+      operationId: Budgets_deleteBudget
+      parameters:
+        - name: categoryId
+          required: true
+          in: path
+          description: Positive bigint identifier encoded as a decimal JSON string.
+          schema:
+            type: string
+            pattern: ^[1-9]\d*$
+            example: '42'
+      responses:
+        '204':
+          description: Budget deleted.
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthenticatedError'
+        '403':
+          $ref: '#/components/responses/UserNotProvisionedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '406':
+          $ref: '#/components/responses/NotAcceptableError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      summary: Delete a category budget.
+      tags:
+        - Budgets
+  /api/v1/users/me/category-summaries:
+    get:
+      description: Active categories are included even with no spending; inactive categories remain only when they have spending, and results are ordered by category ID. The month requirement depends on period and is enforced at runtime because OpenAPI cannot express that cross-field rule. Unknown query parameters are rejected.
+      operationId: CategorySummaries_getCategorySummary
+      parameters:
+        - name: period
+          required: true
+          in: query
+          description: Calendar period. Monthly summaries require month and yearly summaries do not accept month.
+          schema:
+            example: monthly
+            type: string
+            enum:
+              - monthly
+              - yearly
+        - name: year
+          required: true
+          in: query
+          description: Four-digit calendar year used for the summary.
+          schema:
+            pattern: ^\d{4}$
+            example: '2026'
+            type: string
+        - name: month
+          required: false
+          in: query
+          description: Required for monthly summaries; forbidden for yearly summaries.
+          schema:
+            pattern: ^(0[1-9]|1[0-2])$
+            example: '08'
+            type: string
+      responses:
+        '200':
+          description: Category summary.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategorySummaryResponseDto'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthenticatedError'
+        '403':
+          $ref: '#/components/responses/UserNotProvisionedError'
+        '406':
+          $ref: '#/components/responses/NotAcceptableError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      summary: Get a complete monthly or yearly calendar-period summary.
+      tags:
+        - Category summaries
+  /api/v1/users/me/category-rules:
+    post:
+      description: Matching normalizes surrounding and repeated whitespace and compares case-insensitively.
+      operationId: CategoryRules_createCategoryRule
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCategoryRuleDto'
+      responses:
+        '201':
+          description: Category rule created.
+          headers:
+            Location:
+              required: true
+              description: Relative canonical URI of the created Category rule.
+              schema:
+                type: string
+                example: /api/v1/users/me/category-rules/42
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryRuleResponseDto'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthenticatedError'
+        '403':
+          $ref: '#/components/responses/UserNotProvisionedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '406':
+          $ref: '#/components/responses/NotAcceptableError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '413':
+          $ref: '#/components/responses/HttpError'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaTypeError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      summary: Create a category rule.
+      tags:
+        - Category rules
+    get:
+      operationId: CategoryRules_listCategoryRules
+      parameters: []
+      responses:
+        '200':
+          description: Category rules.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CategoryRuleResponseDto'
+        '401':
+          $ref: '#/components/responses/UnauthenticatedError'
+        '403':
+          $ref: '#/components/responses/UserNotProvisionedError'
+        '406':
+          $ref: '#/components/responses/NotAcceptableError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      summary: List all owned category rules in ascending ID order.
+      tags:
+        - Category rules
+  /api/v1/users/me/category-rules/{ruleId}:
+    get:
+      operationId: CategoryRules_getCategoryRule
+      parameters:
+        - name: ruleId
+          required: true
+          in: path
+          description: Positive bigint identifier encoded as a decimal JSON string.
+          schema:
+            type: string
+            pattern: ^[1-9]\d*$
+            example: '42'
+      responses:
+        '200':
+          description: Category rule.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryRuleResponseDto'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthenticatedError'
+        '403':
+          $ref: '#/components/responses/UserNotProvisionedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '406':
+          $ref: '#/components/responses/NotAcceptableError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      summary: Get a category rule.
+      tags:
+        - Category rules
+    patch:
+      description: A category rule may be reassigned only to an active Category; assigning it to an inactive Category returns 409 Conflict.
+      operationId: CategoryRules_updateCategoryRule
+      parameters:
+        - name: ruleId
+          required: true
+          in: path
+          description: Positive bigint identifier encoded as a decimal JSON string.
+          schema:
+            type: string
+            pattern: ^[1-9]\d*$
+            example: '42'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCategoryRuleDto'
+      responses:
+        '200':
+          description: Category rule updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryRuleResponseDto'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthenticatedError'
+        '403':
+          $ref: '#/components/responses/UserNotProvisionedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '406':
+          $ref: '#/components/responses/NotAcceptableError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '413':
+          $ref: '#/components/responses/HttpError'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaTypeError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      summary: Update or reassign a category rule.
+      tags:
+        - Category rules
+    delete:
+      operationId: CategoryRules_deleteCategoryRule
+      parameters:
+        - name: ruleId
+          required: true
+          in: path
+          description: Positive bigint identifier encoded as a decimal JSON string.
+          schema:
+            type: string
+            pattern: ^[1-9]\d*$
+            example: '42'
+      responses:
+        '204':
+          description: Category rule deleted.
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthenticatedError'
+        '403':
+          $ref: '#/components/responses/UserNotProvisionedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '406':
+          $ref: '#/components/responses/NotAcceptableError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      summary: Delete a category rule.
+      tags:
+        - Category rules
+  /api/v1/users/me/categories/{categoryId}/rules:
+    put:
+      description: Atomic, last-write-wins replacement. Unchanged normalized pattern/match type pairs retain IDs and createdAt; unchanged display patterns also retain updatedAt. Empty rules clears the set. Returns ascending ID order. Duplicate normalized pattern/match type pairs within the request or another owned Category return 409 with the conflicting categoryId and request field. Inactive Categories return 409, including empty replacements. Validation and conflict failures change nothing.
+      operationId: CategoryRuleReplacement_replaceCategoryRules
+      parameters:
+        - name: categoryId
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[1-9]\d*$
+            example: '42'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReplaceCategoryRulesDto'
+      responses:
+        '200':
+          description: Persisted rules for the selected Category.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CategoryRuleResponseDto'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthenticatedError'
+        '403':
+          $ref: '#/components/responses/UserNotProvisionedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '406':
+          $ref: '#/components/responses/NotAcceptableError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '413':
+          $ref: '#/components/responses/HttpError'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaTypeError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      summary: Replace the complete rule set for an active Category.
+      tags:
+        - Category rules
+  /api/v1/users/me/transactions:
+    post:
+      operationId: Transactions_createManualTransaction
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateManualTransactionDto'
+      responses:
+        '201':
+          description: Manual transaction created.
+          headers:
+            Location:
+              required: true
+              description: Relative canonical URI of the created Transaction.
+              schema:
+                type: string
+                example: /api/v1/users/me/transactions/42
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManualTransactionResponseDto'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthenticatedError'
+        '403':
+          $ref: '#/components/responses/UserNotProvisionedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '406':
+          $ref: '#/components/responses/NotAcceptableError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '413':
+          $ref: '#/components/responses/HttpError'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaTypeError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      summary: Create a manual transaction.
+      tags:
+        - Transactions
+    get:
+      description: Returns manual and imported Transactions owned by the authenticated User in purchaseDate descending, then Transaction ID descending order. fromDate and toDate are inclusive valid calendar-date filters and fromDate must be on or before toDate. pageSize must be between 1 and 100 and defaults to 20. The nextCursor is opaque, binds to every filter except pageSize, and must be reused with the same filters. Unknown query parameters are rejected.
+      operationId: Transactions_listTransactions
+      parameters:
+        - name: fromDate
+          required: false
+          in: query
+          description: Inclusive lower purchase date. It must be a valid calendar date in YYYY-MM-DD format and be on or before toDate when both filters are supplied.
+          schema:
+            format: date
+            pattern: ^\d{4}-\d{2}-\d{2}$
+            example: '2026-08-01'
+            type: string
+        - name: toDate
+          required: false
+          in: query
+          description: Inclusive upper purchase date. It must be a valid calendar date in YYYY-MM-DD format.
+          schema:
+            format: date
+            pattern: ^\d{4}-\d{2}-\d{2}$
+            example: '2026-08-31'
+            type: string
+        - name: categoryId
+          required: false
+          in: query
+          description: Only Transactions assigned to this positive bigint Category identifier owned by the authenticated User.
+          schema:
+            pattern: ^[1-9]\d*$
+            example: '42'
+            type: string
+        - name: categoryState
+          required: false
+          in: query
+          description: Whether to return categorized Transactions or Uncategorized Transactions.
+          schema:
+            example: categorized
+            type: string
+            enum:
+              - categorized
+              - uncategorized
+        - name: statementImportId
+          required: false
+          in: query
+          description: Only Transactions committed from this positive bigint Statement import identifier owned by the authenticated User.
+          schema:
+            pattern: ^[1-9]\d*$
+            example: '10'
+            type: string
+        - name: source
+          required: false
+          in: query
+          description: Whether to return manually recorded or imported Transactions.
+          schema:
+            example: imported
+            type: string
+            enum:
+              - manual
+              - imported
+        - name: pageSize
+          required: false
+          in: query
+          description: Number of Transactions to return per page. Must be between 1 and 100 inclusive; defaults to 20. The cursor is not coupled to page size.
+          schema:
+            minimum: 1
+            maximum: 100
+            default: 20
+            example: 20
+            type: integer
+        - name: cursor
+          required: false
+          in: query
+          description: Opaque base64url cursor for the next page. Reuse it only with the same filters; cursors encode the fixed purchaseDate-descending, ID-descending ordering.
+          schema:
+            minLength: 1
+            pattern: ^[A-Za-z0-9_-]+$
+            example: eyJ2ZXJzaW9uIjoxLCJvcmRlcmluZyI6InB1cmNoYXNlRGF0ZTpkZXNjLG...
+            type: string
+      responses:
+        '200':
+          description: Transaction page.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionHistoryPageResponseDto'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthenticatedError'
+        '403':
+          $ref: '#/components/responses/UserNotProvisionedError'
+        '406':
+          $ref: '#/components/responses/NotAcceptableError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      summary: List filtered transactions in date-descending, ID-descending keyset pages.
+      tags:
+        - Transactions
+  /api/v1/users/me/transactions/{transactionId}:
+    get:
+      operationId: Transactions_getManualTransaction
+      parameters:
+        - name: transactionId
+          required: true
+          in: path
+          description: Positive bigint identifier encoded as a decimal JSON string.
+          schema:
+            type: string
+            pattern: ^[1-9]\d*$
+            example: '42'
+      responses:
+        '200':
+          description: Manual transaction.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManualTransactionResponseDto'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthenticatedError'
+        '403':
+          $ref: '#/components/responses/UserNotProvisionedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '406':
+          $ref: '#/components/responses/NotAcceptableError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      summary: Get a manual transaction.
+      tags:
+        - Transactions
+    patch:
+      description: Manual Transactions may be patched with any supplied fields. Imported Transactions may only change categoryId; their statement facts are immutable and any other field causes a 409 Conflict.
+      operationId: Transactions_updateTransaction
+      parameters:
+        - name: transactionId
+          required: true
+          in: path
+          description: Positive bigint identifier encoded as a decimal JSON string.
+          schema:
+            type: string
+            pattern: ^[1-9]\d*$
+            example: '42'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateManualTransactionDto'
+      responses:
+        '200':
+          description: Transaction updated.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ManualTransactionResponseDto'
+                  - $ref: '#/components/schemas/ImportedTransactionResponseDto'
+                discriminator:
+                  propertyName: source
+                  mapping:
+                    manual: '#/components/schemas/ManualTransactionResponseDto'
+                    imported: '#/components/schemas/ImportedTransactionResponseDto'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthenticatedError'
+        '403':
+          $ref: '#/components/responses/UserNotProvisionedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '406':
+          $ref: '#/components/responses/NotAcceptableError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '413':
+          $ref: '#/components/responses/HttpError'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaTypeError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      summary: Update a manual transaction or recategorize an imported transaction.
+      tags:
+        - Transactions
+    delete:
+      operationId: Transactions_deleteManualTransaction
+      parameters:
+        - name: transactionId
+          required: true
+          in: path
+          description: Positive bigint identifier encoded as a decimal JSON string.
+          schema:
+            type: string
+            pattern: ^[1-9]\d*$
+            example: '42'
+      responses:
+        '204':
+          description: Manual transaction deleted.
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthenticatedError'
+        '403':
+          $ref: '#/components/responses/UserNotProvisionedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '406':
+          $ref: '#/components/responses/NotAcceptableError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      summary: Delete a manual transaction.
+      tags:
+        - Transactions
+  /api/v1/users/me/statement-imports/{statementImportId}:
+    get:
+      operationId: StatementImports_getStatementImport
+      parameters:
+        - name: statementImportId
+          required: true
+          in: path
+          description: Positive bigint identifier encoded as a decimal JSON string.
+          schema:
+            type: string
+            pattern: ^[1-9]\d*$
+            example: '42'
+      responses:
+        '200':
+          description: Statement import.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatementImportResponseDto'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthenticatedError'
+        '403':
+          $ref: '#/components/responses/UserNotProvisionedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '406':
+          $ref: '#/components/responses/NotAcceptableError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      summary: Get a statement import.
+      tags:
+        - Statement imports
+  /api/v1/users/me/statement-imports:
+    get:
+      description: Returns committed Statement imports owned by the authenticated User in statementDate descending, then Statement import ID descending order. fromDate and toDate are inclusive valid calendar-date filters and fromDate must be on or before toDate. pageSize must be between 1 and 100 and defaults to 20. The nextCursor is opaque, binds to the date filters, and must be reused with the same filters; page size is not part of the cursor. Unknown query parameters are rejected.
+      operationId: StatementImports_listStatementImports
+      parameters:
+        - name: fromDate
+          required: false
+          in: query
+          description: Inclusive lower Statement import date. It must be a valid calendar date in YYYY-MM-DD format and be on or before toDate when both filters are supplied.
+          schema:
+            format: date
+            pattern: ^\d{4}-\d{2}-\d{2}$
+            example: '2026-08-01'
+            type: string
+        - name: toDate
+          required: false
+          in: query
+          description: Inclusive upper Statement import date. It must be a valid calendar date in YYYY-MM-DD format.
+          schema:
+            format: date
+            pattern: ^\d{4}-\d{2}-\d{2}$
+            example: '2026-08-31'
+            type: string
+        - name: pageSize
+          required: false
+          in: query
+          description: Number of Statement imports to return per page. Must be between 1 and 100 inclusive; defaults to 20. The cursor is not coupled to page size.
+          schema:
+            minimum: 1
+            maximum: 100
+            default: 20
+            example: 20
+            type: integer
+        - name: cursor
+          required: false
+          in: query
+          description: Opaque base64url cursor for the next page. Reuse it only with the same date filters; cursors encode the fixed statementDate-descending, ID-descending ordering.
+          schema:
+            minLength: 1
+            pattern: ^[A-Za-z0-9_-]+$
+            example: eyJ2ZXJzaW9uIjoxLCJvcmRlcmluZyI6InN0YXRlbWVudERhdGU6ZGVzYy...
+            type: string
+      responses:
+        '200':
+          description: Statement-import history page.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatementImportHistoryPageResponseDto'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthenticatedError'
+        '403':
+          $ref: '#/components/responses/UserNotProvisionedError'
+        '406':
+          $ref: '#/components/responses/NotAcceptableError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      summary: List statement-import history in statement-date-descending, ID-descending keyset pages.
+      tags:
+        - Statement imports
+    post:
+      description: Commits the reviewed Statement import and its Transactions as one operation. File names, bank names, card types, and Transaction descriptions are trimmed before storage; amounts are normalized to canonical decimal strings. Exact-file duplicates cannot be acknowledged, while probable duplicate signals require explicit acknowledgement. Client file hashes and internal matching values are never returned.
+      operationId: StatementImports_commitReviewedStatementImport
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommitReviewedStatementImportDto'
+      responses:
+        '201':
+          description: Statement import committed.
+          headers:
+            Location:
+              required: true
+              description: Relative canonical URI of the created Statement import.
+              schema:
+                type: string
+                example: /api/v1/users/me/statement-imports/42
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatementImportResponseDto'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthenticatedError'
+        '403':
+          $ref: '#/components/responses/UserNotProvisionedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '406':
+          $ref: '#/components/responses/NotAcceptableError'
+        '409':
+          $ref: '#/components/responses/ProbableDuplicateConflict'
+        '413':
+          $ref: '#/components/responses/HttpError'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaTypeError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      summary: Commit an already parsed and reviewed statement atomically.
+      tags:
+        - Statement imports
+info:
+  title: Expense Tracker REST API
+  description: A user-scoped expense tracker API. Bigint identifiers and counts, decimal money, domain dates, and UTC timestamps use the encodings described by the schemas below.
+  version: 1.0.0
+  contact: {}
+tags:
+  - name: Health
+    description: Operational readiness.
+  - name: Users
+    description: Expense-data owners.
+  - name: Categories
+    description: Active and historical categories.
+  - name: Budgets
+    description: Recurring category budgets.
+  - name: Category rules
+    description: Exact-description rules.
+  - name: Transactions
+    description: Manual and imported expenses.
+  - name: Statement imports
+    description: Reviewed import commits and history.
+  - name: Category summaries
+    description: Calendar-period spending summaries.
+servers:
+  - url: /
+components:
+  securitySchemes:
+    bearerAuth:
+      scheme: bearer
+      bearerFormat: JWT
+      type: http
+  schemas:
+    HealthResponseDto:
+      type: object
+      properties:
+        status:
+          type: string
+          description: Whether the application is ready to serve requests.
+          enum:
+            - ok
+            - error
+          example: ok
+        database:
+          type: string
+          description: Readiness state of the database dependency.
+          enum:
+            - ready
+            - unavailable
+          example: ready
+      additionalProperties: false
+      required:
+        - status
+        - database
+    UserResponseDto:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Positive bigint User identifier encoded as a string.
+          pattern: ^[1-9]\d*$
+          example: '42'
+        name:
+          type: string
+          description: Display name synchronized from the identity provider.
+          minLength: 1
+          maxLength: 200
+          pattern: \S
+          example: Ada Lovelace
+        email:
+          type: string
+          description: Primary verified email synchronized from the identity provider.
+          format: email
+          maxLength: 320
+          example: ada@example.com
+        createdAt:
+          type: string
+          description: UTC timestamp when the local User was created.
+          format: date-time
+          example: '2026-08-29T00:00:00.000Z'
+        updatedAt:
+          type: string
+          description: UTC timestamp when the local User was last updated.
+          format: date-time
+          example: '2026-08-29T00:00:00.000Z'
+      additionalProperties: false
+      required:
+        - id
+        - name
+        - email
+        - createdAt
+        - updatedAt
+    ErrorCode:
+      type: string
+      enum:
+        - VALIDATION_FAILED
+        - INVALID_JSON
+        - NOT_ACCEPTABLE
+        - UNSUPPORTED_MEDIA_TYPE
+        - ROUTE_NOT_FOUND
+        - HTTP_ERROR
+        - INTERNAL_ERROR
+        - SERVICE_UNAVAILABLE
+        - UNAUTHENTICATED
+        - USER_NOT_PROVISIONED
+        - CONFLICT
+        - RESOURCE_NOT_FOUND
+        - USER_NOT_FOUND
+        - EMAIL_ALREADY_EXISTS
+        - CATEGORY_NOT_FOUND
+        - CATEGORY_NAME_ALREADY_EXISTS
+        - CATEGORY_INACTIVE
+        - BUDGET_NOT_FOUND
+        - CATEGORY_RULE_NOT_FOUND
+        - CATEGORY_RULE_PATTERN_ALREADY_EXISTS
+        - TRANSACTION_NOT_FOUND
+        - STATEMENT_IMPORT_NOT_FOUND
+        - IMPORTED_TRANSACTION_IMMUTABLE
+        - STATEMENT_IMPORT_FILE_ALREADY_EXISTS
+        - STATEMENT_IMPORT_FILE_HASH_INVALID
+        - STATEMENT_IMPORT_PROBABLE_DUPLICATES
+      description: Stable error code. Human-readable messages are not a compatibility contract.
+    ErrorResponseDto:
+      type: object
+      properties:
+        code:
+          description: Stable error code. Human-readable messages are not a compatibility contract.
+          allOf:
+            - $ref: '#/components/schemas/ErrorCode'
+        message:
+          type: string
+          description: Human-readable error message.
+        details:
+          type: array
+          description: Structured details for fields or domain-specific conflicts.
+          items:
+            oneOf:
+              - $ref: '#/components/schemas/ErrorDetailDto'
+              - $ref: '#/components/schemas/ProbableDuplicateDetailDto'
+      additionalProperties: false
+      required:
+        - code
+        - message
+        - details
+    ErrorEnvelopeDto:
+      type: object
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorResponseDto'
+      additionalProperties: false
+      required:
+        - error
+    ErrorDetailCode:
+      type: string
+      enum:
+        - required
+        - invalid_format
+        - invalid_type
+        - invalid_value
+        - unknown
+        - incompatible
+        - not_allowed
+        - not_unique
+        - too_short
+        - too_long
+        - probable_duplicate
+      description: Stable machine-readable field-detail code.
+    ErrorDetailDto:
+      type: object
+      properties:
+        categoryId:
+          type: string
+          description: Conflicting owned Category identifier for a category-rule duplicate.
+          pattern: ^[1-9]\d*$
+          example: '42'
+        field:
+          type: string
+          description: JSON Pointer into the request.
+          example: /email
+        code:
+          description: Stable machine-readable field-detail code.
+          allOf:
+            - $ref: '#/components/schemas/ErrorDetailCode'
+        message:
+          type: string
+          description: Human-readable detail message.
+      additionalProperties: false
+      required:
+        - field
+        - code
+        - message
+    ProbableDuplicateDetailDto:
+      type: object
+      properties:
+        field:
+          type: string
+          example: /transactions/0
+        code:
+          type: string
+          enum:
+            - probable_duplicate
+        message:
+          type: string
+        transactionIndexes:
+          type: array
+          items:
+            type: integer
+            minimum: 0
+        committedTransactionIds:
+          type: array
+          description: Public transaction IDs encoded as strings.
+          items:
+            type: string
+            pattern: ^[1-9]\d*$
+      additionalProperties: false
+      required:
+        - field
+        - code
+        - message
+        - transactionIndexes
+        - committedTransactionIds
+    CategoryResponseDto:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Positive bigint Category identifier encoded as a string.
+          pattern: ^[1-9]\d*$
+          example: '42'
+        name:
+          type: string
+          description: Trimmed Category display name. Uniqueness is checked case-insensitively.
+          minLength: 1
+          maxLength: 100
+          pattern: \S
+          example: Dining Out
+        description:
+          type: string
+          description: Trimmed Category description, or null when no description is set.
+          nullable: true
+          maxLength: 500
+          example: Restaurants and cafes
+        color:
+          type: string
+          enum:
+            - coral
+            - scarlet
+            - crimson
+            - rose
+            - magenta
+            - orchid
+            - plum
+            - violet
+            - indigo
+            - cobalt
+            - azure
+            - sky
+            - cyan
+            - teal
+            - emerald
+            - forest
+            - lime
+            - olive
+            - gold
+            - amber
+            - copper
+            - cocoa
+            - slate
+            - steel
+          description: Effective Category Color palette identifier. An explicitly saved choice is returned as-is; Categories without a saved choice receive a stable identity-based default.
+          example: teal
+        isActive:
+          type: boolean
+          description: Whether the Category is active. Inactive Categories retain their historical relationships and cannot receive a new Budget, although an existing Budget may still be replaced.
+          example: true
+        createdAt:
+          type: string
+          description: UTC timestamp when the Category was created.
+          format: date-time
+          example: '2026-08-29T00:00:00.000Z'
+        updatedAt:
+          type: string
+          description: UTC timestamp when the Category was last updated.
+          format: date-time
+          example: '2026-08-29T00:00:00.000Z'
+      description: A Category owned by the authenticated User. Inactive Categories retain their historical relationships.
+      additionalProperties: false
+      required:
+        - id
+        - name
+        - description
+        - color
+        - isActive
+        - createdAt
+        - updatedAt
+    CreateCategoryDto:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Category display name. It is trimmed before storage and uniqueness checking; uniqueness is case-insensitive.
+          minLength: 1
+          maxLength: 100
+          pattern: \S
+          example: Dining Out
+        description:
+          type: string
+          description: Optional Category description. Leading and trailing whitespace is removed; blank text is stored as null.
+          nullable: true
+          maxLength: 500
+          example: Restaurants and cafes
+        color:
+          type: string
+          enum:
+            - coral
+            - scarlet
+            - crimson
+            - rose
+            - magenta
+            - orchid
+            - plum
+            - violet
+            - indigo
+            - cobalt
+            - azure
+            - sky
+            - cyan
+            - teal
+            - emerald
+            - forest
+            - lime
+            - olive
+            - gold
+            - amber
+            - copper
+            - cocoa
+            - slate
+            - steel
+          description: Optional palette identifier for the Category Color. When omitted, the API resolves a stable default from the Category identity.
+          example: teal
+      additionalProperties: false
+      required:
+        - name
+    UpdateCategoryDto:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Category display name. It is trimmed before storage and uniqueness checking; uniqueness is case-insensitive.
+          minLength: 1
+          maxLength: 100
+          pattern: \S
+          example: Dining Out
+        description:
+          type: string
+          description: Optional Category description. Leading and trailing whitespace is removed; null or blank text clears it.
+          nullable: true
+          maxLength: 500
+          example: Restaurants and cafes
+        isActive:
+          type: boolean
+          description: Whether the Category is active. Inactive Categories retain their historical relationships and cannot receive a new Budget, although an existing Budget may still be replaced.
+          example: false
+        color:
+          type: string
+          enum:
+            - coral
+            - scarlet
+            - crimson
+            - rose
+            - magenta
+            - orchid
+            - plum
+            - violet
+            - indigo
+            - cobalt
+            - azure
+            - sky
+            - cyan
+            - teal
+            - emerald
+            - forest
+            - lime
+            - olive
+            - gold
+            - amber
+            - copper
+            - cocoa
+            - slate
+            - steel
+          description: Palette identifier for the Category Color. Saved colors remain unchanged when this field is omitted.
+          example: teal
+      additionalProperties: false
+      minProperties: 1
+    BudgetResponseDto:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Positive bigint Budget identifier encoded as a string.
+          pattern: ^[1-9]\d*$
+          example: '100'
+        categoryId:
+          type: string
+          description: Positive bigint Category identifier encoded as a string.
+          pattern: ^[1-9]\d*$
+          example: '42'
+        amount:
+          type: string
+          description: Positive exact two-decimal Budget amount encoded as a string, with up to 13 integer digits.
+          pattern: ^(?=.*[1-9])\d{1,13}\.\d{2}$
+          example: '250.00'
+        period:
+          type: string
+          description: Recurring Budget period.
+          enum:
+            - monthly
+            - yearly
+          example: monthly
+        createdAt:
+          type: string
+          description: UTC timestamp when the Budget was created.
+          format: date-time
+          example: '2026-08-29T00:00:00.000Z'
+        updatedAt:
+          type: string
+          description: UTC timestamp when the Budget was last updated.
+          format: date-time
+          example: '2026-08-29T00:00:00.000Z'
+      description: A recurring Budget owned through its Category and the authenticated User.
+      additionalProperties: false
+      required:
+        - id
+        - categoryId
+        - amount
+        - period
+        - createdAt
+        - updatedAt
+    UpsertBudgetDto:
+      type: object
+      properties:
+        amount:
+          type: string
+          description: Positive exact two-decimal Budget amount encoded as a string, with up to 13 integer digits.
+          pattern: ^(?=.*[1-9])\d{1,13}\.\d{2}$
+          example: '250.00'
+        period:
+          type: string
+          description: Recurring Budget period.
+          enum:
+            - monthly
+            - yearly
+          example: monthly
+      additionalProperties: false
+      required:
+        - amount
+        - period
+    CategorySummaryResponseDto:
+      type: object
+      properties:
+        period:
+          type: string
+          description: Requested calendar period.
+          enum:
+            - monthly
+            - yearly
+          example: monthly
+        year:
+          type: string
+          description: Four-digit calendar year used for the summary.
+          pattern: ^\d{4}$
+          example: '2026'
+        month:
+          type: string
+          description: Two-digit calendar month for a monthly summary, or null for a yearly summary.
+          pattern: ^(0[1-9]|1[0-2])$
+          nullable: true
+          example: '08'
+        categories:
+          type: array
+          description: Categories ordered by ascending Category ID. Active Categories are included even with no spending; inactive Categories are included only when they have spending in the requested period.
+          items:
+            $ref: '#/components/schemas/CategorySummaryItemResponseDto'
+        uncategorizedTotal:
+          type: string
+          description: Non-negative exact two-decimal spending total for Uncategorized Transactions, encoded as a string and zero when none exist. Aggregate totals are not limited by per-Transaction numeric precision.
+          pattern: ^\d+\.\d{2}$
+          example: '4.50'
+        uncategorizedCount:
+          type: string
+          description: Non-negative count of Uncategorized Transactions encoded as a string.
+          pattern: ^\d+$
+          example: '1'
+      description: A complete monthly or yearly Category spending summary owned by the authenticated User.
+      additionalProperties: false
+      required:
+        - period
+        - year
+        - month
+        - categories
+        - uncategorizedTotal
+        - uncategorizedCount
+    CategorySummaryItemResponseDto:
+      type: object
+      properties:
+        categoryId:
+          type: string
+          description: Positive bigint Category identifier encoded as a string.
+          pattern: ^[1-9]\d*$
+          example: '42'
+        name:
+          type: string
+          description: Trimmed Category display name.
+          minLength: 1
+          maxLength: 100
+          pattern: \S
+          example: Groceries
+        isActive:
+          type: boolean
+          description: Whether the Category is active.
+          example: true
+        totalAmount:
+          type: string
+          description: Non-negative exact two-decimal aggregate spending amount encoded as a string. Aggregate totals are not limited by per-Transaction numeric precision.
+          pattern: ^\d+\.\d{2}$
+          example: '1250.00'
+        transactionCount:
+          type: string
+          description: Non-negative Transaction count encoded as a string.
+          pattern: ^\d+$
+          example: '12'
+        budgetAmount:
+          type: string
+          description: Matching-period Budget amount encoded as a positive exact two-decimal string, or null when the Category has no Budget for the requested period.
+          pattern: ^(?=.*[1-9])\d{1,13}\.\d{2}$
+          nullable: true
+          example: '1500.00'
+        remainingAmount:
+          type: string
+          description: Budget amount minus aggregate spending, encoded as an exact two-decimal string; it may be negative when spending exceeds the matching-period Budget, and is null when budgetAmount is null.
+          pattern: ^-?\d+\.\d{2}$
+          nullable: true
+          example: '-25.50'
+      description: A Category aggregate for the requested calendar period. Inactive Categories are included only when they have spending in that period.
+      additionalProperties: false
+      required:
+        - categoryId
+        - name
+        - isActive
+        - totalAmount
+        - transactionCount
+        - budgetAmount
+        - remainingAmount
+    CategoryRuleResponseDto:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Positive bigint Category rule identifier encoded as a string.
+          pattern: ^[1-9]\d*$
+          example: '42'
+        categoryId:
+          type: string
+          description: Positive bigint Category identifier encoded as a string.
+          pattern: ^[1-9]\d*$
+          example: '42'
+        pattern:
+          type: string
+          description: Original rule text containing at least one non-whitespace character. Matching trims surrounding whitespace, collapses repeated whitespace, and compares case-insensitively.
+          minLength: 1
+          maxLength: 500
+          pattern: \S
+          example: Green   Market
+        matchType:
+          type: string
+          description: Exact or Contains matching. The normalized pattern is not returned.
+          enum:
+            - exact
+            - contains
+          example: exact
+        createdAt:
+          type: string
+          description: UTC timestamp when the Category rule was created.
+          format: date-time
+          example: '2026-08-29T00:00:00.000Z'
+        updatedAt:
+          type: string
+          description: UTC timestamp when the Category rule was last updated.
+          format: date-time
+          example: '2026-08-29T00:00:00.000Z'
+      description: A Category rule owned by the authenticated User. The original pattern is retained for display. Rule evaluation is performed by the frontend.
+      additionalProperties: false
+      required:
+        - id
+        - categoryId
+        - pattern
+        - matchType
+        - createdAt
+        - updatedAt
+    CreateCategoryRuleDto:
+      type: object
+      properties:
+        matchType:
+          type: string
+          enum:
+            - exact
+            - contains
+          default: exact
+          description: Omission creates an Exact rule, including frontend Remember requests.
+        pattern:
+          type: string
+          description: Original rule text. Uniqueness trims surrounding whitespace, collapses repeated whitespace, and ignores case within each match type. Rule evaluation belongs to the frontend.
+          minLength: 1
+          maxLength: 500
+          pattern: \S
+          example: Green Market
+        categoryId:
+          type: string
+          description: Positive bigint Category identifier encoded as a decimal JSON string. The Category must be active and owned by the authenticated User; an inactive Category causes a 409 Conflict.
+          pattern: ^[1-9]\d*$
+          example: '42'
+      additionalProperties: false
+      required:
+        - pattern
+        - categoryId
+    UpdateCategoryRuleDto:
+      type: object
+      properties:
+        matchType:
+          type: string
+          enum:
+            - exact
+            - contains
+          description: Omission preserves the current match type.
+        pattern:
+          type: string
+          description: Original rule text. Uniqueness trims surrounding whitespace, collapses repeated whitespace, and ignores case within each match type.
+          minLength: 1
+          maxLength: 500
+          pattern: \S
+          example: Green Market
+        categoryId:
+          type: string
+          description: Positive bigint Category identifier encoded as a decimal JSON string. Reassignment requires an active Category owned by the authenticated User; an inactive Category causes a conflict.
+          pattern: ^[1-9]\d*$
+          example: '42'
+      additionalProperties: false
+      minProperties: 1
+    ReplacementCategoryRuleDto:
+      type: object
+      properties:
+        pattern:
+          type: string
+          minLength: 1
+          maxLength: 500
+          pattern: \S
+        matchType:
+          type: string
+          enum:
+            - exact
+            - contains
+      additionalProperties: false
+      required:
+        - pattern
+        - matchType
+    ReplaceCategoryRulesDto:
+      type: object
+      properties:
+        rules:
+          description: Complete desired rule set. Empty removes all rules for this Category.
+          type: array
+          items:
+            $ref: '#/components/schemas/ReplacementCategoryRuleDto'
+      additionalProperties: false
+      required:
+        - rules
+    CreateManualTransactionDto:
+      type: object
+      properties:
+        purchaseDate:
+          type: string
+          description: Valid calendar purchase date in YYYY-MM-DD format.
+          format: date
+          pattern: ^\d{4}-\d{2}-\d{2}$
+          example: '2026-08-01'
+        description:
+          type: string
+          description: Transaction description, trimmed before storage.
+          minLength: 1
+          maxLength: 500
+          pattern: \S
+          example: Coffee
+        amount:
+          type: string
+          description: Positive exact two-decimal Transaction amount encoded as a string, with up to 13 integer digits.
+          pattern: ^(?=.*[1-9])\d{1,13}\.\d{2}$
+          example: '4.50'
+        categoryId:
+          type: string
+          description: Positive bigint Category identifier encoded as a string. Omit or set to null to leave the Transaction Uncategorized.
+          pattern: ^[1-9]\d*$
+          nullable: true
+          example: '42'
+      additionalProperties: false
+      required:
+        - purchaseDate
+        - description
+        - amount
+    UpdateManualTransactionDto:
+      type: object
+      properties:
+        purchaseDate:
+          type: string
+          description: Valid calendar purchase date in YYYY-MM-DD format.
+          format: date
+          pattern: ^\d{4}-\d{2}-\d{2}$
+          example: '2026-08-01'
+        description:
+          type: string
+          description: Transaction description, trimmed before storage.
+          minLength: 1
+          maxLength: 500
+          pattern: \S
+          example: Coffee
+        amount:
+          type: string
+          description: Positive exact two-decimal Transaction amount encoded as a string, with up to 13 integer digits.
+          pattern: ^(?=.*[1-9])\d{1,13}\.\d{2}$
+          example: '4.50'
+        categoryId:
+          type: string
+          description: Positive bigint Category identifier encoded as a string. Omit or set to null to leave the Transaction Uncategorized.
+          pattern: ^[1-9]\d*$
+          nullable: true
+          example: '42'
+      additionalProperties: false
+      minProperties: 1
+    ManualTransactionResponseDto:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Positive bigint Transaction identifier encoded as a string.
+          pattern: ^[1-9]\d*$
+          example: '100'
+        categoryId:
+          type: string
+          description: Positive bigint Category identifier encoded as a string, or null when the Transaction is Uncategorized.
+          pattern: ^[1-9]\d*$
+          nullable: true
+          example: '42'
+        purchaseDate:
+          type: string
+          description: Valid calendar purchase date encoded as YYYY-MM-DD.
+          format: date
+          pattern: ^\d{4}-\d{2}-\d{2}$
+          example: '2026-08-01'
+        description:
+          type: string
+          description: Trimmed Transaction description.
+          minLength: 1
+          maxLength: 500
+          pattern: \S
+          example: Coffee
+        amount:
+          type: string
+          description: Positive exact two-decimal Transaction amount encoded as a string, with up to 13 integer digits.
+          pattern: ^(?=.*[1-9])\d{1,13}\.\d{2}$
+          example: '4.50'
+        source:
+          type: string
+          description: The Transaction was recorded manually.
+          enum:
+            - manual
+          example: manual
+        createdAt:
+          type: string
+          description: UTC timestamp when the Transaction was created.
+          format: date-time
+          example: '2026-08-29T00:00:00.000Z'
+        updatedAt:
+          type: string
+          description: UTC timestamp when the Transaction was last updated.
+          format: date-time
+          example: '2026-08-29T00:00:00.000Z'
+      description: A manually recorded Transaction owned by the authenticated User.
+      additionalProperties: false
+      required:
+        - id
+        - categoryId
+        - purchaseDate
+        - description
+        - amount
+        - source
+        - createdAt
+        - updatedAt
+    ImportedTransactionResponseDto:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Positive bigint Transaction identifier encoded as a string.
+          pattern: ^[1-9]\d*$
+          example: '100'
+        categoryId:
+          type: string
+          description: Positive bigint Category identifier encoded as a string, or null when the Transaction is Uncategorized.
+          pattern: ^[1-9]\d*$
+          nullable: true
+          example: '42'
+        purchaseDate:
+          type: string
+          description: Valid calendar purchase date encoded as YYYY-MM-DD.
+          format: date
+          pattern: ^\d{4}-\d{2}-\d{2}$
+          example: '2026-08-01'
+        description:
+          type: string
+          description: Trimmed Transaction description retained from the import.
+          minLength: 1
+          maxLength: 500
+          pattern: \S
+          example: Coffee
+        amount:
+          type: string
+          description: Positive exact two-decimal Transaction amount encoded as a string, with up to 13 integer digits.
+          pattern: ^(?=.*[1-9])\d{1,13}\.\d{2}$
+          example: '4.50'
+        source:
+          type: string
+          description: The Transaction was committed from a reviewed Statement import.
+          enum:
+            - imported
+          example: imported
+        createdAt:
+          type: string
+          description: UTC timestamp when the Transaction was created.
+          format: date-time
+          example: '2026-08-29T00:00:00.000Z'
+        updatedAt:
+          type: string
+          description: UTC timestamp when the Transaction was last updated.
+          format: date-time
+          example: '2026-08-29T00:00:00.000Z'
+      description: A Transaction committed from a reviewed Statement import and owned by the authenticated User.
+      additionalProperties: false
+      required:
+        - id
+        - categoryId
+        - purchaseDate
+        - description
+        - amount
+        - source
+        - createdAt
+        - updatedAt
+    ManualTransactionHistoryResponseDto:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Positive bigint Transaction identifier encoded as a string.
+          pattern: ^[1-9]\d*$
+          example: '100'
+        categoryId:
+          type: string
+          description: Positive bigint Category identifier encoded as a string, or null when the Transaction is Uncategorized.
+          pattern: ^[1-9]\d*$
+          nullable: true
+          example: '42'
+        purchaseDate:
+          type: string
+          description: Valid calendar purchase date encoded as YYYY-MM-DD.
+          format: date
+          pattern: ^\d{4}-\d{2}-\d{2}$
+          example: '2026-08-01'
+        description:
+          type: string
+          description: Trimmed Transaction description.
+          minLength: 1
+          maxLength: 500
+          pattern: \S
+          example: Coffee
+        amount:
+          type: string
+          description: Positive exact two-decimal Transaction amount encoded as a string, with up to 13 integer digits.
+          pattern: ^(?=.*[1-9])\d{1,13}\.\d{2}$
+          example: '4.50'
+        source:
+          type: string
+          description: The Transaction was recorded manually.
+          enum:
+            - manual
+          example: manual
+        statementImportId:
+          type: string
+          description: Manual Transactions are not associated with a Statement import.
+          enum:
+            - null
+          pattern: ^[1-9]\d*$
+          nullable: true
+          example: null
+        createdAt:
+          type: string
+          description: UTC timestamp when the Transaction was created.
+          format: date-time
+          example: '2026-08-29T00:00:00.000Z'
+        updatedAt:
+          type: string
+          description: UTC timestamp when the Transaction was last updated.
+          format: date-time
+          example: '2026-08-29T00:00:00.000Z'
+      description: A manually recorded Transaction in the history collection. Manual Transactions have no Statement import relationship.
+      additionalProperties: false
+      required:
+        - id
+        - categoryId
+        - purchaseDate
+        - description
+        - amount
+        - source
+        - statementImportId
+        - createdAt
+        - updatedAt
+    ImportedTransactionHistoryResponseDto:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Positive bigint Transaction identifier encoded as a string.
+          pattern: ^[1-9]\d*$
+          example: '100'
+        categoryId:
+          type: string
+          description: Positive bigint Category identifier encoded as a string, or null when the Transaction is Uncategorized.
+          pattern: ^[1-9]\d*$
+          nullable: true
+          example: '42'
+        purchaseDate:
+          type: string
+          description: Valid calendar purchase date encoded as YYYY-MM-DD.
+          format: date
+          pattern: ^\d{4}-\d{2}-\d{2}$
+          example: '2026-08-01'
+        description:
+          type: string
+          description: Trimmed Transaction description retained from the import.
+          minLength: 1
+          maxLength: 500
+          pattern: \S
+          example: Coffee
+        amount:
+          type: string
+          description: Positive exact two-decimal Transaction amount encoded as a string, with up to 13 integer digits.
+          pattern: ^(?=.*[1-9])\d{1,13}\.\d{2}$
+          example: '4.50'
+        source:
+          type: string
+          description: The Transaction was committed from a reviewed Statement import.
+          enum:
+            - imported
+          example: imported
+        statementImportId:
+          type: string
+          description: Positive bigint Statement import identifier encoded as a string.
+          pattern: ^[1-9]\d*$
+          example: '10'
+        createdAt:
+          type: string
+          description: UTC timestamp when the Transaction was created.
+          format: date-time
+          example: '2026-08-29T00:00:00.000Z'
+        updatedAt:
+          type: string
+          description: UTC timestamp when the Transaction was last updated.
+          format: date-time
+          example: '2026-08-29T00:00:00.000Z'
+      description: An imported Transaction in the history collection. Imported Transactions retain their Statement import relationship.
+      additionalProperties: false
+      required:
+        - id
+        - categoryId
+        - purchaseDate
+        - description
+        - amount
+        - source
+        - statementImportId
+        - createdAt
+        - updatedAt
+    TransactionHistoryPageResponseDto:
+      type: object
+      properties:
+        items:
+          type: array
+          description: Transactions ordered by purchaseDate descending, then Transaction ID descending. The source discriminator selects manual or imported history relationships.
+          items:
+            oneOf:
+              - $ref: '#/components/schemas/ManualTransactionHistoryResponseDto'
+              - $ref: '#/components/schemas/ImportedTransactionHistoryResponseDto'
+            discriminator:
+              propertyName: source
+              mapping:
+                manual: '#/components/schemas/ManualTransactionHistoryResponseDto'
+                imported: '#/components/schemas/ImportedTransactionHistoryResponseDto'
+        nextCursor:
+          type: string
+          description: Opaque base64url cursor for the next page, or null when there are no more results. A cursor must be reused with the same filters; page size is not part of the cursor.
+          minLength: 1
+          pattern: ^[A-Za-z0-9_-]+$
+          nullable: true
+          example: null
+      description: A keyset-paginated Transaction history page. Results are ordered by purchaseDate descending, then Transaction ID descending.
+      additionalProperties: false
+      required:
+        - items
+        - nextCursor
+    CommitReviewedStatementImportDto:
+      type: object
+      properties:
+        fileName:
+          type: string
+          description: Statement file name, trimmed before storage.
+          minLength: 1
+          maxLength: 255
+          pattern: \S
+          example: august.pdf
+        fileHash:
+          type: string
+          description: Lowercase SHA-256 digest asserted by the client. It is used for exact-file duplicate detection and is never returned.
+          pattern: ^[0-9a-f]{64}$
+          example: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+        statementDate:
+          type: string
+          description: Valid calendar statement date encoded as YYYY-MM-DD.
+          format: date
+          pattern: ^\d{4}-\d{2}-\d{2}$
+          example: '2026-08-31'
+        bank:
+          type: string
+          description: Statement bank name, trimmed before storage.
+          minLength: 1
+          maxLength: 100
+          pattern: \S
+          example: Example Bank
+        cardType:
+          type: string
+          description: Optional card type, trimmed before storage when supplied.
+          minLength: 1
+          maxLength: 100
+          pattern: \S
+          nullable: true
+          example: visa
+        transactions:
+          type: array
+          description: Reviewed Transactions to commit. The array may be empty; each row is normalized and validated before it is stored.
+          items:
+            $ref: '#/components/schemas/ReviewedStatementTransactionDto'
+        acknowledgeProbableDuplicates:
+          type: boolean
+          description: Acknowledge all probable-duplicate review signals. Defaults to false; exact file duplicates cannot be acknowledged.
+          default: false
+          example: false
+      additionalProperties: false
+      required:
+        - fileName
+        - fileHash
+        - statementDate
+        - bank
+        - transactions
+    ReviewedStatementTransactionDto:
+      type: object
+      properties:
+        categoryId:
+          type: string
+          description: Positive bigint Category identifier encoded as a string. Omit or set to null to leave the imported Transaction Uncategorized.
+          pattern: ^[1-9]\d*$
+          nullable: true
+          example: '42'
+        purchaseDate:
+          type: string
+          description: Valid calendar purchase date encoded as YYYY-MM-DD.
+          format: date
+          pattern: ^\d{4}-\d{2}-\d{2}$
+          example: '2026-08-01'
+        description:
+          type: string
+          description: Transaction description, trimmed before storage.
+          minLength: 1
+          maxLength: 500
+          pattern: \S
+          example: Coffee
+        amount:
+          type: string
+          description: Positive exact two-decimal Transaction amount encoded as a string, normalized to remove redundant leading zeroes before storage.
+          pattern: ^(?=.*[1-9])\d{1,13}\.\d{2}$
+          example: '4.50'
+        categoryMatchConfidence:
+          type: string
+          description: Optional category-match confidence encoded as a decimal string between 0 and 1 inclusive, with up to four fractional digits.
+          pattern: ^(?:0(?:\.\d{1,4})?|1(?:\.0{1,4})?)$
+          nullable: true
+          example: '0.9000'
+      additionalProperties: false
+      required:
+        - purchaseDate
+        - description
+        - amount
+    StatementImportCollectionQueryDto:
+      type: object
+      properties:
+        fromDate:
+          type: string
+          description: Inclusive lower Statement import date. It must be a valid calendar date in YYYY-MM-DD format and be on or before toDate when both filters are supplied.
+          format: date
+          pattern: ^\d{4}-\d{2}-\d{2}$
+          example: '2026-08-01'
+        toDate:
+          type: string
+          description: Inclusive upper Statement import date. It must be a valid calendar date in YYYY-MM-DD format.
+          format: date
+          pattern: ^\d{4}-\d{2}-\d{2}$
+          example: '2026-08-31'
+        pageSize:
+          type: integer
+          description: Number of Statement imports to return per page. Must be between 1 and 100 inclusive; defaults to 20. The cursor is not coupled to page size.
+          minimum: 1
+          maximum: 100
+          default: 20
+          example: 20
+        cursor:
+          type: string
+          description: Opaque base64url cursor for the next page. Reuse it only with the same date filters; cursors encode the fixed statementDate-descending, ID-descending ordering.
+          minLength: 1
+          pattern: ^[A-Za-z0-9_-]+$
+          example: eyJ2ZXJzaW9uIjoxLCJvcmRlcmluZyI6InN0YXRlbWVudERhdGU6ZGVzYy...
+      additionalProperties: false
+    StatementImportParamsDto:
+      type: object
+      properties:
+        statementImportId:
+          type: string
+          description: Positive bigint Statement import identifier encoded as a string.
+          pattern: ^[1-9]\d*$
+          example: '42'
+      required:
+        - statementImportId
+    StatementImportResponseDto:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Positive bigint Statement import identifier encoded as a string.
+          pattern: ^[1-9]\d*$
+          example: '100'
+        fileName:
+          type: string
+          description: Statement file name retained after trimming.
+          minLength: 1
+          maxLength: 255
+          pattern: \S
+          example: august.pdf
+        statementDate:
+          type: string
+          description: Valid calendar statement date encoded as YYYY-MM-DD.
+          format: date
+          pattern: ^\d{4}-\d{2}-\d{2}$
+          example: '2026-08-31'
+        bank:
+          type: string
+          description: Statement bank name retained after trimming.
+          minLength: 1
+          maxLength: 100
+          pattern: \S
+          example: Example Bank
+        cardType:
+          type: string
+          description: Card type retained after trimming, or null when the statement did not provide one.
+          minLength: 1
+          maxLength: 100
+          pattern: \S
+          nullable: true
+          example: visa
+        importedAt:
+          type: string
+          description: UTC timestamp when the Statement import was committed.
+          format: date-time
+          example: '2026-08-29T00:00:00.000Z'
+      description: A committed Statement import owned by the authenticated User. Client file hashes and persistence fields are not returned.
+      additionalProperties: false
+      required:
+        - id
+        - fileName
+        - statementDate
+        - bank
+        - cardType
+        - importedAt
+    StatementImportHistoryResponseDto:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Positive bigint Statement import identifier encoded as a string.
+          pattern: ^[1-9]\d*$
+          example: '100'
+        fileName:
+          type: string
+          description: Statement file name retained after trimming.
+          minLength: 1
+          maxLength: 255
+          pattern: \S
+          example: august.pdf
+        statementDate:
+          type: string
+          description: Valid calendar statement date encoded as YYYY-MM-DD.
+          format: date
+          pattern: ^\d{4}-\d{2}-\d{2}$
+          example: '2026-08-31'
+        bank:
+          type: string
+          description: Statement bank name retained after trimming.
+          minLength: 1
+          maxLength: 100
+          pattern: \S
+          example: Example Bank
+        cardType:
+          type: string
+          description: Card type retained after trimming, or null when the statement did not provide one.
+          minLength: 1
+          maxLength: 100
+          pattern: \S
+          nullable: true
+          example: visa
+        importedAt:
+          type: string
+          description: UTC timestamp when the Statement import was committed.
+          format: date-time
+          example: '2026-08-29T00:00:00.000Z'
+        transactionCount:
+          type: string
+          description: Non-negative committed Transaction count encoded as a string.
+          pattern: ^\d+$
+          example: '12'
+      description: A Statement import in the authenticated User history collection, including its committed Transaction count.
+      additionalProperties: false
+      required:
+        - id
+        - fileName
+        - statementDate
+        - bank
+        - cardType
+        - importedAt
+        - transactionCount
+    StatementImportHistoryPageResponseDto:
+      type: object
+      properties:
+        items:
+          type: array
+          description: Statement imports ordered by statementDate descending, then Statement import ID descending.
+          items:
+            $ref: '#/components/schemas/StatementImportHistoryResponseDto'
+        nextCursor:
+          type: string
+          description: Opaque base64url cursor for the next page, or null when there are no more results. A cursor must be reused with the same date filters; page size is not part of the cursor.
+          minLength: 1
+          pattern: ^[A-Za-z0-9_-]+$
+          nullable: true
+          example: null
+      description: A keyset-paginated Statement import history page. Items are ordered by statementDate descending, then Statement import ID descending.
+      additionalProperties: false
+      required:
+        - items
+        - nextCursor
+  responses:
+    UnauthenticatedError:
+      description: The request does not include valid Clerk session credentials.
+      headers:
+        WWW-Authenticate:
+          required: true
+          description: Authentication scheme accepted by the API.
+          schema:
+            type: string
+            example: Bearer
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelopeDto'
+          example:
+            error:
+              code: UNAUTHENTICATED
+              message: Authentication required
+              details: []
+    UserNotProvisionedError:
+      description: The verified Clerk identity is not linked to a local User. Provision the User first.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelopeDto'
+          example:
+            error:
+              code: USER_NOT_PROVISIONED
+              message: User is not provisioned
+              details: []
+    NotFoundError:
+      description: The requested resource is absent or owned by another user.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelopeDto'
+          examples:
+            user:
+              value:
+                error:
+                  code: USER_NOT_FOUND
+                  message: User was not found
+                  details: []
+            route:
+              value:
+                error:
+                  code: ROUTE_NOT_FOUND
+                  message: Request failed
+                  details: []
+    NotAcceptableError:
+      description: The client did not accept the representation required by the endpoint.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelopeDto'
+          example:
+            error:
+              code: NOT_ACCEPTABLE
+              message: The endpoint requires an application/json response
+              details: []
+    InternalError:
+      description: An unexpected server error. Infrastructure details are never returned.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelopeDto'
+          example:
+            error:
+              code: INTERNAL_ERROR
+              message: An internal error occurred
+              details: []
+    ValidationError:
+      description: The request syntax or fields are invalid.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelopeDto'
+          examples:
+            invalidField:
+              value:
+                error:
+                  code: VALIDATION_FAILED
+                  message: The request contains invalid fields.
+                  details:
+                    - field: /email
+                      code: invalid_format
+                      message: Email must be a valid email address
+    ConflictError:
+      description: The request conflicts with current application state.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelopeDto'
+          examples:
+            emailAlreadyExists:
+              value:
+                error:
+                  code: EMAIL_ALREADY_EXISTS
+                  message: Email is already in use
+                  details:
+                    - field: /email
+                      code: not_unique
+                      message: Email is already in use
+            genericConflict:
+              value:
+                error:
+                  code: CONFLICT
+                  message: Request conflicts with existing data
+                  details: []
+    ServiceUnavailableError:
+      description: A required external service is temporarily unavailable.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelopeDto'
+          example:
+            error:
+              code: SERVICE_UNAVAILABLE
+              message: The identity provider is temporarily unavailable
+              details: []
+    HttpError:
+      description: A generic HTTP protocol error.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelopeDto'
+          example:
+            error:
+              code: HTTP_ERROR
+              message: Request failed
+              details: []
+    UnsupportedMediaTypeError:
+      description: A request body must use application/json.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelopeDto'
+          example:
+            error:
+              code: UNSUPPORTED_MEDIA_TYPE
+              message: Request bodies must use application/json
+              details: []
+    ProbableDuplicateConflict:
+      description: Statement import conflicts are stable JSON errors. Exact file duplicates cannot be overridden; probable duplicates require explicit acknowledgement. Internal matching values are never returned.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelopeDto'
+          examples:
+            fileAlreadyImported:
+              summary: The same file was already imported for this User.
+              value:
+                error:
+                  code: STATEMENT_IMPORT_FILE_ALREADY_EXISTS
+                  message: The statement file has already been imported
+                  details:
+                    - field: /fileHash
+                      code: not_unique
+                      message: The statement file has already been imported
+            withinSubmission:
+              summary: Duplicate rows within the submitted statement only.
+              value:
+                error:
+                  code: STATEMENT_IMPORT_PROBABLE_DUPLICATES
+                  message: Probable duplicate imported transactions require acknowledgement
+                  details:
+                    - field: /transactions/0
+                      code: probable_duplicate
+                      message: The reviewed transaction has a probable duplicate
+                      transactionIndexes:
+                        - 0
+                        - 2
+                      committedTransactionIds: []
+            committedMatch:
+              summary: A submitted row matches previously committed imported Transactions.
+              value:
+                error:
+                  code: STATEMENT_IMPORT_PROBABLE_DUPLICATES
+                  message: Probable duplicate imported transactions require acknowledgement
+                  details:
+                    - field: /transactions/1
+                      code: probable_duplicate
+                      message: The reviewed transaction has a probable duplicate
+                      transactionIndexes:
+                        - 1
+                      committedTransactionIds:
+                        - '12'
+                        - '18'
+            categoryInactive:
+              summary: A reviewed row references an inactive Category.
+              value:
+                error:
+                  code: CATEGORY_INACTIVE
+                  message: Category is inactive
+                  details: []
+security:
+  - bearerAuth: []

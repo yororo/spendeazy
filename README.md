@@ -21,6 +21,14 @@ Follow the [API setup](api/README.md) and [web setup](web/README.md), each from 
 
 The web normally runs on `http://localhost:5173` and the API on `http://localhost:3000`. Set the web's `VITE_API_BASE_URL` to the API origin. Use the same Clerk instance for both projects and configure the API's `CORS_ORIGINS` and `CLERK_AUTHORIZED_PARTIES` for the actual web origin. See [local API testing](api/docs/LOCAL_TESTING.md) for authenticated validation.
 
+## Deployment
+
+[The root deployment workflow](.github/workflows/deploy.yml) detects changes for each project. Pushes to `main` deploy web for changes under `web/` and API for changes under `api/`; changes to the workflow itself deploy both. Other root-only changes skip both deployment jobs.
+
+Pull requests targeting `main` build web previews when web or workflow files change. Closing a pull request attempts preview cleanup even if its web changes were later reverted. API deployments only run on pushes to `main` or manual runs. Use **Run workflow** in GitHub Actions to deploy `web`, `api`, or `all` manually.
+
+The workflow uses the existing Azure and registry secrets and web build variables. Web builds from `web/`; the API container builds from `api/Dockerfile` with `api/` as its build context.
+
 ## Documentation
 
 Start with [AGENTS.md](AGENTS.md) for task routing. [Domain documentation guidance](docs/agents/domain.md) describes glossary and ADR ownership. Project READMEs own setup, architecture documents own code placement, and project coding standards own implementation conventions.

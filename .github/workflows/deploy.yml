@@ -1,0 +1,113 @@
+name: Deploy Spendeazy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, closed]
+  workflow_dispatch:
+    inputs:
+      project:
+        description: Project to deploy
+        type: choice
+        default: all
+        options: [all, web, api]
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    name: Detect changed projects
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      web: ${{ steps.filter.outputs.web }}
+      api: ${{ steps.filter.outputs.api }}
+    steps:
+      - uses: actions/checkout@v4
+        if: github.event_name == 'push'
+      - uses: dorny/paths-filter@v4
+        if: github.event_name != 'workflow_dispatch'
+        id: filter
+        with:
+          # Pushes compare with the previous tip; PRs use their changed-file list.
+          base: ${{ github.ref }}
+          filters: |
+            web:
+              - 'web/**'
+              - '.github/workflows/deploy.yml'
+            api:
+              - 'api/**'
+              - '.github/workflows/deploy.yml'
+
+  web:
+    name: Build and deploy web
+    needs: changes
+    if: >-
+      (github.event_name == 'workflow_dispatch' && (inputs.project == 'all' || inputs.project == 'web')) ||
+      (needs.changes.outputs.web == 'true' &&
+      (github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')))
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+          lfs: false
+      - name: Build and deploy
+        uses: Azure/static-web-apps-deploy@v1
+        env:
+          VITE_CLERK_PUBLISHABLE_KEY: ${{ vars.VITE_CLERK_PUBLISHABLE_KEY }}
+          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_VICTORIOUS_FIELD_0CA473A00 }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: upload
+          app_location: web
+          api_location: ''
+          output_location: dist
+
+  close_web_preview:
+    name: Close web pull request preview
+    # Always attempt cleanup on close, even if earlier web changes were reverted.
+    if: github.event_name == 'pull_request' && github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Close pull request
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_VICTORIOUS_FIELD_0CA473A00 }}
+          action: close
+
+  api:
+    name: Build and deploy API
+    needs: changes
+    if: >-
+      (github.event_name == 'workflow_dispatch' && (inputs.project == 'all' || inputs.project == 'api')) ||
+      (github.event_name == 'push' && needs.changes.outputs.api == 'true')
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.SPENDEAZYAPI_AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.SPENDEAZYAPI_AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.SPENDEAZYAPI_AZURE_SUBSCRIPTION_ID }}
+      - name: Build and deploy container image
+        uses: azure/container-apps-deploy-action@v2
+        with:
+          appSourcePath: ${{ github.workspace }}/api
+          dockerfilePath: Dockerfile
+          registryUrl: docker.io
+          registryUsername: ${{ secrets.SPENDEAZYAPI_REGISTRY_USERNAME }}
+          registryPassword: ${{ secrets.SPENDEAZYAPI_REGISTRY_PASSWORD }}
+          containerAppName: spendeazy-api
+          resourceGroup: spendeazy-dev
+          imageToBuild: syoro/spendeazy-api:${{ github.sha }}

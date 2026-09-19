@@ -1,6 +1,13 @@
 import { expect, test, type APIRequestContext } from "@playwright/test";
 
+const testClock =
+  process.env.SPENDEAZY_E2E_TEST_CLOCK ?? "2026-09-19T12:00:00.000Z";
+
 test.describe.configure({ mode: "serial" });
+
+test.beforeEach(async ({ page }) => {
+  await page.clock.install({ time: testClock });
+});
 
 test("provisions the fixed fictional User with Default Categories", async ({
   page,

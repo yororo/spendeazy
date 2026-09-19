@@ -18,6 +18,7 @@ import {
   createSyntheticTokenVerifier,
 } from './synthetic-authentication';
 import { validateLocalTestDatabaseTarget } from './database-target';
+import { createLocalTestClock } from './clock';
 import { LocalTestSessionModule } from './session-control';
 
 @Module({})
@@ -36,7 +37,8 @@ async function bootstrap(): Promise<void> {
     throw new Error('The local test API requires NODE_ENV=test');
   }
 
-  const sessionAuthority = createSyntheticSessionAuthority(secret);
+  const clock = createLocalTestClock();
+  const sessionAuthority = createSyntheticSessionAuthority(secret, clock.now);
   const appModule: DynamicModule = {
     module: LocalTestApplicationModule,
     imports: [
@@ -46,7 +48,7 @@ async function bootstrap(): Promise<void> {
             provide: CLERK_TOKEN_VERIFIER,
             useValue: createSyntheticTokenVerifier(
               secret,
-              undefined,
+              clock.now,
               sessionAuthority.isRevoked,
             ),
           } satisfies Provider,

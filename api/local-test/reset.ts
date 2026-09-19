@@ -1,6 +1,7 @@
 import { AppDataSource } from '../src/database/data-source';
 import { validateLocalTestDatabaseTarget } from './database-target';
 import { resetLocalTestFixtures } from './fixtures';
+import { createLocalTestClock } from './clock';
 
 async function main(): Promise<void> {
   const target = validateLocalTestDatabaseTarget();
@@ -12,7 +13,10 @@ async function main(): Promise<void> {
   try {
     await AppDataSource.dropDatabase();
     await AppDataSource.runMigrations();
-    const result = await resetLocalTestFixtures(AppDataSource);
+    const result = await resetLocalTestFixtures(
+      AppDataSource,
+      createLocalTestClock().date(),
+    );
     console.log(
       `Restored ${result.counts.users} User, ${result.counts.categories} Categories, ${result.counts.budgets} Budgets, ${result.counts.categoryRules} Category Rules, and ${result.counts.transactions} Transactions`,
     );

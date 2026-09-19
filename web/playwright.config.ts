@@ -9,6 +9,7 @@ export default defineConfig({
   use: {
     baseURL: process.env.SPENDEAZY_E2E_BASE_URL ?? "http://127.0.0.1:5175",
     channel: process.env.PLAYWRIGHT_CHANNEL,
+    timezoneId: "UTC",
     trace: "on-first-retry",
     ...devices["Desktop Chrome"],
   },

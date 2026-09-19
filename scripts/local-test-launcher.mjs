@@ -1,4 +1,4 @@
-import { createHmac, randomBytes } from "node:crypto";
+import { createHmac, randomBytes, randomInt } from "node:crypto";
 import { existsSync } from "node:fs";
 import { spawn } from "node:child_process";
 import { createConnection, createServer } from "node:net";
@@ -10,61 +10,52 @@ const apiDirectory = resolve(rootDirectory, "api");
 const webDirectory = resolve(rootDirectory, "web");
 const composeFile = resolve(rootDirectory, "local-test", "docker-compose.yml");
 
-const databaseUser = "spendeazy_test_user";
-const databasePassword = "spendeazy_local_test_password";
-const databaseName = "spendeazy_test_db";
 const tokenPrefix = "spendeazy-local-test.v1";
 const testUserId = "local-test-populated-user";
+const fixedE2eClock =
+  process.env.SPENDEAZY_E2E_TEST_CLOCK?.trim() ??
+  "2026-09-19T12:00:00.000Z";
 
 const isE2e = process.argv.includes("--e2e");
 const shouldReset = process.argv.includes("--reset");
-const e2eTestDate = isE2e ? currentLocalDate() : undefined;
-const configuration = isE2e
-  ? {
-      projectName: "spendeazy-local-test-e2e",
-      databasePort: 55433,
-      apiPort: 3101,
-      webPort: 5175,
-    }
-  : {
-      projectName: "spendeazy-local-test",
-      databasePort: 55432,
-      apiPort: 3100,
-      webPort: 5174,
-    };
 
 const children = new Set();
 let shuttingDown = false;
+let ownsComposeProject = false;
+let configuration;
 
 async function main() {
-  if (isE2e && shouldReset) {
-    throw new Error("Use either --e2e or --reset, not both.");
-  }
-
-  if (!existsSync(composeFile)) {
-    throw new Error(`Missing local test Docker Compose file: ${composeFile}`);
-  }
-
-  await assertPortAvailable(configuration.databasePort, "PostgreSQL");
-  await assertPortAvailable(configuration.apiPort, "API");
-  await assertPortAvailable(configuration.webPort, "web");
-
-  const sessionSecret = randomBytes(32).toString("base64url");
-  const sessionToken = createSessionToken(sessionSecret);
-  const databaseUrl = `postgresql://${databaseUser}:${databasePassword}@127.0.0.1:${configuration.databasePort}/${databaseName}`;
-  const composeEnvironment = {
-    ...process.env,
-    SPENDEAZY_TEST_DB_PORT: String(configuration.databasePort),
-  };
-
-  if (isE2e) {
-    await run("docker", composeArguments("down", "-v"), {
-      cwd: rootDirectory,
-      env: composeEnvironment,
-    });
-  }
-
+  let exitCode = 0;
   try {
+    if (isE2e && shouldReset) {
+      throw new Error("Use either --e2e or --reset, not both.");
+    }
+
+    if (!existsSync(composeFile)) {
+      throw new Error(`Missing local test Docker Compose file: ${composeFile}`);
+    }
+
+    configuration = await createConfiguration();
+    await assertPortAvailable(configuration.databasePort, "PostgreSQL");
+    await assertPortAvailable(configuration.apiPort, "API");
+    await assertPortAvailable(configuration.webPort, "web");
+
+    const sessionSecret = randomBytes(32).toString("base64url");
+    const sessionToken = createSessionToken(
+      sessionSecret,
+      configuration.testClock,
+    );
+    const databaseUrl = createDatabaseUrl(configuration);
+    const composeEnvironment = {
+      ...process.env,
+      SPENDEAZY_TEST_DB_PORT: String(configuration.databasePort),
+      SPENDEAZY_TEST_DB_USER: configuration.databaseUser,
+      SPENDEAZY_TEST_DB_PASSWORD: configuration.databasePassword,
+      SPENDEAZY_TEST_DB_NAME: configuration.databaseName,
+      SPENDEAZY_TEST_DB_VOLUME: configuration.databaseVolume,
+    };
+
+    ownsComposeProject = true;
     await run("docker", composeArguments("up", "-d"), {
       cwd: rootDirectory,
       env: composeEnvironment,
@@ -80,7 +71,13 @@ async function main() {
       SPENDEAZY_LOCAL_TEST: "1",
       SPENDEAZY_LOCAL_TEST_SEED_FIXTURES: isE2e ? "0" : "1",
       SPENDEAZY_TEST_DB_PORT: String(configuration.databasePort),
+      SPENDEAZY_TEST_DB_USER: configuration.databaseUser,
+      SPENDEAZY_TEST_DB_PASSWORD: configuration.databasePassword,
+      SPENDEAZY_TEST_DB_NAME: configuration.databaseName,
       SPENDEAZY_TEST_SESSION_SECRET: sessionSecret,
+      ...(configuration.testClock
+        ? { SPENDEAZY_TEST_CLOCK: configuration.testClock }
+        : {}),
     };
 
     await runWithRetries(
@@ -109,7 +106,12 @@ async function main() {
       VITE_API_BASE_URL: `http://127.0.0.1:${configuration.apiPort}`,
       VITE_LOCAL_TEST_SESSION_TOKEN: sessionToken,
       SPENDEAZY_E2E_API_BASE_URL: `http://127.0.0.1:${configuration.apiPort}`,
-      ...(e2eTestDate ? { SPENDEAZY_E2E_TEST_DATE: e2eTestDate } : {}),
+      ...(configuration.testDate
+        ? {
+            SPENDEAZY_E2E_TEST_DATE: configuration.testDate,
+            SPENDEAZY_E2E_TEST_CLOCK: configuration.testClock,
+          }
+        : {}),
       ...(process.platform === "win32"
         ? { PLAYWRIGHT_CHANNEL: "msedge" }
         : {}),
@@ -149,9 +151,50 @@ async function main() {
 
     await openBrowser(url);
     await waitForChildren();
+  } catch (error) {
+    exitCode = 1;
+    console.error(`Local test run failed: ${formatError(error)}`);
   } finally {
-    await shutdown();
+    await shutdown(exitCode);
   }
+
+  if (exitCode !== 0) process.exitCode = exitCode;
+}
+
+async function createConfiguration() {
+  if (!isE2e) {
+    return {
+      projectName: "spendeazy-local-test",
+      databasePort: 55432,
+      apiPort: 3100,
+      webPort: 5174,
+      databaseUser: "spendeazy_test_user",
+      databasePassword: "spendeazy_local_test_password",
+      databaseName: "spendeazy_test_db",
+      databaseVolume: "spendeazy-local-test-data",
+      testClock: undefined,
+      testDate: undefined,
+    };
+  }
+
+  const runId = randomBytes(8).toString("hex");
+  const testDate = parseFixedE2eDate(fixedE2eClock);
+  return {
+    projectName: `spendeazy-local-test-e2e-${runId}`,
+    databasePort: await findAvailablePort(55432, 59999),
+    apiPort: await findAvailablePort(3100, 3999),
+    webPort: await findAvailablePort(4100, 4999),
+    databaseUser: `spendeazy_e2e_${runId}`,
+    databasePassword: randomBytes(24).toString("base64url"),
+    databaseName: `spendeazy_e2e_${runId}`,
+    databaseVolume: `spendeazy-local-test-e2e-${runId}-data`,
+    testClock: fixedE2eClock,
+    testDate,
+  };
+}
+
+function createDatabaseUrl(currentConfiguration) {
+  return `postgresql://${encodeURIComponent(currentConfiguration.databaseUser)}:${encodeURIComponent(currentConfiguration.databasePassword)}@127.0.0.1:${currentConfiguration.databasePort}/${encodeURIComponent(currentConfiguration.databaseName)}`;
 }
 
 function composeArguments(...argumentsToAppend) {
@@ -219,7 +262,7 @@ async function runWithRetries(command, argumentsToRun, options, label) {
     }
   }
 
-  throw new Error(`Could not complete ${label}: ${lastError?.message ?? lastError}`);
+  throw new Error(`Could not complete ${label}: ${formatError(lastError)}`);
 }
 
 function spawnCommand(command, argumentsToRun, options) {
@@ -243,21 +286,36 @@ function quoteWindowsArgument(value) {
 }
 
 async function assertPortAvailable(port, label) {
+  if (await isPortAvailable(port)) return;
+
+  throw new Error(
+    `${label} port ${port} is occupied. Stop the process using 127.0.0.1:${port} or choose the dedicated launcher configuration.`,
+  );
+}
+
+async function findAvailablePort(minimum, maximum) {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const port = randomInt(minimum, maximum + 1);
+    if (await isPortAvailable(port)) return port;
+  }
+
+  throw new Error(
+    `Could not find an available loopback port between ${minimum} and ${maximum}.`,
+  );
+}
+
+async function isPortAvailable(port) {
   const server = createServer();
-  await new Promise((resolvePromise, reject) => {
+  return new Promise((resolvePromise, reject) => {
     server.once("error", (error) => {
       if (error.code === "EADDRINUSE") {
-        reject(
-          new Error(
-            `${label} port ${port} is occupied. Stop the process using 127.0.0.1:${port} or choose the dedicated launcher configuration.`,
-          ),
-        );
+        resolvePromise(false);
         return;
       }
       reject(error);
     });
     server.listen(port, "127.0.0.1", () => {
-      server.close(() => resolvePromise());
+      server.close(() => resolvePromise(true));
     });
   });
 }
@@ -350,11 +408,23 @@ async function shutdown(exitCode = 0) {
         terminateChild(child);
       }),
   );
-  await Promise.race([
-    Promise.all(stoppingChildren),
-    delay(5000),
-  ]);
+  if (stoppingChildren.length > 0) {
+    let timeout;
+    await Promise.race([
+      Promise.all(stoppingChildren),
+      new Promise((resolvePromise) => {
+        timeout = setTimeout(resolvePromise, 5000);
+        timeout.unref?.();
+      }),
+    ]);
+    if (timeout) clearTimeout(timeout);
+  }
   children.clear();
+
+  if (!ownsComposeProject || !configuration) {
+    if (exitCode !== 0) process.exitCode = exitCode;
+    return;
+  }
 
   try {
     await run("docker", composeArguments("down", ...(isE2e ? ["-v"] : [])), {
@@ -362,10 +432,16 @@ async function shutdown(exitCode = 0) {
       env: {
         ...process.env,
         SPENDEAZY_TEST_DB_PORT: String(configuration.databasePort),
+        SPENDEAZY_TEST_DB_USER: configuration.databaseUser,
+        SPENDEAZY_TEST_DB_PASSWORD: configuration.databasePassword,
+        SPENDEAZY_TEST_DB_NAME: configuration.databaseName,
+        SPENDEAZY_TEST_DB_VOLUME: configuration.databaseVolume,
       },
     });
   } catch (error) {
-    console.error(`Could not stop the dedicated test database: ${error.message}`);
+    console.error(
+      `Could not stop the dedicated test database: ${formatError(error)}`,
+    );
     exitCode = exitCode || 1;
   }
 
@@ -384,8 +460,10 @@ function terminateChild(child) {
   child.kill("SIGTERM");
 }
 
-function createSessionToken(secret) {
-  const issuedAt = Math.floor(Date.now() / 1000);
+function createSessionToken(secret, testClock) {
+  const issuedAt = testClock
+    ? Math.floor(Date.parse(testClock) / 1000)
+    : Math.floor(Date.now() / 1000);
   const payload = {
     environment: "spendeazy-local-test",
     sub: testUserId,
@@ -407,17 +485,27 @@ function delay(milliseconds) {
   return new Promise((resolvePromise) => setTimeout(resolvePromise, milliseconds));
 }
 
-function currentLocalDate(now = new Date()) {
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+function parseFixedE2eDate(value) {
+  if (
+    !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/.test(value) ||
+    !Number.isFinite(Date.parse(value))
+  ) {
+    throw new Error(
+      "SPENDEAZY_E2E_TEST_CLOCK must be an ISO-8601 UTC timestamp",
+    );
+  }
+
+  return value.slice(0, 10);
+}
+
+function formatError(error) {
+  return error instanceof Error ? error.message : String(error);
 }
 
 process.on("SIGINT", () => void shutdown(0));
 process.on("SIGTERM", () => void shutdown(0));
 
 main().catch(async (error) => {
-  console.error(`Local test startup failed: ${error.message}`);
+  console.error(`Local test startup failed: ${formatError(error)}`);
   await shutdown(1);
 });

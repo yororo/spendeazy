@@ -1,6 +1,7 @@
 import { AppDataSource } from '../src/database/data-source';
 import { validateLocalTestDatabaseTarget } from './database-target';
 import { ensureLocalTestFixtures } from './fixtures';
+import { createLocalTestClock } from './clock';
 
 async function main(): Promise<void> {
   const target = validateLocalTestDatabaseTarget();
@@ -16,7 +17,10 @@ async function main(): Promise<void> {
       return;
     }
 
-    const result = await ensureLocalTestFixtures(AppDataSource);
+    const result = await ensureLocalTestFixtures(
+      AppDataSource,
+      createLocalTestClock().date(),
+    );
     if (result.seeded) {
       console.log(
         `Created ${result.counts.users} User, ${result.counts.categories} Categories, ${result.counts.budgets} Budgets, ${result.counts.categoryRules} Category Rules, and ${result.counts.transactions} Transactions for the fictional local test scenario`,

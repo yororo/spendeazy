@@ -6,7 +6,7 @@ The local test launcher starts the real Spendeazy web app and API against a dedi
 
 - Node.js 24 and npm
 - Docker Desktop with Docker Compose available as `docker compose`
-- Dependencies installed in both projects (`npm install` from `api/` and `web/`)
+- Dependencies installed in both projects (`npm ci` from `api/` and `web/`)
 
 ## Start the manual environment
 
@@ -40,17 +40,60 @@ The panel also has `Sign out`, `Expire token`, and `Revoke session` controls, pl
 
 `Expire token` calls the real local session-control API, replaces the browser session with a server-issued expired token, and lets the normal API client observe the resulting `401 UNAUTHENTICATED`. The client makes one coalesced cache-bypassing token request, retries with the replacement session, and returns the panel to `Active session`. `Revoke session` first invalidates the current server-side session, then leaves the revoked token in place long enough for the next authenticated request to receive a real `401`; refresh returns no token, private query data is cleared, and the browser returns to the signed-out page. The resume action uses a separate temporary session, so the revoked credential cannot regain access.
 
-## Run the browser smoke test
+## Run the isolated browser suite
 
-The automated mode uses separate loopback ports and a fresh Compose project/volume:
+The automated mode creates a new run ID, PostgreSQL project, database name,
+database user/password, volume, and loopback ports for every invocation:
 
 ```powershell
 node .\scripts\local-test-launcher.mjs --e2e
 ```
 
-It starts the same real browser/API/database path, runs the Playwright smoke test, and removes only that isolated automated database volume when finished. Playwright can also be run against an already-running environment with `npm run test:e2e` from `web/` when `SPENDEAZY_E2E_BASE_URL`, `SPENDEAZY_E2E_API_BASE_URL`, `SPENDEAZY_E2E_TEST_DATE`, and `VITE_LOCAL_TEST_SESSION_TOKEN` are set to that environment's loopback URL, controlled current-month date, and temporary token.
+It starts the same real browser/API/database path, runs the Playwright smoke
+test, and removes only that run's Compose project and database volume when
+finished, including after a test failure. It never removes the persistent
+manual volume or an unrelated Compose project. A port or readiness failure is
+reported and returns a failing exit status.
+
+The automated clock is fixed at `2026-09-19T12:00:00.000Z` by default. Set
+`SPENDEAZY_E2E_TEST_CLOCK` to another explicit ISO-8601 UTC timestamp when
+debugging; the launcher derives the transaction date and browser reporting
+period from that value. No scenario depends on the host's current date. The
+automated database starts empty, so provisioning and Default Category creation
+remain real first-time checks; test-created data is deterministic fictional
+data owned by that run.
+
+To run Playwright against an already-running dedicated environment, run
+`npm run test:e2e` from `web/` with `SPENDEAZY_E2E_BASE_URL`,
+`SPENDEAZY_E2E_API_BASE_URL`, `SPENDEAZY_E2E_TEST_DATE`,
+`SPENDEAZY_E2E_TEST_CLOCK`, and `VITE_LOCAL_TEST_SESSION_TOKEN` set to that
+environment's loopback URLs, fixed clock/date, and temporary token.
 
 The automated run intentionally starts with an empty database so the initial provisioning smoke test remains a real first-time provisioning check. The browser suite then creates a fresh User, switches Users, verifies sign-out/re-entry, observes bounded expiration recovery and revocation failure, checks that expired and revoked credentials are rejected directly by the API while replacement credentials work, and makes direct authenticated API requests to prove that cross-User reads and mutations remain blocked. The persistent two-User fictional scenario is the ordinary manual-startup and explicit-reset fixture.
+
+## Run the full CI validation locally
+
+After installing dependencies and a Playwright browser, the checks used by
+`.github/workflows/ci.yml` can be run from the repository root:
+
+```powershell
+npm --prefix api run lint
+npm --prefix api run build
+npm --prefix api test -- --runInBand
+npm --prefix api run openapi:check
+npm --prefix web run lint
+npm --prefix web run build
+npm --prefix web test -- --run
+npm --prefix web exec playwright install --with-deps chromium
+node .\scripts\local-test-launcher.mjs --e2e
+```
+
+The CI workflow runs this same project validation and isolated browser suite
+on GitHub-hosted Linux without Clerk credentials or external authentication.
+The real Clerk sign-in flow remains separate coverage. API PostgreSQL suites
+under `api/test/` that require their own `TEST_*_DATABASE_URL` variables are
+not silently pointed at the local-test database; the browser suite is the
+credential-free real-service integration boundary for this workflow.
 
 ## Security boundary
 

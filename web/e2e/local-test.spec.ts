@@ -61,9 +61,12 @@ test("switches Users without exposing stale browser data", async ({ page }) => {
   const description = "Primary-only browser isolation fixture";
 
   await page.goto("/transactions");
-  await page.getByTestId("local-test-panel").getByRole("button", {
-    name: "Populated User",
-  }).click();
+  await page
+    .getByTestId("local-test-panel")
+    .getByRole("button", {
+      name: "Populated User",
+    })
+    .click();
   await expect(page.getByTestId("local-test-active-user")).toContainText(
     "Local Test User",
   );
@@ -77,29 +80,40 @@ test("switches Users without exposing stale browser data", async ({ page }) => {
   expect(created.status).toBe(201);
 
   await page.reload();
-  await expect(page.getByText(description, { exact: true }).first()).toBeVisible();
+  await expect(
+    page.getByText(description, { exact: true }).first(),
+  ).toBeVisible();
 
   const panel = page.getByTestId("local-test-panel");
   await panel.getByRole("button", { name: "Second User" }).click();
   await expect(page.getByTestId("local-test-active-user")).toContainText(
     "Local Test Companion",
   );
-  await expect(page.getByRole("heading", { name: "Your spending" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Your spending" }),
+  ).toBeVisible();
   await expect(page.getByText(description, { exact: true })).toHaveCount(0);
 
   await panel.getByRole("button", { name: "Populated User" }).click();
   await expect(page.getByTestId("local-test-active-user")).toContainText(
     "Local Test User",
   );
-  await expect(page.getByText(description, { exact: true }).first()).toBeVisible();
+  await expect(
+    page.getByText(description, { exact: true }).first(),
+  ).toBeVisible();
   expect(created.body).toMatchObject({ description });
 });
 
-test("signs out protected routes and re-enters without Clerk", async ({ page }) => {
+test("signs out protected routes and re-enters without Clerk", async ({
+  page,
+}) => {
   await page.goto("/transactions");
-  await page.getByTestId("local-test-panel").getByRole("button", {
-    name: "Sign out",
-  }).click();
+  await page
+    .getByTestId("local-test-panel")
+    .getByRole("button", {
+      name: "Sign out",
+    })
+    .click();
 
   await expect(page).toHaveURL(/\/sign-in$/);
   await expect(page.getByTestId("local-test-signed-out")).toBeVisible();
@@ -110,7 +124,9 @@ test("signs out protected routes and re-enters without Clerk", async ({ page }) 
 
   await page.getByRole("button", { name: "Resume synthetic session" }).click();
   await expect(page).toHaveURL(/\/$/);
-  await expect(page.getByTestId("local-test-panel")).toContainText("LOCAL TEST");
+  await expect(page.getByTestId("local-test-panel")).toContainText(
+    "LOCAL TEST",
+  );
 });
 
 test("refreshes an expired session through the real API recovery path", async ({
@@ -122,7 +138,9 @@ test("refreshes an expired session through the real API recovery path", async ({
   const panel = page.getByTestId("local-test-panel");
   const sessionState = page.getByTestId("local-test-session-state");
   await expect(sessionState).toHaveAttribute("data-session-mode", "active");
-  await expect(page.getByRole("heading", { name: "Your spending" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Your spending" }),
+  ).toBeVisible();
   const authenticationStatuses: number[] = [];
   page.on("response", (response) => {
     if (response.url().endsWith("/api/v1/users/me")) {
@@ -147,11 +165,15 @@ test("refreshes an expired session through the real API recovery path", async ({
   };
   await rejectedRequest;
   await expect(sessionState).toHaveAttribute("data-session-mode", "active");
-  await expect(page.getByRole("heading", { name: "Your spending" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Your spending" }),
+  ).toBeVisible();
   await expect
     .poll(() => authenticationStatuses.length)
     .toBeGreaterThanOrEqual(2);
-  expect(authenticationStatuses.filter((status) => status === 401)).toHaveLength(1);
+  expect(
+    authenticationStatuses.filter((status) => status === 401),
+  ).toHaveLength(1);
   expect(authenticationStatuses.length).toBeLessThanOrEqual(3);
 
   const expiredToken = readSessionToken(expireBody.expiredSession);
@@ -182,9 +204,12 @@ test("revokes a session, clears private data, and allows deliberate re-entry", a
       response.url().endsWith("/api/v1/users/me/local-test/sessions") &&
       response.status() === 201,
   );
-  await page.getByTestId("local-test-panel").getByRole("button", {
-    name: "Second User",
-  }).click();
+  await page
+    .getByTestId("local-test-panel")
+    .getByRole("button", {
+      name: "Second User",
+    })
+    .click();
   const secondaryToken = readSessionToken(
     await (await secondarySessionResponse).json(),
   );
@@ -201,17 +226,24 @@ test("revokes a session, clears private data, and allows deliberate re-entry", a
       response.url().endsWith("/api/v1/users/me/local-test/sessions") &&
       response.status() === 201,
   );
-  await page.getByTestId("local-test-panel").getByRole("button", {
-    name: "Second User",
-  }).click();
+  await page
+    .getByTestId("local-test-panel")
+    .getByRole("button", {
+      name: "Second User",
+    })
+    .click();
   const activeSecondaryToken = readSessionToken(
     await (await refreshedSecondaryResponse).json(),
   );
   await expect(page.getByTestId("local-test-active-user")).toContainText(
     "Local Test Companion",
   );
-  await expect(page.getByRole("heading", { name: "Your spending" })).toBeVisible();
-  await expect(page.getByText(privateDescription, { exact: true }).first()).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Your spending" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText(privateDescription, { exact: true }).first(),
+  ).toBeVisible();
 
   const panel = page.getByTestId("local-test-panel");
   const authenticationStatuses: number[] = [];
@@ -237,7 +269,9 @@ test("revokes a session, clears private data, and allows deliberate re-entry", a
   await rejectedRequest;
   await expect(page).toHaveURL(/\/sign-in$/);
   await expect(page.getByTestId("local-test-signed-out")).toBeVisible();
-  await expect(page.getByText(privateDescription, { exact: true })).toHaveCount(0);
+  await expect(page.getByText(privateDescription, { exact: true })).toHaveCount(
+    0,
+  );
   expect(authenticationStatuses).toEqual([401]);
 
   const revokedAccess = await request.get(
@@ -255,7 +289,9 @@ test("revokes a session, clears private data, and allows deliberate re-entry", a
   expect(resumedAccess.status()).toBe(200);
 
   await page.getByRole("button", { name: "Resume synthetic session" }).click();
-  await expect(page.getByTestId("local-test-panel")).toContainText("LOCAL TEST");
+  await expect(page.getByTestId("local-test-panel")).toContainText(
+    "LOCAL TEST",
+  );
 });
 
 test("proves ownership isolation through authenticated API requests", async ({
@@ -273,11 +309,15 @@ test("proves ownership isolation through authenticated API requests", async ({
   const primaryDescription = "Ownership boundary primary fixture";
   const secondaryDescription = "Ownership boundary secondary fixture";
 
-  const primaryTransaction = await createTransactionWithRequest(request, apiBaseUrl, {
-    token: primaryToken,
-    purchaseDate,
-    description: primaryDescription,
-  });
+  const primaryTransaction = await createTransactionWithRequest(
+    request,
+    apiBaseUrl,
+    {
+      token: primaryToken,
+      purchaseDate,
+      description: primaryDescription,
+    },
+  );
   expect(primaryTransaction.status()).toBe(201);
   const primaryBody = (await primaryTransaction.json()) as {
     id?: unknown;
@@ -305,12 +345,16 @@ test("proves ownership isolation through authenticated API requests", async ({
   const secondaryHistoryBody = (await secondaryHistory.json()) as {
     items?: readonly { description?: unknown }[];
   };
-  expect(secondaryHistoryBody.items?.some((item) => item.description === primaryDescription)).toBe(
-    false,
-  );
-  expect(secondaryHistoryBody.items?.some((item) => item.description === secondaryDescription)).toBe(
-    true,
-  );
+  expect(
+    secondaryHistoryBody.items?.some(
+      (item) => item.description === primaryDescription,
+    ),
+  ).toBe(false);
+  expect(
+    secondaryHistoryBody.items?.some(
+      (item) => item.description === secondaryDescription,
+    ),
+  ).toBe(true);
 
   const crossUserMutation = await request.patch(
     `${apiBaseUrl}/api/v1/users/me/transactions/${String(primaryBody.id)}`,
@@ -332,9 +376,11 @@ test("proves ownership isolation through authenticated API requests", async ({
   const primaryHistoryBody = (await primaryHistory.json()) as {
     items?: readonly { description?: unknown }[];
   };
-  expect(primaryHistoryBody.items?.some((item) => item.description === primaryDescription)).toBe(
-    true,
-  );
+  expect(
+    primaryHistoryBody.items?.some(
+      (item) => item.description === primaryDescription,
+    ),
+  ).toBe(true);
 });
 
 async function issueSession(
@@ -373,22 +419,28 @@ async function createTransaction(
 ): Promise<{ status: number; body: unknown }> {
   return page.evaluate(
     async ({ apiBaseUrl, token, purchaseDate, description }) => {
-      const response = await fetch(`${apiBaseUrl}/api/v1/users/me/transactions`, {
-        method: "POST",
-        headers: {
-          Accept: "application/json",
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
+      const response = await fetch(
+        `${apiBaseUrl}/api/v1/users/me/transactions`,
+        {
+          method: "POST",
+          headers: {
+            Accept: "application/json",
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            purchaseDate,
+            description,
+            amount: "123.45",
+            categoryId: null,
+          }),
         },
-        body: JSON.stringify({
-          purchaseDate,
-          description,
-          amount: "123.45",
-          categoryId: null,
-        }),
-      });
+      );
 
-      return { status: response.status, body: (await response.json()) as unknown };
+      return {
+        status: response.status,
+        body: (await response.json()) as unknown,
+      };
     },
     input,
   );
@@ -442,6 +494,7 @@ function readSessionToken(value: unknown): string {
 
 function requireEnvironment(name: string): string {
   const value = process.env[name];
-  if (!value) throw new Error(`${name} is required for local-test E2E coverage.`);
+  if (!value)
+    throw new Error(`${name} is required for local-test E2E coverage.`);
   return value;
 }

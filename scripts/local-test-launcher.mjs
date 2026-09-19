@@ -13,8 +13,7 @@ const composeFile = resolve(rootDirectory, "local-test", "docker-compose.yml");
 const tokenPrefix = "spendeazy-local-test.v1";
 const testUserId = "local-test-populated-user";
 const fixedE2eClock =
-  process.env.SPENDEAZY_E2E_TEST_CLOCK?.trim() ??
-  "2026-09-19T12:00:00.000Z";
+  process.env.SPENDEAZY_E2E_TEST_CLOCK?.trim() ?? "2026-09-19T12:00:00.000Z";
 
 const isE2e = process.argv.includes("--e2e");
 const shouldReset = process.argv.includes("--reset");
@@ -112,9 +111,7 @@ async function main() {
             SPENDEAZY_E2E_TEST_CLOCK: configuration.testClock,
           }
         : {}),
-      ...(process.platform === "win32"
-        ? { PLAYWRIGHT_CHANNEL: "msedge" }
-        : {}),
+      ...(process.platform === "win32" ? { PLAYWRIGHT_CHANNEL: "msedge" } : {}),
     };
     start(
       "npm",
@@ -243,9 +240,7 @@ function run(command, argumentsToRun, options) {
         return;
       }
 
-      reject(
-        new Error(`${command} exited with ${signal ?? `code ${code}`}.`),
-      );
+      reject(new Error(`${command} exited with ${signal ?? `code ${code}`}.`));
     });
   });
 }
@@ -339,17 +334,14 @@ async function waitForPort(port, label) {
 }
 
 async function waitForHttp(url, label) {
-  await waitUntil(
-    async () => {
-      try {
-        const response = await fetch(url);
-        return response.status === 200;
-      } catch {
-        return false;
-      }
-    },
-    label,
-  );
+  await waitUntil(async () => {
+    try {
+      const response = await fetch(url);
+      return response.status === 200;
+    } catch {
+      return false;
+    }
+  }, label);
 }
 
 async function waitUntil(check, label) {
@@ -482,7 +474,9 @@ function createSessionToken(secret, testClock) {
 }
 
 function delay(milliseconds) {
-  return new Promise((resolvePromise) => setTimeout(resolvePromise, milliseconds));
+  return new Promise((resolvePromise) =>
+    setTimeout(resolvePromise, milliseconds),
+  );
 }
 
 function parseFixedE2eDate(value) {

@@ -264,6 +264,29 @@ describe("CategorizeStatement ambiguity handling", () => {
     expect(within(mobileList).getByText("Housing")).toBeTruthy();
   });
 
+  it("keeps the mobile date field inside the editor width", () => {
+    render(<CategorizeHarness />);
+
+    const mobileList = screen.getByRole("list", {
+      name: "Transactions to categorize",
+    });
+    fireEvent.click(
+      within(mobileList).getByRole("button", {
+        name: "Edit Green Market Cafe",
+      }),
+    );
+
+    const editor = screen.getByRole("dialog", { name: "Edit Transaction" });
+    const dateInput = within(editor).getByLabelText(
+      "Date for Green Market Cafe",
+    );
+
+    expect(dateInput.className.split(/\s+/u)).toContain("max-w-full");
+    expect(dateInput.parentElement?.className.split(/\s+/u)).toContain(
+      "min-w-0",
+    );
+  });
+
   it("uses the Transaction description for Exact Rules and only enables Contains patterns", () => {
     render(<CategorizeHarness />);
 

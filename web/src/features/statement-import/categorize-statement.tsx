@@ -1010,7 +1010,7 @@ function TransactionDraftFields({
       }
       className={
         layout === "mobile"
-          ? "mt-1.5 font-mono text-xs"
+          ? "mt-1.5 max-w-full font-mono text-xs"
           : "h-8 min-w-36 font-mono text-xs"
       }
       aria-label={`Date for ${transaction.description}`}
@@ -1095,19 +1095,19 @@ function TransactionDraftFields({
 
   return (
     <>
-      <div>
+      <div className="min-w-0">
         <Label htmlFor={`${idPrefix}-date`}>Date</Label>
         {dateInput}
       </div>
-      <div>
+      <div className="min-w-0">
         <Label htmlFor={`${idPrefix}-description`}>Description</Label>
         {descriptionInput}
       </div>
-      <div>
+      <div className="min-w-0">
         <Label htmlFor={`${idPrefix}-amount`}>Amount</Label>
         {amountInput}
       </div>
-      <div>
+      <div className="min-w-0">
         <Label htmlFor={`${idPrefix}-category`}>Category</Label>
         {categoryInput}
       </div>
@@ -1266,7 +1266,7 @@ function MobileTransactionEditor({
 
   return (
     <>
-      <div className="grid gap-4 p-5">
+      <div className="grid min-w-0 gap-4 p-5">
         <TransactionDraftFields
           layout="mobile"
           categoryOptions={categoryOptions}

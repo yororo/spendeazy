@@ -4,9 +4,12 @@ import type {
   CategoryCatalogOption,
   CategoryColorOption,
   CategoryRule,
+  CommitStatementImportOptions,
+  CommittedStatementImport,
   RememberCategoryRuleInput,
   RememberCategoryRuleResult,
 } from "./statement-import-service";
+import type { CategorizedStatement } from "./statement-categorizer";
 import {
   createStatementImportWorkflow,
   type StatementImportWorkflow,
@@ -20,6 +23,11 @@ interface UseStatementImportWorkflowOptions {
     input: RememberCategoryRuleInput,
     existingRules: readonly CategoryRule[],
   ) => Promise<RememberCategoryRuleResult>;
+  readonly onCommitStatementImport: (
+    file: File,
+    statement: CategorizedStatement,
+    options: CommitStatementImportOptions,
+  ) => Promise<CommittedStatementImport>;
 }
 
 function useWorkflowState(workflow: StatementImportWorkflow) {
@@ -34,6 +42,7 @@ function useStatementImportWorkflow({
   categoryOptions,
   categoryLabels,
   onRememberCategoryRule,
+  onCommitStatementImport,
 }: UseStatementImportWorkflowOptions) {
   const [workflow] = useState(() =>
     createStatementImportWorkflow({
@@ -41,6 +50,8 @@ function useStatementImportWorkflow({
       getCategoryLabels: () => categoryLabels,
       rememberCategoryRule: (input, existingRules) =>
         onRememberCategoryRule(input, existingRules),
+      commitStatementImport: (file, statement, options) =>
+        onCommitStatementImport(file, statement, options),
     }),
   );
 
@@ -51,9 +62,17 @@ function useStatementImportWorkflow({
       getCategoryLabels: () => categoryLabels,
       rememberCategoryRule: (input, existingRules) =>
         onRememberCategoryRule(input, existingRules),
+      commitStatementImport: (file, statement, options) =>
+        onCommitStatementImport(file, statement, options),
     };
     workflow.updateDependencies(dependencies);
-  }, [categoryLabels, categoryOptions, onRememberCategoryRule, workflow]);
+  }, [
+    categoryLabels,
+    categoryOptions,
+    onCommitStatementImport,
+    onRememberCategoryRule,
+    workflow,
+  ]);
 
   const state = useWorkflowState(workflow);
 

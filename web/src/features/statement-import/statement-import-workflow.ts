@@ -2,14 +2,21 @@ import type {
   CategorizedStatement,
   CategorizedTransaction,
 } from "./statement-categorizer";
+import { ApiError } from "@/shared/api";
 import {
   categorizeTransactions,
   type CategoryCatalogOption,
   type CategoryColorOption,
   type CategoryRule,
+  type CommitStatementImportOptions,
+  type CommittedStatementImport,
   type RememberCategoryRuleInput,
   type RememberCategoryRuleResult,
 } from "./statement-import-service";
+import {
+  getProbableDuplicateConflict,
+  type ProbableDuplicateConflict,
+} from "./statement-import-errors";
 import {
   applyManualTransactionEdit,
   cleanDescription,
@@ -45,6 +52,17 @@ interface StatementImportWorkflowState {
   readonly categoryRules: readonly CategoryRule[];
   readonly editor: CategorizeEditorState;
   readonly canEnterReview: boolean;
+  readonly commit: StatementImportCommitState;
+}
+
+interface StatementImportCommitState {
+  readonly isCommitting: boolean;
+  readonly result: CommittedStatementImport | null;
+  readonly error: Error | null;
+  readonly probableDuplicateConflict: ProbableDuplicateConflict | null;
+  readonly hasFileDuplicate: boolean;
+  readonly canConfirm: boolean;
+  readonly canImportAnyway: boolean;
 }
 
 interface StatementImportWorkflowDependencies {
@@ -54,12 +72,23 @@ interface StatementImportWorkflowDependencies {
     input: RememberCategoryRuleInput,
     existingRules: readonly CategoryRule[],
   ) => Promise<RememberCategoryRuleResult>;
+  readonly commitStatementImport: (
+    file: File,
+    statement: CategorizedStatement,
+    options: CommitStatementImportOptions,
+  ) => Promise<CommittedStatementImport>;
 }
 
 type SaveEditResult =
   | "saved"
   | "invalid"
   | "conflict"
+  | "failed"
+  | "ignored"
+  | "abandoned";
+
+type ConfirmStatementImportResult =
+  | "committed"
   | "failed"
   | "ignored"
   | "abandoned";
@@ -74,6 +103,16 @@ const emptyEditor = (): CategorizeEditorState => ({
   rememberedMatchType: "contains",
   rememberedPattern: "",
   isSaving: false,
+});
+
+const emptyCommit = (): StatementImportCommitState => ({
+  isCommitting: false,
+  result: null,
+  error: null,
+  probableDuplicateConflict: null,
+  hasFileDuplicate: false,
+  canConfirm: false,
+  canImportAnyway: false,
 });
 
 function isValidDate(value: string) {
@@ -113,11 +152,63 @@ function canEnterReview(
 ) {
   if (!statement || editor.editingId !== null || editor.isSaving) return false;
 
-  return !statement.transactions.some(
-    (transaction) =>
-      isIncludedStatementTransaction(transaction) &&
-      transaction.categoryId === null,
+  return !hasUnmappedTransactions(statement);
+}
+
+function hasUnmappedTransactions(statement: CategorizedStatement | null) {
+  return Boolean(
+    statement?.transactions.some(
+      (transaction) =>
+        isIncludedStatementTransaction(transaction) &&
+        transaction.categoryId === null,
+    ),
   );
+}
+
+function getCommitState(
+  stage: ImportStage,
+  importedFile: File | null,
+  statement: CategorizedStatement | null,
+  commit: Pick<
+    StatementImportCommitState,
+    "isCommitting" | "result" | "error"
+  >,
+  probableDuplicateAcknowledgementAttempted: boolean,
+): StatementImportCommitState {
+  const probableDuplicateConflict = getProbableDuplicateConflict(commit.error);
+  const hasFileDuplicate =
+    commit.error instanceof ApiError &&
+    commit.error.code === "STATEMENT_IMPORT_FILE_ALREADY_EXISTS";
+  const hasUnmapped = hasUnmappedTransactions(statement);
+  const hasImportContext = Boolean(importedFile && statement);
+
+  return {
+    ...commit,
+    probableDuplicateConflict,
+    hasFileDuplicate,
+    canConfirm:
+      stage === "review" &&
+      hasImportContext &&
+      !hasUnmapped &&
+      !commit.isCommitting &&
+      !commit.result &&
+      !probableDuplicateConflict &&
+      !hasFileDuplicate,
+    canImportAnyway:
+      stage === "review" &&
+      hasImportContext &&
+      Boolean(probableDuplicateConflict) &&
+      !probableDuplicateAcknowledgementAttempted &&
+      !commit.isCommitting &&
+      !commit.result &&
+      !hasFileDuplicate,
+  };
+}
+
+function toCommitError(error: unknown) {
+  return error instanceof Error
+    ? error
+    : new Error("The Statement Import could not be saved.");
 }
 
 function cloneStatement(statement: CategorizedStatement): CategorizedStatement {
@@ -136,12 +227,15 @@ class StatementImportWorkflow {
     categoryRules: [],
     editor: emptyEditor(),
     canEnterReview: false,
+    commit: emptyCommit(),
   };
   private readonly listeners = new Set<WorkflowListener>();
   private statementLifetime = Symbol("statement-import");
   private categorizeSessionLifetime: symbol | null = null;
   private editLifetime: symbol | null = null;
   private persistenceLifetime: symbol | null = null;
+  private commitLifetime: symbol | null = null;
+  private probableDuplicateAcknowledgementAttempted = false;
   private hasCustomizedRememberedPattern = false;
   private destroyed = false;
 
@@ -158,6 +252,7 @@ class StatementImportWorkflow {
 
     this.destroyed = false;
     this.invalidateEdit();
+    this.commitLifetime = null;
     this.updateState((current) => ({
       ...current,
       editor: emptyEditor(),
@@ -181,6 +276,8 @@ class StatementImportWorkflow {
     this.statementLifetime = Symbol("statement-import");
     this.categorizeSessionLifetime = Symbol("categorize-session");
     this.invalidateEdit();
+    this.commitLifetime = null;
+    this.probableDuplicateAcknowledgementAttempted = false;
     this.updateState((current) => ({
       ...current,
       stage: "categorize",
@@ -188,6 +285,7 @@ class StatementImportWorkflow {
       statement: cloneStatement(statement),
       categoryRules: [...categoryRules],
       editor: emptyEditor(),
+      commit: emptyCommit(),
     }));
     return true;
   }
@@ -224,6 +322,8 @@ class StatementImportWorkflow {
     this.statementLifetime = Symbol("statement-import");
     this.categorizeSessionLifetime = null;
     this.invalidateEdit();
+    this.commitLifetime = null;
+    this.probableDuplicateAcknowledgementAttempted = false;
     this.updateState((current) => ({
       ...current,
       stage: "upload",
@@ -231,6 +331,7 @@ class StatementImportWorkflow {
       statement: null,
       categoryRules: [],
       editor: emptyEditor(),
+      commit: emptyCommit(),
     }));
     return true;
   }
@@ -251,15 +352,82 @@ class StatementImportWorkflow {
   returnToCategorize(categoryRules: readonly CategoryRule[]) {
     if (this.destroyed || !this.state.statement) return false;
 
-    this.categorizeSessionLifetime = Symbol("categorize-session");
-    this.invalidateEdit();
+    return this.transitionToCategorize(categoryRules, false);
+  }
+
+  backToCategorize(categoryRules: readonly CategoryRule[]) {
+    if (this.destroyed || !this.state.statement) return false;
+
+    return this.transitionToCategorize(categoryRules, true);
+  }
+
+  async confirmStatementImport(
+    acknowledgeProbableDuplicates: boolean,
+  ): Promise<ConfirmStatementImportResult> {
+    const { importedFile, statement, commit } = this.state;
+    if (this.destroyed || !importedFile || !statement) return "ignored";
+
+    const canStart = acknowledgeProbableDuplicates
+      ? commit.canImportAnyway
+      : commit.canConfirm;
+    if (!canStart) return "ignored";
+
+    const statementLifetime = this.statementLifetime;
+    const commitLifetime = Symbol("commit-request");
+    this.commitLifetime = commitLifetime;
+    if (acknowledgeProbableDuplicates) {
+      this.probableDuplicateAcknowledgementAttempted = true;
+    }
+
     this.updateState((current) => ({
       ...current,
-      stage: "categorize",
-      categoryRules: [...categoryRules],
-      editor: emptyEditor(),
+      commit: {
+        ...current.commit,
+        isCommitting: true,
+        error: null,
+        result: null,
+      },
     }));
-    return true;
+
+    try {
+      const result = await this.dependencies.commitStatementImport(
+        importedFile,
+        statement,
+        { acknowledgeProbableDuplicates },
+      );
+
+      if (!this.isCurrentCommit(statementLifetime, commitLifetime)) {
+        return "abandoned";
+      }
+
+      this.commitLifetime = null;
+      this.updateState((current) => ({
+        ...current,
+        commit: {
+          ...current.commit,
+          isCommitting: false,
+          error: null,
+          result,
+        },
+      }));
+      return "committed";
+    } catch (error) {
+      if (!this.isCurrentCommit(statementLifetime, commitLifetime)) {
+        return "abandoned";
+      }
+
+      this.commitLifetime = null;
+      this.updateState((current) => ({
+        ...current,
+        commit: {
+          ...current.commit,
+          isCommitting: false,
+          error: toCommitError(error),
+          result: null,
+        },
+      }));
+      return "failed";
+    }
   }
 
   beginEdit(transactionId: string) {
@@ -581,8 +749,30 @@ class StatementImportWorkflow {
   destroy() {
     this.destroyed = true;
     this.categorizeSessionLifetime = null;
+    this.commitLifetime = null;
     this.invalidateEdit();
     this.listeners.clear();
+  }
+
+  private transitionToCategorize(
+    categoryRules: readonly CategoryRule[],
+    resetCommit: boolean,
+  ) {
+    this.categorizeSessionLifetime = Symbol("categorize-session");
+    this.invalidateEdit();
+    if (resetCommit) {
+      this.commitLifetime = null;
+      this.probableDuplicateAcknowledgementAttempted = false;
+    }
+
+    this.updateState((current) => ({
+      ...current,
+      stage: "categorize",
+      categoryRules: [...categoryRules],
+      editor: emptyEditor(),
+      commit: resetCommit ? emptyCommit() : current.commit,
+    }));
+    return true;
   }
 
   private applyEdit(
@@ -687,6 +877,17 @@ class StatementImportWorkflow {
     );
   }
 
+  private isCurrentCommit(
+    statementLifetime: symbol,
+    commitLifetime: symbol,
+  ) {
+    return (
+      !this.destroyed &&
+      this.statementLifetime === statementLifetime &&
+      this.commitLifetime === commitLifetime
+    );
+  }
+
   private updateState(
     update: (
       current: StatementImportWorkflowState,
@@ -698,6 +899,13 @@ class StatementImportWorkflow {
     this.state = {
       ...next,
       canEnterReview: canEnterReview(next.statement, next.editor),
+      commit: getCommitState(
+        next.stage,
+        next.importedFile,
+        next.statement,
+        next.commit,
+        this.probableDuplicateAcknowledgementAttempted,
+      ),
     };
     this.listeners.forEach((listener) => listener());
   }
@@ -714,6 +922,8 @@ export type {
   CategorizeEditorState,
   ImportStage,
   SaveEditResult,
+  ConfirmStatementImportResult,
+  StatementImportCommitState,
   StatementImportWorkflow,
   StatementImportWorkflowDependencies,
   StatementImportWorkflowState,

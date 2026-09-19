@@ -1,4 +1,3 @@
-import { ApiError } from "@/shared/api";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -52,11 +51,13 @@ interface ReviewStatementProps {
   categoryOptions: readonly CategoryColorOption[];
   fileName: string;
   statementSummary: CategorizedStatement["summary"];
-  transactions: CategorizedTransaction[];
+  transactions: readonly CategorizedTransaction[];
   commitError: Error | null;
   probableDuplicateConflict: ProbableDuplicateConflict | null;
   canImportAnyway: boolean;
+  canConfirm: boolean;
   isCommitting: boolean;
+  hasFileDuplicate: boolean;
   onBack: () => void;
   onResolve: () => void;
   onCommit: (acknowledgeProbableDuplicates: boolean) => void;
@@ -121,7 +122,9 @@ function ReviewStatement({
   commitError,
   probableDuplicateConflict,
   canImportAnyway,
+  canConfirm,
   isCommitting,
+  hasFileDuplicate,
   onBack,
   onResolve,
   onCommit,
@@ -193,10 +196,6 @@ function ReviewStatement({
   );
   const largestCategoryAmount = categoryBreakdown[0]?.amount ?? 0;
   const hasUnmappedTransactions = unmappedTransactions.length > 0;
-  const hasFileDuplicate =
-    commitError instanceof ApiError &&
-    commitError.code === "STATEMENT_IMPORT_FILE_ALREADY_EXISTS";
-
   return (
     <div className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-screen-2xl flex-col gap-6 px-4 py-6 sm:px-6 lg:min-h-screen lg:px-9 lg:py-7">
       <header className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
@@ -521,6 +520,7 @@ function ReviewStatement({
             aria-busy={isCommitting}
             onClick={() => onCommit(false)}
             disabled={
+              !canConfirm ||
               hasUnmappedTransactions ||
               isCommitting ||
               Boolean(probableDuplicateConflict) ||

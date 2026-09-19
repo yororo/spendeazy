@@ -1,4 +1,3 @@
-import { useRef, useState } from "react";
 import { InfoIcon } from "lucide-react";
 
 import {
@@ -10,7 +9,6 @@ import { ImportProgress } from "./import-progress";
 import { ImportSuccess } from "./import-success";
 import { ReviewStatement } from "./review-statement";
 import { importFeatures } from "./statement-import-data";
-import { getProbableDuplicateConflict } from "./statement-import-errors";
 import {
   useCommitStatementImportMutation,
   useRecentImportsQuery,
@@ -37,11 +35,6 @@ function StatementImportPage({ onViewTransactions }: StatementImportPageProps) {
   const recentImportsQuery = useRecentImportsQuery();
   const commitMutation = useCommitStatementImportMutation();
   const rememberCategoryRuleMutation = useRememberCategoryRuleMutation();
-  const [
-    hasAcknowledgedProbableDuplicates,
-    setHasAcknowledgedProbableDuplicates,
-  ] = useState(false);
-  const probableDuplicateAcknowledgementAttemptedRef = useRef(false);
 
   const categoryCatalogForWorkflow = categoryOptionsQuery.data ?? [];
   const categoryOptionsForWorkflow = categoryCatalogForWorkflow
@@ -52,16 +45,14 @@ function StatementImportPage({ onViewTransactions }: StatementImportPageProps) {
     categoryLabels: categoryCatalogForWorkflow,
     onRememberCategoryRule: (input, existingRules) =>
       rememberCategoryRuleMutation.mutateAsync({ input, existingRules }),
+    onCommitStatementImport: (file, statement, options) =>
+      commitMutation.mutateAsync({ file, statement, ...options }),
   });
 
   function acceptCategorizedStatement(
     file: File,
     categorizedStatement: CategorizedStatement,
   ) {
-    commitMutation.reset();
-    rememberCategoryRuleMutation.reset();
-    setHasAcknowledgedProbableDuplicates(false);
-    probableDuplicateAcknowledgementAttemptedRef.current = false;
     workflow.acceptPreparedStatement(
       file,
       categorizedStatement,
@@ -70,34 +61,7 @@ function StatementImportPage({ onViewTransactions }: StatementImportPageProps) {
   }
 
   function resetImport() {
-    commitMutation.reset();
-    rememberCategoryRuleMutation.reset();
     workflow.backToUpload();
-    setHasAcknowledgedProbableDuplicates(false);
-    probableDuplicateAcknowledgementAttemptedRef.current = false;
-  }
-
-  function commitReviewedStatementImport(
-    acknowledgeProbableDuplicates: boolean,
-  ) {
-    const { importedFile, statement } = workflowState;
-    if (!importedFile || !statement || commitMutation.isPending) return;
-    if (
-      acknowledgeProbableDuplicates &&
-      probableDuplicateAcknowledgementAttemptedRef.current
-    ) {
-      return;
-    }
-
-    setHasAcknowledgedProbableDuplicates(acknowledgeProbableDuplicates);
-    if (acknowledgeProbableDuplicates) {
-      probableDuplicateAcknowledgementAttemptedRef.current = true;
-    }
-    commitMutation.mutate({
-      file: importedFile,
-      statement,
-      acknowledgeProbableDuplicates,
-    });
   }
 
   const isLoading =
@@ -149,21 +113,18 @@ function StatementImportPage({ onViewTransactions }: StatementImportPageProps) {
     );
   }
 
-  if (commitMutation.data) {
+  if (workflowState.commit.result) {
     return (
       <ImportSuccess
-        committedImport={commitMutation.data}
+        committedImport={workflowState.commit.result}
         onImportAnother={resetImport}
         onViewTransactions={onViewTransactions}
       />
     );
   }
 
-  const probableDuplicateConflict = getProbableDuplicateConflict(
-    commitMutation.error,
-  );
-
   const { importedFile, statement, stage } = workflowState;
+  const { commit } = workflowState;
 
   if (importedFile && statement && stage === "review") {
     return (
@@ -172,18 +133,17 @@ function StatementImportPage({ onViewTransactions }: StatementImportPageProps) {
         fileName={importedFile.name}
         statementSummary={statement.summary}
         transactions={statement.transactions}
-        commitError={commitMutation.error}
-        probableDuplicateConflict={probableDuplicateConflict}
-        canImportAnyway={!hasAcknowledgedProbableDuplicates}
-        isCommitting={commitMutation.isPending}
-        onBack={() => {
-          commitMutation.reset();
-          setHasAcknowledgedProbableDuplicates(false);
-          probableDuplicateAcknowledgementAttemptedRef.current = false;
-          workflow.returnToCategorize(categoryRules);
-        }}
+        commitError={commit.error}
+        probableDuplicateConflict={commit.probableDuplicateConflict}
+        canImportAnyway={commit.canImportAnyway}
+        canConfirm={commit.canConfirm}
+        isCommitting={commit.isCommitting}
+        hasFileDuplicate={commit.hasFileDuplicate}
+        onBack={() => workflow.backToCategorize(categoryRules)}
         onResolve={() => workflow.returnToCategorize(categoryRules)}
-        onCommit={commitReviewedStatementImport}
+        onCommit={(acknowledgeProbableDuplicates) => {
+          void workflow.confirmStatementImport(acknowledgeProbableDuplicates);
+        }}
       />
     );
   }

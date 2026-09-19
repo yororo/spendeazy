@@ -80,7 +80,9 @@ const defaultProps: ReviewProps = {
   commitError: null,
   probableDuplicateConflict: null,
   canImportAnyway: true,
+  canConfirm: true,
   isCommitting: false,
+  hasFileDuplicate: false,
   onBack: vi.fn(),
   onResolve: vi.fn(),
   onCommit: vi.fn(),
@@ -141,7 +143,9 @@ describe("ReviewStatement ambiguity handling", () => {
         commitError={null}
         probableDuplicateConflict={null}
         canImportAnyway={true}
+        canConfirm={false}
         isCommitting={false}
+        hasFileDuplicate={false}
         onBack={vi.fn()}
         onResolve={onResolve}
         onCommit={vi.fn()}
@@ -296,6 +300,7 @@ describe("ReviewStatement import safeguards", () => {
         status: 409,
         code: "STATEMENT_IMPORT_FILE_ALREADY_EXISTS",
       }),
+      hasFileDuplicate: true,
     });
 
     expect(screen.getAllByText("Statement already imported")).toHaveLength(2);

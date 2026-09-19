@@ -83,6 +83,15 @@ function CategorizeHarness({
       { value: "43", label: "Groceries", color: "forest", isActive: true },
     ],
     onRememberCategoryRule,
+    onCommitStatementImport: async () => ({
+      id: "import-1",
+      fileName: "statement.pdf",
+      statementDate: "2026-08-31",
+      provider: "BDO",
+      accountType: "AMEX",
+      importedAt: "2026-09-01T00:00:00.000Z",
+      transactionCount: 1,
+    }),
   });
   const initialStatementRef = useRef({
     summary,

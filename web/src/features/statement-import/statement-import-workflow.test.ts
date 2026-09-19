@@ -1,9 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { ApiError } from "@/shared/api";
+
 import type {
   CategoryCatalogOption,
   CategoryColorOption,
   CategoryRule,
+  CommitStatementImportOptions,
+  CommittedStatementImport,
   RememberCategoryRuleInput,
   RememberCategoryRuleResult,
 } from "./statement-import-service";
@@ -48,6 +52,22 @@ const categoryRules: readonly CategoryRule[] = [
   { id: "1", categoryId: "42", pattern: "Green", matchType: "contains" },
 ];
 
+const committedImport: CommittedStatementImport = {
+  id: "import-1",
+  fileName: "statement.pdf",
+  statementDate: "2026-08-31",
+  provider: "BDO",
+  accountType: "AMEX",
+  importedAt: "2026-09-01T00:00:00.000Z",
+  transactionCount: 1,
+};
+
+type CommitStatementImport = (
+  file: File,
+  statement: CategorizedStatement,
+  options: CommitStatementImportOptions,
+) => Promise<CommittedStatementImport>;
+
 function createWorkflow(
   rememberCategoryRule: (
     input: RememberCategoryRuleInput,
@@ -61,11 +81,14 @@ function createWorkflow(
       matchType: "contains",
     },
   }),
+  commitStatementImport: CommitStatementImport = () =>
+    Promise.resolve(committedImport),
 ) {
   return createStatementImportWorkflow({
     getCategoryOptions: () => categoryOptions,
     getCategoryLabels: () => categoryLabels,
     rememberCategoryRule,
+    commitStatementImport,
   });
 }
 
@@ -104,6 +127,44 @@ function withTransaction(
   overrides: Partial<CategorizedTransaction>,
 ): CategorizedTransaction {
   return { ...transaction, ...overrides };
+}
+
+function acceptReviewableStatement(
+  workflow: ReturnType<typeof createStatementImportWorkflow>,
+  transactions: readonly CategorizedTransaction[] = [
+    withTransaction({
+      categoryId: "42",
+      assignment: "manual",
+    }),
+  ],
+) {
+  acceptStatement(workflow, transactions);
+  expect(workflow.enterReview()).toBe(true);
+}
+
+function createProbableDuplicateError() {
+  return new ApiError("Probable duplicate Transactions found.", {
+    kind: "http",
+    status: 409,
+    code: "STATEMENT_IMPORT_PROBABLE_DUPLICATES",
+    details: [
+      {
+        field: "description",
+        code: "probable_duplicate",
+        message: "Description matched an existing Transaction.",
+        transactionIndexes: [0],
+        committedTransactionIds: ["existing-transaction"],
+      },
+    ],
+  });
+}
+
+function createFileDuplicateError() {
+  return new ApiError("The statement file has already been imported.", {
+    kind: "http",
+    status: 409,
+    code: "STATEMENT_IMPORT_FILE_ALREADY_EXISTS",
+  });
 }
 
 describe("Statement Import workflow", () => {
@@ -487,5 +548,179 @@ describe("Statement Import workflow", () => {
     });
     await expect(save).resolves.toBe("abandoned");
     expect(workflow.getSnapshot().categoryRules).toEqual(categoryRules);
+  });
+
+  it("confirms the workflow-owned statement in its existing row order", async () => {
+    const commitStatementImport = vi.fn(async () => committedImport);
+    const workflow = createWorkflow(undefined, commitStatementImport);
+    const firstTransaction = withTransaction({
+      id: "transaction-1",
+      description: "First Transaction",
+      categoryId: "42",
+      assignment: "manual",
+    });
+    const excludedTransaction = withTransaction({
+      id: "transaction-2",
+      description: "Excluded Transaction",
+      categoryId: "43",
+      assignment: "manual",
+      isExcluded: true,
+    });
+
+    acceptReviewableStatement(workflow, [firstTransaction, excludedTransaction]);
+    expect(workflow.getSnapshot().commit.canConfirm).toBe(true);
+
+    await expect(workflow.confirmStatementImport(false)).resolves.toBe(
+      "committed",
+    );
+    expect(commitStatementImport).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "statement.pdf" }),
+      expect.objectContaining({
+        transactions: [firstTransaction, excludedTransaction],
+      }),
+      { acknowledgeProbableDuplicates: false },
+    );
+    expect(workflow.getSnapshot().commit).toMatchObject({
+      result: committedImport,
+      isCommitting: false,
+      error: null,
+      canConfirm: false,
+    });
+  });
+
+  it("keeps a failed confirmation available for a normal retry", async () => {
+    const commitStatementImport = vi
+      .fn<CommitStatementImport>()
+      .mockRejectedValueOnce(new Error("The API is unavailable."))
+      .mockResolvedValueOnce(committedImport);
+    const workflow = createWorkflow(undefined, commitStatementImport);
+    acceptReviewableStatement(workflow);
+
+    await expect(workflow.confirmStatementImport(false)).resolves.toBe("failed");
+    expect(workflow.getSnapshot().commit).toMatchObject({
+      error: expect.objectContaining({ message: "The API is unavailable." }),
+      canConfirm: true,
+      isCommitting: false,
+    });
+
+    await expect(workflow.confirmStatementImport(false)).resolves.toBe(
+      "committed",
+    );
+    expect(commitStatementImport).toHaveBeenCalledTimes(2);
+  });
+
+  it("makes an Exact File Duplicate terminal until the review is reset", async () => {
+    const commitStatementImport = vi
+      .fn<CommitStatementImport>()
+      .mockRejectedValue(createFileDuplicateError());
+    const workflow = createWorkflow(undefined, commitStatementImport);
+    acceptReviewableStatement(workflow);
+
+    await expect(workflow.confirmStatementImport(false)).resolves.toBe("failed");
+    expect(workflow.getSnapshot().commit).toMatchObject({
+      hasFileDuplicate: true,
+      canConfirm: false,
+      canImportAnyway: false,
+    });
+    await expect(workflow.confirmStatementImport(false)).resolves.toBe("ignored");
+    expect(commitStatementImport).toHaveBeenCalledTimes(1);
+  });
+
+  it("requires one synchronous acknowledgement attempt for Probable Duplicates", async () => {
+    const acknowledgedResponse = createDeferred<CommittedStatementImport>();
+    const commitStatementImport = vi
+      .fn<CommitStatementImport>()
+      .mockRejectedValueOnce(createProbableDuplicateError())
+      .mockReturnValueOnce(acknowledgedResponse.promise);
+    const workflow = createWorkflow(undefined, commitStatementImport);
+    acceptReviewableStatement(workflow);
+
+    await expect(workflow.confirmStatementImport(false)).resolves.toBe("failed");
+    expect(workflow.getSnapshot().commit).toMatchObject({
+      probableDuplicateConflict: expect.objectContaining({
+        message: "Probable duplicate Transactions found.",
+      }),
+      canConfirm: false,
+      canImportAnyway: true,
+    });
+
+    const acknowledgement = workflow.confirmStatementImport(true);
+    await expect(workflow.confirmStatementImport(true)).resolves.toBe("ignored");
+    expect(commitStatementImport).toHaveBeenCalledTimes(2);
+    expect(workflow.getSnapshot().commit).toMatchObject({
+      isCommitting: true,
+      canImportAnyway: false,
+    });
+
+    acknowledgedResponse.resolve(committedImport);
+    await expect(acknowledgement).resolves.toBe("committed");
+    expect(workflow.getSnapshot().commit.result).toEqual(committedImport);
+  });
+
+  it("keeps Resolve stage-only while Review Back resets commit state and acknowledgement", async () => {
+    const commitStatementImport = vi
+      .fn<CommitStatementImport>()
+      .mockRejectedValue(createProbableDuplicateError());
+    const workflow = createWorkflow(undefined, commitStatementImport);
+    acceptReviewableStatement(workflow);
+
+    await expect(workflow.confirmStatementImport(false)).resolves.toBe("failed");
+    expect(workflow.returnToCategorize(categoryRules)).toBe(true);
+    expect(workflow.getSnapshot()).toMatchObject({
+      stage: "categorize",
+      commit: { probableDuplicateConflict: expect.any(Object) },
+    });
+    expect(workflow.enterReview()).toBe(true);
+    expect(workflow.getSnapshot().commit.canImportAnyway).toBe(true);
+
+    await expect(workflow.confirmStatementImport(true)).resolves.toBe("failed");
+    expect(workflow.getSnapshot().commit.canImportAnyway).toBe(false);
+    expect(workflow.backToCategorize(categoryRules)).toBe(true);
+    expect(workflow.getSnapshot().commit).toMatchObject({
+      error: null,
+      probableDuplicateConflict: null,
+      canImportAnyway: false,
+    });
+    expect(workflow.enterReview()).toBe(true);
+    expect(workflow.getSnapshot().commit.canConfirm).toBe(true);
+  });
+
+  it("abandons a late confirmation when a replacement file starts", async () => {
+    const response = createDeferred<CommittedStatementImport>();
+    const commitStatementImport = vi
+      .fn<CommitStatementImport>()
+      .mockReturnValue(response.promise);
+    const workflow = createWorkflow(undefined, commitStatementImport);
+    acceptReviewableStatement(workflow);
+
+    const confirmation = workflow.confirmStatementImport(false);
+    expect(workflow.getSnapshot().commit.isCommitting).toBe(true);
+
+    expect(workflow.backToUpload()).toBe(true);
+    const replacement = withTransaction({
+      description: "Replacement Transaction",
+      categoryId: "43",
+      assignment: "manual",
+    });
+    workflow.acceptPreparedStatement(
+      new File(["replacement"], "replacement.pdf", {
+        type: "application/pdf",
+      }),
+      { summary, transactions: [replacement] },
+      categoryRules,
+    );
+    response.resolve(committedImport);
+
+    await expect(confirmation).resolves.toBe("abandoned");
+    expect(workflow.getSnapshot()).toMatchObject({
+      stage: "categorize",
+      importedFile: expect.objectContaining({ name: "replacement.pdf" }),
+      statement: { transactions: [replacement] },
+      commit: {
+        result: null,
+        error: null,
+        isCommitting: false,
+      },
+    });
   });
 });

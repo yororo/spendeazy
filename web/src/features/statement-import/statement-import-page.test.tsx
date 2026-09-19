@@ -75,6 +75,7 @@ function createFetchMock(
     readonly categoryRulesResponse?: () => readonly Record<string, unknown>[];
     readonly failCategoryRules?: () => boolean;
     readonly createRuleResponse?: () => Promise<Response>;
+    readonly commitResponse?: () => Response | Promise<Response>;
   } = {},
 ) {
   const categoryRules = options.categoryRules ?? [
@@ -162,6 +163,8 @@ function createFetchMock(
       }
 
       if (method === "POST" && path === "/statement-imports") {
+        if (options.commitResponse) return options.commitResponse();
+
         return jsonResponse(
           {
             id: "100",
@@ -215,6 +218,16 @@ async function openStatementImportCategorize(
   renderStatementImportPage(fetchMock);
   await screen.findByRole("heading", { name: "Upload your statement" });
   await uploadStatementFile("statement.pdf");
+}
+
+async function openReadyStatementImportReview(
+  fetchMock: ReturnType<typeof createFetchMock>,
+) {
+  renderStatementImportPage(fetchMock);
+  await screen.findByRole("heading", { name: "Upload your statement" });
+  await uploadStatementFile("statement.pdf");
+  fireEvent.click(screen.getByRole("button", { name: "Review 1 Transactions" }));
+  await screen.findByRole("heading", { name: "Review your imported statement" });
 }
 
 async function uploadStatementFile(fileName: string) {
@@ -522,6 +535,198 @@ describe("StatementImportPage GCash recipient flow", () => {
       ),
     ).toBe(false);
     expect(payload.transactions[0]?.description).toContain(recipient);
+  });
+});
+
+describe("StatementImportPage confirmation lifecycle", () => {
+  const readyCategoryRules = [
+    {
+      id: "1",
+      categoryId: "42",
+      pattern: "Green Market Cafe",
+      matchType: "exact",
+    },
+  ];
+
+  it("renders the committed result from the workflow and starts another import", async () => {
+    const fetchMock = createFetchMock({ categoryRules: readyCategoryRules });
+    await openReadyStatementImportReview(fetchMock);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Import 1 Transactions" }),
+    );
+    await screen.findByRole("heading", { name: "Statement imported" });
+    expect(screen.getByText("Import complete")).toBeTruthy();
+
+    const commitRequest = fetchMock.mock.calls.find(
+      ([input, init]) =>
+        init?.method === "POST" &&
+        new URL(input.toString()).pathname.endsWith("/statement-imports"),
+    );
+    const payload = JSON.parse(String(commitRequest?.[1]?.body)) as {
+      readonly acknowledgeProbableDuplicates: boolean;
+      readonly transactions: readonly { readonly description: string }[];
+    };
+    expect(payload.acknowledgeProbableDuplicates).toBe(false);
+    expect(payload.transactions).toEqual([
+      expect.objectContaining({ description: "Green Market Cafe" }),
+    ]);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Import another statement" }),
+    );
+    await screen.findByRole("heading", { name: "Upload your statement" });
+  });
+
+  it("keeps normal confirmation retryable after a failed request", async () => {
+    let attempt = 0;
+    const fetchMock = createFetchMock({
+      categoryRules: readyCategoryRules,
+      commitResponse: () => {
+        attempt += 1;
+        return attempt === 1
+          ? jsonResponse(
+              {
+                error: {
+                  code: "INTERNAL_SERVER_ERROR",
+                  message: "The API is unavailable.",
+                  details: [],
+                },
+              },
+              500,
+            )
+          : jsonResponse(
+              {
+                id: "100",
+                fileName: "statement.pdf",
+                statementDate: "2026-08-31",
+                bank: "BDO",
+                cardType: "AMEX",
+                importedAt: "2026-09-01T00:00:00.000Z",
+              },
+              201,
+            );
+      },
+    });
+    await openReadyStatementImportReview(fetchMock);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Import 1 Transactions" }),
+    );
+    await waitFor(() => {
+      expect(screen.getAllByText("The API is unavailable.")).toHaveLength(2);
+    });
+    const retryButton = screen.getByRole("button", {
+      name: "Import 1 Transactions",
+    });
+    expect(retryButton).toHaveProperty("disabled", false);
+
+    fireEvent.click(retryButton);
+    await screen.findByRole("heading", { name: "Statement imported" });
+    expect(attempt).toBe(2);
+  });
+
+  it("requires acknowledgement for Probable Duplicates and blocks an Exact File Duplicate", async () => {
+    const probableResponse = () =>
+      jsonResponse(
+        {
+          error: {
+            code: "STATEMENT_IMPORT_PROBABLE_DUPLICATES",
+            message: "Probable duplicate Transactions found.",
+            details: [
+              {
+                field: "description",
+                code: "probable_duplicate",
+                message: "Description matched an existing Transaction.",
+                transactionIndexes: [0],
+                committedTransactionIds: ["existing-transaction"],
+              },
+            ],
+          },
+        },
+        409,
+      );
+    const probableFetchMock = createFetchMock({
+      categoryRules: readyCategoryRules,
+      commitResponse: probableResponse,
+    });
+    await openReadyStatementImportReview(probableFetchMock);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Import 1 Transactions" }),
+    );
+    await waitFor(() => {
+      expect(
+        screen.getAllByText("Probable duplicate Transactions found."),
+      ).toHaveLength(2);
+    });
+    expect(
+      screen.getAllByRole("button", { name: "Import anyway" }),
+    ).toHaveLength(2);
+    expect(
+      screen.getByRole("button", { name: "Resolve duplicate warning above" }),
+    ).toHaveProperty("disabled", true);
+
+    const importAnyway = screen.getAllByRole("button", {
+      name: "Import anyway",
+    })[0];
+    if (!importAnyway) throw new Error("Import anyway action is missing.");
+    fireEvent.click(importAnyway);
+    await waitFor(() => {
+      expect(
+        screen.getAllByText("Probable duplicate Transactions found."),
+      ).toHaveLength(2);
+      expect(screen.queryByRole("button", { name: "Import anyway" })).toBeNull();
+    });
+    const commitRequests = probableFetchMock.mock.calls.filter(
+      ([input, init]) =>
+        init?.method === "POST" &&
+        new URL(input.toString()).pathname.endsWith("/statement-imports"),
+    );
+    const acknowledgementPayload = JSON.parse(
+      String(commitRequests.at(-1)?.[1]?.body),
+    ) as { readonly acknowledgeProbableDuplicates: boolean };
+    expect(acknowledgementPayload.acknowledgeProbableDuplicates).toBe(true);
+
+    const probableBack = screen.getAllByRole("button", {
+      name: "Back to Categorize",
+    })[0];
+    if (!probableBack) throw new Error("Review Back button is missing.");
+    fireEvent.click(probableBack);
+    await screen.findByRole("heading", { name: "Categorize and update" });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Review 1 Transactions" }),
+    );
+    await screen.findByRole("heading", { name: "Review your imported statement" });
+    expect(
+      screen.queryByText("Probable duplicate Transactions found."),
+    ).toBeNull();
+
+    const exactFetchMock = createFetchMock({
+      categoryRules: readyCategoryRules,
+      commitResponse: () =>
+        jsonResponse(
+          {
+            error: {
+              code: "STATEMENT_IMPORT_FILE_ALREADY_EXISTS",
+              message: "The statement file has already been imported.",
+              details: [],
+            },
+          },
+          409,
+        ),
+    });
+    cleanup();
+    await openReadyStatementImportReview(exactFetchMock);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Import 1 Transactions" }),
+    );
+    await waitFor(() => {
+      expect(screen.getAllByText("Statement already imported")).toHaveLength(2);
+    });
+    expect(
+      screen.getByRole("button", { name: "Import 1 Transactions" }),
+    ).toHaveProperty("disabled", true);
   });
 });
 

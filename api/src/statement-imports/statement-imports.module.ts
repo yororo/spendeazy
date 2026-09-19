@@ -1,5 +1,7 @@
 import { DynamicModule, Module } from '@nestjs/common';
+import { STATEMENT_IMPORT_STORE } from './application/statement-import-store';
 import { StatementImportsService } from './application/statement-imports.service';
+import { TypeOrmStatementImportStore } from './infrastructure/typeorm-statement-import-store';
 import { StatementImportsController } from './presentation/statement-imports.controller';
 
 const controllers = [StatementImportsController];
@@ -25,7 +27,14 @@ export class StatementImportsModule {
     return {
       module: StatementImportsModule,
       controllers,
-      providers: [StatementImportsService],
+      providers: [
+        TypeOrmStatementImportStore,
+        {
+          provide: STATEMENT_IMPORT_STORE,
+          useExisting: TypeOrmStatementImportStore,
+        },
+        StatementImportsService,
+      ],
     };
   }
 }

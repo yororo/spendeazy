@@ -50,7 +50,7 @@ describe('StatementImportsService', () => {
       importedTransactions,
       categories,
     });
-    const service = new StatementImportsService(unitOfWork);
+    const service = new StatementImportsService(statementImports, unitOfWork);
 
     const committedImport = await service.commitReviewedStatementImport(
       '7',
@@ -109,7 +109,7 @@ describe('StatementImportsService', () => {
       importedTransactions,
       categories: new TransactionCategoryStoreFake(),
     });
-    const service = new StatementImportsService(unitOfWork);
+    const service = new StatementImportsService(statementImports, unitOfWork);
 
     await expect(
       service.commitReviewedStatementImport('7', {
@@ -152,7 +152,7 @@ describe('StatementImportsService', () => {
         categoryRecord({ id: '42' }),
       ]),
     });
-    const service = new StatementImportsService(unitOfWork);
+    const service = new StatementImportsService(statementImports, unitOfWork);
 
     await expect(
       service.commitReviewedStatementImport('7', {
@@ -205,7 +205,7 @@ describe('StatementImportsService', () => {
         categoryRecord({ id: '42' }),
       ]),
     });
-    const service = new StatementImportsService(unitOfWork);
+    const service = new StatementImportsService(statementImports, unitOfWork);
 
     await expect(
       service.commitReviewedStatementImport('7', {
@@ -234,7 +234,7 @@ describe('StatementImportsService', () => {
           category ? [categoryRecord(), category] : [categoryRecord()],
         ),
       });
-      const service = new StatementImportsService(unitOfWork);
+      const service = new StatementImportsService(statementImports, unitOfWork);
 
       await expect(
         service.commitReviewedStatementImport('7', {
@@ -265,7 +265,7 @@ describe('StatementImportsService', () => {
       importedTransactions,
       categories: new TransactionCategoryStoreFake(),
     });
-    const service = new StatementImportsService(unitOfWork);
+    const service = new StatementImportsService(statementImports, unitOfWork);
 
     await expect(
       service.commitReviewedStatementImport('7', {
@@ -297,7 +297,7 @@ describe('StatementImportsService', () => {
       importedTransactions,
       categories: new TransactionCategoryStoreFake(),
     });
-    const service = new StatementImportsService(unitOfWork);
+    const service = new StatementImportsService(statementImports, unitOfWork);
 
     await expect(
       service.commitReviewedStatementImport('999', statementInput()),
@@ -320,7 +320,7 @@ describe('StatementImportsService', () => {
         categoryRecord({ id: '42' }),
       ]),
     });
-    const service = new StatementImportsService(unitOfWork);
+    const service = new StatementImportsService(statementImports, unitOfWork);
 
     await expect(
       service.commitReviewedStatementImport('7', statementInput()),
@@ -342,14 +342,7 @@ describe('StatementImportsService', () => {
         statementImportHistoryRecord({ id: '1', statementDate: '2026-08-02' }),
       ],
     );
-    const unitOfWork = new UnitOfWorkFake({
-      entityManager: {} as EntityManager,
-      users: userStore(),
-      statementImports,
-      importedTransactions: new ImportedTransactionStoreFake(),
-      categories: new TransactionCategoryStoreFake(),
-    });
-    const service = new StatementImportsService(unitOfWork);
+    const service = new StatementImportsService(statementImports);
     const filters = {
       fromDate: '2026-08-01',
       toDate: '2026-08-31',
@@ -399,14 +392,7 @@ describe('StatementImportsService', () => {
       ownedImport,
       statementRecord({ id: '109', userId: '7' }),
     ]);
-    const unitOfWork = new UnitOfWorkFake({
-      entityManager: {} as EntityManager,
-      users: userStore(),
-      statementImports,
-      importedTransactions: new ImportedTransactionStoreFake(),
-      categories: new TransactionCategoryStoreFake(),
-    });
-    const service = new StatementImportsService(unitOfWork);
+    const service = new StatementImportsService(statementImports);
 
     await expect(service.getStatementImport('42', '108')).resolves.toEqual(
       ownedImport,
@@ -427,14 +413,7 @@ describe('StatementImportsService', () => {
         statementImportHistoryRecord({ id: '2', userId: '8' }),
       ],
     );
-    const unitOfWork = new UnitOfWorkFake({
-      entityManager: {} as EntityManager,
-      users: userStore(),
-      statementImports,
-      importedTransactions: new ImportedTransactionStoreFake(),
-      categories: new TransactionCategoryStoreFake(),
-    });
-    const service = new StatementImportsService(unitOfWork);
+    const service = new StatementImportsService(statementImports);
 
     await expect(service.listStatementImports('7', {})).resolves.toEqual({
       items: [statementImports.pageResults[0]],
@@ -444,14 +423,7 @@ describe('StatementImportsService', () => {
   });
 
   it('rejects an empty cursor instead of treating it as the first page', async () => {
-    const unitOfWork = new UnitOfWorkFake({
-      entityManager: {} as EntityManager,
-      users: userStore(),
-      statementImports: new StatementImportStoreFake(),
-      importedTransactions: new ImportedTransactionStoreFake(),
-      categories: new TransactionCategoryStoreFake(),
-    });
-    const service = new StatementImportsService(unitOfWork);
+    const service = new StatementImportsService(new StatementImportStoreFake());
 
     await expect(
       service.listStatementImports('7', { cursor: '' }),

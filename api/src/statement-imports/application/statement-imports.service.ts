@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import { assertActiveCategory } from '../../categories/application/active-category';
 import { isValidDomainDate } from '../../http/domain-date';
 import {
@@ -20,7 +20,11 @@ import {
   StatementImportProbableDuplicatesError,
   StatementImportValidationError,
 } from './statement-import-errors';
-import type { StatementImportRecord } from './statement-import-store';
+import {
+  STATEMENT_IMPORT_STORE,
+  type StatementImportRecord,
+  type StatementImportStore,
+} from './statement-import-store';
 import {
   decodeStatementImportCursor,
   encodeStatementImportCursor,
@@ -67,12 +71,26 @@ export { computeImportFingerprint } from './import-fingerprint';
 
 @Injectable()
 export class StatementImportsService {
-  constructor(@Inject(UNIT_OF_WORK) private readonly unitOfWork: UnitOfWork) {}
+  constructor(
+    @Inject(STATEMENT_IMPORT_STORE)
+    private readonly statementImportStore: StatementImportStore,
+    @Optional()
+    @Inject(UNIT_OF_WORK)
+    private readonly unitOfWork?: UnitOfWork,
+  ) {}
 
   commitReviewedStatementImport(
     userId: string,
     input: CommitReviewedStatementImportInput,
   ): Promise<StatementImportRecord> {
+    if (!this.unitOfWork) {
+      return Promise.reject(
+        new Error(
+          'Statement import confirmation persistence is not configured',
+        ),
+      );
+    }
+
     return this.unitOfWork.execute((context) =>
       this.commitWithinTransaction(context, userId, input),
     );
@@ -82,8 +100,9 @@ export class StatementImportsService {
     userId: string,
     statementImportId: string,
   ): Promise<StatementImportRecord> {
-    const statementImport = await this.unitOfWork.execute((context) =>
-      context.statementImports.findById(userId, statementImportId),
+    const statementImport = await this.statementImportStore.findById(
+      userId,
+      statementImportId,
     );
     if (!statementImport) {
       throw new StatementImportNotFoundError();
@@ -105,14 +124,12 @@ export class StatementImportsService {
       cursor !== undefined
         ? decodeStatementImportCursor(cursor, filters).position
         : null;
-    const records = await this.unitOfWork.execute((context) =>
-      context.statementImports.findPage({
-        userId,
-        filters,
-        after,
-        pageSize,
-      }),
-    );
+    const records = await this.statementImportStore.findPage({
+      userId,
+      filters,
+      after,
+      pageSize,
+    });
     const items = records.slice(0, pageSize);
     const lastItem = items.at(-1);
 

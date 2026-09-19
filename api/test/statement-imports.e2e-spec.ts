@@ -37,12 +37,13 @@ import {
   type UserRecord,
   type UserStore,
 } from '../src/users/application/user-store';
-import type {
-  NewStatementImport,
-  StatementImportHistoryPageQuery,
-  StatementImportHistoryRecord,
-  StatementImportRecord,
-  StatementImportStore,
+import {
+  STATEMENT_IMPORT_STORE,
+  type NewStatementImport,
+  type StatementImportHistoryPageQuery,
+  type StatementImportHistoryRecord,
+  type StatementImportRecord,
+  type StatementImportStore,
 } from '../src/statement-imports/application/statement-import-store';
 
 describe('authenticated statement-import routes', () => {
@@ -284,6 +285,7 @@ describe('statement-import ownership through authenticated routes', () => {
     application = await createStatementImportApplication(
       StatementImportsService,
       fixture,
+      fixture.statementImports,
     );
   });
 
@@ -323,15 +325,17 @@ describe('statement-import ownership through authenticated routes', () => {
       .get('/api/v1/users/me/statement-imports')
       .set('Authorization', 'Bearer token-a')
       .set('Accept', 'application/json');
+    const ownerHistoryBody = ownerHistory.body as unknown as {
+      items: { id: string }[];
+    };
+    const otherUserHistoryBody = otherUserHistory.body as unknown as {
+      items: { id: string }[];
+    };
 
     expect(ownerHistory.status).toBe(200);
-    expect(
-      ownerHistory.body.items.map((item: { id: string }) => item.id),
-    ).toEqual(['500']);
+    expect(ownerHistoryBody.items.map((item) => item.id)).toEqual(['500']);
     expect(otherUserHistory.status).toBe(200);
-    expect(
-      otherUserHistory.body.items.map((item: { id: string }) => item.id),
-    ).toEqual(['501']);
+    expect(otherUserHistoryBody.items.map((item) => item.id)).toEqual(['501']);
     expect(
       fixture.statementImports.pageQueries.map((query) => query.userId),
     ).toEqual(['99', '42']);
@@ -386,8 +390,10 @@ describe('statement-import ownership through authenticated routes', () => {
     expect(fixture.importedTransactions.createdInputs).toHaveLength(1);
     expect(fixture.importedTransactions.createdInputs[0]).toMatchObject({
       userId: '42',
-      statementImportId: expect.any(String),
     });
+    expect(
+      typeof fixture.importedTransactions.createdInputs[0]?.statementImportId,
+    ).toBe('string');
   });
 
   it('requires categories to belong to the authenticated User and commits transactions in that scope', async () => {
@@ -475,6 +481,7 @@ async function createStatementImportApplication(
     | typeof StatementImportsService
     | { provide: typeof StatementImportsService; useValue: unknown },
   unitOfWork?: UnitOfWork,
+  statementImportStore?: StatementImportStore,
 ): Promise<INestApplication> {
   const providers: Provider[] = [
     { provide: APP_CONFIG, useValue: testConfig },
@@ -489,6 +496,12 @@ async function createStatementImportApplication(
   ];
   if (unitOfWork !== undefined) {
     providers.push({ provide: UNIT_OF_WORK, useValue: unitOfWork });
+  }
+  if (statementImportStore !== undefined) {
+    providers.push({
+      provide: STATEMENT_IMPORT_STORE,
+      useValue: statementImportStore,
+    });
   }
 
   const module = await Test.createTestingModule({

@@ -1,3 +1,5 @@
+import { Injectable } from '@nestjs/common';
+import { InjectEntityManager } from '@nestjs/typeorm';
 import { QueryFailedError, type EntityManager } from 'typeorm';
 import { POSTGRES_UNIQUE_VIOLATION } from '../../database/database-error-codes';
 import { StatementImportEntity } from '../../database/entities/statement-import.entity';
@@ -14,8 +16,12 @@ import type {
 const STATEMENT_IMPORT_FILE_HASH_UNIQUE_CONSTRAINT =
   'ux_statement_imports_user_file_hash';
 
+@Injectable()
 export class TypeOrmStatementImportStore implements StatementImportStore {
-  constructor(public readonly entityManager: EntityManager) {}
+  constructor(
+    @InjectEntityManager()
+    public readonly entityManager: EntityManager,
+  ) {}
 
   async findById(
     userId: string,

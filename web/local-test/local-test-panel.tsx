@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 
 import type { AppSessionUser } from "../src/shared/session/app-session";
 
@@ -32,9 +32,31 @@ function LocalTestPanel({
   onSignOut,
   children,
 }: LocalTestPanelProps) {
+  const panelRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const panel = panelRef.current;
+    if (!panel) return;
+
+    const updateHeight = () => {
+      document.documentElement.style.setProperty(
+        "--local-test-panel-height",
+        `${panel.getBoundingClientRect().height}px`,
+      );
+    };
+    const observer = new ResizeObserver(updateHeight);
+    observer.observe(panel);
+    updateHeight();
+    return () => {
+      observer.disconnect();
+      document.documentElement.style.removeProperty("--local-test-panel-height");
+    };
+  }, []);
+
   return (
-    <div className="min-h-screen pt-24">
+    <div className="local-test-layout min-h-screen">
       <aside
+        ref={panelRef}
         data-testid="local-test-panel"
         aria-label="Local test environment"
         className="fixed inset-x-0 top-0 z-50 border-b-2 border-primary bg-secondary px-4 py-2 font-mono text-xs text-secondary-foreground"

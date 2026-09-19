@@ -1,0 +1,15 @@
+.local-test-layout {
+  padding-top: var(--local-test-panel-height, 0px);
+}
+
+.local-test-layout .compact-app-header {
+  top: var(--local-test-panel-height, 0px);
+}
+
+@media (width >= 64rem) {
+  .local-test-layout > div,
+  .local-test-layout > div > aside {
+    height: calc(100dvh - var(--local-test-panel-height, 0px));
+    min-height: 0;
+  }
+}

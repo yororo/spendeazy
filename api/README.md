@@ -53,10 +53,12 @@ npm run lint       # Lint the project
 ## OpenAPI contract
 
 The OpenAPI contract is generated from the Nest controllers and DTO metadata
-through the shared document factory. The generated artifacts are committed at
-`docs/openapi.json` and `docs/openapi.yaml` so they can be inspected or used by
-external tooling. Runtime documentation uses the same generated document at
-`/docs`, `/docs-json`, and `/docs-yaml`.
+through the shared document factory. The canonical committed YAML specification
+is `docs/openapi.yaml`; it is the repository's single OpenAPI YAML source of
+truth, and no copy is maintained in the web project. The committed
+`docs/openapi.json` sibling is generated from the same document for JSON tooling.
+Runtime documentation also uses that generated document at `/docs`, `/docs-json`,
+and `/docs-yaml`.
 
 After changing an API route, DTO, or contract annotation, regenerate the
 artifacts:

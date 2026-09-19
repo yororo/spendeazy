@@ -13,7 +13,7 @@ The browser calls self-scoped `/api/v1/users/me` endpoints with the current Cler
 
 The web owns PDF extraction, provider reconciliation, temporary Upload/Categorize/Review state, and Category Rule evaluation. The API stores Category Rules, checks duplicates, and atomically saves a Committed Statement Import with its reviewed Transactions. It receives reviewed JSON, not the PDF. Account is a presentation of the import's provider/account type (or Cash for manual Transactions), not a separate persisted financial-account entity. Existing transport fields `bank` and `cardType` carry that provider/account-type metadata, including wallet statements.
 
-API DTO/controller metadata defines the HTTP contract; committed OpenAPI artifacts in `api/docs/` are generated from it. Web feature services validate and adapt responses into their own read models. A contract change may require work in both projects. `web/docs/SPENDEAZY_API_SPEC.yml` is a separate contract copy; consult the generated artifacts in `api/docs/` for the current contract rather than maintaining that copy as another authority.
+API DTO/controller metadata defines the HTTP contract, and the canonical committed YAML specification is generated at `api/docs/openapi.yaml`. This is the repository's single OpenAPI YAML source of truth; do not maintain a copy under `web/`. The generated `api/docs/openapi.json` sibling represents the same document for JSON tooling. Web feature services validate and adapt responses into their own read models, so a contract change may require work in both projects.
 
 ## Local development
 

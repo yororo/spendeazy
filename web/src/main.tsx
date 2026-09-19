@@ -7,6 +7,7 @@ import "@fontsource-variable/geist-mono";
 import "./index.css";
 import App from "./App.tsx";
 import { initializeAppearance } from "@/components/app/appearance";
+import { ClerkSessionProvider } from "@/shared/session";
 
 const disposeAppearance = initializeAppearance();
 if (import.meta.hot) import.meta.hot.dispose(disposeAppearance);
@@ -22,9 +23,11 @@ if (!publishableKey) {
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <ClerkProvider publishableKey={publishableKey}>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
+      <ClerkSessionProvider>
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
+      </ClerkSessionProvider>
     </ClerkProvider>
   </StrictMode>,
 );

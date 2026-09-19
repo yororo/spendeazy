@@ -5,11 +5,21 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AppShell } from "./app-shell";
+import { AppSessionProvider, type AppSession } from "@/shared/session";
 
-vi.mock("@clerk/react", () => ({
-  useClerk: () => ({ signOut: vi.fn() }),
-  useUser: () => ({ user: { fullName: "Ada Lovelace" } }),
-}));
+const session: AppSession = {
+  isLoaded: true,
+  isSignedIn: true,
+  sessionId: "session-1",
+  user: {
+    id: "user-1",
+    fullName: "Ada Lovelace",
+    firstName: "Ada",
+    primaryEmail: "ada@example.test",
+  },
+  getToken: vi.fn(async () => "session-token"),
+  signOut: vi.fn(async () => undefined),
+};
 
 beforeEach(() => {
   window.scrollTo = vi.fn();
@@ -24,13 +34,15 @@ afterEach(() => {
 describe("AppShell", () => {
   it("keeps the compact navigation fixed and anchors the profile in its panel", () => {
     render(
-      <MemoryRouter initialEntries={["/"]}>
-        <Routes>
-          <Route element={<AppShell />}>
-            <Route index element={<div>Dashboard content</div>} />
-          </Route>
-        </Routes>
-      </MemoryRouter>,
+      <AppSessionProvider session={session}>
+        <MemoryRouter initialEntries={["/"]}>
+          <Routes>
+            <Route element={<AppShell />}>
+              <Route index element={<div>Dashboard content</div>} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      </AppSessionProvider>,
     );
 
     const header = screen.getByRole("banner");

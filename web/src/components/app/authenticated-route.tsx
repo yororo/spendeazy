@@ -1,4 +1,3 @@
-import { useAuth, useClerk } from "@clerk/react";
 import { useCallback } from "react";
 import { Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
 
@@ -7,10 +6,11 @@ import { AuthenticatedQueryProvider } from "@/components/app/authenticated-query
 import { FeatureDataError } from "@/components/app/feature-data-state";
 import { readApiConfig, type ApiConfig } from "@/shared/api";
 import { ReportingPeriodProvider } from "@/shared/reporting-period";
+import { useAppSession } from "@/shared/session";
 
 function AuthenticatedRoute() {
-  const { isLoaded, isSignedIn, sessionId, getToken } = useAuth();
-  const { signOut } = useClerk();
+  const { isLoaded, isSignedIn, sessionId, getToken, signOut } =
+    useAppSession();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -61,6 +61,7 @@ function AuthenticatedRoute() {
       getToken={getToken}
       sessionId={sessionId}
       onAuthenticationFailure={handleAuthenticationFailure}
+      onSignOut={handleAuthenticationFailure}
       key={sessionId}
     >
       <ReportingPeriodProvider>

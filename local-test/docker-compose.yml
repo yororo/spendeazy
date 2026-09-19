@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: "no"
+    environment:
+      POSTGRES_DB: spendeazy_test_db
+      POSTGRES_USER: spendeazy_test_user
+      POSTGRES_PASSWORD: spendeazy_local_test_password
+    ports:
+      - "127.0.0.1:${SPENDEAZY_TEST_DB_PORT:-55432}:5432"
+    volumes:
+      - test-data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        ["CMD-SHELL", "pg_isready -U spendeazy_test_user -d spendeazy_test_db"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  test-data:

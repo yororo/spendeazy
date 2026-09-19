@@ -1,4 +1,3 @@
-import { useClerk } from "@clerk/react";
 import { useEffect, useState, type ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
@@ -18,6 +17,7 @@ interface AuthenticatedQueryProviderProps {
   getToken: ApiTokenProvider;
   sessionId?: string;
   onAuthenticationFailure?: ApiAuthenticationFailureHandler;
+  onSignOut?: ApiAuthenticationFailureHandler;
   children: ReactNode;
 }
 
@@ -39,6 +39,7 @@ function SessionAuthenticatedQueryProvider({
   getToken,
   sessionId,
   onAuthenticationFailure,
+  onSignOut,
   children,
 }: AuthenticatedQueryProviderProps) {
   const [queryClient] = useState(
@@ -70,18 +71,23 @@ function SessionAuthenticatedQueryProvider({
       onAuthenticationFailure={onAuthenticationFailure}
     >
       <QueryClientProvider client={queryClient}>
-        <AccountPreparationGate>{children}</AccountPreparationGate>
+        <AccountPreparationGate onSignOut={onSignOut}>
+          {children}
+        </AccountPreparationGate>
       </QueryClientProvider>
     </ApiClientProvider>
   );
 }
 
 interface AccountPreparationGateProps {
+  onSignOut?: ApiAuthenticationFailureHandler;
   children: ReactNode;
 }
 
-function AccountPreparationGate({ children }: AccountPreparationGateProps) {
-  const { signOut } = useClerk();
+function AccountPreparationGate({
+  onSignOut,
+  children,
+}: AccountPreparationGateProps) {
   const provisioningQuery = useUserProvisioningQuery();
 
   if (provisioningQuery.isPending) {
@@ -98,7 +104,7 @@ function AccountPreparationGate({ children }: AccountPreparationGateProps) {
         }
         isRetrying={provisioningQuery.isFetching}
         onRetry={() => void provisioningQuery.refetch()}
-        onSignOut={() => void signOut({ redirectUrl: "/sign-in" })}
+        onSignOut={() => void onSignOut?.()}
       />
     );
   }

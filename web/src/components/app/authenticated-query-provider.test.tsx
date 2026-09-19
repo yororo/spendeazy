@@ -16,13 +16,7 @@ import { API_USER_PROFILE_QUERY_KEY } from "@/shared/api/user-profile-queries";
 import type { UserProfile } from "@/shared/api/user-profile";
 import { useApiClient } from "@/shared/api/use-api-client";
 
-const clerkMock = vi.hoisted(() => ({
-  signOut: vi.fn(async () => undefined),
-}));
-
-vi.mock("@clerk/react", () => ({
-  useClerk: () => clerkMock,
-}));
+const signOutMock = vi.hoisted(() => vi.fn(async () => undefined));
 
 const apiConfig = { baseUrl: "https://api.example.test" };
 const validUser = {
@@ -94,6 +88,7 @@ function renderProvider(
       apiConfig={apiConfig}
       getToken={getToken}
       sessionId={sessionId}
+      onSignOut={signOutMock}
     >
       {children}
     </AuthenticatedQueryProvider>,
@@ -103,7 +98,7 @@ function renderProvider(
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
-  clerkMock.signOut.mockClear();
+  signOutMock.mockClear();
 });
 
 describe("AuthenticatedQueryProvider", () => {
@@ -211,9 +206,7 @@ describe("AuthenticatedQueryProvider", () => {
     fireEvent.click(screen.getByRole("button", { name: "Sign out" }));
 
     await waitFor(() =>
-      expect(clerkMock.signOut).toHaveBeenCalledWith({
-        redirectUrl: "/sign-in",
-      }),
+      expect(signOutMock).toHaveBeenCalledOnce(),
     );
   });
 

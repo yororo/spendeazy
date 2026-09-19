@@ -21,6 +21,8 @@ Follow the [API setup](api/README.md) and [web setup](web/README.md), each from 
 
 The web normally runs on `http://localhost:5173` and the API on `http://localhost:3000`. Set the web's `VITE_API_BASE_URL` to the API origin. Use the same Clerk instance for both projects and configure the API's `CORS_ORIGINS` and `CLERK_AUTHORIZED_PARTIES` for the actual web origin. See [local API testing](api/docs/LOCAL_TESTING.md) for authenticated validation.
 
+For a credential-free browser/API/PostgreSQL environment, see [local synthetic testing](docs/local-testing.md). It provides the dedicated loopback-only launcher and Playwright smoke command.
+
 ## Deployment
 
 [The root deployment workflow](.github/workflows/deploy.yml) detects changes for each project. Pushes to `main` deploy web for changes under `web/` and API for changes under `api/`; changes to the workflow itself deploy both. Other root-only changes skip both deployment jobs.

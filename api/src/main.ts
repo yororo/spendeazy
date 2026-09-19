@@ -8,8 +8,8 @@ import { exceptionLogger, SafeNestLogger } from './logging/exception-logger';
 export async function bootstrap(): Promise<void> {
   await import('./config/local-environment.setup.js');
   const config = loadAppConfig();
-  const { AppModule } = await import('./app.module.js');
-  const app = await NestFactory.create(AppModule, {
+  const { createAppModule } = await import('./app.module.js');
+  const app = await NestFactory.create(createAppModule(config), {
     bodyParser: false,
     abortOnError: false,
     logger: new SafeNestLogger(),

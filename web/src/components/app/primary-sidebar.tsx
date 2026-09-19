@@ -1,11 +1,11 @@
 import { LogOutIcon } from "lucide-react";
-import { useClerk, useUser } from "@clerk/react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 
 import { LedgerMark } from "@/components/app/ledger-mark";
 import { AppearanceSelector } from "@/components/app/appearance-selector";
 import { primaryNavigation } from "@/components/app/primary-navigation";
 import { cn } from "@/lib/utils";
+import { useAppSession, type AppSessionUser } from "@/shared/session";
 
 interface PrimarySidebarProps {
   className?: string;
@@ -14,13 +14,13 @@ interface PrimarySidebarProps {
 
 const FALLBACK_USER_NAME = "Signed-in user";
 
-function getDisplayName(user: ReturnType<typeof useUser>["user"]): string {
+function getDisplayName(user: AppSessionUser | null): string {
   if (!user) return FALLBACK_USER_NAME;
 
   return (
     user.fullName ??
     user.firstName ??
-    user.primaryEmailAddress?.emailAddress ??
+    user.primaryEmail ??
     FALLBACK_USER_NAME
   );
 }
@@ -35,13 +35,14 @@ function getInitials(name: string): string {
 }
 
 function PrimarySidebar({ className, onNavigate }: PrimarySidebarProps) {
-  const { signOut } = useClerk();
-  const { user } = useUser();
+  const { signOut, user } = useAppSession();
+  const navigate = useNavigate();
   const displayName = getDisplayName(user);
 
   const handleSignOut = async () => {
     onNavigate?.();
-    await signOut({ redirectUrl: "/sign-in" });
+    await signOut();
+    navigate("/sign-in", { replace: true });
   };
 
   return (

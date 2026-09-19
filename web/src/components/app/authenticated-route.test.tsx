@@ -17,18 +17,14 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { AuthenticatedRoute } from "./authenticated-route";
 import { useApiClient } from "@/shared/api";
+import { AppSessionProvider, type AppSession } from "@/shared/session";
 
-const clerkMock = vi.hoisted(() => ({
+const sessionMock = vi.hoisted(() => ({
   getToken: vi.fn(),
   isLoaded: true,
   isSignedIn: true,
   sessionId: "session-1",
   signOut: vi.fn(),
-}));
-
-vi.mock("@clerk/react", () => ({
-  useAuth: () => clerkMock,
-  useClerk: () => ({ signOut: clerkMock.signOut }),
 }));
 
 vi.mock("@/shared/api", async (importOriginal) => {
@@ -96,17 +92,17 @@ function SignInDestination() {
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
-  clerkMock.getToken.mockReset();
-  clerkMock.signOut.mockReset();
+  sessionMock.getToken.mockReset();
+  sessionMock.signOut.mockReset();
 });
 
 describe("AuthenticatedRoute", () => {
   it("signs out after one rejected fresh-token replay and preserves the intended route", async () => {
-    clerkMock.getToken.mockImplementation(
+    sessionMock.getToken.mockImplementation(
       async (options?: { skipCache?: boolean }) =>
         options?.skipCache ? "fresh-token" : "cached-token",
     );
-    clerkMock.signOut.mockResolvedValue(undefined);
+    sessionMock.signOut.mockResolvedValue(undefined);
     const fetchMock = vi
       .fn<FetchMock>()
       .mockResolvedValueOnce(jsonResponse(validUser, 201))
@@ -114,23 +110,34 @@ describe("AuthenticatedRoute", () => {
       .mockResolvedValueOnce(unauthenticatedResponse());
     vi.stubGlobal("fetch", fetchMock);
 
+    const session: AppSession = {
+      isLoaded: sessionMock.isLoaded,
+      isSignedIn: sessionMock.isSignedIn,
+      sessionId: sessionMock.sessionId,
+      user: null,
+      getToken: sessionMock.getToken,
+      signOut: sessionMock.signOut,
+    };
+
     render(
-      <MemoryRouter initialEntries={["/transactions"]}>
-        <Routes>
-          <Route element={<AuthenticatedRoute />}>
-            <Route path="/transactions" element={<ProtectedRoute />} />
-          </Route>
-          <Route path="/sign-in" element={<SignInDestination />} />
-        </Routes>
-      </MemoryRouter>,
+      <AppSessionProvider session={session}>
+        <MemoryRouter initialEntries={["/transactions"]}>
+          <Routes>
+            <Route element={<AuthenticatedRoute />}>
+              <Route path="/transactions" element={<ProtectedRoute />} />
+            </Route>
+            <Route path="/sign-in" element={<SignInDestination />} />
+          </Routes>
+        </MemoryRouter>
+      </AppSessionProvider>,
     );
 
     await waitFor(() =>
       expect(screen.getByText("Sign-in destination: /transactions")).toBeTruthy(),
     );
 
-    expect(clerkMock.signOut).toHaveBeenCalledOnce();
+    expect(sessionMock.signOut).toHaveBeenCalledOnce();
     expect(fetchMock).toHaveBeenCalledTimes(3);
-    expect(clerkMock.getToken).toHaveBeenLastCalledWith({ skipCache: true });
+    expect(sessionMock.getToken).toHaveBeenLastCalledWith({ skipCache: true });
   });
 });

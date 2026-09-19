@@ -17,6 +17,8 @@ const tokenPrefix = "spendeazy-local-test.v1";
 const testUserId = "local-test-populated-user";
 
 const isE2e = process.argv.includes("--e2e");
+const shouldReset = process.argv.includes("--reset");
+const e2eTestDate = isE2e ? currentLocalDate() : undefined;
 const configuration = isE2e
   ? {
       projectName: "spendeazy-local-test-e2e",
@@ -35,6 +37,10 @@ const children = new Set();
 let shuttingDown = false;
 
 async function main() {
+  if (isE2e && shouldReset) {
+    throw new Error("Use either --e2e or --reset, not both.");
+  }
+
   if (!existsSync(composeFile)) {
     throw new Error(`Missing local test Docker Compose file: ${composeFile}`);
   }
@@ -72,15 +78,21 @@ async function main() {
       DATABASE_URL: databaseUrl,
       CORS_ORIGINS: `http://127.0.0.1:${configuration.webPort}`,
       SPENDEAZY_LOCAL_TEST: "1",
+      SPENDEAZY_LOCAL_TEST_SEED_FIXTURES: isE2e ? "0" : "1",
       SPENDEAZY_TEST_DB_PORT: String(configuration.databasePort),
       SPENDEAZY_TEST_SESSION_SECRET: sessionSecret,
     };
 
     await runWithRetries(
       "npm",
-      npmArguments("run", "local-test:migrate"),
+      npmArguments(
+        "run",
+        shouldReset ? "local-test:reset" : "local-test:migrate",
+      ),
       { cwd: apiDirectory, env: apiEnvironment },
-      "the dedicated database migration",
+      shouldReset
+        ? "the dedicated database reset"
+        : "the dedicated database migration and fixture setup",
     );
 
     start("npm", npmArguments("run", "local-test:server"), {
@@ -96,6 +108,8 @@ async function main() {
       ...process.env,
       VITE_API_BASE_URL: `http://127.0.0.1:${configuration.apiPort}`,
       VITE_LOCAL_TEST_SESSION_TOKEN: sessionToken,
+      SPENDEAZY_E2E_API_BASE_URL: `http://127.0.0.1:${configuration.apiPort}`,
+      ...(e2eTestDate ? { SPENDEAZY_E2E_TEST_DATE: e2eTestDate } : {}),
       ...(process.platform === "win32"
         ? { PLAYWRIGHT_CHANNEL: "msedge" }
         : {}),
@@ -391,6 +405,13 @@ function createSessionToken(secret) {
 
 function delay(milliseconds) {
   return new Promise((resolvePromise) => setTimeout(resolvePromise, milliseconds));
+}
+
+function currentLocalDate(now = new Date()) {
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 process.on("SIGINT", () => void shutdown(0));

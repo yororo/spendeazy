@@ -276,8 +276,9 @@ describe("CategorizeStatement ambiguity handling", () => {
     const descriptionInput = within(editor).getByLabelText(
       "Description for Green Market Cafe",
     );
+    expect(document.activeElement).toBe(editor);
     expect(document.activeElement).not.toBe(dateInput);
-    expect(document.activeElement).toBe(descriptionInput);
+    expect(document.activeElement).not.toBe(descriptionInput);
     fireEvent.click(
       within(editor).getByRole("combobox", {
         name: "Category for Green Market Cafe",

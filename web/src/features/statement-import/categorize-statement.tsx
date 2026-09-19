@@ -865,6 +865,12 @@ function CategorizeStatement({
               <DialogContent
                 className="md:hidden"
                 closeButtonDisabled={isSaving}
+                onOpenAutoFocus={(event) => {
+                  event.preventDefault();
+                  if (event.currentTarget instanceof HTMLElement) {
+                    event.currentTarget.focus();
+                  }
+                }}
                 onEscapeKeyDown={(event) => {
                   if (isSaving) event.preventDefault();
                 }}
@@ -1047,7 +1053,6 @@ function TransactionDraftFields({
       value={draft.description}
       disabled={isSaving}
       onChange={(event) => onDescriptionChange(event.target.value)}
-      autoFocus={layout === "mobile"}
       className={layout === "mobile" ? "mt-1.5" : "h-8 min-w-56"}
       aria-label={`Description for ${transaction.description}`}
       aria-describedby={errorId}

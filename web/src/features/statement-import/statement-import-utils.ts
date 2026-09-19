@@ -1,5 +1,10 @@
 import { normalizeCategoryRulePattern } from "@/shared/category-rule";
 
+interface CategoryLabelOption {
+  readonly value: string;
+  readonly label: string;
+}
+
 interface IncludedStatementTransaction {
   readonly amount: number;
   readonly isExcluded: boolean;
@@ -19,6 +24,16 @@ function normalizeDescription(value: string) {
 
 function cleanDescription(value: string) {
   return value.trim().replace(/\s+/g, " ");
+}
+
+function getCategoryLabel(
+  options: readonly CategoryLabelOption[],
+  categoryId: string,
+) {
+  return (
+    options.find((option) => option.value === categoryId)?.label ??
+    "Unknown Category"
+  );
 }
 
 function toDateInputValue(value: Date) {
@@ -57,6 +72,7 @@ function applyManualTransactionEdit<
 export {
   applyManualTransactionEdit,
   cleanDescription,
+  getCategoryLabel,
   isIncludedStatementTransaction,
   normalizeDescription,
   toDateInputValue,

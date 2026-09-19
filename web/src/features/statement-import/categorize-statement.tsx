@@ -63,6 +63,7 @@ import {
   type CategoryRule,
 } from "./statement-import-service";
 import {
+  getCategoryLabel,
   isIncludedStatementTransaction,
   normalizeDescription,
   toDateInputValue,
@@ -152,6 +153,8 @@ function CategorizeStatement({
   const editingTransaction = transactions.find(
     (transaction) => transaction.id === editingId,
   );
+  const getCategoryLabelForTransaction = (categoryId: string) =>
+    getCategoryLabel(categoryLabels, categoryId);
 
   useEffect(() => {
     if (!isEditing) return;
@@ -218,13 +221,6 @@ function CategorizeStatement({
     return (
       categoryLabels.find((option) => option.value === categoryId)?.color ??
       getDefaultCategoryColor(categoryId)
-    );
-  }
-
-  function getCategoryLabel(categoryId: string) {
-    return (
-      categoryLabels.find((option) => option.value === categoryId)?.label ??
-      "Unknown Category"
     );
   }
 
@@ -651,7 +647,7 @@ function CategorizeStatement({
                           <CategoryMatchCell
                             assignment={transaction.assignment}
                             categoryId={transaction.categoryId}
-                            getCategoryLabel={getCategoryLabel}
+                            getCategoryLabel={getCategoryLabelForTransaction}
                             getCategoryColor={getCategoryColor}
                             matchedCategoryIds={transaction.matchedCategoryIds}
                           />
@@ -798,7 +794,7 @@ function CategorizeStatement({
                           <CategoryMatchCell
                             assignment={transaction.assignment}
                             categoryId={transaction.categoryId}
-                            getCategoryLabel={getCategoryLabel}
+                            getCategoryLabel={getCategoryLabelForTransaction}
                             getCategoryColor={getCategoryColor}
                             matchedCategoryIds={transaction.matchedCategoryIds}
                           />

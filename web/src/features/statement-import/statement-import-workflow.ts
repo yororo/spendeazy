@@ -13,6 +13,7 @@ import {
 import {
   applyManualTransactionEdit,
   cleanDescription,
+  getCategoryLabel,
   isIncludedStatementTransaction,
   normalizeDescription,
   toDateInputValue,
@@ -138,8 +139,9 @@ class StatementImportWorkflow {
   };
   private readonly listeners = new Set<WorkflowListener>();
   private statementLifetime = Symbol("statement-import");
+  private categorizeSessionLifetime: symbol | null = null;
   private editLifetime: symbol | null = null;
-  private saveInProgress = false;
+  private persistenceLifetime: symbol | null = null;
   private hasCustomizedRememberedPattern = false;
   private destroyed = false;
 
@@ -149,6 +151,17 @@ class StatementImportWorkflow {
 
   updateDependencies(dependencies: StatementImportWorkflowDependencies) {
     if (!this.destroyed) this.dependencies = dependencies;
+  }
+
+  activate() {
+    if (!this.destroyed) return;
+
+    this.destroyed = false;
+    this.invalidateEdit();
+    this.updateState((current) => ({
+      ...current,
+      editor: emptyEditor(),
+    }));
   }
 
   getSnapshot = () => this.state;
@@ -166,6 +179,7 @@ class StatementImportWorkflow {
     if (this.destroyed) return false;
 
     this.statementLifetime = Symbol("statement-import");
+    this.categorizeSessionLifetime = Symbol("categorize-session");
     this.invalidateEdit();
     this.updateState((current) => ({
       ...current,
@@ -181,6 +195,7 @@ class StatementImportWorkflow {
   beginCategorizeSession(categoryRules: readonly CategoryRule[]) {
     if (this.destroyed || !this.state.statement) return false;
 
+    this.categorizeSessionLifetime = Symbol("categorize-session");
     this.invalidateEdit();
     this.updateState((current) => ({
       ...current,
@@ -194,6 +209,7 @@ class StatementImportWorkflow {
   abandonCategorizeSession() {
     if (this.destroyed) return false;
 
+    this.categorizeSessionLifetime = null;
     this.invalidateEdit();
     this.updateState((current) => ({
       ...current,
@@ -206,6 +222,7 @@ class StatementImportWorkflow {
     if (this.destroyed) return false;
 
     this.statementLifetime = Symbol("statement-import");
+    this.categorizeSessionLifetime = null;
     this.invalidateEdit();
     this.updateState((current) => ({
       ...current,
@@ -223,6 +240,7 @@ class StatementImportWorkflow {
       return false;
     }
 
+    this.categorizeSessionLifetime = null;
     this.updateState((current) => ({
       ...current,
       stage: "review",
@@ -233,6 +251,7 @@ class StatementImportWorkflow {
   returnToCategorize(categoryRules: readonly CategoryRule[]) {
     if (this.destroyed || !this.state.statement) return false;
 
+    this.categorizeSessionLifetime = Symbol("categorize-session");
     this.invalidateEdit();
     this.updateState((current) => ({
       ...current,
@@ -247,7 +266,7 @@ class StatementImportWorkflow {
     if (
       this.destroyed ||
       this.state.stage !== "categorize" ||
-      this.saveInProgress ||
+      this.state.editor.isSaving ||
       this.state.editor.editingId !== null
     ) {
       return false;
@@ -281,7 +300,7 @@ class StatementImportWorkflow {
   }
 
   cancelEdit() {
-    if (this.destroyed || this.saveInProgress || !this.state.editor.editingId) {
+    if (this.destroyed || this.state.editor.isSaving || !this.state.editor.editingId) {
       return false;
     }
 
@@ -294,7 +313,7 @@ class StatementImportWorkflow {
   }
 
   changeDraft(draft: TransactionDraft) {
-    if (this.destroyed || this.saveInProgress || !this.state.editor.draft) {
+    if (this.destroyed || this.state.editor.isSaving || !this.state.editor.draft) {
       return false;
     }
 
@@ -309,7 +328,7 @@ class StatementImportWorkflow {
   }
 
   changeDescription(description: string) {
-    if (this.destroyed || this.saveInProgress || !this.state.editor.draft) {
+    if (this.destroyed || this.state.editor.isSaving || !this.state.editor.draft) {
       return false;
     }
 
@@ -338,7 +357,7 @@ class StatementImportWorkflow {
   }
 
   changeRememberRule(checked: boolean) {
-    if (this.destroyed || this.saveInProgress || !this.state.editor.draft) {
+    if (this.destroyed || this.state.editor.isSaving || !this.state.editor.draft) {
       return false;
     }
 
@@ -350,7 +369,7 @@ class StatementImportWorkflow {
   }
 
   changeRememberedMatchType(matchType: CategoryRule["matchType"]) {
-    if (this.destroyed || this.saveInProgress || !this.state.editor.draft) {
+    if (this.destroyed || this.state.editor.isSaving || !this.state.editor.draft) {
       return false;
     }
 
@@ -371,7 +390,7 @@ class StatementImportWorkflow {
   }
 
   changeRememberedPattern(pattern: string) {
-    if (this.destroyed || this.saveInProgress || !this.state.editor.draft) {
+    if (this.destroyed || this.state.editor.isSaving || !this.state.editor.draft) {
       return false;
     }
 
@@ -390,11 +409,13 @@ class StatementImportWorkflow {
   async saveEdit(): Promise<SaveEditResult> {
     const editingLifetime = this.editLifetime;
     const statementLifetime = this.statementLifetime;
+    const categorizeSessionLifetime = this.categorizeSessionLifetime;
     const { editingId, draft } = this.state.editor;
     if (
       this.destroyed ||
-      this.saveInProgress ||
+      this.state.editor.isSaving ||
       !editingLifetime ||
+      !categorizeSessionLifetime ||
       !editingId ||
       !draft ||
       !this.state.statement
@@ -423,14 +444,17 @@ class StatementImportWorkflow {
       return "invalid";
     }
 
-    this.saveInProgress = true;
     this.updateState((current) => ({
       ...current,
       editor: { ...current.editor, isSaving: true },
     }));
 
     let nextCategoryRules = this.state.categoryRules;
-    if (shouldRememberRule) {
+    const persistenceLifetime = shouldRememberRule
+      ? Symbol("persistence-request")
+      : null;
+    if (persistenceLifetime) {
+      this.persistenceLifetime = persistenceLifetime;
       let ruleResult: RememberCategoryRuleResult;
       try {
         ruleResult = await this.dependencies.rememberCategoryRule(
@@ -442,7 +466,14 @@ class StatementImportWorkflow {
           this.state.categoryRules,
         );
       } catch (error) {
-        if (!this.isCurrentSave(statementLifetime, editingLifetime)) {
+        if (
+          !this.isCurrentSave(
+            statementLifetime,
+            categorizeSessionLifetime,
+            editingLifetime,
+            persistenceLifetime,
+          )
+        ) {
           return "abandoned";
         }
 
@@ -454,7 +485,14 @@ class StatementImportWorkflow {
         return "failed";
       }
 
-      if (!this.isCurrentSave(statementLifetime, editingLifetime)) {
+      if (
+        !this.isCurrentSave(
+          statementLifetime,
+          categorizeSessionLifetime,
+          editingLifetime,
+          persistenceLifetime,
+        )
+      ) {
         return "abandoned";
       }
 
@@ -462,7 +500,8 @@ class StatementImportWorkflow {
         this.releaseSaveWithError(
           formatCategoryRuleConflict(
             ruleResult.conflict,
-            (categoryId) => this.getCategoryLabel(categoryId),
+            (categoryId) =>
+              getCategoryLabel(this.dependencies.getCategoryLabels(), categoryId),
           ),
         );
         return "conflict";
@@ -475,7 +514,15 @@ class StatementImportWorkflow {
         : [...this.state.categoryRules, ruleResult.rule];
     }
 
-    if (!this.isCurrentSave(statementLifetime, editingLifetime)) {
+    if (
+      persistenceLifetime &&
+      !this.isCurrentSave(
+        statementLifetime,
+        categorizeSessionLifetime,
+        editingLifetime,
+        persistenceLifetime,
+      )
+    ) {
       return "abandoned";
     }
 
@@ -502,7 +549,7 @@ class StatementImportWorkflow {
   }
 
   toggleTransactionExclusion(transactionId: string) {
-    if (this.destroyed || this.saveInProgress) return false;
+    if (this.destroyed || this.state.editor.isSaving) return false;
 
     const transaction = this.state.statement?.transactions.find(
       (candidate) => candidate.id === transactionId,
@@ -533,17 +580,9 @@ class StatementImportWorkflow {
 
   destroy() {
     this.destroyed = true;
+    this.categorizeSessionLifetime = null;
     this.invalidateEdit();
     this.listeners.clear();
-  }
-
-  private getCategoryLabel(categoryId: string) {
-    return (
-      this.dependencies
-        .getCategoryLabels()
-        .find((option) => option.value === categoryId)?.label ??
-      "Unknown Category"
-    );
   }
 
   private applyEdit(
@@ -620,7 +659,7 @@ class StatementImportWorkflow {
   }
 
   private releaseSaveWithError(draftError: string) {
-    this.saveInProgress = false;
+    this.persistenceLifetime = null;
     this.updateState((current) => ({
       ...current,
       editor: { ...current.editor, draftError, isSaving: false },
@@ -629,16 +668,22 @@ class StatementImportWorkflow {
 
   private invalidateEdit() {
     this.editLifetime = null;
-    this.saveInProgress = false;
+    this.persistenceLifetime = null;
     this.hasCustomizedRememberedPattern = false;
   }
 
-  private isCurrentSave(statementLifetime: symbol, editLifetime: symbol) {
+  private isCurrentSave(
+    statementLifetime: symbol,
+    categorizeSessionLifetime: symbol,
+    editLifetime: symbol,
+    persistenceLifetime: symbol,
+  ) {
     return (
       !this.destroyed &&
       this.statementLifetime === statementLifetime &&
+      this.categorizeSessionLifetime === categorizeSessionLifetime &&
       this.editLifetime === editLifetime &&
-      this.saveInProgress
+      this.persistenceLifetime === persistenceLifetime
     );
   }
 

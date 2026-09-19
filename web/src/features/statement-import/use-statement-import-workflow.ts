@@ -45,6 +45,7 @@ function useStatementImportWorkflow({
   );
 
   useEffect(() => {
+    workflow.activate();
     const dependencies: StatementImportWorkflowDependencies = {
       getCategoryOptions: () => categoryOptions,
       getCategoryLabels: () => categoryLabels,
@@ -55,6 +56,11 @@ function useStatementImportWorkflow({
   }, [categoryLabels, categoryOptions, onRememberCategoryRule, workflow]);
 
   const state = useWorkflowState(workflow);
+
+  useEffect(() => {
+    return () => workflow.destroy();
+  }, [workflow]);
+
   return { workflow, state };
 }
 

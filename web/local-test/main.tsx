@@ -10,9 +10,15 @@ import "../src/index.css";
 import { SyntheticSessionProvider } from "./synthetic-session-provider";
 
 const sessionToken = import.meta.env.VITE_LOCAL_TEST_SESSION_TOKEN;
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
 if (!sessionToken) {
   throw new Error(
     "Missing VITE_LOCAL_TEST_SESSION_TOKEN. Start the app with the local test launcher.",
+  );
+}
+if (!apiBaseUrl) {
+  throw new Error(
+    "Missing VITE_API_BASE_URL. Start the app with the local test launcher.",
   );
 }
 
@@ -22,8 +28,8 @@ if (import.meta.hot) import.meta.hot.dispose(disposeAppearance);
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <BrowserRouter>
-      <SyntheticSessionProvider token={sessionToken}>
-        <App />
+      <SyntheticSessionProvider token={sessionToken} apiBaseUrl={apiBaseUrl}>
+        {(signedOutPage) => <App signInElement={signedOutPage} />}
       </SyntheticSessionProvider>
     </BrowserRouter>
   </StrictMode>,

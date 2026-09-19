@@ -6,6 +6,10 @@ import { RouteLoading } from "@/components/app/route-loading";
 import { AppShell } from "@/layouts/app-shell";
 import { NotFoundPage } from "@/pages/not-found-page";
 
+interface AppProps {
+  signInElement?: ReactNode;
+}
+
 const SignInPage = lazy(() =>
   import("@/features/authentication").then(({ SignInPage }) => ({
     default: SignInPage,
@@ -61,10 +65,12 @@ function StatementImportRoute() {
   );
 }
 
-function App() {
+function App({ signInElement }: AppProps = {}) {
+  const signInRoute = signInElement ?? lazyRoute(<SignInPage />);
+
   return (
     <Routes>
-      <Route path="sign-in" element={lazyRoute(<SignInPage />)} />
+      <Route path="sign-in" element={signInRoute} />
       <Route path="sso-callback" element={lazyRoute(<SsoCallbackPage />)} />
       <Route path="privacy" element={lazyRoute(<PrivacyPolicyPage />)} />
       <Route path="terms" element={lazyRoute(<TermsOfServicePage />)} />

@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type APIRequestContext } from "@playwright/test";
 
 test.describe.configure({ mode: "serial" });
 
@@ -18,35 +18,228 @@ test("provisions the fixed fictional User with Default Categories", async ({
   ).toBeVisible();
 });
 
-test("persists a Transaction through the real API after a browser reload", async ({
+test("creates a fresh User with real first-time provisioning", async ({
   page,
 }) => {
-  const apiBaseUrl = process.env.SPENDEAZY_E2E_API_BASE_URL;
-  const sessionToken = process.env.VITE_LOCAL_TEST_SESSION_TOKEN;
-  const purchaseDate = process.env.SPENDEAZY_E2E_TEST_DATE;
-  if (!apiBaseUrl || !sessionToken || !purchaseDate) {
-    throw new Error(
-      "The local test API URL, session token, and controlled test date are required for persistence E2E coverage.",
-    );
-  }
+  await page.goto("/categories");
+  const panel = page.getByTestId("local-test-panel");
 
-  await page.goto("/transactions");
-  await expect(page.getByTestId("local-test-panel")).toContainText(
-    "LOCAL TEST",
+  await panel.getByRole("button", { name: "New User" }).click();
+  await expect(page.getByTestId("local-test-active-user")).toContainText(
+    "Fresh Local User",
   );
   await expect(
-    page.getByRole("heading", { name: "Your spending" }),
+    page.getByRole("heading", { name: "Budget overview" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Food & Drink", { exact: true }).first(),
   ).toBeVisible();
 
-  const description = "Browser persistence fixture";
-  const transaction = await page.evaluate(
-    async ({
-      apiBaseUrl: baseUrl,
-      sessionToken: token,
-      description: label,
-      purchaseDate: date,
-    }) => {
-      const response = await fetch(`${baseUrl}/api/v1/users/me/transactions`, {
+  const firstFreshUser = await page
+    .getByTestId("local-test-active-user")
+    .textContent();
+  await panel.getByRole("button", { name: "New User" }).click();
+  await expect(page.getByTestId("local-test-active-user")).toContainText(
+    "Fresh Local User",
+  );
+  await expect
+    .poll(() => page.getByTestId("local-test-active-user").textContent())
+    .not.toBe(firstFreshUser);
+});
+
+test("switches Users without exposing stale browser data", async ({ page }) => {
+  const apiBaseUrl = requireEnvironment("SPENDEAZY_E2E_API_BASE_URL");
+  const primaryToken = requireEnvironment("VITE_LOCAL_TEST_SESSION_TOKEN");
+  const purchaseDate = requireEnvironment("SPENDEAZY_E2E_TEST_DATE");
+  const description = "Primary-only browser isolation fixture";
+
+  await page.goto("/transactions");
+  await page.getByTestId("local-test-panel").getByRole("button", {
+    name: "Populated User",
+  }).click();
+  await expect(page.getByTestId("local-test-active-user")).toContainText(
+    "Local Test User",
+  );
+
+  const created = await createTransaction(page, {
+    apiBaseUrl,
+    token: primaryToken,
+    purchaseDate,
+    description,
+  });
+  expect(created.status).toBe(201);
+
+  await page.reload();
+  await expect(page.getByText(description, { exact: true }).first()).toBeVisible();
+
+  const panel = page.getByTestId("local-test-panel");
+  await panel.getByRole("button", { name: "Second User" }).click();
+  await expect(page.getByTestId("local-test-active-user")).toContainText(
+    "Local Test Companion",
+  );
+  await expect(page.getByRole("heading", { name: "Your spending" })).toBeVisible();
+  await expect(page.getByText(description, { exact: true })).toHaveCount(0);
+
+  await panel.getByRole("button", { name: "Populated User" }).click();
+  await expect(page.getByTestId("local-test-active-user")).toContainText(
+    "Local Test User",
+  );
+  await expect(page.getByText(description, { exact: true }).first()).toBeVisible();
+  expect(created.body).toMatchObject({ description });
+});
+
+test("signs out protected routes and re-enters without Clerk", async ({ page }) => {
+  await page.goto("/transactions");
+  await page.getByTestId("local-test-panel").getByRole("button", {
+    name: "Sign out",
+  }).click();
+
+  await expect(page).toHaveURL(/\/sign-in$/);
+  await expect(page.getByTestId("local-test-signed-out")).toBeVisible();
+
+  await page.goto("/transactions");
+  await expect(page).toHaveURL(/\/sign-in$/);
+  await expect(page.getByTestId("local-test-signed-out")).toBeVisible();
+
+  await page.getByRole("button", { name: "Resume synthetic session" }).click();
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByTestId("local-test-panel")).toContainText("LOCAL TEST");
+});
+
+test("refreshes an expired session and signs out a revoked session", async ({
+  page,
+}) => {
+  await page.goto("/transactions");
+  const panel = page.getByTestId("local-test-panel");
+
+  await panel.getByRole("button", { name: "Expire token" }).click();
+  await expect(panel).toContainText("LOCAL TEST");
+  await expect(page.getByRole("heading", { name: "Your spending" })).toBeVisible();
+
+  await panel.getByRole("button", { name: "Revoke session" }).click();
+  await expect(page).toHaveURL(/\/sign-in$/);
+  await expect(page.getByTestId("local-test-signed-out")).toBeVisible();
+
+  await page.getByRole("button", { name: "Resume synthetic session" }).click();
+  await expect(page.getByTestId("local-test-panel")).toContainText("LOCAL TEST");
+});
+
+test("proves ownership isolation through authenticated API requests", async ({
+  request,
+}) => {
+  const apiBaseUrl = requireEnvironment("SPENDEAZY_E2E_API_BASE_URL");
+  const primaryToken = requireEnvironment("VITE_LOCAL_TEST_SESSION_TOKEN");
+  const purchaseDate = requireEnvironment("SPENDEAZY_E2E_TEST_DATE");
+  const secondarySession = await issueSession(
+    request,
+    apiBaseUrl,
+    primaryToken,
+    "secondary",
+  );
+  const primaryDescription = "Ownership boundary primary fixture";
+  const secondaryDescription = "Ownership boundary secondary fixture";
+
+  const primaryTransaction = await createTransactionWithRequest(request, apiBaseUrl, {
+    token: primaryToken,
+    purchaseDate,
+    description: primaryDescription,
+  });
+  expect(primaryTransaction.status()).toBe(201);
+  const primaryBody = (await primaryTransaction.json()) as {
+    id?: unknown;
+    description?: unknown;
+  };
+  expect(primaryBody.description).toBe(primaryDescription);
+  expect(typeof primaryBody.id).toBe("string");
+
+  const secondaryTransaction = await createTransactionWithRequest(
+    request,
+    apiBaseUrl,
+    {
+      token: secondarySession.token,
+      purchaseDate,
+      description: secondaryDescription,
+    },
+  );
+  expect(secondaryTransaction.status()).toBe(201);
+
+  const secondaryHistory = await request.get(
+    `${apiBaseUrl}/api/v1/users/me/transactions`,
+    { headers: authorizationHeaders(secondarySession.token) },
+  );
+  expect(secondaryHistory.status()).toBe(200);
+  const secondaryHistoryBody = (await secondaryHistory.json()) as {
+    items?: readonly { description?: unknown }[];
+  };
+  expect(secondaryHistoryBody.items?.some((item) => item.description === primaryDescription)).toBe(
+    false,
+  );
+  expect(secondaryHistoryBody.items?.some((item) => item.description === secondaryDescription)).toBe(
+    true,
+  );
+
+  const crossUserMutation = await request.patch(
+    `${apiBaseUrl}/api/v1/users/me/transactions/${String(primaryBody.id)}`,
+    {
+      headers: {
+        ...authorizationHeaders(secondarySession.token),
+        "Content-Type": "application/json",
+      },
+      data: { description: "Cross-user mutation" },
+    },
+  );
+  expect(crossUserMutation.status()).toBe(404);
+
+  const primaryHistory = await request.get(
+    `${apiBaseUrl}/api/v1/users/me/transactions`,
+    { headers: authorizationHeaders(primaryToken) },
+  );
+  expect(primaryHistory.status()).toBe(200);
+  const primaryHistoryBody = (await primaryHistory.json()) as {
+    items?: readonly { description?: unknown }[];
+  };
+  expect(primaryHistoryBody.items?.some((item) => item.description === primaryDescription)).toBe(
+    true,
+  );
+});
+
+async function issueSession(
+  request: APIRequestContext,
+  apiBaseUrl: string,
+  token: string,
+  scenario: "secondary",
+): Promise<{ token: string }> {
+  const response = await request.post(
+    `${apiBaseUrl}/api/v1/users/me/local-test/sessions`,
+    {
+      headers: {
+        ...authorizationHeaders(token),
+        "Content-Type": "application/json",
+      },
+      data: { scenario },
+    },
+  );
+  expect(response.status()).toBe(201);
+  const body = (await response.json()) as { token?: unknown };
+  if (typeof body.token !== "string") {
+    throw new Error("The local test session response did not include a token.");
+  }
+
+  return { token: body.token };
+}
+
+async function createTransaction(
+  page: import("@playwright/test").Page,
+  input: {
+    apiBaseUrl: string;
+    token: string;
+    purchaseDate: string;
+    description: string;
+  },
+): Promise<{ status: number; body: unknown }> {
+  return page.evaluate(
+    async ({ apiBaseUrl, token, purchaseDate, description }) => {
+      const response = await fetch(`${apiBaseUrl}/api/v1/users/me/transactions`, {
         method: "POST",
         headers: {
           Accept: "application/json",
@@ -54,44 +247,44 @@ test("persists a Transaction through the real API after a browser reload", async
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          purchaseDate: date,
-          description: label,
+          purchaseDate,
+          description,
           amount: "123.45",
           categoryId: null,
         }),
       });
 
-      return {
-        status: response.status,
-        body: (await response.json()) as unknown,
-      };
+      return { status: response.status, body: (await response.json()) as unknown };
     },
-    {
-      apiBaseUrl,
-      sessionToken,
-      description,
-      purchaseDate,
-    },
+    input,
   );
+}
 
-  expect(transaction.status).toBe(201);
-  expect(readTransactionDescription(transaction.body)).toBe(description);
+async function createTransactionWithRequest(
+  request: APIRequestContext,
+  apiBaseUrl: string,
+  input: { token: string; purchaseDate: string; description: string },
+) {
+  return request.post(`${apiBaseUrl}/api/v1/users/me/transactions`, {
+    headers: {
+      ...authorizationHeaders(input.token),
+      "Content-Type": "application/json",
+    },
+    data: {
+      purchaseDate: input.purchaseDate,
+      description: input.description,
+      amount: "123.45",
+      categoryId: null,
+    },
+  });
+}
 
-  await page.reload();
-  await expect(
-    page.getByText(description, { exact: true }).first(),
-  ).toBeVisible();
-});
+function authorizationHeaders(token: string): Record<string, string> {
+  return { Authorization: `Bearer ${token}`, Accept: "application/json" };
+}
 
-function readTransactionDescription(value: unknown): string {
-  if (value === null || typeof value !== "object" || Array.isArray(value)) {
-    throw new Error("The created Transaction response was not an object.");
-  }
-
-  const description = (value as { description?: unknown }).description;
-  if (typeof description !== "string") {
-    throw new Error("The created Transaction response had no description.");
-  }
-
-  return description;
+function requireEnvironment(name: string): string {
+  const value = process.env[name];
+  if (!value) throw new Error(`${name} is required for local-test E2E coverage.`);
+  return value;
 }

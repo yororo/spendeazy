@@ -9,6 +9,8 @@ import { TransactionEntity } from '../src/database/entities/transaction.entity';
 import { UserEntity } from '../src/database/entities/user.entity';
 import {
   LOCAL_TEST_PROFILE,
+  LOCAL_TEST_SECONDARY_PROFILE,
+  LOCAL_TEST_SECONDARY_USER_ID,
   LOCAL_TEST_USER_ID,
 } from './synthetic-authentication';
 
@@ -19,6 +21,19 @@ export const LOCAL_TEST_FIXTURE_USER = {
     LOCAL_TEST_PROFILE.primaryVerifiedEmail ??
     'local-test-user@example.invalid',
 } as const;
+
+export const LOCAL_TEST_SECONDARY_FIXTURE_USER = {
+  clerkUserId: LOCAL_TEST_SECONDARY_USER_ID,
+  name: LOCAL_TEST_SECONDARY_PROFILE.fullName ?? 'Local Test Companion',
+  email:
+    LOCAL_TEST_SECONDARY_PROFILE.primaryVerifiedEmail ??
+    'local-test-companion@example.invalid',
+} as const;
+
+export const LOCAL_TEST_FIXTURE_USERS = [
+  LOCAL_TEST_FIXTURE_USER,
+  LOCAL_TEST_SECONDARY_FIXTURE_USER,
+] as const;
 
 const LOCAL_TEST_FIXTURE_CATEGORIES = [
   {
@@ -74,12 +89,52 @@ const LOCAL_TEST_FIXTURE_CATEGORY_RULES = [
   },
 ] as const;
 
+const LOCAL_TEST_SECONDARY_FIXTURE_CATEGORIES = [
+  {
+    name: 'Companion Dining',
+    description: 'Fictional meals for the second local User',
+  },
+  {
+    name: 'Companion Travel',
+    description: 'Fictional travel spending for the second local User',
+  },
+  {
+    name: 'Companion Home',
+    description: 'Fictional home spending for the second local User',
+  },
+] as const;
+
+const LOCAL_TEST_SECONDARY_FIXTURE_BUDGETS = [
+  { categoryName: 'Companion Dining', period: 'monthly', amount: '1400.00' },
+  { categoryName: 'Companion Travel', period: 'monthly', amount: '2100.00' },
+  { categoryName: 'Companion Home', period: 'monthly', amount: '1750.00' },
+] as const;
+
+const LOCAL_TEST_SECONDARY_FIXTURE_CATEGORY_RULES = [
+  {
+    categoryName: 'Companion Dining',
+    pattern: 'COMPANION CAFE',
+    matchType: 'exact',
+  },
+  {
+    categoryName: 'Companion Travel',
+    pattern: 'BLUE LINE',
+    matchType: 'contains',
+  },
+] as const;
+
 export interface LocalTestFixtureDefinition {
+  readonly users: typeof LOCAL_TEST_FIXTURE_USERS;
   readonly user: typeof LOCAL_TEST_FIXTURE_USER;
   readonly categories: typeof LOCAL_TEST_FIXTURE_CATEGORIES;
   readonly budgets: typeof LOCAL_TEST_FIXTURE_BUDGETS;
   readonly categoryRules: typeof LOCAL_TEST_FIXTURE_CATEGORY_RULES;
   readonly transactions: readonly LocalTestFixtureTransaction[];
+  readonly secondaryUser: typeof LOCAL_TEST_SECONDARY_FIXTURE_USER;
+  readonly secondaryCategories: typeof LOCAL_TEST_SECONDARY_FIXTURE_CATEGORIES;
+  readonly secondaryBudgets: typeof LOCAL_TEST_SECONDARY_FIXTURE_BUDGETS;
+  readonly secondaryCategoryRules: typeof LOCAL_TEST_SECONDARY_FIXTURE_CATEGORY_RULES;
+  readonly secondaryTransactions: readonly LocalTestFixtureTransaction[];
 }
 
 export interface LocalTestFixtureTransaction {
@@ -106,6 +161,7 @@ export function createLocalTestFixtureDefinition(
   now = new Date(),
 ): LocalTestFixtureDefinition {
   return {
+    users: LOCAL_TEST_FIXTURE_USERS,
     user: LOCAL_TEST_FIXTURE_USER,
     categories: LOCAL_TEST_FIXTURE_CATEGORIES,
     budgets: LOCAL_TEST_FIXTURE_BUDGETS,
@@ -148,6 +204,36 @@ export function createLocalTestFixtureDefinition(
         amount: '90.00',
       },
     ],
+    secondaryUser: LOCAL_TEST_SECONDARY_FIXTURE_USER,
+    secondaryCategories: LOCAL_TEST_SECONDARY_FIXTURE_CATEGORIES,
+    secondaryBudgets: LOCAL_TEST_SECONDARY_FIXTURE_BUDGETS,
+    secondaryCategoryRules: LOCAL_TEST_SECONDARY_FIXTURE_CATEGORY_RULES,
+    secondaryTransactions: [
+      {
+        categoryName: 'Companion Dining',
+        purchaseDate: dateInCurrentMonth(4, now),
+        description: 'Companion Cafe Lunch',
+        amount: '240.00',
+      },
+      {
+        categoryName: 'Companion Travel',
+        purchaseDate: dateInCurrentMonth(9, now),
+        description: 'Blue Line Journey',
+        amount: '155.00',
+      },
+      {
+        categoryName: 'Companion Home',
+        purchaseDate: dateInCurrentMonth(14, now),
+        description: 'Companion Home Supply',
+        amount: '390.00',
+      },
+      {
+        categoryName: null,
+        purchaseDate: dateInCurrentMonth(18, now),
+        description: 'Companion Uncategorized Expense',
+        amount: '75.00',
+      },
+    ],
   };
 }
 
@@ -158,25 +244,44 @@ export async function ensureLocalTestFixtures(
   const fixture = createLocalTestFixtureDefinition(now);
 
   return dataSource.transaction(async (manager) => {
-    const existingFixtureUser = await manager
-      .getRepository(UserEntity)
-      .findOneBy({ clerkUserId: fixture.user.clerkUserId });
+    const userRepository = manager.getRepository(UserEntity);
+    const existingUsers = await userRepository.count();
+    const existingPrimaryUser = await userRepository.findOneBy({
+      clerkUserId: fixture.user.clerkUserId,
+    });
+    const existingSecondaryUser = await userRepository.findOneBy({
+      clerkUserId: fixture.secondaryUser.clerkUserId,
+    });
 
-    if (existingFixtureUser) {
+    if (existingPrimaryUser && existingSecondaryUser) {
       return { seeded: false, counts: fixtureCounts(fixture) };
     }
 
-    const existingUsers = await manager.getRepository(UserEntity).count();
+    if (existingUsers === 0) {
+      return {
+        seeded: true,
+        counts: await insertLocalTestFixtures(manager, fixture),
+      };
+    }
+
+    if (existingUsers === 1 && existingPrimaryUser && !existingSecondaryUser) {
+      await insertLocalTestFixture(manager, {
+        user: fixture.secondaryUser,
+        categories: fixture.secondaryCategories,
+        budgets: fixture.secondaryBudgets,
+        categoryRules: fixture.secondaryCategoryRules,
+        transactions: fixture.secondaryTransactions,
+      });
+      return { seeded: true, counts: fixtureCounts(fixture) };
+    }
+
     if (existingUsers > 0) {
       throw new Error(
-        'The dedicated local test database contains another User; use the explicit local test reset before restoring fixtures',
+        'The dedicated local test database does not contain both fictional Users; use the explicit local test reset before restoring fixtures',
       );
     }
 
-    return {
-      seeded: true,
-      counts: await insertLocalTestFixtures(manager, fixture),
-    };
+    throw new Error('The dedicated local test fixtures could not be prepared');
   });
 }
 
@@ -217,6 +322,51 @@ async function insertLocalTestFixtures(
   manager: EntityManager,
   fixture: LocalTestFixtureDefinition,
 ): Promise<LocalTestFixtureCounts> {
+  await insertLocalTestFixture(manager, {
+    user: fixture.user,
+    categories: fixture.categories,
+    budgets: fixture.budgets,
+    categoryRules: fixture.categoryRules,
+    transactions: fixture.transactions,
+  });
+  await insertLocalTestFixture(manager, {
+    user: fixture.secondaryUser,
+    categories: fixture.secondaryCategories,
+    budgets: fixture.secondaryBudgets,
+    categoryRules: fixture.secondaryCategoryRules,
+    transactions: fixture.secondaryTransactions,
+  });
+
+  return fixtureCounts(fixture);
+}
+
+interface LocalTestFixtureScenario {
+  readonly user: {
+    readonly clerkUserId: string;
+    readonly name: string;
+    readonly email: string;
+  };
+  readonly categories: readonly {
+    readonly name: string;
+    readonly description: string;
+  }[];
+  readonly budgets: readonly {
+    readonly categoryName: string;
+    readonly period: 'monthly' | 'yearly';
+    readonly amount: string;
+  }[];
+  readonly categoryRules: readonly {
+    readonly categoryName: string;
+    readonly pattern: string;
+    readonly matchType: 'exact' | 'contains';
+  }[];
+  readonly transactions: readonly LocalTestFixtureTransaction[];
+}
+
+async function insertLocalTestFixture(
+  manager: EntityManager,
+  fixture: LocalTestFixtureScenario,
+): Promise<void> {
   const user = await manager.save(manager.create(UserEntity, fixture.user));
   const categories = await manager.save(
     fixture.categories.map((category) =>
@@ -271,19 +421,19 @@ async function insertLocalTestFixtures(
       }),
     ),
   );
-
-  return fixtureCounts(fixture);
 }
 
 function fixtureCounts(
   fixture: LocalTestFixtureDefinition,
 ): LocalTestFixtureCounts {
   return {
-    users: 1,
-    categories: fixture.categories.length,
-    budgets: fixture.budgets.length,
-    categoryRules: fixture.categoryRules.length,
-    transactions: fixture.transactions.length,
+    users: fixture.users.length,
+    categories: fixture.categories.length + fixture.secondaryCategories.length,
+    budgets: fixture.budgets.length + fixture.secondaryBudgets.length,
+    categoryRules:
+      fixture.categoryRules.length + fixture.secondaryCategoryRules.length,
+    transactions:
+      fixture.transactions.length + fixture.secondaryTransactions.length,
   };
 }
 

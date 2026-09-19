@@ -1,21 +1,27 @@
 import { NestFactory } from '@nestjs/core';
-import type { Provider } from '@nestjs/common';
+import { Module, type DynamicModule, type Provider } from '@nestjs/common';
 
-import {
-  CLERK_TOKEN_VERIFIER,
-} from '../src/authentication/authentication';
+import { CLERK_TOKEN_VERIFIER } from '../src/authentication/authentication';
 import { CLERK_PROFILE_SERVICE } from '../src/authentication/clerk-profile-service';
 import { configureApp } from '../src/bootstrap';
 import { createAppModule } from '../src/app.module';
 import { loadAppConfig } from '../src/config/app-config';
 import { setupOpenApi } from '../src/docs/openapi-document.factory';
 import { OpenApiDocumentService } from '../src/docs/openapi-document.service';
-import { exceptionLogger, SafeNestLogger } from '../src/logging/exception-logger';
 import {
+  exceptionLogger,
+  SafeNestLogger,
+} from '../src/logging/exception-logger';
+import {
+  createSyntheticSessionAuthority,
   createSyntheticProfileService,
   createSyntheticTokenVerifier,
 } from './synthetic-authentication';
 import { validateLocalTestDatabaseTarget } from './database-target';
+import { LocalTestSessionModule } from './session-control';
+
+@Module({})
+class LocalTestApplicationModule {}
 
 async function bootstrap(): Promise<void> {
   validateLocalTestDatabaseTarget();
@@ -30,25 +36,34 @@ async function bootstrap(): Promise<void> {
     throw new Error('The local test API requires NODE_ENV=test');
   }
 
-  const app = await NestFactory.create(
-    createAppModule(config, {
-      authentication: {
-        tokenVerifier: {
-          provide: CLERK_TOKEN_VERIFIER,
-          useValue: createSyntheticTokenVerifier(secret),
-        } satisfies Provider,
-        profileService: {
-          provide: CLERK_PROFILE_SERVICE,
-          useValue: createSyntheticProfileService(),
-        } satisfies Provider,
-      },
-    }),
-    {
-      bodyParser: false,
-      abortOnError: false,
-      logger: new SafeNestLogger(),
-    },
-  );
+  const sessionAuthority = createSyntheticSessionAuthority(secret);
+  const appModule: DynamicModule = {
+    module: LocalTestApplicationModule,
+    imports: [
+      createAppModule(config, {
+        authentication: {
+          tokenVerifier: {
+            provide: CLERK_TOKEN_VERIFIER,
+            useValue: createSyntheticTokenVerifier(
+              secret,
+              undefined,
+              sessionAuthority.isRevoked,
+            ),
+          } satisfies Provider,
+          profileService: {
+            provide: CLERK_PROFILE_SERVICE,
+            useValue: createSyntheticProfileService(),
+          } satisfies Provider,
+        },
+      }),
+      LocalTestSessionModule.register(sessionAuthority),
+    ],
+  };
+  const app = await NestFactory.create(appModule, {
+    bodyParser: false,
+    abortOnError: false,
+    logger: new SafeNestLogger(),
+  });
   const document = await app.get(OpenApiDocumentService).getDocument();
   app.useLogger(new SafeNestLogger());
   configureApp(app, config);

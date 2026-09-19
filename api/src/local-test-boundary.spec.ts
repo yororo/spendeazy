@@ -4,6 +4,8 @@ import {
   createSyntheticProfileService,
   createSyntheticSessionToken,
   createSyntheticTokenVerifier,
+  LOCAL_TEST_FRESH_USER_ID_PREFIX,
+  LOCAL_TEST_SECONDARY_USER_ID,
   LOCAL_TEST_USER_ID,
 } from '../local-test/synthetic-authentication';
 
@@ -15,6 +17,7 @@ describe('local synthetic authentication boundary', () => {
     const verifier = createSyntheticTokenVerifier(secret, () => now);
     const token = createSyntheticSessionToken(secret, {
       sessionId: 'local-test-session-abc123',
+      userId: LOCAL_TEST_USER_ID,
       issuedAt: now,
       expiresAt: now + 900,
     });
@@ -22,6 +25,20 @@ describe('local synthetic authentication boundary', () => {
     await expect(verifier.verify(token)).resolves.toMatchObject({
       userId: LOCAL_TEST_USER_ID,
       sessionId: 'local-test-session-abc123',
+    });
+  });
+
+  it('verifies a temporary token for the second populated fictional User', async () => {
+    const verifier = createSyntheticTokenVerifier(secret, () => now);
+    const token = createSyntheticSessionToken(secret, {
+      sessionId: 'local-test-session-secondary',
+      userId: LOCAL_TEST_SECONDARY_USER_ID,
+      issuedAt: now,
+      expiresAt: now + 900,
+    });
+
+    await expect(verifier.verify(token)).resolves.toMatchObject({
+      userId: LOCAL_TEST_SECONDARY_USER_ID,
     });
   });
 
@@ -39,6 +56,7 @@ describe('local synthetic authentication boundary', () => {
     const verifier = createSyntheticTokenVerifier(secret, () => now);
     const expired = createSyntheticSessionToken(secret, {
       sessionId: 'local-test-session-expired',
+      userId: LOCAL_TEST_USER_ID,
       issuedAt: now - 901,
       expiresAt: now - 1,
     });
@@ -78,5 +96,43 @@ describe('local synthetic authentication boundary', () => {
     await expect(
       profileService.getUserProfile('arbitrary-user-id'),
     ).resolves.toBeNull();
+  });
+
+  it('provides distinct profiles for the second and fresh fictional Users', async () => {
+    const profileService = createSyntheticProfileService();
+    const freshUserId = `${LOCAL_TEST_FRESH_USER_ID_PREFIX}abc123`;
+
+    await expect(
+      profileService.getUserProfile(LOCAL_TEST_SECONDARY_USER_ID),
+    ).resolves.toEqual({
+      fullName: 'Local Test Companion',
+      primaryVerifiedEmail: 'local-test-companion@example.invalid',
+    });
+    await expect(profileService.getUserProfile(freshUserId)).resolves.toEqual({
+      fullName: 'Fresh Local User abc123',
+      primaryVerifiedEmail: `${freshUserId}@example.invalid`,
+    });
+  });
+
+  it('rejects a signed token for an arbitrary identity even with the local secret', async () => {
+    const verifier = createSyntheticTokenVerifier(secret, () => now);
+    const arbitraryPayload = Buffer.from(
+      JSON.stringify({
+        environment: 'spendeazy-local-test',
+        sub: 'arbitrary-user-id',
+        sid: 'local-test-session-arbitrary',
+        iat: now,
+        exp: now + 900,
+      }),
+      'utf8',
+    ).toString('base64url');
+    const unsignedToken = `spendeazy-local-test.v1.${arbitraryPayload}`;
+    const arbitrarySignature = createHmac('sha256', secret)
+      .update(unsignedToken)
+      .digest('base64url');
+
+    await expect(
+      verifier.verify(`${unsignedToken}.${arbitrarySignature}`),
+    ).rejects.toThrow();
   });
 });

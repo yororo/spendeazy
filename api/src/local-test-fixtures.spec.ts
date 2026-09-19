@@ -1,4 +1,7 @@
-import { createLocalTestFixtureDefinition } from '../local-test/fixtures';
+import {
+  createLocalTestFixtureDefinition,
+  LOCAL_TEST_SECONDARY_FIXTURE_USER,
+} from '../local-test/fixtures';
 
 describe('local test fixture definition', () => {
   it('describes a populated fictional current-month scenario', () => {
@@ -11,6 +14,21 @@ describe('local test fixture definition', () => {
       name: 'Local Test User',
       email: 'local-test-user@example.invalid',
     });
+    expect(fixture.users).toContainEqual(LOCAL_TEST_SECONDARY_FIXTURE_USER);
+    expect(fixture.secondaryCategories).toEqual([
+      {
+        name: 'Companion Dining',
+        description: 'Fictional meals for the second local User',
+      },
+      {
+        name: 'Companion Travel',
+        description: 'Fictional travel spending for the second local User',
+      },
+      {
+        name: 'Companion Home',
+        description: 'Fictional home spending for the second local User',
+      },
+    ]);
     expect(fixture.categories).toEqual([
       {
         name: 'Food & Drink',

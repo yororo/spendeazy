@@ -1,4 +1,4 @@
-import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeftIcon,
   ArrowRightIcon,
@@ -61,22 +61,24 @@ import {
   type CategoryCatalogOption,
   type CategoryColorOption,
   type CategoryRule,
-  type RememberCategoryRuleInput,
-  type RememberCategoryRuleResult,
 } from "./statement-import-service";
 import {
   isIncludedStatementTransaction,
   normalizeDescription,
   toDateInputValue,
 } from "./statement-import-utils";
-import { useCategorizeEditing, type TransactionDraft } from "./use-categorize-editing";
 import type {
   CategorizedStatement,
   CategorizedTransaction,
 } from "./statement-categorizer";
 import { AssignmentBadge, CategoryMatchCell } from "./statement-category-match";
+import type {
+  CategorizeEditorState,
+  TransactionDraft,
+} from "./statement-import-workflow";
 
 type CategoryFilter = "all" | "unmapped" | string;
+const MOBILE_EDITOR_BREAKPOINT_PX = 768;
 
 interface CategorizeStatementProps {
   categoryOptions: readonly CategoryColorOption[];
@@ -84,14 +86,18 @@ interface CategorizeStatementProps {
   categoryRules: readonly CategoryRule[];
   fileName: string;
   statementSummary: CategorizedStatement["summary"];
-  transactions: CategorizedTransaction[];
-  onRememberCategoryRule: (
-    input: RememberCategoryRuleInput,
-    existingRules: readonly CategoryRule[],
-  ) => Promise<RememberCategoryRuleResult>;
-  onTransactionsChange: Dispatch<
-    SetStateAction<CategorizedTransaction[]>
-  >;
+  transactions: readonly CategorizedTransaction[];
+  editor: CategorizeEditorState;
+  canReview: boolean;
+  onBeginEdit: (transactionId: string) => boolean;
+  onCancelEdit: () => boolean;
+  onChangeDraft: (draft: TransactionDraft) => boolean;
+  onChangeDescription: (description: string) => boolean;
+  onChangeRememberRule: (checked: boolean) => boolean;
+  onChangeRememberedMatchType: (matchType: CategoryRule["matchType"]) => boolean;
+  onChangeRememberedPattern: (pattern: string) => boolean;
+  onSaveEdit: () => void;
+  onToggleTransactionExclusion: (transactionId: string) => boolean;
   onBack: () => void;
   onReview: () => void;
 }
@@ -110,12 +116,21 @@ function formatDate(value: Date) {
 function CategorizeStatement({
   categoryOptions,
   categoryLabels,
-  categoryRules: initialCategoryRules,
+  categoryRules,
   fileName,
   statementSummary,
   transactions,
-  onRememberCategoryRule,
-  onTransactionsChange,
+  editor,
+  canReview,
+  onBeginEdit,
+  onCancelEdit,
+  onChangeDraft,
+  onChangeDescription,
+  onChangeRememberRule,
+  onChangeRememberedMatchType,
+  onChangeRememberedPattern,
+  onSaveEdit,
+  onToggleTransactionExclusion,
   onBack,
   onReview,
 }: CategorizeStatementProps) {
@@ -123,39 +138,31 @@ function CategorizeStatement({
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
+  const [mobileEditorOpen, setMobileEditorOpen] = useState(false);
   const {
-    abandonEditing,
-    beginEditing,
-    beginMobileEditing,
-    cancelEditing,
-    categoryRules,
-    closeMobileEditor,
     draft,
     draftError,
     editingId,
-    editingTransaction,
-    getCategoryLabel,
-    isEditing,
     isSaving,
-    mobileEditorOpen,
     rememberedMatchType,
     rememberedPattern,
     rememberRule,
-    saveEditing,
-    toggleTransactionExclusion,
-    updateDraft,
-    updateDraftDescription,
-    updateRememberRule,
-    updateRememberedMatchType,
-    updateRememberedPattern,
-  } = useCategorizeEditing({
-    categoryOptions,
-    categoryLabels,
-    initialCategoryRules,
-    transactions,
-    onRememberCategoryRule,
-    onTransactionsChange,
-  });
+  } = editor;
+  const isEditing = editingId !== null;
+  const editingTransaction = transactions.find(
+    (transaction) => transaction.id === editingId,
+  );
+
+  useEffect(() => {
+    if (!isEditing) return;
+
+    function syncEditorForViewport() {
+      setMobileEditorOpen(window.innerWidth < MOBILE_EDITOR_BREAKPOINT_PX);
+    }
+
+    window.addEventListener("resize", syncEditorForViewport);
+    return () => window.removeEventListener("resize", syncEditorForViewport);
+  }, [isEditing]);
   const hasActiveFilters =
     search.trim().length > 0 ||
     dateFrom.length > 0 ||
@@ -214,6 +221,13 @@ function CategorizeStatement({
     );
   }
 
+  function getCategoryLabel(categoryId: string) {
+    return (
+      categoryLabels.find((option) => option.value === categoryId)?.label ??
+      "Unknown Category"
+    );
+  }
+
   function clearFilters() {
     setSearch("");
     setDateFrom("");
@@ -222,13 +236,27 @@ function CategorizeStatement({
   }
 
   function advanceToReview() {
-    if (isEditing || isSaving || unmappedCount > 0) return;
     onReview();
   }
 
   function returnToUpload() {
-    abandonEditing();
     onBack();
+  }
+
+  function beginDesktopEditing(transactionId: string) {
+    if (onBeginEdit(transactionId)) setMobileEditorOpen(false);
+  }
+
+  function beginMobileEditing(transactionId: string) {
+    if (onBeginEdit(transactionId)) setMobileEditorOpen(true);
+  }
+
+  function cancelEditing() {
+    if (onCancelEdit()) setMobileEditorOpen(false);
+  }
+
+  function closeMobileEditor() {
+    cancelEditing();
   }
 
   return (
@@ -640,7 +668,7 @@ function CategorizeStatement({
                             variant="ghost"
                             size="icon"
                             className="size-11"
-                            onClick={() => beginMobileEditing(transaction)}
+                            onClick={() => beginMobileEditing(transaction.id)}
                             disabled={isEditing || transaction.isExcluded}
                             aria-label={`Edit ${transaction.description}`}
                           >
@@ -656,7 +684,7 @@ function CategorizeStatement({
                                 : "text-destructive hover:text-destructive"
                             }`}
                             onClick={() =>
-                              toggleTransactionExclusion(transaction)
+                              onToggleTransactionExclusion(transaction.id)
                             }
                             disabled={isEditing || transaction.amount > 0}
                             aria-label={
@@ -727,14 +755,14 @@ function CategorizeStatement({
                           rememberedMatchType={rememberedMatchType}
                           rememberedPattern={rememberedPattern}
                           isSaving={isSaving}
-                          onDraftChange={updateDraft}
-                          onDescriptionChange={updateDraftDescription}
-                          onRememberRuleChange={updateRememberRule}
+                          onDraftChange={onChangeDraft}
+                          onDescriptionChange={onChangeDescription}
+                          onRememberRuleChange={onChangeRememberRule}
                           onRememberedMatchTypeChange={
-                            updateRememberedMatchType
+                            onChangeRememberedMatchType
                           }
-                          onRememberedPatternChange={updateRememberedPattern}
-                          onSave={() => void saveEditing()}
+                          onRememberedPatternChange={onChangeRememberedPattern}
+                          onSave={onSaveEdit}
                           onCancel={cancelEditing}
                         />
                       );
@@ -788,7 +816,7 @@ function CategorizeStatement({
                               type="button"
                               variant="ghost"
                               size="icon-sm"
-                              onClick={() => beginEditing(transaction)}
+                              onClick={() => beginDesktopEditing(transaction.id)}
                               disabled={isEditing || transaction.isExcluded}
                               aria-label={`Edit ${transaction.description}`}
                             >
@@ -804,7 +832,7 @@ function CategorizeStatement({
                                   : "text-destructive hover:text-destructive"
                               }
                               onClick={() =>
-                                toggleTransactionExclusion(transaction)
+                                onToggleTransactionExclusion(transaction.id)
                               }
                               disabled={isEditing || transaction.amount > 0}
                               aria-label={
@@ -831,7 +859,7 @@ function CategorizeStatement({
 
           {/* Let users reach search and navigation while persistence is pending. */}
           <Dialog
-            open={mobileEditorOpen}
+            open={mobileEditorOpen && isEditing}
             modal={!isSaving}
             onOpenChange={(open) => {
               if (!open) closeMobileEditor();
@@ -861,12 +889,12 @@ function CategorizeStatement({
                   rememberedMatchType={rememberedMatchType}
                   rememberedPattern={rememberedPattern}
                   isSaving={isSaving}
-                  onDraftChange={updateDraft}
-                  onDescriptionChange={updateDraftDescription}
-                  onRememberRuleChange={updateRememberRule}
-                  onRememberedMatchTypeChange={updateRememberedMatchType}
-                  onRememberedPatternChange={updateRememberedPattern}
-                  onSave={() => void saveEditing()}
+                  onDraftChange={onChangeDraft}
+                  onDescriptionChange={onChangeDescription}
+                  onRememberRuleChange={onChangeRememberRule}
+                  onRememberedMatchTypeChange={onChangeRememberedMatchType}
+                  onRememberedPatternChange={onChangeRememberedPattern}
+                  onSave={onSaveEdit}
                   onCancel={closeMobileEditor}
                 />
               </DialogContent>
@@ -911,7 +939,7 @@ function CategorizeStatement({
             variant="secondary"
             className="h-12 min-w-0 flex-1 md:h-10 md:flex-none"
             onClick={advanceToReview}
-            disabled={isEditing || isSaving || unmappedCount > 0}
+            disabled={!canReview}
           >
             Review {includedTransactions.length} Transactions
             <ArrowRightIcon className="text-primary" aria-hidden="true" />

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { useState } from "react";
+import { useEffect, useRef } from "react";
 import {
   cleanup,
   fireEvent,
@@ -11,7 +11,10 @@ import {
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { CategorizeStatement } from "./categorize-statement";
+import {
+  CategorizeStatementAdapter,
+} from "./statement-import-workflow-adapter";
+import { useStatementImportWorkflow } from "./use-statement-import-workflow";
 import type {
   CategoryRule,
   RememberCategoryRuleInput,
@@ -70,10 +73,33 @@ function CategorizeHarness({
     },
   }),
 }: CategorizeHarnessProps) {
-  const [transactions, setTransactions] = useState(initialTransactions);
+  const { workflow } = useStatementImportWorkflow({
+    categoryOptions: [
+      { value: "42", label: "Housing", color: "teal" },
+      { value: "43", label: "Groceries", color: "forest" },
+    ],
+    categoryLabels: [
+      { value: "42", label: "Housing", color: "teal", isActive: true },
+      { value: "43", label: "Groceries", color: "forest", isActive: true },
+    ],
+    onRememberCategoryRule,
+  });
+  const initialStatementRef = useRef({
+    summary,
+    transactions: initialTransactions,
+  });
+
+  useEffect(() => {
+    workflow.acceptPreparedStatement(
+      new File(["statement"], "statement.pdf", { type: "application/pdf" }),
+      initialStatementRef.current,
+      categoryRules,
+    );
+  }, [workflow]);
 
   return (
-    <CategorizeStatement
+    <CategorizeStatementAdapter
+      workflow={workflow}
       categoryOptions={[
         { value: "42", label: "Housing", color: "teal" },
         { value: "43", label: "Groceries", color: "forest" },
@@ -82,12 +108,9 @@ function CategorizeHarness({
         { value: "42", label: "Housing", color: "teal", isActive: true },
         { value: "43", label: "Groceries", color: "forest", isActive: true },
       ]}
-      categoryRules={categoryRules}
+      currentCategoryRules={categoryRules}
       fileName="statement.pdf"
       statementSummary={summary}
-      transactions={transactions}
-      onRememberCategoryRule={onRememberCategoryRule}
-      onTransactionsChange={setTransactions}
       onBack={vi.fn()}
       onReview={vi.fn()}
     />

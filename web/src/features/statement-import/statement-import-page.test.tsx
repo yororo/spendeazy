@@ -70,8 +70,10 @@ function jsonResponse(body: unknown, status = 200) {
 function createFetchMock(
   options: {
     readonly createdRule?: Record<string, unknown>;
+    readonly categoriesResponse?: () => readonly Record<string, unknown>[];
     readonly categoryRules?: readonly Record<string, unknown>[];
     readonly categoryRulesResponse?: () => readonly Record<string, unknown>[];
+    readonly failCategoryRules?: () => boolean;
     readonly createRuleResponse?: () => Promise<Response>;
   } = {},
 ) {
@@ -109,29 +111,43 @@ function createFetchMock(
       const method = init?.method ?? "GET";
 
       if (method === "GET" && path === "/categories") {
-        return jsonResponse([
-          {
-            id: "42",
-            name: "Housing",
-            description: null,
-            isActive: true,
-          },
-          {
-            id: "43",
-            name: "Groceries",
-            description: null,
-            isActive: true,
-          },
-          {
-            id: "88",
-            name: "Archived",
-            description: null,
-            isActive: false,
-          },
-        ]);
+        return jsonResponse(
+          options.categoriesResponse?.() ?? [
+            {
+              id: "42",
+              name: "Housing",
+              description: null,
+              isActive: true,
+            },
+            {
+              id: "43",
+              name: "Groceries",
+              description: null,
+              isActive: true,
+            },
+            {
+              id: "88",
+              name: "Archived",
+              description: null,
+              isActive: false,
+            },
+          ],
+        );
       }
 
       if (method === "GET" && path === "/category-rules") {
+        if (options.failCategoryRules?.()) {
+          return jsonResponse(
+            {
+              error: {
+                code: "INTERNAL_SERVER_ERROR",
+                message: "Category Rules are temporarily unavailable.",
+                details: [],
+              },
+            },
+            500,
+          );
+        }
         return jsonResponse(options.categoryRulesResponse?.() ?? categoryRules);
       }
 
@@ -355,6 +371,8 @@ function renderStatementImportPage(
       </QueryClientProvider>
     </ApiClientProvider>,
   );
+
+  return queryClient;
 }
 
 const originalWindowWidth = window.innerWidth;
@@ -504,6 +522,163 @@ describe("StatementImportPage GCash recipient flow", () => {
       ),
     ).toBe(false);
     expect(payload.transactions[0]?.description).toContain(recipient);
+  });
+});
+
+describe("StatementImportPage Categorize lifecycle", () => {
+  it("abandons the editor when a rule query error displaces Categorize", async () => {
+    let failCategoryRules = false;
+    const fetchMock = createFetchMock({
+      failCategoryRules: () => failCategoryRules,
+    });
+    const queryClient = renderStatementImportPage(fetchMock);
+    await screen.findByRole("heading", { name: "Upload your statement" });
+    await uploadStatementFile("statement.pdf");
+
+    const table = screen.getByRole("table", {
+      name: "Transactions parsed from statement.pdf",
+    });
+    fireEvent.click(
+      within(table).getByRole("button", {
+        name: "Edit Green Market Cafe",
+      }),
+    );
+    fireEvent.change(
+      within(table).getByRole("textbox", {
+        name: "Description for Green Market Cafe",
+      }),
+      { target: { value: "Unsaved query-error draft" } },
+    );
+
+    failCategoryRules = true;
+    await act(async () => {
+      await queryClient.refetchQueries({
+        queryKey: ["statement-import", "rules"],
+      });
+    });
+    expect(
+      await screen.findByText("Category Rules are temporarily unavailable."),
+    ).toBeTruthy();
+    expect(
+      screen.queryByRole("textbox", {
+        name: "Description for Green Market Cafe",
+      }),
+    ).toBeNull();
+
+    failCategoryRules = false;
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    await screen.findByRole("heading", { name: "Categorize and update" });
+
+    expect(
+      within(screen.getByRole("table", {
+        name: "Transactions parsed from statement.pdf",
+      })).queryByText("Unsaved query-error draft"),
+    ).toBeNull();
+    expect(
+      screen.getByText("Green Market Cafe", { selector: "span" }),
+    ).toBeTruthy();
+  });
+
+  it("retains the accepted statement when active Categories temporarily disappear", async () => {
+    let categoriesUnavailable = false;
+    const fetchMock = createFetchMock({
+      categoriesResponse: () =>
+        categoriesUnavailable
+          ? [
+              {
+                id: "88",
+                name: "Archived",
+                description: null,
+                isActive: false,
+              },
+            ]
+          : [
+              {
+                id: "42",
+                name: "Housing",
+                description: null,
+                isActive: true,
+              },
+              {
+                id: "43",
+                name: "Groceries",
+                description: null,
+                isActive: true,
+              },
+            ],
+    });
+    const queryClient = renderStatementImportPage(fetchMock);
+    await screen.findByRole("heading", { name: "Upload your statement" });
+    await uploadStatementFile("statement.pdf");
+
+    categoriesUnavailable = true;
+    await act(async () => {
+      await queryClient.refetchQueries({
+        queryKey: ["statement-import", "categories"],
+      });
+    });
+    expect(
+      await screen.findByRole("heading", {
+        name: "No active Categories configured",
+      }),
+    ).toBeTruthy();
+
+    categoriesUnavailable = false;
+    await act(async () => {
+      await queryClient.refetchQueries({
+        queryKey: ["statement-import", "categories"],
+      });
+    });
+    await screen.findByRole("heading", { name: "Categorize and update" });
+    expect(
+      within(screen.getByRole("table", {
+        name: "Transactions parsed from statement.pdf",
+      })).getByText("Green Market Cafe"),
+    ).toBeTruthy();
+  });
+
+  it("keeps the mounted rule snapshot stable and refreshes it on reentry", async () => {
+    let useRefreshedRules = false;
+    const initialRules = [
+      {
+        id: "1",
+        categoryId: "42",
+        pattern: "Green Market Cafe",
+        matchType: "exact",
+      },
+    ];
+    const refreshedRules = [
+      ...initialRules,
+      {
+        id: "4",
+        categoryId: "42",
+        pattern: "Cafe",
+        matchType: "contains",
+      },
+    ];
+    const fetchMock = createFetchMock({
+      categoryRules: initialRules,
+      categoryRulesResponse: () =>
+        useRefreshedRules ? refreshedRules : initialRules,
+    });
+    const queryClient = renderStatementImportPage(fetchMock);
+    await screen.findByRole("heading", { name: "Upload your statement" });
+    await uploadStatementFile("statement.pdf");
+    expect(screen.getByText("1 persisted Rules")).toBeTruthy();
+
+    useRefreshedRules = true;
+    await act(async () => {
+      await queryClient.refetchQueries({
+        queryKey: ["statement-import", "rules"],
+      });
+    });
+    expect(screen.getByText("1 persisted Rules")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Review 1 Transactions" }));
+    await screen.findByRole("heading", { name: "Review your imported statement" });
+    fireEvent.click(screen.getByRole("button", { name: "Back to Categorize" }));
+    await screen.findByRole("heading", { name: "Categorize and update" });
+    expect(screen.getByText("2 persisted Rules")).toBeTruthy();
   });
 });
 

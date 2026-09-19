@@ -1,4 +1,4 @@
-import { useRef, useState, type SetStateAction } from "react";
+import { useRef, useState } from "react";
 import { InfoIcon } from "lucide-react";
 
 import {
@@ -6,7 +6,6 @@ import {
   FeatureDataError,
   FeatureDataLoading,
 } from "@/components/app/feature-data-state";
-import { CategorizeStatement } from "./categorize-statement";
 import { ImportProgress } from "./import-progress";
 import { ImportSuccess } from "./import-success";
 import { ReviewStatement } from "./review-statement";
@@ -21,11 +20,12 @@ import {
 } from "./statement-import-queries";
 import type {
   CategorizedStatement,
-  CategorizedTransaction,
 } from "./statement-categorizer";
 import { StatementDropZone } from "./statement-drop-zone";
-
-type ImportStage = "upload" | "categorize" | "review";
+import {
+  CategorizeStatementAdapter,
+} from "./statement-import-workflow-adapter";
+import { useStatementImportWorkflow } from "./use-statement-import-workflow";
 
 interface StatementImportPageProps {
   onViewTransactions: () => void;
@@ -37,53 +37,42 @@ function StatementImportPage({ onViewTransactions }: StatementImportPageProps) {
   const recentImportsQuery = useRecentImportsQuery();
   const commitMutation = useCommitStatementImportMutation();
   const rememberCategoryRuleMutation = useRememberCategoryRuleMutation();
-  const statementLifetimeRef = useRef<symbol | null>(null);
-  const renderedStatementLifetime = statementLifetimeRef.current;
-  const [stage, setStage] = useState<ImportStage>("upload");
-  const [importedFile, setImportedFile] = useState<File | null>(null);
-  const [statement, setStatement] = useState<CategorizedStatement | null>(null);
   const [
     hasAcknowledgedProbableDuplicates,
     setHasAcknowledgedProbableDuplicates,
   ] = useState(false);
   const probableDuplicateAcknowledgementAttemptedRef = useRef(false);
 
+  const categoryCatalogForWorkflow = categoryOptionsQuery.data ?? [];
+  const categoryOptionsForWorkflow = categoryCatalogForWorkflow
+    .filter((category) => category.isActive)
+    .map(({ value, label, color }) => ({ value, label, color }));
+  const { workflow, state: workflowState } = useStatementImportWorkflow({
+    categoryOptions: categoryOptionsForWorkflow,
+    categoryLabels: categoryCatalogForWorkflow,
+    onRememberCategoryRule: (input, existingRules) =>
+      rememberCategoryRuleMutation.mutateAsync({ input, existingRules }),
+  });
+
   function acceptCategorizedStatement(
     file: File,
     categorizedStatement: CategorizedStatement,
   ) {
-    statementLifetimeRef.current = Symbol("statement-import");
     commitMutation.reset();
     rememberCategoryRuleMutation.reset();
-    setImportedFile(file);
-    setStatement(categorizedStatement);
     setHasAcknowledgedProbableDuplicates(false);
     probableDuplicateAcknowledgementAttemptedRef.current = false;
-    setStage("categorize");
-  }
-
-  function setTransactions(update: SetStateAction<CategorizedTransaction[]>) {
-    setStatement((current) => {
-      if (
-        !current ||
-        statementLifetimeRef.current !== renderedStatementLifetime
-      ) {
-        return current;
-      }
-
-      const transactions =
-        typeof update === "function" ? update(current.transactions) : update;
-      return { ...current, transactions };
-    });
+    workflow.acceptPreparedStatement(
+      file,
+      categorizedStatement,
+      categoryRules,
+    );
   }
 
   function resetImport() {
-    statementLifetimeRef.current = Symbol("statement-import");
     commitMutation.reset();
     rememberCategoryRuleMutation.reset();
-    setStage("upload");
-    setImportedFile(null);
-    setStatement(null);
+    workflow.backToUpload();
     setHasAcknowledgedProbableDuplicates(false);
     probableDuplicateAcknowledgementAttemptedRef.current = false;
   }
@@ -91,6 +80,7 @@ function StatementImportPage({ onViewTransactions }: StatementImportPageProps) {
   function commitReviewedStatementImport(
     acknowledgeProbableDuplicates: boolean,
   ) {
+    const { importedFile, statement } = workflowState;
     if (!importedFile || !statement || commitMutation.isPending) return;
     if (
       acknowledgeProbableDuplicates &&
@@ -139,10 +129,8 @@ function StatementImportPage({ onViewTransactions }: StatementImportPageProps) {
     );
   }
 
-  const categoryCatalog = categoryOptionsQuery.data;
-  const categoryOptions = categoryCatalog
-    .filter((category) => category.isActive)
-    .map(({ value, label, color }) => ({ value, label, color }));
+  const categoryCatalog = categoryCatalogForWorkflow;
+  const categoryOptions = categoryOptionsForWorkflow;
   const categoryRules = categoryRulesQuery.data;
   const recentImports = recentImportsQuery.data;
   const activeCategoryIds = new Set(
@@ -175,6 +163,8 @@ function StatementImportPage({ onViewTransactions }: StatementImportPageProps) {
     commitMutation.error,
   );
 
+  const { importedFile, statement, stage } = workflowState;
+
   if (importedFile && statement && stage === "review") {
     return (
       <ReviewStatement
@@ -190,9 +180,9 @@ function StatementImportPage({ onViewTransactions }: StatementImportPageProps) {
           commitMutation.reset();
           setHasAcknowledgedProbableDuplicates(false);
           probableDuplicateAcknowledgementAttemptedRef.current = false;
-          setStage("categorize");
+          workflow.returnToCategorize(categoryRules);
         }}
-        onResolve={() => setStage("categorize")}
+        onResolve={() => workflow.returnToCategorize(categoryRules)}
         onCommit={commitReviewedStatementImport}
       />
     );
@@ -200,19 +190,15 @@ function StatementImportPage({ onViewTransactions }: StatementImportPageProps) {
 
   if (importedFile && statement && stage === "categorize") {
     return (
-      <CategorizeStatement
+      <CategorizeStatementAdapter
+        workflow={workflow}
         categoryOptions={categoryOptions}
         categoryLabels={categoryCatalog}
-        categoryRules={categoryRules}
+        currentCategoryRules={categoryRules}
         fileName={importedFile.name}
         statementSummary={statement.summary}
-        transactions={statement.transactions}
-        onRememberCategoryRule={(input, existingRules) =>
-          rememberCategoryRuleMutation.mutateAsync({ input, existingRules })
-        }
-        onTransactionsChange={setTransactions}
         onBack={resetImport}
-        onReview={() => setStage("review")}
+        onReview={() => workflow.enterReview()}
       />
     );
   }

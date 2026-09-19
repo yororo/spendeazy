@@ -495,9 +495,20 @@ function createApiClient(
         : authenticationFailurePromises.get(sessionId);
     if (existingFailurePromise) return existingFailurePromise;
 
-    const failurePromise = Promise.resolve().then(() =>
-      onAuthenticationFailure(),
-    );
+    const failurePromise = Promise.resolve()
+      .then(() => onAuthenticationFailure())
+      .finally(() => {
+        if (sessionId === undefined) {
+          if (clientAuthenticationFailurePromise === failurePromise) {
+            clientAuthenticationFailurePromise = undefined;
+          }
+          return;
+        }
+
+        if (authenticationFailurePromises.get(sessionId) === failurePromise) {
+          authenticationFailurePromises.delete(sessionId);
+        }
+      });
     if (sessionId === undefined) {
       clientAuthenticationFailurePromise = failurePromise;
     } else {

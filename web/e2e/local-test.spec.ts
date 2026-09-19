@@ -106,19 +106,146 @@ test("signs out protected routes and re-enters without Clerk", async ({ page }) 
   await expect(page.getByTestId("local-test-panel")).toContainText("LOCAL TEST");
 });
 
-test("refreshes an expired session and signs out a revoked session", async ({
+test("refreshes an expired session through the real API recovery path", async ({
   page,
+  request,
 }) => {
+  const apiBaseUrl = requireEnvironment("SPENDEAZY_E2E_API_BASE_URL");
   await page.goto("/transactions");
   const panel = page.getByTestId("local-test-panel");
+  const sessionState = page.getByTestId("local-test-session-state");
+  await expect(sessionState).toHaveAttribute("data-session-mode", "active");
+  await expect(page.getByRole("heading", { name: "Your spending" })).toBeVisible();
+  const authenticationStatuses: number[] = [];
+  page.on("response", (response) => {
+    if (response.url().endsWith("/api/v1/users/me")) {
+      authenticationStatuses.push(response.status());
+    }
+  });
+
+  const rejectedRequest = page.waitForResponse(
+    (response) =>
+      response.url().endsWith("/api/v1/users/me") && response.status() === 401,
+  );
+  const expireResponse = page.waitForResponse(
+    (response) =>
+      response.url().endsWith("/api/v1/users/me/local-test/sessions/expire") &&
+      response.status() === 201,
+  );
 
   await panel.getByRole("button", { name: "Expire token" }).click();
-  await expect(panel).toContainText("LOCAL TEST");
+  const expireBody = (await (await expireResponse).json()) as {
+    expiredSession?: { token?: unknown };
+    refreshedSession?: { token?: unknown };
+  };
+  await rejectedRequest;
+  await expect(sessionState).toHaveAttribute("data-session-mode", "active");
   await expect(page.getByRole("heading", { name: "Your spending" })).toBeVisible();
+  await expect
+    .poll(() => authenticationStatuses.length)
+    .toBeGreaterThanOrEqual(2);
+  expect(authenticationStatuses.filter((status) => status === 401)).toHaveLength(1);
+  expect(authenticationStatuses.length).toBeLessThanOrEqual(3);
+
+  const expiredToken = readSessionToken(expireBody.expiredSession);
+  const refreshedToken = readSessionToken(expireBody.refreshedSession);
+  const rejectedAccess = await request.get(
+    `${apiBaseUrl}/api/v1/users/me/transactions`,
+    { headers: authorizationHeaders(expiredToken) },
+  );
+  await expectUnauthenticated(rejectedAccess);
+
+  const resumedAccess = await request.get(
+    `${apiBaseUrl}/api/v1/users/me/transactions`,
+    { headers: authorizationHeaders(refreshedToken) },
+  );
+  expect(resumedAccess.status()).toBe(200);
+});
+
+test("revokes a session, clears private data, and allows deliberate re-entry", async ({
+  page,
+  request,
+}) => {
+  const apiBaseUrl = requireEnvironment("SPENDEAZY_E2E_API_BASE_URL");
+  const purchaseDate = requireEnvironment("SPENDEAZY_E2E_TEST_DATE");
+
+  await page.goto("/transactions");
+  const secondarySessionResponse = page.waitForResponse(
+    (response) =>
+      response.url().endsWith("/api/v1/users/me/local-test/sessions") &&
+      response.status() === 201,
+  );
+  await page.getByTestId("local-test-panel").getByRole("button", {
+    name: "Second User",
+  }).click();
+  const secondaryToken = readSessionToken(
+    await (await secondarySessionResponse).json(),
+  );
+  const privateDescription = "Revoked session private fixture";
+  const created = await createTransactionWithRequest(request, apiBaseUrl, {
+    token: secondaryToken,
+    purchaseDate,
+    description: privateDescription,
+  });
+  expect(created.status()).toBe(201);
+
+  const refreshedSecondaryResponse = page.waitForResponse(
+    (response) =>
+      response.url().endsWith("/api/v1/users/me/local-test/sessions") &&
+      response.status() === 201,
+  );
+  await page.getByTestId("local-test-panel").getByRole("button", {
+    name: "Second User",
+  }).click();
+  const activeSecondaryToken = readSessionToken(
+    await (await refreshedSecondaryResponse).json(),
+  );
+  await expect(page.getByTestId("local-test-active-user")).toContainText(
+    "Local Test Companion",
+  );
+  await expect(page.getByRole("heading", { name: "Your spending" })).toBeVisible();
+  await expect(page.getByText(privateDescription, { exact: true }).first()).toBeVisible();
+
+  const panel = page.getByTestId("local-test-panel");
+  const authenticationStatuses: number[] = [];
+  page.on("response", (response) => {
+    if (response.url().endsWith("/api/v1/users/me")) {
+      authenticationStatuses.push(response.status());
+    }
+  });
+  const rejectedRequest = page.waitForResponse(
+    (response) =>
+      response.url().endsWith("/api/v1/users/me") && response.status() === 401,
+  );
+  const revokeResponse = page.waitForResponse(
+    (response) =>
+      response.url().endsWith("/api/v1/users/me/local-test/sessions/revoke") &&
+      response.status() === 201,
+  );
 
   await panel.getByRole("button", { name: "Revoke session" }).click();
+  const revokeBody = (await (await revokeResponse).json()) as {
+    resumeSession?: { token?: unknown };
+  };
+  await rejectedRequest;
   await expect(page).toHaveURL(/\/sign-in$/);
   await expect(page.getByTestId("local-test-signed-out")).toBeVisible();
+  await expect(page.getByText(privateDescription, { exact: true })).toHaveCount(0);
+  expect(authenticationStatuses).toEqual([401]);
+
+  const revokedAccess = await request.get(
+    `${apiBaseUrl}/api/v1/users/me/transactions`,
+    { headers: authorizationHeaders(activeSecondaryToken) },
+  );
+  await expectUnauthenticated(revokedAccess);
+
+  const resumeToken = readSessionToken(revokeBody.resumeSession);
+  expect(resumeToken).not.toBe(activeSecondaryToken);
+  const resumedAccess = await request.get(
+    `${apiBaseUrl}/api/v1/users/me/transactions`,
+    { headers: authorizationHeaders(resumeToken) },
+  );
+  expect(resumedAccess.status()).toBe(200);
 
   await page.getByRole("button", { name: "Resume synthetic session" }).click();
   await expect(page.getByTestId("local-test-panel")).toContainText("LOCAL TEST");
@@ -281,6 +408,29 @@ async function createTransactionWithRequest(
 
 function authorizationHeaders(token: string): Record<string, string> {
   return { Authorization: `Bearer ${token}`, Accept: "application/json" };
+}
+
+async function expectUnauthenticated(response: {
+  status: () => number;
+  json: () => Promise<unknown>;
+}): Promise<void> {
+  expect(response.status()).toBe(401);
+  await expect(response.json()).resolves.toMatchObject({
+    error: { code: "UNAUTHENTICATED" },
+  });
+}
+
+function readSessionToken(value: unknown): string {
+  if (
+    value === null ||
+    typeof value !== "object" ||
+    Array.isArray(value) ||
+    typeof (value as { token?: unknown }).token !== "string"
+  ) {
+    throw new Error("The local test session response did not include a token.");
+  }
+
+  return (value as { token: string }).token;
 }
 
 function requireEnvironment(name: string): string {

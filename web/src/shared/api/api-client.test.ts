@@ -834,6 +834,48 @@ describe("createApiClient", () => {
     ).toBe(true);
   });
 
+  it("coalesces concurrent revoked-session failures and forgets completed notifications", async () => {
+    const fetchMock = vi.fn<FetchMock>(() =>
+      Promise.resolve(apiErrorResponse(401, "UNAUTHENTICATED")),
+    );
+    const getToken = vi.fn(
+      async (options?: { skipCache?: boolean }) =>
+        options?.skipCache ? null : "revoked-token",
+    );
+    const onAuthenticationFailure = vi.fn(async () => undefined);
+    const firstClient = createApiClient(apiConfig, getToken, fetchMock, {
+      sessionId: "session-revoked-concurrent",
+      onAuthenticationFailure,
+    });
+    const secondClient = createApiClient(apiConfig, getToken, fetchMock, {
+      sessionId: "session-revoked-concurrent",
+      onAuthenticationFailure,
+    });
+
+    const results = await Promise.allSettled([
+      firstClient.get("/transactions"),
+      secondClient.get("/categories"),
+    ]);
+
+    expect(results.every((result) => result.status === "rejected")).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(getToken).toHaveBeenCalledTimes(3);
+    expect(onAuthenticationFailure).toHaveBeenCalledOnce();
+
+    const nextClient = createApiClient(apiConfig, getToken, fetchMock, {
+      sessionId: "session-revoked-concurrent",
+      onAuthenticationFailure,
+    });
+    await expect(nextClient.get("/transactions")).rejects.toMatchObject({
+      status: 401,
+      code: "UNAUTHENTICATED",
+    });
+
+    expect(onAuthenticationFailure).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(getToken).toHaveBeenCalledTimes(5);
+  });
+
   it("notifies the application and does not replay when the fresh token is absent", async () => {
     const fetchMock = vi.fn<FetchMock>(() =>
       Promise.resolve(

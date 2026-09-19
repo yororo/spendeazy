@@ -36,7 +36,9 @@ The launcher-owned database is validated before the reset begins. The reset drop
 
 If a retained database was created by an earlier local-test version and contains the fixed User without this fixture scenario, use this explicit reset once; ordinary startup leaves existing data untouched rather than guessing whether it is safe to merge fixtures.
 
-The panel also has `Sign out`, `Expire token`, and `Revoke session` controls. Sign out redirects protected routes to the local signed-out page, where the last usable synthetic session can be entered again. Expiration drives the browser's normal token-refresh path; revocation makes refresh fail and returns the browser to the signed-out state.
+The panel also has `Sign out`, `Expire token`, and `Revoke session` controls, plus a visible session-state indicator. Sign out redirects protected routes to the local signed-out page, where the last usable synthetic session can be entered again.
+
+`Expire token` calls the real local session-control API, replaces the browser session with a server-issued expired token, and lets the normal API client observe the resulting `401 UNAUTHENTICATED`. The client makes one coalesced cache-bypassing token request, retries with the replacement session, and returns the panel to `Active session`. `Revoke session` first invalidates the current server-side session, then leaves the revoked token in place long enough for the next authenticated request to receive a real `401`; refresh returns no token, private query data is cleared, and the browser returns to the signed-out page. The resume action uses a separate temporary session, so the revoked credential cannot regain access.
 
 ## Run the browser smoke test
 
@@ -48,7 +50,7 @@ node .\scripts\local-test-launcher.mjs --e2e
 
 It starts the same real browser/API/database path, runs the Playwright smoke test, and removes only that isolated automated database volume when finished. Playwright can also be run against an already-running environment with `npm run test:e2e` from `web/` when `SPENDEAZY_E2E_BASE_URL`, `SPENDEAZY_E2E_API_BASE_URL`, `SPENDEAZY_E2E_TEST_DATE`, and `VITE_LOCAL_TEST_SESSION_TOKEN` are set to that environment's loopback URL, controlled current-month date, and temporary token.
 
-The automated run intentionally starts with an empty database so the initial provisioning smoke test remains a real first-time provisioning check. The browser suite then creates a fresh User, switches Users, verifies sign-out/re-entry and token failure behavior, and makes direct authenticated API requests to prove that cross-User reads and mutations remain blocked. The persistent two-User fictional scenario is the ordinary manual-startup and explicit-reset fixture.
+The automated run intentionally starts with an empty database so the initial provisioning smoke test remains a real first-time provisioning check. The browser suite then creates a fresh User, switches Users, verifies sign-out/re-entry, observes bounded expiration recovery and revocation failure, checks that expired and revoked credentials are rejected directly by the API while replacement credentials work, and makes direct authenticated API requests to prove that cross-User reads and mutations remain blocked. The persistent two-User fictional scenario is the ordinary manual-startup and explicit-reset fixture.
 
 ## Security boundary
 

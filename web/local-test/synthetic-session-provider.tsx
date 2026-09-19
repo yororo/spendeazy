@@ -50,7 +50,7 @@ interface ActiveSyntheticSession {
   readonly user: AppSessionUser;
   readonly scenario: LocalTestScenario;
   readonly mode: "active" | "expired" | "revoked";
-  readonly refreshToken?: string;
+  readonly refreshSession?: ActiveSyntheticSession;
 }
 
 const INITIAL_USER: AppSessionUser = {
@@ -95,16 +95,11 @@ function SyntheticSessionProvider({
     globalThis.sessionStorage?.setItem(LOCAL_TEST_SIGNED_OUT_KEY, "1");
     setResumeSession((existingSession) => {
       if (existingSession || !currentSession) return existingSession;
-      if (currentSession.mode === "expired" && currentSession.refreshToken) {
-        return {
-          ...currentSession,
-          token: currentSession.refreshToken,
-          mode: "active",
-          refreshToken: undefined,
-        };
-      }
-
-      return currentSession.mode === "active" ? currentSession : null;
+      return currentSession.mode === "expired"
+        ? currentSession.refreshSession ?? null
+        : currentSession.mode === "active"
+          ? currentSession
+          : null;
     });
     setCurrentSession(null);
     setErrorMessage(null);
@@ -172,7 +167,7 @@ function SyntheticSessionProvider({
       setCurrentSession({
         ...expiredSession,
         mode: "expired",
-        refreshToken: refreshedSession.token,
+        refreshSession: refreshedSession,
       });
     } catch (error) {
       setErrorMessage(toErrorMessage(error));
@@ -199,6 +194,7 @@ function SyntheticSessionProvider({
         ...currentSession,
         sessionId: `${response.revokedSessionId}-revoked`,
         mode: "revoked",
+        refreshSession: undefined,
       });
     } catch (error) {
       setErrorMessage(toErrorMessage(error));
@@ -221,15 +217,19 @@ function SyntheticSessionProvider({
         }
 
         if (currentSession.mode === "expired") {
-          if (options?.skipCache && currentSession.refreshToken) {
-            const refreshedToken = currentSession.refreshToken;
-            setCurrentSession({
-              ...currentSession,
-              token: refreshedToken,
-              mode: "active",
-              refreshToken: undefined,
+          if (options?.skipCache && currentSession.refreshSession) {
+            const refreshedSession = currentSession.refreshSession;
+            setCurrentSession((activeSession) => {
+              if (
+                activeSession?.mode !== "expired" ||
+                activeSession.sessionId !== currentSession.sessionId
+              ) {
+                return activeSession;
+              }
+
+              return refreshedSession;
             });
-            return refreshedToken;
+            return refreshedSession.token;
           }
 
           return currentSession.token;
@@ -251,6 +251,7 @@ function SyntheticSessionProvider({
         <LocalTestPanel
           user={currentSession.user}
           scenario={currentSession.scenario}
+          sessionMode={currentSession.mode}
           isBusy={isBusy}
           errorMessage={errorMessage}
           onSelectScenario={(scenario) => void selectScenario(scenario)}

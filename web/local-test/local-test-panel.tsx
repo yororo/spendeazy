@@ -5,10 +5,12 @@ import type { AppSessionUser } from "../src/shared/session/app-session";
 const LOCAL_TEST_SCENARIOS = ["primary", "secondary", "new"] as const;
 
 type LocalTestScenario = (typeof LOCAL_TEST_SCENARIOS)[number];
+type LocalTestSessionMode = "active" | "expired" | "revoked";
 
 interface LocalTestPanelProps {
   user: AppSessionUser;
   scenario: LocalTestScenario;
+  sessionMode: LocalTestSessionMode;
   isBusy: boolean;
   errorMessage: string | null;
   onSelectScenario: (scenario: LocalTestScenario) => void;
@@ -21,6 +23,7 @@ interface LocalTestPanelProps {
 function LocalTestPanel({
   user,
   scenario,
+  sessionMode,
   isBusy,
   errorMessage,
   onSelectScenario,
@@ -44,6 +47,13 @@ function LocalTestPanel({
           <p data-testid="local-test-active-user" aria-live="polite">
             {user.fullName ?? user.primaryEmail ?? "Synthetic User"}
           </p>
+          <p
+            data-testid="local-test-session-state"
+            data-session-mode={sessionMode}
+            aria-live="polite"
+          >
+            Session: {sessionModeLabel(sessionMode)}
+          </p>
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <span className="text-secondary-foreground/70">Switch User:</span>
@@ -51,7 +61,7 @@ function LocalTestPanel({
             type="button"
             className={scenarioButtonClass(scenario === "primary")}
             aria-pressed={scenario === "primary"}
-            disabled={isBusy}
+            disabled={isBusy || sessionMode !== "active"}
             onClick={() => onSelectScenario("primary")}
           >
             Populated User
@@ -60,7 +70,7 @@ function LocalTestPanel({
             type="button"
             className={scenarioButtonClass(scenario === "secondary")}
             aria-pressed={scenario === "secondary"}
-            disabled={isBusy}
+            disabled={isBusy || sessionMode !== "active"}
             onClick={() => onSelectScenario("secondary")}
           >
             Second User
@@ -68,7 +78,7 @@ function LocalTestPanel({
           <button
             type="button"
             className={scenarioButtonClass(false)}
-            disabled={isBusy}
+            disabled={isBusy || sessionMode !== "active"}
             onClick={() => onSelectScenario("new")}
           >
             New User
@@ -77,7 +87,7 @@ function LocalTestPanel({
           <button
             type="button"
             className={secondaryButtonClass}
-            disabled={isBusy}
+            disabled={isBusy || sessionMode !== "active"}
             onClick={() => void onExpireSession()}
           >
             Expire token
@@ -85,7 +95,7 @@ function LocalTestPanel({
           <button
             type="button"
             className={secondaryButtonClass}
-            disabled={isBusy}
+            disabled={isBusy || sessionMode !== "active"}
             onClick={() => void onRevokeSession()}
           >
             Revoke session
@@ -141,6 +151,17 @@ function scenarioButtonClass(isSelected: boolean): string {
     : secondaryButtonClass;
 }
 
+function sessionModeLabel(mode: LocalTestSessionMode): string {
+  switch (mode) {
+    case "active":
+      return "Active session";
+    case "expired":
+      return "Refreshing expired token";
+    case "revoked":
+      return "Revoked; signing out";
+  }
+}
+
 const secondaryButtonClass =
   "min-h-8 border border-secondary-foreground/50 px-3 text-secondary-foreground hover:bg-secondary-foreground hover:text-secondary focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-50";
 
@@ -149,4 +170,8 @@ export {
   LocalTestPanel,
   LocalTestSignedOut,
 };
-export type { LocalTestPanelProps, LocalTestScenario };
+export type {
+  LocalTestPanelProps,
+  LocalTestScenario,
+  LocalTestSessionMode,
+};

@@ -2,7 +2,6 @@ import { Test } from '@nestjs/testing';
 import type { INestApplication, Provider } from '@nestjs/common';
 import type { Server } from 'node:http';
 import request from 'supertest';
-import type { EntityManager } from 'typeorm';
 
 import { configureApp } from '../src/bootstrap';
 import {
@@ -14,10 +13,10 @@ import { ClerkAuthenticationGuard } from '../src/authentication/clerk-authentica
 import { ProvisionedUserGuard } from '../src/authentication/provisioned-user.guard';
 import { APP_CONFIG, type AppConfig } from '../src/config/app-config';
 import {
-  UNIT_OF_WORK,
-  type TransactionContext,
-  type UnitOfWork,
-} from '../src/database/unit-of-work';
+  STATEMENT_IMPORT_CONFIRMATION_UNIT_OF_WORK,
+  type StatementImportConfirmationContext,
+  type StatementImportConfirmationUnitOfWork,
+} from '../src/statement-imports/application/statement-import-confirmation';
 import { computeImportFingerprint } from '../src/statement-imports/application/import-fingerprint';
 import { StatementImportsController } from '../src/statement-imports/presentation/statement-imports.controller';
 import { StatementImportsService } from '../src/statement-imports/application/statement-imports.service';
@@ -480,7 +479,7 @@ async function createStatementImportApplication(
   statementImportsProvider:
     | typeof StatementImportsService
     | { provide: typeof StatementImportsService; useValue: unknown },
-  unitOfWork?: UnitOfWork,
+  unitOfWork?: StatementImportConfirmationUnitOfWork,
   statementImportStore?: StatementImportStore,
 ): Promise<INestApplication> {
   const providers: Provider[] = [
@@ -495,7 +494,10 @@ async function createStatementImportApplication(
     statementImportsProvider,
   ];
   if (unitOfWork !== undefined) {
-    providers.push({ provide: UNIT_OF_WORK, useValue: unitOfWork });
+    providers.push({
+      provide: STATEMENT_IMPORT_CONFIRMATION_UNIT_OF_WORK,
+      useValue: unitOfWork,
+    });
   }
   if (statementImportStore !== undefined) {
     providers.push({
@@ -577,12 +579,11 @@ class ProvisionedTestUserStore implements UserStore {
   }
 }
 
-class StatementImportHttpFixture implements UnitOfWork {
+class StatementImportHttpFixture implements StatementImportConfirmationUnitOfWork {
   readonly statementImports = new HttpStatementImportStore();
   readonly importedTransactions = new HttpImportedTransactionStore();
   readonly categories = new HttpCategoryStore();
-  private readonly context: TransactionContext = {
-    entityManager: {} as EntityManager,
+  private readonly context: StatementImportConfirmationContext = {
     users: new ProvisionedTestUserStore(),
     categories: this.categories,
     statementImports: this.statementImports,
@@ -590,7 +591,7 @@ class StatementImportHttpFixture implements UnitOfWork {
   };
 
   execute<TResult>(
-    work: (context: TransactionContext) => Promise<TResult>,
+    work: (context: StatementImportConfirmationContext) => Promise<TResult>,
   ): Promise<TResult> {
     return work(this.context);
   }

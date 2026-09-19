@@ -74,9 +74,9 @@ Each feature's application layer owns small, capability-specific store interface
 
 The database schema is managed by explicit migrations. Entities describe the runtime mapping; migrations remain the authoritative history of schema changes. Preserve user ownership in both queries and relational constraints.
 
-Use the injected feature store for work contained within one persistence seam. Use `UNIT_OF_WORK` when a workflow must coordinate multiple feature-owned stores atomically. Its `TransactionContext` constructs all participating adapters from one transaction-bound `EntityManager`; every read and write in that workflow must use the supplied context. Statement import commit is the reference implementation.
+Use the injected feature store for work contained within one persistence seam. A workflow that must coordinate multiple feature-owned stores atomically owns a narrow application-facing unit-of-work port in its feature application layer. Statement Import confirmation's context exposes only User lookup by ID, Category lookup by User and ID, Statement Import file-hash lookup and creation, and imported Transaction fingerprint lookup and creation. It does not expose `EntityManager` or the unrelated methods of those feature stores. The TypeORM unit-of-work implementation remains in persistence infrastructure, where it creates all participating adapters from one transaction-bound `EntityManager`; every read and write in the workflow must use the supplied context. Statement import confirmation is the reference implementation.
 
-Add a store to `TransactionContext` only for a real cross-feature atomic workflow. Keep the port owned by its feature and the adapter feature-local.
+Add a store to an atomic workflow context only for a real cross-feature workflow, and expose only the operations that workflow uses. Keep each port owned by its feature and each adapter feature-local.
 
 ## Errors and contracts
 

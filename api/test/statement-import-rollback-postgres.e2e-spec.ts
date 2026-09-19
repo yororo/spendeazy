@@ -10,7 +10,8 @@ import { StatementImportEntity } from '../src/database/entities/statement-import
 import { TransactionEntity } from '../src/database/entities/transaction.entity';
 import { UserEntity } from '../src/database/entities/user.entity';
 import { StatementImportsService } from '../src/statement-imports/application/statement-imports.service';
-import { TypeOrmUnitOfWork } from '../src/database/unit-of-work';
+import { TypeOrmStatementImportConfirmationUnitOfWork } from '../src/database/unit-of-work';
+import { TypeOrmStatementImportStore } from '../src/statement-imports/infrastructure/typeorm-statement-import-store';
 
 const databaseUrl = process.env.TEST_STATEMENT_IMPORT_ROLLBACK_DATABASE_URL;
 
@@ -35,7 +36,10 @@ describe('Statement Import rollback with PostgreSQL', () => {
       synchronize: false,
     }).initialize();
     await database.runMigrations();
-    service = new StatementImportsService(new TypeOrmUnitOfWork(database));
+    service = new StatementImportsService(
+      new TypeOrmStatementImportStore(database.manager),
+      new TypeOrmStatementImportConfirmationUnitOfWork(database),
+    );
   });
 
   beforeEach(async () => {

@@ -6,10 +6,10 @@ import {
   POSITIVE_TWO_DECIMAL_AMOUNT_PATTERN,
 } from '../../http/validation-patterns';
 import {
-  UNIT_OF_WORK,
-  type TransactionContext,
-  type UnitOfWork,
-} from '../../database/unit-of-work';
+  STATEMENT_IMPORT_CONFIRMATION_UNIT_OF_WORK,
+  type StatementImportConfirmationContext,
+  type StatementImportConfirmationUnitOfWork,
+} from './statement-import-confirmation';
 import { normalizeAmount } from '../../normalization/amount';
 import { computeImportFingerprint } from './import-fingerprint';
 import { findProbableDuplicateGroups } from './probable-duplicates';
@@ -75,8 +75,8 @@ export class StatementImportsService {
     @Inject(STATEMENT_IMPORT_STORE)
     private readonly statementImportStore: StatementImportStore,
     @Optional()
-    @Inject(UNIT_OF_WORK)
-    private readonly unitOfWork?: UnitOfWork,
+    @Inject(STATEMENT_IMPORT_CONFIRMATION_UNIT_OF_WORK)
+    private readonly unitOfWork?: StatementImportConfirmationUnitOfWork,
   ) {}
 
   commitReviewedStatementImport(
@@ -149,7 +149,7 @@ export class StatementImportsService {
   }
 
   private async commitWithinTransaction(
-    context: TransactionContext,
+    context: StatementImportConfirmationContext,
     userId: string,
     input: CommitReviewedStatementImportInput,
   ): Promise<StatementImportRecord> {
@@ -218,7 +218,7 @@ export class StatementImportsService {
 }
 
 async function findProbableDuplicates(
-  context: TransactionContext,
+  context: StatementImportConfirmationContext,
   userId: string,
   preparedTransactions: readonly {
     importFingerprint: string;
@@ -247,7 +247,7 @@ async function findProbableDuplicates(
 }
 
 async function ensureCategoriesAreActive(
-  context: TransactionContext,
+  context: StatementImportConfirmationContext,
   userId: string,
   transactions: ReviewedStatementTransactionInput[],
 ): Promise<void> {

@@ -28,10 +28,9 @@ import { StatementImportsService } from './statement-imports.service';
 import { decodeStatementImportCursor } from './statement-import-cursor';
 import { computeImportFingerprint } from './import-fingerprint';
 import type {
-  TransactionContext,
-  UnitOfWork,
-} from '../../database/unit-of-work';
-import type { EntityManager } from 'typeorm';
+  StatementImportConfirmationContext,
+  StatementImportConfirmationUnitOfWork,
+} from './statement-import-confirmation';
 import { ApplicationError } from '../../errors/application-error';
 import { UserNotFoundError } from '../../users/application/user-errors';
 import type { UserRecord, UserStore } from '../../users/application/user-store';
@@ -44,7 +43,6 @@ describe('StatementImportsService', () => {
       categoryRecord({ id: '42' }),
     ]);
     const unitOfWork = new UnitOfWorkFake({
-      entityManager: {} as EntityManager,
       users: userStore(),
       statementImports,
       importedTransactions,
@@ -103,7 +101,6 @@ describe('StatementImportsService', () => {
     ]);
     const importedTransactions = new ImportedTransactionStoreFake();
     const unitOfWork = new UnitOfWorkFake({
-      entityManager: {} as EntityManager,
       users: userStore(),
       statementImports,
       importedTransactions,
@@ -144,7 +141,6 @@ describe('StatementImportsService', () => {
       ]),
     );
     const unitOfWork = new UnitOfWorkFake({
-      entityManager: {} as EntityManager,
       users: userStore(),
       statementImports,
       importedTransactions,
@@ -197,7 +193,6 @@ describe('StatementImportsService', () => {
       ]),
     );
     const unitOfWork = new UnitOfWorkFake({
-      entityManager: {} as EntityManager,
       users: userStore(),
       statementImports,
       importedTransactions,
@@ -226,7 +221,6 @@ describe('StatementImportsService', () => {
       const statementImports = new StatementImportStoreFake();
       const importedTransactions = new ImportedTransactionStoreFake();
       const unitOfWork = new UnitOfWorkFake({
-        entityManager: {} as EntityManager,
         users: userStore(),
         statementImports,
         importedTransactions,
@@ -259,7 +253,6 @@ describe('StatementImportsService', () => {
     const statementImports = new StatementImportStoreFake();
     const importedTransactions = new ImportedTransactionStoreFake();
     const unitOfWork = new UnitOfWorkFake({
-      entityManager: {} as EntityManager,
       users: userStore(),
       statementImports,
       importedTransactions,
@@ -291,7 +284,6 @@ describe('StatementImportsService', () => {
     const statementImports = new StatementImportStoreFake();
     const importedTransactions = new ImportedTransactionStoreFake();
     const unitOfWork = new UnitOfWorkFake({
-      entityManager: {} as EntityManager,
       users: userStore(null),
       statementImports,
       importedTransactions,
@@ -312,7 +304,6 @@ describe('StatementImportsService', () => {
     const importedTransactions = new ImportedTransactionStoreFake();
     importedTransactions.failOnCreateNumber = 2;
     const unitOfWork = new UnitOfWorkFake({
-      entityManager: {} as EntityManager,
       users: userStore(),
       statementImports,
       importedTransactions,
@@ -326,11 +317,9 @@ describe('StatementImportsService', () => {
       service.commitReviewedStatementImport('7', statementInput()),
     ).rejects.toThrow('transaction write failed');
 
-    expect(statementImports.createdInput).toBeUndefined();
+    expect(statementImports.createdInput).toBeDefined();
     expect(importedTransactions.createdInputs).toHaveLength(2);
     expect(importedTransactions.createCallCount).toBe(2);
-    expect(statementImports.persistedInputs).toEqual([]);
-    expect(importedTransactions.persistedInputs).toEqual([]);
   });
 
   it('lists an owned statement-import page in stable order and binds its cursor to filters', async () => {
@@ -431,31 +420,22 @@ describe('StatementImportsService', () => {
   });
 });
 
-class UnitOfWorkFake implements UnitOfWork {
+class UnitOfWorkFake implements StatementImportConfirmationUnitOfWork {
   executeCalls = 0;
 
-  constructor(private readonly context: TransactionContext) {}
+  constructor(private readonly context: StatementImportConfirmationContext) {}
 
   async execute<TResult>(
-    work: (context: TransactionContext) => Promise<TResult>,
+    work: (context: StatementImportConfirmationContext) => Promise<TResult>,
   ): Promise<TResult> {
     this.executeCalls += 1;
-    try {
-      return await work(this.context);
-    } catch (error: unknown) {
-      (this.context.statementImports as StatementImportStoreFake).rollback();
-      (
-        this.context.importedTransactions as ImportedTransactionStoreFake
-      ).rollback();
-      throw error;
-    }
+    return work(this.context);
   }
 }
 
 class StatementImportStoreFake implements StatementImportStore {
   createdInput: NewStatementImport | undefined;
   createdImport: StatementImportRecord | undefined;
-  readonly persistedInputs: NewStatementImport[] = [];
   pageQuery: StatementImportHistoryPageQuery | undefined;
   pageResults: StatementImportHistoryRecord[];
 
@@ -494,7 +474,6 @@ class StatementImportStoreFake implements StatementImportStore {
 
   create(input: NewStatementImport): Promise<StatementImportRecord> {
     this.createdInput = input;
-    this.persistedInputs.push(input);
     this.createdImport = statementRecord({
       id: '100',
       userId: input.userId,
@@ -518,17 +497,10 @@ class StatementImportStoreFake implements StatementImportStore {
       ),
     );
   }
-
-  rollback(): void {
-    this.createdInput = undefined;
-    this.createdImport = undefined;
-    this.persistedInputs.length = 0;
-  }
 }
 
 class ImportedTransactionStoreFake implements ImportedTransactionStore {
   readonly createdInputs: NewImportedTransaction[] = [];
-  readonly persistedInputs: NewImportedTransaction[] = [];
   failOnCreateNumber: number | undefined;
 
   constructor(
@@ -551,7 +523,6 @@ class ImportedTransactionStoreFake implements ImportedTransactionStore {
 
   create(input: NewImportedTransaction): Promise<ImportedTransactionRecord> {
     this.createdInputs.push(input);
-    this.persistedInputs.push(input);
     if (this.createdInputs.length === this.failOnCreateNumber) {
       return Promise.reject(new Error('transaction write failed'));
     }
@@ -571,10 +542,6 @@ class ImportedTransactionStoreFake implements ImportedTransactionStore {
 
   updateCategory(): Promise<ImportedTransactionRecord | null> {
     return Promise.resolve(null);
-  }
-
-  rollback(): void {
-    this.persistedInputs.length = 0;
   }
 }
 

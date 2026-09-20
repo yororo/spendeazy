@@ -34,8 +34,21 @@ function DashboardPage({ spaceId, onSpaceChange }: DashboardPageProps = {}) {
   const dashboardQuery = useDashboardQuery(
     period,
     effectiveSpaceId,
-    !shouldResolvePersonalSpace || spacesQuery.isSuccess || spacesQuery.isError,
+    !shouldResolvePersonalSpace || spacesQuery.isSuccess,
   );
+
+  if (spacesQuery.isError) {
+    return (
+      <FeatureDataError
+        message={spacesQuery.error.message}
+        onRetry={() => void spacesQuery.refetch()}
+      />
+    );
+  }
+
+  if (spacesQuery.isSuccess && !effectiveSpaceId) {
+    return <FeatureDataError message="Personal Space is unavailable." onRetry={() => void spacesQuery.refetch()} />;
+  }
 
   if (dashboardQuery.isPending) {
     return <FeatureDataLoading label="Loading Dashboard" />;

@@ -75,6 +75,8 @@ const pageState = vi.hoisted(() => {
       isPending: false,
       isError: false,
       isSuccess: true,
+      error: new Error("Spaces unavailable"),
+      refetch: vi.fn(async () => undefined),
     },
     transactionQuery: {
       data: {
@@ -160,6 +162,9 @@ vi.mock("./transactions-queries", () => ({
 
 afterEach(() => {
   cleanup();
+  pageState.spacesQuery.isError = false;
+  pageState.spacesQuery.isSuccess = true;
+  pageState.spacesQuery.refetch.mockClear();
   pageState.createMutation.mutateAsync.mockClear();
   pageState.updateMutation.mutateAsync.mockClear();
   pageState.deleteMutation.mutateAsync.mockClear();
@@ -185,6 +190,17 @@ function renderPage() {
 }
 
 describe("TransactionsPage", () => {
+  it("blocks transaction queries when accessible Spaces cannot be loaded", () => {
+    pageState.spacesQuery.isError = true;
+    pageState.spacesQuery.isSuccess = false;
+
+    renderPage();
+
+    expect(screen.getByText("Spaces unavailable")).toBeTruthy();
+    expect(pageState.lastTransactionQueryArgs?.[2]).toBe(false);
+    expect(screen.queryByRole("heading", { name: "Your spending" })).toBeNull();
+  });
+
   it("records, edits, categorizes, and deletes transactions in the selected Space", async () => {
     renderPage();
 

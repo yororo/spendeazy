@@ -128,9 +128,22 @@ function CategoriesPage({ spaceId, onSpaceChange }: CategoriesPageProps = {}) {
   const categoriesQuery = useCategoriesOverviewQuery(
     period,
     effectiveSpaceId,
-    !shouldResolvePersonalSpace || spacesQuery.isSuccess || spacesQuery.isError,
+    !shouldResolvePersonalSpace || spacesQuery.isSuccess,
   );
   const statusMutation = useUpdateCategoryStatusMutation();
+
+  if (spacesQuery.isError) {
+    return (
+      <FeatureDataError
+        message={spacesQuery.error.message}
+        onRetry={() => void spacesQuery.refetch()}
+      />
+    );
+  }
+
+  if (spacesQuery.isSuccess && !effectiveSpaceId) {
+    return <FeatureDataError message="Personal Space is unavailable." onRetry={() => void spacesQuery.refetch()} />;
+  }
 
   if (categoriesQuery.isPending) {
     return <FeatureDataLoading label="Loading Budget overview" />;

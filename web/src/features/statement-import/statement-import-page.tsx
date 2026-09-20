@@ -51,7 +51,7 @@ function StatementImportPage({
     ? importDestination.spaceId
     : effectiveSpaceId;
   const scopeReady =
-    !shouldResolvePersonalSpace || spacesQuery.isSuccess || spacesQuery.isError;
+    !shouldResolvePersonalSpace || spacesQuery.isSuccess;
   const categoryOptionsQuery = useStatementImportCategoriesQuery(
     effectiveSpaceId,
     scopeReady,
@@ -137,6 +137,11 @@ function StatementImportPage({
           void spacesQuery.refetch();
         }}
       />,
+    );
+  }
+  if (shouldResolvePersonalSpace && spacesQuery.isSuccess && !effectiveSpaceId) {
+    return withNavigationGuard(
+      <FeatureDataError message="Personal Space is unavailable." onRetry={() => void spacesQuery.refetch()} />,
     );
   }
   if (isLoading) {

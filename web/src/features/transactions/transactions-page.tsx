@@ -47,8 +47,21 @@ function TransactionsPage({
   const transactionsQuery = useTransactionsQuery(
     period,
     effectiveSpaceId,
-    !shouldResolvePersonalSpace || spacesQuery.isSuccess || spacesQuery.isError,
+    !shouldResolvePersonalSpace || spacesQuery.isSuccess,
   );
+
+  if (spacesQuery.isError) {
+    return (
+      <FeatureDataError
+        message={spacesQuery.error.message}
+        onRetry={() => void spacesQuery.refetch()}
+      />
+    );
+  }
+
+  if (spacesQuery.isSuccess && !effectiveSpaceId) {
+    return <FeatureDataError message="Personal Space is unavailable." onRetry={() => void spacesQuery.refetch()} />;
+  }
 
   if (transactionsQuery.isPending) {
     return <FeatureDataLoading label="Loading Transactions" />;

@@ -27,14 +27,15 @@ import {
   type UpdateCategoryStatusInput,
 } from "./categories-service";
 import {
-  getCategoryRules,
-  replaceCategoryRules,
+  getCategoryRuleSnapshot,
+  replaceCategoryRuleSnapshot,
   type CategoryRuleInput,
 } from "./category-rules-service";
 
 function useCategoriesOverviewQuery(
   period: ReportingPeriod,
   spaceId?: string,
+  enabled = true,
 ) {
   const apiClient = useApiClient();
 
@@ -42,6 +43,7 @@ function useCategoriesOverviewQuery(
     queryKey: ["categories", "overview", period, spaceId ?? null] as const,
     queryFn: ({ signal }) =>
       getCategoriesOverview(apiClient, period, signal, spaceId),
+    enabled,
     placeholderData: keepPreviousData,
     staleTime: queryPolicy.activityStaleTime,
   });
@@ -58,12 +60,13 @@ function useAccessibleSpacesQuery(enabled: boolean) {
   });
 }
 
-function useCategoryRulesQuery(enabled: boolean) {
+function useCategoryRulesQuery(enabled: boolean, spaceId?: string) {
   const apiClient = useApiClient();
 
   return useQuery({
-    queryKey: ["categories", "rules"] as const,
-    queryFn: ({ signal }) => getCategoryRules(apiClient, signal),
+    queryKey: ["categories", "rules", spaceId ?? null] as const,
+    queryFn: ({ signal }) =>
+      getCategoryRuleSnapshot(apiClient, signal, spaceId),
     enabled,
     staleTime: 0,
   });
@@ -78,7 +81,16 @@ function useReplaceCategoryRulesMutation() {
     mutationFn: (input: {
       readonly categoryId: string;
       readonly rules: readonly CategoryRuleInput[];
-    }) => replaceCategoryRules(apiClient, input.categoryId, input.rules),
+      readonly spaceId?: string;
+      readonly revision?: string;
+    }) =>
+      replaceCategoryRuleSnapshot(
+        apiClient,
+        input.categoryId,
+        input.rules,
+        input.spaceId,
+        input.revision,
+      ),
     onSuccess: () => invalidateCategoryRuleQueries(queryClient),
   });
 }

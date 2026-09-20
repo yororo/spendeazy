@@ -11,6 +11,11 @@ interface CategoryRuleResponse {
   readonly matchType: CategoryRuleMatchType;
 }
 
+interface CategoryRuleCollectionResponse {
+  readonly rules: readonly CategoryRuleResponse[];
+  readonly revision: string;
+}
+
 interface StatementImportResponse {
   readonly id: string;
   readonly fileName: string;
@@ -32,9 +37,7 @@ interface StatementImportHistoryPageResponse {
 const CATEGORY_RULE_ID_PATTERN = /^[1-9]\d*$/u;
 const CATEGORY_RULE_PATTERN_LIMIT = 500;
 
-function isCategoryRuleResponse(
-  value: unknown,
-): value is CategoryRuleResponse {
+function isCategoryRuleResponse(value: unknown): value is CategoryRuleResponse {
   return (
     isRecord(value) &&
     typeof value.id === "string" &&
@@ -69,6 +72,23 @@ function requireCategoryRules(
   }
 
   return response;
+}
+
+function requireCategoryRuleCollection(
+  response: unknown,
+  createError: ApiDataErrorFactory,
+): CategoryRuleCollectionResponse {
+  if (
+    !isRecord(response) ||
+    !Array.isArray(response.rules) ||
+    !response.rules.every(isCategoryRuleResponse) ||
+    typeof response.revision !== "string" ||
+    !/^\d+$/u.test(response.revision)
+  ) {
+    throw createError("The API returned an invalid Category Rule collection.");
+  }
+
+  return response as unknown as CategoryRuleCollectionResponse;
 }
 
 function isStatementImportResponse(
@@ -117,7 +137,9 @@ function requireStatementImportHistoryPage(
     !("nextCursor" in response) ||
     (response.nextCursor !== null && typeof response.nextCursor !== "string")
   ) {
-    throw createError("The API returned an invalid Statement Import history page.");
+    throw createError(
+      "The API returned an invalid Statement Import history page.",
+    );
   }
 
   return response as unknown as StatementImportHistoryPageResponse;
@@ -125,11 +147,13 @@ function requireStatementImportHistoryPage(
 
 export {
   requireCategoryRule,
+  requireCategoryRuleCollection,
   requireCategoryRules,
   requireStatementImport,
   requireStatementImportHistoryPage,
 };
 export type {
+  CategoryRuleCollectionResponse,
   CategoryRuleResponse,
   StatementImportHistoryItemResponse,
   StatementImportHistoryPageResponse,

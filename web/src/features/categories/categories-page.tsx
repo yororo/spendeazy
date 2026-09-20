@@ -7,11 +7,7 @@ import {
   SearchIcon,
 } from "lucide-react";
 
-import {
-  Alert,
-  AlertDescription,
-  AlertTitle,
-} from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   FeatureDataError,
   FeatureDataLoading,
@@ -87,7 +83,10 @@ function getCategoriesEmptyMessage(
   showInactive: boolean,
 ) {
   if (search.trim()) {
-    if (!showInactive && matchingCategories.some((category) => !category.isActive)) {
+    if (
+      !showInactive &&
+      matchingCategories.some((category) => !category.isActive)
+    ) {
       return "No active Categories match your search. Show inactive Categories to view them.";
     }
 
@@ -118,17 +117,24 @@ function CategoriesPage({ spaceId, onSpaceChange }: CategoriesPageProps = {}) {
   const { period } = useReportingPeriod();
   const [search, setSearch] = useState("");
   const [showInactive, setShowInactive] = useState(false);
-  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
-  const [mobileEditingCategoryId, setMobileEditingCategoryId] =
-    useState<string | null>(null);
+  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(
+    null,
+  );
+  const [mobileEditingCategoryId, setMobileEditingCategoryId] = useState<
+    string | null
+  >(null);
   const [statusDialog, setStatusDialog] =
     useState<CategoryStatusDialogState | null>(null);
-  const [spacePickerOpen, setSpacePickerOpen] = useState(false);
   const statusTriggerRef = useRef<HTMLButtonElement | null>(null);
   const focusFallbackRef = useRef(false);
-  const categoriesQuery = useCategoriesOverviewQuery(period, spaceId);
-  const spacesQuery = useAccessibleSpacesQuery(
-    onSpaceChange !== undefined && spacePickerOpen,
+  const shouldResolvePersonalSpace = onSpaceChange !== undefined;
+  const spacesQuery = useAccessibleSpacesQuery(shouldResolvePersonalSpace);
+  const effectiveSpaceId =
+    spaceId ?? spacesQuery.data?.find((space) => space.kind === "personal")?.id;
+  const categoriesQuery = useCategoriesOverviewQuery(
+    period,
+    effectiveSpaceId,
+    !shouldResolvePersonalSpace || spacesQuery.isSuccess || spacesQuery.isError,
   );
   const statusMutation = useUpdateCategoryStatusMutation();
 
@@ -147,13 +153,8 @@ function CategoriesPage({ spaceId, onSpaceChange }: CategoriesPageProps = {}) {
 
   if (!categoriesQuery.data) return null;
 
-  const {
-    categories,
-    periodLabel,
-    totalBudget,
-    totalSpent,
-    totalRemaining,
-  } = categoriesQuery.data;
+  const { categories, periodLabel, totalBudget, totalSpent, totalRemaining } =
+    categoriesQuery.data;
   const matchingCategories = filterCategoriesByName(categories, search);
   const visibleCategories = matchingCategories.filter(
     (category) => showInactive || category.isActive,
@@ -239,10 +240,12 @@ function CategoriesPage({ spaceId, onSpaceChange }: CategoriesPageProps = {}) {
       await statusMutation.mutateAsync({
         categoryId,
         isActive,
-        spaceId,
-        updatedAt: statusDialog?.category.id === categoryId
-          ? statusDialog.category.updatedAt
-          : categories.find((category) => category.id === categoryId)?.updatedAt,
+        spaceId: effectiveSpaceId,
+        updatedAt:
+          statusDialog?.category.id === categoryId
+            ? statusDialog.category.updatedAt
+            : categories.find((category) => category.id === categoryId)
+                ?.updatedAt,
       });
       return true;
     } catch {
@@ -267,7 +270,8 @@ function CategoriesPage({ spaceId, onSpaceChange }: CategoriesPageProps = {}) {
   }
 
   const statusFailureIsReactivation =
-    statusMutation.error !== null && statusMutation.variables?.isActive === true;
+    statusMutation.error !== null &&
+    statusMutation.variables?.isActive === true;
 
   return (
     <div className="mx-auto w-full max-w-screen-2xl px-4 py-6 sm:px-6 lg:px-9 lg:py-7">
@@ -284,7 +288,6 @@ function CategoriesPage({ spaceId, onSpaceChange }: CategoriesPageProps = {}) {
               <Label htmlFor="categories-space">Active Space</Label>
               <Select
                 value={spaceId ?? "personal"}
-                onOpenChange={setSpacePickerOpen}
                 onValueChange={(value) =>
                   onSpaceChange(value === "personal" ? undefined : value)
                 }
@@ -332,7 +335,7 @@ function CategoriesPage({ spaceId, onSpaceChange }: CategoriesPageProps = {}) {
           <CreateCategoryDialog
             className="w-full md:w-auto"
             disabled={filtersDisabled}
-            spaceId={spaceId}
+            spaceId={effectiveSpaceId}
           />
         </div>
       </header>
@@ -393,9 +396,7 @@ function CategoriesPage({ spaceId, onSpaceChange }: CategoriesPageProps = {}) {
                 id="categories-show-inactive"
                 className="size-6"
                 checked={showInactive}
-                onCheckedChange={(checked) =>
-                  setShowInactive(checked === true)
-                }
+                onCheckedChange={(checked) => setShowInactive(checked === true)}
                 disabled={filtersDisabled}
               />
               <Label htmlFor="categories-show-inactive">
@@ -410,20 +411,14 @@ function CategoriesPage({ spaceId, onSpaceChange }: CategoriesPageProps = {}) {
             message={statusMutation.error.message}
           />
         )}
-        <section
-          aria-label="Mobile Budget category list"
-          className="md:hidden"
-        >
-          <ul
-            aria-label="Mobile Budget Categories"
-            className="grid gap-3 p-4"
-          >
+        <section aria-label="Mobile Budget category list" className="md:hidden">
+          <ul aria-label="Mobile Budget Categories" className="grid gap-3 p-4">
             {categoriesToRender.map((category) => (
               <MobileCategoryCard
                 key={category.id}
                 allCategories={categories}
                 category={category}
-                spaceId={spaceId}
+                spaceId={effectiveSpaceId}
                 disabled={filtersDisabled}
                 isStatusPending={
                   isStatusMutationPending &&
@@ -449,159 +444,161 @@ function CategoriesPage({ spaceId, onSpaceChange }: CategoriesPageProps = {}) {
           className="hidden md:block"
         >
           <Table aria-label="Desktop Budget Categories">
-          <TableHeader>
-            <TableRow>
-              <TableHead>Category</TableHead>
-              <TableHead className="text-right">Monthly Budget</TableHead>
-              <TableHead className="text-right">Spent</TableHead>
-              <TableHead className="text-right">Remaining</TableHead>
-              <TableHead>Usage</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {categoriesToRender.map((category) => (
-              editingCategoryId === category.id ? (
-                <EditCategoryRow
-                  key={category.id}
-                  category={category}
-                  spaceId={spaceId}
-                  onCancel={() => setEditingCategoryId(null)}
-                  onSaved={() => setEditingCategoryId(null)}
-                />
-              ) : (
-                <TableRow
-                  key={category.id}
-                  aria-busy={
-                    isStatusMutationPending &&
-                    statusMutation.variables?.categoryId === category.id
-                  }
-                  className={category.isActive ? undefined : "bg-muted/50"}
-                >
-                  <TableCell className="min-w-64 whitespace-normal">
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <CategoryBadge categoryId={category.id} color={category.color}>
-                          {category.name}
-                        </CategoryBadge>
-                        {!category.isActive && (
-                          <Badge variant="muted">Inactive</Badge>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Category</TableHead>
+                <TableHead className="text-right">Monthly Budget</TableHead>
+                <TableHead className="text-right">Spent</TableHead>
+                <TableHead className="text-right">Remaining</TableHead>
+                <TableHead>Usage</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {categoriesToRender.map((category) =>
+                editingCategoryId === category.id ? (
+                  <EditCategoryRow
+                    key={category.id}
+                    category={category}
+                    spaceId={effectiveSpaceId}
+                    onCancel={() => setEditingCategoryId(null)}
+                    onSaved={() => setEditingCategoryId(null)}
+                  />
+                ) : (
+                  <TableRow
+                    key={category.id}
+                    aria-busy={
+                      isStatusMutationPending &&
+                      statusMutation.variables?.categoryId === category.id
+                    }
+                    className={category.isActive ? undefined : "bg-muted/50"}
+                  >
+                    <TableCell className="min-w-64 whitespace-normal">
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <CategoryBadge
+                            categoryId={category.id}
+                            color={category.color}
+                          >
+                            {category.name}
+                          </CategoryBadge>
+                          {!category.isActive && (
+                            <Badge variant="muted">Inactive</Badge>
+                          )}
+                        </div>
+                        {category.description && (
+                          <p className="mt-2 max-w-md text-sm text-muted-foreground">
+                            {category.description}
+                          </p>
                         )}
                       </div>
-                      {category.description && (
-                        <p className="mt-2 max-w-md text-sm text-muted-foreground">
-                          {category.description}
-                        </p>
+                    </TableCell>
+                    <TableCell className="text-right font-mono tabular-nums">
+                      {category.budget === null ? (
+                        <span className="text-sm text-muted-foreground">
+                          No monthly Budget
+                        </span>
+                      ) : (
+                        formatMoney(category.budget)
                       )}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right font-mono tabular-nums">
-                    {category.budget === null ? (
-                      <span className="text-sm text-muted-foreground">
-                        No monthly Budget
-                      </span>
-                    ) : (
-                      formatMoney(category.budget)
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right font-mono tabular-nums">
-                    {formatMoney(category.spent)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono tabular-nums">
-                    {category.remaining === null ? (
-                      <span
-                        aria-label="Not budgeted"
-                        className="text-muted-foreground"
-                      >
-                        —
-                      </span>
-                    ) : (
-                      formatMoney(category.remaining)
-                    )}
-                  </TableCell>
-                  <TableCell className="min-w-36">
-                    {category.usage === null ? (
-                      <span className="text-sm text-muted-foreground">
-                        Not budgeted
-                      </span>
-                    ) : (
-                      <>
-                        <Progress
-                          value={category.usage}
-                          aria-label={`${category.name}: ${category.usage}% used`}
-                        />
-                        <p className="mt-1 font-mono text-xs text-muted-foreground">
-                          {category.usage}% used
-                        </p>
-                      </>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {category.isActive ? (
-                      <div className="flex justify-end">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={() => setEditingCategoryId(category.id)}
-                          disabled={filtersDisabled}
-                          aria-label={`Edit ${category.name}`}
+                    </TableCell>
+                    <TableCell className="text-right font-mono tabular-nums">
+                      {formatMoney(category.spent)}
+                    </TableCell>
+                    <TableCell className="text-right font-mono tabular-nums">
+                      {category.remaining === null ? (
+                        <span
+                          aria-label="Not budgeted"
+                          className="text-muted-foreground"
                         >
-                          <PencilIcon aria-hidden="true" />
-                        </Button>
-                        {spaceId === undefined && (
+                          —
+                        </span>
+                      ) : (
+                        formatMoney(category.remaining)
+                      )}
+                    </TableCell>
+                    <TableCell className="min-w-36">
+                      {category.usage === null ? (
+                        <span className="text-sm text-muted-foreground">
+                          Not budgeted
+                        </span>
+                      ) : (
+                        <>
+                          <Progress
+                            value={category.usage}
+                            aria-label={`${category.name}: ${category.usage}% used`}
+                          />
+                          <p className="mt-1 font-mono text-xs text-muted-foreground">
+                            {category.usage}% used
+                          </p>
+                        </>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {category.isActive ? (
+                        <div className="flex justify-end">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={() => setEditingCategoryId(category.id)}
+                            disabled={filtersDisabled}
+                            aria-label={`Edit ${category.name}`}
+                          >
+                            <PencilIcon aria-hidden="true" />
+                          </Button>
                           <MatchingRulesDialog
                             allCategories={categories}
                             category={category}
+                            spaceId={effectiveSpaceId}
                             disabled={filtersDisabled}
                           />
-                        )}
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="icon-sm"
-                          onClick={(event) =>
-                            openDeactivation(category, event.currentTarget)
-                          }
-                          disabled={filtersDisabled}
-                          aria-label={`Deactivate ${category.name}`}
-                        >
-                          <ArchiveIcon aria-hidden="true" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="flex justify-end">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => void reactivateCategory(category)}
-                          disabled={filtersDisabled}
-                          aria-label={`Reactivate ${category.name}`}
-                        >
-                          <RotateCcwIcon aria-hidden="true" />
-                          {isStatusMutationPending &&
-                          statusMutation.variables?.categoryId === category.id
-                            ? "Reactivating…"
-                            : "Reactivate"}
-                        </Button>
-                      </div>
-                    )}
-                  </TableCell>
-                </TableRow>
-              )
-            ))}
-            {categoriesToRender.length === 0 && (
-              <TableRow>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon-sm"
+                            onClick={(event) =>
+                              openDeactivation(category, event.currentTarget)
+                            }
+                            disabled={filtersDisabled}
+                            aria-label={`Deactivate ${category.name}`}
+                          >
+                            <ArchiveIcon aria-hidden="true" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex justify-end">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => void reactivateCategory(category)}
+                            disabled={filtersDisabled}
+                            aria-label={`Reactivate ${category.name}`}
+                          >
+                            <RotateCcwIcon aria-hidden="true" />
+                            {isStatusMutationPending &&
+                            statusMutation.variables?.categoryId === category.id
+                              ? "Reactivating…"
+                              : "Reactivate"}
+                          </Button>
+                        </div>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ),
+              )}
+              {categoriesToRender.length === 0 && (
+                <TableRow>
                   <TableCell
                     colSpan={6}
                     className="py-10 text-center text-muted-foreground"
                   >
                     {emptyMessage}
                   </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
+                </TableRow>
+              )}
+            </TableBody>
           </Table>
         </section>
       </Card>

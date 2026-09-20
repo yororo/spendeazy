@@ -1,4 +1,12 @@
-import { Body, Controller, HttpStatus, Param, Put, Req } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  HttpStatus,
+  Optional,
+  Param,
+  Put,
+  Req,
+} from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import {
   requireAuthenticatedUserId,
@@ -6,6 +14,7 @@ import {
 } from '../../authentication/authentication';
 import { ApiStandardErrorResponses } from '../../http/api-error.dto';
 import { POSITIVE_INTEGER_ID_PATTERN } from '../../http/validation-patterns';
+import { SpaceAccessService } from '../../spaces/application/space-access.service';
 import { CategoryRulesService } from '../application/category-rules.service';
 import {
   CategoryRuleCategoryParamsDto,
@@ -17,13 +26,16 @@ import { toCategoryRuleResponse } from './category-rules.controller';
 @Controller('users/me/categories/:categoryId/rules')
 @ApiTags('Category rules')
 export class CategoryRuleReplacementController {
-  constructor(private readonly categoryRulesService: CategoryRulesService) {}
+  constructor(
+    private readonly categoryRulesService: CategoryRulesService,
+    @Optional() private readonly spaceAccessService?: SpaceAccessService,
+  ) {}
 
   @Put()
   @ApiOperation({
     summary: 'Replace the complete rule set for an active Category.',
     description:
-      'Atomic, last-write-wins replacement. Unchanged normalized pattern/match type pairs retain IDs and createdAt; unchanged display patterns also retain updatedAt. Empty rules clears the set. Returns ascending ID order. Duplicate normalized pattern/match type pairs within the request or another owned Category return 409 with the conflicting categoryId and request field. Inactive Categories return 409, including empty replacements. Validation and conflict failures change nothing.',
+      "Legacy personal compatibility route. Atomic replacement resolves the authenticated User's Personal Space; when a revision is supplied, stale replacements are rejected. Unchanged normalized pattern/match type pairs retain IDs and createdAt; unchanged display patterns also retain updatedAt. Empty rules clears the set. Returns ascending ID order. Duplicate normalized pattern/match type pairs within the request or another Personal Space Category return 409 with the conflicting categoryId and request field. Inactive Categories return 409, including empty replacements. Validation and conflict failures change nothing.",
   })
   @ApiParam({
     name: 'categoryId',
@@ -55,12 +67,25 @@ export class CategoryRuleReplacementController {
     @Param() params: CategoryRuleCategoryParamsDto,
     @Body() input: ReplaceCategoryRulesDto,
   ): Promise<CategoryRuleResponseDto[]> {
-    return (
-      await this.categoryRulesService.replaceCategoryRules(
-        requireAuthenticatedUserId(request),
-        params.categoryId,
-        input.rules,
-      )
-    ).map(toCategoryRuleResponse);
+    const userId = requireAuthenticatedUserId(request);
+    const personalSpace = this.spaceAccessService
+      ? await this.spaceAccessService.requirePersonalWriteSpace(userId)
+      : undefined;
+    const rules = personalSpace
+      ? (
+          await this.categoryRulesService.replaceCategoryRulesInSpace(
+            userId,
+            personalSpace.id,
+            params.categoryId,
+            input.rules,
+            input.revision,
+          )
+        ).rules
+      : await this.categoryRulesService.replaceCategoryRules(
+          userId,
+          params.categoryId,
+          input.rules,
+        );
+    return rules.map(toCategoryRuleResponse);
   }
 }

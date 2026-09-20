@@ -1019,6 +1019,13 @@ paths:
     delete:
       operationId: CategoryRules_deleteCategoryRule
       parameters:
+        - name: if-match
+          required: false
+          in: header
+          description: Optional Category Rule updatedAt timestamp. The delete is rejected when it is stale.
+          schema:
+            type: string
+            format: date-time
         - name: ruleId
           required: true
           in: path
@@ -1047,7 +1054,7 @@ paths:
         - Category rules
   /api/v1/users/me/categories/{categoryId}/rules:
     put:
-      description: Atomic, last-write-wins replacement. Unchanged normalized pattern/match type pairs retain IDs and createdAt; unchanged display patterns also retain updatedAt. Empty rules clears the set. Returns ascending ID order. Duplicate normalized pattern/match type pairs within the request or another owned Category return 409 with the conflicting categoryId and request field. Inactive Categories return 409, including empty replacements. Validation and conflict failures change nothing.
+      description: Legacy personal compatibility route. Atomic replacement resolves the authenticated User's Personal Space; when a revision is supplied, stale replacements are rejected. Unchanged normalized pattern/match type pairs retain IDs and createdAt; unchanged display patterns also retain updatedAt. Empty rules clears the set. Returns ascending ID order. Duplicate normalized pattern/match type pairs within the request or another Personal Space Category return 409 with the conflicting categoryId and request field. Inactive Categories return 409, including empty replacements. Validation and conflict failures change nothing.
       operationId: CategoryRuleReplacement_replaceCategoryRules
       parameters:
         - name: categoryId
@@ -1091,6 +1098,287 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
       summary: Replace the complete rule set for an active Category.
+      tags:
+        - Category rules
+  /api/v1/users/me/spaces/{spaceId}/category-rules:
+    post:
+      description: Matching normalizes surrounding and repeated whitespace and compares case-insensitively. The rule is shared by every member of the Space.
+      operationId: SpaceCategoryRules_createCategoryRule
+      parameters:
+        - name: spaceId
+          required: true
+          in: path
+          description: Positive bigint Space identifier encoded as a string.
+          schema:
+            type: string
+            pattern: ^[1-9]\d*$
+            example: '7'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCategoryRuleDto'
+      responses:
+        '201':
+          description: Category rule created.
+          headers:
+            Location:
+              required: true
+              description: Relative canonical URI of the created Category rule.
+              schema:
+                type: string
+                example: /api/v1/users/me/spaces/7/category-rules/42
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryRuleResponseDto'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthenticatedError'
+        '403':
+          $ref: '#/components/responses/UserNotProvisionedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '406':
+          $ref: '#/components/responses/NotAcceptableError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '413':
+          $ref: '#/components/responses/HttpError'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaTypeError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      summary: Create a Category Rule in an authorized Space.
+      tags:
+        - Category rules
+    get:
+      description: The revision covers the complete Space collection, including an empty collection, and is required for stale replacement detection.
+      operationId: SpaceCategoryRules_listCategoryRules
+      parameters:
+        - name: spaceId
+          required: true
+          in: path
+          description: Positive bigint Space identifier encoded as a string.
+          schema:
+            type: string
+            pattern: ^[1-9]\d*$
+            example: '7'
+      responses:
+        '200':
+          description: Category Rules and their Space-scoped revision.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryRuleCollectionResponseDto'
+        '401':
+          $ref: '#/components/responses/UnauthenticatedError'
+        '403':
+          $ref: '#/components/responses/UserNotProvisionedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '406':
+          $ref: '#/components/responses/NotAcceptableError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      summary: List Category Rules in an authorized Space.
+      tags:
+        - Category rules
+  /api/v1/users/me/spaces/{spaceId}/category-rules/{ruleId}:
+    get:
+      operationId: SpaceCategoryRules_getCategoryRule
+      parameters:
+        - name: ruleId
+          required: true
+          in: path
+          description: Positive bigint identifier encoded as a decimal JSON string.
+          schema:
+            type: string
+            pattern: ^[1-9]\d*$
+            example: '42'
+        - name: spaceId
+          required: true
+          in: path
+          description: Positive bigint Space identifier encoded as a string.
+          schema:
+            type: string
+            pattern: ^[1-9]\d*$
+            example: '7'
+      responses:
+        '200':
+          description: Category rule.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryRuleResponseDto'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthenticatedError'
+        '403':
+          $ref: '#/components/responses/UserNotProvisionedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '406':
+          $ref: '#/components/responses/NotAcceptableError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      summary: Get a Category Rule in an authorized Space.
+      tags:
+        - Category rules
+    patch:
+      description: The optional updatedAt timestamp rejects a stale edit. A Category Rule may be reassigned only to an active Category in the same Space.
+      operationId: SpaceCategoryRules_updateCategoryRule
+      parameters:
+        - name: ruleId
+          required: true
+          in: path
+          description: Positive bigint identifier encoded as a decimal JSON string.
+          schema:
+            type: string
+            pattern: ^[1-9]\d*$
+            example: '42'
+        - name: spaceId
+          required: true
+          in: path
+          description: Positive bigint Space identifier encoded as a string.
+          schema:
+            type: string
+            pattern: ^[1-9]\d*$
+            example: '7'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCategoryRuleDto'
+      responses:
+        '200':
+          description: Category rule updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryRuleResponseDto'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthenticatedError'
+        '403':
+          $ref: '#/components/responses/UserNotProvisionedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '406':
+          $ref: '#/components/responses/NotAcceptableError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '413':
+          $ref: '#/components/responses/HttpError'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaTypeError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      summary: Update or reassign a Category Rule in an authorized Space.
+      tags:
+        - Category rules
+    delete:
+      operationId: SpaceCategoryRules_deleteCategoryRule
+      parameters:
+        - name: if-match
+          required: false
+          in: header
+          description: Optional Category Rule updatedAt timestamp. The delete is rejected when it is stale.
+          schema:
+            type: string
+            format: date-time
+        - name: ruleId
+          required: true
+          in: path
+          description: Positive bigint identifier encoded as a decimal JSON string.
+          schema:
+            type: string
+            pattern: ^[1-9]\d*$
+            example: '42'
+        - name: spaceId
+          required: true
+          in: path
+          description: Positive bigint Space identifier encoded as a string.
+          schema:
+            type: string
+            pattern: ^[1-9]\d*$
+            example: '7'
+      responses:
+        '204':
+          description: Category rule deleted.
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthenticatedError'
+        '403':
+          $ref: '#/components/responses/UserNotProvisionedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '406':
+          $ref: '#/components/responses/NotAcceptableError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      summary: Delete a Category Rule in an authorized Space.
+      tags:
+        - Category rules
+  /api/v1/users/me/spaces/{spaceId}/categories/{categoryId}/rules:
+    put:
+      description: Atomic replacement for one active Category. The submitted revision is checked while the Space is locked; stale replacements are rejected. Unchanged normalized pattern/match type pairs retain IDs and createdAt, and unchanged display patterns retain updatedAt. Empty rules clears the selected Category. Rules on other Categories remain unchanged. Duplicate normalized pattern/match type pairs within the request or another Category in the Space return 409.
+      operationId: SpaceCategoryRuleReplacement_replaceCategoryRules
+      parameters:
+        - name: categoryId
+          required: true
+          in: path
+          description: Positive bigint Category identifier encoded as a string.
+          schema:
+            type: string
+            pattern: ^[1-9]\d*$
+            example: '42'
+        - name: spaceId
+          required: true
+          in: path
+          description: Positive bigint Space identifier encoded as a string.
+          schema:
+            type: string
+            pattern: ^[1-9]\d*$
+            example: '7'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SpaceReplaceCategoryRulesDto'
+      responses:
+        '200':
+          description: Persisted Space Category Rule collection and revision.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryRuleCollectionResponseDto'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthenticatedError'
+        '403':
+          $ref: '#/components/responses/UserNotProvisionedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '406':
+          $ref: '#/components/responses/NotAcceptableError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '413':
+          $ref: '#/components/responses/HttpError'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaTypeError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      summary: Replace the complete Category Rule set in an authorized Space.
       tags:
         - Category rules
   /api/v1/users/me/transactions:
@@ -2152,7 +2440,7 @@ components:
           description: UTC timestamp when the Category rule was last updated.
           format: date-time
           example: '2026-08-29T00:00:00.000Z'
-      description: A Category rule owned by the authenticated User. The original pattern is retained for display. Rule evaluation is performed by the frontend.
+      description: A Category Rule belonging to the authorized Space. The original pattern is retained for display. Rule evaluation is performed by the frontend.
       additionalProperties: false
       required:
         - id
@@ -2180,7 +2468,7 @@ components:
           example: Green Market
         categoryId:
           type: string
-          description: Positive bigint Category identifier encoded as a decimal JSON string. The Category must be active and owned by the authenticated User; an inactive Category causes a 409 Conflict.
+          description: Positive bigint Category identifier encoded as a decimal JSON string. The Category must be active in the destination Space; the legacy personal route resolves the authenticated User's Personal Space. An inactive Category causes a 409 Conflict.
           pattern: ^[1-9]\d*$
           example: '42'
       additionalProperties: false
@@ -2205,9 +2493,14 @@ components:
           example: Green Market
         categoryId:
           type: string
-          description: Positive bigint Category identifier encoded as a decimal JSON string. Reassignment requires an active Category owned by the authenticated User; an inactive Category causes a conflict.
+          description: Positive bigint Category identifier encoded as a decimal JSON string. Reassignment requires an active Category in the destination Space; an inactive Category causes a conflict.
           pattern: ^[1-9]\d*$
           example: '42'
+        updatedAt:
+          type: string
+          description: The UTC timestamp returned by the last read. A stale scoped edit is rejected when another member changed this rule first.
+          format: date-time
+          example: '2026-08-29T00:00:00.000Z'
       additionalProperties: false
       minProperties: 1
     ReplacementCategoryRuleDto:
@@ -2230,6 +2523,11 @@ components:
     ReplaceCategoryRulesDto:
       type: object
       properties:
+        revision:
+          type: string
+          description: The revision returned with the last Space-scoped rule collection. A stale replacement is rejected when another member changed any Rule first.
+          pattern: ^\d+$
+          example: '3'
         rules:
           description: Complete desired rule set. Empty removes all rules for this Category.
           type: array
@@ -2237,6 +2535,41 @@ components:
             $ref: '#/components/schemas/ReplacementCategoryRuleDto'
       additionalProperties: false
       required:
+        - rules
+    CategoryRuleCollectionResponseDto:
+      type: object
+      properties:
+        rules:
+          description: Rules in ascending ID order.
+          type: array
+          items:
+            $ref: '#/components/schemas/CategoryRuleResponseDto'
+        revision:
+          type: string
+          description: Monotonic Space-scoped revision for stale replacement detection, encoded as a decimal string.
+          pattern: ^\d+$
+          example: '3'
+      description: Category Rules in an authorized Space. The revision covers the complete collection, including an empty collection.
+      additionalProperties: false
+      required:
+        - rules
+        - revision
+    SpaceReplaceCategoryRulesDto:
+      type: object
+      properties:
+        revision:
+          type: string
+          description: The revision returned with the last Space-scoped rule collection. A stale replacement is rejected when another member changed any Rule first.
+          pattern: ^\d+$
+          example: '3'
+        rules:
+          description: Complete desired rule set. Empty removes all rules for this Category.
+          type: array
+          items:
+            $ref: '#/components/schemas/ReplacementCategoryRuleDto'
+      additionalProperties: false
+      required:
+        - revision
         - rules
     CreateManualTransactionDto:
       type: object

@@ -9,8 +9,8 @@ import {
 
 @Entity({ name: 'category_rules' })
 @Index(
-  'ux_category_rules_user_match_pattern',
-  ['userId', 'matchType', 'normalizedPattern'],
+  'ux_category_rules_space_match_pattern',
+  ['spaceId', 'matchType', 'normalizedPattern'],
   { unique: true },
 )
 @Index('ix_category_rules_space', ['spaceId'])

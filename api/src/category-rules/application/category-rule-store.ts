@@ -8,6 +8,7 @@ export const EXACT_CATEGORY_RULE_MATCH_TYPE: CategoryRuleMatchType = 'exact';
 export interface CategoryRuleRecord {
   id: string;
   userId: string;
+  spaceId?: string;
   categoryId: string;
   pattern: string;
   normalizedPattern: string;
@@ -18,6 +19,7 @@ export interface CategoryRuleRecord {
 
 export interface NewCategoryRule {
   userId: string;
+  spaceId?: string;
   categoryId: string;
   pattern: string;
   normalizedPattern: string;
@@ -29,6 +31,12 @@ export interface UpdateCategoryRule {
   categoryId?: string;
   pattern?: string;
   normalizedPattern?: string;
+  expectedUpdatedAt?: string;
+}
+
+export interface CategoryRuleCollectionRecord {
+  rules: CategoryRuleRecord[];
+  revision: string;
 }
 
 export interface ReplacementCategoryRule {
@@ -61,4 +69,33 @@ export interface CategoryRuleStore {
     categoryId: string,
     rules: NormalizedReplacementCategoryRule[],
   ): Promise<CategoryRuleRecord[]>;
+  findByIdInSpace?(
+    spaceId: string,
+    id: string,
+  ): Promise<CategoryRuleRecord | null>;
+  findAllInSpace?(spaceId: string): Promise<CategoryRuleCollectionRecord>;
+  findByNormalizedPatternInSpace?(
+    spaceId: string,
+    normalizedPattern: string,
+    excludingId?: string,
+    matchType?: CategoryRuleMatchType,
+  ): Promise<CategoryRuleRecord | null>;
+  createInSpace?(input: NewCategoryRule): Promise<CategoryRuleRecord>;
+  updateInSpace?(
+    spaceId: string,
+    id: string,
+    input: UpdateCategoryRule,
+  ): Promise<CategoryRuleRecord | null>;
+  deleteInSpace?(
+    spaceId: string,
+    id: string,
+    expectedUpdatedAt?: string,
+  ): Promise<boolean>;
+  replaceForCategoryInSpace?(
+    userId: string,
+    spaceId: string,
+    categoryId: string,
+    rules: NormalizedReplacementCategoryRule[],
+    expectedRevision?: string,
+  ): Promise<CategoryRuleCollectionRecord>;
 }

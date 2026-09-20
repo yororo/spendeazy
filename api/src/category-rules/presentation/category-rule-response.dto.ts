@@ -15,7 +15,7 @@ type ApiSchemaOptionsWithAdditionalProperties = {
 
 @ApiSchema({
   description:
-    'A Category rule owned by the authenticated User. The original pattern is retained for display. Rule evaluation is performed by the frontend.',
+    'A Category Rule belonging to the authorized Space. The original pattern is retained for display. Rule evaluation is performed by the frontend.',
   additionalProperties: false,
 } as ApiSchemaOptionsWithAdditionalProperties)
 export class CategoryRuleResponseDto {
@@ -65,4 +65,25 @@ export class CategoryRuleResponseDto {
     example: '2026-08-29T00:00:00.000Z',
   })
   updatedAt!: string;
+}
+
+@ApiSchema({
+  description:
+    'Category Rules in an authorized Space. The revision covers the complete collection, including an empty collection.',
+  additionalProperties: false,
+} as ApiSchemaOptionsWithAdditionalProperties)
+export class CategoryRuleCollectionResponseDto {
+  @ApiProperty({
+    type: () => [CategoryRuleResponseDto],
+    description: 'Rules in ascending ID order.',
+  })
+  rules!: CategoryRuleResponseDto[];
+
+  @ApiProperty({
+    description:
+      'Monotonic Space-scoped revision for stale replacement detection, encoded as a decimal string.',
+    pattern: '^\\d+$',
+    example: '3',
+  })
+  revision!: string;
 }

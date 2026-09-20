@@ -40,10 +40,7 @@ interface FetchOptions {
   readonly postResponse?: "duplicate" | "failed";
   readonly patchResponse?: "duplicate" | "validation" | "failed";
   readonly patchResponses?: readonly (
-    | "success"
-    | "duplicate"
-    | "validation"
-    | "failed"
+    "success" | "duplicate" | "validation" | "failed"
   )[];
   readonly patchDelayMs?: number;
   readonly statusResponses?: readonly ("success" | "failed")[];
@@ -51,21 +48,18 @@ interface FetchOptions {
   readonly deleteResponse?: "failed";
   readonly deleteResponses?: readonly ("success" | "failed")[];
   readonly budgetDetailResponses?: readonly (
-    | "success"
-    | "failed"
-    | "missing"
+    "success" | "failed" | "missing"
   )[];
   readonly budgetResponses?: readonly ("success" | "failed")[];
   readonly categoryRules?: readonly CategoryRuleFixture[];
   readonly categoryRulesLoadResponses?: readonly (
-    | "success"
-    | "failed"
-    | "malformed"
+    "success" | "failed" | "malformed"
   )[];
   readonly categoryRulesReplacementResponses?: readonly (
     | "success"
     | "failed"
     | "conflict"
+    | "stale"
     | "unsupported"
     | "malformed"
     | "network"
@@ -212,7 +206,13 @@ function createFetchMock(options: FetchOptions = {}) {
       });
     }
 
-    if (method === "GET" && path === "/category-rules") {
+    const scopedCategoryRulesPath = /^\/spaces\/([^/]+)\/category-rules$/u.exec(
+      path,
+    );
+    if (
+      method === "GET" &&
+      (path === "/category-rules" || scopedCategoryRulesPath)
+    ) {
       const responseType = categoryRulesLoadResponses.shift() ?? "success";
       if (responseType === "failed") {
         return apiErrorResponse(
@@ -225,12 +225,16 @@ function createFetchMock(options: FetchOptions = {}) {
         return jsonResponse({ rules: categoryRules });
       }
 
-      return jsonResponse(categoryRules);
+      return scopedCategoryRulesPath
+        ? jsonResponse({ rules: categoryRules, revision: "4" })
+        : jsonResponse(categoryRules);
     }
 
-    const categoryRulesPath = /^\/categories\/([^/]+)\/rules$/u.exec(path);
+    const categoryRulesPath =
+      /^\/(?:spaces\/([^/]+)\/)?categories\/([^/]+)\/rules$/u.exec(path);
     if (method === "PUT" && categoryRulesPath) {
-      const categoryId = decodeURIComponent(categoryRulesPath[1]);
+      const spaceId = categoryRulesPath[1];
+      const categoryId = decodeURIComponent(categoryRulesPath[2]);
       const responseType =
         categoryRulesReplacementResponses.shift() ?? "success";
       if (responseType === "failed") {
@@ -258,6 +262,13 @@ function createFetchMock(options: FetchOptions = {}) {
             },
           },
           409,
+        );
+      }
+      if (responseType === "stale") {
+        return apiErrorResponse(
+          "These Matching Rules changed elsewhere. Reload and review your edits.",
+          409,
+          "STALE_EDIT",
         );
       }
       if (responseType === "unsupported") {
@@ -292,7 +303,9 @@ function createFetchMock(options: FetchOptions = {}) {
         ...categoryRules.filter((rule) => rule.categoryId !== categoryId),
         ...persistedRules,
       );
-      return jsonResponse(persistedRules);
+      return spaceId
+        ? jsonResponse({ rules: persistedRules, revision: "5" })
+        : jsonResponse(persistedRules);
     }
 
     if (method === "POST" && path === "/categories") {
@@ -2365,6 +2378,54 @@ describe("CategoriesPage", () => {
     expect(screen.queryByDisplayValue("ARCHIVE")).toBeNull();
   });
 
+  it("uses the explicit Space rule collection and revision-aware replacement", async () => {
+    const { fetchMock } = createFetchMock({
+      categoryRules: [
+        {
+          id: "1",
+          categoryId: "42",
+          pattern: "Rent",
+          matchType: "exact",
+          createdAt: "2026-09-01T00:00:00.000Z",
+          updatedAt: "2026-09-01T00:00:00.000Z",
+        },
+      ],
+    });
+    renderCategoriesPage(fetchMock, { spaceId: "99" });
+
+    await screen.findByRole("heading", { name: "Budget overview" });
+    fireEvent.click(
+      within(getDesktopTable()).getByRole("button", {
+        name: "Matching Rules for Housing",
+      }),
+    );
+    const exactPattern = await screen.findByRole("textbox", {
+      name: "Exact pattern 1",
+    });
+    fireEvent.change(exactPattern, { target: { value: "Rent payment" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save Rules" }));
+
+    expect(await screen.findByText("Matching Rules saved")).toBeTruthy();
+    const getRequests = fetchMock.mock.calls.filter(
+      ([input, init]) =>
+        (init?.method ?? "GET") === "GET" &&
+        new URL(input.toString()).pathname ===
+          "/api/v1/users/me/spaces/99/category-rules",
+    );
+    expect(getRequests).toHaveLength(2);
+    const replacementRequest = fetchMock.mock.calls.find(
+      ([input, init]) =>
+        init?.method === "PUT" &&
+        new URL(input.toString()).pathname ===
+          "/api/v1/users/me/spaces/99/categories/42/rules",
+    );
+    expect(replacementRequest).toBeDefined();
+    expect(JSON.parse(String(replacementRequest?.[1]?.body))).toEqual({
+      revision: "4",
+      rules: [{ pattern: "Rent payment", matchType: "exact" }],
+    });
+  });
+
   it("rejects blank, overlong, and normalized duplicate patterns while allowing the other match type", async () => {
     const { fetchMock } = createFetchMock({
       additionalCategories: [
@@ -2644,6 +2705,46 @@ describe("CategoriesPage", () => {
     expect(screen.getByText(/Groceries/)).toBeTruthy();
     expect(exactPattern).toHaveProperty("value", "Groceries");
     expect(getCategoryRuleReplacementRequests(fetchMock)).toHaveLength(1);
+  });
+
+  it("asks the member to reload a stale Space rule edit", async () => {
+    const { fetchMock } = createFetchMock({
+      categoryRulesReplacementResponses: ["stale"],
+      categoryRules: [
+        {
+          id: "1",
+          categoryId: "42",
+          pattern: "Rent",
+          matchType: "exact",
+          createdAt: "2026-09-01T00:00:00.000Z",
+          updatedAt: "2026-09-01T00:00:00.000Z",
+        },
+      ],
+    });
+    renderCategoriesPage(fetchMock, { spaceId: "99" });
+
+    await screen.findByRole("heading", { name: "Budget overview" });
+    fireEvent.click(
+      within(getDesktopTable()).getByRole("button", {
+        name: "Matching Rules for Housing",
+      }),
+    );
+    const exactPattern = await screen.findByRole("textbox", {
+      name: "Exact pattern 1",
+    });
+    fireEvent.change(exactPattern, { target: { value: "New rent" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save Rules" }));
+
+    await screen.findByText("Matching Rules changed elsewhere");
+    expect(
+      screen.getByRole("textbox", { name: "Exact pattern 1" }),
+    ).toHaveProperty("value", "New rent");
+    fireEvent.click(screen.getByRole("button", { name: "Reload Rules" }));
+    await waitFor(() =>
+      expect(
+        screen.getByRole("textbox", { name: "Exact pattern 1" }),
+      ).toHaveProperty("value", "Rent"),
+    );
   });
 
   it.each([

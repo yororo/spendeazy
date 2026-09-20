@@ -29,6 +29,9 @@ export class SpaceEntity {
   @Column({ type: 'varchar', length: 20 })
   status!: SpaceStatus;
 
+  @Column({ type: 'bigint', name: 'category_rules_revision', default: 0 })
+  categoryRulesRevision!: string;
+
   @Column({
     type: 'bigint',
     nullable: true,

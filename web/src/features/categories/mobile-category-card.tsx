@@ -1,9 +1,5 @@
 import { useRef } from "react";
-import {
-  ArchiveIcon,
-  EllipsisIcon,
-  RotateCcwIcon,
-} from "lucide-react";
+import { ArchiveIcon, EllipsisIcon, RotateCcwIcon } from "lucide-react";
 
 import {
   DropdownMenu,
@@ -13,11 +9,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { CategoryBadge } from "@/shared/category";
 import { formatMoney } from "@/shared/money";
@@ -95,13 +87,12 @@ function MobileCategoryCard({
                     disabled={disabled}
                     onEditingChange={onEditingChange}
                   />
-                  {spaceId === undefined && (
-                    <MatchingRulesDialog
-                      allCategories={allCategories}
-                      category={category}
-                      disabled={disabled}
-                    />
-                  )}
+                  <MatchingRulesDialog
+                    allCategories={allCategories}
+                    category={category}
+                    spaceId={spaceId}
+                    disabled={disabled}
+                  />
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild ref={deactivateTriggerRef}>
                       <Button
@@ -178,9 +169,7 @@ function MobileCategoryCard({
                 </dd>
               </div>
               <div className="min-w-0">
-                <dt className="text-label text-muted-foreground">
-                  Remaining
-                </dt>
+                <dt className="text-label text-muted-foreground">Remaining</dt>
                 <dd className="mt-1 text-metric text-xl tabular-nums wrap-anywhere">
                   {category.remaining === null
                     ? "—"

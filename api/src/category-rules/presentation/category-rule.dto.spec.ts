@@ -4,6 +4,7 @@ import {
   CreateCategoryRuleDto,
   UpdateCategoryRuleDto,
   ReplaceCategoryRulesDto,
+  SpaceReplaceCategoryRulesDto,
 } from './category-rule.dto';
 
 describe('category rule DTOs', () => {
@@ -54,6 +55,7 @@ describe('category rule DTOs', () => {
     { rules: [{ pattern: 'Rent', matchType: 'regex' }] },
     { rules: [{ pattern: 'Rent', matchType: 'exact', id: '1' }] },
     { rules: [], userId: '2' },
+    { rules: [], revision: 'not-a-revision' },
   ])('rejects invalid replacement %p', async (body) => {
     await expect(
       validate(plainToInstance(ReplaceCategoryRulesDto, body), {
@@ -64,7 +66,7 @@ describe('category rule DTOs', () => {
   });
 
   it.each([
-    { rules: [] },
+    { rules: [], revision: '4' },
     {
       rules: [
         { pattern: 'RENT', matchType: 'exact' },
@@ -106,5 +108,23 @@ describe('category rule DTOs', () => {
     await expect(validate(emptyPattern)).resolves.not.toEqual([]);
     await expect(validate(invalidCategory)).resolves.not.toEqual([]);
     await expect(validate(emptyPatch)).resolves.not.toEqual([]);
+  });
+
+  it('requires a revision for Space-scoped replacement', async () => {
+    await expect(
+      validate(
+        plainToInstance(SpaceReplaceCategoryRulesDto, {
+          rules: [],
+        }),
+      ),
+    ).resolves.not.toEqual([]);
+    await expect(
+      validate(
+        plainToInstance(SpaceReplaceCategoryRulesDto, {
+          revision: '4',
+          rules: [],
+        }),
+      ),
+    ).resolves.toEqual([]);
   });
 });

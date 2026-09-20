@@ -29,9 +29,7 @@ import {
   isIncludedStatementTransaction,
 } from "./statement-import-utils";
 
-function createTransaction(
-  overrides: Partial<Transaction> = {},
-): Transaction {
+function createTransaction(overrides: Partial<Transaction> = {}): Transaction {
   return {
     transactionDate: new Date("2026-08-29T00:00:00.000Z"),
     postingDate: new Date("2026-08-30T00:00:00.000Z"),
@@ -306,6 +304,55 @@ describe("Statement Import categorization", () => {
     expect(post).not.toHaveBeenCalled();
   });
 
+  it("loads and remembers rules in an explicit destination Space", async () => {
+    const get = vi.fn(async () => ({
+      rules: [
+        {
+          id: "7",
+          categoryId: "42",
+          pattern: "GREEN MARKET",
+          matchType: "exact" as const,
+        },
+      ],
+      revision: "3",
+    }));
+    const post = vi.fn(async () => ({
+      id: "8",
+      categoryId: "42",
+      pattern: "GREEN MARKET",
+      matchType: "contains" as const,
+    }));
+    const apiClient = { get, post } as unknown as StatementImportApiClient;
+
+    await expect(getCategoryRules(apiClient, undefined, "10")).resolves.toEqual(
+      [
+        {
+          id: "7",
+          categoryId: "42",
+          pattern: "GREEN MARKET",
+          matchType: "exact",
+        },
+      ],
+    );
+    await expect(
+      rememberCategoryRule(
+        apiClient,
+        { pattern: "Green Market", categoryId: "42", matchType: "contains" },
+        [],
+        undefined,
+        "10",
+      ),
+    ).resolves.toMatchObject({ status: "created" });
+    expect(get).toHaveBeenCalledWith("/spaces/10/category-rules", {
+      signal: undefined,
+    });
+    expect(post).toHaveBeenCalledWith(
+      "/spaces/10/category-rules",
+      { pattern: "GREEN MARKET", categoryId: "42", matchType: "contains" },
+      { signal: undefined },
+    );
+  });
+
   it("posts a normalized new Category Rule", async () => {
     const post = vi.fn(async (...args: [string, unknown]) => {
       void args;
@@ -376,7 +423,11 @@ describe("Statement Import categorization", () => {
       ),
     ).resolves.toMatchObject({
       status: "created",
-      rule: { categoryId: "42", pattern: "GREEN MARKET", matchType: "contains" },
+      rule: {
+        categoryId: "42",
+        pattern: "GREEN MARKET",
+        matchType: "contains",
+      },
     });
     expect(post).toHaveBeenCalledWith(
       "/category-rules",
@@ -523,10 +574,9 @@ describe("Statement Import categorization", () => {
         accountType: "AMEX",
       },
     ]);
-    expect(get).toHaveBeenCalledWith(
-      "/statement-imports?pageSize=3",
-      { signal: undefined },
-    );
+    expect(get).toHaveBeenCalledWith("/statement-imports?pageSize=3", {
+      signal: undefined,
+    });
   });
 });
 
@@ -639,8 +689,7 @@ describe("Statement Import commit", () => {
     expect(statement.transactions[0]).toMatchObject({
       amount: 4000,
       isExcluded: true,
-      description:
-        "Transfer from 09111111111 to 09999999999 [Ref. #: 1]",
+      description: "Transfer from 09111111111 to 09999999999 [Ref. #: 1]",
     });
     expect(buildCommitPayload("wallet.pdf", "a".repeat(64), statement)).toEqual(
       expect.objectContaining({
@@ -712,12 +761,9 @@ describe("Statement Import commit", () => {
     const apiClient = { post } as unknown as StatementImportApiClient;
 
     await expect(
-      commitStatementImport(
-        apiClient,
-        file,
-        createCategorizedStatement(),
-        { acknowledgeProbableDuplicates: true },
-      ),
+      commitStatementImport(apiClient, file, createCategorizedStatement(), {
+        acknowledgeProbableDuplicates: true,
+      }),
     ).resolves.toMatchObject({
       id: "100",
       transactionCount: 1,
@@ -743,11 +789,14 @@ describe("Statement Import commit", () => {
     const file = new File(["hello"], "statement.pdf", {
       type: "application/pdf",
     });
-    const duplicateError = new ApiError("The statement file has already been imported", {
-      kind: "http",
-      status: 409,
-      code: "STATEMENT_IMPORT_FILE_ALREADY_EXISTS",
-    });
+    const duplicateError = new ApiError(
+      "The statement file has already been imported",
+      {
+        kind: "http",
+        status: 409,
+        code: "STATEMENT_IMPORT_FILE_ALREADY_EXISTS",
+      },
+    );
     const post = vi.fn(async () => {
       throw duplicateError;
     });

@@ -21,6 +21,7 @@ import type {
 } from "./statement-categorizer";
 import {
   requireCategoryRule,
+  requireCategoryRuleCollection,
   requireCategoryRules,
   requireStatementImport,
   requireStatementImportHistoryPage,
@@ -194,19 +195,24 @@ async function getCategoryOptions(
 async function getCategoryRules(
   apiClient: StatementImportApiClient,
   signal?: AbortSignal,
+  spaceId?: string,
 ): Promise<readonly CategoryRule[]> {
-  const response = requireCategoryRules(
-    requireApiResponse(
-      await apiClient.get<readonly CategoryRuleResponse[]>("/category-rules", {
-        signal,
-      }),
-      "Category Rule list",
-      createStatementImportDataError,
+  const response = requireApiResponse(
+    await apiClient.get<unknown>(
+      spaceId === undefined
+        ? "/category-rules"
+        : `/spaces/${encodeURIComponent(spaceId)}/category-rules`,
+      { signal },
     ),
+    "Category Rule list",
     createStatementImportDataError,
   );
+  const rules = Array.isArray(response)
+    ? requireCategoryRules(response, createStatementImportDataError)
+    : requireCategoryRuleCollection(response, createStatementImportDataError)
+        .rules;
 
-  return response.map(projectCategoryRule);
+  return rules.map(projectCategoryRule);
 }
 
 function projectRecentImport(
@@ -266,7 +272,10 @@ function categorizeTransactions(
   function getMatchedCategoryIds(
     transaction: Transaction,
     matchingRules: readonly CategoryRule[],
-    isMatch: (normalizedDescription: string, normalizedPattern: string) => boolean,
+    isMatch: (
+      normalizedDescription: string,
+      normalizedPattern: string,
+    ) => boolean,
   ) {
     const normalizedDescription = normalizeDescription(transaction.description);
     const matchedCategoryIds = new Set<string>();
@@ -342,6 +351,7 @@ async function rememberCategoryRule(
   input: RememberCategoryRuleInput,
   existingRules: readonly CategoryRule[],
   signal?: AbortSignal,
+  spaceId?: string,
 ): Promise<RememberCategoryRuleResult> {
   const normalizedPattern = normalizeDescription(input.pattern);
   if (!normalizedPattern) {
@@ -375,7 +385,9 @@ async function rememberCategoryRule(
     const response = requireCategoryRule(
       requireApiResponse(
         await apiClient.post<CategoryRuleResponse>(
-          "/category-rules",
+          spaceId === undefined
+            ? "/category-rules"
+            : `/spaces/${encodeURIComponent(spaceId)}/category-rules`,
           {
             pattern: normalizedPattern,
             categoryId: input.categoryId,
@@ -415,7 +427,7 @@ async function rememberCategoryRule(
       error instanceof ApiError &&
       error.code === "CATEGORY_RULE_PATTERN_ALREADY_EXISTS"
     ) {
-      const currentRules = await getCategoryRules(apiClient, signal);
+      const currentRules = await getCategoryRules(apiClient, signal, spaceId);
       const conflictingRule = currentRules.find(
         (rule) =>
           rule.matchType === input.matchType &&
@@ -489,7 +501,8 @@ function buildCommitPayload(
   const includedTransactions = getIncludedTransactions(statement.transactions);
   const missingCategory = includedTransactions.find(
     (transaction) =>
-      transaction.categoryId === null || transaction.categoryId.trim().length === 0,
+      transaction.categoryId === null ||
+      transaction.categoryId.trim().length === 0,
   );
   if (missingCategory) {
     throw new StatementImportValidationError(

@@ -18,6 +18,11 @@ interface CategoryRuleResponse {
   readonly updatedAt: string;
 }
 
+interface CategoryRuleCollectionResponse {
+  readonly rules: readonly CategoryRuleResponse[];
+  readonly revision: string;
+}
+
 interface CategoryRule {
   readonly id: string;
   readonly categoryId: string;
@@ -30,6 +35,11 @@ interface CategoryRule {
 interface CategoryRuleInput {
   readonly pattern: string;
   readonly matchType: CategoryRuleMatchType;
+}
+
+interface CategoryRuleSnapshot {
+  readonly rules: readonly CategoryRule[];
+  readonly revision?: string;
 }
 
 type CategoryRulesApiClient = Pick<ApiClient, "get" | "put">;
@@ -49,9 +59,7 @@ class CategoryRulesDataError extends Error {
 const createCategoryRulesError: ApiDataErrorFactory = (message) =>
   new CategoryRulesDataError(message);
 
-function isCategoryRuleResponse(
-  value: unknown,
-): value is CategoryRuleResponse {
+function isCategoryRuleResponse(value: unknown): value is CategoryRuleResponse {
   return (
     isRecord(value) &&
     typeof value.id === "string" &&
@@ -79,55 +87,125 @@ function requireCategoryRuleResponses(
   return response;
 }
 
-function buildCategoryRulesPath(categoryId: string) {
-  return `/categories/${encodeURIComponent(categoryId)}/rules`;
+function isCategoryRuleCollectionResponse(
+  value: unknown,
+): value is CategoryRuleCollectionResponse {
+  return (
+    isRecord(value) &&
+    Array.isArray(value.rules) &&
+    value.rules.every(isCategoryRuleResponse) &&
+    typeof value.revision === "string" &&
+    /^\d+$/u.test(value.revision)
+  );
+}
+
+function buildCategoryRulesPath(spaceId?: string) {
+  return spaceId === undefined
+    ? "/category-rules"
+    : `/spaces/${encodeURIComponent(spaceId)}/category-rules`;
+}
+
+function buildCategoryRuleReplacementPath(
+  categoryId: string,
+  spaceId?: string,
+) {
+  const categoryPath = `/categories/${encodeURIComponent(categoryId)}/rules`;
+  return spaceId === undefined
+    ? categoryPath
+    : `/spaces/${encodeURIComponent(spaceId)}${categoryPath}`;
+}
+
+async function getCategoryRuleSnapshot(
+  apiClient: CategoryRulesApiClient,
+  signal?: AbortSignal,
+  spaceId?: string,
+): Promise<CategoryRuleSnapshot> {
+  const payload = requireApiResponse(
+    await apiClient.get<unknown>(buildCategoryRulesPath(spaceId), {
+      signal,
+      expectedStatuses: [200],
+    }),
+    "Category Rule list",
+    createCategoryRulesError,
+  );
+  if (isCategoryRuleCollectionResponse(payload)) {
+    return {
+      rules: payload.rules.map(projectCategoryRule),
+      revision: payload.revision,
+    };
+  }
+
+  return {
+    rules: requireCategoryRuleResponses(payload, createCategoryRulesError).map(
+      projectCategoryRule,
+    ),
+  };
 }
 
 async function getCategoryRules(
   apiClient: CategoryRulesApiClient,
   signal?: AbortSignal,
+  spaceId?: string,
 ): Promise<readonly CategoryRule[]> {
-  const response = await apiClient.get<unknown>("/category-rules", {
-    signal,
-    expectedStatuses: [200],
-  });
-
-  return requireCategoryRuleResponses(
-    requireApiResponse(
-      response,
-      "Category Rule list",
-      createCategoryRulesError,
-    ),
-    createCategoryRulesError,
-  ).map(projectCategoryRule);
+  return (await getCategoryRuleSnapshot(apiClient, signal, spaceId)).rules;
 }
 
-async function replaceCategoryRules(
+async function replaceCategoryRuleSnapshot(
   apiClient: CategoryRulesApiClient,
   categoryId: string,
   rules: readonly CategoryRuleInput[],
-): Promise<readonly CategoryRule[]> {
+  spaceId?: string,
+  revision?: string,
+): Promise<CategoryRuleSnapshot> {
   const response = await apiClient.put<unknown>(
-    buildCategoryRulesPath(categoryId),
-    { rules: rules.map(({ pattern, matchType }) => ({ pattern, matchType })) },
+    buildCategoryRuleReplacementPath(categoryId, spaceId),
+    {
+      ...(revision === undefined ? {} : { revision }),
+      rules: rules.map(({ pattern, matchType }) => ({ pattern, matchType })),
+    },
     { expectedStatuses: [200] },
   );
-  const persistedRules = requireCategoryRuleResponses(
-    requireApiResponse(
-      response,
-      "replaced Category Rule list",
-      createCategoryRulesError,
-    ),
+  const payload = requireApiResponse(
+    response,
+    "replaced Category Rule list",
     createCategoryRulesError,
   );
+  if (isCategoryRuleCollectionResponse(payload)) {
+    return {
+      rules: payload.rules.map(projectCategoryRule),
+      revision: payload.revision,
+    };
+  }
 
+  const persistedRules = requireCategoryRuleResponses(
+    payload,
+    createCategoryRulesError,
+  );
   if (persistedRules.some((rule) => rule.categoryId !== categoryId)) {
     throw createCategoryRulesError(
       "The API returned a Category Rule for another Category.",
     );
   }
 
-  return persistedRules.map(projectCategoryRule);
+  return { rules: persistedRules.map(projectCategoryRule) };
+}
+
+async function replaceCategoryRules(
+  apiClient: CategoryRulesApiClient,
+  categoryId: string,
+  rules: readonly CategoryRuleInput[],
+  spaceId?: string,
+  revision?: string,
+): Promise<readonly CategoryRule[]> {
+  return (
+    await replaceCategoryRuleSnapshot(
+      apiClient,
+      categoryId,
+      rules,
+      spaceId,
+      revision,
+    )
+  ).rules;
 }
 
 function projectCategoryRule(response: CategoryRuleResponse): CategoryRule {
@@ -142,14 +220,20 @@ function projectCategoryRule(response: CategoryRuleResponse): CategoryRule {
 }
 
 export {
+  buildCategoryRuleReplacementPath,
   buildCategoryRulesPath,
   CategoryRulesDataError,
+  getCategoryRuleSnapshot,
   getCategoryRules,
+  isCategoryRuleCollectionResponse,
+  replaceCategoryRuleSnapshot,
   replaceCategoryRules,
   requireCategoryRuleResponses,
 };
 export type {
   CategoryRule,
+  CategoryRuleCollectionResponse,
   CategoryRuleInput,
+  CategoryRuleSnapshot,
   CategoryRulesApiClient,
 };

@@ -40,6 +40,7 @@ interface MatchingRulesDialogProps {
   readonly allCategories: readonly CategoryOverviewItem[];
   readonly category: CategoryOverviewItem;
   readonly disabled?: boolean;
+  readonly spaceId?: string;
 }
 
 function createDraftRule(rule: CategoryRule): CategoryRuleDraft {
@@ -91,6 +92,10 @@ function getSaveErrorMessage(error: unknown) {
   return conflictingCategoryName && !message.includes(conflictingCategoryName)
     ? `${message} Conflicting Category: “${conflictingCategoryName}”.`
     : message;
+}
+
+function isStaleEditError(error: unknown): error is ApiError {
+  return error instanceof ApiError && error.code === "STALE_EDIT";
 }
 
 function RuleSection({
@@ -197,6 +202,7 @@ function MatchingRulesDialog({
   allCategories,
   category,
   disabled = false,
+  spaceId,
 }: MatchingRulesDialogProps) {
   const [open, setOpen] = useState(false);
   const [discardPrompt, setDiscardPrompt] = useState(false);
@@ -208,15 +214,19 @@ function MatchingRulesDialog({
   >();
   const [validationErrors, setValidationErrors] =
     useState<CategoryRuleValidationErrors>({});
+  const [revisionOverride, setRevisionOverride] = useState<
+    string | undefined
+  >();
   const [saved, setSaved] = useState(false);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const newRuleIdRef = useRef(0);
-  const rulesQuery = useCategoryRulesQuery(open);
+  const rulesQuery = useCategoryRulesQuery(open, spaceId);
   const replaceMutation = useReplaceCategoryRulesMutation();
 
   const loadedRules = rulesQuery.data
-    ? getSelectedRules(rulesQuery.data, category.id)
+    ? getSelectedRules(rulesQuery.data.rules, category.id)
     : null;
+  const revision = revisionOverride ?? rulesQuery.data?.revision;
   const draftRules = draftRulesOverride ?? loadedRules;
   const initialRules = initialRulesOverride ?? loadedRules ?? [];
 
@@ -230,6 +240,7 @@ function MatchingRulesDialog({
     setDraftRulesOverride(undefined);
     setInitialRulesOverride(undefined);
     setValidationErrors({});
+    setRevisionOverride(undefined);
     setSaved(false);
     replaceMutation.reset();
   }
@@ -251,6 +262,16 @@ function MatchingRulesDialog({
     closeDialog();
   }
 
+  function reloadRules() {
+    setDraftRulesOverride(undefined);
+    setInitialRulesOverride(undefined);
+    setRevisionOverride(undefined);
+    setValidationErrors({});
+    setSaved(false);
+    replaceMutation.reset();
+    void rulesQuery.refetch();
+  }
+
   function handleOpenChange(nextOpen: boolean) {
     if (nextOpen) {
       replaceMutation.reset();
@@ -258,6 +279,7 @@ function MatchingRulesDialog({
       setDraftRulesOverride(undefined);
       setInitialRulesOverride(undefined);
       setValidationErrors({});
+      setRevisionOverride(undefined);
       setSaved(false);
       setOpen(true);
       return;
@@ -312,7 +334,7 @@ function MatchingRulesDialog({
 
     const errors = validateCategoryRuleDraft(
       draftRules,
-      rulesQuery.data,
+      rulesQuery.data.rules,
       category.id,
       allCategories,
     );
@@ -324,11 +346,16 @@ function MatchingRulesDialog({
     );
 
     let persistedRules: readonly CategoryRule[];
+    let persistedRevision: string | undefined;
     try {
-      persistedRules = await replaceMutation.mutateAsync({
+      const persisted = await replaceMutation.mutateAsync({
         categoryId: category.id,
         rules,
+        spaceId,
+        revision,
       });
+      persistedRules = persisted.rules;
+      persistedRevision = persisted.revision;
     } catch {
       return;
     }
@@ -336,6 +363,7 @@ function MatchingRulesDialog({
     const persistedDraft = getSelectedRules(persistedRules, category.id);
     setDraftRulesOverride(persistedDraft);
     setInitialRulesOverride(persistedDraft);
+    setRevisionOverride(persistedRevision);
     setValidationErrors({});
     setSaved(true);
   }
@@ -460,9 +488,23 @@ function MatchingRulesDialog({
               {replaceMutation.error && (
                 <Alert variant="destructive">
                   <AlertCircleIcon aria-hidden="true" />
-                  <AlertTitle>Matching Rules could not be saved</AlertTitle>
+                  <AlertTitle>
+                    {isStaleEditError(replaceMutation.error)
+                      ? "Matching Rules changed elsewhere"
+                      : "Matching Rules could not be saved"}
+                  </AlertTitle>
                   <AlertDescription>
-                    {getSaveErrorMessage(replaceMutation.error)}
+                    <p>{getSaveErrorMessage(replaceMutation.error)}</p>
+                    {isStaleEditError(replaceMutation.error) && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="mt-3"
+                        onClick={reloadRules}
+                      >
+                        Reload Rules
+                      </Button>
+                    )}
                   </AlertDescription>
                 </Alert>
               )}

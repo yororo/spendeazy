@@ -30,4 +30,22 @@ export class TypeOrmCategoryRuleCategoryStore implements CategoryRuleCategorySto
         }
       : null;
   }
+
+  async findBySpaceId(
+    spaceId: string,
+    id: string,
+  ): Promise<CategoryRuleCategoryRecord | null> {
+    const entity = await this.entityManager
+      .getRepository(CategoryEntity)
+      .findOne({ where: { id, spaceId } });
+
+    return entity
+      ? {
+          id: entity.id,
+          userId: entity.userId,
+          spaceId: entity.spaceId,
+          isActive: entity.isActive,
+        }
+      : null;
+  }
 }

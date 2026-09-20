@@ -10,6 +10,7 @@ import {
   IsArray,
   IsObject,
   ValidateNested,
+  IsISO8601,
 } from 'class-validator';
 import { POSITIVE_INTEGER_ID_PATTERN } from '../../http/validation-patterns';
 import { requireAtLeastOneField } from '../../http/require-at-least-one-field';
@@ -27,6 +28,16 @@ type ApiSchemaOptionsWithAdditionalProperties = {
 };
 
 export class CategoryRuleParamsDto {
+  @IsString()
+  @Matches(POSITIVE_INTEGER_ID_PATTERN)
+  ruleId!: string;
+}
+
+export class SpaceCategoryRuleParamsDto {
+  @IsString()
+  @Matches(POSITIVE_INTEGER_ID_PATTERN)
+  spaceId!: string;
+
   @IsString()
   @Matches(POSITIVE_INTEGER_ID_PATTERN)
   ruleId!: string;
@@ -64,7 +75,7 @@ export class CreateCategoryRuleDto {
   @Matches(POSITIVE_INTEGER_ID_PATTERN)
   @ApiProperty({
     description:
-      'Positive bigint Category identifier encoded as a decimal JSON string. The Category must be active and owned by the authenticated User; an inactive Category causes a 409 Conflict.',
+      "Positive bigint Category identifier encoded as a decimal JSON string. The Category must be active in the destination Space; the legacy personal route resolves the authenticated User's Personal Space. An inactive Category causes a 409 Conflict.",
     pattern: POSITIVE_INTEGER_ID_PATTERN.source,
     example: '42',
   })
@@ -108,14 +119,35 @@ export class UpdateCategoryRuleDto {
   @Matches(POSITIVE_INTEGER_ID_PATTERN)
   @ApiPropertyOptional({
     description:
-      'Positive bigint Category identifier encoded as a decimal JSON string. Reassignment requires an active Category owned by the authenticated User; an inactive Category causes a conflict.',
+      'Positive bigint Category identifier encoded as a decimal JSON string. Reassignment requires an active Category in the destination Space; an inactive Category causes a conflict.',
     pattern: POSITIVE_INTEGER_ID_PATTERN.source,
     example: '42',
   })
   categoryId?: string;
+
+  @ValidateIf((_, value) => value !== undefined)
+  @IsString()
+  @IsISO8601({ strict: true })
+  @ApiPropertyOptional({
+    description:
+      'The UTC timestamp returned by the last read. A stale scoped edit is rejected when another member changed this rule first.',
+    format: 'date-time',
+    example: '2026-08-29T00:00:00.000Z',
+  })
+  updatedAt?: string;
 }
 
 export class CategoryRuleCategoryParamsDto {
+  @IsString()
+  @Matches(POSITIVE_INTEGER_ID_PATTERN)
+  categoryId!: string;
+}
+
+export class SpaceCategoryRuleCategoryParamsDto {
+  @IsString()
+  @Matches(POSITIVE_INTEGER_ID_PATTERN)
+  spaceId!: string;
+
   @IsString()
   @Matches(POSITIVE_INTEGER_ID_PATTERN)
   categoryId!: string;
@@ -145,6 +177,43 @@ export class ReplacementCategoryRuleDto {
   additionalProperties: false,
 } as ApiSchemaOptionsWithAdditionalProperties)
 export class ReplaceCategoryRulesDto {
+  @ValidateIf((_, value) => value !== undefined)
+  @IsString()
+  @Matches(/^\d+$/u)
+  @ApiPropertyOptional({
+    description:
+      'The revision returned with the last Space-scoped rule collection. A stale replacement is rejected when another member changed any Rule first.',
+    pattern: '^\\d+$',
+    example: '3',
+  })
+  revision?: string;
+
+  @IsArray()
+  @IsObject({ each: true })
+  @ValidateNested({ each: true })
+  @Type(() => ReplacementCategoryRuleDto)
+  @ApiProperty({
+    type: () => [ReplacementCategoryRuleDto],
+    description:
+      'Complete desired rule set. Empty removes all rules for this Category.',
+  })
+  rules!: ReplacementCategoryRuleDto[];
+}
+
+@ApiSchema({
+  additionalProperties: false,
+} as ApiSchemaOptionsWithAdditionalProperties)
+export class SpaceReplaceCategoryRulesDto {
+  @IsString()
+  @Matches(/^\d+$/u)
+  @ApiProperty({
+    description:
+      'The revision returned with the last Space-scoped rule collection. A stale replacement is rejected when another member changed any Rule first.',
+    pattern: '^\\d+$',
+    example: '3',
+  })
+  revision!: string;
+
   @IsArray()
   @IsObject({ each: true })
   @ValidateNested({ each: true })

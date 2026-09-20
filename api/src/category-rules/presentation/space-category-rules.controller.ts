@@ -2,8 +2,8 @@ import {
   Body,
   Controller,
   Delete,
-  Headers,
   Get,
+  Headers,
   HttpCode,
   HttpStatus,
   Param,
@@ -11,7 +11,6 @@ import {
   Post,
   Req,
   Res,
-  Optional,
 } from '@nestjs/common';
 import {
   ApiExtraModels,
@@ -20,7 +19,6 @@ import {
   ApiParam,
   ApiResponse,
   ApiTags,
-  getSchemaPath,
 } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { API_PREFIX } from '../../config/app-config';
@@ -31,36 +29,50 @@ import {
 import { ApiStandardErrorResponses } from '../../http/api-error.dto';
 import { POSITIVE_INTEGER_ID_PATTERN } from '../../http/validation-patterns';
 import { SpaceAccessService } from '../../spaces/application/space-access.service';
+import { SpaceParamsDto } from '../../spaces/presentation/space.dto';
 import { CategoryRulesService } from '../application/category-rules.service';
-import type { CategoryRuleRecord } from '../application/category-rule-store';
 import {
-  CategoryRuleParamsDto,
   CreateCategoryRuleDto,
+  SpaceCategoryRuleParamsDto,
   UpdateCategoryRuleDto,
 } from './category-rule.dto';
 import {
   CategoryRuleCollectionResponseDto,
   CategoryRuleResponseDto,
 } from './category-rule-response.dto';
+import {
+  toCategoryRuleCollectionResponse,
+  toCategoryRuleResponse,
+} from './category-rules.controller';
 
-@Controller('users/me/category-rules')
+@Controller('users/me/spaces/:spaceId/category-rules')
 @ApiTags('Category rules')
 @ApiExtraModels(
+  CategoryRuleCollectionResponseDto,
   CategoryRuleResponseDto,
   CreateCategoryRuleDto,
   UpdateCategoryRuleDto,
 )
-export class CategoryRulesController {
+@ApiParam({
+  name: 'spaceId',
+  description: 'Positive bigint Space identifier encoded as a string.',
+  schema: {
+    type: 'string',
+    pattern: POSITIVE_INTEGER_ID_PATTERN.source,
+    example: '7',
+  },
+})
+export class SpaceCategoryRulesController {
   constructor(
     private readonly categoryRulesService: CategoryRulesService,
-    @Optional() private readonly spaceAccessService?: SpaceAccessService,
+    private readonly spaceAccessService: SpaceAccessService,
   ) {}
 
   @Post()
   @ApiOperation({
-    summary: 'Create a category rule.',
+    summary: 'Create a Category Rule in an authorized Space.',
     description:
-      'Matching normalizes surrounding and repeated whitespace and compares case-insensitively.',
+      'Matching normalizes surrounding and repeated whitespace and compares case-insensitively. The rule is shared by every member of the Space.',
   })
   @ApiResponse({
     status: HttpStatus.CREATED,
@@ -72,7 +84,7 @@ export class CategoryRulesController {
         description: 'Relative canonical URI of the created Category rule.',
         schema: {
           type: 'string',
-          example: `/${API_PREFIX}/users/me/category-rules/42`,
+          example: `/${API_PREFIX}/users/me/spaces/7/category-rules/42`,
         },
       },
     },
@@ -90,58 +102,56 @@ export class CategoryRulesController {
   )
   async createCategoryRule(
     @Req() request: AuthenticatedRequest,
+    @Param() params: SpaceParamsDto,
     @Body() input: CreateCategoryRuleDto,
     @Res({ passthrough: true }) response: Response,
   ): Promise<CategoryRuleResponseDto> {
     const userId = requireAuthenticatedUserId(request);
-    const personalSpace = await this.requirePersonalWriteSpace(userId);
-    const rule = personalSpace
-      ? await this.categoryRulesService.createCategoryRuleInSpace(
-          userId,
-          personalSpace.id,
-          input,
-        )
-      : await this.categoryRulesService.createCategoryRule(userId, input);
+    await this.spaceAccessService.requireWriteAccess(userId, params.spaceId);
+    const rule = await this.categoryRulesService.createCategoryRuleInSpace(
+      userId,
+      params.spaceId,
+      input,
+    );
     response.status(HttpStatus.CREATED);
-    response.setHeader('Location', categoryRuleLocation(rule.id));
+    response.setHeader(
+      'Location',
+      spaceCategoryRuleLocation(params.spaceId, rule.id),
+    );
     return toCategoryRuleResponse(rule);
   }
 
   @Get()
   @ApiOperation({
-    summary: 'List all owned category rules in ascending ID order.',
+    summary: 'List Category Rules in an authorized Space.',
+    description:
+      'The revision covers the complete Space collection, including an empty collection, and is required for stale replacement detection.',
   })
   @ApiResponse({
     status: HttpStatus.OK,
-    description: 'Category rules.',
-    schema: {
-      type: 'array',
-      items: { $ref: getSchemaPath(CategoryRuleResponseDto) },
-    },
+    description: 'Category Rules and their Space-scoped revision.',
+    type: CategoryRuleCollectionResponseDto,
   })
   @ApiStandardErrorResponses(
     'UnauthenticatedError',
     'UserNotProvisionedError',
+    'NotFoundError',
     'NotAcceptableError',
     'InternalError',
   )
   async listCategoryRules(
     @Req() request: AuthenticatedRequest,
-  ): Promise<CategoryRuleResponseDto[]> {
+    @Param() params: SpaceParamsDto,
+  ): Promise<CategoryRuleCollectionResponseDto> {
     const userId = requireAuthenticatedUserId(request);
-    const personalSpace = await this.requirePersonalReadSpace(userId);
-    const rules = personalSpace
-      ? (
-          await this.categoryRulesService.listCategoryRulesInSpace(
-            personalSpace.id,
-          )
-        ).rules
-      : await this.categoryRulesService.listCategoryRules(userId);
-    return rules.map(toCategoryRuleResponse);
+    await this.spaceAccessService.requireReadAccess(userId, params.spaceId);
+    return toCategoryRuleCollectionResponse(
+      await this.categoryRulesService.listCategoryRulesInSpace(params.spaceId),
+    );
   }
 
   @Get(':ruleId')
-  @ApiOperation({ summary: 'Get a category rule.' })
+  @ApiOperation({ summary: 'Get a Category Rule in an authorized Space.' })
   @ApiParam({
     name: 'ruleId',
     description: 'Positive bigint identifier encoded as a decimal JSON string.',
@@ -166,28 +176,23 @@ export class CategoryRulesController {
   )
   async getCategoryRule(
     @Req() request: AuthenticatedRequest,
-    @Param() params: CategoryRuleParamsDto,
+    @Param() params: SpaceCategoryRuleParamsDto,
   ): Promise<CategoryRuleResponseDto> {
     const userId = requireAuthenticatedUserId(request);
-    const personalSpace = await this.requirePersonalReadSpace(userId);
+    await this.spaceAccessService.requireReadAccess(userId, params.spaceId);
     return toCategoryRuleResponse(
-      personalSpace
-        ? await this.categoryRulesService.getCategoryRuleInSpace(
-            personalSpace.id,
-            params.ruleId,
-          )
-        : await this.categoryRulesService.getCategoryRule(
-            userId,
-            params.ruleId,
-          ),
+      await this.categoryRulesService.getCategoryRuleInSpace(
+        params.spaceId,
+        params.ruleId,
+      ),
     );
   }
 
   @Patch(':ruleId')
   @ApiOperation({
-    summary: 'Update or reassign a category rule.',
+    summary: 'Update or reassign a Category Rule in an authorized Space.',
     description:
-      'A category rule may be reassigned only to an active Category; assigning it to an inactive Category returns 409 Conflict.',
+      'The optional updatedAt timestamp rejects a stale edit. A Category Rule may be reassigned only to an active Category in the same Space.',
   })
   @ApiParam({
     name: 'ruleId',
@@ -216,36 +221,23 @@ export class CategoryRulesController {
   )
   async updateCategoryRule(
     @Req() request: AuthenticatedRequest,
-    @Param() params: CategoryRuleParamsDto,
+    @Param() params: SpaceCategoryRuleParamsDto,
     @Body() input: UpdateCategoryRuleDto,
   ): Promise<CategoryRuleResponseDto> {
     const userId = requireAuthenticatedUserId(request);
-    const personalSpace = await this.requirePersonalWriteSpace(userId);
+    await this.spaceAccessService.requireWriteAccess(userId, params.spaceId);
     return toCategoryRuleResponse(
-      personalSpace
-        ? await this.categoryRulesService.updateCategoryRuleInSpace(
-            personalSpace.id,
-            params.ruleId,
-            toCategoryRuleUpdate(input),
-          )
-        : await this.categoryRulesService.updateCategoryRule(
-            userId,
-            params.ruleId,
-            toCategoryRuleUpdate(input),
-          ),
+      await this.categoryRulesService.updateCategoryRuleInSpace(
+        params.spaceId,
+        params.ruleId,
+        toCategoryRuleUpdate(input),
+      ),
     );
   }
 
   @Delete(':ruleId')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Delete a category rule.' })
-  @ApiHeader({
-    name: 'if-match',
-    required: false,
-    description:
-      'Optional Category Rule updatedAt timestamp. The delete is rejected when it is stale.',
-    schema: { type: 'string', format: 'date-time' },
-  })
+  @ApiOperation({ summary: 'Delete a Category Rule in an authorized Space.' })
   @ApiParam({
     name: 'ruleId',
     description: 'Positive bigint identifier encoded as a decimal JSON string.',
@@ -254,6 +246,13 @@ export class CategoryRulesController {
       pattern: POSITIVE_INTEGER_ID_PATTERN.source,
       example: '42',
     },
+  })
+  @ApiHeader({
+    name: 'if-match',
+    required: false,
+    description:
+      'Optional Category Rule updatedAt timestamp. The delete is rejected when it is stale.',
+    schema: { type: 'string', format: 'date-time' },
   })
   @ApiResponse({
     status: HttpStatus.NO_CONTENT,
@@ -269,57 +268,21 @@ export class CategoryRulesController {
   )
   async deleteCategoryRule(
     @Req() request: AuthenticatedRequest,
-    @Param() params: CategoryRuleParamsDto,
+    @Param() params: SpaceCategoryRuleParamsDto,
     @Headers('if-match') ifMatch?: string,
   ): Promise<void> {
     const userId = requireAuthenticatedUserId(request);
-    const personalSpace = await this.requirePersonalWriteSpace(userId);
-    if (personalSpace) {
-      await this.categoryRulesService.deleteCategoryRuleInSpace(
-        personalSpace.id,
-        params.ruleId,
-        normalizeIfMatch(ifMatch),
-      );
-      return;
-    }
-
-    await this.categoryRulesService.deleteCategoryRule(userId, params.ruleId);
-  }
-
-  private requirePersonalReadSpace(userId: string) {
-    return this.spaceAccessService?.requirePersonalSpace(userId);
-  }
-
-  private requirePersonalWriteSpace(userId: string) {
-    return this.spaceAccessService?.requirePersonalWriteSpace(userId);
+    await this.spaceAccessService.requireWriteAccess(userId, params.spaceId);
+    await this.categoryRulesService.deleteCategoryRuleInSpace(
+      params.spaceId,
+      params.ruleId,
+      normalizeIfMatch(ifMatch),
+    );
   }
 }
 
-export function toCategoryRuleResponse(
-  rule: CategoryRuleRecord,
-): CategoryRuleResponseDto {
-  return {
-    id: rule.id,
-    categoryId: rule.categoryId,
-    pattern: rule.pattern,
-    matchType: rule.matchType,
-    createdAt: rule.createdAt.toISOString(),
-    updatedAt: rule.updatedAt.toISOString(),
-  };
-}
-
-export function toCategoryRuleCollectionResponse(collection: {
-  rules: CategoryRuleRecord[];
-  revision: string;
-}): CategoryRuleCollectionResponseDto {
-  return {
-    rules: collection.rules.map(toCategoryRuleResponse),
-    revision: collection.revision,
-  };
-}
-
-function categoryRuleLocation(ruleId: string): string {
-  return `/${API_PREFIX}/users/me/category-rules/${ruleId}`;
+function spaceCategoryRuleLocation(spaceId: string, ruleId: string): string {
+  return `/${API_PREFIX}/users/me/spaces/${spaceId}/category-rules/${ruleId}`;
 }
 
 function toCategoryRuleUpdate(input: UpdateCategoryRuleDto) {

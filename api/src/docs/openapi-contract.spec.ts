@@ -48,6 +48,7 @@ interface OperationExpectation {
   tag: string;
   requestSchemaRef?: string;
   pathParameter?: string;
+  pathParameters?: readonly string[];
   headerParameters?: readonly string[];
   queryParameters?: readonly string[];
   requiredQueryParameters?: readonly string[];
@@ -310,8 +311,80 @@ const OPERATION_EXPECTATIONS = [
     operationId: 'CategoryRules_deleteCategoryRule',
     tag: 'Category rules',
     pathParameter: 'ruleId',
+    headerParameters: ['if-match'],
     bodyResponses: [{ status: '204' }],
     errorResponses: { ...PROTECTED_ERRORS, ...VALIDATED_PATH_ERRORS },
+  },
+  {
+    operationId: 'SpaceCategoryRules_createCategoryRule',
+    tag: 'Category rules',
+    requestSchemaRef: 'CreateCategoryRuleDto',
+    pathParameters: ['spaceId'],
+    bodyResponses: [
+      {
+        status: '201',
+        schemaRef: 'CategoryRuleResponseDto',
+        location: `/${API_PREFIX}/users/me/spaces/7/category-rules/42`,
+      },
+    ],
+    errorResponses: {
+      ...PROTECTED_ERRORS,
+      ...VALIDATED_PATH_ERRORS,
+      '409': 'ConflictError',
+      ...JSON_BODY_ERRORS,
+    },
+  },
+  {
+    operationId: 'SpaceCategoryRules_listCategoryRules',
+    tag: 'Category rules',
+    pathParameters: ['spaceId'],
+    bodyResponses: [
+      { status: '200', schemaRef: 'CategoryRuleCollectionResponseDto' },
+    ],
+    errorResponses: { ...PROTECTED_ERRORS, '404': 'NotFoundError' },
+  },
+  {
+    operationId: 'SpaceCategoryRules_getCategoryRule',
+    tag: 'Category rules',
+    pathParameters: ['spaceId', 'ruleId'],
+    bodyResponses: [{ status: '200', schemaRef: 'CategoryRuleResponseDto' }],
+    errorResponses: { ...PROTECTED_ERRORS, ...VALIDATED_PATH_ERRORS },
+  },
+  {
+    operationId: 'SpaceCategoryRules_updateCategoryRule',
+    tag: 'Category rules',
+    requestSchemaRef: 'UpdateCategoryRuleDto',
+    pathParameters: ['spaceId', 'ruleId'],
+    bodyResponses: [{ status: '200', schemaRef: 'CategoryRuleResponseDto' }],
+    errorResponses: {
+      ...PROTECTED_ERRORS,
+      ...VALIDATED_PATH_ERRORS,
+      '409': 'ConflictError',
+      ...JSON_BODY_ERRORS,
+    },
+  },
+  {
+    operationId: 'SpaceCategoryRules_deleteCategoryRule',
+    tag: 'Category rules',
+    pathParameters: ['spaceId', 'ruleId'],
+    headerParameters: ['if-match'],
+    bodyResponses: [{ status: '204' }],
+    errorResponses: { ...PROTECTED_ERRORS, ...VALIDATED_PATH_ERRORS },
+  },
+  {
+    operationId: 'SpaceCategoryRuleReplacement_replaceCategoryRules',
+    tag: 'Category rules',
+    requestSchemaRef: 'SpaceReplaceCategoryRulesDto',
+    pathParameters: ['spaceId', 'categoryId'],
+    bodyResponses: [
+      { status: '200', schemaRef: 'CategoryRuleCollectionResponseDto' },
+    ],
+    errorResponses: {
+      ...PROTECTED_ERRORS,
+      ...VALIDATED_PATH_ERRORS,
+      ...JSON_BODY_ERRORS,
+      '409': 'ConflictError',
+    },
   },
   {
     operationId: 'Transactions_createManualTransaction',
@@ -436,6 +509,7 @@ const PUBLIC_RESPONSE_SCHEMA_NAMES = [
   'CategorySummaryResponseDto',
   'CategorySummaryItemResponseDto',
   'CategoryRuleResponseDto',
+  'CategoryRuleCollectionResponseDto',
   'ManualTransactionResponseDto',
   'ImportedTransactionResponseDto',
   'ManualTransactionHistoryResponseDto',
@@ -469,7 +543,7 @@ const REQUEST_SCHEMA_SHAPES = {
   },
   UpdateCategoryRuleDto: {
     required: [],
-    optional: ['pattern', 'categoryId', 'matchType'],
+    optional: ['pattern', 'categoryId', 'matchType', 'updatedAt'],
     nullable: [],
   },
   ReplacementCategoryRuleDto: {
@@ -477,7 +551,16 @@ const REQUEST_SCHEMA_SHAPES = {
     optional: [],
     nullable: [],
   },
-  ReplaceCategoryRulesDto: { required: ['rules'], optional: [], nullable: [] },
+  ReplaceCategoryRulesDto: {
+    required: ['rules'],
+    optional: ['revision'],
+    nullable: [],
+  },
+  SpaceReplaceCategoryRulesDto: {
+    required: ['revision', 'rules'],
+    optional: [],
+    nullable: [],
+  },
   CreateManualTransactionDto: {
     required: ['purchaseDate', 'description', 'amount'],
     optional: ['categoryId'],
@@ -513,6 +596,13 @@ const REQUEST_PROPERTY_ASSERTIONS: Readonly<
       items: { $ref: '#/components/schemas/ReplacementCategoryRuleDto' },
     },
   },
+  SpaceReplaceCategoryRulesDto: {
+    revision: { type: 'string', pattern: '^\\d+$' },
+    rules: {
+      type: 'array',
+      items: { $ref: '#/components/schemas/ReplacementCategoryRuleDto' },
+    },
+  },
   CreateCategoryDto: {
     name: { type: 'string', minLength: 1, maxLength: 100, pattern: '\\S' },
     description: { type: 'string', maxLength: 500 },
@@ -540,6 +630,14 @@ const REQUEST_PROPERTY_ASSERTIONS: Readonly<
   UpdateCategoryRuleDto: {
     pattern: { type: 'string', minLength: 1, maxLength: 500, pattern: '\\S' },
     categoryId: { type: 'string', pattern: '^[1-9]\\d*$' },
+    updatedAt: { type: 'string', format: 'date-time' },
+  },
+  ReplaceCategoryRulesDto: {
+    revision: { type: 'string', pattern: '^\\d+$' },
+    rules: {
+      type: 'array',
+      items: { $ref: '#/components/schemas/ReplacementCategoryRuleDto' },
+    },
   },
   CreateManualTransactionDto: {
     purchaseDate: {
@@ -1064,8 +1162,11 @@ function expectOperationParameters(
   const rawParameters = operation.parameters ?? [];
   expect(rawParameters.every(isParameterObject)).toBe(true);
   const parameters = rawParameters.filter(isParameterObject);
+  const pathParameters =
+    route.pathParameters ??
+    (route.pathParameter === undefined ? [] : [route.pathParameter]);
   const expectedNames = [
-    ...(route.pathParameter === undefined ? [] : [route.pathParameter]),
+    ...pathParameters,
     ...(route.headerParameters ?? []),
     ...(route.queryParameters ?? []),
   ];
@@ -1074,12 +1175,11 @@ function expectOperationParameters(
   );
 
   for (const parameter of parameters) {
-    const expectedLocation =
-      route.pathParameter === parameter.name
-        ? 'path'
-        : route.headerParameters?.includes(parameter.name) === true
-          ? 'header'
-          : 'query';
+    const expectedLocation = pathParameters.includes(parameter.name)
+      ? 'path'
+      : route.headerParameters?.includes(parameter.name) === true
+        ? 'header'
+        : 'query';
     expect(parameter.in).toBe(expectedLocation);
     const isRequired =
       parameter.in === 'path' ||

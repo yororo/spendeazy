@@ -126,9 +126,27 @@ describe('Category Rule OpenAPI contract', () => {
 
     expectPathParameter(createOperation, undefined);
     expectPathParameter(listOperation, undefined);
-    for (const operation of [getOperation, updateOperation, deleteOperation]) {
+    for (const operation of [getOperation, updateOperation]) {
       expectPathParameter(operation, 'ruleId');
     }
+    expect(deleteOperation.parameters).toEqual([
+      {
+        name: 'if-match',
+        in: 'header',
+        required: false,
+        description:
+          'Optional Category Rule updatedAt timestamp. The delete is rejected when it is stale.',
+        schema: { type: 'string', format: 'date-time' },
+      },
+      {
+        name: 'ruleId',
+        in: 'path',
+        required: true,
+        description:
+          'Positive bigint identifier encoded as a decimal JSON string.',
+        schema: { type: 'string', pattern: '^[1-9]\\d*$', example: '42' },
+      },
+    ]);
 
     expectResponseStatuses(createOperation, [
       '201',
@@ -291,6 +309,70 @@ describe('Category Rule OpenAPI contract', () => {
           pattern: '^[1-9]\\d*$',
           example: '42',
         },
+        updatedAt: { type: 'string', format: 'date-time' },
+      },
+    });
+    expect(document.components?.schemas?.ReplaceCategoryRulesDto).toMatchObject(
+      {
+        properties: {
+          revision: { type: 'string', pattern: '^\\d+$' },
+        },
+      },
+    );
+  });
+
+  it('describes Space-scoped collection revisions and stale-safe replacement', async () => {
+    const document = await createOpenApiDocument();
+    const collectionPath =
+      document.paths[`/${API_PREFIX}/users/me/spaces/{spaceId}/category-rules`];
+    const replacementPath =
+      document.paths[
+        `/${API_PREFIX}/users/me/spaces/{spaceId}/categories/{categoryId}/rules`
+      ];
+
+    expect(collectionPath?.get).toMatchObject({
+      operationId: 'SpaceCategoryRules_listCategoryRules',
+      responses: {
+        '200': {
+          content: {
+            'application/json': {
+              schema: {
+                $ref: '#/components/schemas/CategoryRuleCollectionResponseDto',
+              },
+            },
+          },
+        },
+      },
+    });
+    expect(replacementPath?.put).toMatchObject({
+      operationId: 'SpaceCategoryRuleReplacement_replaceCategoryRules',
+      requestBody: {
+        content: {
+          'application/json': {
+            schema: {
+              $ref: '#/components/schemas/SpaceReplaceCategoryRulesDto',
+            },
+          },
+        },
+      },
+      responses: {
+        '200': {
+          content: {
+            'application/json': {
+              schema: {
+                $ref: '#/components/schemas/CategoryRuleCollectionResponseDto',
+              },
+            },
+          },
+        },
+      },
+    });
+    expect(
+      document.components?.schemas?.SpaceReplaceCategoryRulesDto,
+    ).toMatchObject({
+      required: ['revision', 'rules'],
+      properties: {
+        revision: { type: 'string', pattern: '^\\d+$' },
       },
     });
   });

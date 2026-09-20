@@ -1,5 +1,11 @@
 import type { EntityManager } from 'typeorm';
 import { StatementImportEntity } from '../../database/entities/statement-import.entity';
+import { SpaceEntity } from '../../database/entities/space.entity';
+import { SpaceMembershipEntity } from '../../database/entities/space-membership.entity';
+import {
+  SpaceNotFoundError,
+  SpaceNotWritableError,
+} from '../../spaces/application/space-errors';
 import { TransactionEntity } from '../../database/entities/transaction.entity';
 import type {
   StatementImportHistoryRecord,
@@ -8,6 +14,39 @@ import type {
 import { TypeOrmStatementImportStore } from './typeorm-statement-import-store';
 
 describe('TypeOrmStatementImportStore', () => {
+  it('checks current membership after locking the destination Space', async () => {
+    const spaceQuery = lockedQuery({ status: 'active' });
+    const membershipQuery = lockedQuery({ accessLevel: 'write' });
+    const getRepository = jest.fn((entity: unknown) => ({
+      createQueryBuilder: () =>
+        entity === SpaceEntity ? spaceQuery : membershipQuery,
+    }));
+    const manager = { getRepository } as unknown as EntityManager;
+    const store = new TypeOrmStatementImportStore(manager);
+
+    await expect(
+      store.lockForStatementImport('55', '7'),
+    ).resolves.toBeUndefined();
+    expect(getRepository).toHaveBeenCalledWith(SpaceMembershipEntity);
+    expect(membershipQuery.andWhere).toHaveBeenCalledWith(
+      'membership.userId = :userId',
+      { userId: '7' },
+    );
+    expect(membershipQuery.setLock).toHaveBeenCalledWith('pessimistic_read');
+
+    membershipQuery.getOne.mockResolvedValueOnce(null);
+    await expect(
+      store.lockForStatementImport('55', '7'),
+    ).rejects.toBeInstanceOf(SpaceNotFoundError);
+    membershipQuery.getOne.mockResolvedValueOnce({ accessLevel: 'read' });
+    await expect(
+      store.lockForStatementImport('55', '7'),
+    ).rejects.toBeInstanceOf(SpaceNotWritableError);
+    spaceQuery.getOne.mockResolvedValueOnce({ status: 'archived' });
+    await expect(
+      store.lockForStatementImport('55', '7'),
+    ).rejects.toBeInstanceOf(SpaceNotWritableError);
+  });
   it('finds a statement import only within the requested user scope', async () => {
     const entity = statementImportEntity({ id: '108', userId: '42' });
     const repository = {
@@ -147,6 +186,15 @@ describe('TypeOrmStatementImportStore', () => {
     );
   });
 });
+
+function lockedQuery(result: object): Record<string, jest.Mock> {
+  return {
+    where: jest.fn().mockReturnThis(),
+    andWhere: jest.fn().mockReturnThis(),
+    setLock: jest.fn().mockReturnThis(),
+    getOne: jest.fn().mockResolvedValue(result),
+  };
+}
 
 function entityManagerFor(repository: object): EntityManager {
   return {

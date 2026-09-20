@@ -53,15 +53,15 @@ function StatementImportPage({
   const scopeReady =
     !shouldResolvePersonalSpace || spacesQuery.isSuccess || spacesQuery.isError;
   const categoryOptionsQuery = useStatementImportCategoriesQuery(
-    effectiveSpaceId,
+    destinationSpaceId,
     scopeReady,
   );
   const categoryRulesQuery = useStatementImportRulesQuery(
-    effectiveSpaceId,
+    destinationSpaceId,
     scopeReady,
   );
   const recentImportsQuery = useRecentImportsQuery(
-    effectiveSpaceId,
+    destinationSpaceId,
     scopeReady,
   );
   const commitMutation = useCommitStatementImportMutation();

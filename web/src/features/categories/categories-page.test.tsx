@@ -606,19 +606,13 @@ afterEach(() => {
 });
 
 describe("CategoriesPage", () => {
-  it("offers authorized Spaces and reports a selected Shared Space", async () => {
+  it("shows the active Space above the title", async () => {
     const { fetchMock } = createFetchMock();
-    const onSpaceChange = vi.fn<(spaceId?: string) => void>();
-    renderCategoriesPage(fetchMock, { onSpaceChange });
+    renderCategoriesPage(fetchMock, { spaceId: "99", onSpaceChange: vi.fn() });
 
     await screen.findByRole("heading", { name: "Budget overview" });
-    fireEvent.click(screen.getByRole("combobox", { name: "Active Space" }));
-
-    fireEvent.click(
-      await screen.findByRole("option", { name: "Shared Space · 99" }),
-    );
-
-    expect(onSpaceChange).toHaveBeenCalledWith("99");
+    expect(screen.getByText("Shared")).toBeTruthy();
+    expect(screen.queryByRole("combobox", { name: "Active Space" })).toBeNull();
   });
 
   it("presents a focused mobile Budget list and preserves the wider table", async () => {

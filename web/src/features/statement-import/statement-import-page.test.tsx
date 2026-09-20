@@ -70,6 +70,7 @@ function jsonResponse(body: unknown, status = 200) {
 
 function createFetchMock(
   options: {
+    readonly accessibleSpaces?: readonly Record<string, unknown>[];
     readonly createdRule?: Record<string, unknown>;
     readonly categoriesResponse?: () => readonly Record<string, unknown>[];
     readonly categoryRules?: readonly Record<string, unknown>[];
@@ -112,7 +113,14 @@ function createFetchMock(
       const path = requestUrl.pathname.slice("/api/v1/users/me".length);
       const method = init?.method ?? "GET";
 
-      if (method === "GET" && path === "/categories") {
+      if (method === "GET" && path === "/spaces") {
+        return jsonResponse(options.accessibleSpaces ?? []);
+      }
+
+      if (
+        method === "GET" &&
+        (path === "/categories" || /\/spaces\/\d+\/categories$/u.test(path))
+      ) {
         return jsonResponse(
           options.categoriesResponse?.() ?? [
             {
@@ -137,7 +145,11 @@ function createFetchMock(
         );
       }
 
-      if (method === "GET" && path === "/category-rules") {
+      if (
+        method === "GET" &&
+        (path === "/category-rules" ||
+          /\/spaces\/\d+\/category-rules$/u.test(path))
+      ) {
         if (options.failCategoryRules?.()) {
           return jsonResponse(
             {
@@ -153,17 +165,29 @@ function createFetchMock(
         return jsonResponse(options.categoryRulesResponse?.() ?? categoryRules);
       }
 
-      if (method === "GET" && path === "/statement-imports") {
+      if (
+        method === "GET" &&
+        (path === "/statement-imports" ||
+          /\/spaces\/\d+\/statement-imports$/u.test(path))
+      ) {
         return jsonResponse({ items: [], nextCursor: null });
       }
 
-      if (method === "POST" && path === "/category-rules") {
+      if (
+        method === "POST" &&
+        (path === "/category-rules" ||
+          /\/spaces\/\d+\/category-rules$/u.test(path))
+      ) {
         return options.createRuleResponse
           ? options.createRuleResponse()
           : jsonResponse(createdRule, 201);
       }
 
-      if (method === "POST" && path === "/statement-imports") {
+      if (
+        method === "POST" &&
+        (path === "/statement-imports" ||
+          /\/spaces\/\d+\/statement-imports$/u.test(path))
+      ) {
         if (options.commitResponse) return options.commitResponse();
 
         return jsonResponse(
@@ -366,6 +390,7 @@ function restoreDefaultStatement() {
 
 function renderStatementImportPage(
   fetchMock: ReturnType<typeof createFetchMock>,
+  options: { readonly spaceId?: string; readonly onSpaceChange?: (spaceId?: string) => void } = {},
 ) {
   vi.stubGlobal("fetch", fetchMock);
 
@@ -383,7 +408,11 @@ function renderStatementImportPage(
         getToken={vi.fn(async () => "session-token")}
       >
         <QueryClientProvider client={queryClient}>
-          <StatementImportPage onViewTransactions={vi.fn()} />
+          <StatementImportPage
+            spaceId={options.spaceId}
+            onSpaceChange={options.onSpaceChange}
+            onViewTransactions={vi.fn()}
+          />
         </QueryClientProvider>
       </ApiClientProvider>
     </NavigationGuardProvider>,
@@ -402,6 +431,74 @@ afterEach(() => {
     value: originalWindowWidth,
   });
   restoreDefaultStatement();
+});
+
+describe("StatementImportPage Space destination", () => {
+  it("keeps the selected destination across review and confirmation", async () => {
+    const fetchMock = createFetchMock({
+      accessibleSpaces: [
+        {
+          id: "1",
+          kind: "personal",
+          status: "active",
+          accessLevel: "write",
+          createdAt: "2026-01-01T00:00:00.000Z",
+          updatedAt: "2026-01-01T00:00:00.000Z",
+        },
+        {
+          id: "10",
+          kind: "shared",
+          status: "active",
+          accessLevel: "write",
+          createdAt: "2026-01-01T00:00:00.000Z",
+          updatedAt: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+      categoryRules: [
+        {
+          id: "10",
+          categoryId: "42",
+          pattern: "Green Market Cafe",
+          matchType: "exact",
+        },
+      ],
+    });
+    renderStatementImportPage(fetchMock, {
+      spaceId: "10",
+      onSpaceChange: vi.fn(),
+    });
+
+    await screen.findByRole("heading", { name: "Upload your statement" });
+    expect(screen.getByText("Shared")).toBeTruthy();
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining("/spaces/10/categories"),
+        expect.anything(),
+      );
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining("/spaces/10/category-rules"),
+        expect.anything(),
+      );
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining("/spaces/10/statement-imports"),
+        expect.anything(),
+      );
+    });
+
+    await uploadStatementFile("shared-statement.pdf");
+    expect(screen.getByText("Destination: Shared Space · 10")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Review 1 Transactions" }));
+    await screen.findByRole("heading", { name: "Review your imported statement" });
+    expect(screen.getByText("Destination: Shared Space · 10")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Import 1 Transactions" }));
+    await screen.findByRole("heading", { name: "Statement imported" });
+    expect(screen.getByText("Shared Space · 10")).toBeTruthy();
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/spaces/10/statement-imports"),
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
 });
 
 describe("StatementImportPage GCash recipient flow", () => {

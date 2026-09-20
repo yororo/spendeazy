@@ -7,7 +7,7 @@ import {
 } from 'typeorm';
 
 @Entity({ name: 'statement_imports' })
-@Index('ux_statement_imports_user_file_hash', ['userId', 'fileHash'], {
+@Index('ux_statement_imports_space_file_hash', ['spaceId', 'fileHash'], {
   unique: true,
 })
 @Index('ix_statement_imports_user_statement_date', ['userId', 'statementDate'])

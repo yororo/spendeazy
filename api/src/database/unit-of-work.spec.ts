@@ -20,6 +20,7 @@ describe('TypeOrmStatementImportConfirmationUnitOfWork', () => {
         expect(Object.keys(context).sort()).toEqual([
           'categories',
           'importedTransactions',
+          'spaces',
           'statementImports',
           'users',
         ]);

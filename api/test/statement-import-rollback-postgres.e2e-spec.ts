@@ -6,10 +6,14 @@ import {
   DATABASE_MIGRATIONS,
 } from '../src/database/database-options';
 import { CategoryEntity } from '../src/database/entities/category.entity';
+import { SpaceEntity } from '../src/database/entities/space.entity';
 import { StatementImportEntity } from '../src/database/entities/statement-import.entity';
 import { TransactionEntity } from '../src/database/entities/transaction.entity';
 import { UserEntity } from '../src/database/entities/user.entity';
-import { StatementImportsService } from '../src/statement-imports/application/statement-imports.service';
+import {
+  computeImportFingerprint,
+  StatementImportsService,
+} from '../src/statement-imports/application/statement-imports.service';
 import { TypeOrmStatementImportConfirmationUnitOfWork } from '../src/database/unit-of-work';
 import { TypeOrmStatementImportStore } from '../src/statement-imports/infrastructure/typeorm-statement-import-store';
 
@@ -19,6 +23,7 @@ describe('Statement Import rollback with PostgreSQL', () => {
   let database: DataSource;
   let service: StatementImportsService;
   let userId: string | undefined;
+  let sharedSpaceId: string | undefined;
   let failureTrigger: FailureTrigger | undefined;
 
   beforeAll(async () => {
@@ -92,6 +97,10 @@ describe('Statement Import rollback with PostgreSQL', () => {
     await database.getRepository(TransactionEntity).delete({ userId });
     await database.getRepository(StatementImportEntity).delete({ userId });
     await database.getRepository(CategoryEntity).delete({ userId });
+    if (sharedSpaceId !== undefined) {
+      await database.getRepository(SpaceEntity).delete({ id: sharedSpaceId });
+      sharedSpaceId = undefined;
+    }
     await database.getRepository(UserEntity).delete({ id: userId });
     userId = undefined;
   });
@@ -126,8 +135,9 @@ describe('Statement Import rollback with PostgreSQL', () => {
 
     failureTrigger = await installFailureTrigger(database, failureDescription);
 
+    const spaceId = existingImport.spaceId;
     await expect(
-      service.commitReviewedStatementImport(currentUserId, {
+      service.commitReviewedStatementImportInSpace(currentUserId, spaceId, {
         fileName: 'attempted-import.pdf',
         fileHash: targetFileHash,
         statementDate: '2026-09-01',
@@ -192,6 +202,78 @@ describe('Statement Import rollback with PostgreSQL', () => {
       database
         .getRepository(TransactionEntity)
         .countBy({ userId: currentUserId }),
+    ).resolves.toBe(1);
+  });
+
+  it('allows the same file in another Space without cross-Space duplicate warnings', async () => {
+    const currentUserId = userId;
+    if (currentUserId === undefined) {
+      throw new Error('The cross-Space test User was not created');
+    }
+
+    const existingImport = await database
+      .getRepository(StatementImportEntity)
+      .findOneByOrFail({ userId: currentUserId, fileName: 'existing.pdf' });
+    const existingTransaction = await database
+      .getRepository(TransactionEntity)
+      .findOneByOrFail({
+        userId: currentUserId,
+        statementImportId: existingImport.id,
+      });
+    const sharedSpace = await database.getRepository(SpaceEntity).save({
+      kind: 'shared',
+      status: 'active',
+      categoryRulesRevision: '0',
+      personalOwnerUserId: null,
+    });
+    sharedSpaceId = sharedSpace.id;
+    const sharedCategory = await database.getRepository(CategoryEntity).save({
+      userId: currentUserId,
+      spaceId: sharedSpace.id,
+      name: 'Shared category',
+      isActive: true,
+    });
+    const input = {
+      fileName: existingImport.fileName,
+      fileHash: existingImport.fileHash,
+      statementDate: existingImport.statementDate,
+      bank: existingImport.bank,
+      cardType: existingImport.cardType,
+      transactions: [
+        {
+          categoryId: sharedCategory.id,
+          purchaseDate: existingTransaction.purchaseDate,
+          description: existingTransaction.description,
+          amount: existingTransaction.amount,
+          categoryMatchConfidence: null,
+        },
+      ],
+    };
+    existingTransaction.importFingerprint = computeImportFingerprint(
+      input,
+      input.transactions[0],
+    );
+    await database.getRepository(TransactionEntity).save(existingTransaction);
+
+    const committedImport = await service.commitReviewedStatementImportInSpace(
+      currentUserId,
+      sharedSpace.id,
+      input,
+    );
+
+    expect(committedImport.spaceId).toBe(sharedSpace.id);
+    await expect(
+      database.getRepository(StatementImportEntity).countBy({
+        userId: currentUserId,
+        fileHash: existingImport.fileHash,
+      }),
+    ).resolves.toBe(2);
+    await expect(
+      database.getRepository(TransactionEntity).countBy({
+        userId: currentUserId,
+        spaceId: sharedSpace.id,
+        importFingerprint: existingTransaction.importFingerprint,
+      }),
     ).resolves.toBe(1);
   });
 });

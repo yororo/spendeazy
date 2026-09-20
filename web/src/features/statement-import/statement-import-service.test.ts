@@ -353,6 +353,42 @@ describe("Statement Import categorization", () => {
     );
   });
 
+  it("loads Statement Import dependencies from an explicit destination Space", async () => {
+    const get = vi.fn(async (path: string) => {
+      if (path === "/spaces/10/categories") {
+        return [
+          {
+            id: "42",
+            name: "Housing",
+            description: null,
+            color: "teal",
+            isActive: true,
+          },
+        ];
+      }
+      if (path === "/spaces/10/statement-imports?pageSize=3") {
+        return { items: [], nextCursor: null };
+      }
+      throw new Error(`Unexpected GET ${path}`);
+    });
+    const apiClient = { get } as unknown as StatementImportApiClient;
+
+    await expect(getCategoryOptions(apiClient, undefined, "10")).resolves.toEqual([
+      { value: "42", label: "Housing", color: "teal" },
+    ]);
+    await expect(getRecentImports(apiClient, undefined, "10")).resolves.toEqual(
+      [],
+    );
+    expect(get).toHaveBeenNthCalledWith(1, "/spaces/10/categories", {
+      signal: undefined,
+    });
+    expect(get).toHaveBeenNthCalledWith(
+      2,
+      "/spaces/10/statement-imports?pageSize=3",
+      { signal: undefined },
+    );
+  });
+
   it("posts a normalized new Category Rule", async () => {
     const post = vi.fn(async (...args: [string, unknown]) => {
       void args;
@@ -783,6 +819,31 @@ describe("Statement Import commit", () => {
       { signal: undefined },
     );
     expect(post.mock.calls[0]?.[1]).not.toHaveProperty("file");
+  });
+
+  it("commits reviewed data to an explicit destination Space", async () => {
+    const file = new File(["hello"], "statement.pdf", {
+      type: "application/pdf",
+    });
+    const post = vi.fn(async () => ({
+      id: "100",
+      fileName: "statement.pdf",
+      statementDate: "2026-08-31",
+      bank: "BDO",
+      cardType: "AMEX",
+      importedAt: "2026-09-01T00:00:00.000Z",
+    }));
+    const apiClient = { post } as unknown as StatementImportApiClient;
+
+    await commitStatementImport(apiClient, file, createCategorizedStatement(), {
+      spaceId: "10",
+    });
+
+    expect(post).toHaveBeenCalledWith(
+      "/spaces/10/statement-imports",
+      expect.any(Object),
+      { signal: undefined },
+    );
   });
 
   it("leaves exact file duplicate conflicts terminal", async () => {

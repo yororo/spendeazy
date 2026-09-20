@@ -43,6 +43,7 @@ import type {
   StatementImportHistoryRecord,
   StatementImportRecord,
 } from '../src/statement-imports/application/statement-import-store';
+import { SpaceAccessService } from '../src/spaces/application/space-access.service';
 import { UsersService } from '../src/users/application/users.service';
 import {
   USER_STORE,
@@ -102,6 +103,10 @@ describe('runtime responses against the generated OpenAPI contract', () => {
     listStatementImports: jest.Mock;
     commitReviewedStatementImport: jest.Mock;
   };
+  let spaceAccessService: {
+    requirePersonalSpace: jest.Mock;
+    requirePersonalWriteSpace: jest.Mock;
+  };
 
   beforeAll(async () => {
     document = await createOpenApiDocument();
@@ -145,6 +150,10 @@ describe('runtime responses against the generated OpenAPI contract', () => {
       listStatementImports: jest.fn(),
       commitReviewedStatementImport: jest.fn(),
     };
+    spaceAccessService = {
+      requirePersonalSpace: jest.fn(),
+      requirePersonalWriteSpace: jest.fn(),
+    };
 
     const testingModule = Test.createTestingModule({
       imports: [OpenApiModule],
@@ -175,7 +184,9 @@ describe('runtime responses against the generated OpenAPI contract', () => {
       .overrideProvider(TransactionsService)
       .useValue(transactionsService)
       .overrideProvider(StatementImportsService)
-      .useValue(statementImportsService);
+      .useValue(statementImportsService)
+      .overrideProvider(SpaceAccessService)
+      .useValue(spaceAccessService);
     const module = await testingModule.compile();
 
     app = module.createNestApplication();
@@ -981,6 +992,12 @@ describe('runtime responses against the generated OpenAPI contract', () => {
     statementImportsService.commitReviewedStatementImport
       .mockReset()
       .mockResolvedValue(statementImportRecord());
+    spaceAccessService.requirePersonalSpace
+      .mockReset()
+      .mockResolvedValue(undefined);
+    spaceAccessService.requirePersonalWriteSpace
+      .mockReset()
+      .mockResolvedValue(undefined);
   }
 });
 

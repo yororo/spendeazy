@@ -1,4 +1,9 @@
-import { ApiProperty, ApiSchema, getSchemaPath } from '@nestjs/swagger';
+import {
+  ApiProperty,
+  ApiPropertyOptional,
+  ApiSchema,
+  getSchemaPath,
+} from '@nestjs/swagger';
 import {
   DOMAIN_DATE_PATTERN,
   POSITIVE_INTEGER_ID_PATTERN,
@@ -12,7 +17,7 @@ type ApiSchemaOptionsWithAdditionalProperties = {
 
 @ApiSchema({
   description:
-    'A committed Statement import owned by the authenticated User. Client file hashes and persistence fields are not returned.',
+    'A committed Statement import in the destination Space, attributed to the importing User. Client file hashes and persistence fields are not returned.',
   additionalProperties: false,
 } as ApiSchemaOptionsWithAdditionalProperties)
 export class StatementImportResponseDto {
@@ -68,11 +73,19 @@ export class StatementImportResponseDto {
     example: '2026-08-29T00:00:00.000Z',
   })
   importedAt!: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Positive bigint User identifier for the contributor who imported the Statement, encoded as a string.',
+    pattern: POSITIVE_INTEGER_ID_PATTERN.source,
+    example: '7',
+  })
+  importedByUserId?: string;
 }
 
 @ApiSchema({
   description:
-    'A Statement import in the authenticated User history collection, including its committed Transaction count.',
+    'A Statement import in the destination Space history collection, including its committed Transaction count.',
   additionalProperties: false,
 } as ApiSchemaOptionsWithAdditionalProperties)
 export class StatementImportHistoryResponseDto {
@@ -128,6 +141,14 @@ export class StatementImportHistoryResponseDto {
     example: '2026-08-29T00:00:00.000Z',
   })
   importedAt!: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Positive bigint User identifier for the contributor who imported the Statement, encoded as a string.',
+    pattern: POSITIVE_INTEGER_ID_PATTERN.source,
+    example: '7',
+  })
+  importedByUserId?: string;
 
   @ApiProperty({
     description:

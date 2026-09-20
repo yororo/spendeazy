@@ -13,7 +13,7 @@ import {
   ReportingPeriodFilter,
   useReportingPeriod,
 } from "@/shared/reporting-period";
-import { MetricCard, SpaceSelector } from "@/shared/ui";
+import { ActiveSpaceLabel, MetricCard } from "@/shared/ui";
 
 import { CategoryBreakdown } from "./category-breakdown";
 import { useDashboardQuery } from "./dashboard-queries";
@@ -66,6 +66,7 @@ function DashboardPage({ spaceId, onSpaceChange }: DashboardPageProps = {}) {
     >
       <header className="mb-6 flex flex-col gap-5 border-b border-foreground pb-5 md:flex-row md:items-end md:justify-between">
         <div>
+          <ActiveSpaceLabel spaceId={spaceId} />
           <p className="text-label text-muted-foreground">
             Dashboard / Monthly expenses
           </p>
@@ -78,17 +79,6 @@ function DashboardPage({ spaceId, onSpaceChange }: DashboardPageProps = {}) {
           </p>
         </div>
         <div className="flex items-center gap-2 md:flex-wrap">
-          {onSpaceChange !== undefined && (
-            <SpaceSelector
-              id="dashboard-space"
-              spaceId={spaceId}
-              spaces={spacesQuery.data}
-              spacesPending={spacesQuery.isPending}
-              spacesError={spacesQuery.isError}
-              disabled={dashboardQuery.isFetching && dashboardQuery.isPlaceholderData}
-              onSpaceChange={onSpaceChange}
-            />
-          )}
           <div className="min-w-0 flex-1 md:flex-none">
             <ReportingPeriodFilter id="dashboard-reporting-period" />
           </div>

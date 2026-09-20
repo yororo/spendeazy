@@ -218,7 +218,7 @@ describe("Statement Import workflow", () => {
     expect(workflow.getSnapshot().stage).toBe("review");
   });
 
-  it("remembers a rule and reclassifies only eligible nonmanual Transactions", async () => {
+  it("remembers a rule without rewriting other reviewed Transactions", async () => {
     const rememberCategoryRule = vi.fn(
       async (input: RememberCategoryRuleInput) => ({
         status: "created" as const,
@@ -288,8 +288,9 @@ describe("Statement Import workflow", () => {
       }),
       expect.objectContaining({
         id: "transaction-2",
-        assignment: "rule",
-        categoryId: "42",
+        assignment: "unmapped",
+        categoryId: null,
+        matchedCategoryIds: [],
       }),
       manualTransaction,
       excludedTransaction,

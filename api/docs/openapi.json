@@ -3143,6 +3143,251 @@
           "Statement imports"
         ]
       }
+    },
+    "/api/v1/users/me/spaces/{spaceId}/statement-imports/{statementImportId}": {
+      "get": {
+        "operationId": "SpaceStatementImports_getStatementImport",
+        "parameters": [
+          {
+            "name": "spaceId",
+            "required": true,
+            "in": "path",
+            "description": "Positive bigint Space identifier encoded as a string.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9]\\d*$",
+              "example": "7"
+            }
+          },
+          {
+            "name": "statementImportId",
+            "required": true,
+            "in": "path",
+            "description": "Positive bigint identifier encoded as a decimal JSON string.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9]\\d*$",
+              "example": "42"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Statement import.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatementImportResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthenticatedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/UserNotProvisionedError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          },
+          "406": {
+            "$ref": "#/components/responses/NotAcceptableError"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Get a Statement Import in an authorized Space.",
+        "tags": [
+          "Statement imports"
+        ]
+      }
+    },
+    "/api/v1/users/me/spaces/{spaceId}/statement-imports": {
+      "get": {
+        "description": "Returns committed Statement Imports in the authorized Space in statementDate descending, then Statement Import ID descending order. Exact-file and probable-duplicate state is scoped to this destination Space.",
+        "operationId": "SpaceStatementImports_listStatementImports",
+        "parameters": [
+          {
+            "name": "spaceId",
+            "required": true,
+            "in": "path",
+            "description": "Positive bigint Space identifier encoded as a string.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9]\\d*$",
+              "example": "7"
+            }
+          },
+          {
+            "name": "fromDate",
+            "required": false,
+            "in": "query",
+            "description": "Inclusive lower Statement import date. It must be a valid calendar date in YYYY-MM-DD format and be on or before toDate when both filters are supplied.",
+            "schema": {
+              "format": "date",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "example": "2026-08-01",
+              "type": "string"
+            }
+          },
+          {
+            "name": "toDate",
+            "required": false,
+            "in": "query",
+            "description": "Inclusive upper Statement import date. It must be a valid calendar date in YYYY-MM-DD format.",
+            "schema": {
+              "format": "date",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "example": "2026-08-31",
+              "type": "string"
+            }
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "description": "Number of Statement imports to return per page. Must be between 1 and 100 inclusive; defaults to 20. The cursor is not coupled to page size.",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "example": 20,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "Opaque base64url cursor for the next page. Reuse it only with the same date filters; cursors encode the fixed statementDate-descending, ID-descending ordering.",
+            "schema": {
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9_-]+$",
+              "example": "eyJ2ZXJzaW9uIjoxLCJvcmRlcmluZyI6InN0YXRlbWVudERhdGU6ZGVzYy...",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Statement-import history page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatementImportHistoryPageResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthenticatedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/UserNotProvisionedError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          },
+          "406": {
+            "$ref": "#/components/responses/NotAcceptableError"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "List Statement Import history in an authorized Space.",
+        "tags": [
+          "Statement imports"
+        ]
+      },
+      "post": {
+        "description": "Revalidates reviewed Categories and duplicate state for the destination Space, then commits the Statement Import and all selected Transactions atomically. The importing User is retained as the Statement Import and Transaction contributor.",
+        "operationId": "SpaceStatementImports_commitReviewedStatementImport",
+        "parameters": [
+          {
+            "name": "spaceId",
+            "required": true,
+            "in": "path",
+            "description": "Positive bigint Space identifier encoded as a string.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9]\\d*$",
+              "example": "7"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommitReviewedStatementImportDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Statement import committed.",
+            "headers": {
+              "Location": {
+                "required": true,
+                "description": "Relative canonical URI of the created Statement Import.",
+                "schema": {
+                  "type": "string",
+                  "example": "/api/v1/users/me/spaces/7/statement-imports/42"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatementImportResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthenticatedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/UserNotProvisionedError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          },
+          "406": {
+            "$ref": "#/components/responses/NotAcceptableError"
+          },
+          "409": {
+            "$ref": "#/components/responses/ProbableDuplicateConflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/HttpError"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaTypeError"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Commit a reviewed Statement Import into an authorized Space.",
+        "tags": [
+          "Statement imports"
+        ]
+      }
     }
   },
   "info": {
@@ -4843,9 +5088,15 @@
             "description": "UTC timestamp when the Statement import was committed.",
             "format": "date-time",
             "example": "2026-08-29T00:00:00.000Z"
+          },
+          "importedByUserId": {
+            "type": "string",
+            "description": "Positive bigint User identifier for the contributor who imported the Statement, encoded as a string.",
+            "pattern": "^[1-9]\\d*$",
+            "example": "7"
           }
         },
-        "description": "A committed Statement import owned by the authenticated User. Client file hashes and persistence fields are not returned.",
+        "description": "A committed Statement import in the destination Space, attributed to the importing User. Client file hashes and persistence fields are not returned.",
         "additionalProperties": false,
         "required": [
           "id",
@@ -4903,6 +5154,12 @@
             "format": "date-time",
             "example": "2026-08-29T00:00:00.000Z"
           },
+          "importedByUserId": {
+            "type": "string",
+            "description": "Positive bigint User identifier for the contributor who imported the Statement, encoded as a string.",
+            "pattern": "^[1-9]\\d*$",
+            "example": "7"
+          },
           "transactionCount": {
             "type": "string",
             "description": "Non-negative committed Transaction count encoded as a string.",
@@ -4910,7 +5167,7 @@
             "example": "12"
           }
         },
-        "description": "A Statement import in the authenticated User history collection, including its committed Transaction count.",
+        "description": "A Statement import in the destination Space history collection, including its committed Transaction count.",
         "additionalProperties": false,
         "required": [
           "id",
@@ -4946,6 +5203,27 @@
         "required": [
           "items",
           "nextCursor"
+        ]
+      },
+      "SpaceStatementImportParamsDto": {
+        "type": "object",
+        "properties": {
+          "spaceId": {
+            "type": "string",
+            "description": "Positive bigint Space identifier encoded as a decimal string.",
+            "pattern": "^[1-9]\\d*$",
+            "example": "7"
+          },
+          "statementImportId": {
+            "type": "string",
+            "description": "Positive bigint Statement import identifier encoded as a decimal string.",
+            "pattern": "^[1-9]\\d*$",
+            "example": "42"
+          }
+        },
+        "required": [
+          "spaceId",
+          "statementImportId"
         ]
       }
     },

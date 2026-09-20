@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { ActiveSpaceLabel } from "@/shared/ui";
 import {
   ArrowLeftIcon,
   ArrowRightIcon,
@@ -85,6 +86,8 @@ interface CategorizeStatementProps {
   categoryOptions: readonly CategoryColorOption[];
   categoryLabels: readonly CategoryCatalogOption[];
   categoryRules: readonly CategoryRule[];
+  destinationLabel?: string;
+  spaceId?: string;
   fileName: string;
   statementSummary: CategorizedStatement["summary"];
   transactions: readonly CategorizedTransaction[];
@@ -118,6 +121,8 @@ function CategorizeStatement({
   categoryOptions,
   categoryLabels,
   categoryRules,
+  destinationLabel,
+  spaceId,
   fileName,
   statementSummary,
   transactions,
@@ -259,12 +264,18 @@ function CategorizeStatement({
     <div className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-screen-2xl flex-col gap-6 px-4 py-6 sm:px-6 lg:min-h-screen lg:px-9 lg:py-7">
       <header className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
         <div>
+          <ActiveSpaceLabel spaceId={spaceId} />
           <p className="text-label text-muted-foreground">
             Imports / Categorize
           </p>
           <h1 className="mt-1 font-mono text-2xl font-bold tracking-tight md:text-3xl">
             Categorize and update
           </h1>
+          {destinationLabel && (
+            <p className="mt-2 font-mono text-xs font-semibold uppercase text-muted-foreground">
+              Destination: {destinationLabel}
+            </p>
+          )}
         </div>
         <ImportProgress
           currentStep="Categorize"

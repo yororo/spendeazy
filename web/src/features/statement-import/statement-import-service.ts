@@ -74,6 +74,7 @@ interface RecentImport {
   readonly statementDate: string;
   readonly provider: string;
   readonly accountType: string | null;
+  readonly importedByUserId?: string;
 }
 
 interface RememberCategoryRuleInput {
@@ -96,6 +97,7 @@ type RememberCategoryRuleResult =
 interface CommitStatementImportOptions {
   readonly acknowledgeProbableDuplicates?: boolean;
   readonly signal?: AbortSignal;
+  readonly spaceId?: string;
 }
 
 interface CommittedStatementImport {
@@ -106,6 +108,7 @@ interface CommittedStatementImport {
   readonly accountType: string | null;
   readonly importedAt: string;
   readonly transactionCount: number;
+  readonly importedByUserId?: string;
 }
 
 type StatementImportApiClient = Pick<ApiClient, "get" | "post">;
@@ -162,12 +165,16 @@ function projectCategoryRule(rule: CategoryRuleResponse): CategoryRule {
 async function getCategoryCatalogOptions(
   apiClient: StatementImportApiClient,
   signal?: AbortSignal,
+  spaceId?: string,
 ): Promise<readonly CategoryCatalogOption[]> {
   const response = requireCategoryCatalog(
     requireApiResponse(
-      await apiClient.get<readonly CategoryCatalogItem[]>("/categories", {
-        signal,
-      }),
+      await apiClient.get<readonly CategoryCatalogItem[]>(
+        spaceId === undefined
+          ? "/categories"
+          : `/spaces/${encodeURIComponent(spaceId)}/categories`,
+        { signal },
+      ),
       "Category catalog",
       createStatementImportDataError,
     ),
@@ -184,8 +191,13 @@ async function getCategoryCatalogOptions(
 async function getCategoryOptions(
   apiClient: StatementImportApiClient,
   signal?: AbortSignal,
+  spaceId?: string,
 ): Promise<readonly CategoryColorOption[]> {
-  const categoryCatalog = await getCategoryCatalogOptions(apiClient, signal);
+  const categoryCatalog = await getCategoryCatalogOptions(
+    apiClient,
+    signal,
+    spaceId,
+  );
 
   return categoryCatalog
     .filter((category) => category.isActive)
@@ -231,14 +243,22 @@ function projectRecentImport(
       .toLocaleUpperCase(),
     provider: item.bank,
     accountType: item.cardType,
+    ...(item.importedByUserId === undefined
+      ? {}
+      : { importedByUserId: item.importedByUserId }),
   };
 }
 
 async function getRecentImports(
   apiClient: StatementImportApiClient,
   signal?: AbortSignal,
+  spaceId?: string,
 ): Promise<readonly RecentImport[]> {
-  const path = buildApiPath("/statement-imports", {
+  const collectionPath =
+    spaceId === undefined
+      ? "/statement-imports"
+      : `/spaces/${encodeURIComponent(spaceId)}/statement-imports`;
+  const path = buildApiPath(collectionPath, {
     pageSize: String(RECENT_IMPORT_PAGE_SIZE),
   });
   const response = requireStatementImportHistoryPage(
@@ -566,7 +586,9 @@ async function commitStatementImport(
   const response = requireStatementImport(
     requireApiResponse(
       await apiClient.post<StatementImportResponse>(
-        "/statement-imports",
+        options.spaceId === undefined
+          ? "/statement-imports"
+          : `/spaces/${encodeURIComponent(options.spaceId)}/statement-imports`,
         payload,
         { signal: options.signal },
       ),
@@ -584,6 +606,9 @@ async function commitStatementImport(
     accountType: response.cardType,
     importedAt: response.importedAt,
     transactionCount: payload.transactions.length,
+    ...(response.importedByUserId === undefined
+      ? {}
+      : { importedByUserId: response.importedByUserId }),
   };
 }
 

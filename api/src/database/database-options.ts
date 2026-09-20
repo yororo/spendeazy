@@ -15,6 +15,7 @@ import { AddCategoryColor1740000000000 } from './migrations/1740000000000-add-ca
 import { IntroducePersonalSpaces1750000000000 } from './migrations/1750000000000-introduce-personal-spaces';
 import { ScopeCategoryNamesToSpaces1760000000000 } from './migrations/1760000000000-scope-category-names-to-spaces';
 import { ScopeCategoryRulesToSpaces1770000000000 } from './migrations/1770000000000-scope-category-rules-to-spaces';
+import { ScopeStatementImportDuplicatesToSpaces1780000000000 } from './migrations/1780000000000-scope-statement-import-duplicates-to-spaces';
 
 export const DATABASE_MIGRATIONS = [
   CreateExpenseTrackerSchema1710000000000,
@@ -24,6 +25,7 @@ export const DATABASE_MIGRATIONS = [
   IntroducePersonalSpaces1750000000000,
   ScopeCategoryNamesToSpaces1760000000000,
   ScopeCategoryRulesToSpaces1770000000000,
+  ScopeStatementImportDuplicatesToSpaces1780000000000,
 ];
 
 export const DATABASE_ENTITIES = [

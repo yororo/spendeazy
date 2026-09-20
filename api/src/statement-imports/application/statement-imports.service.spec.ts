@@ -95,6 +95,50 @@ describe('StatementImportsService', () => {
     ).toBe(true);
   });
 
+  it('commits a reviewed import into the destination Space with importer attribution', async () => {
+    const statementImports = new StatementImportStoreFake();
+    const importedTransactions = new ImportedTransactionStoreFake();
+    const categories = new TransactionCategoryStoreFake([
+      categoryRecord({ id: '42', spaceId: '55' }),
+    ]);
+    const unitOfWork = new UnitOfWorkFake({
+      users: userStore(),
+      statementImports,
+      importedTransactions,
+      categories,
+      spaces: statementImports,
+    });
+    const service = new StatementImportsService(statementImports, unitOfWork);
+
+    await service.commitReviewedStatementImportInSpace(
+      '7',
+      '55',
+      statementInput(),
+    );
+
+    expect(statementImports.spaceFileHashQuery).toEqual({
+      spaceId: '55',
+      fileHash: validFileHash(),
+    });
+    expect(statementImports.spaceLockQueries).toEqual(['55']);
+    expect(statementImports.createdInput).toMatchObject({
+      userId: '7',
+      spaceId: '55',
+      importedByUserId: '7',
+    });
+    expect(importedTransactions.spaceFingerprintQueries).toHaveLength(2);
+    expect(importedTransactions.createdInputs).toHaveLength(2);
+    expect(importedTransactions.createdInputs).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          userId: '7',
+          spaceId: '55',
+          addedByUserId: '7',
+        }),
+      ]),
+    );
+  });
+
   it('rejects an exact file duplicate before creating any records', async () => {
     const statementImports = new StatementImportStoreFake([
       statementRecord({ fileHash: validFileHash() }),
@@ -436,6 +480,8 @@ class UnitOfWorkFake implements StatementImportConfirmationUnitOfWork {
 class StatementImportStoreFake implements StatementImportStore {
   createdInput: NewStatementImport | undefined;
   createdImport: StatementImportRecord | undefined;
+  spaceFileHashQuery: { spaceId: string; fileHash: string } | undefined;
+  spaceLockQueries: string[] = [];
   pageQuery: StatementImportHistoryPageQuery | undefined;
   pageResults: StatementImportHistoryRecord[];
 
@@ -472,11 +518,45 @@ class StatementImportStoreFake implements StatementImportStore {
     );
   }
 
+  findByFileHashInSpace(
+    spaceId: string,
+    fileHash: string,
+  ): Promise<StatementImportRecord | null> {
+    this.spaceFileHashQuery = { spaceId, fileHash };
+    return Promise.resolve(
+      this.imports.find(
+        (statementImport) =>
+          statementImport.spaceId === spaceId &&
+          statementImport.fileHash === fileHash,
+      ) ?? null,
+    );
+  }
+
+  findByIdInSpace(
+    spaceId: string,
+    statementImportId: string,
+  ): Promise<StatementImportRecord | null> {
+    return Promise.resolve(
+      this.imports.find(
+        (statementImport) =>
+          statementImport.spaceId === spaceId &&
+          statementImport.id === statementImportId,
+      ) ?? null,
+    );
+  }
+
+  lockForStatementImport(spaceId: string): Promise<void> {
+    this.spaceLockQueries.push(spaceId);
+    return Promise.resolve();
+  }
+
   create(input: NewStatementImport): Promise<StatementImportRecord> {
     this.createdInput = input;
     this.createdImport = statementRecord({
       id: '100',
       userId: input.userId,
+      spaceId: input.spaceId,
+      importedByUserId: input.importedByUserId,
       fileName: input.fileName,
       fileHash: input.fileHash,
       statementDate: input.statementDate,
@@ -497,10 +577,22 @@ class StatementImportStoreFake implements StatementImportStore {
       ),
     );
   }
+
+  findPageInSpace(
+    query: import('./statement-import-store').SpaceStatementImportHistoryPageQuery,
+  ): Promise<StatementImportHistoryRecord[]> {
+    return Promise.resolve(
+      this.pageResults.filter(
+        (statementImport) => statementImport.spaceId === query.spaceId,
+      ),
+    );
+  }
 }
 
 class ImportedTransactionStoreFake implements ImportedTransactionStore {
   readonly createdInputs: NewImportedTransaction[] = [];
+  readonly spaceFingerprintQueries: { spaceId: string; fingerprint: string }[] =
+    [];
   failOnCreateNumber: number | undefined;
 
   constructor(
@@ -518,6 +610,14 @@ class ImportedTransactionStoreFake implements ImportedTransactionStore {
     _userId: string,
     fingerprint: string,
   ): Promise<ImportedTransactionRecord[]> {
+    return Promise.resolve(this.matchesByFingerprint.get(fingerprint) ?? []);
+  }
+
+  findByFingerprintInSpace(
+    spaceId: string,
+    fingerprint: string,
+  ): Promise<ImportedTransactionRecord[]> {
+    this.spaceFingerprintQueries.push({ spaceId, fingerprint });
     return Promise.resolve(this.matchesByFingerprint.get(fingerprint) ?? []);
   }
 
@@ -555,6 +655,17 @@ class TransactionCategoryStoreFake implements TransactionCategoryStore {
     return Promise.resolve(
       this.categories.find(
         (category) => category.userId === userId && category.id === id,
+      ) ?? null,
+    );
+  }
+
+  findBySpaceId(
+    spaceId: string,
+    id: string,
+  ): Promise<TransactionCategoryRecord | null> {
+    return Promise.resolve(
+      this.categories.find(
+        (category) => category.spaceId === spaceId && category.id === id,
       ) ?? null,
     );
   }

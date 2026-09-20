@@ -169,6 +169,7 @@ async function listTransactions(
     apiClient,
     transactionPage.items,
     signal,
+    params.spaceId,
   );
   const categoryById = projectCategoryCatalog(categories);
 

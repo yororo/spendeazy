@@ -102,10 +102,13 @@ describe('OpenAPI document factory', () => {
         `DELETE ${apiRoot}/users/me/spaces/{spaceId}/categories/{categoryId}/budget`,
         `DELETE ${apiRoot}/users/me/spaces/{spaceId}/category-rules/{ruleId}`,
         `GET ${apiRoot}/users/me/spaces/{spaceId}/category-summaries`,
+        `GET ${apiRoot}/users/me/spaces/{spaceId}/statement-imports`,
+        `GET ${apiRoot}/users/me/spaces/{spaceId}/statement-imports/{statementImportId}`,
         `GET ${apiRoot}/users/me/spaces/{spaceId}/transactions`,
         `GET ${apiRoot}/users/me/spaces/{spaceId}/transactions/{transactionId}`,
         `PATCH ${apiRoot}/users/me/spaces/{spaceId}/transactions/{transactionId}`,
         `POST ${apiRoot}/users/me/spaces/{spaceId}/transactions`,
+        `POST ${apiRoot}/users/me/spaces/{spaceId}/statement-imports`,
         `DELETE ${apiRoot}/users/me/spaces/{spaceId}/transactions/{transactionId}`,
       ].sort(),
     );

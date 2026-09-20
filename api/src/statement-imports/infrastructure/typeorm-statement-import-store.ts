@@ -2,19 +2,24 @@ import { Injectable } from '@nestjs/common';
 import { InjectEntityManager } from '@nestjs/typeorm';
 import { QueryFailedError, type EntityManager } from 'typeorm';
 import { POSTGRES_UNIQUE_VIOLATION } from '../../database/database-error-codes';
+import { SpaceEntity } from '../../database/entities/space.entity';
 import { StatementImportEntity } from '../../database/entities/statement-import.entity';
 import { TransactionEntity } from '../../database/entities/transaction.entity';
 import { StatementImportFileAlreadyExistsError } from '../application/statement-import-errors';
+import { SpaceNotFoundError } from '../../spaces/application/space-errors';
 import type {
   NewStatementImport,
   StatementImportHistoryPageQuery,
   StatementImportHistoryRecord,
   StatementImportRecord,
   StatementImportStore,
+  SpaceStatementImportHistoryPageQuery,
 } from '../application/statement-import-store';
 
-const STATEMENT_IMPORT_FILE_HASH_UNIQUE_CONSTRAINT =
-  'ux_statement_imports_user_file_hash';
+const STATEMENT_IMPORT_FILE_HASH_UNIQUE_CONSTRAINTS = new Set([
+  'ux_statement_imports_space_file_hash',
+  'ux_statement_imports_user_file_hash',
+]);
 
 @Injectable()
 export class TypeOrmStatementImportStore implements StatementImportStore {
@@ -23,6 +28,17 @@ export class TypeOrmStatementImportStore implements StatementImportStore {
     public readonly entityManager: EntityManager,
   ) {}
 
+  async lockForStatementImport(spaceId: string): Promise<void> {
+    const space = await this.entityManager
+      .getRepository(SpaceEntity)
+      .createQueryBuilder('space')
+      .where('space.id = :spaceId', { spaceId })
+      .setLock('pessimistic_write')
+      .getOne();
+
+    if (!space) throw new SpaceNotFoundError();
+  }
+
   async findById(
     userId: string,
     statementImportId: string,
@@ -30,6 +46,17 @@ export class TypeOrmStatementImportStore implements StatementImportStore {
     const entity = await this.entityManager
       .getRepository(StatementImportEntity)
       .findOne({ where: { id: statementImportId, userId } });
+
+    return entity ? toRecord(entity) : null;
+  }
+
+  async findByIdInSpace(
+    spaceId: string,
+    statementImportId: string,
+  ): Promise<StatementImportRecord | null> {
+    const entity = await this.entityManager
+      .getRepository(StatementImportEntity)
+      .findOne({ where: { id: statementImportId, spaceId } });
 
     return entity ? toRecord(entity) : null;
   }
@@ -47,8 +74,33 @@ export class TypeOrmStatementImportStore implements StatementImportStore {
     return entity ? toRecord(entity) : null;
   }
 
+  async findByFileHashInSpace(
+    spaceId: string,
+    fileHash: string,
+  ): Promise<StatementImportRecord | null> {
+    const entity = await this.entityManager
+      .getRepository(StatementImportEntity)
+      .findOne({ where: { spaceId, fileHash } });
+
+    return entity ? toRecord(entity) : null;
+  }
+
   async findPage(
     query: StatementImportHistoryPageQuery,
+  ): Promise<StatementImportHistoryRecord[]> {
+    return this.findPageForScope(query, { userId: query.userId });
+  }
+
+  async findPageInSpace(
+    query: SpaceStatementImportHistoryPageQuery,
+  ): Promise<StatementImportHistoryRecord[]> {
+    return this.findPageForScope(query, { spaceId: query.spaceId });
+  }
+
+  private async findPageForScope(
+    query:
+      StatementImportHistoryPageQuery | SpaceStatementImportHistoryPageQuery,
+    scope: { userId?: string; spaceId?: string },
   ): Promise<StatementImportHistoryRecord[]> {
     const statementImportQuery = this.entityManager
       .getRepository(StatementImportEntity)
@@ -56,10 +108,17 @@ export class TypeOrmStatementImportStore implements StatementImportStore {
       .leftJoin(
         TransactionEntity,
         'transaction',
-        'transaction.statementImportId = statementImport.id AND transaction.userId = statementImport.userId',
+        scope.spaceId === undefined
+          ? 'transaction.statementImportId = statementImport.id AND transaction.userId = statementImport.userId'
+          : 'transaction.statementImportId = statementImport.id AND transaction.spaceId = statementImport.spaceId',
       )
       .addSelect('COUNT(transaction.id)', 'transactionCount')
-      .where('statementImport.userId = :userId', { userId: query.userId });
+      .where(
+        scope.spaceId === undefined
+          ? 'statementImport.userId = :userId'
+          : 'statementImport.spaceId = :spaceId',
+        scope,
+      );
 
     if (query.filters.fromDate !== undefined) {
       statementImportQuery.andWhere(
@@ -105,6 +164,10 @@ export class TypeOrmStatementImportStore implements StatementImportStore {
       .getRepository(StatementImportEntity)
       .create({
         userId: input.userId,
+        ...(input.spaceId === undefined ? {} : { spaceId: input.spaceId }),
+        ...(input.importedByUserId === undefined
+          ? {}
+          : { importedByUserId: input.importedByUserId }),
         fileName: input.fileName,
         fileHash: input.fileHash,
         statementDate: input.statementDate,
@@ -133,6 +196,10 @@ function toRecord(entity: StatementImportEntity): StatementImportRecord {
   return {
     id: entity.id,
     userId: entity.userId,
+    ...(entity.spaceId === undefined ? {} : { spaceId: entity.spaceId }),
+    ...(entity.importedByUserId === undefined
+      ? {}
+      : { importedByUserId: entity.importedByUserId }),
     fileName: entity.fileName,
     fileHash: entity.fileHash,
     statementDate: entity.statementDate,
@@ -149,6 +216,10 @@ function toHistoryRecord(
   return {
     id: entity.id,
     userId: entity.userId,
+    ...(entity.spaceId === undefined ? {} : { spaceId: entity.spaceId }),
+    ...(entity.importedByUserId === undefined
+      ? {}
+      : { importedByUserId: entity.importedByUserId }),
     fileName: entity.fileName,
     statementDate: entity.statementDate,
     bank: entity.bank,
@@ -181,6 +252,7 @@ function isFileHashUniqueViolation(error: unknown): boolean {
   };
   return (
     driverError.code === POSTGRES_UNIQUE_VIOLATION &&
-    driverError.constraint === STATEMENT_IMPORT_FILE_HASH_UNIQUE_CONSTRAINT
+    typeof driverError.constraint === 'string' &&
+    STATEMENT_IMPORT_FILE_HASH_UNIQUE_CONSTRAINTS.has(driverError.constraint)
   );
 }

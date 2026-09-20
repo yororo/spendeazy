@@ -28,13 +28,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Table,
   TableBody,
   TableCell,
@@ -43,6 +36,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { CategoryBadge } from "@/shared/category";
+import { ActiveSpaceLabel } from "@/shared/ui";
 import { useAccessibleSpacesQuery } from "@/shared/api";
 import { formatMoney } from "@/shared/money";
 import {
@@ -277,57 +271,13 @@ function CategoriesPage({ spaceId, onSpaceChange }: CategoriesPageProps = {}) {
     <div className="mx-auto w-full max-w-screen-2xl px-4 py-6 sm:px-6 lg:px-9 lg:py-7">
       <header className="mb-6 flex flex-col gap-5 border-b border-foreground pb-5 md:flex-row md:items-end md:justify-between">
         <div>
+          <ActiveSpaceLabel spaceId={spaceId} />
           <p className="text-label text-muted-foreground">Categories</p>
           <h1 className="mt-2 font-mono text-2xl font-bold tracking-tight sm:text-3xl">
             Budget overview
           </h1>
         </div>
         <div className="flex w-full flex-col gap-3 md:w-auto md:flex-row md:items-end md:justify-end">
-          {onSpaceChange !== undefined && (
-            <div className="grid w-full gap-1 md:w-56">
-              <Label htmlFor="categories-space">Active Space</Label>
-              <Select
-                value={spaceId ?? "personal"}
-                onValueChange={(value) =>
-                  onSpaceChange(value === "personal" ? undefined : value)
-                }
-              >
-                <SelectTrigger
-                  id="categories-space"
-                  aria-label="Active Space"
-                  disabled={filtersDisabled}
-                >
-                  <SelectValue
-                    placeholder={
-                      spaceId === undefined
-                        ? "Personal Space"
-                        : `Space ${spaceId}`
-                    }
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="personal">Personal Space</SelectItem>
-                  {spacesQuery.isPending && (
-                    <SelectItem value="loading" disabled>
-                      Loading Spaces…
-                    </SelectItem>
-                  )}
-                  {spacesQuery.isError && (
-                    <SelectItem value="error" disabled>
-                      Spaces unavailable
-                    </SelectItem>
-                  )}
-                  {spacesQuery.data
-                    ?.filter((space) => space.kind === "shared")
-                    .map((space) => (
-                      <SelectItem key={space.id} value={space.id}>
-                        Shared Space · {space.id}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
           <ReportingPeriodFilter
             id="categories-reporting-period"
             disabled={filtersDisabled}

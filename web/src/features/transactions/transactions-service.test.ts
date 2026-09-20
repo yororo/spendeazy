@@ -216,7 +216,18 @@ describe("listTransactions", () => {
       [scopedSummaryPath, createSummary()],
       [
         scopedTransactionsPath,
-        { items: [createTransaction({ source: "manual" })], nextCursor: null },
+        { items: [createTransaction()], nextCursor: null },
+      ],
+      [
+        "/spaces/space%2F7/statement-imports/100",
+        {
+          id: "100",
+          fileName: "august.pdf",
+          statementDate: "2026-08-31",
+          bank: "BDO",
+          cardType: "AMEX",
+          importedAt: "2026-09-01T00:00:00.000Z",
+        },
       ],
     ]);
     const { apiClient, get } = createApiClient(responses);
@@ -232,6 +243,10 @@ describe("listTransactions", () => {
     expect(get).toHaveBeenCalledWith(scopedTransactionsPath, {
       signal: undefined,
     });
+    expect(get).toHaveBeenCalledWith(
+      "/spaces/space%2F7/statement-imports/100",
+      { signal: undefined },
+    );
   });
 
   it("composes a subsequent cursor request without using numbered pages", async () => {

@@ -64,6 +64,10 @@ export interface ImportedTransactionStore {
 }
 
 export interface SpaceImportedTransactionStore {
+  findByFingerprintInSpace(
+    spaceId: string,
+    fingerprint: string,
+  ): Promise<ImportedTransactionRecord[]>;
   findByIdInSpace(
     spaceId: string,
     id: string,

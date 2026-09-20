@@ -23,6 +23,31 @@ describe('TypeOrmStatementImportStore', () => {
     });
   });
 
+  it('finds a statement import only within the requested Space scope', async () => {
+    const entity = statementImportEntity({
+      id: '108',
+      spaceId: '55',
+      importedByUserId: '42',
+    });
+    const repository = {
+      findOne: jest.fn().mockResolvedValue(entity),
+    };
+    const store = new TypeOrmStatementImportStore(entityManagerFor(repository));
+
+    await expect(
+      store.findByFileHashInSpace('55', entity.fileHash),
+    ).resolves.toEqual(
+      statementImportRecord({
+        id: '108',
+        spaceId: '55',
+        importedByUserId: '42',
+      }),
+    );
+    expect(repository.findOne).toHaveBeenCalledWith({
+      where: { spaceId: '55', fileHash: entity.fileHash },
+    });
+  });
+
   it('queries a stable filtered page with transaction counts and a forward-only boundary', async () => {
     const entities = [
       statementImportEntity({ id: '3', statementDate: '2026-08-03' }),
@@ -92,6 +117,34 @@ describe('TypeOrmStatementImportStore', () => {
     );
     expect(query.addOrderBy).toHaveBeenCalledWith('statementImport.id', 'DESC');
     expect(query.take).toHaveBeenCalledWith(3);
+  });
+
+  it('joins transaction counts within the requested Space', async () => {
+    const entities = [statementImportEntity({ id: '3', spaceId: '55' })];
+    const query = statementImportPageQuery(entities, [
+      { transactionCount: '2' },
+    ]);
+    const repository = {
+      createQueryBuilder: jest.fn().mockReturnValue(query),
+    };
+    const store = new TypeOrmStatementImportStore(entityManagerFor(repository));
+
+    await store.findPageInSpace({
+      spaceId: '55',
+      filters: {},
+      after: null,
+      pageSize: 20,
+    });
+
+    expect(query.where).toHaveBeenCalledWith(
+      'statementImport.spaceId = :spaceId',
+      { spaceId: '55' },
+    );
+    expect(query.leftJoin).toHaveBeenCalledWith(
+      TransactionEntity,
+      'transaction',
+      'transaction.statementImportId = statementImport.id AND transaction.spaceId = statementImport.spaceId',
+    );
   });
 });
 

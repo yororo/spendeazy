@@ -41,6 +41,21 @@ export class TypeOrmImportedTransactionStore
     return entities.map(toRecord);
   }
 
+  async findByFingerprintInSpace(
+    spaceId: string,
+    importFingerprint: string,
+  ): Promise<ImportedTransactionRecord[]> {
+    const entities = await this.entityManager
+      .getRepository(TransactionEntity)
+      .find({
+        where: importedTransactionSpaceWhere(spaceId, {
+          importFingerprint,
+        }),
+      });
+
+    return entities.map(toRecord);
+  }
+
   async create(
     input: NewImportedTransaction,
   ): Promise<ImportedTransactionRecord> {
@@ -195,7 +210,10 @@ function importedTransactionWhere(
 
 function importedTransactionSpaceWhere(
   spaceId: string,
-  identifier: Pick<FindOptionsWhere<TransactionEntity>, 'id'>,
+  identifier: Pick<
+    FindOptionsWhere<TransactionEntity>,
+    'id' | 'importFingerprint'
+  >,
 ): FindOptionsWhere<TransactionEntity> {
   return {
     spaceId,

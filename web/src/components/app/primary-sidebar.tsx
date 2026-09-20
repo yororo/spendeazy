@@ -1,10 +1,11 @@
 import { LogOutIcon } from "lucide-react";
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 
 import { LedgerMark } from "@/components/app/ledger-mark";
 import { AppearanceSelector } from "@/components/app/appearance-selector";
 import { primaryNavigation } from "@/components/app/primary-navigation";
 import { cn } from "@/lib/utils";
+import { useAccessibleSpacesQuery } from "@/shared/api";
 import { useNavigationGuard } from "@/shared/navigation";
 import { useAppSession, type AppSessionUser } from "@/shared/session";
 
@@ -38,8 +39,30 @@ function getInitials(name: string): string {
 function PrimarySidebar({ className, onNavigate }: PrimarySidebarProps) {
   const { signOut, user } = useAppSession();
   const navigate = useNavigate();
+  const location = useLocation();
   const { requestNavigation } = useNavigationGuard();
+  const spacesQuery = useAccessibleSpacesQuery(true);
   const displayName = getDisplayName(user);
+  const sharedSpace = spacesQuery.data?.find((space) => space.kind === "shared");
+  const isShared = new URLSearchParams(location.search).has("spaceId");
+
+  const switchSpace = (spaceId?: string) => {
+    if ((spaceId === undefined && !isShared) || spaceId === new URLSearchParams(location.search).get("spaceId")) return;
+
+    const nextParams = new URLSearchParams(location.search);
+    if (spaceId === undefined) nextParams.delete("spaceId");
+    else nextParams.set("spaceId", spaceId);
+
+    const query = nextParams.toString();
+    const destination = `${location.pathname}${query ? `?${query}` : ""}${location.hash}`;
+    const completeSwitch = () => {
+      navigate(destination);
+      onNavigate?.();
+    };
+
+    if (requestNavigation(completeSwitch)) return;
+    completeSwitch();
+  };
 
   const completeSignOut = async () => {
     onNavigate?.();
@@ -103,6 +126,26 @@ function PrimarySidebar({ className, onNavigate }: PrimarySidebarProps) {
             <p className="truncate text-sm font-semibold">{displayName}</p>
           </div>
         </div>
+        {sharedSpace && (
+          <div className="mt-3 grid grid-cols-2 border border-sidebar-border p-0.5" role="group" aria-label="Active Space">
+            <button
+              type="button"
+              aria-pressed={!isShared}
+              onClick={() => switchSpace()}
+              className={cn("focus-ledger min-h-10 px-2 text-sm transition-colors", !isShared ? "bg-primary font-semibold text-primary-foreground" : "hover:bg-sidebar-foreground/10")}
+            >
+              Personal
+            </button>
+            <button
+              type="button"
+              aria-pressed={isShared}
+              onClick={() => switchSpace(sharedSpace.id)}
+              className={cn("focus-ledger min-h-10 px-2 text-sm transition-colors", isShared ? "bg-primary font-semibold text-primary-foreground" : "hover:bg-sidebar-foreground/10")}
+            >
+              Shared
+            </button>
+          </div>
+        )}
         <div className="mt-3 flex items-center gap-2 border-t border-sidebar-border pt-3">
           <button
             type="button"

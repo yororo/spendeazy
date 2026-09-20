@@ -60,6 +60,8 @@ const EMPTY_SPACE_TRANSACTION_STORE: SpaceTransactionStore = {
 };
 
 const EMPTY_SPACE_IMPORTED_TRANSACTION_STORE: SpaceImportedTransactionStore = {
+  findByFingerprintInSpace: () =>
+    Promise.reject(new Error(SPACE_STORE_NOT_CONFIGURED)),
   findByIdInSpace: () => Promise.reject(new Error(SPACE_STORE_NOT_CONFIGURED)),
   updateCategoryInSpace: () =>
     Promise.reject(new Error(SPACE_STORE_NOT_CONFIGURED)),

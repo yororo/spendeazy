@@ -590,6 +590,47 @@ const OPERATION_EXPECTATIONS = [
       ...JSON_BODY_ERRORS,
     },
   },
+  {
+    operationId: 'SpaceStatementImports_getStatementImport',
+    tag: 'Statement imports',
+    pathParameters: ['spaceId', 'statementImportId'],
+    bodyResponses: [{ status: '200', schemaRef: 'StatementImportResponseDto' }],
+    errorResponses: { ...PROTECTED_ERRORS, ...VALIDATED_PATH_ERRORS },
+  },
+  {
+    operationId: 'SpaceStatementImports_listStatementImports',
+    tag: 'Statement imports',
+    pathParameters: ['spaceId'],
+    queryParameters: ['fromDate', 'toDate', 'pageSize', 'cursor'],
+    queryParameterSchemas: {
+      fromDate: DATE_QUERY_SCHEMA,
+      toDate: DATE_QUERY_SCHEMA,
+      ...PAGINATION_QUERY_SCHEMAS,
+    },
+    bodyResponses: [
+      { status: '200', schemaRef: 'StatementImportHistoryPageResponseDto' },
+    ],
+    errorResponses: { ...PROTECTED_ERRORS, ...VALIDATED_PATH_ERRORS },
+  },
+  {
+    operationId: 'SpaceStatementImports_commitReviewedStatementImport',
+    tag: 'Statement imports',
+    requestSchemaRef: 'CommitReviewedStatementImportDto',
+    pathParameters: ['spaceId'],
+    bodyResponses: [
+      {
+        status: '201',
+        schemaRef: 'StatementImportResponseDto',
+        location: `/${API_PREFIX}/users/me/spaces/7/statement-imports/42`,
+      },
+    ],
+    errorResponses: {
+      ...PROTECTED_ERRORS,
+      ...VALIDATED_PATH_ERRORS,
+      '409': 'ProbableDuplicateConflict',
+      ...JSON_BODY_ERRORS,
+    },
+  },
 ] as const satisfies readonly OperationExpectation[];
 
 const PUBLIC_RESPONSE_SCHEMA_NAMES = [

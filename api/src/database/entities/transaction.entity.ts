@@ -26,6 +26,10 @@ import {
   'userId',
   'importFingerprint',
 ])
+@Index('ix_transactions_space_import_fingerprint', [
+  'spaceId',
+  'importFingerprint',
+])
 export class TransactionEntity {
   @PrimaryGeneratedColumn('identity', {
     type: 'bigint',

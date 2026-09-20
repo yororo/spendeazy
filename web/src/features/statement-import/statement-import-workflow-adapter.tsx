@@ -18,6 +18,8 @@ interface CategorizeStatementAdapterProps {
   readonly categoryOptions: readonly CategoryColorOption[];
   readonly categoryLabels: readonly CategoryCatalogOption[];
   readonly currentCategoryRules: readonly CategoryRule[];
+  readonly destinationLabel?: string;
+  readonly spaceId?: string;
   readonly fileName: string;
   readonly statementSummary: CategorizedStatement["summary"];
   readonly onBack: () => void;
@@ -29,6 +31,8 @@ function CategorizeStatementAdapter({
   categoryOptions,
   categoryLabels,
   currentCategoryRules,
+  destinationLabel,
+  spaceId,
   fileName,
   statementSummary,
   onBack,
@@ -52,6 +56,8 @@ function CategorizeStatementAdapter({
       categoryOptions={categoryOptions}
       categoryLabels={categoryLabels}
       categoryRules={state.categoryRules}
+      destinationLabel={destinationLabel}
+      spaceId={spaceId}
       fileName={fileName}
       statementSummary={statementSummary}
       transactions={statement.transactions}

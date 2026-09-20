@@ -20,6 +20,7 @@ const scopedFullTransactionsPath =
   "/spaces/7/transactions?fromDate=2026-08-01&toDate=2026-08-31&pageSize=100";
 const scopedRecentTransactionsPath =
   "/spaces/7/transactions?fromDate=2026-08-01&toDate=2026-08-31&pageSize=5";
+const scopedStatementImportPath = "/spaces/7/statement-imports/statement-1";
 
 function createCategoryCatalog() {
   return [
@@ -78,8 +79,35 @@ describe("getDashboard", () => {
     const responses = new Map<string, unknown>([
       [scopedCategoryPath, createCategoryCatalog()],
       [scopedSummaryPath, createEmptySummary()],
-      [scopedFullTransactionsPath, { items: [], nextCursor: null }],
+      [
+        scopedFullTransactionsPath,
+        {
+          items: [
+            {
+              id: "transaction-1",
+              categoryId: "42",
+              purchaseDate: "2026-08-01",
+              description: "Scoped imported transaction",
+              amount: "10.00",
+              source: "imported",
+              statementImportId: "statement-1",
+            },
+          ],
+          nextCursor: null,
+        },
+      ],
       [scopedRecentTransactionsPath, { items: [], nextCursor: null }],
+      [
+        scopedStatementImportPath,
+        {
+          id: "statement-1",
+          fileName: "scoped.pdf",
+          statementDate: "2026-08-01",
+          bank: "BDO",
+          cardType: "AMEX",
+          importedAt: "2026-08-02T00:00:00.000Z",
+        },
+      ],
     ]);
     const { apiClient, get } = createApiClient(responses);
 
@@ -95,6 +123,9 @@ describe("getDashboard", () => {
       signal: undefined,
     });
     expect(get).toHaveBeenCalledWith(scopedRecentTransactionsPath, {
+      signal: undefined,
+    });
+    expect(get).toHaveBeenCalledWith(scopedStatementImportPath, {
       signal: undefined,
     });
   });

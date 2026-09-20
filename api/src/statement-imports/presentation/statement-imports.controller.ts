@@ -8,6 +8,7 @@ import {
   Query,
   Req,
   Res,
+  Optional,
 } from '@nestjs/common';
 import {
   ApiExtraModels,
@@ -24,6 +25,7 @@ import {
 } from '../../authentication/authentication';
 import { ApiStandardErrorResponses } from '../../http/api-error.dto';
 import { POSITIVE_INTEGER_ID_PATTERN } from '../../http/validation-patterns';
+import { SpaceAccessService } from '../../spaces/application/space-access.service';
 import type {
   StatementImportHistoryRecord,
   StatementImportRecord,
@@ -55,6 +57,8 @@ import {
 export class StatementImportsController {
   constructor(
     private readonly statementImportsService: StatementImportsService,
+    @Optional()
+    private readonly spaceAccessService?: SpaceAccessService,
   ) {}
 
   @Get(':statementImportId')
@@ -85,11 +89,20 @@ export class StatementImportsController {
     @Req() request: AuthenticatedRequest,
     @Param() params: StatementImportParamsDto,
   ): Promise<StatementImportResponseDto> {
+    const userId = requireAuthenticatedUserId(request);
+    const personalSpace = this.spaceAccessService
+      ? await this.spaceAccessService.requirePersonalSpace(userId)
+      : undefined;
     return toStatementImportResponse(
-      await this.statementImportsService.getStatementImport(
-        requireAuthenticatedUserId(request),
-        params.statementImportId,
-      ),
+      personalSpace
+        ? await this.statementImportsService.getStatementImportInSpace(
+            personalSpace.id,
+            params.statementImportId,
+          )
+        : await this.statementImportsService.getStatementImport(
+            userId,
+            params.statementImportId,
+          ),
     );
   }
 
@@ -116,10 +129,16 @@ export class StatementImportsController {
     @Req() request: AuthenticatedRequest,
     @Query() query: StatementImportCollectionQueryDto,
   ): Promise<StatementImportHistoryPageResponseDto> {
-    const page = await this.statementImportsService.listStatementImports(
-      requireAuthenticatedUserId(request),
-      query,
-    );
+    const userId = requireAuthenticatedUserId(request);
+    const personalSpace = this.spaceAccessService
+      ? await this.spaceAccessService.requirePersonalSpace(userId)
+      : undefined;
+    const page = personalSpace
+      ? await this.statementImportsService.listStatementImportsInSpace(
+          personalSpace.id,
+          query,
+        )
+      : await this.statementImportsService.listStatementImports(userId, query);
     return {
       items: page.items.map(toStatementImportHistoryResponse),
       nextCursor: page.nextCursor,
@@ -163,13 +182,27 @@ export class StatementImportsController {
     @Body() input: CommitReviewedStatementImportDto,
     @Res({ passthrough: true }) response: Response,
   ): Promise<StatementImportResponseDto> {
-    const statementImport =
-      await this.statementImportsService.commitReviewedStatementImport(
-        requireAuthenticatedUserId(request),
-        input,
-      );
+    const userId = requireAuthenticatedUserId(request);
+    const personalSpace = this.spaceAccessService
+      ? await this.spaceAccessService.requirePersonalWriteSpace(userId)
+      : undefined;
+    const statementImport = personalSpace
+      ? await this.statementImportsService.commitReviewedStatementImportInSpace(
+          userId,
+          personalSpace.id,
+          input,
+        )
+      : await this.statementImportsService.commitReviewedStatementImport(
+          userId,
+          input,
+        );
     response.status(HttpStatus.CREATED);
-    response.setHeader('Location', statementImportLocation(statementImport.id));
+    response.setHeader(
+      'Location',
+      personalSpace
+        ? spaceStatementImportLocation(personalSpace.id, statementImport.id)
+        : statementImportLocation(statementImport.id),
+    );
     return toStatementImportResponse(statementImport);
   }
 }
@@ -189,12 +222,21 @@ export function toStatementImportResponse(
     bank: statementImport.bank,
     cardType: statementImport.cardType,
     importedAt: statementImport.importedAt.toISOString(),
+    ...(statementImport.importedByUserId === undefined
+      ? {}
+      : { importedByUserId: statementImport.importedByUserId }),
   };
 }
 
 type StatementImportResponseInput = Pick<
   StatementImportRecord,
-  'id' | 'fileName' | 'statementDate' | 'bank' | 'cardType' | 'importedAt'
+  | 'id'
+  | 'fileName'
+  | 'statementDate'
+  | 'bank'
+  | 'cardType'
+  | 'importedAt'
+  | 'importedByUserId'
 >;
 
 export function toStatementImportHistoryResponse(
@@ -208,4 +250,11 @@ export function toStatementImportHistoryResponse(
 
 function statementImportLocation(statementImportId: string): string {
   return `/${API_PREFIX}/users/me/statement-imports/${statementImportId}`;
+}
+
+export function spaceStatementImportLocation(
+  spaceId: string,
+  statementImportId: string,
+): string {
+  return `/${API_PREFIX}/users/me/spaces/${spaceId}/statement-imports/${statementImportId}`;
 }

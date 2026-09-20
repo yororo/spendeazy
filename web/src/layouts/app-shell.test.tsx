@@ -2,7 +2,7 @@
 
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { useCallback, useEffect, useState } from "react";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AppShell } from "./app-shell";
@@ -11,6 +11,15 @@ import {
   type NavigationAction,
 } from "@/shared/navigation";
 import { AppSessionProvider, type AppSession } from "@/shared/session";
+
+vi.mock("@/shared/api", () => ({
+  useAccessibleSpacesQuery: () => ({
+    data: [
+      { id: "personal-1", kind: "personal" },
+      { id: "shared-1", kind: "shared" },
+    ],
+  }),
+}));
 
 const session: AppSession = {
   isLoaded: true,
@@ -37,6 +46,34 @@ afterEach(() => {
 });
 
 describe("AppShell", () => {
+  it("switches the current page to Shared from the profile panel", () => {
+    function CurrentLocation() {
+      const location = useLocation();
+      return <p>{`${location.pathname}${location.search}`}</p>;
+    }
+
+    render(
+      <AppSessionProvider session={session}>
+        <MemoryRouter initialEntries={["/transactions?month=2026-09"]}>
+          <Routes>
+            <Route element={<AppShell />}>
+              <Route path="/transactions" element={<CurrentLocation />} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      </AppSessionProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Shared" }));
+    expect(screen.getByText("/transactions?month=2026-09&spaceId=shared-1")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Personal" }));
+    expect(screen.getByText("/transactions?month=2026-09")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Open navigation" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "Shared" }).at(-1)!);
+    expect(screen.getByText("/transactions?month=2026-09&spaceId=shared-1")).toBeTruthy();
+  });
+
   it("guards primary navigation while a Statement Import is being categorized", () => {
     function CategorizeFixture() {
       const { registerNavigationGuard } = useNavigationGuard();

@@ -4,7 +4,6 @@ import type {
 } from "./statement-categorizer";
 import { ApiError } from "@/shared/api";
 import {
-  categorizeTransactions,
   type CategoryCatalogOption,
   type CategoryColorOption,
   type CategoryRule,
@@ -702,8 +701,6 @@ class StatementImportWorkflow {
       editingId,
       updatedFields,
       selectedCategory,
-      shouldRememberRule,
-      nextCategoryRules,
     );
 
     this.invalidateEdit();
@@ -784,8 +781,6 @@ class StatementImportWorkflow {
       readonly amount: number;
     },
     categoryId: string,
-    shouldRememberRule: boolean,
-    categoryRules: readonly CategoryRule[],
   ) {
     const manuallyUpdatedTransactions = applyManualTransactionEdit(
       transactions,
@@ -796,48 +791,10 @@ class StatementImportWorkflow {
       },
     );
 
-    if (!shouldRememberRule) {
-      return manuallyUpdatedTransactions.map((transaction) =>
-        transaction.id === transactionId
-          ? { ...transaction, matchedCategoryIds: [] }
-          : transaction,
-      );
-    }
-
-    const activeCategoryIds = new Set(
-      this.dependencies
-        .getCategoryOptions()
-        .map((option) => option.value),
-    );
-
     return manuallyUpdatedTransactions.map((transaction) => {
-      if (transaction.id === transactionId) {
-        return {
-          ...transaction,
-          matchedCategoryIds: [],
-        };
-      }
-
-      if (
-        !isIncludedStatementTransaction(transaction) ||
-        transaction.assignment === "manual"
-      ) {
-        return transaction;
-      }
-
-      const categorization = categorizeTransactions(
-        [transaction],
-        categoryRules,
-        activeCategoryIds,
-      )[0];
-      if (!categorization) return transaction;
-
-      return {
-        ...transaction,
-        categoryId: categorization.categoryId,
-        assignment: categorization.assignment,
-        matchedCategoryIds: categorization.matchedCategoryIds ?? [],
-      };
+      return transaction.id === transactionId
+        ? { ...transaction, matchedCategoryIds: [] }
+        : transaction;
     });
   }
 

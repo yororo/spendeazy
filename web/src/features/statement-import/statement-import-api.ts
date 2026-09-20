@@ -23,6 +23,7 @@ interface StatementImportResponse {
   readonly bank: string;
   readonly cardType: string | null;
   readonly importedAt: string;
+  readonly importedByUserId?: string;
 }
 
 interface StatementImportHistoryItemResponse extends StatementImportResponse {
@@ -101,7 +102,10 @@ function isStatementImportResponse(
     typeof value.statementDate === "string" &&
     typeof value.bank === "string" &&
     (value.cardType === null || typeof value.cardType === "string") &&
-    typeof value.importedAt === "string"
+    typeof value.importedAt === "string" &&
+    (value.importedByUserId === undefined ||
+      (typeof value.importedByUserId === "string" &&
+        CATEGORY_RULE_ID_PATTERN.test(value.importedByUserId)))
   );
 }
 

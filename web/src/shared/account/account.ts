@@ -81,10 +81,15 @@ async function loadStatementImport(
   apiClient: ApiGetClient,
   statementImportId: string,
   signal?: AbortSignal,
+  spaceId?: string,
 ) {
   try {
+    const collectionPath =
+      spaceId === undefined
+        ? "/statement-imports"
+        : `/spaces/${encodeURIComponent(spaceId)}/statement-imports`;
     const response = await apiClient.get<StatementImportAccount>(
-      `/statement-imports/${statementImportId}`,
+      `${collectionPath}/${encodeURIComponent(statementImportId)}`,
       { signal },
     );
 
@@ -110,13 +115,19 @@ async function loadStatementImports(
   apiClient: ApiGetClient,
   transactions: readonly AccountTransactionReference[],
   signal?: AbortSignal,
+  spaceId?: string,
 ) {
   const entries = await Promise.all(
     [...getStatementImportIds(transactions)].map(
       async (statementImportId) =>
         [
           statementImportId,
-          await loadStatementImport(apiClient, statementImportId, signal),
+          await loadStatementImport(
+            apiClient,
+            statementImportId,
+            signal,
+            spaceId,
+          ),
         ] as const,
     ),
   );

@@ -381,7 +381,7 @@ describe("CategorizeStatement ambiguity handling", () => {
     expect(pattern).toHaveProperty("disabled", false);
   });
 
-  it("persists a mobile Contains Rule and updates only included matching Transactions", async () => {
+  it("persists a mobile Contains Rule without rewriting other reviewed Transactions", async () => {
     const sameCategoryTransaction = {
       ...ambiguousTransaction,
       id: "transaction-2",
@@ -488,16 +488,10 @@ describe("CategorizeStatement ambiguity handling", () => {
     expect(directItem && within(directItem).getByText("Housing")).toBeTruthy();
     expect(directItem && within(directItem).getByText("Manual")).toBeTruthy();
     expect(
-      sameCategoryItem && within(sameCategoryItem).getByText("Housing"),
+      sameCategoryItem && within(sameCategoryItem).getByText("Unmapped"),
     ).toBeTruthy();
     expect(
-      sameCategoryItem && within(sameCategoryItem).getByText("Rule"),
-    ).toBeTruthy();
-    expect(
-      crossCategoryItem &&
-        within(crossCategoryItem).getByLabelText(
-          "Multiple categories matched: Groceries, Housing",
-        ),
+      crossCategoryItem && within(crossCategoryItem).getByText("Unmapped"),
     ).toBeTruthy();
     expect(
       excludedItem && within(excludedItem).getByText("Groceries"),
@@ -826,7 +820,7 @@ describe("CategorizeStatement ambiguity handling", () => {
     expect(patternInput).toHaveProperty("value", "Merchant");
   });
 
-  it("remembers a Contains Rule and recategorizes other included Transactions", async () => {
+  it("remembers a Contains Rule without rewriting other included Transactions", async () => {
     const sameCategoryTransaction = {
       ...ambiguousTransaction,
       id: "transaction-2",
@@ -926,15 +920,7 @@ describe("CategorizeStatement ambiguity handling", () => {
 
     expect(directRow && within(directRow).getByText("Housing")).toBeTruthy();
     expect(
-      sameCategoryRow && within(sameCategoryRow).getByText("Housing"),
-    ).toBeTruthy();
-    expect(
-      sameCategoryRow && within(sameCategoryRow).getByText("Rule"),
-    ).toBeTruthy();
-    expect(
-      within(desktopTable).getByLabelText(
-        "Multiple categories matched: Groceries, Housing",
-      ),
+      sameCategoryRow && within(sameCategoryRow).getByText("Unmapped"),
     ).toBeTruthy();
     expect(
       excludedRow && within(excludedRow).getByText("Groceries"),
@@ -1035,7 +1021,7 @@ describe("CategorizeStatement ambiguity handling", () => {
     expect(firstRow && within(firstRow).getByText("Housing")).toBeTruthy();
   });
 
-  it("propagates a remembered Exact resolution and leaves excluded rows out of the block", async () => {
+  it("keeps repeated and excluded rows unchanged after remembering an Exact Rule", async () => {
     const repeatedTransaction = {
       ...ambiguousTransaction,
       id: "transaction-2",
@@ -1100,18 +1086,24 @@ describe("CategorizeStatement ambiguity handling", () => {
     await waitFor(() => {
       expect(
         screen.getByRole("button", { name: "Review 2 Transactions" }),
-      ).toHaveProperty("disabled", false);
+      ).toHaveProperty("disabled", true);
     });
     expect(rememberCategoryRule).toHaveBeenCalledWith(
       { pattern: "GREEN MARKET CAFE", categoryId: "42", matchType: "exact" },
       categoryRules,
     );
-    const counts = screen.getAllByText("1 Rule")[1].parentElement;
+    const counts = screen.getByText("0 Rule").parentElement;
     expect(counts?.textContent).toContain("1 Manual");
+    expect(counts?.textContent).toContain("1 Ambiguous");
     expect(counts?.textContent).toContain("1 Excluded");
     expect(
       screen.getByRole("button", { name: "Review 2 Transactions" }),
-    ).toHaveProperty("disabled", false);
+    ).toHaveProperty("disabled", true);
+    expect(
+      within(desktopTable).getAllByLabelText(
+        "Multiple categories matched: Housing, Groceries",
+      ),
+    ).toHaveLength(2);
   });
 
   it("keeps the edit open when remembering an Exact Rule fails", async () => {

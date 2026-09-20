@@ -1,6 +1,7 @@
 import { ArrowRightIcon, CheckCircle2Icon, LandmarkIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { ActiveSpaceLabel } from "@/shared/ui";
 import {
   Card,
   CardContent,
@@ -13,6 +14,8 @@ import type { CommittedStatementImport } from "./statement-import-service";
 
 interface ImportSuccessProps {
   committedImport: CommittedStatementImport;
+  destinationLabel?: string;
+  spaceId?: string;
   onImportAnother: () => void;
   onViewTransactions: () => void;
 }
@@ -32,12 +35,15 @@ function formatAccount(committedImport: CommittedStatementImport) {
 
 function ImportSuccess({
   committedImport,
+  destinationLabel,
+  spaceId,
   onImportAnother,
   onViewTransactions,
 }: ImportSuccessProps) {
   return (
     <div className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-screen-2xl flex-col gap-6 px-4 py-6 sm:px-6 lg:min-h-screen lg:px-9 lg:py-7">
       <header>
+        <ActiveSpaceLabel spaceId={spaceId} />
         <p className="text-label text-muted-foreground">Imports / Complete</p>
         <h1 className="mt-1 font-mono text-2xl font-bold tracking-tight sm:text-3xl">
           Statement imported
@@ -74,6 +80,16 @@ function ImportSuccess({
                   {formatAccount(committedImport)}
                 </dd>
               </div>
+              {destinationLabel && (
+                <div>
+                  <dt className="text-label text-muted-foreground">
+                    Destination
+                  </dt>
+                  <dd className="mt-1 font-mono text-sm font-semibold uppercase">
+                    {destinationLabel}
+                  </dd>
+                </div>
+              )}
               <div>
                 <dt className="text-label text-muted-foreground">
                   Statement date

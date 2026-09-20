@@ -14,11 +14,14 @@ import {
 function createStatementImportConfirmationContext(
   entityManager: EntityManager,
 ): StatementImportConfirmationContext {
+  const statementImports = new TypeOrmStatementImportStore(entityManager);
+
   return {
     users: new TypeOrmUserStore(entityManager),
     categories: new TypeOrmTransactionCategoryStore(entityManager, true),
-    statementImports: new TypeOrmStatementImportStore(entityManager),
+    statementImports,
     importedTransactions: new TypeOrmImportedTransactionStore(entityManager),
+    spaces: statementImports,
   };
 }
 

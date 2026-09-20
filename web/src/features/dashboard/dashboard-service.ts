@@ -211,6 +211,7 @@ async function loadDashboardResources(
     apiClient,
     [...transactions, ...recentTransactions],
     signal,
+    spaceId,
   );
 
   return {

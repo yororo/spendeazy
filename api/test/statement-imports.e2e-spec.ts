@@ -19,7 +19,13 @@ import {
 } from '../src/statement-imports/application/statement-import-confirmation';
 import { computeImportFingerprint } from '../src/statement-imports/application/import-fingerprint';
 import { StatementImportsController } from '../src/statement-imports/presentation/statement-imports.controller';
+import { SpaceStatementImportsController } from '../src/statement-imports/presentation/space-statement-imports.controller';
 import { StatementImportsService } from '../src/statement-imports/application/statement-imports.service';
+import { SpaceAccessService } from '../src/spaces/application/space-access.service';
+import {
+  SpaceNotFoundError,
+  SpaceNotWritableError,
+} from '../src/spaces/application/space-errors';
 import type {
   ImportedTransactionRecord,
   ImportedTransactionStore,
@@ -43,6 +49,7 @@ import {
   type StatementImportHistoryRecord,
   type StatementImportRecord,
   type StatementImportStore,
+  type SpaceStatementImportHistoryPageQuery,
 } from '../src/statement-imports/application/statement-import-store';
 
 describe('authenticated statement-import routes', () => {
@@ -456,10 +463,135 @@ describe('statement-import ownership through authenticated routes', () => {
   });
 });
 
+describe('statement-import access through Space routes', () => {
+  let application: INestApplication;
+  let statementImportsService: StatementImportsServiceMock;
+  let spaceAccessService: {
+    requireReadAccess: jest.Mock;
+    requireWriteAccess: jest.Mock;
+  };
+
+  beforeEach(async () => {
+    statementImportsService = createStatementImportsServiceMock();
+    spaceAccessService = {
+      requireReadAccess: jest.fn().mockResolvedValue({ id: '77' }),
+      requireWriteAccess: jest.fn().mockResolvedValue({ id: '77' }),
+    };
+    application = await createSpaceStatementImportApplication(
+      statementImportsService,
+      spaceAccessService,
+    );
+  });
+
+  afterEach(async () => {
+    await application.close();
+  });
+
+  it('authorizes the destination Space and binds history, retrieval, and commit to it', async () => {
+    const userId = '99';
+    const statementImport = statementImportRecord({
+      id: '400',
+      userId,
+      spaceId: '77',
+      importedByUserId: userId,
+    });
+    statementImportsService.listStatementImportsInSpace.mockResolvedValue({
+      items: [statementImportHistoryRecord({ ...statementImport })],
+      nextCursor: 'next-page',
+    });
+    statementImportsService.getStatementImportInSpace.mockResolvedValue(
+      statementImport,
+    );
+    statementImportsService.commitReviewedStatementImportInSpace.mockResolvedValue(
+      statementImport,
+    );
+    const input = statementImportInput();
+
+    const listResponse = await statementRequest(application)
+      .get('/api/v1/users/me/spaces/77/statement-imports')
+      .query({ pageSize: '10' })
+      .set('Authorization', 'Bearer token-c')
+      .set('Accept', 'application/json');
+    const getResponse = await statementRequest(application)
+      .get('/api/v1/users/me/spaces/77/statement-imports/400')
+      .set('Authorization', 'Bearer token-c')
+      .set('Accept', 'application/json');
+    const commitResponse = await statementRequest(application)
+      .post('/api/v1/users/me/spaces/77/statement-imports')
+      .set('Authorization', 'Bearer token-c')
+      .set('Accept', 'application/json')
+      .send(input);
+
+    expect(listResponse.status).toBe(200);
+    expect(getResponse.status).toBe(200);
+    expect(commitResponse.status).toBe(201);
+    expect(spaceAccessService.requireReadAccess).toHaveBeenNthCalledWith(
+      1,
+      userId,
+      '77',
+    );
+    expect(spaceAccessService.requireReadAccess).toHaveBeenNthCalledWith(
+      2,
+      userId,
+      '77',
+    );
+    expect(spaceAccessService.requireWriteAccess).toHaveBeenCalledWith(
+      userId,
+      '77',
+    );
+    expect(
+      statementImportsService.listStatementImportsInSpace,
+    ).toHaveBeenCalledWith('77', { pageSize: 10 });
+    expect(
+      statementImportsService.getStatementImportInSpace,
+    ).toHaveBeenCalledWith('77', '400');
+    expect(
+      statementImportsService.commitReviewedStatementImportInSpace,
+    ).toHaveBeenCalledWith(userId, '77', input);
+    expect(commitResponse.headers.location).toBe(
+      '/api/v1/users/me/spaces/77/statement-imports/400',
+    );
+    expect(
+      (commitResponse.body as { importedByUserId?: string }).importedByUserId,
+    ).toBe(userId);
+  });
+
+  it('does not invoke Space-scoped import operations when access is denied', async () => {
+    spaceAccessService.requireReadAccess.mockRejectedValueOnce(
+      new SpaceNotFoundError(),
+    );
+    spaceAccessService.requireWriteAccess.mockRejectedValueOnce(
+      new SpaceNotWritableError(),
+    );
+
+    const readResponse = await statementRequest(application)
+      .get('/api/v1/users/me/spaces/77/statement-imports')
+      .set('Authorization', 'Bearer token-c')
+      .set('Accept', 'application/json');
+    const writeResponse = await statementRequest(application)
+      .post('/api/v1/users/me/spaces/77/statement-imports')
+      .set('Authorization', 'Bearer token-c')
+      .set('Accept', 'application/json')
+      .send(statementImportInput());
+
+    expect(readResponse.status).toBe(404);
+    expect(writeResponse.status).toBe(403);
+    expect(
+      statementImportsService.listStatementImportsInSpace,
+    ).not.toHaveBeenCalled();
+    expect(
+      statementImportsService.commitReviewedStatementImportInSpace,
+    ).not.toHaveBeenCalled();
+  });
+});
+
 interface StatementImportsServiceMock {
   commitReviewedStatementImport: jest.Mock;
+  commitReviewedStatementImportInSpace: jest.Mock;
   getStatementImport: jest.Mock;
+  getStatementImportInSpace: jest.Mock;
   listStatementImports: jest.Mock;
+  listStatementImportsInSpace: jest.Mock;
 }
 
 function createStatementImportsServiceMock(): StatementImportsServiceMock {
@@ -467,12 +599,51 @@ function createStatementImportsServiceMock(): StatementImportsServiceMock {
     commitReviewedStatementImport: jest
       .fn()
       .mockResolvedValue(statementImportRecord()),
+    commitReviewedStatementImportInSpace: jest
+      .fn()
+      .mockResolvedValue(statementImportRecord()),
     getStatementImport: jest.fn().mockResolvedValue(statementImportRecord()),
+    getStatementImportInSpace: jest
+      .fn()
+      .mockResolvedValue(statementImportRecord()),
     listStatementImports: jest.fn().mockResolvedValue({
       items: [statementImportHistoryRecord()],
       nextCursor: null,
     }),
+    listStatementImportsInSpace: jest.fn().mockResolvedValue({
+      items: [statementImportHistoryRecord()],
+      nextCursor: null,
+    }),
   };
+}
+
+async function createSpaceStatementImportApplication(
+  statementImportsProvider: StatementImportsServiceMock,
+  spaceAccessService: {
+    requireReadAccess: jest.Mock;
+    requireWriteAccess: jest.Mock;
+  },
+): Promise<INestApplication> {
+  const module = await Test.createTestingModule({
+    controllers: [SpaceStatementImportsController],
+    providers: [
+      { provide: APP_CONFIG, useValue: testConfig },
+      {
+        provide: CLERK_TOKEN_VERIFIER,
+        useValue: new FakeClerkTokenVerifier(),
+      },
+      { provide: USER_STORE, useValue: new ProvisionedTestUserStore() },
+      ClerkAuthenticationGuard,
+      ProvisionedUserGuard,
+      { provide: StatementImportsService, useValue: statementImportsProvider },
+      { provide: SpaceAccessService, useValue: spaceAccessService },
+    ],
+  }).compile();
+
+  const application = module.createNestApplication();
+  configureApp(application, testConfig);
+  await application.init();
+  return application;
 }
 
 async function createStatementImportApplication(
@@ -633,12 +804,63 @@ class HttpStatementImportStore implements StatementImportStore {
     );
   }
 
+  findByIdInSpace(
+    spaceId: string,
+    statementImportId: string,
+  ): Promise<StatementImportRecord | null> {
+    return Promise.resolve(
+      this.imports.find(
+        (statementImport) =>
+          statementImport.spaceId === spaceId &&
+          statementImport.id === statementImportId,
+      ) ?? null,
+    );
+  }
+
+  findByFileHashInSpace(
+    spaceId: string,
+    fileHash: string,
+  ): Promise<StatementImportRecord | null> {
+    return Promise.resolve(
+      this.imports.find(
+        (statementImport) =>
+          statementImport.spaceId === spaceId &&
+          statementImport.fileHash === fileHash,
+      ) ?? null,
+    );
+  }
+
   findPage(
     query: StatementImportHistoryPageQuery,
   ): Promise<StatementImportHistoryRecord[]> {
     this.pageQueries.push(query);
     const records = this.imports.filter((statementImport) => {
       if (statementImport.userId !== query.userId) return false;
+      if (
+        query.filters.fromDate !== undefined &&
+        statementImport.statementDate < query.filters.fromDate
+      ) {
+        return false;
+      }
+      if (
+        query.filters.toDate !== undefined &&
+        statementImport.statementDate > query.filters.toDate
+      ) {
+        return false;
+      }
+      return true;
+    });
+
+    return Promise.resolve(
+      records.slice(0, query.pageSize + 1).map(toHistoryRecord),
+    );
+  }
+
+  findPageInSpace(
+    query: SpaceStatementImportHistoryPageQuery,
+  ): Promise<StatementImportHistoryRecord[]> {
+    const records = this.imports.filter((statementImport) => {
+      if (statementImport.spaceId !== query.spaceId) return false;
       if (
         query.filters.fromDate !== undefined &&
         statementImport.statementDate < query.filters.fromDate
@@ -691,6 +913,19 @@ class HttpImportedTransactionStore implements ImportedTransactionStore {
     );
   }
 
+  findByFingerprintInSpace(
+    spaceId: string,
+    fingerprint: string,
+  ): Promise<ImportedTransactionRecord[]> {
+    return Promise.resolve(
+      this.transactions.filter(
+        (transaction) =>
+          transaction.spaceId === spaceId &&
+          transaction.importFingerprint === fingerprint,
+      ),
+    );
+  }
+
   create(input: NewImportedTransaction): Promise<ImportedTransactionRecord> {
     this.createdInputs.push(input);
     const record = importedTransactionRecord({
@@ -731,6 +966,17 @@ class HttpCategoryStore implements TransactionCategoryStore {
     return Promise.resolve(
       this.categories.find(
         (category) => category.userId === userId && category.id === id,
+      ) ?? null,
+    );
+  }
+
+  findBySpaceId(
+    spaceId: string,
+    id: string,
+  ): Promise<TransactionCategoryRecord | null> {
+    return Promise.resolve(
+      this.categories.find(
+        (category) => category.spaceId === spaceId && category.id === id,
       ) ?? null,
     );
   }

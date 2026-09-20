@@ -1,12 +1,17 @@
 import { DynamicModule, Module } from '@nestjs/common';
+import { SpacesModule } from '../spaces/spaces.module';
 import { TypeOrmStatementImportConfirmationUnitOfWork } from '../database/unit-of-work';
 import { STATEMENT_IMPORT_CONFIRMATION_UNIT_OF_WORK } from './application/statement-import-confirmation';
 import { STATEMENT_IMPORT_STORE } from './application/statement-import-store';
 import { StatementImportsService } from './application/statement-imports.service';
 import { TypeOrmStatementImportStore } from './infrastructure/typeorm-statement-import-store';
 import { StatementImportsController } from './presentation/statement-imports.controller';
+import { SpaceStatementImportsController } from './presentation/space-statement-imports.controller';
 
-const controllers = [StatementImportsController];
+const controllers = [
+  StatementImportsController,
+  SpaceStatementImportsController,
+];
 
 @Module({})
 export class StatementImportsModule {
@@ -21,6 +26,7 @@ export class StatementImportsModule {
 
       return {
         module: StatementImportsModule,
+        imports: [SpacesModule.register(false, options)],
         controllers,
         providers: [{ provide: StatementImportsService, useValue: {} }],
       };
@@ -28,6 +34,7 @@ export class StatementImportsModule {
 
     return {
       module: StatementImportsModule,
+      imports: [SpacesModule.register(true, options)],
       controllers,
       providers: [
         TypeOrmStatementImportStore,

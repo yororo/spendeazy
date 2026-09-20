@@ -13,7 +13,7 @@ import {
   ReportingPeriodFilter,
   useReportingPeriod,
 } from "@/shared/reporting-period";
-import { MetricCard, SpaceSelector } from "@/shared/ui";
+import { ActiveSpaceLabel, MetricCard } from "@/shared/ui";
 
 import { TransactionDeleteDialog } from "./transaction-delete-dialog";
 import { TransactionEditorDialog } from "./transaction-editor-dialog";
@@ -79,23 +79,13 @@ function TransactionsPage({
     <div className="mx-auto w-full max-w-screen-2xl px-4 py-6 sm:px-6 lg:px-9 lg:py-7">
       <header className="mb-6 flex flex-col gap-5 border-b border-foreground pb-5 md:flex-row md:items-end md:justify-between">
         <div>
+          <ActiveSpaceLabel spaceId={spaceId} />
           <p className="text-label text-muted-foreground">Transactions</p>
           <h1 className="mt-2 font-mono text-2xl font-bold tracking-tight sm:text-3xl">
             Your spending
           </h1>
         </div>
         <div className="flex w-full min-w-0 flex-col gap-3 md:w-auto md:flex-row md:items-end">
-          {onSpaceChange !== undefined && (
-            <SpaceSelector
-              id="transactions-space"
-              spaceId={spaceId}
-              spaces={spacesQuery.data}
-              spacesPending={spacesQuery.isPending}
-              spacesError={spacesQuery.isError}
-              disabled={controlsDisabled}
-              onSpaceChange={onSpaceChange}
-            />
-          )}
           <ReportingPeriodFilter
             id="transactions-reporting-period"
             disabled={controlsDisabled}

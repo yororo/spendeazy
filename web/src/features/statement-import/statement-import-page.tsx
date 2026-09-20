@@ -1,11 +1,13 @@
 import { InfoIcon } from "lucide-react";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
 import {
   FeatureDataEmpty,
   FeatureDataError,
   FeatureDataLoading,
 } from "@/components/app/feature-data-state";
+import { useAccessibleSpacesQuery } from "@/shared/api";
+import { ActiveSpaceLabel } from "@/shared/ui";
 import { ImportProgress } from "./import-progress";
 import { ImportSuccess } from "./import-success";
 import { ReviewStatement } from "./review-statement";
@@ -28,15 +30,46 @@ import { useStatementImportNavigationGuard } from "./statement-import-navigation
 import { useStatementImportWorkflow } from "./use-statement-import-workflow";
 
 interface StatementImportPageProps {
-  onViewTransactions: () => void;
+  onViewTransactions: (spaceId?: string) => void;
+  spaceId?: string;
+  onSpaceChange?: (spaceId?: string) => void;
 }
 
-function StatementImportPage({ onViewTransactions }: StatementImportPageProps) {
-  const categoryOptionsQuery = useStatementImportCategoriesQuery();
-  const categoryRulesQuery = useStatementImportRulesQuery();
-  const recentImportsQuery = useRecentImportsQuery();
+function StatementImportPage({
+  onViewTransactions,
+  spaceId,
+  onSpaceChange,
+}: StatementImportPageProps) {
+  const shouldResolvePersonalSpace = onSpaceChange !== undefined;
+  const spacesQuery = useAccessibleSpacesQuery(shouldResolvePersonalSpace);
+  const effectiveSpaceId =
+    spaceId ?? spacesQuery.data?.find((space) => space.kind === "personal")?.id;
+  const [importDestination, setImportDestination] = useState<{
+    readonly spaceId?: string;
+  } | null>(null);
+  const destinationSpaceId = importDestination
+    ? importDestination.spaceId
+    : effectiveSpaceId;
+  const scopeReady =
+    !shouldResolvePersonalSpace || spacesQuery.isSuccess || spacesQuery.isError;
+  const categoryOptionsQuery = useStatementImportCategoriesQuery(
+    effectiveSpaceId,
+    scopeReady,
+  );
+  const categoryRulesQuery = useStatementImportRulesQuery(
+    effectiveSpaceId,
+    scopeReady,
+  );
+  const recentImportsQuery = useRecentImportsQuery(
+    effectiveSpaceId,
+    scopeReady,
+  );
   const commitMutation = useCommitStatementImportMutation();
   const rememberCategoryRuleMutation = useRememberCategoryRuleMutation();
+  const destinationLabel = getDestinationLabel(
+    destinationSpaceId,
+    spacesQuery.data,
+  );
 
   const categoryCatalogForWorkflow = categoryOptionsQuery.data ?? [];
   const categoryOptionsForWorkflow = categoryCatalogForWorkflow
@@ -46,9 +79,18 @@ function StatementImportPage({ onViewTransactions }: StatementImportPageProps) {
     categoryOptions: categoryOptionsForWorkflow,
     categoryLabels: categoryCatalogForWorkflow,
     onRememberCategoryRule: (input, existingRules) =>
-      rememberCategoryRuleMutation.mutateAsync({ input, existingRules }),
+      rememberCategoryRuleMutation.mutateAsync({
+        input,
+        existingRules,
+        spaceId: destinationSpaceId,
+      }),
     onCommitStatementImport: (file, statement, options) =>
-      commitMutation.mutateAsync({ file, statement, ...options }),
+      commitMutation.mutateAsync({
+        file,
+        statement,
+        ...options,
+        spaceId: destinationSpaceId,
+      }),
   });
   const isCategorizing =
     workflowState.stage === "categorize" &&
@@ -69,6 +111,7 @@ function StatementImportPage({ onViewTransactions }: StatementImportPageProps) {
     file: File,
     categorizedStatement: CategorizedStatement,
   ) {
+    setImportDestination({ spaceId: effectiveSpaceId });
     workflow.acceptPreparedStatement(
       file,
       categorizedStatement,
@@ -77,13 +120,25 @@ function StatementImportPage({ onViewTransactions }: StatementImportPageProps) {
   }
 
   function resetImport() {
+    setImportDestination(null);
     workflow.backToUpload();
   }
 
   const isLoading =
+    (shouldResolvePersonalSpace && spacesQuery.isPending) ||
     categoryOptionsQuery.isPending ||
     categoryRulesQuery.isPending ||
     recentImportsQuery.isPending;
+  if (shouldResolvePersonalSpace && spacesQuery.isError) {
+    return withNavigationGuard(
+      <FeatureDataError
+        message={spacesQuery.error?.message}
+        onRetry={() => {
+          void spacesQuery.refetch();
+        }}
+      />,
+    );
+  }
   if (isLoading) {
     return withNavigationGuard(
       <FeatureDataLoading label="Loading Statement Import" />,
@@ -135,8 +190,10 @@ function StatementImportPage({ onViewTransactions }: StatementImportPageProps) {
     return withNavigationGuard(
       <ImportSuccess
         committedImport={workflowState.commit.result}
+        destinationLabel={destinationLabel}
+        spaceId={destinationSpaceId}
         onImportAnother={resetImport}
-        onViewTransactions={onViewTransactions}
+        onViewTransactions={() => onViewTransactions(destinationSpaceId)}
       />,
     );
   }
@@ -148,6 +205,8 @@ function StatementImportPage({ onViewTransactions }: StatementImportPageProps) {
     return withNavigationGuard(
       <ReviewStatement
         categoryOptions={categoryOptions}
+        destinationLabel={destinationLabel}
+        spaceId={destinationSpaceId}
         fileName={importedFile.name}
         statementSummary={statement.summary}
         transactions={statement.transactions}
@@ -173,6 +232,8 @@ function StatementImportPage({ onViewTransactions }: StatementImportPageProps) {
         categoryOptions={categoryOptions}
         categoryLabels={categoryCatalog}
         currentCategoryRules={categoryRules}
+        destinationLabel={destinationLabel}
+        spaceId={destinationSpaceId}
         fileName={importedFile.name}
         statementSummary={statement.summary}
         onBack={() => requestExit(resetImport)}
@@ -185,12 +246,15 @@ function StatementImportPage({ onViewTransactions }: StatementImportPageProps) {
     <div className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-screen-2xl flex-col gap-6 px-4 py-6 sm:px-6 lg:h-screen lg:min-h-0 lg:px-9 lg:py-7">
       <header className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
         <div>
+          <ActiveSpaceLabel spaceId={spaceId} />
           <p className="text-label text-muted-foreground">Imports / Upload</p>
           <h1 className="mt-1 font-mono text-2xl font-bold tracking-tight sm:text-3xl">
             Upload your statement
           </h1>
         </div>
-        <ImportProgress currentStep="Upload" />
+        <div className="flex w-full flex-col gap-3 md:w-auto md:flex-row md:items-end">
+          <ImportProgress currentStep="Upload" />
+        </div>
       </header>
 
       <div className="grid min-h-0 flex-1 gap-5 lg:grid-cols-[minmax(0,1fr)_22.5rem] lg:gap-6">
@@ -297,3 +361,16 @@ function StatementImportPage({ onViewTransactions }: StatementImportPageProps) {
 }
 
 export { StatementImportPage };
+
+function getDestinationLabel(
+  spaceId: string | undefined,
+  spaces: readonly { id: string; kind: "personal" | "shared" }[] | undefined,
+): string {
+  const space = spaces?.find((candidate) => candidate.id === spaceId);
+  if (space?.kind === "shared") return `Shared Space · ${space.id}`;
+  if (space?.kind === "personal" || spaceId === undefined) {
+    return "Personal Space";
+  }
+
+  return `Space ${spaceId}`;
+}

@@ -31,32 +31,39 @@ interface CommitStatementImportMutationInput extends CommitStatementImportOption
   readonly statement: CategorizedStatement;
 }
 
-function useStatementImportCategoriesQuery() {
+function useStatementImportCategoriesQuery(
+  spaceId?: string,
+  enabled = true,
+) {
   const apiClient = useApiClient();
 
   return useQuery({
-    queryKey: ["statement-import", "categories"] as const,
-    queryFn: ({ signal }) => getCategoryCatalogOptions(apiClient, signal),
+    queryKey: ["statement-import", "categories", spaceId ?? null] as const,
+    queryFn: ({ signal }) =>
+      getCategoryCatalogOptions(apiClient, signal, spaceId),
+    enabled,
     staleTime: queryPolicy.categoryCatalogStaleTime,
   });
 }
 
-function useStatementImportRulesQuery(spaceId?: string) {
+function useStatementImportRulesQuery(spaceId?: string, enabled = true) {
   const apiClient = useApiClient();
 
   return useQuery({
     queryKey: ["statement-import", "rules", spaceId ?? null] as const,
     queryFn: ({ signal }) => getCategoryRules(apiClient, signal, spaceId),
+    enabled,
     staleTime: queryPolicy.categoryCatalogStaleTime,
   });
 }
 
-function useRecentImportsQuery() {
+function useRecentImportsQuery(spaceId?: string, enabled = true) {
   const apiClient = useApiClient();
 
   return useQuery({
-    queryKey: ["statement-import", "recent"] as const,
-    queryFn: ({ signal }) => getRecentImports(apiClient, signal),
+    queryKey: ["statement-import", "recent", spaceId ?? null] as const,
+    queryFn: ({ signal }) => getRecentImports(apiClient, signal, spaceId),
+    enabled,
     staleTime: queryPolicy.activityStaleTime,
   });
 }

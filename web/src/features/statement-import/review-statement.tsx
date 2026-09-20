@@ -25,6 +25,7 @@ import {
   type CategoryColor,
 } from "@/shared/category";
 import { formatMoney } from "@/shared/money";
+import { ActiveSpaceLabel } from "@/shared/ui";
 import {
   AlertTriangleIcon,
   ArrowLeftIcon,
@@ -49,6 +50,8 @@ import { AssignmentBadge, CategoryMatchCell } from "./statement-category-match";
 
 interface ReviewStatementProps {
   categoryOptions: readonly CategoryColorOption[];
+  destinationLabel?: string;
+  spaceId?: string;
   fileName: string;
   statementSummary: CategorizedStatement["summary"];
   transactions: readonly CategorizedTransaction[];
@@ -116,6 +119,8 @@ function formatDuplicateDetail(
 
 function ReviewStatement({
   categoryOptions,
+  destinationLabel,
+  spaceId,
   fileName,
   statementSummary,
   transactions,
@@ -200,10 +205,16 @@ function ReviewStatement({
     <div className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-screen-2xl flex-col gap-6 px-4 py-6 sm:px-6 lg:min-h-screen lg:px-9 lg:py-7">
       <header className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
         <div>
+          <ActiveSpaceLabel spaceId={spaceId} />
           <p className="text-label text-muted-foreground">Imports / Review</p>
           <h1 className="mt-1 font-mono text-2xl font-bold tracking-tight sm:text-3xl">
             Review your imported statement
           </h1>
+          {destinationLabel && (
+            <p className="mt-2 font-mono text-xs font-semibold uppercase text-muted-foreground">
+              Destination: {destinationLabel}
+            </p>
+          )}
         </div>
         <ImportProgress
           currentStep="Review"

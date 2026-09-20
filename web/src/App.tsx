@@ -57,10 +57,29 @@ function lazyRoute(page: ReactNode) {
 
 function StatementImportRoute() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const spaceId = searchParams.get("spaceId") ?? undefined;
 
   return (
     <StatementImportPage
-      onViewTransactions={() => navigate("/transactions")}
+      spaceId={spaceId}
+      onSpaceChange={(nextSpaceId) => {
+        const nextParams = new URLSearchParams(searchParams);
+        if (nextSpaceId === undefined) {
+          nextParams.delete("spaceId");
+        } else {
+          nextParams.set("spaceId", nextSpaceId);
+        }
+        setSearchParams(nextParams);
+      }}
+      onViewTransactions={(destinationSpaceId) => {
+        const nextParams = new URLSearchParams();
+        if (destinationSpaceId !== undefined) {
+          nextParams.set("spaceId", destinationSpaceId);
+        }
+        const query = nextParams.toString();
+        navigate(`/transactions${query ? `?${query}` : ""}`);
+      }}
     />
   );
 }

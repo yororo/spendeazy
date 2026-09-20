@@ -2,6 +2,10 @@
 
 Spendeazy is a private personal-finance application for tracking expenses, managing Budgets, and importing supported account statements. The monorepo contains two projects sharing one [domain glossary](CONTEXT.md).
 
+## Sharing release gate
+
+Shared Space support is still in progress. Before enabling it for production Users, complete the financial ownership migration in [issue 20](https://github.com/yororo/spendeazy/issues/20): retire remaining legacy User ownership paths, verify existing Personal history through migrations, exercise two-member Shared workflows and forbidden cross-Space references against PostgreSQL, and validate the complete browser flow. The current Space routes and database constraints alone do not establish that release readiness.
+
 | Project | Responsibility | Development guide |
 | --- | --- | --- |
 | [web/](web/) | React/TypeScript browser application built with Vite | [Web README](web/README.md), [architecture](web/docs/ARCHITECTURE.md) |

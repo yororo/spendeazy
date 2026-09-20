@@ -15,6 +15,7 @@ export interface BudgetRecord {
 export interface UpdateBudget {
   period: BudgetPeriod;
   amount: string;
+  expectedUpdatedAt?: string;
 }
 
 export interface NewBudget extends UpdateBudget {
@@ -24,6 +25,11 @@ export interface NewBudget extends UpdateBudget {
 export interface BudgetStore {
   findByCategoryId(categoryId: string): Promise<BudgetRecord | null>;
   create(input: NewBudget): Promise<BudgetRecord>;
+  createIfAbsent?(input: NewBudget): Promise<BudgetRecord | null>;
   update(categoryId: string, input: UpdateBudget): Promise<BudgetRecord | null>;
   delete(categoryId: string): Promise<boolean>;
+  deleteIfCurrent?(
+    categoryId: string,
+    expectedUpdatedAt: string,
+  ): Promise<boolean>;
 }

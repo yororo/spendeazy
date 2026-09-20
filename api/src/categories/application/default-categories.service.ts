@@ -10,6 +10,7 @@ export const DEFAULT_CATEGORY_PROVISIONER = Symbol(
 
 export interface DefaultCategoryProvisioner {
   createForNewUser(userId: string): Promise<void>;
+  createForSpace?(spaceId: string, actorUserId: string): Promise<void>;
 }
 
 @Injectable()
@@ -29,4 +30,30 @@ export class DefaultCategoriesService implements DefaultCategoryProvisioner {
       }
     }
   }
+
+  async createForSpace(spaceId: string, actorUserId: string): Promise<void> {
+    const existingNames = new Set(
+      ((await this.categoryStore.findAllBySpaceId?.(spaceId)) ?? []).map(
+        (category) => normalizeCategoryName(category.name),
+      ),
+    );
+
+    for (const category of DEFAULT_CATEGORY_CATALOG) {
+      if (existingNames.has(normalizeCategoryName(category.name))) continue;
+
+      try {
+        await this.categoryStore.create({
+          userId: actorUserId,
+          spaceId,
+          ...category,
+        });
+      } catch (error: unknown) {
+        this.logger.report('default_category_creation_failed', error);
+      }
+    }
+  }
+}
+
+function normalizeCategoryName(name: string): string {
+  return name.trim().toLowerCase();
 }

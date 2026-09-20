@@ -15,3 +15,20 @@ export class ApplicationError extends Error {
     this.name = new.target.name;
   }
 }
+
+export class StaleEditError extends ApplicationError {
+  constructor() {
+    super(
+      'STALE_EDIT',
+      'This resource changed elsewhere. Reload and review your edits before saving.',
+      [
+        {
+          field: '/updatedAt',
+          code: 'incompatible',
+          message:
+            'The resource changed elsewhere. Reload and review your edits before saving.',
+        },
+      ],
+    );
+  }
+}

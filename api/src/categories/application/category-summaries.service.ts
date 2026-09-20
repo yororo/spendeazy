@@ -76,6 +76,42 @@ export class CategorySummariesService {
       uncategorizedCount: normalizeCount(summary.uncategorizedCount),
     };
   }
+
+  async getCategorySummaryInSpace(
+    spaceId: string,
+    input: CategorySummaryInput,
+  ): Promise<CategorySummaryResult> {
+    const calendarPeriod = getCalendarPeriod(input);
+    const summary = await this.categorySummaryStore.findSummary({
+      userId: '',
+      spaceId,
+      fromDate: calendarPeriod.fromDate,
+      toDate: calendarPeriod.toDate,
+    });
+
+    return projectCategorySummary(summary, input);
+  }
+}
+
+function projectCategorySummary(
+  summary: CategorySummaryData,
+  input: CategorySummaryInput,
+): CategorySummaryResult {
+  return {
+    period: input.period,
+    year: input.year,
+    month: input.period === 'monthly' ? input.month! : null,
+    categories: summary.categories
+      .filter(
+        (category) =>
+          category.categoryIsActive ||
+          normalizeMoney(category.totalAmount) !== '0.00',
+      )
+      .sort((left, right) => compareIds(left.categoryId, right.categoryId))
+      .map((category) => toCategorySummaryItem(category, input.period)),
+    uncategorizedTotal: normalizeMoney(summary.uncategorizedAmount),
+    uncategorizedCount: normalizeCount(summary.uncategorizedCount),
+  };
 }
 
 function toCategorySummaryItem(

@@ -40,6 +40,12 @@ export type {
   TransactionHistoryItem,
   TransactionHistoryPage,
 } from "./transaction-history";
+export {
+  getAccessibleSpaces,
+  isAccessibleSpace,
+  requireAccessibleSpaces,
+} from "./space";
+export type { AccessibleSpace } from "./space";
 export type {
   ApiClient,
   ApiAuthenticationFailureHandler,

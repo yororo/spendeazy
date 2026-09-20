@@ -82,6 +82,11 @@ interface CategoryRuleFixture {
   readonly updatedAt: string;
 }
 
+interface CategoriesPageRenderOptions {
+  readonly spaceId?: string;
+  readonly onSpaceChange?: (spaceId?: string) => void;
+}
+
 type FetchMock = (
   input: RequestInfo | URL,
   init?: RequestInit,
@@ -146,11 +151,39 @@ function createFetchMock(options: FetchOptions = {}) {
     const path = requestUrl.pathname.slice(userPath.length);
     const method = init?.method ?? "GET";
 
-    if (method === "GET" && path === "/categories") {
+    if (method === "GET" && path === "/spaces") {
+      return jsonResponse([
+        {
+          id: "10",
+          kind: "personal",
+          status: "active",
+          accessLevel: "write",
+          createdAt: "2026-09-01T00:00:00.000Z",
+          updatedAt: "2026-09-01T00:00:00.000Z",
+        },
+        {
+          id: "99",
+          kind: "shared",
+          status: "active",
+          accessLevel: "write",
+          createdAt: "2026-09-01T00:00:00.000Z",
+          updatedAt: "2026-09-01T00:00:00.000Z",
+        },
+      ]);
+    }
+
+    if (
+      method === "GET" &&
+      (path === "/categories" || /^\/spaces\/[^/]+\/categories$/u.test(path))
+    ) {
       return jsonResponse(categories);
     }
 
-    if (method === "GET" && path === "/category-summaries") {
+    if (
+      method === "GET" &&
+      (path === "/category-summaries" ||
+        /^\/spaces\/[^/]+\/category-summaries$/u.test(path))
+    ) {
       return jsonResponse({
         period: "monthly",
         year: requestUrl.searchParams.get("year"),
@@ -464,7 +497,10 @@ function createQueryClient() {
   });
 }
 
-function renderCategoriesPage(fetchMock: FetchMock) {
+function renderCategoriesPage(
+  fetchMock: FetchMock,
+  options: CategoriesPageRenderOptions = {},
+) {
   const queryClient = createQueryClient();
   vi.stubGlobal("fetch", fetchMock);
 
@@ -475,7 +511,10 @@ function renderCategoriesPage(fetchMock: FetchMock) {
     >
       <QueryClientProvider client={queryClient}>
         <ReportingPeriodProvider>
-          <CategoriesPage />
+          <CategoriesPage
+            spaceId={options.spaceId}
+            onSpaceChange={options.onSpaceChange}
+          />
         </ReportingPeriodProvider>
       </QueryClientProvider>
     </ApiClientProvider>,
@@ -554,6 +593,21 @@ afterEach(() => {
 });
 
 describe("CategoriesPage", () => {
+  it("offers authorized Spaces and reports a selected Shared Space", async () => {
+    const { fetchMock } = createFetchMock();
+    const onSpaceChange = vi.fn<(spaceId?: string) => void>();
+    renderCategoriesPage(fetchMock, { onSpaceChange });
+
+    await screen.findByRole("heading", { name: "Budget overview" });
+    fireEvent.click(screen.getByRole("combobox", { name: "Active Space" }));
+
+    fireEvent.click(
+      await screen.findByRole("option", { name: "Shared Space · 99" }),
+    );
+
+    expect(onSpaceChange).toHaveBeenCalledWith("99");
+  });
+
   it("presents a focused mobile Budget list and preserves the wider table", async () => {
     const { fetchMock } = createFetchMock({
       additionalCategories: [

@@ -32,6 +32,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Table,
   TableBody,
   TableCell,
@@ -49,6 +56,7 @@ import { MetricCard } from "@/shared/ui";
 
 import { filterCategoriesByName } from "./categories-filter";
 import {
+  useAccessibleSpacesQuery,
   useCategoriesOverviewQuery,
   useUpdateCategoryStatusMutation,
 } from "./categories-queries";
@@ -65,6 +73,11 @@ interface CategoryStatusDialogState {
 interface CategoryStatusFailureAlertProps {
   readonly className?: string;
   readonly message: string;
+}
+
+interface CategoriesPageProps {
+  readonly spaceId?: string;
+  readonly onSpaceChange?: (spaceId?: string) => void;
 }
 
 function getCategoriesEmptyMessage(
@@ -101,7 +114,7 @@ function CategoryStatusFailureAlert({
   );
 }
 
-function CategoriesPage() {
+function CategoriesPage({ spaceId, onSpaceChange }: CategoriesPageProps = {}) {
   const { period } = useReportingPeriod();
   const [search, setSearch] = useState("");
   const [showInactive, setShowInactive] = useState(false);
@@ -110,9 +123,13 @@ function CategoriesPage() {
     useState<string | null>(null);
   const [statusDialog, setStatusDialog] =
     useState<CategoryStatusDialogState | null>(null);
+  const [spacePickerOpen, setSpacePickerOpen] = useState(false);
   const statusTriggerRef = useRef<HTMLButtonElement | null>(null);
   const focusFallbackRef = useRef(false);
-  const categoriesQuery = useCategoriesOverviewQuery(period);
+  const categoriesQuery = useCategoriesOverviewQuery(period, spaceId);
+  const spacesQuery = useAccessibleSpacesQuery(
+    onSpaceChange !== undefined && spacePickerOpen,
+  );
   const statusMutation = useUpdateCategoryStatusMutation();
 
   if (categoriesQuery.isPending) {
@@ -163,7 +180,10 @@ function CategoriesPage() {
     (category) => category.budget !== null,
   ).length;
   const isStatusMutationPending = statusMutation.isPending;
-  const filtersDisabled = isEditing || isStatusMutationPending;
+  const isScopeTransitioning =
+    categoriesQuery.isFetching && categoriesQuery.isPlaceholderData;
+  const filtersDisabled =
+    isEditing || isStatusMutationPending || isScopeTransitioning;
 
   function focusVisibilityControl() {
     window.setTimeout(() => {
@@ -219,6 +239,10 @@ function CategoriesPage() {
       await statusMutation.mutateAsync({
         categoryId,
         isActive,
+        spaceId,
+        updatedAt: statusDialog?.category.id === categoryId
+          ? statusDialog.category.updatedAt
+          : categories.find((category) => category.id === categoryId)?.updatedAt,
       });
       return true;
     } catch {
@@ -255,6 +279,52 @@ function CategoriesPage() {
           </h1>
         </div>
         <div className="flex w-full flex-col gap-3 md:w-auto md:flex-row md:items-end md:justify-end">
+          {onSpaceChange !== undefined && (
+            <div className="grid w-full gap-1 md:w-56">
+              <Label htmlFor="categories-space">Active Space</Label>
+              <Select
+                value={spaceId ?? "personal"}
+                onOpenChange={setSpacePickerOpen}
+                onValueChange={(value) =>
+                  onSpaceChange(value === "personal" ? undefined : value)
+                }
+              >
+                <SelectTrigger
+                  id="categories-space"
+                  aria-label="Active Space"
+                  disabled={filtersDisabled}
+                >
+                  <SelectValue
+                    placeholder={
+                      spaceId === undefined
+                        ? "Personal Space"
+                        : `Space ${spaceId}`
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="personal">Personal Space</SelectItem>
+                  {spacesQuery.isPending && (
+                    <SelectItem value="loading" disabled>
+                      Loading Spaces…
+                    </SelectItem>
+                  )}
+                  {spacesQuery.isError && (
+                    <SelectItem value="error" disabled>
+                      Spaces unavailable
+                    </SelectItem>
+                  )}
+                  {spacesQuery.data
+                    ?.filter((space) => space.kind === "shared")
+                    .map((space) => (
+                      <SelectItem key={space.id} value={space.id}>
+                        Shared Space · {space.id}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <ReportingPeriodFilter
             id="categories-reporting-period"
             disabled={filtersDisabled}
@@ -262,6 +332,7 @@ function CategoriesPage() {
           <CreateCategoryDialog
             className="w-full md:w-auto"
             disabled={filtersDisabled}
+            spaceId={spaceId}
           />
         </div>
       </header>
@@ -352,6 +423,7 @@ function CategoriesPage() {
                 key={category.id}
                 allCategories={categories}
                 category={category}
+                spaceId={spaceId}
                 disabled={filtersDisabled}
                 isStatusPending={
                   isStatusMutationPending &&
@@ -393,6 +465,7 @@ function CategoriesPage() {
                 <EditCategoryRow
                   key={category.id}
                   category={category}
+                  spaceId={spaceId}
                   onCancel={() => setEditingCategoryId(null)}
                   onSaved={() => setEditingCategoryId(null)}
                 />
@@ -476,11 +549,13 @@ function CategoriesPage() {
                         >
                           <PencilIcon aria-hidden="true" />
                         </Button>
-                        <MatchingRulesDialog
-                          allCategories={categories}
-                          category={category}
-                          disabled={filtersDisabled}
-                        />
+                        {spaceId === undefined && (
+                          <MatchingRulesDialog
+                            allCategories={categories}
+                            category={category}
+                            disabled={filtersDisabled}
+                          />
+                        )}
                         <Button
                           type="button"
                           variant="outline"

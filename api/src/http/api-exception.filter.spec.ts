@@ -14,6 +14,7 @@ import {
   StatementImportProbableDuplicatesError,
 } from '../statement-imports/application/statement-import-errors';
 import { UnauthenticatedError } from '../authentication/authentication-errors';
+import { StaleEditError } from '../errors/application-error';
 
 describe('ApiExceptionFilter', () => {
   it('logs server failures once and leaves expected client failures silent', () => {
@@ -128,6 +129,30 @@ describe('ApiExceptionFilter', () => {
             field: '/pattern',
             code: 'not_unique',
             message: 'Category rule pattern is already in use',
+          },
+        ],
+      },
+    });
+  });
+
+  it('maps stale edits to a reloadable conflict response', () => {
+    const response = responseDouble();
+    const filter = new ApiExceptionFilter();
+
+    filter.catch(new StaleEditError(), httpHost(response));
+
+    expect(response.status).toHaveBeenCalledWith(409);
+    expect(response.json).toHaveBeenCalledWith({
+      error: {
+        code: 'STALE_EDIT',
+        message:
+          'This resource changed elsewhere. Reload and review your edits before saving.',
+        details: [
+          {
+            field: '/updatedAt',
+            code: 'incompatible',
+            message:
+              'The resource changed elsewhere. Reload and review your edits before saving.',
           },
         ],
       },

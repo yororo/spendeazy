@@ -22,6 +22,7 @@ import type {
 
 interface EditCategoryRowProps {
   readonly category: CategoryOverviewItem;
+  readonly spaceId?: string;
   readonly onCancel: () => void;
   readonly onSaved: () => void;
 }
@@ -91,12 +92,14 @@ interface ReadyEditCategoryRowProps extends EditCategoryRowProps {
 function ReadyEditCategoryRow({
   authoritativeBudget,
   category,
+  spaceId,
   onCancel,
   onSaved,
 }: ReadyEditCategoryRowProps) {
   const editor = useCategoryEditor({
     authoritativeBudget,
     category,
+    spaceId,
     onCancel,
     onSaved,
   });
@@ -168,10 +171,11 @@ function ReadyEditCategoryRow({
 
 function EditCategoryRow({
   category,
+  spaceId,
   onCancel,
   onSaved,
 }: EditCategoryRowProps) {
-  const budgetQuery = useCategoryBudgetQuery(category.id);
+  const budgetQuery = useCategoryBudgetQuery(category.id, spaceId);
 
   if (!budgetQuery.isFetchedAfterMount && budgetQuery.isError) {
     return (
@@ -205,6 +209,7 @@ function EditCategoryRow({
     <ReadyEditCategoryRow
       category={category}
       authoritativeBudget={budgetQuery.data}
+      spaceId={spaceId}
       onCancel={onCancel}
       onSaved={onSaved}
     />

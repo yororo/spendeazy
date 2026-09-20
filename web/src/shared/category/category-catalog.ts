@@ -6,6 +6,8 @@ interface CategoryCatalogItem {
   readonly description: string | null;
   readonly color?: CategoryColor | null;
   readonly isActive: boolean;
+  readonly createdAt?: string;
+  readonly updatedAt?: string;
 }
 
 const CATEGORY_ID_PATTERN = /^[1-9]\d*$/u;
@@ -24,7 +26,9 @@ function isCategoryCatalogItem(value: unknown): value is CategoryCatalogItem {
     (value.color === undefined ||
       value.color === null ||
       isCategoryColor(value.color)) &&
-    typeof value.isActive === "boolean"
+    typeof value.isActive === "boolean" &&
+    (value.createdAt === undefined || typeof value.createdAt === "string") &&
+    (value.updatedAt === undefined || typeof value.updatedAt === "string")
   );
 }
 

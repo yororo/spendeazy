@@ -19,16 +19,21 @@ export class TypeOrmCategorySummaryStore implements CategorySummaryStore {
   ) {}
 
   async findSummary(query: CategorySummaryQuery): Promise<CategorySummaryData> {
+    const categoryScope = query.spaceId
+      ? 'category.spaceId = :spaceId'
+      : 'category.userId = :userId';
+    const transactionJoin = query.spaceId
+      ? 'transaction.categoryId = category.id AND transaction.spaceId = category.spaceId AND transaction.purchaseDate BETWEEN :fromDate AND :toDate'
+      : 'transaction.categoryId = category.id AND transaction.userId = category.userId AND transaction.purchaseDate BETWEEN :fromDate AND :toDate';
+    const scopeParameters = query.spaceId
+      ? { spaceId: query.spaceId }
+      : { userId: query.userId };
     const categories = await this.entityManager
       .getRepository(CategoryEntity)
       .createQueryBuilder('category')
-      .leftJoin(
-        TransactionEntity,
-        'transaction',
-        'transaction.categoryId = category.id AND transaction.userId = category.userId AND transaction.purchaseDate BETWEEN :fromDate AND :toDate',
-      )
+      .leftJoin(TransactionEntity, 'transaction', transactionJoin)
       .leftJoin(BudgetEntity, 'budget', 'budget.categoryId = category.id')
-      .where('category.userId = :userId', { userId: query.userId })
+      .where(categoryScope, scopeParameters)
       .andWhere('(category.isActive = TRUE OR transaction.id IS NOT NULL)')
       .select('category.id', 'categoryId')
       .addSelect('category.name', 'categoryName')
@@ -55,7 +60,12 @@ export class TypeOrmCategorySummaryStore implements CategorySummaryStore {
       .createQueryBuilder('transaction')
       .select('COALESCE(SUM(transaction.amount), 0)', 'uncategorizedAmount')
       .addSelect('COUNT(transaction.id)', 'uncategorizedCount')
-      .where('transaction.userId = :userId', { userId: query.userId })
+      .where(
+        query.spaceId
+          ? 'transaction.spaceId = :spaceId'
+          : 'transaction.userId = :userId',
+        scopeParameters,
+      )
       .andWhere('transaction.categoryId IS NULL')
       .andWhere('transaction.purchaseDate BETWEEN :fromDate AND :toDate', {
         fromDate: query.fromDate,

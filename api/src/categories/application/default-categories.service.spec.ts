@@ -49,6 +49,40 @@ describe('DefaultCategoriesService', () => {
     expect(JSON.stringify(logger.errors)).not.toContain('clerk');
     expect(JSON.stringify(logger.errors)).not.toContain('Food & Drink');
   });
+
+  it('provisions Space defaults with the actor attribution and no copied custom data', async () => {
+    const store = new RecordingCategoryStore();
+    const service = new DefaultCategoriesService(store, new RecordingLogger());
+
+    await service.createForSpace('99', '42');
+
+    expect(store.createAttempts).toEqual(
+      DEFAULT_CATEGORY_CATALOG.map((category) => ({
+        userId: '42',
+        spaceId: '99',
+        name: category.name,
+        description: category.description,
+      })),
+    );
+  });
+
+  it('does not recreate an existing default while filling missing Space defaults', async () => {
+    const store = new RecordingCategoryStore({
+      existingSpaceCategories: [
+        categoryRecord({ spaceId: '99', name: 'Food & Drink' }),
+      ],
+    });
+    const service = new DefaultCategoriesService(store, new RecordingLogger());
+
+    await service.createForSpace('99', '42');
+
+    expect(store.createAttempts).toHaveLength(
+      DEFAULT_CATEGORY_CATALOG.length - 1,
+    );
+    expect(store.createAttempts).not.toContainEqual(
+      expect.objectContaining({ name: 'Food & Drink' }),
+    );
+  });
 });
 
 class RecordingCategoryStore implements CategoryStore {
@@ -56,16 +90,24 @@ class RecordingCategoryStore implements CategoryStore {
   readonly createdCategories: NewCategory[] = [];
   private readonly failuresByName: ReadonlyMap<string, Error>;
 
-  constructor(options: { failuresByName?: ReadonlyMap<string, Error> } = {}) {
+  constructor(
+    options: {
+      failuresByName?: ReadonlyMap<string, Error>;
+      existingSpaceCategories?: readonly CategoryRecord[];
+    } = {},
+  ) {
     this.failuresByName = options.failuresByName ?? new Map();
+    this.existingSpaceCategories = options.existingSpaceCategories ?? [];
   }
+
+  private readonly existingSpaceCategories: readonly CategoryRecord[];
 
   create(input: NewCategory): Promise<CategoryRecord> {
     this.createAttempts.push(input);
     const failure = this.failuresByName.get(input.name);
     if (failure) return Promise.reject(failure);
     this.createdCategories.push(input);
-    return Promise.resolve(categoryRecord(input));
+    return Promise.resolve(categoryRecordFromInput(input));
   }
 
   findById(): Promise<CategoryRecord | null> {
@@ -74,6 +116,14 @@ class RecordingCategoryStore implements CategoryStore {
 
   findAll(): Promise<CategoryRecord[]> {
     throw new Error('Not used');
+  }
+
+  findAllBySpaceId(spaceId: string): Promise<CategoryRecord[]> {
+    return Promise.resolve(
+      this.existingSpaceCategories.filter(
+        (category) => category.spaceId === spaceId,
+      ),
+    );
   }
 
   findByNormalizedName(): Promise<CategoryRecord | null> {
@@ -93,7 +143,7 @@ class RecordingLogger extends ExceptionLogger {
   }
 }
 
-function categoryRecord(input: NewCategory): CategoryRecord {
+function categoryRecordFromInput(input: NewCategory): CategoryRecord {
   const timestamp = new Date('2026-09-05T00:00:00.000Z');
   return {
     id: String(Math.random()),
@@ -101,5 +151,22 @@ function categoryRecord(input: NewCategory): CategoryRecord {
     isActive: true,
     createdAt: timestamp,
     updatedAt: timestamp,
+  };
+}
+
+function categoryRecord(
+  overrides: Partial<CategoryRecord> = {},
+): CategoryRecord {
+  const timestamp = new Date('2026-09-05T00:00:00.000Z');
+  return {
+    id: '100',
+    userId: '42',
+    spaceId: '99',
+    name: 'Existing',
+    description: null,
+    isActive: true,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    ...overrides,
   };
 }

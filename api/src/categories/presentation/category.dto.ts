@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional, ApiSchema } from '@nestjs/swagger';
 import {
   IsIn,
+  IsISO8601,
   IsBoolean,
   IsNotEmpty,
   IsString,
@@ -138,6 +139,17 @@ export class UpdateCategoryDto {
     example: 'teal',
   })
   color?: CategoryColor;
+
+  @ValidateIf((_, value) => value !== undefined)
+  @IsString()
+  @IsISO8601({ strict: true })
+  @ApiPropertyOptional({
+    description:
+      'The UTC timestamp returned by the last read. Stale edits are rejected when another save changed the Category first.',
+    format: 'date-time',
+    example: '2026-08-29T00:00:00.000Z',
+  })
+  updatedAt?: string;
 }
 
 function normalizeDescription({ value }: TransformFnParams): unknown {

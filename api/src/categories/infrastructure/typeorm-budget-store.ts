@@ -1,7 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { InjectEntityManager } from '@nestjs/typeorm';
-import { type EntityManager, type Repository } from 'typeorm';
+import { QueryFailedError, type EntityManager, type Repository } from 'typeorm';
 import { BudgetEntity } from '../../database/entities/budget.entity';
+import { POSTGRES_UNIQUE_VIOLATION } from '../../database/database-error-codes';
+import { StaleEditError } from '../../errors/application-error';
 import type {
   BudgetRecord,
   BudgetStore,
@@ -35,11 +37,44 @@ export class TypeOrmBudgetStore implements BudgetStore {
     return saveBudget(repository, entity);
   }
 
+  async createIfAbsent(input: NewBudget): Promise<BudgetRecord | null> {
+    try {
+      return await this.create(input);
+    } catch (error: unknown) {
+      if (isUniqueViolation(error)) return null;
+      throw error;
+    }
+  }
+
   async update(
     categoryId: string,
     input: UpdateBudget,
   ): Promise<BudgetRecord | null> {
     const repository = this.entityManager.getRepository(BudgetEntity);
+    if (input.expectedUpdatedAt !== undefined) {
+      const result = await repository
+        .createQueryBuilder()
+        .update(BudgetEntity)
+        .set({ amount: input.amount, period: input.period })
+        .where('category_id = :categoryId', { categoryId })
+        .andWhere('updated_at = :expectedUpdatedAt', {
+          expectedUpdatedAt: new Date(input.expectedUpdatedAt),
+        })
+        .execute();
+
+      if (result.affected !== 1) {
+        const current = await repository.findOne({ where: { categoryId } });
+        if (!current) {
+          return null;
+        }
+
+        throw new StaleEditError();
+      }
+
+      const updated = await repository.findOne({ where: { categoryId } });
+      return updated ? toBudgetRecord(updated) : null;
+    }
+
     const entity = await repository.findOne({ where: { categoryId } });
     if (!entity) {
       return null;
@@ -57,6 +92,32 @@ export class TypeOrmBudgetStore implements BudgetStore {
 
     return result.affected === 1;
   }
+
+  async deleteIfCurrent(
+    categoryId: string,
+    expectedUpdatedAt: string,
+  ): Promise<boolean> {
+    const repository = this.entityManager.getRepository(BudgetEntity);
+    const result = await repository
+      .createQueryBuilder()
+      .delete()
+      .from(BudgetEntity)
+      .where('category_id = :categoryId', { categoryId })
+      .andWhere('updated_at = :expectedUpdatedAt', {
+        expectedUpdatedAt: new Date(expectedUpdatedAt),
+      })
+      .execute();
+    if (result.affected === 1) {
+      return true;
+    }
+
+    const current = await repository.findOne({ where: { categoryId } });
+    if (current) {
+      throw new StaleEditError();
+    }
+
+    return false;
+  }
 }
 
 async function saveBudget(
@@ -64,6 +125,15 @@ async function saveBudget(
   entity: BudgetEntity,
 ): Promise<BudgetRecord> {
   return toBudgetRecord(await repository.save(entity));
+}
+
+function isUniqueViolation(error: unknown): boolean {
+  if (!(error instanceof QueryFailedError)) {
+    return false;
+  }
+
+  const driverError = error.driverError as { code?: unknown };
+  return driverError.code === POSTGRES_UNIQUE_VIOLATION;
 }
 
 function toBudgetRecord(entity: BudgetEntity): BudgetRecord {

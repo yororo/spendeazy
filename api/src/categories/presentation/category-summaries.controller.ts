@@ -1,4 +1,11 @@
-import { Controller, Get, HttpStatus, Query, Req } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  HttpStatus,
+  Optional,
+  Query,
+  Req,
+} from '@nestjs/common';
 import {
   ApiExtraModels,
   ApiOperation,
@@ -19,6 +26,7 @@ import {
   CategorySummaryItemResponseDto,
   CategorySummaryResponseDto,
 } from './category-summary-response.dto';
+import { SpaceAccessService } from '../../spaces/application/space-access.service';
 
 @Controller('users/me/category-summaries')
 @ApiTags('Category summaries')
@@ -26,6 +34,7 @@ import {
 export class CategorySummariesController {
   constructor(
     private readonly categorySummariesService: CategorySummariesService,
+    @Optional() private readonly spaceAccessService?: SpaceAccessService,
   ) {}
 
   @Get()
@@ -50,10 +59,15 @@ export class CategorySummariesController {
     @Req() request: AuthenticatedRequest,
     @Query() query: CategorySummaryQueryDto,
   ): Promise<CategorySummaryResponseDto> {
-    const summary = await this.categorySummariesService.getCategorySummary(
-      requireAuthenticatedUserId(request),
-      query,
-    );
+    const userId = requireAuthenticatedUserId(request);
+    const personalSpace =
+      await this.spaceAccessService?.requirePersonalSpace(userId);
+    const summary = personalSpace
+      ? await this.categorySummariesService.getCategorySummaryInSpace(
+          personalSpace.id,
+          query,
+        )
+      : await this.categorySummariesService.getCategorySummary(userId, query);
     return toCategorySummaryResponse(summary);
   }
 }

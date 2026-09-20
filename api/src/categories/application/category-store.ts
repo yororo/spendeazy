@@ -7,6 +7,7 @@ export const CATEGORY_DESCRIPTION_MAX_LENGTH = 500;
 export interface CategoryRecord {
   id: string;
   userId: string;
+  spaceId?: string;
   name: string;
   description: string | null;
   color?: CategoryColor | null;
@@ -17,6 +18,7 @@ export interface CategoryRecord {
 
 export interface NewCategory {
   userId: string;
+  spaceId?: string;
   name: string;
   description: string | null;
   color?: CategoryColor | null;
@@ -27,6 +29,7 @@ export interface UpdateCategory {
   description?: string | null;
   color?: CategoryColor;
   isActive?: boolean;
+  expectedUpdatedAt?: string;
 }
 
 export interface CategoryStore {
@@ -39,6 +42,17 @@ export interface CategoryStore {
   create(input: NewCategory): Promise<CategoryRecord>;
   update(
     userId: string,
+    id: string,
+    input: UpdateCategory,
+  ): Promise<CategoryRecord | null>;
+  findBySpaceId?(spaceId: string, id: string): Promise<CategoryRecord | null>;
+  findAllBySpaceId?(spaceId: string): Promise<CategoryRecord[]>;
+  findByNormalizedNameInSpace?(
+    spaceId: string,
+    normalizedName: string,
+  ): Promise<CategoryRecord | null>;
+  updateInSpace?(
+    spaceId: string,
     id: string,
     input: UpdateCategory,
   ): Promise<CategoryRecord | null>;

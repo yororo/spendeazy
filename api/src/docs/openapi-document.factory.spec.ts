@@ -88,6 +88,14 @@ describe('OpenAPI document factory', () => {
         `GET ${apiRoot}/users/me/category-summaries`,
         `GET ${apiRoot}/users/me/spaces`,
         `GET ${apiRoot}/users/me/spaces/{spaceId}`,
+        `GET ${apiRoot}/users/me/spaces/{spaceId}/categories`,
+        `POST ${apiRoot}/users/me/spaces/{spaceId}/categories`,
+        `GET ${apiRoot}/users/me/spaces/{spaceId}/categories/{categoryId}`,
+        `PATCH ${apiRoot}/users/me/spaces/{spaceId}/categories/{categoryId}`,
+        `GET ${apiRoot}/users/me/spaces/{spaceId}/categories/{categoryId}/budget`,
+        `PUT ${apiRoot}/users/me/spaces/{spaceId}/categories/{categoryId}/budget`,
+        `DELETE ${apiRoot}/users/me/spaces/{spaceId}/categories/{categoryId}/budget`,
+        `GET ${apiRoot}/users/me/spaces/{spaceId}/category-summaries`,
       ].sort(),
     );
 

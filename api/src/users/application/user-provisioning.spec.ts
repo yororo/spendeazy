@@ -86,6 +86,47 @@ describe('UsersService provisioning', () => {
     expect(defaultCategories.requestedUserIds).toEqual([]);
   });
 
+  it('provisions new-user defaults through the newly created Personal Space', async () => {
+    const defaultCategories = new DefaultCategoryProvisionerFake();
+    const personalSpaces = new PersonalSpaceProvisionerFake('10');
+    const service = new UsersService(
+      new UserStoreFake(),
+      new ClerkProfileServiceFake({
+        fullName: 'Ada Lovelace',
+        primaryVerifiedEmail: 'ada@example.com',
+      }),
+      defaultCategories,
+      personalSpaces,
+    );
+
+    await service.provisionUser('user_42');
+
+    expect(defaultCategories.requestedUserIds).toEqual([]);
+    expect(defaultCategories.requestedSpaces).toEqual([
+      { spaceId: '10', actorUserId: '2' },
+    ]);
+  });
+
+  it('repairs missing Personal Space defaults when an existing User is provisioned', async () => {
+    const current = userRecord();
+    const defaultCategories = new DefaultCategoryProvisionerFake();
+    const service = new UsersService(
+      new UserStoreFake({ users: [current] }),
+      new ClerkProfileServiceFake({
+        fullName: current.name,
+        primaryVerifiedEmail: current.email,
+      }),
+      defaultCategories,
+      new PersonalSpaceProvisionerFake('10'),
+    );
+
+    await service.provisionUser(current.clerkUserId);
+
+    expect(defaultCategories.requestedSpaces).toEqual([
+      { spaceId: '10', actorUserId: current.id },
+    ]);
+  });
+
   it('does not link an unprovisioned Clerk subject to an email-owned User', async () => {
     const existing = userRecord({
       clerkUserId: 'different_clerk_user',
@@ -190,9 +231,18 @@ describe('UsersService provisioning', () => {
 
 class DefaultCategoryProvisionerFake implements DefaultCategoryProvisioner {
   readonly requestedUserIds: string[] = [];
+  readonly requestedSpaces: Array<{
+    spaceId: string;
+    actorUserId: string;
+  }> = [];
 
   createForNewUser(userId: string): Promise<void> {
     this.requestedUserIds.push(userId);
+    return Promise.resolve();
+  }
+
+  createForSpace(spaceId: string, actorUserId: string): Promise<void> {
+    this.requestedSpaces.push({ spaceId, actorUserId });
     return Promise.resolve();
   }
 }
@@ -200,9 +250,11 @@ class DefaultCategoryProvisionerFake implements DefaultCategoryProvisioner {
 class PersonalSpaceProvisionerFake implements PersonalSpaceProvisioner {
   readonly requestedUserIds: string[] = [];
 
-  ensurePersonalSpace(userId: string): Promise<void> {
+  constructor(private readonly spaceId?: string) {}
+
+  ensurePersonalSpace(userId: string): Promise<string | void> {
     this.requestedUserIds.push(userId);
-    return Promise.resolve();
+    return Promise.resolve(this.spaceId);
   }
 }
 

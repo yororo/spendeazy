@@ -8,6 +8,7 @@ import {
   CategoryNameConflictError,
   CategoryNotFoundError,
 } from './category-errors';
+import { StaleEditError } from '../../errors/application-error';
 import { CategoriesService, normalizeCategoryName } from './categories.service';
 
 describe('CategoriesService', () => {
@@ -228,6 +229,62 @@ describe('CategoriesService', () => {
     );
     expect(store.updatedInput).toEqual({ isActive: true });
   });
+
+  it('reads and writes Categories through the requested Space scope', async () => {
+    const personalCategory = categoryRecord({
+      id: '1',
+      spaceId: '10',
+      name: 'Groceries',
+    });
+    const sharedCategory = categoryRecord({
+      id: '2',
+      spaceId: '11',
+      name: 'Groceries',
+    });
+    const store = new CategoryStoreFake({
+      categories: [personalCategory, sharedCategory],
+    });
+    const service = new CategoriesService(store);
+
+    await expect(service.listCategoriesInSpace('10')).resolves.toEqual([
+      personalCategory,
+    ]);
+    await expect(service.getCategoryInSpace('11', '1')).rejects.toBeInstanceOf(
+      CategoryNotFoundError,
+    );
+    await expect(
+      service.createCategoryInSpace('7', '10', { name: ' Dining ' }),
+    ).resolves.toEqual(expect.objectContaining({ spaceId: '10' }));
+    expect(store.createdInput).toEqual({
+      userId: '7',
+      spaceId: '10',
+      name: 'Dining',
+      description: null,
+    });
+
+    await service.updateCategoryInSpace('10', '1', {
+      isActive: false,
+      expectedUpdatedAt: personalCategory.updatedAt.toISOString(),
+    });
+    expect(store.updatedInput).toEqual({
+      isActive: false,
+      expectedUpdatedAt: personalCategory.updatedAt.toISOString(),
+    });
+  });
+
+  it('rejects a stale scoped Category edit even when the requested change is a no-op', async () => {
+    const category = categoryRecord({ spaceId: '10' });
+    const store = new CategoryStoreFake({ categories: [category] });
+    const service = new CategoriesService(store);
+
+    await expect(
+      service.updateCategoryInSpace('10', category.id, {
+        name: category.name,
+        expectedUpdatedAt: '2026-08-28T00:00:00.000Z',
+      }),
+    ).rejects.toBeInstanceOf(StaleEditError);
+    expect(store.updatedInput).toBeUndefined();
+  });
 });
 
 class CategoryStoreFake implements CategoryStore {
@@ -287,6 +344,50 @@ class CategoryStoreFake implements CategoryStore {
 
   update(
     _userId: string,
+    id: string,
+    input: UpdateCategory,
+  ): Promise<CategoryRecord | null> {
+    this.updatedInput = input;
+    return Promise.resolve(
+      this.updatedCategory ??
+        categoryRecord({
+          ...this.categories.find((category) => category.id === id),
+          ...input,
+          id,
+        }),
+    );
+  }
+
+  findBySpaceId(spaceId: string, id: string): Promise<CategoryRecord | null> {
+    return Promise.resolve(
+      this.categories.find(
+        (category) => category.spaceId === spaceId && category.id === id,
+      ) ?? null,
+    );
+  }
+
+  findAllBySpaceId(spaceId: string): Promise<CategoryRecord[]> {
+    return Promise.resolve(
+      this.categories.filter((category) => category.spaceId === spaceId),
+    );
+  }
+
+  findByNormalizedNameInSpace(
+    spaceId: string,
+    normalizedName: string,
+  ): Promise<CategoryRecord | null> {
+    this.checkedName = normalizedName;
+    return Promise.resolve(
+      this.categories.find(
+        (category) =>
+          category.spaceId === spaceId &&
+          normalizeCategoryName(category.name) === normalizedName,
+      ) ?? null,
+    );
+  }
+
+  updateInSpace(
+    _spaceId: string,
     id: string,
     input: UpdateCategory,
   ): Promise<CategoryRecord | null> {

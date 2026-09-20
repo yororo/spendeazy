@@ -60,6 +60,34 @@ describe('SpaceAccessService', () => {
       SpaceNotWritableError,
     );
   });
+
+  it('grants equal Shared Space access to both members and denies a third User', async () => {
+    const store = new SpaceStoreFake([
+      spaceRecord({
+        id: '20',
+        kind: 'shared',
+        userId: '42',
+        accessLevel: 'write',
+      }),
+      spaceRecord({
+        id: '20',
+        kind: 'shared',
+        userId: '43',
+        accessLevel: 'write',
+      }),
+    ]);
+    const service = new SpaceAccessService(store);
+
+    await expect(service.requireWriteAccess('42', '20')).resolves.toMatchObject(
+      { id: '20', accessLevel: 'write' },
+    );
+    await expect(service.requireWriteAccess('43', '20')).resolves.toMatchObject(
+      { id: '20', accessLevel: 'write' },
+    );
+    await expect(service.requireReadAccess('99', '20')).rejects.toBeInstanceOf(
+      SpaceNotFoundError,
+    );
+  });
 });
 
 class SpaceStoreFake implements SpaceStore {

@@ -10,7 +10,6 @@ import {
   Put,
   Req,
   Res,
-  Optional,
 } from '@nestjs/common';
 import {
   ApiExtraModels,
@@ -28,36 +27,43 @@ import {
 } from '../../authentication/authentication';
 import { ApiStandardErrorResponses } from '../../http/api-error.dto';
 import { POSITIVE_INTEGER_ID_PATTERN } from '../../http/validation-patterns';
-import type { BudgetRecord } from '../application/budget-store';
+import { SpaceAccessService } from '../../spaces/application/space-access.service';
 import { BudgetsService } from '../application/budgets.service';
+import type { BudgetRecord, UpdateBudget } from '../application/budget-store';
 import { BudgetResponseDto } from './budget-response.dto';
 import { UpsertBudgetDto } from './budget.dto';
-import { CategoryParamsDto } from './category.dto';
-import { SpaceAccessService } from '../../spaces/application/space-access.service';
+import { SpaceCategoryParamsDto } from './space-category.dto';
 
-@Controller('users/me/categories/:categoryId/budget')
+@Controller('users/me/spaces/:spaceId/categories/:categoryId/budget')
 @ApiTags('Budgets')
 @ApiExtraModels(BudgetResponseDto, UpsertBudgetDto)
 @ApiParam({
+  name: 'spaceId',
+  description: 'Positive bigint Space identifier encoded as a string.',
+  schema: {
+    type: 'string',
+    pattern: POSITIVE_INTEGER_ID_PATTERN.source,
+    example: '7',
+  },
+})
+@ApiParam({
   name: 'categoryId',
-  description: 'Positive bigint identifier encoded as a decimal JSON string.',
+  description: 'Positive bigint Category identifier encoded as a string.',
   schema: {
     type: 'string',
     pattern: POSITIVE_INTEGER_ID_PATTERN.source,
     example: '42',
   },
 })
-export class BudgetsController {
+export class SpaceBudgetsController {
   constructor(
     private readonly budgetsService: BudgetsService,
-    @Optional() private readonly spaceAccessService?: SpaceAccessService,
+    private readonly spaceAccessService: SpaceAccessService,
   ) {}
 
   @Put()
   @ApiOperation({
-    summary: 'Create or replace the category budget.',
-    description:
-      'A new Budget returns 201 with Location; replacing an existing Budget returns 200. An inactive Category cannot receive a new Budget, although an existing Budget may still be replaced.',
+    summary: 'Create or replace a Budget in an authorized Space.',
   })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -74,7 +80,7 @@ export class BudgetsController {
         description: 'Relative canonical URI of the created Budget.',
         schema: {
           type: 'string',
-          example: `/${API_PREFIX}/users/me/categories/42/budget`,
+          example: `/${API_PREFIX}/users/me/spaces/7/categories/42/budget`,
         },
       },
     },
@@ -92,29 +98,27 @@ export class BudgetsController {
   )
   async putBudget(
     @Req() request: AuthenticatedRequest,
-    @Param() params: CategoryParamsDto,
+    @Param() params: SpaceCategoryParamsDto,
     @Body() input: UpsertBudgetDto,
     @Res({ passthrough: true }) response: Response,
   ): Promise<BudgetResponseDto> {
     const userId = requireAuthenticatedUserId(request);
-    const personalSpace = await this.requirePersonalWriteSpace(userId);
-    const result = personalSpace
-      ? await this.budgetsService.putBudgetInSpace(
-          personalSpace.id,
-          params.categoryId,
-          toBudgetUpdate(input),
-        )
-      : await this.budgetsService.putBudget(userId, params.categoryId, input);
+    await this.spaceAccessService.requireWriteAccess(userId, params.spaceId);
+    const result = await this.budgetsService.putBudgetInSpace(
+      params.spaceId,
+      params.categoryId,
+      toBudgetUpdate(input),
+    );
     if (result.created) {
       response.status(HttpStatus.CREATED);
-      response.setHeader('Location', budgetLocation(params.categoryId));
+      response.setHeader('Location', spaceBudgetLocation(params));
     }
 
     return toBudgetResponse(result.budget);
   }
 
   @Get()
-  @ApiOperation({ summary: 'Get a category budget.' })
+  @ApiOperation({ summary: 'Get a Category Budget in an authorized Space.' })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Budget.',
@@ -130,23 +134,21 @@ export class BudgetsController {
   )
   async getBudget(
     @Req() request: AuthenticatedRequest,
-    @Param() params: CategoryParamsDto,
+    @Param() params: SpaceCategoryParamsDto,
   ): Promise<BudgetResponseDto> {
     const userId = requireAuthenticatedUserId(request);
-    const personalSpace = await this.requirePersonalReadSpace(userId);
+    await this.spaceAccessService.requireReadAccess(userId, params.spaceId);
     return toBudgetResponse(
-      personalSpace
-        ? await this.budgetsService.getBudgetInSpace(
-            personalSpace.id,
-            params.categoryId,
-          )
-        : await this.budgetsService.getBudget(userId, params.categoryId),
+      await this.budgetsService.getBudgetInSpace(
+        params.spaceId,
+        params.categoryId,
+      ),
     );
   }
 
   @Delete()
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Delete a category budget.' })
+  @ApiOperation({ summary: 'Delete a Category Budget in an authorized Space.' })
   @ApiResponse({
     status: HttpStatus.NO_CONTENT,
     description: 'Budget deleted.',
@@ -163,37 +165,26 @@ export class BudgetsController {
     'UserNotProvisionedError',
     'ValidationError',
     'NotFoundError',
+    'ConflictError',
     'NotAcceptableError',
     'InternalError',
   )
   async deleteBudget(
     @Req() request: AuthenticatedRequest,
-    @Param() params: CategoryParamsDto,
+    @Param() params: SpaceCategoryParamsDto,
     @Headers('if-match') ifMatch?: string,
   ): Promise<void> {
     const userId = requireAuthenticatedUserId(request);
-    const personalSpace = await this.requirePersonalWriteSpace(userId);
-    if (personalSpace) {
-      await this.budgetsService.deleteBudgetInSpace(
-        personalSpace.id,
-        params.categoryId,
-        normalizeIfMatch(ifMatch),
-      );
-    } else {
-      await this.budgetsService.deleteBudget(userId, params.categoryId);
-    }
-  }
-
-  private requirePersonalReadSpace(userId: string) {
-    return this.spaceAccessService?.requirePersonalSpace(userId);
-  }
-
-  private requirePersonalWriteSpace(userId: string) {
-    return this.spaceAccessService?.requirePersonalWriteSpace(userId);
+    await this.spaceAccessService.requireWriteAccess(userId, params.spaceId);
+    await this.budgetsService.deleteBudgetInSpace(
+      params.spaceId,
+      params.categoryId,
+      normalizeIfMatch(ifMatch),
+    );
   }
 }
 
-function toBudgetUpdate(input: UpsertBudgetDto) {
+function toBudgetUpdate(input: UpsertBudgetDto): UpdateBudget {
   return {
     amount: input.amount,
     period: input.period,
@@ -201,12 +192,6 @@ function toBudgetUpdate(input: UpsertBudgetDto) {
       ? {}
       : { expectedUpdatedAt: input.updatedAt }),
   };
-}
-
-function normalizeIfMatch(value: string | undefined): string | undefined {
-  const normalized = value?.trim();
-  if (!normalized) return undefined;
-  return normalized.replace(/^W\//u, '').replace(/^"|"$/gu, '');
 }
 
 export function toBudgetResponse(budget: BudgetRecord): BudgetResponseDto {
@@ -220,6 +205,12 @@ export function toBudgetResponse(budget: BudgetRecord): BudgetResponseDto {
   };
 }
 
-function budgetLocation(categoryId: string): string {
-  return `/${API_PREFIX}/users/me/categories/${categoryId}/budget`;
+function spaceBudgetLocation(params: SpaceCategoryParamsDto): string {
+  return `/${API_PREFIX}/users/me/spaces/${params.spaceId}/categories/${params.categoryId}/budget`;
+}
+
+function normalizeIfMatch(value: string | undefined): string | undefined {
+  const normalized = value?.trim();
+  if (!normalized) return undefined;
+  return normalized.replace(/^W\//u, '').replace(/^"|"$/gu, '');
 }

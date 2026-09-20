@@ -29,6 +29,7 @@ import { MatchingRulesDialog } from "./matching-rules-dialog";
 interface MobileCategoryCardProps {
   readonly allCategories: readonly CategoryOverviewItem[];
   readonly category: CategoryOverviewItem;
+  readonly spaceId?: string;
   readonly disabled?: boolean;
   readonly isStatusPending?: boolean;
   readonly onDeactivate: (
@@ -42,6 +43,7 @@ interface MobileCategoryCardProps {
 function MobileCategoryCard({
   allCategories,
   category,
+  spaceId,
   disabled = false,
   isStatusPending = false,
   onDeactivate,
@@ -89,14 +91,17 @@ function MobileCategoryCard({
                 <>
                   <EditCategoryDialog
                     category={category}
+                    spaceId={spaceId}
                     disabled={disabled}
                     onEditingChange={onEditingChange}
                   />
-                  <MatchingRulesDialog
-                    allCategories={allCategories}
-                    category={category}
-                    disabled={disabled}
-                  />
+                  {spaceId === undefined && (
+                    <MatchingRulesDialog
+                      allCategories={allCategories}
+                      category={category}
+                      disabled={disabled}
+                    />
+                  )}
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild ref={deactivateTriggerRef}>
                       <Button

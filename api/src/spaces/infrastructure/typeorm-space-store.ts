@@ -60,7 +60,7 @@ export class TypeOrmSpaceStore implements SpaceStore, PersonalSpaceProvisioner {
       : null;
   }
 
-  async ensurePersonalSpace(userId: string): Promise<void> {
+  async ensurePersonalSpace(userId: string): Promise<string> {
     const spaceRepository = this.entityManager.getRepository(SpaceEntity);
     const membershipRepository = this.entityManager.getRepository(
       SpaceMembershipEntity,
@@ -121,13 +121,15 @@ export class TypeOrmSpaceStore implements SpaceStore, PersonalSpaceProvisioner {
           await membershipRepository.save(racedMembership);
         }
       }
-      return;
+      return space.id;
     }
 
     if (membership.accessLevel !== 'write') {
       membership.accessLevel = 'write';
       await membershipRepository.save(membership);
     }
+
+    return space.id;
   }
 }
 

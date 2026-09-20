@@ -32,5 +32,5 @@ export interface SpaceStore {
 }
 
 export interface PersonalSpaceProvisioner {
-  ensurePersonalSpace(userId: string): Promise<void>;
+  ensurePersonalSpace(userId: string): Promise<string | void>;
 }

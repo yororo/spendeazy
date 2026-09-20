@@ -37,12 +37,14 @@ import type {
 
 interface EditCategoryDialogProps {
   readonly category: CategoryOverviewItem;
+  readonly spaceId?: string;
   readonly disabled?: boolean;
   readonly onEditingChange?: (open: boolean) => void;
 }
 
 interface EditCategoryDialogBaseProps {
   readonly category: CategoryOverviewItem;
+  readonly spaceId?: string;
   readonly onCancel: () => void;
   readonly onCloseAutoFocus: (event: Event) => void;
 }
@@ -121,11 +123,12 @@ function EditCategoryBudgetError({
 
 function EditCategoryDialogContent({
   category,
+  spaceId,
   onCancel,
   onSaved,
   onCloseAutoFocus,
 }: EditCategoryDialogContentProps) {
-  const budgetQuery = useCategoryBudgetQuery(category.id);
+  const budgetQuery = useCategoryBudgetQuery(category.id, spaceId);
 
   if (!budgetQuery.isFetchedAfterMount) {
     if (budgetQuery.isError) {
@@ -186,6 +189,7 @@ function EditCategoryDialogContent({
     <ReadyEditCategoryDialog
       authoritativeBudget={budgetQuery.data}
       category={category}
+      spaceId={spaceId}
       onCancel={onCancel}
       onSaved={onSaved}
       onCloseAutoFocus={onCloseAutoFocus}
@@ -202,6 +206,7 @@ interface ReadyEditCategoryDialogProps
 function ReadyEditCategoryDialog({
   authoritativeBudget,
   category,
+  spaceId,
   onCancel,
   onSaved,
   onCloseAutoFocus,
@@ -209,6 +214,7 @@ function ReadyEditCategoryDialog({
   const editor = useCategoryEditor({
     authoritativeBudget,
     category,
+    spaceId,
     onCancel,
     onSaved,
   });
@@ -268,6 +274,7 @@ function ReadyEditCategoryDialog({
 
 function EditCategoryDialog({
   category,
+  spaceId,
   disabled = false,
   onEditingChange,
 }: EditCategoryDialogProps) {
@@ -322,6 +329,7 @@ function EditCategoryDialog({
       {open && (
         <EditCategoryDialogContent
           category={category}
+          spaceId={spaceId}
           onCancel={closeDialog}
           onSaved={closeDialog}
           onCloseAutoFocus={handleCloseAutoFocus}

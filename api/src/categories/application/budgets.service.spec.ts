@@ -11,6 +11,7 @@ import {
   CategoryNotFoundError,
 } from './category-errors';
 import { BudgetNotFoundError } from './budget-errors';
+import { StaleEditError } from '../../errors/application-error';
 
 describe('BudgetsService', () => {
   it('creates a budget for an owned active category', async () => {
@@ -203,6 +204,109 @@ describe('BudgetsService', () => {
     await expect(service.deleteBudget('7', '42')).resolves.toBeUndefined();
     expect(category.isActive).toBe(false);
   });
+
+  it('keeps scoped Budget writes attached to the requested Space Category', async () => {
+    const category = categoryRecord({ spaceId: '10' });
+    const existingBudget = budgetRecord();
+    const replacedBudget = budgetRecord({
+      ...existingBudget,
+      amount: '300.00',
+    });
+    const budgetStore = new BudgetStoreFake({
+      createdBudget: existingBudget,
+      existingBudget,
+      updatedBudget: replacedBudget,
+    });
+    const service = new BudgetsService(
+      new CategoryStoreFake(category),
+      budgetStore,
+    );
+
+    await expect(
+      service.putBudgetInSpace('10', '42', {
+        amount: '300.00',
+        period: 'monthly',
+        expectedUpdatedAt: existingBudget.updatedAt.toISOString(),
+      }),
+    ).resolves.toEqual({ budget: replacedBudget, created: false });
+    expect(budgetStore.updatedInput).toEqual({
+      amount: '300.00',
+      period: 'monthly',
+      expectedUpdatedAt: existingBudget.updatedAt.toISOString(),
+    });
+  });
+
+  it('rejects a Category that belongs to another Space', async () => {
+    const service = new BudgetsService(
+      new CategoryStoreFake(categoryRecord({ spaceId: '11' })),
+      new BudgetStoreFake({ createdBudget: budgetRecord() }),
+    );
+
+    await expect(service.getBudgetInSpace('10', '42')).rejects.toBeInstanceOf(
+      CategoryNotFoundError,
+    );
+  });
+
+  it('rejects a stale scoped Budget replacement before writing', async () => {
+    const existingBudget = budgetRecord();
+    const budgetStore = new BudgetStoreFake({
+      createdBudget: existingBudget,
+      existingBudget,
+      updatedBudget: budgetRecord({ ...existingBudget, amount: '300.00' }),
+    });
+    const service = new BudgetsService(
+      new CategoryStoreFake(categoryRecord({ spaceId: '10' })),
+      budgetStore,
+    );
+
+    await expect(
+      service.putBudgetInSpace('10', '42', {
+        amount: '300.00',
+        period: 'monthly',
+        expectedUpdatedAt: '2026-08-28T00:00:00.000Z',
+      }),
+    ).rejects.toBeInstanceOf(StaleEditError);
+    expect(budgetStore.updatedInput).toBeUndefined();
+  });
+
+  it('rejects an unversioned scoped replacement when a Budget appeared after the read', async () => {
+    const existingBudget = budgetRecord();
+    const budgetStore = new BudgetStoreFake({
+      createdBudget: existingBudget,
+      existingBudget,
+      updatedBudget: budgetRecord({ ...existingBudget, amount: '300.00' }),
+    });
+    const service = new BudgetsService(
+      new CategoryStoreFake(categoryRecord({ spaceId: '10' })),
+      budgetStore,
+    );
+
+    await expect(
+      service.putBudgetInSpace('10', '42', {
+        amount: '300.00',
+        period: 'monthly',
+      }),
+    ).rejects.toBeInstanceOf(StaleEditError);
+    expect(budgetStore.updatedInput).toBeUndefined();
+  });
+
+  it('rejects a scoped Budget create when another create wins the atomic insert', async () => {
+    const budgetStore = new BudgetStoreFake({
+      createdBudget: budgetRecord(),
+      createIfAbsentConflict: true,
+    });
+    const service = new BudgetsService(
+      new CategoryStoreFake(categoryRecord({ spaceId: '10' })),
+      budgetStore,
+    );
+
+    await expect(
+      service.putBudgetInSpace('10', '42', {
+        amount: '300.00',
+        period: 'monthly',
+      }),
+    ).rejects.toBeInstanceOf(StaleEditError);
+  });
 });
 
 class CategoryStoreFake implements CategoryStore {
@@ -245,6 +349,14 @@ class CategoryStoreFake implements CategoryStore {
     void _input;
     return Promise.reject(new Error('Not implemented'));
   }
+
+  findBySpaceId(spaceId: string, id: string): Promise<CategoryRecord | null> {
+    return Promise.resolve(
+      this.category?.spaceId === spaceId && this.category.id === id
+        ? this.category
+        : null,
+    );
+  }
 }
 
 class BudgetStoreFake implements BudgetStore {
@@ -258,6 +370,7 @@ class BudgetStoreFake implements BudgetStore {
       existingBudget?: BudgetRecord;
       updatedBudget?: BudgetRecord;
       deleteResult?: boolean;
+      createIfAbsentConflict?: boolean;
     },
   ) {}
 
@@ -269,6 +382,13 @@ class BudgetStoreFake implements BudgetStore {
   create(input: NewBudget): Promise<BudgetRecord> {
     this.createdInput = input;
     return Promise.resolve(this.options.createdBudget);
+  }
+
+  createIfAbsent(input: NewBudget): Promise<BudgetRecord | null> {
+    this.createdInput = input;
+    return Promise.resolve(
+      this.options.createIfAbsentConflict ? null : this.options.createdBudget,
+    );
   }
 
   update(

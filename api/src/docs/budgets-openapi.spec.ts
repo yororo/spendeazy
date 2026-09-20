@@ -39,18 +39,27 @@ describe('Budget OpenAPI contract', () => {
       summary: 'Delete a category budget.',
     });
 
-    for (const operation of [putOperation, getOperation, deleteOperation]) {
-      expect(operation.parameters).toEqual([
-        {
-          name: 'categoryId',
-          in: 'path',
-          required: true,
-          description:
-            'Positive bigint identifier encoded as a decimal JSON string.',
-          schema: { type: 'string', pattern: '^[1-9]\\d*$', example: '42' },
-        },
-      ]);
-    }
+    const categoryIdParameter = {
+      name: 'categoryId',
+      in: 'path',
+      required: true,
+      description:
+        'Positive bigint identifier encoded as a decimal JSON string.',
+      schema: { type: 'string', pattern: '^[1-9]\\d*$', example: '42' },
+    };
+    expect(putOperation.parameters).toEqual([categoryIdParameter]);
+    expect(getOperation.parameters).toEqual([categoryIdParameter]);
+    expect(deleteOperation.parameters).toEqual([
+      {
+        name: 'if-match',
+        in: 'header',
+        required: false,
+        description:
+          'Optional Budget updatedAt timestamp. The delete is rejected when it is stale.',
+        schema: { type: 'string' },
+      },
+      categoryIdParameter,
+    ]);
 
     expect(putOperation.requestBody).toMatchObject({
       required: true,

@@ -1,5 +1,5 @@
 import { lazy, Suspense, type ReactNode } from "react";
-import { Route, Routes, useNavigate } from "react-router-dom";
+import { Route, Routes, useNavigate, useSearchParams } from "react-router-dom";
 
 import { AuthenticatedRoute } from "@/components/app/authenticated-route";
 import { RouteLoading } from "@/components/app/route-loading";
@@ -65,6 +65,26 @@ function StatementImportRoute() {
   );
 }
 
+function CategoriesRoute() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const spaceId = searchParams.get("spaceId") ?? undefined;
+
+  return (
+    <CategoriesPage
+      spaceId={spaceId}
+      onSpaceChange={(nextSpaceId) => {
+        const nextParams = new URLSearchParams(searchParams);
+        if (nextSpaceId === undefined) {
+          nextParams.delete("spaceId");
+        } else {
+          nextParams.set("spaceId", nextSpaceId);
+        }
+        setSearchParams(nextParams);
+      }}
+    />
+  );
+}
+
 function App({ signInElement }: AppProps = {}) {
   const signInRoute = signInElement ?? lazyRoute(<SignInPage />);
 
@@ -85,7 +105,7 @@ function App({ signInElement }: AppProps = {}) {
             path="transactions"
             element={lazyRoute(<TransactionsPage />)}
           />
-          <Route path="categories" element={lazyRoute(<CategoriesPage />)} />
+          <Route path="categories" element={lazyRoute(<CategoriesRoute />)} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Route>

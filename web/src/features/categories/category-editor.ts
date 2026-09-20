@@ -28,6 +28,7 @@ interface CategoryDetails {
 interface UseCategoryEditorOptions {
   readonly authoritativeBudget: CategoryBudget | null;
   readonly category: CategoryOverviewItem;
+  readonly spaceId?: string;
   readonly onCancel: () => void;
   readonly onSaved: () => void;
 }
@@ -75,6 +76,7 @@ function detailsEqual(left: CategoryDetails, right: CategoryDetails) {
 function useCategoryEditor({
   authoritativeBudget,
   category,
+  spaceId,
   onCancel,
   onSaved,
 }: UseCategoryEditorOptions): CategoryEditorController {
@@ -154,7 +156,11 @@ function useCategoryEditor({
       if (authoritativeBudget?.period !== "monthly") return true;
 
       try {
-        await deleteBudgetMutation.mutateAsync(category.id);
+        await deleteBudgetMutation.mutateAsync({
+          categoryId: category.id,
+          spaceId,
+          updatedAt: authoritativeBudget.updatedAt,
+        });
       } catch {
         return false;
       }
@@ -166,6 +172,8 @@ function useCategoryEditor({
       await updateBudgetMutation.mutateAsync({
         categoryId: category.id,
         amount,
+        spaceId,
+        updatedAt: authoritativeBudget?.updatedAt,
       });
     } catch {
       return false;
@@ -194,6 +202,8 @@ function useCategoryEditor({
           name: nextDetails.name,
           description: validation.values.description,
           color: nextDetails.color,
+          spaceId,
+          updatedAt: category.updatedAt,
         });
       } catch {
         return;

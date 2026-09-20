@@ -33,6 +33,7 @@ interface CategoryOverviewItem {
   readonly spent: number;
   readonly remaining: number | null;
   readonly usage: number | null;
+  readonly updatedAt?: string;
 }
 
 interface CategoriesOverview {
@@ -48,11 +49,14 @@ interface CreateCategoryInput {
   readonly name: string;
   readonly description: string | null;
   readonly color?: CategoryColor;
+  readonly spaceId?: string;
 }
 
 interface SaveCategoryBudgetInput {
   readonly categoryId: string;
   readonly amount: string;
+  readonly spaceId?: string;
+  readonly updatedAt?: string;
 }
 
 interface UpdateCategoryInput {
@@ -60,16 +64,22 @@ interface UpdateCategoryInput {
   readonly name: string;
   readonly description: string | null;
   readonly color?: CategoryColor;
+  readonly spaceId?: string;
+  readonly updatedAt?: string;
 }
 
 interface UpdateCategoryStatusInput {
   readonly categoryId: string;
   readonly isActive: boolean;
+  readonly spaceId?: string;
+  readonly updatedAt?: string;
 }
 
 interface CategoryBudget {
   readonly amount: string;
   readonly period: "monthly" | "yearly";
+  readonly createdAt?: string;
+  readonly updatedAt?: string;
 }
 
 type CategoriesApiClient = Pick<
@@ -154,6 +164,7 @@ function projectCategory(
       `Category ${summary.categoryId} remainingAmount`,
     ),
     usage: calculateUsage(spent ?? 0, budget),
+    updatedAt: category?.updatedAt,
   };
 }
 
@@ -170,6 +181,7 @@ function projectCatalogOnlyCategory(
     spent: 0,
     remaining: null,
     usage: null,
+    updatedAt: category.updatedAt,
   };
 }
 
@@ -193,10 +205,14 @@ async function getCategoriesOverview(
   apiClient: CategoriesApiClient,
   period: ReportingPeriod,
   signal?: AbortSignal,
+  spaceId?: string,
 ): Promise<CategoriesOverview> {
-  const summaryPath = buildMonthlyCategorySummaryPath(period);
+  const summaryPath = buildMonthlyCategorySummaryPath(period, spaceId);
   const [categoriesResponse, summaryResponse] = await Promise.all([
-    apiClient.get<readonly CategoryCatalogItem[]>("/categories", { signal }),
+    apiClient.get<readonly CategoryCatalogItem[]>(
+      buildCategoryCollectionPath(spaceId),
+      { signal },
+    ),
     apiClient.get<CategorySummaryResponse>(summaryPath, { signal }),
   ]);
   const categoryCatalog = requireCategoryCatalog(
@@ -258,7 +274,7 @@ async function createCategory(
   input: CreateCategoryInput,
 ): Promise<CategoryCatalogItem> {
   const response = await apiClient.post<unknown>(
-    "/categories",
+    buildCategoryCollectionPath(input.spaceId),
     normalizeCategoryInput(input),
     { expectedStatuses: [201] },
   );
@@ -268,12 +284,18 @@ async function createCategory(
   );
 }
 
-function buildCategoryBudgetPath(categoryId: string) {
-  return `/categories/${encodeURIComponent(categoryId)}/budget`;
+function buildCategoryCollectionPath(spaceId?: string): string {
+  return spaceId === undefined
+    ? "/categories"
+    : `/spaces/${encodeURIComponent(spaceId)}/categories`;
 }
 
-function buildCategoryPath(categoryId: string) {
-  return `/categories/${encodeURIComponent(categoryId)}`;
+function buildCategoryBudgetPath(categoryId: string, spaceId?: string) {
+  return `${buildCategoryPath(categoryId, spaceId)}/budget`;
+}
+
+function buildCategoryPath(categoryId: string, spaceId?: string) {
+  return `${buildCategoryCollectionPath(spaceId)}/${encodeURIComponent(categoryId)}`;
 }
 
 function requireUpdatedCategory(
@@ -313,6 +335,8 @@ function projectCategoryBudget(
   return {
     amount: budget.amount,
     period: budget.period,
+    createdAt: budget.createdAt,
+    updatedAt: budget.updatedAt,
   };
 }
 
@@ -320,10 +344,11 @@ async function getCategoryBudget(
   apiClient: CategoriesApiClient,
   categoryId: string,
   signal?: AbortSignal,
+  spaceId?: string,
 ): Promise<CategoryBudget | null> {
   try {
     const response = await apiClient.get<unknown>(
-      buildCategoryBudgetPath(categoryId),
+      buildCategoryBudgetPath(categoryId, spaceId),
       { signal, expectedStatuses: [200] },
     );
     return projectCategoryBudget(response, categoryId, "Category Budget");
@@ -345,8 +370,11 @@ async function updateCategory(
   input: UpdateCategoryInput,
 ): Promise<CategoryCatalogItem> {
   const response = await apiClient.patch<unknown>(
-    buildCategoryPath(input.categoryId),
-    normalizeCategoryInput(input),
+    buildCategoryPath(input.categoryId, input.spaceId),
+    {
+      ...normalizeCategoryInput(input),
+      ...(input.updatedAt === undefined ? {} : { updatedAt: input.updatedAt }),
+    },
     { expectedStatuses: [200] },
   );
   const category = requireUpdatedCategory(
@@ -363,8 +391,11 @@ async function updateCategoryStatus(
   input: UpdateCategoryStatusInput,
 ): Promise<CategoryCatalogItem> {
   const response = await apiClient.patch<unknown>(
-    buildCategoryPath(input.categoryId),
-    { isActive: input.isActive },
+    buildCategoryPath(input.categoryId, input.spaceId),
+    {
+      isActive: input.isActive,
+      ...(input.updatedAt === undefined ? {} : { updatedAt: input.updatedAt }),
+    },
     { expectedStatuses: [200] },
   );
   const category = requireUpdatedCategory(
@@ -385,10 +416,16 @@ async function saveCategoryBudget(
   apiClient: CategoriesApiClient,
   categoryId: string,
   amount: string,
+  spaceId?: string,
+  updatedAt?: string,
 ): Promise<CategoryBudget> {
   const response = await apiClient.put<unknown>(
-    buildCategoryBudgetPath(categoryId),
-    { amount, period: "monthly" },
+    buildCategoryBudgetPath(categoryId, spaceId),
+    {
+      amount,
+      period: "monthly",
+      ...(updatedAt === undefined ? {} : { updatedAt }),
+    },
     { expectedStatuses: [200, 201] },
   );
   const budget = projectCategoryBudget(response, categoryId, "created Budget");
@@ -408,8 +445,13 @@ async function saveCategoryBudget(
 async function deleteCategoryBudget(
   apiClient: CategoriesApiClient,
   categoryId: string,
+  spaceId?: string,
+  updatedAt?: string,
 ): Promise<void> {
-  await apiClient.delete(buildCategoryBudgetPath(categoryId), {
+  await apiClient.delete(buildCategoryBudgetPath(categoryId, spaceId), {
+    ...(updatedAt === undefined
+      ? {}
+      : { headers: { "If-Match": updatedAt } }),
     expectedStatuses: [204],
   });
 }

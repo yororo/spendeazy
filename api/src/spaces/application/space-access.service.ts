@@ -14,6 +14,31 @@ export class SpaceAccessService {
     return this.spaceStore.listAccessible(userId);
   }
 
+  async requirePersonalSpace(userId: string): Promise<AccessibleSpaceRecord> {
+    const personalSpace = (await this.listAccessibleSpaces(userId)).find(
+      (space) => space.kind === 'personal',
+    );
+    if (!personalSpace) {
+      throw new SpaceNotFoundError();
+    }
+
+    return personalSpace;
+  }
+
+  async requirePersonalWriteSpace(
+    userId: string,
+  ): Promise<AccessibleSpaceRecord> {
+    const personalSpace = await this.requirePersonalSpace(userId);
+    if (
+      personalSpace.status !== 'active' ||
+      personalSpace.accessLevel !== 'write'
+    ) {
+      throw new SpaceNotWritableError();
+    }
+
+    return personalSpace;
+  }
+
   async requireReadAccess(
     userId: string,
     spaceId: string,

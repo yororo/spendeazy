@@ -8,8 +8,15 @@ import {
 import { centsToMoney, moneyToCents } from "@/shared/money";
 import type { ReportingPeriod } from "@/shared/reporting-period";
 
-function buildMonthlyCategorySummaryPath(period: ReportingPeriod) {
-  return buildApiPath("/category-summaries", {
+function buildMonthlyCategorySummaryPath(
+  period: ReportingPeriod,
+  spaceId?: string,
+) {
+  const path =
+    spaceId === undefined
+      ? "/category-summaries"
+      : `/spaces/${encodeURIComponent(spaceId)}/category-summaries`;
+  return buildApiPath(path, {
     period: "monthly",
     year: period.slice(0, 4),
     month: period.slice(5),

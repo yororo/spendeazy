@@ -330,6 +330,12 @@ paths:
     delete:
       operationId: Budgets_deleteBudget
       parameters:
+        - name: if-match
+          required: false
+          in: header
+          description: Optional Budget updatedAt timestamp. The delete is rejected when it is stale.
+          schema:
+            type: string
         - name: categoryId
           required: true
           in: path
@@ -405,6 +411,400 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
       summary: Get a complete monthly or yearly calendar-period summary.
+      tags:
+        - Category summaries
+  /api/v1/users/me/spaces/{spaceId}/categories:
+    post:
+      operationId: SpaceCategories_createCategory
+      parameters:
+        - name: spaceId
+          required: true
+          in: path
+          description: Positive bigint Space identifier encoded as a string.
+          schema:
+            type: string
+            pattern: ^[1-9]\d*$
+            example: '7'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCategoryDto'
+      responses:
+        '201':
+          description: Category created.
+          headers:
+            Location:
+              required: true
+              description: Relative canonical URI of the created Category.
+              schema:
+                type: string
+                example: /api/v1/users/me/spaces/7/categories/42
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryResponseDto'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthenticatedError'
+        '403':
+          $ref: '#/components/responses/UserNotProvisionedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '406':
+          $ref: '#/components/responses/NotAcceptableError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '413':
+          $ref: '#/components/responses/HttpError'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaTypeError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      summary: Create a Category in an authorized Space.
+      tags:
+        - Categories
+    get:
+      operationId: SpaceCategories_listCategories
+      parameters:
+        - name: spaceId
+          required: true
+          in: path
+          description: Positive bigint Space identifier encoded as a string.
+          schema:
+            type: string
+            pattern: ^[1-9]\d*$
+            example: '7'
+      responses:
+        '200':
+          description: Categories.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CategoryResponseDto'
+        '401':
+          $ref: '#/components/responses/UnauthenticatedError'
+        '403':
+          $ref: '#/components/responses/UserNotProvisionedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '406':
+          $ref: '#/components/responses/NotAcceptableError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      summary: List Categories in an authorized Space.
+      tags:
+        - Categories
+  /api/v1/users/me/spaces/{spaceId}/categories/{categoryId}:
+    get:
+      operationId: SpaceCategories_getCategory
+      parameters:
+        - name: categoryId
+          required: true
+          in: path
+          description: Positive bigint Category identifier encoded as a string.
+          schema:
+            type: string
+            pattern: ^[1-9]\d*$
+            example: '42'
+        - name: spaceId
+          required: true
+          in: path
+          description: Positive bigint Space identifier encoded as a string.
+          schema:
+            type: string
+            pattern: ^[1-9]\d*$
+            example: '7'
+      responses:
+        '200':
+          description: Category.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryResponseDto'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthenticatedError'
+        '403':
+          $ref: '#/components/responses/UserNotProvisionedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '406':
+          $ref: '#/components/responses/NotAcceptableError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      summary: Get a Category in an authorized Space.
+      tags:
+        - Categories
+    patch:
+      operationId: SpaceCategories_updateCategory
+      parameters:
+        - name: categoryId
+          required: true
+          in: path
+          description: Positive bigint Category identifier encoded as a string.
+          schema:
+            type: string
+            pattern: ^[1-9]\d*$
+            example: '42'
+        - name: spaceId
+          required: true
+          in: path
+          description: Positive bigint Space identifier encoded as a string.
+          schema:
+            type: string
+            pattern: ^[1-9]\d*$
+            example: '7'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCategoryDto'
+      responses:
+        '200':
+          description: Category updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryResponseDto'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthenticatedError'
+        '403':
+          $ref: '#/components/responses/UserNotProvisionedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '406':
+          $ref: '#/components/responses/NotAcceptableError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '413':
+          $ref: '#/components/responses/HttpError'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaTypeError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      summary: Edit or activate/deactivate a Category in an authorized Space.
+      tags:
+        - Categories
+  /api/v1/users/me/spaces/{spaceId}/categories/{categoryId}/budget:
+    put:
+      operationId: SpaceBudgets_putBudget
+      parameters:
+        - name: categoryId
+          required: true
+          in: path
+          description: Positive bigint Category identifier encoded as a string.
+          schema:
+            type: string
+            pattern: ^[1-9]\d*$
+            example: '42'
+        - name: spaceId
+          required: true
+          in: path
+          description: Positive bigint Space identifier encoded as a string.
+          schema:
+            type: string
+            pattern: ^[1-9]\d*$
+            example: '7'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpsertBudgetDto'
+      responses:
+        '200':
+          description: Budget replaced.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BudgetResponseDto'
+        '201':
+          description: Budget created.
+          headers:
+            Location:
+              required: true
+              description: Relative canonical URI of the created Budget.
+              schema:
+                type: string
+                example: /api/v1/users/me/spaces/7/categories/42/budget
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BudgetResponseDto'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthenticatedError'
+        '403':
+          $ref: '#/components/responses/UserNotProvisionedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '406':
+          $ref: '#/components/responses/NotAcceptableError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '413':
+          $ref: '#/components/responses/HttpError'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaTypeError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      summary: Create or replace a Budget in an authorized Space.
+      tags:
+        - Budgets
+    get:
+      operationId: SpaceBudgets_getBudget
+      parameters:
+        - name: categoryId
+          required: true
+          in: path
+          description: Positive bigint Category identifier encoded as a string.
+          schema:
+            type: string
+            pattern: ^[1-9]\d*$
+            example: '42'
+        - name: spaceId
+          required: true
+          in: path
+          description: Positive bigint Space identifier encoded as a string.
+          schema:
+            type: string
+            pattern: ^[1-9]\d*$
+            example: '7'
+      responses:
+        '200':
+          description: Budget.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BudgetResponseDto'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthenticatedError'
+        '403':
+          $ref: '#/components/responses/UserNotProvisionedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '406':
+          $ref: '#/components/responses/NotAcceptableError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      summary: Get a Category Budget in an authorized Space.
+      tags:
+        - Budgets
+    delete:
+      operationId: SpaceBudgets_deleteBudget
+      parameters:
+        - name: if-match
+          required: false
+          in: header
+          description: Optional Budget updatedAt timestamp. The delete is rejected when it is stale.
+          schema:
+            type: string
+        - name: categoryId
+          required: true
+          in: path
+          description: Positive bigint Category identifier encoded as a string.
+          schema:
+            type: string
+            pattern: ^[1-9]\d*$
+            example: '42'
+        - name: spaceId
+          required: true
+          in: path
+          description: Positive bigint Space identifier encoded as a string.
+          schema:
+            type: string
+            pattern: ^[1-9]\d*$
+            example: '7'
+      responses:
+        '204':
+          description: Budget deleted.
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthenticatedError'
+        '403':
+          $ref: '#/components/responses/UserNotProvisionedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '406':
+          $ref: '#/components/responses/NotAcceptableError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      summary: Delete a Category Budget in an authorized Space.
+      tags:
+        - Budgets
+  /api/v1/users/me/spaces/{spaceId}/category-summaries:
+    get:
+      operationId: SpaceCategorySummaries_getCategorySummary
+      parameters:
+        - name: spaceId
+          required: true
+          in: path
+          description: Positive bigint Space identifier encoded as a string.
+          schema:
+            type: string
+            pattern: ^[1-9]\d*$
+            example: '7'
+        - name: period
+          required: true
+          in: query
+          description: Calendar period. Monthly summaries require month and yearly summaries do not accept month.
+          schema:
+            example: monthly
+            type: string
+            enum:
+              - monthly
+              - yearly
+        - name: year
+          required: true
+          in: query
+          description: Four-digit calendar year used for the summary.
+          schema:
+            pattern: ^\d{4}$
+            example: '2026'
+            type: string
+        - name: month
+          required: false
+          in: query
+          description: Required for monthly summaries; forbidden for yearly summaries.
+          schema:
+            pattern: ^(0[1-9]|1[0-2])$
+            example: '08'
+            type: string
+      responses:
+        '200':
+          description: Category summary.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategorySummaryResponseDto'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthenticatedError'
+        '403':
+          $ref: '#/components/responses/UserNotProvisionedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '406':
+          $ref: '#/components/responses/NotAcceptableError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      summary: Get a Category summary for an authorized Space.
       tags:
         - Category summaries
   /api/v1/users/me/spaces:
@@ -1198,6 +1598,7 @@ components:
         - UNAUTHENTICATED
         - USER_NOT_PROVISIONED
         - CONFLICT
+        - STALE_EDIT
         - RESOURCE_NOT_FOUND
         - USER_NOT_FOUND
         - SPACE_NOT_FOUND
@@ -1486,6 +1887,11 @@ components:
             - steel
           description: Palette identifier for the Category Color. Saved colors remain unchanged when this field is omitted.
           example: teal
+        updatedAt:
+          type: string
+          description: The UTC timestamp returned by the last read. Stale edits are rejected when another save changed the Category first.
+          format: date-time
+          example: '2026-08-29T00:00:00.000Z'
       additionalProperties: false
       minProperties: 1
     BudgetResponseDto:
@@ -1547,6 +1953,11 @@ components:
             - monthly
             - yearly
           example: monthly
+        updatedAt:
+          type: string
+          description: The UTC timestamp returned by the last read. Stale edits are rejected when another save changed the Budget first.
+          format: date-time
+          example: '2026-08-29T00:00:00.000Z'
       additionalProperties: false
       required:
         - amount

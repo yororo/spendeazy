@@ -48,6 +48,7 @@ interface OperationExpectation {
   tag: string;
   requestSchemaRef?: string;
   pathParameter?: string;
+  headerParameters?: readonly string[];
   queryParameters?: readonly string[];
   requiredQueryParameters?: readonly string[];
   queryParameterSchemas?: Readonly<
@@ -227,6 +228,7 @@ const OPERATION_EXPECTATIONS = [
     operationId: 'Budgets_deleteBudget',
     tag: 'Budgets',
     pathParameter: 'categoryId',
+    headerParameters: ['if-match'],
     bodyResponses: [{ status: '204' }],
     errorResponses: { ...PROTECTED_ERRORS, ...VALIDATED_PATH_ERRORS },
   },
@@ -452,12 +454,12 @@ const REQUEST_SCHEMA_SHAPES = {
   },
   UpdateCategoryDto: {
     required: [],
-    optional: ['name', 'description', 'isActive', 'color'],
+    optional: ['name', 'description', 'isActive', 'color', 'updatedAt'],
     nullable: ['description'],
   },
   UpsertBudgetDto: {
     required: ['amount', 'period'],
-    optional: [],
+    optional: ['updatedAt'],
     nullable: [],
   },
   CreateCategoryRuleDto: {
@@ -521,6 +523,7 @@ const REQUEST_PROPERTY_ASSERTIONS: Readonly<
     description: { type: 'string', maxLength: 500 },
     isActive: { type: 'boolean' },
     color: { type: 'string', enum: [...CATEGORY_COLORS] },
+    updatedAt: { type: 'string', format: 'date-time' },
   },
   UpsertBudgetDto: {
     amount: {
@@ -528,6 +531,7 @@ const REQUEST_PROPERTY_ASSERTIONS: Readonly<
       pattern: '^(?=.*[1-9])\\d{1,13}\\.\\d{2}$',
     },
     period: { type: 'string', enum: ['monthly', 'yearly'] },
+    updatedAt: { type: 'string', format: 'date-time' },
   },
   CreateCategoryRuleDto: {
     pattern: { type: 'string', minLength: 1, maxLength: 500, pattern: '\\S' },
@@ -1062,6 +1066,7 @@ function expectOperationParameters(
   const parameters = rawParameters.filter(isParameterObject);
   const expectedNames = [
     ...(route.pathParameter === undefined ? [] : [route.pathParameter]),
+    ...(route.headerParameters ?? []),
     ...(route.queryParameters ?? []),
   ];
   expect(parameters.map(({ name }) => name).sort()).toEqual(
@@ -1070,7 +1075,11 @@ function expectOperationParameters(
 
   for (const parameter of parameters) {
     const expectedLocation =
-      route.pathParameter === parameter.name ? 'path' : 'query';
+      route.pathParameter === parameter.name
+        ? 'path'
+        : route.headerParameters?.includes(parameter.name) === true
+          ? 'header'
+          : 'query';
     expect(parameter.in).toBe(expectedLocation);
     const isRequired =
       parameter.in === 'path' ||
@@ -1086,6 +1095,9 @@ function expectOperationParameters(
         type: 'string',
         pattern: '^[1-9]\\d*$',
       });
+    }
+    if (parameter.in === 'header') {
+      expect(parameter.required).toBe(false);
     }
   }
 

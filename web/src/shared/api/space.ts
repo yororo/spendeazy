@@ -1,0 +1,51 @@
+import { ApiError, type ApiClient } from "./api-client";
+import { isRecord } from "./api-response";
+
+interface AccessibleSpace {
+  readonly id: string;
+  readonly kind: "personal" | "shared";
+  readonly status: "active" | "archived";
+  readonly accessLevel: "read" | "write";
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+type SpaceClient = Pick<ApiClient, "get">;
+
+function isAccessibleSpace(value: unknown): value is AccessibleSpace {
+  return (
+    isRecord(value) &&
+    typeof value.id === "string" &&
+    /^[1-9]\d*$/u.test(value.id) &&
+    (value.kind === "personal" || value.kind === "shared") &&
+    (value.status === "active" || value.status === "archived") &&
+    (value.accessLevel === "read" || value.accessLevel === "write") &&
+    typeof value.createdAt === "string" &&
+    typeof value.updatedAt === "string"
+  );
+}
+
+function invalidSpacesError(): ApiError {
+  return new ApiError("The API returned an invalid Space catalog.", {
+    kind: "malformed-response",
+  });
+}
+
+function requireAccessibleSpaces(value: unknown): readonly AccessibleSpace[] {
+  if (!Array.isArray(value) || !value.every(isAccessibleSpace)) {
+    throw invalidSpacesError();
+  }
+
+  return value;
+}
+
+async function getAccessibleSpaces(
+  apiClient: SpaceClient,
+  signal?: AbortSignal,
+): Promise<readonly AccessibleSpace[]> {
+  const response = await apiClient.get<unknown>("/spaces", { signal });
+  return requireAccessibleSpaces(response);
+}
+
+export { getAccessibleSpaces, isAccessibleSpace, requireAccessibleSpaces };
+export type { AccessibleSpace };

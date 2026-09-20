@@ -1,4 +1,4 @@
-import type { EntityManager } from 'typeorm';
+import { QueryFailedError, type EntityManager } from 'typeorm';
 import type { BudgetRecord } from '../application/budget-store';
 import { TypeOrmBudgetStore } from './typeorm-budget-store';
 
@@ -26,6 +26,30 @@ describe('TypeOrmBudgetStore', () => {
       amount: '250.00',
       period: 'monthly',
     });
+  });
+
+  it('reports an atomic create race as an absent row for scoped stale handling', async () => {
+    const entity = budgetEntity();
+    const repository = {
+      create: jest.fn().mockReturnValue(entity),
+      save: jest
+        .fn()
+        .mockRejectedValue(
+          new QueryFailedError('INSERT', [], { code: '23505' }),
+        ),
+    };
+    const entityManager = {
+      getRepository: jest.fn().mockReturnValue(repository),
+    } as unknown as EntityManager;
+    const store = new TypeOrmBudgetStore(entityManager);
+
+    await expect(
+      store.createIfAbsent({
+        categoryId: '42',
+        amount: '250.00',
+        period: 'monthly',
+      }),
+    ).resolves.toBeNull();
   });
 
   it('updates the existing entity in place so identity and creation time survive replacement', async () => {

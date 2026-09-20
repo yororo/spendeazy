@@ -190,6 +190,7 @@ describe("getCategoriesOverview", () => {
           spent: 100,
           remaining: 50,
           usage: 67,
+          updatedAt: "2026-01-01T00:00:00.000Z",
         },
         {
           id: "99",
@@ -201,6 +202,7 @@ describe("getCategoriesOverview", () => {
           spent: 18.5,
           remaining: null,
           usage: null,
+          updatedAt: "2026-01-01T00:00:00.000Z",
         },
         {
           id: "77",
@@ -212,6 +214,7 @@ describe("getCategoriesOverview", () => {
           spent: 60,
           remaining: -10,
           usage: 120,
+          updatedAt: "2026-01-01T00:00:00.000Z",
         },
         {
           id: "88",
@@ -223,6 +226,7 @@ describe("getCategoriesOverview", () => {
           spent: 0,
           remaining: null,
           usage: null,
+          updatedAt: "2026-01-01T00:00:00.000Z",
         },
       ],
       totalBudget: 200,
@@ -251,6 +255,44 @@ describe("getCategoriesOverview", () => {
         ([, options]) => options?.signal === controller.signal,
       ),
     ).toBe(true);
+  });
+
+  it("uses the selected Space for both the Category catalog and summary", async () => {
+    const spaceId = "77";
+    const scopedCategoriesPath = `/spaces/${spaceId}/categories`;
+    const scopedSummaryPath =
+      `/spaces/${spaceId}/category-summaries?period=monthly&year=2026&month=08`;
+    const responses = new Map<string, unknown>([
+      [scopedCategoriesPath, [createCategoryResponse()]],
+      [
+        scopedSummaryPath,
+        createSummary([
+          {
+            categoryId: "42",
+            name: "Housing",
+            isActive: true,
+            totalAmount: "0.00",
+            transactionCount: "0",
+            budgetAmount: null,
+            remainingAmount: null,
+          },
+        ]),
+      ],
+    ]);
+    const { apiClient, fetchMock } = createCategoriesApiClient(responses);
+
+    await expect(
+      getCategoriesOverview(apiClient, period, undefined, spaceId),
+    ).resolves.toMatchObject({
+      categories: [expect.objectContaining({ id: "42" })],
+    });
+
+    expect(
+      fetchMock.mock.calls.map(([input]) => {
+        const requestUrl = new URL(input.toString());
+        return requestUrl.pathname.replace("/api/v1/users/me", "") + requestUrl.search;
+      }),
+    ).toEqual(expect.arrayContaining([scopedCategoriesPath, scopedSummaryPath]));
   });
 });
 
@@ -350,6 +392,34 @@ describe("Category Budget creation", () => {
         "125.50",
       ),
     ).rejects.toThrow("The API returned an invalid monthly Budget.");
+  });
+
+  it("sends the selected Space and authoritative version for a Budget replacement", async () => {
+    const put = vi.fn(async () => ({
+      id: "7",
+      categoryId: "99",
+      amount: "125.50",
+      period: "monthly",
+      updatedAt: "2026-01-02T00:00:00.000Z",
+    }));
+
+    await saveCategoryBudget(
+      { put } as unknown as CategoriesApiClient,
+      "99",
+      "125.50",
+      "77",
+      "2026-01-01T00:00:00.000Z",
+    );
+
+    expect(put).toHaveBeenCalledWith(
+      "/spaces/77/categories/99/budget",
+      {
+        amount: "125.50",
+        period: "monthly",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      },
+      { expectedStatuses: [200, 201] },
+    );
   });
 });
 
@@ -476,6 +546,25 @@ describe("Category editing", () => {
     expect(del).toHaveBeenCalledWith(
       "/categories/99/budget",
       { expectedStatuses: [204] },
+    );
+  });
+
+  it("deletes a scoped Category Budget with an If-Match version", async () => {
+    const del = vi.fn(async () => undefined);
+
+    await deleteCategoryBudget(
+      { delete: del } as unknown as CategoriesApiClient,
+      "99",
+      "77",
+      "2026-01-01T00:00:00.000Z",
+    );
+
+    expect(del).toHaveBeenCalledWith(
+      "/spaces/77/categories/99/budget",
+      {
+        headers: { "If-Match": "2026-01-01T00:00:00.000Z" },
+        expectedStatuses: [204],
+      },
     );
   });
 });

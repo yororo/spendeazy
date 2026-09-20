@@ -5,7 +5,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 
-import { useApiClient } from "@/shared/api";
+import { getAccessibleSpaces, useApiClient } from "@/shared/api";
 import {
   invalidateCategoryDependentQueries,
   invalidateCategoryRuleQueries,
@@ -32,15 +32,29 @@ import {
   type CategoryRuleInput,
 } from "./category-rules-service";
 
-function useCategoriesOverviewQuery(period: ReportingPeriod) {
+function useCategoriesOverviewQuery(
+  period: ReportingPeriod,
+  spaceId?: string,
+) {
   const apiClient = useApiClient();
 
   return useQuery({
-    queryKey: ["categories", "overview", period] as const,
+    queryKey: ["categories", "overview", period, spaceId ?? null] as const,
     queryFn: ({ signal }) =>
-      getCategoriesOverview(apiClient, period, signal),
+      getCategoriesOverview(apiClient, period, signal, spaceId),
     placeholderData: keepPreviousData,
     staleTime: queryPolicy.activityStaleTime,
+  });
+}
+
+function useAccessibleSpacesQuery(enabled: boolean) {
+  const apiClient = useApiClient();
+
+  return useQuery({
+    queryKey: ["spaces", "accessible"] as const,
+    queryFn: ({ signal }) => getAccessibleSpaces(apiClient, signal),
+    enabled,
+    staleTime: queryPolicy.categoryCatalogStaleTime,
   });
 }
 
@@ -94,6 +108,8 @@ function useCreateCategoryBudgetMutation() {
         apiClient,
         input.categoryId,
         input.amount,
+        input.spaceId,
+        input.updatedAt,
       ),
     onSuccess: () => {
       void invalidateCategoryDependentQueries(queryClient);
@@ -101,15 +117,15 @@ function useCreateCategoryBudgetMutation() {
   });
 }
 
-function useCategoryBudgetQuery(categoryId: string | null) {
+function useCategoryBudgetQuery(categoryId: string | null, spaceId?: string) {
   const apiClient = useApiClient();
 
   return useQuery({
-    queryKey: ["categories", "budget", categoryId] as const,
+    queryKey: ["categories", "budget", categoryId, spaceId ?? null] as const,
     queryFn: ({ signal }) =>
       categoryId === null
         ? Promise.resolve(null)
-        : getCategoryBudget(apiClient, categoryId, signal),
+        : getCategoryBudget(apiClient, categoryId, signal, spaceId),
     enabled: categoryId !== null,
     refetchOnMount: "always",
     staleTime: 0,
@@ -147,7 +163,13 @@ function useUpdateCategoryBudgetMutation() {
   return useMutation({
     retry: 0,
     mutationFn: (input: SaveCategoryBudgetInput) =>
-      saveCategoryBudget(apiClient, input.categoryId, input.amount),
+      saveCategoryBudget(
+        apiClient,
+        input.categoryId,
+        input.amount,
+        input.spaceId,
+        input.updatedAt,
+      ),
     onSuccess: () => invalidateCategoryDependentQueries(queryClient),
   });
 }
@@ -158,13 +180,29 @@ function useDeleteCategoryBudgetMutation() {
 
   return useMutation({
     retry: 0,
-    mutationFn: (categoryId: string) =>
-      deleteCategoryBudget(apiClient, categoryId),
+    mutationFn: (
+      input:
+        | string
+        | {
+            readonly categoryId: string;
+            readonly spaceId?: string;
+            readonly updatedAt?: string;
+          },
+    ) =>
+      typeof input === "string"
+        ? deleteCategoryBudget(apiClient, input)
+        : deleteCategoryBudget(
+            apiClient,
+            input.categoryId,
+            input.spaceId,
+            input.updatedAt,
+          ),
     onSuccess: () => invalidateCategoryDependentQueries(queryClient),
   });
 }
 
 export {
+  useAccessibleSpacesQuery,
   useCategoryBudgetQuery,
   useCategoryRulesQuery,
   useCategoriesOverviewQuery,

@@ -6,7 +6,6 @@ import {
   Param,
   Patch,
   Post,
-  Optional,
   Req,
   Res,
 } from '@nestjs/common';
@@ -26,32 +25,38 @@ import {
 } from '../../authentication/authentication';
 import { ApiStandardErrorResponses } from '../../http/api-error.dto';
 import { POSITIVE_INTEGER_ID_PATTERN } from '../../http/validation-patterns';
-import { CategoriesService } from '../application/categories.service';
-import type { CategoryRecord } from '../application/category-store';
-import { resolveCategoryColor } from '../application/category-color';
-import {
-  CategoryParamsDto,
-  CreateCategoryDto,
-  UpdateCategoryDto,
-} from './category.dto';
-import { CategoryResponseDto } from './category-response.dto';
 import { SpaceAccessService } from '../../spaces/application/space-access.service';
+import { CategoriesService } from '../application/categories.service';
+import type {
+  CategoryRecord,
+  UpdateCategory,
+} from '../application/category-store';
+import { resolveCategoryColor } from '../application/category-color';
+import { CreateCategoryDto, UpdateCategoryDto } from './category.dto';
+import { CategoryResponseDto } from './category-response.dto';
+import { SpaceCategoryParamsDto } from './space-category.dto';
+import { SpaceParamsDto } from '../../spaces/presentation/space.dto';
 
-@Controller('users/me/categories')
+@Controller('users/me/spaces/:spaceId/categories')
 @ApiTags('Categories')
 @ApiExtraModels(CategoryResponseDto, CreateCategoryDto, UpdateCategoryDto)
-export class CategoriesController {
+@ApiParam({
+  name: 'spaceId',
+  description: 'Positive bigint Space identifier encoded as a string.',
+  schema: {
+    type: 'string',
+    pattern: POSITIVE_INTEGER_ID_PATTERN.source,
+    example: '7',
+  },
+})
+export class SpaceCategoriesController {
   constructor(
     private readonly categoriesService: CategoriesService,
-    @Optional() private readonly spaceAccessService?: SpaceAccessService,
+    private readonly spaceAccessService: SpaceAccessService,
   ) {}
 
   @Post()
-  @ApiOperation({
-    summary: 'Create a category.',
-    description:
-      'Category names are trimmed before storage and uniqueness checking; uniqueness is case-insensitive.',
-  })
+  @ApiOperation({ summary: 'Create a Category in an authorized Space.' })
   @ApiResponse({
     status: HttpStatus.CREATED,
     description: 'Category created.',
@@ -62,7 +67,7 @@ export class CategoriesController {
         description: 'Relative canonical URI of the created Category.',
         schema: {
           type: 'string',
-          example: `/${API_PREFIX}/users/me/categories/42`,
+          example: `/${API_PREFIX}/users/me/spaces/7/categories/42`,
         },
       },
     },
@@ -80,25 +85,27 @@ export class CategoriesController {
   )
   async createCategory(
     @Req() request: AuthenticatedRequest,
+    @Param() params: SpaceParamsDto,
     @Body() input: CreateCategoryDto,
     @Res({ passthrough: true }) response: Response,
   ): Promise<CategoryResponseDto> {
     const userId = requireAuthenticatedUserId(request);
-    const personalSpace = await this.requirePersonalWriteSpace(userId);
-    const category = personalSpace
-      ? await this.categoriesService.createCategoryInSpace(
-          userId,
-          personalSpace.id,
-          input,
-        )
-      : await this.categoriesService.createCategory(userId, input);
+    await this.spaceAccessService.requireWriteAccess(userId, params.spaceId);
+    const category = await this.categoriesService.createCategoryInSpace(
+      userId,
+      params.spaceId,
+      input,
+    );
     response.status(HttpStatus.CREATED);
-    response.setHeader('Location', categoryLocation(category.id));
-    return toCategoryResponse(category);
+    response.setHeader(
+      'Location',
+      spaceCategoryLocation(params.spaceId, category.id),
+    );
+    return toSpaceCategoryResponse(category);
   }
 
   @Get()
-  @ApiOperation({ summary: 'List all owned categories in ascending ID order.' })
+  @ApiOperation({ summary: 'List Categories in an authorized Space.' })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Categories.',
@@ -110,25 +117,27 @@ export class CategoriesController {
   @ApiStandardErrorResponses(
     'UnauthenticatedError',
     'UserNotProvisionedError',
+    'NotFoundError',
     'NotAcceptableError',
     'InternalError',
   )
   async listCategories(
     @Req() request: AuthenticatedRequest,
+    @Param() params: SpaceParamsDto,
   ): Promise<CategoryResponseDto[]> {
     const userId = requireAuthenticatedUserId(request);
-    const personalSpace = await this.requirePersonalReadSpace(userId);
-    const categories = personalSpace
-      ? await this.categoriesService.listCategoriesInSpace(personalSpace.id)
-      : await this.categoriesService.listCategories(userId);
-    return categories.map(toCategoryResponse);
+    await this.spaceAccessService.requireReadAccess(userId, params.spaceId);
+    const categories = await this.categoriesService.listCategoriesInSpace(
+      params.spaceId,
+    );
+    return categories.map(toSpaceCategoryResponse);
   }
 
   @Get(':categoryId')
-  @ApiOperation({ summary: 'Get a category.' })
+  @ApiOperation({ summary: 'Get a Category in an authorized Space.' })
   @ApiParam({
     name: 'categoryId',
-    description: 'Positive bigint identifier encoded as a decimal JSON string.',
+    description: 'Positive bigint Category identifier encoded as a string.',
     schema: {
       type: 'string',
       pattern: POSITIVE_INTEGER_ID_PATTERN.source,
@@ -150,29 +159,25 @@ export class CategoriesController {
   )
   async getCategory(
     @Req() request: AuthenticatedRequest,
-    @Param() params: CategoryParamsDto,
+    @Param() params: SpaceCategoryParamsDto,
   ): Promise<CategoryResponseDto> {
     const userId = requireAuthenticatedUserId(request);
-    const personalSpace = await this.requirePersonalReadSpace(userId);
-    return toCategoryResponse(
-      personalSpace
-        ? await this.categoriesService.getCategoryInSpace(
-            personalSpace.id,
-            params.categoryId,
-          )
-        : await this.categoriesService.getCategory(userId, params.categoryId),
+    await this.spaceAccessService.requireReadAccess(userId, params.spaceId);
+    return toSpaceCategoryResponse(
+      await this.categoriesService.getCategoryInSpace(
+        params.spaceId,
+        params.categoryId,
+      ),
     );
   }
 
   @Patch(':categoryId')
   @ApiOperation({
-    summary: 'Edit or activate/deactivate a category.',
-    description:
-      'Inactive Categories retain their historical relationships and cannot receive a new Budget, although an existing Budget may still be replaced.',
+    summary: 'Edit or activate/deactivate a Category in an authorized Space.',
   })
   @ApiParam({
     name: 'categoryId',
-    description: 'Positive bigint identifier encoded as a decimal JSON string.',
+    description: 'Positive bigint Category identifier encoded as a string.',
     schema: {
       type: 'string',
       pattern: POSITIVE_INTEGER_ID_PATTERN.source,
@@ -197,36 +202,22 @@ export class CategoriesController {
   )
   async updateCategory(
     @Req() request: AuthenticatedRequest,
-    @Param() params: CategoryParamsDto,
+    @Param() params: SpaceCategoryParamsDto,
     @Body() input: UpdateCategoryDto,
   ): Promise<CategoryResponseDto> {
     const userId = requireAuthenticatedUserId(request);
-    const personalSpace = await this.requirePersonalWriteSpace(userId);
-    return toCategoryResponse(
-      personalSpace
-        ? await this.categoriesService.updateCategoryInSpace(
-            personalSpace.id,
-            params.categoryId,
-            toCategoryUpdate(input),
-          )
-        : await this.categoriesService.updateCategory(
-            userId,
-            params.categoryId,
-            input,
-          ),
+    await this.spaceAccessService.requireWriteAccess(userId, params.spaceId);
+    return toSpaceCategoryResponse(
+      await this.categoriesService.updateCategoryInSpace(
+        params.spaceId,
+        params.categoryId,
+        toCategoryUpdate(input),
+      ),
     );
-  }
-
-  private requirePersonalReadSpace(userId: string) {
-    return this.spaceAccessService?.requirePersonalSpace(userId);
-  }
-
-  private requirePersonalWriteSpace(userId: string) {
-    return this.spaceAccessService?.requirePersonalWriteSpace(userId);
   }
 }
 
-function toCategoryUpdate(input: UpdateCategoryDto) {
+function toCategoryUpdate(input: UpdateCategoryDto): UpdateCategory {
   const { updatedAt, ...changes } = input;
   return {
     ...changes,
@@ -234,7 +225,7 @@ function toCategoryUpdate(input: UpdateCategoryDto) {
   };
 }
 
-export function toCategoryResponse(
+export function toSpaceCategoryResponse(
   category: CategoryRecord,
 ): CategoryResponseDto {
   return {
@@ -248,6 +239,6 @@ export function toCategoryResponse(
   };
 }
 
-function categoryLocation(categoryId: string): string {
-  return `/${API_PREFIX}/users/me/categories/${categoryId}`;
+function spaceCategoryLocation(spaceId: string, categoryId: string): string {
+  return `/${API_PREFIX}/users/me/spaces/${spaceId}/categories/${categoryId}`;
 }

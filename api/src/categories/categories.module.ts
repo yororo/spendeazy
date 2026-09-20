@@ -1,4 +1,5 @@
 import { DynamicModule, Module } from '@nestjs/common';
+import { SpacesModule } from '../spaces/spaces.module';
 import { exceptionLogger } from '../logging/exception-logger';
 import { BudgetsService } from './application/budgets.service';
 import { CategoriesService } from './application/categories.service';
@@ -10,6 +11,9 @@ import { TypeOrmCategorySummaryStore } from './infrastructure/typeorm-category-s
 import { BudgetsController } from './presentation/budgets.controller';
 import { CategoriesController } from './presentation/categories.controller';
 import { CategorySummariesController } from './presentation/category-summaries.controller';
+import { SpaceCategoriesController } from './presentation/space-categories.controller';
+import { SpaceBudgetsController } from './presentation/space-budgets.controller';
+import { SpaceCategorySummariesController } from './presentation/space-category-summaries.controller';
 import { CategorySummariesService } from './application/category-summaries.service';
 import { CATEGORY_SUMMARY_STORE } from './application/category-summary-store';
 import {
@@ -22,6 +26,9 @@ const controllers = [
   CategoriesController,
   BudgetsController,
   CategorySummariesController,
+  SpaceCategoriesController,
+  SpaceBudgetsController,
+  SpaceCategorySummariesController,
 ];
 
 @Module({})
@@ -37,6 +44,7 @@ export class CategoriesModule {
 
       return {
         module: CategoriesModule,
+        imports: [SpacesModule.register(false, options)],
         controllers,
         providers: [
           { provide: CategoriesService, useValue: {} },
@@ -48,6 +56,7 @@ export class CategoriesModule {
 
     return {
       module: CategoriesModule,
+      imports: [SpacesModule.register(true, options)],
       controllers,
       providers: [
         TypeOrmCategoryStore,

@@ -73,7 +73,7 @@ export class UsersService {
       email: input.email,
     };
     if (isNoOp(currentUser, changes)) {
-      await this.personalSpaceProvisioner.ensurePersonalSpace(currentUser.id);
+      await this.ensurePersonalSpaceDefaults(currentUser.id);
       return { user: currentUser, created: false };
     }
 
@@ -82,7 +82,7 @@ export class UsersService {
       throw new UserNotFoundError();
     }
 
-    await this.personalSpaceProvisioner.ensurePersonalSpace(updatedUser.id);
+    await this.ensurePersonalSpaceDefaults(updatedUser.id);
     return { user: updatedUser, created: false };
   }
 
@@ -131,13 +131,32 @@ export class UsersService {
         throw error;
       }
 
-      await this.personalSpaceProvisioner.ensurePersonalSpace(racedUser.id);
+      await this.ensurePersonalSpaceDefaults(racedUser.id);
       return { user: racedUser, created: false };
     }
 
-    await this.personalSpaceProvisioner.ensurePersonalSpace(user.id);
-    await this.defaultCategoryProvisioner.createForNewUser(user.id);
+    const hasSpaceDefaults = await this.ensurePersonalSpaceDefaults(user.id);
+    if (!hasSpaceDefaults) {
+      await this.defaultCategoryProvisioner.createForNewUser(user.id);
+    }
     return { user, created: true };
+  }
+
+  private async ensurePersonalSpaceDefaults(userId: string): Promise<boolean> {
+    const personalSpaceId =
+      await this.personalSpaceProvisioner.ensurePersonalSpace(userId);
+    if (
+      typeof personalSpaceId !== 'string' ||
+      !this.defaultCategoryProvisioner.createForSpace
+    ) {
+      return false;
+    }
+
+    await this.defaultCategoryProvisioner.createForSpace(
+      personalSpaceId,
+      userId,
+    );
+    return true;
   }
 }
 

@@ -46,11 +46,13 @@ function getCategoryNameConflictMessage(error: Error | null) {
 interface CreateCategoryDialogProps {
   readonly className?: string;
   readonly disabled?: boolean;
+  readonly spaceId?: string;
 }
 
 function CreateCategoryDialog({
   className,
   disabled = false,
+  spaceId,
 }: CreateCategoryDialogProps) {
   const [open, setOpen] = useState(false);
   const [discardPrompt, setDiscardPrompt] = useState(false);
@@ -130,7 +132,7 @@ function CreateCategoryDialog({
 
   async function saveBudget(categoryId: string, amount: string) {
     try {
-      await createBudgetMutation.mutateAsync({ categoryId, amount });
+      await createBudgetMutation.mutateAsync({ categoryId, amount, spaceId });
     } catch {
       return false;
     }
@@ -172,6 +174,7 @@ function CreateCategoryDialog({
           name: validation.values.name,
           description: validation.values.description,
           color: validation.values.color,
+          spaceId,
         },
       });
     } catch {

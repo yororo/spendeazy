@@ -239,7 +239,7 @@ export class StatementImportsService {
         throw new Error('Space statement import persistence is not configured');
       }
 
-      await context.spaces.lockForStatementImport(spaceId);
+      await context.spaces.lockForStatementImport(spaceId, userId);
     }
 
     const existingImport =

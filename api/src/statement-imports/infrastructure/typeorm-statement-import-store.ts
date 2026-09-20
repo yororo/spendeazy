@@ -3,10 +3,12 @@ import { InjectEntityManager } from '@nestjs/typeorm';
 import { QueryFailedError, type EntityManager } from 'typeorm';
 import { POSTGRES_UNIQUE_VIOLATION } from '../../database/database-error-codes';
 import { SpaceEntity } from '../../database/entities/space.entity';
+import { SpaceMembershipEntity } from '../../database/entities/space-membership.entity';
 import { StatementImportEntity } from '../../database/entities/statement-import.entity';
 import { TransactionEntity } from '../../database/entities/transaction.entity';
 import { StatementImportFileAlreadyExistsError } from '../application/statement-import-errors';
 import { SpaceNotFoundError } from '../../spaces/application/space-errors';
+import { assertWritableSpace } from '../../spaces/application/assert-writable-space';
 import type {
   NewStatementImport,
   StatementImportHistoryPageQuery,
@@ -28,7 +30,7 @@ export class TypeOrmStatementImportStore implements StatementImportStore {
     public readonly entityManager: EntityManager,
   ) {}
 
-  async lockForStatementImport(spaceId: string): Promise<void> {
+  async lockForStatementImport(spaceId: string, userId: string): Promise<void> {
     const space = await this.entityManager
       .getRepository(SpaceEntity)
       .createQueryBuilder('space')
@@ -37,6 +39,15 @@ export class TypeOrmStatementImportStore implements StatementImportStore {
       .getOne();
 
     if (!space) throw new SpaceNotFoundError();
+    const membership = await this.entityManager
+      .getRepository(SpaceMembershipEntity)
+      .createQueryBuilder('membership')
+      .where('membership.spaceId = :spaceId', { spaceId })
+      .andWhere('membership.userId = :userId', { userId })
+      .setLock('pessimistic_read')
+      .getOne();
+    if (!membership) throw new SpaceNotFoundError();
+    assertWritableSpace(space.status, membership.accessLevel);
   }
 
   async findById(

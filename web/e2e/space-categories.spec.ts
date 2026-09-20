@@ -67,8 +67,10 @@ test("switches the Categories browser view to a seeded Shared Space", async ({
   await expect(
     page.getByRole("heading", { name: "Budget overview" }),
   ).toBeVisible();
-  await page.getByRole("combobox", { name: "Active Space" }).click();
-  await page.getByRole("option", { name: "Shared Space · 99" }).click();
+  await page
+    .getByRole("group", { name: "Active Space" })
+    .getByRole("button", { name: "Shared" })
+    .click();
 
   await expect(page).toHaveURL(/\/categories\?spaceId=99$/u);
   await expect(

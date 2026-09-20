@@ -120,7 +120,9 @@ describe('StatementImportsService', () => {
       spaceId: '55',
       fileHash: validFileHash(),
     });
-    expect(statementImports.spaceLockQueries).toEqual(['55']);
+    expect(statementImports.spaceLockQueries).toEqual([
+      { spaceId: '55', userId: '7' },
+    ]);
     expect(statementImports.createdInput).toMatchObject({
       userId: '7',
       spaceId: '55',
@@ -481,7 +483,7 @@ class StatementImportStoreFake implements StatementImportStore {
   createdInput: NewStatementImport | undefined;
   createdImport: StatementImportRecord | undefined;
   spaceFileHashQuery: { spaceId: string; fileHash: string } | undefined;
-  spaceLockQueries: string[] = [];
+  spaceLockQueries: { spaceId: string; userId: string }[] = [];
   pageQuery: StatementImportHistoryPageQuery | undefined;
   pageResults: StatementImportHistoryRecord[];
 
@@ -545,8 +547,8 @@ class StatementImportStoreFake implements StatementImportStore {
     );
   }
 
-  lockForStatementImport(spaceId: string): Promise<void> {
-    this.spaceLockQueries.push(spaceId);
+  lockForStatementImport(spaceId: string, userId: string): Promise<void> {
+    this.spaceLockQueries.push({ spaceId, userId });
     return Promise.resolve();
   }
 

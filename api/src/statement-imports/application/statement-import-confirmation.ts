@@ -31,7 +31,7 @@ export type StatementImportConfirmationTransactionStore = Pick<
   Pick<SpaceImportedTransactionStore, 'findByFingerprintInSpace'>;
 
 export interface StatementImportConfirmationSpaceStore {
-  lockForStatementImport(spaceId: string): Promise<void>;
+  lockForStatementImport(spaceId: string, userId: string): Promise<void>;
 }
 
 export interface StatementImportConfirmationContext {

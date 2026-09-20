@@ -14,6 +14,13 @@ import {
   'categoryId',
   'purchaseDate',
 ])
+@Index('ix_transactions_space_purchase_date', ['spaceId', 'purchaseDate'])
+@Index('ix_transactions_space_category_purchase_date', [
+  'spaceId',
+  'categoryId',
+  'purchaseDate',
+])
+@Index('ix_transactions_added_by_user', ['addedByUserId'])
 @Index('ix_transactions_statement_import', ['statementImportId'])
 @Index('ix_transactions_user_import_fingerprint', [
   'userId',
@@ -29,6 +36,12 @@ export class TransactionEntity {
 
   @Column({ type: 'bigint', name: 'user_id' })
   userId!: string;
+
+  @Column({ type: 'bigint', name: 'space_id' })
+  spaceId!: string;
+
+  @Column({ type: 'bigint', name: 'added_by_user_id' })
+  addedByUserId!: string;
 
   @Column({ type: 'bigint', nullable: true, name: 'category_id' })
   categoryId!: string | null;

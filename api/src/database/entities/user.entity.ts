@@ -27,6 +27,13 @@ export class UserEntity {
   @Column({ type: 'varchar', length: 320 })
   email!: string;
 
+  @Column({
+    type: 'bigint',
+    nullable: true,
+    name: 'active_shared_space_id',
+  })
+  activeSharedSpaceId!: string | null;
+
   @CreateDateColumn({ type: 'timestamptz', precision: 3, name: 'created_at' })
   createdAt!: Date;
 

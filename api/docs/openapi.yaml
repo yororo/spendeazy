@@ -407,6 +407,66 @@ paths:
       summary: Get a complete monthly or yearly calendar-period summary.
       tags:
         - Category summaries
+  /api/v1/users/me/spaces:
+    get:
+      description: The authenticated session determines the User. Client-supplied User identifiers are ignored, and only memberships with read access are returned.
+      operationId: Spaces_listSpaces
+      parameters: []
+      responses:
+        '200':
+          description: Accessible Spaces.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SpaceResponseDto'
+        '401':
+          $ref: '#/components/responses/UnauthenticatedError'
+        '403':
+          $ref: '#/components/responses/UserNotProvisionedError'
+        '406':
+          $ref: '#/components/responses/NotAcceptableError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      summary: List Spaces accessible to the authenticated User.
+      tags:
+        - Spaces
+  /api/v1/users/me/spaces/{spaceId}:
+    get:
+      description: A client-supplied Space identifier is accepted only after the authenticated User has read membership in that Space.
+      operationId: Spaces_getSpace
+      parameters:
+        - name: spaceId
+          required: true
+          in: path
+          description: Positive bigint identifier encoded as a decimal JSON string.
+          schema:
+            type: string
+            pattern: ^[1-9]\d*$
+            example: '42'
+      responses:
+        '200':
+          description: Accessible Space.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpaceResponseDto'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthenticatedError'
+        '403':
+          $ref: '#/components/responses/UserNotProvisionedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '406':
+          $ref: '#/components/responses/NotAcceptableError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      summary: Get an accessible Space.
+      tags:
+        - Spaces
   /api/v1/users/me/category-rules:
     post:
       description: Matching normalizes surrounding and repeated whitespace and compares case-insensitively.
@@ -1042,6 +1102,8 @@ tags:
     description: Operational readiness.
   - name: Users
     description: Expense-data owners.
+  - name: Spaces
+    description: Authorized Personal and Shared financial contexts.
   - name: Categories
     description: Active and historical categories.
   - name: Budgets
@@ -1138,6 +1200,8 @@ components:
         - CONFLICT
         - RESOURCE_NOT_FOUND
         - USER_NOT_FOUND
+        - SPACE_NOT_FOUND
+        - SPACE_NOT_WRITABLE
         - EMAIL_ALREADY_EXISTS
         - CATEGORY_NOT_FOUND
         - CATEGORY_NAME_ALREADY_EXISTS
@@ -1583,6 +1647,63 @@ components:
         - transactionCount
         - budgetAmount
         - remainingAmount
+    SpaceResponseDto:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Positive bigint Space identifier encoded as a string.
+          pattern: ^[1-9]\d*$
+          example: '42'
+        kind:
+          type: string
+          description: The kind of financial Space.
+          enum:
+            - personal
+            - shared
+          example: personal
+        status:
+          type: string
+          description: The lifecycle state of the Space.
+          enum:
+            - active
+            - archived
+          example: active
+        accessLevel:
+          type: string
+          description: The authenticated User's membership access. Read access includes archived history; write access is required for mutations.
+          enum:
+            - read
+            - write
+          example: write
+        createdAt:
+          type: string
+          description: UTC timestamp when the Space was created.
+          format: date-time
+          example: '2026-09-20T00:00:00.000Z'
+        updatedAt:
+          type: string
+          description: UTC timestamp when the Space was last updated.
+          format: date-time
+          example: '2026-09-20T00:00:00.000Z'
+      additionalProperties: false
+      required:
+        - id
+        - kind
+        - status
+        - accessLevel
+        - createdAt
+        - updatedAt
+    SpaceParamsDto:
+      type: object
+      properties:
+        spaceId:
+          type: string
+          description: Positive bigint Space identifier encoded as a decimal string.
+          pattern: ^[1-9]\d*$
+          example: '42'
+      required:
+        - spaceId
     CategoryRuleResponseDto:
       type: object
       properties:

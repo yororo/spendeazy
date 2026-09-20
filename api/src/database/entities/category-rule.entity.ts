@@ -13,6 +13,7 @@ import {
   ['userId', 'matchType', 'normalizedPattern'],
   { unique: true },
 )
+@Index('ix_category_rules_space', ['spaceId'])
 export class CategoryRuleEntity {
   @PrimaryGeneratedColumn('identity', {
     type: 'bigint',
@@ -23,6 +24,9 @@ export class CategoryRuleEntity {
 
   @Column({ type: 'bigint', name: 'user_id' })
   userId!: string;
+
+  @Column({ type: 'bigint', name: 'space_id' })
+  spaceId!: string;
 
   @Column({ type: 'bigint', name: 'category_id' })
   categoryId!: string;

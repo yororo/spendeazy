@@ -14,14 +14,18 @@ Read these files for exact columns, lengths, constraints, and transport validati
 
 | Table | Purpose and relationships |
 | --- | --- |
-| `users` | Local User linked to a unique Clerk identity; email uniqueness is case-insensitive. |
-| `categories` | User-owned classifications with optional description and named color, plus active/inactive status. Names are unique per User, case-insensitively. |
+| `users` | Local User linked to a unique Clerk identity; email uniqueness is case-insensitive. The optional active Shared Space reference is reserved for the shared-membership migration. |
+| `spaces` | Personal or Shared financial context with active/archived lifecycle. Personal Spaces have one User as their private owner; Shared Space creation remains behind later invitation work. |
+| `space_memberships` | User access to a Space, with `read` or `write` access. The Personal Space migration creates one writable membership per User. |
+| `categories` | Space-associated classifications retaining the legacy User owner during migration, with optional description and named color, plus active/inactive status. Names remain unique per User until the Category migration. |
 | `budgets` | At most one monthly or yearly Budget per Category; ownership derives through the Category. |
-| `statement_imports` | Committed Statement Import provenance, including provider/account-type metadata and a file hash unique per User. |
-| `transactions` | User-owned positive expenses with optional Category and Committed Statement Import relationships. |
-| `category_rules` | User-owned Exact/Contains patterns associated with a Category; normalized pattern and match type are unique per User across active and inactive Categories. |
+| `statement_imports` | Committed Statement Import provenance associated with a Space while retaining the legacy User owner, including provider/account-type metadata and a file hash unique per User. |
+| `transactions` | Space-associated positive expenses retaining the legacy User owner, with optional Category and Committed Statement Import relationships. |
+| `category_rules` | Space-associated Exact/Contains patterns retaining the legacy User owner and Category relationship; normalized pattern and match type remain unique per User until the Rule migration. |
 
-Composite foreign keys pair Category and import IDs with `user_id`, preventing cross-user relationships. Application queries must also scope access to the authenticated User.
+Migration `1750000000000-introduce-personal-spaces` creates a Personal Space and writable membership for every existing User, backfills `space_id` on existing financial rows without changing their identifiers or values, and retains `user_id` for legacy callers. It also backfills immutable Transaction `added_by_user_id` and Statement Import `imported_by_user_id` from the legacy User without fabricating history. Compatibility triggers associate new legacy-shaped financial writes with the User's Personal Space and actor. Composite foreign keys now also keep Category, Rule, Transaction, and Statement Import references within one Space. Financial feature queries remain User-scoped until their later migration tickets replace the compatibility path.
+
+The reusable Space authorization boundary resolves accessible memberships from the authenticated local User; a client-supplied Space identifier is never an ownership grant. Read access and writable membership are represented separately so archived read-only history can be supported without exposing Shared Space creation yet.
 
 Account in the web is derived from import provider/account-type metadata, or Cash for manual Transactions. There is no Account table. Existing `bank` and `card_type` columns represent provider and account type, including wallets; card/wallet identifiers and last-four digits are not stored as Account metadata. Imported descriptions may still contain identifiers present in the original statement.
 
@@ -29,7 +33,7 @@ Account in the web is derived from import provider/account-type metadata, or Cas
 
 IDs use database-generated `BIGINT` identities and are represented as strings in application records. Monetary amounts use `NUMERIC(15,2)` and normalized decimal strings across the API. Expenses and Budgets are positive and single-currency. Purchase/statement dates are date-only; timestamps are UTC `timestamptz` values.
 
-Category deactivation preserves historical relationships and spending. Category Color is a nullable named palette identifier; the web resolves a stable fallback from Category ID for legacy/unselected colors. Renaming or deactivation retains the saved color. Default Categories are copied during User provisioning, not synchronized continuously from the catalog.
+Category deactivation preserves historical relationships and spending. Category Color is a nullable named palette identifier; the web resolves a stable fallback from Category ID for legacy/unselected colors. Renaming or deactivation retains the saved color. Default Categories are copied during Personal Space provisioning, not synchronized continuously from the catalog. Shared Space defaulting is reserved for the Shared Space acceptance migration.
 
 Actual foreign-key delete behavior is defined in migrations: User references restrict deletion; Category deletion cascades to Budgets and Rules and clears only a Transaction's `category_id`; imported Transactions restrict deletion of their provenance. These database behaviors do not introduce a product workflow for physical Category or User deletion.
 
@@ -39,9 +43,9 @@ The web parses and reconciles the PDF and reviews Transactions before sending JS
 
 Commit saves provenance and the reviewed Transactions in one unit of work. All participating stores use the same transaction context; failure rolls back the operation. A manual Transaction has no `statement_import_id` or import fingerprint. An imported Transaction references its committed provenance. Category assignment is optional; automatic match confidence is nullable and bounded from 0 to 1. Manual and Unmapped assignments carry no confidence.
 
-Exact File Duplicate detection uses `(user_id, file_hash)`. The web supplies the SHA-256 hash of the original file bytes; the API validates the asserted hash but does not receive or hash the PDF. File names are not duplicate identities. Provider/account type and statement date are not a unique statement key.
+Exact File Duplicate detection still uses `(user_id, file_hash)` during the compatibility period. The web supplies the SHA-256 hash of the original file bytes; the API validates the asserted hash but does not receive or hash the PDF. File names are not duplicate identities. Provider/account type and statement date are not a unique statement key.
 
-Probable Duplicate detection uses a non-unique fingerprint scoped to the User. `src/statement-imports/application/import-fingerprint.ts` defines the versioned hash of normalized date, description, amount, provider, and account type. Keep this algorithm authoritative; matching fingerprints flag review, since legitimate expenses may share those values.
+Probable Duplicate detection uses a non-unique fingerprint scoped to the User during the compatibility period. `src/statement-imports/application/import-fingerprint.ts` defines the versioned hash of normalized date, description, amount, provider, and account type. Keep this algorithm authoritative; matching fingerprints flag review, since legitimate expenses may share those values.
 
 ## Category Rules
 

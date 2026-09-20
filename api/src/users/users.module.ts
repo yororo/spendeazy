@@ -1,5 +1,6 @@
 import { DynamicModule, Module } from '@nestjs/common';
 import { CategoriesModule } from '../categories/categories.module';
+import { SpacesModule } from '../spaces/spaces.module';
 import { UsersService } from './application/users.service';
 import { USER_STORE } from './application/user-store';
 import { TypeOrmUserStore } from './infrastructure/typeorm-user-store';
@@ -23,7 +24,10 @@ export class UsersModule {
 
       return {
         module: UsersModule,
-        imports: [CategoriesModule.register(false, options)],
+        imports: [
+          CategoriesModule.register(false, options),
+          SpacesModule.register(false, options),
+        ],
         controllers,
         providers: [{ provide: UsersService, useValue: {} }],
       };
@@ -31,7 +35,10 @@ export class UsersModule {
 
     return {
       module: UsersModule,
-      imports: [CategoriesModule.register(true, options)],
+      imports: [
+        CategoriesModule.register(true, options),
+        SpacesModule.register(true, options),
+      ],
       controllers,
       providers: [
         TypeOrmUserStore,

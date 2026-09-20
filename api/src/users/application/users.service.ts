@@ -5,6 +5,10 @@ import {
   DEFAULT_CATEGORY_PROVISIONER,
   type DefaultCategoryProvisioner,
 } from '../../categories/application/default-categories.service';
+import {
+  PERSONAL_SPACE_PROVISIONER,
+  type PersonalSpaceProvisioner,
+} from '../../spaces/application/space-store';
 import type {
   ClerkProfileService,
   ClerkUserProfile,
@@ -41,6 +45,10 @@ export class UsersService {
     private readonly clerkProfileService: ClerkProfileService,
     @Inject(DEFAULT_CATEGORY_PROVISIONER)
     private readonly defaultCategoryProvisioner: DefaultCategoryProvisioner,
+    @Inject(PERSONAL_SPACE_PROVISIONER)
+    private readonly personalSpaceProvisioner: PersonalSpaceProvisioner = {
+      ensurePersonalSpace: () => Promise.resolve(),
+    },
   ) {}
 
   async provisionUser(clerkUserId: string): Promise<UserProvisioningResult> {
@@ -65,6 +73,7 @@ export class UsersService {
       email: input.email,
     };
     if (isNoOp(currentUser, changes)) {
+      await this.personalSpaceProvisioner.ensurePersonalSpace(currentUser.id);
       return { user: currentUser, created: false };
     }
 
@@ -73,6 +82,7 @@ export class UsersService {
       throw new UserNotFoundError();
     }
 
+    await this.personalSpaceProvisioner.ensurePersonalSpace(updatedUser.id);
     return { user: updatedUser, created: false };
   }
 
@@ -121,9 +131,11 @@ export class UsersService {
         throw error;
       }
 
+      await this.personalSpaceProvisioner.ensurePersonalSpace(racedUser.id);
       return { user: racedUser, created: false };
     }
 
+    await this.personalSpaceProvisioner.ensurePersonalSpace(user.id);
     await this.defaultCategoryProvisioner.createForNewUser(user.id);
     return { user, created: true };
   }

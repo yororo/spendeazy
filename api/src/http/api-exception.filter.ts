@@ -36,6 +36,8 @@ import {
   VALIDATION_FAILED_CODE,
   USER_NOT_FOUND_CODE,
   USER_NOT_PROVISIONED_CODE,
+  SPACE_NOT_FOUND_CODE,
+  SPACE_NOT_WRITABLE_CODE,
 } from '../errors/application-error-codes';
 import { TRANSACTION_NOT_FOUND_CODE } from '../transactions/application/transaction-errors';
 import { IMPORTED_TRANSACTION_IMMUTABLE_CODE } from '../transactions/application/transaction-errors';
@@ -287,6 +289,7 @@ function applicationErrorStatus(code: string): number {
     case USER_EMAIL_ALREADY_EXISTS_CODE:
       return HttpStatus.CONFLICT;
     case USER_NOT_FOUND_CODE:
+    case SPACE_NOT_FOUND_CODE:
     case CATEGORY_NOT_FOUND_CODE:
     case BUDGET_NOT_FOUND_CODE:
     case STATEMENT_IMPORT_NOT_FOUND_CODE:
@@ -301,6 +304,8 @@ function applicationErrorStatus(code: string): number {
       return HttpStatus.CONFLICT;
     case CATEGORY_RULE_NOT_FOUND_CODE:
       return HttpStatus.NOT_FOUND;
+    case SPACE_NOT_WRITABLE_CODE:
+      return HttpStatus.FORBIDDEN;
     default:
       return HttpStatus.INTERNAL_SERVER_ERROR;
   }

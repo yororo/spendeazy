@@ -63,10 +63,10 @@ Shared code exists only where the concern is genuinely cross-cutting:
 3. `ClerkAuthenticationGuard` verifies the bearer session unless the route is public.
 4. `ProvisionedUserGuard` resolves the Clerk identity to the local `User` and places its ID on the request. `PUT /api/v1/users/me` is the provisioning exception.
 5. `JsonContractGuard` enforces the JSON transport contract.
-6. A feature controller obtains the authenticated local user ID, maps the DTO, and calls an application service.
+6. A feature controller obtains the authenticated local User ID, maps the DTO, and calls an application service. Space-aware features must pass that trusted ID through the reusable `SpaceAccessService`; a client-supplied Space ID is only a lookup key and never an ownership grant.
 7. `ApiExceptionFilter` translates application, HTTP, parser, and database failures to the common error envelope.
 
-Health and documentation routes are public and excluded from the `/api/v1` prefix. Business endpoints are user-scoped; ownership must be included in application queries and reinforced by database constraints.
+Health and documentation routes are public and excluded from the `/api/v1` prefix. Existing financial endpoints remain User-scoped during the ownership migration; the Personal Space foundation stores dual ownership and exposes only authenticated Space membership reads until each feature migrates. Ownership must be included in application queries and reinforced by database constraints.
 
 ## Persistence and transactions
 

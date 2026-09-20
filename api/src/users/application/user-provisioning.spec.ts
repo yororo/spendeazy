@@ -3,6 +3,7 @@ import type {
   ClerkUserProfile,
 } from '../../authentication/clerk-profile-service';
 import type { DefaultCategoryProvisioner } from '../../categories/application/default-categories.service';
+import type { PersonalSpaceProvisioner } from '../../spaces/application/space-store';
 import type { NewUser, UpdateUser, UserRecord, UserStore } from './user-store';
 import {
   UserEmailConflictError,
@@ -19,7 +20,13 @@ describe('UsersService provisioning', () => {
     });
     const store = new UserStoreFake();
     const defaultCategories = new DefaultCategoryProvisionerFake();
-    const service = new UsersService(store, profileService, defaultCategories);
+    const personalSpaces = new PersonalSpaceProvisionerFake();
+    const service = new UsersService(
+      store,
+      profileService,
+      defaultCategories,
+      personalSpaces,
+    );
 
     const result = await service.provisionUser('user_42');
 
@@ -32,6 +39,7 @@ describe('UsersService provisioning', () => {
       email: 'ada@example.com',
     });
     expect(defaultCategories.requestedUserIds).toEqual(['2']);
+    expect(personalSpaces.requestedUserIds).toEqual(['2']);
   });
 
   it('synchronizes an existing User found by Clerk subject and is idempotent', async () => {
@@ -184,6 +192,15 @@ class DefaultCategoryProvisionerFake implements DefaultCategoryProvisioner {
   readonly requestedUserIds: string[] = [];
 
   createForNewUser(userId: string): Promise<void> {
+    this.requestedUserIds.push(userId);
+    return Promise.resolve();
+  }
+}
+
+class PersonalSpaceProvisionerFake implements PersonalSpaceProvisioner {
+  readonly requestedUserIds: string[] = [];
+
+  ensurePersonalSpace(userId: string): Promise<void> {
     this.requestedUserIds.push(userId);
     return Promise.resolve();
   }

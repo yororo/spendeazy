@@ -983,12 +983,32 @@ function listModuleImports(moduleType: typeof OpenApiModule): unknown[] {
 function listControllerTypesFromModuleImports(
   moduleImports: readonly unknown[],
 ): ControllerType[] {
-  return moduleImports.flatMap((moduleImport) => {
-    if (!isRecord(moduleImport) || !Array.isArray(moduleImport.controllers)) {
-      return [];
+  const controllerTypes = new Set<ControllerType>();
+  const visitedModules = new Set<unknown>();
+
+  function visit(imports: readonly unknown[]): void {
+    for (const moduleImport of imports) {
+      if (!isRecord(moduleImport) || visitedModules.has(moduleImport)) {
+        continue;
+      }
+      visitedModules.add(moduleImport);
+
+      if (Array.isArray(moduleImport.controllers)) {
+        for (const controller of moduleImport.controllers) {
+          if (isControllerType(controller)) {
+            controllerTypes.add(controller);
+          }
+        }
+      }
+
+      if (Array.isArray(moduleImport.imports)) {
+        visit(moduleImport.imports);
+      }
     }
-    return moduleImport.controllers.filter(isControllerType);
-  });
+  }
+
+  visit(moduleImports);
+  return [...controllerTypes];
 }
 
 function readMetadataPaths(value: unknown): string[] {

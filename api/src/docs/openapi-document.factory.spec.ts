@@ -86,6 +86,8 @@ describe('OpenAPI document factory', () => {
         `POST ${apiRoot}/users/me/statement-imports`,
         `GET ${apiRoot}/users/me/statement-imports/{statementImportId}`,
         `GET ${apiRoot}/users/me/category-summaries`,
+        `GET ${apiRoot}/users/me/spaces`,
+        `GET ${apiRoot}/users/me/spaces/{spaceId}`,
       ].sort(),
     );
 

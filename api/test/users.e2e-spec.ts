@@ -54,6 +54,7 @@ import { StatementImportsController } from '../src/statement-imports/presentatio
 import { StatementImportsService } from '../src/statement-imports/application/statement-imports.service';
 import { UsersController } from '../src/users/presentation/users.controller';
 import { UsersService } from '../src/users/application/users.service';
+import { PERSONAL_SPACE_PROVISIONER } from '../src/spaces/application/space-store';
 import {
   USER_STORE,
   type NewUser,
@@ -188,6 +189,12 @@ describe('authenticated User routes', () => {
         {
           provide: DEFAULT_CATEGORY_PROVISIONER,
           useExisting: DefaultCategoriesService,
+        },
+        {
+          provide: PERSONAL_SPACE_PROVISIONER,
+          useValue: {
+            ensurePersonalSpace: jest.fn().mockResolvedValue(undefined),
+          },
         },
         {
           provide: CategorySummariesService,

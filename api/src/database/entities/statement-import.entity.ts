@@ -11,6 +11,11 @@ import {
   unique: true,
 })
 @Index('ix_statement_imports_user_statement_date', ['userId', 'statementDate'])
+@Index('ix_statement_imports_space_statement_date', [
+  'spaceId',
+  'statementDate',
+])
+@Index('ix_statement_imports_imported_by_user', ['importedByUserId'])
 export class StatementImportEntity {
   @PrimaryGeneratedColumn('identity', {
     type: 'bigint',
@@ -21,6 +26,12 @@ export class StatementImportEntity {
 
   @Column({ type: 'bigint', name: 'user_id' })
   userId!: string;
+
+  @Column({ type: 'bigint', name: 'space_id' })
+  spaceId!: string;
+
+  @Column({ type: 'bigint', name: 'imported_by_user_id' })
+  importedByUserId!: string;
 
   @Column({ type: 'varchar', length: 255, name: 'file_name' })
   fileName!: string;

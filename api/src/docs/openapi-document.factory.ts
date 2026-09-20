@@ -70,6 +70,7 @@ function createDocumentConfig(): Omit<OpenAPIObject, 'paths'> {
     .addServer('/')
     .addTag('Health', 'Operational readiness.')
     .addTag('Users', 'Expense-data owners.')
+    .addTag('Spaces', 'Authorized Personal and Shared financial contexts.')
     .addTag('Categories', 'Active and historical categories.')
     .addTag('Budgets', 'Recurring category budgets.')
     .addTag('Category rules', 'Exact-description rules.')

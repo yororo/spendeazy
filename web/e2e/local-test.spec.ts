@@ -104,6 +104,67 @@ test("switches Users without exposing stale browser data", async ({ page }) => {
   expect(created.body).toMatchObject({ description });
 });
 
+test("provisions private Personal Spaces and denies cross-User Space reads", async ({
+  page,
+  request,
+}) => {
+  const apiBaseUrl = requireEnvironment("SPENDEAZY_E2E_API_BASE_URL");
+  const primaryToken = requireEnvironment("VITE_LOCAL_TEST_SESSION_TOKEN");
+
+  await page.goto("/categories");
+  await expect(
+    page.getByRole("heading", { name: "Budget overview" }),
+  ).toBeVisible();
+  const primarySpacesResponse = await request.get(
+    `${apiBaseUrl}/api/v1/users/me/spaces`,
+    { headers: authorizationHeaders(primaryToken) },
+  );
+  expect(primarySpacesResponse.status()).toBe(200);
+  const primarySpaces = (await primarySpacesResponse.json()) as {
+    id?: unknown;
+    kind?: unknown;
+    status?: unknown;
+    accessLevel?: unknown;
+  }[];
+  expect(primarySpaces).toHaveLength(1);
+  expect(primarySpaces[0]).toMatchObject({
+    kind: "personal",
+    status: "active",
+    accessLevel: "write",
+  });
+
+  const secondarySession = await issueSession(
+    request,
+    apiBaseUrl,
+    primaryToken,
+    "secondary",
+  );
+  const secondaryProvisioning = await request.put(
+    `${apiBaseUrl}/api/v1/users/me`,
+    { headers: authorizationHeaders(secondarySession.token) },
+  );
+  expect([200, 201]).toContain(secondaryProvisioning.status());
+  const secondarySpacesResponse = await request.get(
+    `${apiBaseUrl}/api/v1/users/me/spaces`,
+    { headers: authorizationHeaders(secondarySession.token) },
+  );
+  expect(secondarySpacesResponse.status()).toBe(200);
+  const secondarySpaces = (await secondarySpacesResponse.json()) as {
+    id?: unknown;
+  }[];
+  expect(secondarySpaces).toHaveLength(1);
+  expect(secondarySpaces[0].id).not.toBe(primarySpaces[0].id);
+
+  const crossUserRead = await request.get(
+    `${apiBaseUrl}/api/v1/users/me/spaces/${String(primarySpaces[0].id)}`,
+    { headers: authorizationHeaders(secondarySession.token) },
+  );
+  expect(crossUserRead.status()).toBe(404);
+  await expect(crossUserRead.json()).resolves.toMatchObject({
+    error: { code: "SPACE_NOT_FOUND" },
+  });
+});
+
 test("signs out protected routes and re-enters without Clerk", async ({
   page,
 }) => {

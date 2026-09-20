@@ -29,20 +29,6 @@ import {
   type ReplacementCategoryRule,
 } from './category-rule-store';
 
-type SpaceCategoryRuleStore = {
-  findByIdInSpace: NonNullable<CategoryRuleStore['findByIdInSpace']>;
-  findAllInSpace: NonNullable<CategoryRuleStore['findAllInSpace']>;
-  findByNormalizedPatternInSpace: NonNullable<
-    CategoryRuleStore['findByNormalizedPatternInSpace']
-  >;
-  createInSpace: NonNullable<CategoryRuleStore['createInSpace']>;
-  updateInSpace: NonNullable<CategoryRuleStore['updateInSpace']>;
-  deleteInSpace: NonNullable<CategoryRuleStore['deleteInSpace']>;
-  replaceForCategoryInSpace: NonNullable<
-    CategoryRuleStore['replaceForCategoryInSpace']
-  >;
-};
-
 @Injectable()
 export class CategoryRulesService {
   constructor(
@@ -94,7 +80,7 @@ export class CategoryRulesService {
       matchType,
     );
 
-    return this.getSpaceCategoryRuleStore().createInSpace({
+    return this.categoryRuleStore.createInSpace({
       userId,
       spaceId,
       categoryId: input.categoryId,
@@ -111,7 +97,7 @@ export class CategoryRulesService {
   listCategoryRulesInSpace(
     spaceId: string,
   ): Promise<CategoryRuleCollectionRecord> {
-    return this.getSpaceCategoryRuleStore().findAllInSpace(spaceId);
+    return this.categoryRuleStore.findAllInSpace(spaceId);
   }
 
   async replaceCategoryRules(
@@ -159,7 +145,7 @@ export class CategoryRulesService {
     });
     validateReplacementConflicts(categoryId, normalizedRules, []);
 
-    return this.getSpaceCategoryRuleStore().replaceForCategoryInSpace(
+    return this.categoryRuleStore.replaceForCategoryInSpace(
       userId,
       spaceId,
       categoryId,
@@ -184,10 +170,7 @@ export class CategoryRulesService {
     spaceId: string,
     id: string,
   ): Promise<CategoryRuleRecord> {
-    const rule = await this.getSpaceCategoryRuleStore().findByIdInSpace(
-      spaceId,
-      id,
-    );
+    const rule = await this.categoryRuleStore.findByIdInSpace(spaceId, id);
     if (!rule) {
       throw new CategoryRuleNotFoundError();
     }
@@ -268,7 +251,7 @@ export class CategoryRulesService {
       changes.matchType ?? currentRule.matchType,
     );
 
-    const updatedRule = await this.getSpaceCategoryRuleStore().updateInSpace(
+    const updatedRule = await this.categoryRuleStore.updateInSpace(
       spaceId,
       id,
       changes,
@@ -294,7 +277,7 @@ export class CategoryRulesService {
   ): Promise<void> {
     const currentRule = await this.getCategoryRuleInSpace(spaceId, id);
     assertCurrentVersion(currentRule.updatedAt, expectedUpdatedAt);
-    const deleted = await this.getSpaceCategoryRuleStore().deleteInSpace(
+    const deleted = await this.categoryRuleStore.deleteInSpace(
       spaceId,
       id,
       expectedUpdatedAt,
@@ -321,10 +304,6 @@ export class CategoryRulesService {
     spaceId: string,
     categoryId: string,
   ): Promise<void> {
-    if (!this.categoryStore.findBySpaceId) {
-      throw new Error('Space-scoped Category persistence is not configured.');
-    }
-
     const category = await this.categoryStore.findBySpaceId(
       spaceId,
       categoryId,
@@ -361,7 +340,7 @@ export class CategoryRulesService {
     matchType: CategoryRuleMatchType = 'exact',
   ): Promise<void> {
     const existingRule =
-      await this.getSpaceCategoryRuleStore().findByNormalizedPatternInSpace(
+      await this.categoryRuleStore.findByNormalizedPatternInSpace(
         spaceId,
         normalizedPattern,
         excludingId,
@@ -370,59 +349,6 @@ export class CategoryRulesService {
     if (existingRule) {
       throw new CategoryRulePatternConflictError(existingRule.categoryId);
     }
-  }
-
-  private getSpaceCategoryRuleStore(): SpaceCategoryRuleStore {
-    const store = this.categoryRuleStore;
-    if (
-      !store.findByIdInSpace ||
-      !store.findAllInSpace ||
-      !store.findByNormalizedPatternInSpace ||
-      !store.createInSpace ||
-      !store.updateInSpace ||
-      !store.deleteInSpace ||
-      !store.replaceForCategoryInSpace
-    ) {
-      throw new Error(
-        'Space-scoped Category Rule persistence is not configured.',
-      );
-    }
-
-    return {
-      findByIdInSpace: (spaceId, id) => store.findByIdInSpace!(spaceId, id),
-      findAllInSpace: (spaceId) => store.findAllInSpace!(spaceId),
-      findByNormalizedPatternInSpace: (
-        spaceId,
-        normalizedPattern,
-        excludingId,
-        matchType,
-      ) =>
-        store.findByNormalizedPatternInSpace!(
-          spaceId,
-          normalizedPattern,
-          excludingId,
-          matchType,
-        ),
-      createInSpace: (input) => store.createInSpace!(input),
-      updateInSpace: (spaceId, id, input) =>
-        store.updateInSpace!(spaceId, id, input),
-      deleteInSpace: (spaceId, id, expectedUpdatedAt) =>
-        store.deleteInSpace!(spaceId, id, expectedUpdatedAt),
-      replaceForCategoryInSpace: (
-        userId,
-        spaceId,
-        categoryId,
-        rules,
-        revision,
-      ) =>
-        store.replaceForCategoryInSpace!(
-          userId,
-          spaceId,
-          categoryId,
-          rules,
-          revision,
-        ),
-    };
   }
 }
 

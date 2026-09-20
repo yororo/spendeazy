@@ -69,29 +69,29 @@ export interface CategoryRuleStore {
     categoryId: string,
     rules: NormalizedReplacementCategoryRule[],
   ): Promise<CategoryRuleRecord[]>;
-  findByIdInSpace?(
+  findByIdInSpace(
     spaceId: string,
     id: string,
   ): Promise<CategoryRuleRecord | null>;
-  findAllInSpace?(spaceId: string): Promise<CategoryRuleCollectionRecord>;
-  findByNormalizedPatternInSpace?(
+  findAllInSpace(spaceId: string): Promise<CategoryRuleCollectionRecord>;
+  findByNormalizedPatternInSpace(
     spaceId: string,
     normalizedPattern: string,
     excludingId?: string,
     matchType?: CategoryRuleMatchType,
   ): Promise<CategoryRuleRecord | null>;
-  createInSpace?(input: NewCategoryRule): Promise<CategoryRuleRecord>;
-  updateInSpace?(
+  createInSpace(input: NewCategoryRule): Promise<CategoryRuleRecord>;
+  updateInSpace(
     spaceId: string,
     id: string,
     input: UpdateCategoryRule,
   ): Promise<CategoryRuleRecord | null>;
-  deleteInSpace?(
+  deleteInSpace(
     spaceId: string,
     id: string,
     expectedUpdatedAt?: string,
   ): Promise<boolean>;
-  replaceForCategoryInSpace?(
+  replaceForCategoryInSpace(
     userId: string,
     spaceId: string,
     categoryId: string,

@@ -21,7 +21,7 @@ import {
   ReplaceCategoryRulesDto,
 } from './category-rule.dto';
 import { CategoryRuleResponseDto } from './category-rule-response.dto';
-import { toCategoryRuleResponse } from './category-rules.controller';
+import { toCategoryRuleResponse } from './category-rule-response.mapper';
 
 @Controller('users/me/categories/:categoryId/rules')
 @ApiTags('Category rules')

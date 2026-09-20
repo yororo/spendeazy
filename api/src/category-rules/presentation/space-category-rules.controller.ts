@@ -41,9 +41,11 @@ import {
   CategoryRuleResponseDto,
 } from './category-rule-response.dto';
 import {
+  normalizeIfMatch,
   toCategoryRuleCollectionResponse,
   toCategoryRuleResponse,
-} from './category-rules.controller';
+  toCategoryRuleUpdate,
+} from './category-rule-response.mapper';
 
 @Controller('users/me/spaces/:spaceId/category-rules')
 @ApiTags('Category rules')
@@ -283,18 +285,4 @@ export class SpaceCategoryRulesController {
 
 function spaceCategoryRuleLocation(spaceId: string, ruleId: string): string {
   return `/${API_PREFIX}/users/me/spaces/${spaceId}/category-rules/${ruleId}`;
-}
-
-function toCategoryRuleUpdate(input: UpdateCategoryRuleDto) {
-  const { updatedAt, ...changes } = input;
-  return {
-    ...changes,
-    ...(updatedAt === undefined ? {} : { expectedUpdatedAt: updatedAt }),
-  };
-}
-
-function normalizeIfMatch(value: string | undefined): string | undefined {
-  const normalized = value?.trim();
-  if (!normalized) return undefined;
-  return normalized.replace(/^W\//u, '').replace(/^"|"$/gu, '');
 }

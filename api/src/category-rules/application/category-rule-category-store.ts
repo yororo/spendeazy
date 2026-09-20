@@ -14,7 +14,7 @@ export interface CategoryRuleCategoryStore {
     userId: string,
     id: string,
   ): Promise<CategoryRuleCategoryRecord | null>;
-  findBySpaceId?(
+  findBySpaceId(
     spaceId: string,
     id: string,
   ): Promise<CategoryRuleCategoryRecord | null>;

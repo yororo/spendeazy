@@ -19,14 +19,11 @@ import {
   SpaceReplaceCategoryRulesDto,
 } from './category-rule.dto';
 import { CategoryRuleCollectionResponseDto } from './category-rule-response.dto';
-import { toCategoryRuleCollectionResponse } from './category-rules.controller';
+import { toCategoryRuleCollectionResponse } from './category-rule-response.mapper';
 
 @Controller('users/me/spaces/:spaceId/categories/:categoryId/rules')
 @ApiTags('Category rules')
-  @ApiExtraModels(
-    SpaceReplaceCategoryRulesDto,
-    CategoryRuleCollectionResponseDto,
-  )
+@ApiExtraModels(SpaceReplaceCategoryRulesDto, CategoryRuleCollectionResponseDto)
 @ApiParam({
   name: 'spaceId',
   description: 'Positive bigint Space identifier encoded as a string.',

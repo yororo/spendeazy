@@ -32,16 +32,17 @@ import { ApiStandardErrorResponses } from '../../http/api-error.dto';
 import { POSITIVE_INTEGER_ID_PATTERN } from '../../http/validation-patterns';
 import { SpaceAccessService } from '../../spaces/application/space-access.service';
 import { CategoryRulesService } from '../application/category-rules.service';
-import type { CategoryRuleRecord } from '../application/category-rule-store';
 import {
   CategoryRuleParamsDto,
   CreateCategoryRuleDto,
   UpdateCategoryRuleDto,
 } from './category-rule.dto';
+import { CategoryRuleResponseDto } from './category-rule-response.dto';
 import {
-  CategoryRuleCollectionResponseDto,
-  CategoryRuleResponseDto,
-} from './category-rule-response.dto';
+  normalizeIfMatch,
+  toCategoryRuleResponse,
+  toCategoryRuleUpdate,
+} from './category-rule-response.mapper';
 
 @Controller('users/me/category-rules')
 @ApiTags('Category rules')
@@ -295,43 +296,6 @@ export class CategoryRulesController {
   }
 }
 
-export function toCategoryRuleResponse(
-  rule: CategoryRuleRecord,
-): CategoryRuleResponseDto {
-  return {
-    id: rule.id,
-    categoryId: rule.categoryId,
-    pattern: rule.pattern,
-    matchType: rule.matchType,
-    createdAt: rule.createdAt.toISOString(),
-    updatedAt: rule.updatedAt.toISOString(),
-  };
-}
-
-export function toCategoryRuleCollectionResponse(collection: {
-  rules: CategoryRuleRecord[];
-  revision: string;
-}): CategoryRuleCollectionResponseDto {
-  return {
-    rules: collection.rules.map(toCategoryRuleResponse),
-    revision: collection.revision,
-  };
-}
-
 function categoryRuleLocation(ruleId: string): string {
   return `/${API_PREFIX}/users/me/category-rules/${ruleId}`;
-}
-
-function toCategoryRuleUpdate(input: UpdateCategoryRuleDto) {
-  const { updatedAt, ...changes } = input;
-  return {
-    ...changes,
-    ...(updatedAt === undefined ? {} : { expectedUpdatedAt: updatedAt }),
-  };
-}
-
-function normalizeIfMatch(value: string | undefined): string | undefined {
-  const normalized = value?.trim();
-  if (!normalized) return undefined;
-  return normalized.replace(/^W\//u, '').replace(/^"|"$/gu, '');
 }

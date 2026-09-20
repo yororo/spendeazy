@@ -1,11 +1,15 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type MouseEvent } from "react";
 import { MenuIcon } from "lucide-react";
-import { Outlet, useLocation } from "react-router-dom";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 
 import { LedgerMark } from "@/components/app/ledger-mark";
 import { MobileTabBar } from "@/components/app/mobile-tab-bar";
 import { PrimarySidebar } from "@/components/app/primary-sidebar";
 import { Button } from "@/components/ui/button";
+import {
+  NavigationGuardProvider,
+  useNavigationGuard,
+} from "@/shared/navigation";
 import {
   Sheet,
   SheetContent,
@@ -23,10 +27,65 @@ const pageTitles: Record<string, string> = {
 };
 
 function AppShell() {
+  return (
+    <NavigationGuardProvider>
+      <AppShellContent />
+    </NavigationGuardProvider>
+  );
+}
+
+function AppShellContent() {
   const [navigationOpen, setNavigationOpen] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
   const mainRef = useRef<HTMLElement>(null);
-  const { pathname } = useLocation();
+  const location = useLocation();
+  const { pathname } = location;
+  const navigate = useNavigate();
+  const { requestNavigation } = useNavigationGuard();
+
+  function handleNavigationClickCapture(event: MouseEvent<HTMLDivElement>) {
+    if (
+      event.defaultPrevented ||
+      event.button !== 0 ||
+      event.metaKey ||
+      event.altKey ||
+      event.ctrlKey ||
+      event.shiftKey
+    ) {
+      return;
+    }
+
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+
+    const anchor = target.closest("a");
+    if (
+      !anchor ||
+      anchor.target === "_blank" ||
+      anchor.hasAttribute("download") ||
+      !anchor.href
+    ) {
+      return;
+    }
+
+    const destination = new URL(anchor.href, window.location.href);
+    if (
+      destination.origin !== window.location.origin ||
+      destination.pathname === location.pathname
+    ) {
+      return;
+    }
+
+    if (
+      requestNavigation(() =>
+        navigate(
+          `${destination.pathname}${destination.search}${destination.hash}`,
+        ),
+      )
+    ) {
+      event.preventDefault();
+    }
+  }
 
   useEffect(() => {
     document.title = pageTitles[pathname] ?? "Page not found · Spendeazy";
@@ -36,7 +95,10 @@ function AppShell() {
   }, [pathname]);
 
   return (
-    <div className="min-h-screen bg-background lg:flex lg:h-screen lg:overflow-hidden">
+    <div
+      className="min-h-screen bg-background lg:flex lg:h-screen lg:overflow-hidden"
+      onClickCapture={handleNavigationClickCapture}
+    >
       <aside className="hidden h-screen w-56 shrink-0 self-start lg:sticky lg:top-0 lg:block">
         <PrimarySidebar className="h-full" />
       </aside>

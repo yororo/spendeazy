@@ -1,4 +1,5 @@
 import { InfoIcon } from "lucide-react";
+import type { ReactNode } from "react";
 
 import {
   FeatureDataEmpty,
@@ -23,6 +24,7 @@ import { StatementDropZone } from "./statement-drop-zone";
 import {
   CategorizeStatementAdapter,
 } from "./statement-import-workflow-adapter";
+import { useStatementImportNavigationGuard } from "./statement-import-navigation-guard";
 import { useStatementImportWorkflow } from "./use-statement-import-workflow";
 
 interface StatementImportPageProps {
@@ -48,6 +50,20 @@ function StatementImportPage({ onViewTransactions }: StatementImportPageProps) {
     onCommitStatementImport: (file, statement, options) =>
       commitMutation.mutateAsync({ file, statement, ...options }),
   });
+  const isCategorizing =
+    workflowState.stage === "categorize" &&
+    Boolean(workflowState.importedFile && workflowState.statement);
+  const { dialog: navigationGuardDialog, requestExit } =
+    useStatementImportNavigationGuard(isCategorizing);
+
+  function withNavigationGuard(content: ReactNode) {
+    return (
+      <>
+        {navigationGuardDialog}
+        {content}
+      </>
+    );
+  }
 
   function acceptCategorizedStatement(
     file: File,
@@ -69,7 +85,9 @@ function StatementImportPage({ onViewTransactions }: StatementImportPageProps) {
     categoryRulesQuery.isPending ||
     recentImportsQuery.isPending;
   if (isLoading) {
-    return <FeatureDataLoading label="Loading Statement Import" />;
+    return withNavigationGuard(
+      <FeatureDataLoading label="Loading Statement Import" />,
+    );
   }
 
   if (
@@ -81,7 +99,7 @@ function StatementImportPage({ onViewTransactions }: StatementImportPageProps) {
       categoryOptionsQuery.error ??
       categoryRulesQuery.error ??
       recentImportsQuery.error;
-    return (
+    return withNavigationGuard(
       <FeatureDataError
         message={error?.message}
         onRetry={() => {
@@ -89,7 +107,7 @@ function StatementImportPage({ onViewTransactions }: StatementImportPageProps) {
           void categoryRulesQuery.refetch();
           void recentImportsQuery.refetch();
         }}
-      />
+      />,
     );
   }
 
@@ -105,21 +123,21 @@ function StatementImportPage({ onViewTransactions }: StatementImportPageProps) {
   );
 
   if (categoryOptions.length === 0) {
-    return (
+    return withNavigationGuard(
       <FeatureDataEmpty
         title="No active Categories configured"
         description="Create an active Category before starting Statement Import."
-      />
+      />,
     );
   }
 
   if (workflowState.commit.result) {
-    return (
+    return withNavigationGuard(
       <ImportSuccess
         committedImport={workflowState.commit.result}
         onImportAnother={resetImport}
         onViewTransactions={onViewTransactions}
-      />
+      />,
     );
   }
 
@@ -127,7 +145,7 @@ function StatementImportPage({ onViewTransactions }: StatementImportPageProps) {
   const { commit } = workflowState;
 
   if (importedFile && statement && stage === "review") {
-    return (
+    return withNavigationGuard(
       <ReviewStatement
         categoryOptions={categoryOptions}
         fileName={importedFile.name}
@@ -144,12 +162,12 @@ function StatementImportPage({ onViewTransactions }: StatementImportPageProps) {
         onCommit={(acknowledgeProbableDuplicates) => {
           void workflow.confirmStatementImport(acknowledgeProbableDuplicates);
         }}
-      />
+      />,
     );
   }
 
   if (importedFile && statement && stage === "categorize") {
-    return (
+    return withNavigationGuard(
       <CategorizeStatementAdapter
         workflow={workflow}
         categoryOptions={categoryOptions}
@@ -157,13 +175,13 @@ function StatementImportPage({ onViewTransactions }: StatementImportPageProps) {
         currentCategoryRules={categoryRules}
         fileName={importedFile.name}
         statementSummary={statement.summary}
-        onBack={resetImport}
+        onBack={() => requestExit(resetImport)}
         onReview={() => workflow.enterReview()}
-      />
+      />,
     );
   }
 
-  return (
+  return withNavigationGuard(
     <div className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-screen-2xl flex-col gap-6 px-4 py-6 sm:px-6 lg:h-screen lg:min-h-0 lg:px-9 lg:py-7">
       <header className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
         <div>
@@ -274,7 +292,7 @@ function StatementImportPage({ onViewTransactions }: StatementImportPageProps) {
           </section>
         </aside>
       </div>
-    </div>
+    </div>,
   );
 }
 

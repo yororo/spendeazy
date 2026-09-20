@@ -13,6 +13,7 @@ import {
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ApiClientProvider } from "@/shared/api";
+import { NavigationGuardProvider } from "@/shared/navigation";
 
 import type { Statement } from "./statement-parser/transformer";
 import { transformStatement } from "./statement-parser/transformer";
@@ -316,6 +317,7 @@ async function reenterCategorizeWithPendingSave(
   fetchMock: ReturnType<typeof createFetchMock>,
 ) {
   fireEvent.click(screen.getByRole("button", { name: "Back to Upload" }));
+  fireEvent.click(screen.getByRole("button", { name: "Leave Categorize" }));
   await screen.findByRole("heading", { name: "Upload your statement" });
   setStatementTransactions([
     {
@@ -375,14 +377,16 @@ function renderStatementImportPage(
   });
 
   render(
-    <ApiClientProvider
-      config={apiConfig}
-      getToken={vi.fn(async () => "session-token")}
-    >
-      <QueryClientProvider client={queryClient}>
-        <StatementImportPage onViewTransactions={vi.fn()} />
-      </QueryClientProvider>
-    </ApiClientProvider>,
+    <NavigationGuardProvider>
+      <ApiClientProvider
+        config={apiConfig}
+        getToken={vi.fn(async () => "session-token")}
+      >
+        <QueryClientProvider client={queryClient}>
+          <StatementImportPage onViewTransactions={vi.fn()} />
+        </QueryClientProvider>
+      </ApiClientProvider>
+    </NavigationGuardProvider>,
   );
 
   return queryClient;
@@ -731,6 +735,43 @@ describe("StatementImportPage confirmation lifecycle", () => {
 });
 
 describe("StatementImportPage Categorize lifecycle", () => {
+  it("confirms before leaving Categorize even when no transactions changed", async () => {
+    const fetchMock = createFetchMock();
+    renderStatementImportPage(fetchMock);
+    await screen.findByRole("heading", { name: "Upload your statement" });
+    await uploadStatementFile("statement.pdf");
+
+    fireEvent.click(screen.getByRole("button", { name: "Back to Upload" }));
+
+    expect(
+      screen.getByRole("dialog", { name: "Leave Statement Import?" }),
+    ).toBeTruthy();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Stay in Categorize" }),
+    );
+    expect(screen.queryByRole("dialog", { name: "Leave Statement Import?" })).toBeNull();
+    expect(
+      screen.getByRole("heading", { name: "Categorize and update" }),
+    ).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Back to Upload" }));
+    fireEvent.click(screen.getByRole("button", { name: "Leave Categorize" }));
+    await screen.findByRole("heading", { name: "Upload your statement" });
+  });
+
+  it("blocks browser exit while Categorize is active", async () => {
+    const fetchMock = createFetchMock();
+    renderStatementImportPage(fetchMock);
+    await screen.findByRole("heading", { name: "Upload your statement" });
+    await uploadStatementFile("statement.pdf");
+
+    const event = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(true);
+  });
+
   it("abandons the editor when a rule query error displaces Categorize", async () => {
     let failCategoryRules = false;
     const fetchMock = createFetchMock({
@@ -1721,6 +1762,7 @@ describe("StatementImportPage pending Category Rule saves", () => {
     expect(screen.getByRole("dialog", { name: "Edit Transaction" })).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Back to Upload" }));
+    fireEvent.click(screen.getByRole("button", { name: "Leave Categorize" }));
     expect(
       await screen.findByRole("heading", { name: "Upload your statement" }),
     ).toBeTruthy();
@@ -1771,6 +1813,7 @@ describe("StatementImportPage pending Category Rule saves", () => {
       await waitFor(() => expect(categoryRulePostCount(fetchMock)).toBe(1));
 
       fireEvent.click(screen.getByRole("button", { name: "Back to Upload" }));
+      fireEvent.click(screen.getByRole("button", { name: "Leave Categorize" }));
       await screen.findByRole("heading", { name: "Upload your statement" });
       setStatementTransactions([
         {

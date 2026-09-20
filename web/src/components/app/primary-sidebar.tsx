@@ -5,6 +5,7 @@ import { LedgerMark } from "@/components/app/ledger-mark";
 import { AppearanceSelector } from "@/components/app/appearance-selector";
 import { primaryNavigation } from "@/components/app/primary-navigation";
 import { cn } from "@/lib/utils";
+import { useNavigationGuard } from "@/shared/navigation";
 import { useAppSession, type AppSessionUser } from "@/shared/session";
 
 interface PrimarySidebarProps {
@@ -37,12 +38,19 @@ function getInitials(name: string): string {
 function PrimarySidebar({ className, onNavigate }: PrimarySidebarProps) {
   const { signOut, user } = useAppSession();
   const navigate = useNavigate();
+  const { requestNavigation } = useNavigationGuard();
   const displayName = getDisplayName(user);
 
-  const handleSignOut = async () => {
+  const completeSignOut = async () => {
     onNavigate?.();
     await signOut();
     navigate("/sign-in", { replace: true });
+  };
+
+  const handleSignOut = () => {
+    if (requestNavigation(() => void completeSignOut())) return;
+
+    void completeSignOut();
   };
 
   return (

@@ -4,7 +4,8 @@ import {
   type AccessibleSpaceRecord,
   type SpaceStore,
 } from './space-store';
-import { SpaceNotFoundError, SpaceNotWritableError } from './space-errors';
+import { SpaceNotFoundError } from './space-errors';
+import { assertWritableSpace } from './assert-writable-space';
 
 @Injectable()
 export class SpaceAccessService {
@@ -29,12 +30,7 @@ export class SpaceAccessService {
     userId: string,
   ): Promise<AccessibleSpaceRecord> {
     const personalSpace = await this.requirePersonalSpace(userId);
-    if (
-      personalSpace.status !== 'active' ||
-      personalSpace.accessLevel !== 'write'
-    ) {
-      throw new SpaceNotWritableError();
-    }
+    assertWritableSpace(personalSpace.status, personalSpace.accessLevel);
 
     return personalSpace;
   }
@@ -56,9 +52,7 @@ export class SpaceAccessService {
     spaceId: string,
   ): Promise<AccessibleSpaceRecord> {
     const space = await this.requireReadAccess(userId, spaceId);
-    if (space.status !== 'active' || space.accessLevel !== 'write') {
-      throw new SpaceNotWritableError();
-    }
+    assertWritableSpace(space.status, space.accessLevel);
 
     return space;
   }

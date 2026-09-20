@@ -2,7 +2,10 @@ import {
   CategoryInactiveError,
   CategoryNotFoundError,
 } from '../../categories/application/category-errors';
-import { ApplicationError } from '../../errors/application-error';
+import {
+  ApplicationError,
+  StaleEditError,
+} from '../../errors/application-error';
 import type {
   TransactionCategoryRecord,
   TransactionCategoryStore,
@@ -12,6 +15,7 @@ import { decodeTransactionCursor } from './transaction-cursor';
 import type {
   ManualTransactionRecord,
   NewManualTransaction,
+  SpaceTransactionPageQuery,
   TransactionPageQuery,
   TransactionRecord,
   TransactionFilters,
@@ -327,14 +331,143 @@ describe('TransactionsService', () => {
       service.listTransactions('7', { cursor: '' }),
     ).rejects.toBeInstanceOf(ApplicationError);
   });
+
+  it('creates manual Transactions with immutable Space attribution and same-Space Categories', async () => {
+    const transactionStore = new TransactionStoreFake();
+    const categoryStore = new TransactionCategoryStoreFake([
+      categoryRecord({ id: '42', spaceId: 'space-7' }),
+      categoryRecord({ id: '43', spaceId: 'space-8' }),
+    ]);
+    const service = new TransactionsService(
+      transactionStore,
+      categoryStore,
+      undefined,
+      transactionStore,
+    );
+
+    const createdTransaction = await service.createManualTransactionInSpace(
+      'member-2',
+      'space-7',
+      {
+        categoryId: '42',
+        purchaseDate: '2026-08-01',
+        description: '  Shared dinner  ',
+        amount: '12.99',
+      },
+    );
+
+    expect(transactionStore.spaceCreatedInput).toEqual({
+      userId: 'member-2',
+      spaceId: 'space-7',
+      addedByUserId: 'member-2',
+      categoryId: '42',
+      purchaseDate: '2026-08-01',
+      description: 'Shared dinner',
+      amount: '12.99',
+    });
+    expect(createdTransaction).toMatchObject({
+      spaceId: 'space-7',
+      addedByUserId: 'member-2',
+    });
+
+    await expect(
+      service.createManualTransactionInSpace('member-2', 'space-7', {
+        categoryId: '43',
+        purchaseDate: '2026-08-02',
+        description: 'Wrong Space Category',
+        amount: '1.00',
+      }),
+    ).rejects.toBeInstanceOf(CategoryNotFoundError);
+  });
+
+  it('preserves creator attribution and rejects stale Space edits and deletes', async () => {
+    const updatedAt = new Date('2026-08-29T00:00:00.000Z');
+    const transactionStore = new TransactionStoreFake([
+      transactionRecord({
+        spaceId: 'space-7',
+        addedByUserId: 'member-1',
+        updatedAt,
+      }),
+    ]);
+    const categoryStore = new TransactionCategoryStoreFake([
+      categoryRecord({ id: '42', spaceId: 'space-7' }),
+      categoryRecord({ id: '43', spaceId: 'space-7' }),
+    ]);
+    const service = new TransactionsService(
+      transactionStore,
+      categoryStore,
+      undefined,
+      transactionStore,
+    );
+
+    const updatedTransaction = await service.updateManualTransactionInSpace(
+      'space-7',
+      '1',
+      {
+        categoryId: '43',
+        description: ' Shared dinner ',
+        expectedUpdatedAt: updatedAt.toISOString(),
+      },
+    );
+
+    expect(transactionStore.spaceUpdatedInput).toEqual({
+      categoryId: '43',
+      description: 'Shared dinner',
+      expectedUpdatedAt: updatedAt.toISOString(),
+    });
+    expect(updatedTransaction.addedByUserId).toBe('member-1');
+
+    await expect(
+      service.updateManualTransactionInSpace('space-7', '1', {
+        description: 'Conflicting edit',
+        expectedUpdatedAt: '2026-08-30T00:00:00.000Z',
+      }),
+    ).rejects.toBeInstanceOf(StaleEditError);
+    await expect(
+      service.deleteManualTransactionInSpace(
+        'space-7',
+        '1',
+        '2026-08-30T00:00:00.000Z',
+      ),
+    ).rejects.toBeInstanceOf(StaleEditError);
+  });
+
+  it('lists a selected Space without rebinding the query to the current member', async () => {
+    const transactionStore = new TransactionStoreFake(
+      [],
+      [transactionPageRecord({ spaceId: 'space-7' })],
+    );
+    const service = new TransactionsService(
+      transactionStore,
+      new TransactionCategoryStoreFake(),
+      undefined,
+      transactionStore,
+    );
+
+    await expect(
+      service.listTransactionsInSpace('space-7', { pageSize: 20 }),
+    ).resolves.toEqual({
+      items: transactionStore.pageResults,
+      nextCursor: null,
+    });
+    expect(transactionStore.spacePageQuery).toEqual({
+      spaceId: 'space-7',
+      filters: {},
+      after: null,
+      pageSize: 20,
+    });
+  });
 });
 
 class TransactionStoreFake implements TransactionStore {
   createdInput: NewManualTransaction | undefined;
   createdTransaction: ManualTransactionRecord | undefined;
+  spaceCreatedInput: NewManualTransaction | undefined;
   updatedInput: UpdateManualTransaction | undefined;
   updatedTransaction: ManualTransactionRecord | undefined;
+  spaceUpdatedInput: UpdateManualTransaction | undefined;
   pageQuery: TransactionPageQuery | undefined;
+  spacePageQuery: SpaceTransactionPageQuery | undefined;
   pageResults: TransactionRecord[];
 
   constructor(
@@ -363,11 +496,33 @@ class TransactionStoreFake implements TransactionStore {
     return Promise.resolve(this.createdTransaction);
   }
 
+  createInSpace(input: NewManualTransaction): Promise<ManualTransactionRecord> {
+    this.spaceCreatedInput = input;
+    const createdTransaction = transactionRecord({
+      ...input,
+      id: '2',
+      source: 'manual',
+    });
+    this.transactions.push(createdTransaction);
+    return Promise.resolve(createdTransaction);
+  }
+
   findPage(query: TransactionPageQuery): Promise<TransactionRecord[]> {
     this.pageQuery = query;
     return Promise.resolve(
       this.pageResults.filter(
         (transaction) => transaction.userId === query.userId,
+      ),
+    );
+  }
+
+  findPageInSpace(
+    query: SpaceTransactionPageQuery,
+  ): Promise<TransactionRecord[]> {
+    this.spacePageQuery = query;
+    return Promise.resolve(
+      this.pageResults.filter(
+        (transaction) => transaction.spaceId === query.spaceId,
       ),
     );
   }
@@ -390,9 +545,53 @@ class TransactionStoreFake implements TransactionStore {
     return Promise.resolve(transaction);
   }
 
+  findByIdInSpace(
+    spaceId: string,
+    id: string,
+  ): Promise<ManualTransactionRecord | null> {
+    return Promise.resolve(
+      this.transactions.find(
+        (transaction) =>
+          transaction.spaceId === spaceId && transaction.id === id,
+      ) ?? null,
+    );
+  }
+
+  updateInSpace(
+    spaceId: string,
+    id: string,
+    input: UpdateManualTransaction,
+  ): Promise<ManualTransactionRecord | null> {
+    this.spaceUpdatedInput = input;
+    const transaction = this.transactions.find(
+      (candidate) => candidate.spaceId === spaceId && candidate.id === id,
+    );
+    if (!transaction) {
+      return Promise.resolve(null);
+    }
+
+    const changes = { ...input };
+    delete changes.expectedUpdatedAt;
+    Object.assign(transaction, changes);
+    this.updatedTransaction = transaction;
+    return Promise.resolve(transaction);
+  }
+
   delete(userId: string, id: string): Promise<boolean> {
     const index = this.transactions.findIndex(
       (transaction) => transaction.userId === userId && transaction.id === id,
+    );
+    if (index === -1) {
+      return Promise.resolve(false);
+    }
+
+    this.transactions.splice(index, 1);
+    return Promise.resolve(true);
+  }
+
+  deleteInSpace(spaceId: string, id: string): Promise<boolean> {
+    const index = this.transactions.findIndex(
+      (transaction) => transaction.spaceId === spaceId && transaction.id === id,
     );
     if (index === -1) {
       return Promise.resolve(false);
@@ -405,6 +604,7 @@ class TransactionStoreFake implements TransactionStore {
 
 class TransactionCategoryStoreFake implements TransactionCategoryStore {
   readonly lookups: string[] = [];
+  readonly spaceLookups: string[] = [];
 
   constructor(private readonly categories: TransactionCategoryRecord[] = []) {}
 
@@ -416,6 +616,18 @@ class TransactionCategoryStoreFake implements TransactionCategoryStore {
     return Promise.resolve(
       this.categories.find(
         (category) => category.userId === userId && category.id === id,
+      ) ?? null,
+    );
+  }
+
+  findBySpaceId(
+    spaceId: string,
+    id: string,
+  ): Promise<TransactionCategoryRecord | null> {
+    this.spaceLookups.push(id);
+    return Promise.resolve(
+      this.categories.find(
+        (category) => category.spaceId === spaceId && category.id === id,
       ) ?? null,
     );
   }

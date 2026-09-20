@@ -151,6 +151,9 @@ describe('Transaction OpenAPI contract', () => {
     expect(deleteOperation.responses['204']).toEqual({
       description: 'Manual transaction deleted.',
     });
+    expect(documentParameters(deleteOperation)).toContainEqual(
+      expect.objectContaining({ name: 'if-match', in: 'header' }),
+    );
 
     expectPathParameter(createOperation, undefined);
     expectPathParameter(listOperation, undefined);
@@ -207,6 +210,7 @@ describe('Transaction OpenAPI contract', () => {
       '403',
       '404',
       '406',
+      '409',
       '500',
     ]);
 
@@ -253,6 +257,7 @@ describe('Transaction OpenAPI contract', () => {
       '403': 'UserNotProvisionedError',
       '404': 'NotFoundError',
       '406': 'NotAcceptableError',
+      '409': 'ConflictError',
       '500': 'InternalError',
     });
 
@@ -514,7 +519,11 @@ function expectPathParameter(
     return;
   }
 
-  expect(operation.parameters).toEqual([
+  expect(
+    documentParameters(operation).filter(
+      (parameter) => parameter.in === 'path',
+    ),
+  ).toEqual([
     {
       name,
       in: 'path',

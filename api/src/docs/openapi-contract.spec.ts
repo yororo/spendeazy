@@ -50,6 +50,7 @@ interface OperationExpectation {
   pathParameter?: string;
   pathParameters?: readonly string[];
   headerParameters?: readonly string[];
+  requiredHeaderParameters?: readonly string[];
   queryParameters?: readonly string[];
   requiredQueryParameters?: readonly string[];
   queryParameterSchemas?: Readonly<
@@ -457,8 +458,98 @@ const OPERATION_EXPECTATIONS = [
     operationId: 'Transactions_deleteManualTransaction',
     tag: 'Transactions',
     pathParameter: 'transactionId',
+    headerParameters: ['if-match'],
     bodyResponses: [{ status: '204' }],
+    errorResponses: {
+      ...PROTECTED_ERRORS,
+      ...VALIDATED_PATH_ERRORS,
+      '409': 'ConflictError',
+    },
+  },
+  {
+    operationId: 'SpaceTransactions_createTransaction',
+    tag: 'Transactions',
+    requestSchemaRef: 'CreateManualTransactionDto',
+    pathParameters: ['spaceId'],
+    bodyResponses: [
+      {
+        status: '201',
+        schemaRef: 'ManualTransactionResponseDto',
+        location: `/${API_PREFIX}/users/me/spaces/7/transactions/42`,
+      },
+    ],
+    errorResponses: {
+      ...PROTECTED_ERRORS,
+      ...VALIDATED_PATH_ERRORS,
+      '409': 'ConflictError',
+      ...JSON_BODY_ERRORS,
+    },
+  },
+  {
+    operationId: 'SpaceTransactions_listTransactions',
+    tag: 'Transactions',
+    pathParameters: ['spaceId'],
+    queryParameters: [
+      'fromDate',
+      'toDate',
+      'categoryId',
+      'categoryState',
+      'statementImportId',
+      'source',
+      'pageSize',
+      'cursor',
+    ],
+    queryParameterSchemas: TRANSACTION_QUERY_SCHEMAS,
+    bodyResponses: [
+      { status: '200', schemaRef: 'TransactionHistoryPageResponseDto' },
+    ],
+    errorResponses: {
+      ...PROTECTED_ERRORS,
+      ...VALIDATED_PATH_ERRORS,
+    },
+  },
+  {
+    operationId: 'SpaceTransactions_getTransaction',
+    tag: 'Transactions',
+    pathParameters: ['spaceId', 'transactionId'],
+    bodyResponses: [
+      { status: '200', schemaRef: 'ManualTransactionResponseDto' },
+    ],
     errorResponses: { ...PROTECTED_ERRORS, ...VALIDATED_PATH_ERRORS },
+  },
+  {
+    operationId: 'SpaceTransactions_updateTransaction',
+    tag: 'Transactions',
+    requestSchemaRef: 'UpdateSpaceTransactionDto',
+    pathParameters: ['spaceId', 'transactionId'],
+    bodyResponses: [
+      {
+        status: '200',
+        unionSchemaRefs: [
+          'ManualTransactionResponseDto',
+          'ImportedTransactionResponseDto',
+        ],
+      },
+    ],
+    errorResponses: {
+      ...PROTECTED_ERRORS,
+      ...VALIDATED_PATH_ERRORS,
+      '409': 'ConflictError',
+      ...JSON_BODY_ERRORS,
+    },
+  },
+  {
+    operationId: 'SpaceTransactions_deleteTransaction',
+    tag: 'Transactions',
+    pathParameters: ['spaceId', 'transactionId'],
+    headerParameters: ['if-match'],
+    requiredHeaderParameters: ['if-match'],
+    bodyResponses: [{ status: '204' }],
+    errorResponses: {
+      ...PROTECTED_ERRORS,
+      ...VALIDATED_PATH_ERRORS,
+      '409': 'ConflictError',
+    },
   },
   {
     operationId: 'StatementImports_getStatementImport',
@@ -568,6 +659,17 @@ const REQUEST_SCHEMA_SHAPES = {
   },
   UpdateManualTransactionDto: {
     required: [],
+    optional: [
+      'purchaseDate',
+      'description',
+      'amount',
+      'categoryId',
+      'updatedAt',
+    ],
+    nullable: ['categoryId'],
+  },
+  UpdateSpaceTransactionDto: {
+    required: ['updatedAt'],
     optional: ['purchaseDate', 'description', 'amount', 'categoryId'],
     nullable: ['categoryId'],
   },
@@ -674,6 +776,26 @@ const REQUEST_PROPERTY_ASSERTIONS: Readonly<
       pattern: '^(?=.*[1-9])\\d{1,13}\\.\\d{2}$',
     },
     categoryId: { type: 'string', pattern: '^[1-9]\\d*$', nullable: true },
+    updatedAt: { type: 'string', format: 'date-time' },
+  },
+  UpdateSpaceTransactionDto: {
+    purchaseDate: {
+      type: 'string',
+      format: 'date',
+      pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+    },
+    description: {
+      type: 'string',
+      minLength: 1,
+      maxLength: 500,
+      pattern: '\\S',
+    },
+    amount: {
+      type: 'string',
+      pattern: '^(?=.*[1-9])\\d{1,13}\\.\\d{2}$',
+    },
+    categoryId: { type: 'string', pattern: '^[1-9]\\d*$', nullable: true },
+    updatedAt: { type: 'string', format: 'date-time' },
   },
   ReviewedStatementTransactionDto: {
     purchaseDate: {
@@ -1183,6 +1305,7 @@ function expectOperationParameters(
     expect(parameter.in).toBe(expectedLocation);
     const isRequired =
       parameter.in === 'path' ||
+      route.requiredHeaderParameters?.includes(parameter.name) === true ||
       route.requiredQueryParameters?.includes(parameter.name) === true;
     expect(parameter.required).toBe(isRequired);
     expect(parameter.schema).toBeDefined();
@@ -1197,7 +1320,9 @@ function expectOperationParameters(
       });
     }
     if (parameter.in === 'header') {
-      expect(parameter.required).toBe(false);
+      expect(parameter.required).toBe(
+        route.requiredHeaderParameters?.includes(parameter.name) === true,
+      );
     }
   }
 

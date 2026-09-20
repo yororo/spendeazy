@@ -72,7 +72,7 @@ describe('configureApp', () => {
     expect(enableCors).toHaveBeenCalledWith({
       origin: ['https://app.example.com'],
       methods: [...API_METHODS],
-      allowedHeaders: ['Content-Type', 'Authorization'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'If-Match'],
       exposedHeaders: ['Location', 'X-Request-ID'],
       credentials: false,
     });

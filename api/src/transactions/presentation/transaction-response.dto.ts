@@ -1,4 +1,9 @@
-import { ApiProperty, ApiSchema, getSchemaPath } from '@nestjs/swagger';
+import {
+  ApiProperty,
+  ApiPropertyOptional,
+  ApiSchema,
+  getSchemaPath,
+} from '@nestjs/swagger';
 import {
   DOMAIN_DATE_PATTERN,
   POSITIVE_INTEGER_ID_PATTERN,
@@ -66,6 +71,15 @@ export class ManualTransactionResponseDto {
     example: 'manual',
   })
   source!: 'manual';
+
+  @ApiPropertyOptional({
+    description:
+      'Positive bigint identifier of the User who added the Transaction. It is immutable after creation.',
+    type: String,
+    pattern: POSITIVE_INTEGER_ID_PATTERN.source,
+    example: '7',
+  })
+  addedByUserId?: string;
 
   @ApiProperty({
     description: 'UTC timestamp when the Transaction was created.',
@@ -138,6 +152,15 @@ export class ImportedTransactionResponseDto {
   })
   source!: 'imported';
 
+  @ApiPropertyOptional({
+    description:
+      'Positive bigint identifier of the User who added the Transaction. It is immutable after creation.',
+    type: String,
+    pattern: POSITIVE_INTEGER_ID_PATTERN.source,
+    example: '7',
+  })
+  addedByUserId?: string;
+
   @ApiProperty({
     description: 'UTC timestamp when the Transaction was created.',
     format: 'date-time',
@@ -207,6 +230,15 @@ export class ManualTransactionHistoryResponseDto {
     example: 'manual',
   })
   source!: 'manual';
+
+  @ApiPropertyOptional({
+    description:
+      'Positive bigint identifier of the User who added the Transaction. It is immutable after creation.',
+    type: String,
+    pattern: POSITIVE_INTEGER_ID_PATTERN.source,
+    example: '7',
+  })
+  addedByUserId?: string;
 
   @ApiProperty({
     description:
@@ -289,6 +321,15 @@ export class ImportedTransactionHistoryResponseDto {
     example: 'imported',
   })
   source!: 'imported';
+
+  @ApiPropertyOptional({
+    description:
+      'Positive bigint identifier of the User who added the Transaction. It is immutable after creation.',
+    type: String,
+    pattern: POSITIVE_INTEGER_ID_PATTERN.source,
+    example: '7',
+  })
+  addedByUserId?: string;
 
   @ApiProperty({
     description:

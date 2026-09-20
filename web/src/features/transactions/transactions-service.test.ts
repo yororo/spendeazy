@@ -4,7 +4,10 @@ import type { ApiRequestOptionsWithoutBody } from "@/shared/api";
 import type { ReportingPeriod } from "@/shared/reporting-period";
 
 import {
+  createTransaction as createTransactionRequest,
+  deleteTransaction,
   listTransactions,
+  updateTransaction,
   type TransactionsApiClient,
 } from "./transactions-service";
 
@@ -150,6 +153,8 @@ describe("listTransactions", () => {
       items: [
         {
           id: "10",
+          categoryId: "42",
+          purchaseDate: "2026-08-31",
           date: "Aug 31",
           description: "Monthly rent",
           category: "housing",
@@ -157,9 +162,14 @@ describe("listTransactions", () => {
           categoryColor: "teal",
           account: "BDO \u00b7 AMEX",
           amount: -70,
+          source: "imported",
+          statementImportId: "100",
+          updatedAt: "2026-08-31T00:00:00.000Z",
         },
         {
           id: "9",
+          categoryId: null,
+          purchaseDate: "2026-08-30",
           date: "Aug 30",
           description: "Cash lunch",
           category: "other",
@@ -167,6 +177,9 @@ describe("listTransactions", () => {
           categoryColor: null,
           account: "Cash",
           amount: -10,
+          source: "manual",
+          statementImportId: null,
+          updatedAt: "2026-08-31T00:00:00.000Z",
         },
       ],
       nextCursor: "cursor-2",
@@ -175,6 +188,7 @@ describe("listTransactions", () => {
         transactionCount: 4,
         totalExpense: 140,
       },
+      categories: createCategories(),
     });
     expect(get).toHaveBeenCalledWith(categoriesPath, {
       signal: controller.signal,
@@ -187,6 +201,36 @@ describe("listTransactions", () => {
     });
     expect(get).toHaveBeenCalledWith("/statement-imports/100", {
       signal: controller.signal,
+    });
+  });
+
+  it("uses Space-scoped paths when listing a selected Space", async () => {
+    const spaceId = "space/7";
+    const scopedCategoriesPath = "/spaces/space%2F7/categories";
+    const scopedSummaryPath =
+      "/spaces/space%2F7/category-summaries?period=monthly&year=2026&month=08";
+    const scopedTransactionsPath =
+      "/spaces/space%2F7/transactions?fromDate=2026-08-01&toDate=2026-08-31&pageSize=20";
+    const responses = new Map<string, unknown>([
+      [scopedCategoriesPath, createCategories()],
+      [scopedSummaryPath, createSummary()],
+      [
+        scopedTransactionsPath,
+        { items: [createTransaction({ source: "manual" })], nextCursor: null },
+      ],
+    ]);
+    const { apiClient, get } = createApiClient(responses);
+
+    await listTransactions(apiClient, { period, pageSize: 20, spaceId });
+
+    expect(get).toHaveBeenCalledWith(scopedCategoriesPath, {
+      signal: undefined,
+    });
+    expect(get).toHaveBeenCalledWith(scopedSummaryPath, {
+      signal: undefined,
+    });
+    expect(get).toHaveBeenCalledWith(scopedTransactionsPath, {
+      signal: undefined,
     });
   });
 
@@ -234,6 +278,8 @@ describe("listTransactions", () => {
     expect(page.items).toEqual([
       {
         id: "8",
+        categoryId: "43",
+        purchaseDate: "2026-08-02",
         date: "Aug 02",
         description: "Weekly groceries",
         category: "groceries",
@@ -241,6 +287,9 @@ describe("listTransactions", () => {
         categoryColor: "forest",
         account: "BDO",
         amount: -30,
+        source: "imported",
+        statementImportId: "101",
+        updatedAt: "2026-08-31T00:00:00.000Z",
       },
     ]);
     expect(get).toHaveBeenCalledWith(secondTransactionsPath, {
@@ -297,5 +346,73 @@ describe("listTransactions", () => {
       kind: "data",
       message: expect.stringContaining("Unable to load Statement Import 404"),
     });
+  });
+});
+
+describe("Transaction mutations", () => {
+  it("uses Space-scoped CRUD paths and carries optimistic concurrency values", async () => {
+    const response = createTransaction({
+      source: "manual",
+      statementImportId: null,
+      addedByUserId: "7",
+    });
+    const post = vi.fn(async () => response);
+    const patch = vi.fn(async () => response);
+    const deleteRequest = vi.fn(async () => undefined);
+    const apiClient = {
+      get: vi.fn(),
+      post,
+      patch,
+      delete: deleteRequest,
+    } as unknown as TransactionsApiClient;
+
+    await expect(
+      createTransactionRequest(apiClient, {
+        spaceId: "space/7",
+        purchaseDate: "2026-08-31",
+        description: "  Coffee  ",
+        amount: "4.50",
+        categoryId: null,
+      }),
+    ).resolves.toMatchObject({ id: "10", addedByUserId: "7" });
+    expect(post).toHaveBeenCalledWith(
+      "/spaces/space%2F7/transactions",
+      {
+        purchaseDate: "2026-08-31",
+        description: "  Coffee  ",
+        amount: "4.50",
+        categoryId: null,
+      },
+      { expectedStatuses: [201] },
+    );
+
+    await updateTransaction(apiClient, {
+      spaceId: "space/7",
+      transactionId: "10",
+      categoryId: "42",
+      updatedAt: "2026-08-31T00:00:00.000Z",
+    });
+    expect(patch).toHaveBeenCalledWith(
+      "/spaces/space%2F7/transactions/10",
+      {
+        categoryId: "42",
+        updatedAt: "2026-08-31T00:00:00.000Z",
+      },
+      { expectedStatuses: [200] },
+    );
+
+    await deleteTransaction(
+      apiClient,
+      "10",
+      "space/7",
+      "2026-08-31T00:00:00.000Z",
+    );
+    expect(deleteRequest).toHaveBeenCalledWith(
+      "/spaces/space%2F7/transactions/10",
+      {
+        headers: { "If-Match": "2026-08-31T00:00:00.000Z" },
+        expectedStatuses: [204],
+      },
+    );
   });
 });

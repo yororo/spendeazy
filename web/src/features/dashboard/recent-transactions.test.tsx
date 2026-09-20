@@ -12,6 +12,8 @@ describe("RecentTransactions Category Colors", () => {
   it("uses the persisted Category Color in mobile and desktop rows", () => {
     const transaction: Transaction = {
       id: "10",
+      categoryId: "42",
+      purchaseDate: "2026-08-31",
       date: "Aug 31",
       description: "Monthly rent",
       category: "housing",
@@ -19,6 +21,8 @@ describe("RecentTransactions Category Colors", () => {
       categoryColor: "teal",
       account: "BDO · AMEX",
       amount: -70,
+      source: "imported",
+      statementImportId: "100",
     };
 
     render(<RecentTransactions transactions={[transaction]} />);

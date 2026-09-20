@@ -1,4 +1,5 @@
-import { LoaderCircleIcon } from "lucide-react";
+import { useState } from "react";
+import { LoaderCircleIcon, PlusIcon } from "lucide-react";
 
 import {
   FeatureDataError,
@@ -6,19 +7,48 @@ import {
 } from "@/components/app/feature-data-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useAccessibleSpacesQuery } from "@/shared/api";
 import { formatMoney } from "@/shared/money";
 import {
   ReportingPeriodFilter,
   useReportingPeriod,
 } from "@/shared/reporting-period";
-import { MetricCard } from "@/shared/ui";
+import { MetricCard, SpaceSelector } from "@/shared/ui";
 
+import { TransactionDeleteDialog } from "./transaction-delete-dialog";
+import { TransactionEditorDialog } from "./transaction-editor-dialog";
 import { TransactionTable } from "./transaction-table";
 import { useTransactionsQuery } from "./transactions-queries";
+import type { Transaction } from "./transactions-service";
 
-function TransactionsPage() {
+interface TransactionsPageProps {
+  readonly spaceId?: string;
+  readonly onSpaceChange?: (spaceId?: string) => void;
+}
+
+type TransactionEditorState =
+  | { readonly mode: "create" }
+  | { readonly mode: "edit"; readonly transaction: Transaction };
+
+function TransactionsPage({
+  spaceId,
+  onSpaceChange,
+}: TransactionsPageProps = {}) {
   const { period } = useReportingPeriod();
-  const transactionsQuery = useTransactionsQuery(period);
+  const [editorState, setEditorState] =
+    useState<TransactionEditorState | null>(null);
+  const [editorRevision, setEditorRevision] = useState(0);
+  const [transactionToDelete, setTransactionToDelete] =
+    useState<Transaction | null>(null);
+  const shouldResolvePersonalSpace = onSpaceChange !== undefined;
+  const spacesQuery = useAccessibleSpacesQuery(shouldResolvePersonalSpace);
+  const effectiveSpaceId =
+    spaceId ?? spacesQuery.data?.find((space) => space.kind === "personal")?.id;
+  const transactionsQuery = useTransactionsQuery(
+    period,
+    effectiveSpaceId,
+    !shouldResolvePersonalSpace || spacesQuery.isSuccess || spacesQuery.isError,
+  );
 
   if (transactionsQuery.isPending) {
     return <FeatureDataLoading label="Loading Transactions" />;
@@ -39,6 +69,11 @@ function TransactionsPage() {
 
   const transactions = transactionPages.flatMap((page) => page.items);
   const transactionSummary = firstPage.summary;
+  const isScopeTransitioning =
+    transactionsQuery.isFetching && transactionsQuery.isPlaceholderData;
+  const controlsDisabled = isScopeTransitioning;
+  const editingTransaction =
+    editorState?.mode === "edit" ? editorState.transaction : null;
 
   return (
     <div className="mx-auto w-full max-w-screen-2xl px-4 py-6 sm:px-6 lg:px-9 lg:py-7">
@@ -49,8 +84,33 @@ function TransactionsPage() {
             Your spending
           </h1>
         </div>
-        <div className="flex min-w-0 flex-wrap gap-2">
-          <ReportingPeriodFilter id="transactions-reporting-period" />
+        <div className="flex w-full min-w-0 flex-col gap-3 md:w-auto md:flex-row md:items-end">
+          {onSpaceChange !== undefined && (
+            <SpaceSelector
+              id="transactions-space"
+              spaceId={spaceId}
+              spaces={spacesQuery.data}
+              spacesPending={spacesQuery.isPending}
+              spacesError={spacesQuery.isError}
+              disabled={controlsDisabled}
+              onSpaceChange={onSpaceChange}
+            />
+          )}
+          <ReportingPeriodFilter
+            id="transactions-reporting-period"
+            disabled={controlsDisabled}
+          />
+          <Button
+            type="button"
+            onClick={() => {
+              setEditorRevision((revision) => revision + 1);
+              setEditorState({ mode: "create" });
+            }}
+            disabled={controlsDisabled}
+          >
+            <PlusIcon aria-hidden="true" />
+            Record Transaction
+          </Button>
         </div>
       </header>
 
@@ -84,6 +144,12 @@ function TransactionsPage() {
           <TransactionTable
             transactions={transactions}
             emptyMessage="No Transactions were recorded for this Reporting Period."
+            onEdit={(transaction) => {
+              setEditorRevision((revision) => revision + 1);
+              setEditorState({ mode: "edit", transaction });
+            }}
+            onDelete={setTransactionToDelete}
+            showAttribution={spaceId !== undefined}
           />
         </div>
         {transactionsQuery.hasNextPage && (
@@ -106,6 +172,28 @@ function TransactionsPage() {
           </CardContent>
         )}
       </Card>
+      <TransactionEditorDialog
+        key={editorRevision}
+        open={editorState !== null}
+        transaction={editingTransaction}
+        categories={firstPage.categories}
+        spaceId={effectiveSpaceId}
+        onOpenChange={(open) => {
+          if (!open) setEditorState(null);
+        }}
+        onSaved={() => setEditorState(null)}
+        onReload={() => transactionsQuery.refetch()}
+      />
+      <TransactionDeleteDialog
+        open={transactionToDelete !== null}
+        transaction={transactionToDelete}
+        spaceId={effectiveSpaceId}
+        onOpenChange={(open) => {
+          if (!open) setTransactionToDelete(null);
+        }}
+        onDeleted={() => setTransactionToDelete(null)}
+        onReload={() => transactionsQuery.refetch()}
+      />
     </div>
   );
 }

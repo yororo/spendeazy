@@ -1,4 +1,5 @@
 export const TRANSACTION_STORE = Symbol('TRANSACTION_STORE');
+export const SPACE_TRANSACTION_STORE = Symbol('SPACE_TRANSACTION_STORE');
 export const TRANSACTION_DESCRIPTION_MAX_LENGTH = 500;
 
 export type TransactionSource = 'manual' | 'imported';
@@ -25,9 +26,18 @@ export interface TransactionPageQuery {
   pageSize: number;
 }
 
+export interface SpaceTransactionPageQuery {
+  spaceId: string;
+  filters: TransactionFilters;
+  after: TransactionCursorPosition | null;
+  pageSize: number;
+}
+
 export interface TransactionRecord {
   id: string;
   userId: string;
+  spaceId?: string;
+  addedByUserId?: string;
   categoryId: string | null;
   statementImportId: string | null;
   purchaseDate: string;
@@ -47,6 +57,8 @@ export interface ManualTransactionRecord extends Omit<
 
 export interface NewManualTransaction {
   userId: string;
+  spaceId?: string;
+  addedByUserId?: string;
   categoryId: string | null;
   purchaseDate: string;
   description: string;
@@ -58,6 +70,7 @@ export interface UpdateManualTransaction {
   purchaseDate?: string;
   description?: string;
   amount?: string;
+  expectedUpdatedAt?: string;
 }
 
 export interface TransactionStore {
@@ -69,5 +82,30 @@ export interface TransactionStore {
     id: string,
     input: UpdateManualTransaction,
   ): Promise<ManualTransactionRecord | null>;
-  delete(userId: string, id: string): Promise<boolean>;
+  delete(
+    userId: string,
+    id: string,
+    expectedUpdatedAt?: string,
+  ): Promise<boolean>;
+}
+
+export interface SpaceTransactionStore {
+  findByIdInSpace(
+    spaceId: string,
+    id: string,
+  ): Promise<ManualTransactionRecord | null>;
+  findPageInSpace(
+    query: SpaceTransactionPageQuery,
+  ): Promise<TransactionRecord[]>;
+  createInSpace(input: NewManualTransaction): Promise<ManualTransactionRecord>;
+  updateInSpace(
+    spaceId: string,
+    id: string,
+    input: UpdateManualTransaction,
+  ): Promise<ManualTransactionRecord | null>;
+  deleteInSpace(
+    spaceId: string,
+    id: string,
+    expectedUpdatedAt?: string,
+  ): Promise<boolean>;
 }

@@ -6,14 +6,21 @@ import type { ReportingPeriod } from "@/shared/reporting-period";
 
 import { getDashboard } from "./dashboard-service";
 
-function useDashboardQuery(period: ReportingPeriod) {
+function useDashboardQuery(
+  period: ReportingPeriod,
+  spaceId?: string,
+  enabled = true,
+) {
   const apiClient = useApiClient();
 
   return useQuery({
-    queryKey: ["dashboard", period] as const,
-    queryFn: ({ signal }) => getDashboard(apiClient, period, signal),
+    queryKey: ["dashboard", period, spaceId ?? null] as const,
+    queryFn: ({ signal }) => getDashboard(apiClient, period, signal, spaceId),
+    enabled,
     placeholderData: keepPreviousData,
     staleTime: queryPolicy.activityStaleTime,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: "always",
   });
 }
 

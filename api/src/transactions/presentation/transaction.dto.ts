@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional, ApiSchema } from '@nestjs/swagger';
 import {
   IsIn,
+  IsISO8601,
   IsInt,
   IsNotEmpty,
   IsString,
@@ -290,6 +291,34 @@ export class UpdateManualTransactionDto {
     example: '42',
   })
   categoryId?: string | null;
+
+  @ValidateIf((_, value) => value !== undefined)
+  @IsString()
+  @IsISO8601({ strict: true })
+  @ApiPropertyOptional({
+    description:
+      'The UTC timestamp returned by the last read. A stale edit is rejected when another member changed this Transaction first.',
+    format: 'date-time',
+    example: '2026-08-29T00:00:00.000Z',
+  })
+  updatedAt?: string;
+}
+
+@ApiSchema({
+  additionalProperties: false,
+  minProperties: 2,
+} as ApiSchemaOptionsWithAdditionalProperties)
+export class UpdateSpaceTransactionDto extends UpdateManualTransactionDto {
+  @IsString()
+  @IsISO8601({ strict: true })
+  @ApiProperty({
+    description:
+      'The UTC timestamp returned by the last read. A Space edit must include it so stale changes are rejected.',
+    format: 'date-time',
+    required: true,
+    example: '2026-08-29T00:00:00.000Z',
+  })
+  declare updatedAt: string;
 }
 
 type ApiSchemaOptionsWithAdditionalProperties = {

@@ -12,6 +12,8 @@ import { roundMoney } from "../money";
 
 interface TransactionProjection {
   readonly id: string;
+  readonly categoryId: string | null;
+  readonly purchaseDate: string;
   readonly date: string;
   readonly description: string;
   readonly category: CategoryProjection["key"];
@@ -19,6 +21,10 @@ interface TransactionProjection {
   readonly categoryColor: CategoryProjection["color"];
   readonly account: string;
   readonly amount: number;
+  readonly source: "manual" | "imported";
+  readonly statementImportId: string | null;
+  readonly updatedAt?: string;
+  readonly addedByUserId?: string;
 }
 
 const transactionDateFormatter = new Intl.DateTimeFormat("en-US", {
@@ -43,6 +49,8 @@ function projectTransactionHistoryItem(
 
   return {
     id: transaction.id,
+    categoryId: transaction.categoryId,
+    purchaseDate: transaction.purchaseDate,
     date: transactionDateFormatter.format(
       new Date(`${transaction.purchaseDate}T00:00:00Z`),
     ),
@@ -60,7 +68,16 @@ function projectTransactionHistoryItem(
         ),
       ),
     ),
+    source: transaction.source,
+    statementImportId: transaction.statementImportId,
+    ...(transaction.updatedAt === undefined
+      ? {}
+      : { updatedAt: transaction.updatedAt }),
+    ...(transaction.addedByUserId === undefined
+      ? {}
+      : { addedByUserId: transaction.addedByUserId }),
   };
 }
 
 export { projectTransactionHistoryItem };
+export type { TransactionProjection };

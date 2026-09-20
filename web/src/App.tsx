@@ -85,6 +85,46 @@ function CategoriesRoute() {
   );
 }
 
+function DashboardRoute() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const spaceId = searchParams.get("spaceId") ?? undefined;
+
+  return (
+    <DashboardPage
+      spaceId={spaceId}
+      onSpaceChange={(nextSpaceId) => {
+        const nextParams = new URLSearchParams(searchParams);
+        if (nextSpaceId === undefined) {
+          nextParams.delete("spaceId");
+        } else {
+          nextParams.set("spaceId", nextSpaceId);
+        }
+        setSearchParams(nextParams);
+      }}
+    />
+  );
+}
+
+function TransactionsRoute() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const spaceId = searchParams.get("spaceId") ?? undefined;
+
+  return (
+    <TransactionsPage
+      spaceId={spaceId}
+      onSpaceChange={(nextSpaceId) => {
+        const nextParams = new URLSearchParams(searchParams);
+        if (nextSpaceId === undefined) {
+          nextParams.delete("spaceId");
+        } else {
+          nextParams.set("spaceId", nextSpaceId);
+        }
+        setSearchParams(nextParams);
+      }}
+    />
+  );
+}
+
 function App({ signInElement }: AppProps = {}) {
   const signInRoute = signInElement ?? lazyRoute(<SignInPage />);
 
@@ -96,14 +136,14 @@ function App({ signInElement }: AppProps = {}) {
       <Route path="terms" element={lazyRoute(<TermsOfServicePage />)} />
       <Route element={<AuthenticatedRoute />}>
         <Route element={<AppShell />}>
-          <Route index element={lazyRoute(<DashboardPage />)} />
+          <Route index element={lazyRoute(<DashboardRoute />)} />
           <Route
             path="imports"
             element={lazyRoute(<StatementImportRoute />)}
           />
           <Route
             path="transactions"
-            element={lazyRoute(<TransactionsPage />)}
+            element={lazyRoute(<TransactionsRoute />)}
           />
           <Route path="categories" element={lazyRoute(<CategoriesRoute />)} />
           <Route path="*" element={<NotFoundPage />} />

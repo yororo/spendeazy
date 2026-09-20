@@ -7,21 +7,35 @@ import {
 } from "@/components/app/feature-data-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+import { useAccessibleSpacesQuery } from "@/shared/api";
 import { formatMoney } from "@/shared/money";
 import {
   ReportingPeriodFilter,
   useReportingPeriod,
 } from "@/shared/reporting-period";
-import { MetricCard } from "@/shared/ui";
+import { MetricCard, SpaceSelector } from "@/shared/ui";
 
 import { CategoryBreakdown } from "./category-breakdown";
 import { useDashboardQuery } from "./dashboard-queries";
 import { RecentTransactions } from "./recent-transactions";
 import { SpendingChart } from "./spending-chart";
 
-function DashboardPage() {
+interface DashboardPageProps {
+  readonly spaceId?: string;
+  readonly onSpaceChange?: (spaceId?: string) => void;
+}
+
+function DashboardPage({ spaceId, onSpaceChange }: DashboardPageProps = {}) {
   const { period } = useReportingPeriod();
-  const dashboardQuery = useDashboardQuery(period);
+  const shouldResolvePersonalSpace = onSpaceChange !== undefined;
+  const spacesQuery = useAccessibleSpacesQuery(shouldResolvePersonalSpace);
+  const effectiveSpaceId =
+    spaceId ?? spacesQuery.data?.find((space) => space.kind === "personal")?.id;
+  const dashboardQuery = useDashboardQuery(
+    period,
+    effectiveSpaceId,
+    !shouldResolvePersonalSpace || spacesQuery.isSuccess || spacesQuery.isError,
+  );
 
   if (dashboardQuery.isPending) {
     return <FeatureDataLoading label="Loading Dashboard" />;
@@ -64,6 +78,17 @@ function DashboardPage() {
           </p>
         </div>
         <div className="flex items-center gap-2 md:flex-wrap">
+          {onSpaceChange !== undefined && (
+            <SpaceSelector
+              id="dashboard-space"
+              spaceId={spaceId}
+              spaces={spacesQuery.data}
+              spacesPending={spacesQuery.isPending}
+              spacesError={spacesQuery.isError}
+              disabled={dashboardQuery.isFetching && dashboardQuery.isPlaceholderData}
+              onSpaceChange={onSpaceChange}
+            />
+          )}
           <div className="min-w-0 flex-1 md:flex-none">
             <ReportingPeriodFilter id="dashboard-reporting-period" />
           </div>
@@ -158,7 +183,10 @@ function DashboardPage() {
               <Link to="/transactions" aria-label="View all transactions">View all</Link>
             </Button>
           </CardHeader>
-          <RecentTransactions transactions={recentTransactions} />
+          <RecentTransactions
+            transactions={recentTransactions}
+            showAttribution={spaceId !== undefined}
+          />
         </Card>
       </section>
     </div>

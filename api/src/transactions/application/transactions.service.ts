@@ -3,6 +3,7 @@ import {
   CategoryInactiveError,
   CategoryNotFoundError,
 } from '../../categories/application/category-errors';
+import { StaleEditError } from '../../errors/application-error';
 import { normalizeAmount } from '../../normalization/amount';
 import {
   TRANSACTION_CATEGORY_STORE,
@@ -12,8 +13,10 @@ import { TransactionNotFoundError } from './transaction-errors';
 import { ImportedTransactionImmutableError } from './transaction-errors';
 import {
   IMPORTED_TRANSACTION_STORE,
+  SPACE_IMPORTED_TRANSACTION_STORE,
   type ImportedTransactionRecord,
   type ImportedTransactionStore,
+  type SpaceImportedTransactionStore,
   type UpdateImportedTransactionInput,
 } from './imported-transaction-store';
 import {
@@ -21,9 +24,12 @@ import {
   encodeTransactionCursor,
 } from './transaction-cursor';
 import {
+  SPACE_TRANSACTION_STORE,
   TRANSACTION_STORE,
   type ManualTransactionRecord,
   type NewManualTransaction,
+  type SpaceTransactionStore,
+  type SpaceTransactionPageQuery,
   type TransactionFilters,
   type TransactionPageQuery,
   type TransactionRecord,
@@ -42,6 +48,23 @@ const EMPTY_IMPORTED_TRANSACTION_STORE: ImportedTransactionStore = {
   updateCategory: () => Promise.resolve(null),
 };
 
+const SPACE_STORE_NOT_CONFIGURED =
+  'Space transaction persistence is not configured';
+
+const EMPTY_SPACE_TRANSACTION_STORE: SpaceTransactionStore = {
+  findByIdInSpace: () => Promise.reject(new Error(SPACE_STORE_NOT_CONFIGURED)),
+  findPageInSpace: () => Promise.reject(new Error(SPACE_STORE_NOT_CONFIGURED)),
+  createInSpace: () => Promise.reject(new Error(SPACE_STORE_NOT_CONFIGURED)),
+  updateInSpace: () => Promise.reject(new Error(SPACE_STORE_NOT_CONFIGURED)),
+  deleteInSpace: () => Promise.reject(new Error(SPACE_STORE_NOT_CONFIGURED)),
+};
+
+const EMPTY_SPACE_IMPORTED_TRANSACTION_STORE: SpaceImportedTransactionStore = {
+  findByIdInSpace: () => Promise.reject(new Error(SPACE_STORE_NOT_CONFIGURED)),
+  updateCategoryInSpace: () =>
+    Promise.reject(new Error(SPACE_STORE_NOT_CONFIGURED)),
+};
+
 export interface ListTransactionsInput extends TransactionFilters {
   cursor?: string;
   pageSize?: number;
@@ -54,7 +77,7 @@ export interface TransactionPage {
 
 export interface CreateManualTransactionInput extends Omit<
   NewManualTransaction,
-  'userId' | 'categoryId'
+  'userId' | 'spaceId' | 'addedByUserId' | 'categoryId'
 > {
   categoryId?: string | null;
 }
@@ -68,6 +91,10 @@ export class TransactionsService {
     private readonly categoryStore: TransactionCategoryStore,
     @Inject(IMPORTED_TRANSACTION_STORE)
     private readonly importedTransactionStore: ImportedTransactionStore = EMPTY_IMPORTED_TRANSACTION_STORE,
+    @Inject(SPACE_TRANSACTION_STORE)
+    private readonly spaceTransactionStore: SpaceTransactionStore = EMPTY_SPACE_TRANSACTION_STORE,
+    @Inject(SPACE_IMPORTED_TRANSACTION_STORE)
+    private readonly spaceImportedTransactionStore: SpaceImportedTransactionStore = EMPTY_SPACE_IMPORTED_TRANSACTION_STORE,
   ) {}
 
   async createManualTransaction(
@@ -88,11 +115,47 @@ export class TransactionsService {
     });
   }
 
+  async createManualTransactionInSpace(
+    userId: string,
+    spaceId: string,
+    input: CreateManualTransactionInput,
+  ): Promise<ManualTransactionRecord> {
+    const categoryId = input.categoryId ?? null;
+    if (categoryId !== null) {
+      await this.ensureActiveCategoryInSpace(spaceId, categoryId);
+    }
+
+    return this.spaceTransactionStore.createInSpace({
+      userId,
+      spaceId,
+      addedByUserId: userId,
+      categoryId,
+      purchaseDate: input.purchaseDate,
+      description: normalizeDescription(input.description),
+      amount: normalizeAmount(input.amount),
+    });
+  }
+
   async getManualTransaction(
     userId: string,
     id: string,
   ): Promise<ManualTransactionRecord> {
     const transaction = await this.transactionStore.findById(userId, id);
+    if (!transaction) {
+      throw new TransactionNotFoundError();
+    }
+
+    return transaction;
+  }
+
+  async getManualTransactionInSpace(
+    spaceId: string,
+    id: string,
+  ): Promise<ManualTransactionRecord> {
+    const transaction = await this.spaceTransactionStore.findByIdInSpace(
+      spaceId,
+      id,
+    );
     if (!transaction) {
       throw new TransactionNotFoundError();
     }
@@ -119,24 +182,37 @@ export class TransactionsService {
       after,
       pageSize,
     };
-    const records = await this.transactionStore.findPage(query);
-    const items = records.slice(0, pageSize);
-    const hasNextPage = records.length > pageSize;
-    const lastItem = items.at(-1);
+    return toTransactionPage(
+      await this.transactionStore.findPage(query),
+      pageSize,
+      filters,
+    );
+  }
 
-    return {
-      items,
-      nextCursor:
-        hasNextPage && lastItem
-          ? encodeTransactionCursor(
-              {
-                purchaseDate: lastItem.purchaseDate,
-                transactionId: lastItem.id,
-              },
-              filters,
-            )
-          : null,
+  async listTransactionsInSpace(
+    spaceId: string,
+    input: ListTransactionsInput,
+  ): Promise<TransactionPage> {
+    const {
+      cursor,
+      pageSize = DEFAULT_TRANSACTION_PAGE_SIZE,
+      ...filters
+    } = input;
+    const after =
+      cursor !== undefined
+        ? decodeTransactionCursor(cursor, filters).position
+        : null;
+    const query: SpaceTransactionPageQuery = {
+      spaceId,
+      filters,
+      after,
+      pageSize,
     };
+    return toTransactionPage(
+      await this.spaceTransactionStore.findPageInSpace(query),
+      pageSize,
+      filters,
+    );
   }
 
   async updateManualTransaction(
@@ -146,6 +222,10 @@ export class TransactionsService {
   ): Promise<ManualTransactionRecord> {
     const currentTransaction = await this.getManualTransaction(userId, id);
     const changes = normalizeUpdate(input);
+    assertCurrentVersion(
+      currentTransaction.updatedAt,
+      changes.expectedUpdatedAt,
+    );
 
     if (
       changes.categoryId !== undefined &&
@@ -161,6 +241,45 @@ export class TransactionsService {
 
     const updatedTransaction = await this.transactionStore.update(
       userId,
+      id,
+      changes,
+    );
+    if (!updatedTransaction) {
+      throw new TransactionNotFoundError();
+    }
+
+    return updatedTransaction;
+  }
+
+  async updateManualTransactionInSpace(
+    spaceId: string,
+    id: string,
+    input: UpdateManualTransaction,
+  ): Promise<ManualTransactionRecord> {
+    const currentTransaction = await this.getManualTransactionInSpace(
+      spaceId,
+      id,
+    );
+    const changes = normalizeUpdate(input);
+    assertCurrentVersion(
+      currentTransaction.updatedAt,
+      changes.expectedUpdatedAt,
+    );
+
+    if (
+      changes.categoryId !== undefined &&
+      changes.categoryId !== null &&
+      changes.categoryId !== currentTransaction.categoryId
+    ) {
+      await this.ensureActiveCategoryInSpace(spaceId, changes.categoryId);
+    }
+
+    if (isNoOp(currentTransaction, changes)) {
+      return currentTransaction;
+    }
+
+    const updatedTransaction = await this.spaceTransactionStore.updateInSpace(
+      spaceId,
       id,
       changes,
     );
@@ -191,16 +310,88 @@ export class TransactionsService {
 
     if (
       input.categoryId === undefined ||
-      Object.keys(input).some((key) => key !== 'categoryId')
+      Object.keys(input).some(
+        (key) => key !== 'categoryId' && key !== 'expectedUpdatedAt',
+      )
     ) {
       throw new ImportedTransactionImmutableError();
     }
 
-    return this.updateImportedTransactionCategory(userId, id, input.categoryId);
+    return this.updateImportedTransactionCategory(
+      userId,
+      id,
+      input.categoryId,
+      input.expectedUpdatedAt,
+    );
   }
 
-  async deleteManualTransaction(userId: string, id: string): Promise<void> {
-    const deleted = await this.transactionStore.delete(userId, id);
+  async updateTransactionInSpace(
+    spaceId: string,
+    id: string,
+    input: UpdateManualTransaction,
+  ): Promise<ManualTransactionRecord | ImportedTransactionRecord> {
+    const manualTransaction = await this.spaceTransactionStore.findByIdInSpace(
+      spaceId,
+      id,
+    );
+    if (manualTransaction) {
+      return this.updateManualTransactionInSpace(spaceId, id, input);
+    }
+
+    const importedTransaction =
+      await this.spaceImportedTransactionStore.findByIdInSpace(spaceId, id);
+    if (!importedTransaction) {
+      throw new TransactionNotFoundError();
+    }
+
+    if (
+      input.categoryId === undefined ||
+      Object.keys(input).some(
+        (key) => key !== 'categoryId' && key !== 'expectedUpdatedAt',
+      )
+    ) {
+      throw new ImportedTransactionImmutableError();
+    }
+
+    return this.updateImportedTransactionCategoryInSpace(
+      spaceId,
+      id,
+      input.categoryId,
+      input.expectedUpdatedAt,
+    );
+  }
+
+  async deleteManualTransaction(
+    userId: string,
+    id: string,
+    expectedUpdatedAt?: string,
+  ): Promise<void> {
+    const deleted = await this.transactionStore.delete(
+      userId,
+      id,
+      expectedUpdatedAt,
+    );
+    if (!deleted) {
+      throw new TransactionNotFoundError();
+    }
+  }
+
+  async deleteManualTransactionInSpace(
+    spaceId: string,
+    id: string,
+    expectedUpdatedAt?: string,
+  ): Promise<void> {
+    const currentTransaction = await this.getManualTransactionInSpace(
+      spaceId,
+      id,
+    );
+    assertCurrentVersion(currentTransaction.updatedAt, expectedUpdatedAt);
+
+    const deleted = await this.spaceTransactionStore.deleteInSpace(
+      spaceId,
+      id,
+      expectedUpdatedAt,
+    );
     if (!deleted) {
       throw new TransactionNotFoundError();
     }
@@ -210,6 +401,7 @@ export class TransactionsService {
     userId: string,
     id: string,
     categoryId: string | null,
+    expectedUpdatedAt?: string,
   ): Promise<ImportedTransactionRecord> {
     const importedTransaction = await this.importedTransactionStore.findById(
       userId,
@@ -218,6 +410,7 @@ export class TransactionsService {
     if (!importedTransaction) {
       throw new TransactionNotFoundError();
     }
+    assertCurrentVersion(importedTransaction.updatedAt, expectedUpdatedAt);
 
     if (categoryId !== null && categoryId !== importedTransaction.categoryId) {
       await this.ensureActiveCategory(userId, categoryId);
@@ -230,7 +423,45 @@ export class TransactionsService {
     const updatedTransaction =
       await this.importedTransactionStore.updateCategory(userId, id, {
         categoryId,
+        ...(expectedUpdatedAt === undefined ? {} : { expectedUpdatedAt }),
       });
+    if (!updatedTransaction) {
+      throw new TransactionNotFoundError();
+    }
+
+    return updatedTransaction;
+  }
+
+  async updateImportedTransactionCategoryInSpace(
+    spaceId: string,
+    id: string,
+    categoryId: string | null,
+    expectedUpdatedAt?: string,
+  ): Promise<ImportedTransactionRecord> {
+    const importedTransaction =
+      await this.spaceImportedTransactionStore.findByIdInSpace(spaceId, id);
+    if (!importedTransaction) {
+      throw new TransactionNotFoundError();
+    }
+    assertCurrentVersion(importedTransaction.updatedAt, expectedUpdatedAt);
+
+    if (categoryId !== null && categoryId !== importedTransaction.categoryId) {
+      await this.ensureActiveCategoryInSpace(spaceId, categoryId);
+    }
+
+    if (categoryId === importedTransaction.categoryId) {
+      return importedTransaction;
+    }
+
+    const updatedTransaction =
+      await this.spaceImportedTransactionStore.updateCategoryInSpace(
+        spaceId,
+        id,
+        {
+          categoryId,
+          ...(expectedUpdatedAt === undefined ? {} : { expectedUpdatedAt }),
+        },
+      );
     if (!updatedTransaction) {
       throw new TransactionNotFoundError();
     }
@@ -243,11 +474,20 @@ export class TransactionsService {
     id: string,
     input: UpdateImportedTransactionInput,
   ): Promise<ImportedTransactionRecord> {
-    if (Object.keys(input).some((key) => key !== 'categoryId')) {
+    if (
+      Object.keys(input).some(
+        (key) => key !== 'categoryId' && key !== 'expectedUpdatedAt',
+      )
+    ) {
       throw new ImportedTransactionImmutableError();
     }
 
-    return this.updateImportedTransactionCategory(userId, id, input.categoryId);
+    return this.updateImportedTransactionCategory(
+      userId,
+      id,
+      input.categoryId,
+      input.expectedUpdatedAt,
+    );
   }
 
   private async ensureActiveCategory(
@@ -255,6 +495,26 @@ export class TransactionsService {
     categoryId: string,
   ): Promise<void> {
     const category = await this.categoryStore.findById(userId, categoryId);
+    if (!category) {
+      throw new CategoryNotFoundError();
+    }
+    if (!category.isActive) {
+      throw new CategoryInactiveError();
+    }
+  }
+
+  private async ensureActiveCategoryInSpace(
+    spaceId: string,
+    categoryId: string,
+  ): Promise<void> {
+    if (!this.categoryStore.findBySpaceId) {
+      throw new Error('Space transaction persistence is not configured');
+    }
+
+    const category = await this.categoryStore.findBySpaceId(
+      spaceId,
+      categoryId,
+    );
     if (!category) {
       throw new CategoryNotFoundError();
     }
@@ -278,6 +538,9 @@ function normalizeUpdate(
     ...(input.amount !== undefined
       ? { amount: normalizeAmount(input.amount) }
       : {}),
+    ...(input.expectedUpdatedAt === undefined
+      ? {}
+      : { expectedUpdatedAt: input.expectedUpdatedAt }),
   };
 }
 
@@ -299,4 +562,40 @@ function isNoOp(
     (changes.amount === undefined ||
       changes.amount === currentTransaction.amount)
   );
+}
+
+function toTransactionPage(
+  records: TransactionRecord[],
+  pageSize: number,
+  filters: TransactionFilters,
+): TransactionPage {
+  const items = records.slice(0, pageSize);
+  const hasNextPage = records.length > pageSize;
+  const lastItem = items.at(-1);
+
+  return {
+    items,
+    nextCursor:
+      hasNextPage && lastItem
+        ? encodeTransactionCursor(
+            {
+              purchaseDate: lastItem.purchaseDate,
+              transactionId: lastItem.id,
+            },
+            filters,
+          )
+        : null,
+  };
+}
+
+function assertCurrentVersion(
+  updatedAt: Date,
+  expectedUpdatedAt: string | undefined,
+): void {
+  if (expectedUpdatedAt === undefined) return;
+
+  const expectedTime = Date.parse(expectedUpdatedAt);
+  if (!Number.isFinite(expectedTime) || updatedAt.getTime() !== expectedTime) {
+    throw new StaleEditError();
+  }
 }

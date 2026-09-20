@@ -13,6 +13,13 @@ const secondTransactionsPath =
   "/transactions?fromDate=2026-08-01&toDate=2026-08-31&pageSize=100&cursor=page-2";
 const recentTransactionsPath =
   "/transactions?fromDate=2026-08-01&toDate=2026-08-31&pageSize=5";
+const scopedCategoryPath = "/spaces/7/categories";
+const scopedSummaryPath =
+  "/spaces/7/category-summaries?period=monthly&year=2026&month=08";
+const scopedFullTransactionsPath =
+  "/spaces/7/transactions?fromDate=2026-08-01&toDate=2026-08-31&pageSize=100";
+const scopedRecentTransactionsPath =
+  "/spaces/7/transactions?fromDate=2026-08-01&toDate=2026-08-31&pageSize=5";
 
 function createCategoryCatalog() {
   return [
@@ -67,6 +74,31 @@ function createApiClient(responses: ReadonlyMap<string, unknown>) {
 }
 
 describe("getDashboard", () => {
+  it("loads Dashboard aggregates and recent Transactions from the selected Space", async () => {
+    const responses = new Map<string, unknown>([
+      [scopedCategoryPath, createCategoryCatalog()],
+      [scopedSummaryPath, createEmptySummary()],
+      [scopedFullTransactionsPath, { items: [], nextCursor: null }],
+      [scopedRecentTransactionsPath, { items: [], nextCursor: null }],
+    ]);
+    const { apiClient, get } = createApiClient(responses);
+
+    await getDashboard(apiClient, period, undefined, "7");
+
+    expect(get).toHaveBeenCalledWith(scopedCategoryPath, {
+      signal: undefined,
+    });
+    expect(get).toHaveBeenCalledWith(scopedSummaryPath, {
+      signal: undefined,
+    });
+    expect(get).toHaveBeenCalledWith(scopedFullTransactionsPath, {
+      signal: undefined,
+    });
+    expect(get).toHaveBeenCalledWith(scopedRecentTransactionsPath, {
+      signal: undefined,
+    });
+  });
+
   it("projects persisted summary data, traverses transaction pages, and joins recent transactions", async () => {
     const responses = new Map<string, unknown>([
       [
@@ -261,6 +293,8 @@ describe("getDashboard", () => {
     expect(dashboard.recentTransactions).toEqual([
       {
         id: "transaction-10",
+        categoryId: "42",
+        purchaseDate: "2026-08-31",
         date: "Aug 31",
         description: "Monthly rent",
         category: "housing",
@@ -268,9 +302,13 @@ describe("getDashboard", () => {
         categoryColor: "teal",
         account: "BDO · AMEX",
         amount: -70,
+        source: "imported",
+        statementImportId: "statement-1",
       },
       {
         id: "transaction-9",
+        categoryId: null,
+        purchaseDate: "2026-08-30",
         date: "Aug 30",
         description: "Cash lunch",
         category: "other",
@@ -278,9 +316,13 @@ describe("getDashboard", () => {
         categoryColor: null,
         account: "Cash",
         amount: -10,
+        source: "manual",
+        statementImportId: null,
       },
       {
         id: "transaction-8",
+        categoryId: "43",
+        purchaseDate: "2026-08-02",
         date: "Aug 02",
         description: "Weekly groceries",
         category: "groceries",
@@ -288,6 +330,8 @@ describe("getDashboard", () => {
         categoryColor: "forest",
         account: "bdo · VISA",
         amount: -30,
+        source: "imported",
+        statementImportId: "statement-2",
       },
     ]);
 

@@ -6,6 +6,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { PencilIcon, Trash2Icon } from "lucide-react";
 import { CategoryBadge } from "@/shared/category";
 import { formatMoney } from "@/shared/money";
 
@@ -14,12 +16,20 @@ import type { Transaction } from "./transactions-service";
 interface TransactionTableProps {
   transactions: readonly Transaction[];
   emptyMessage: string;
+  onEdit?: (transaction: Transaction) => void;
+  onDelete?: (transaction: Transaction) => void;
+  showAttribution?: boolean;
 }
 
 function TransactionTable({
   transactions,
   emptyMessage,
+  onEdit,
+  onDelete,
+  showAttribution = false,
 }: TransactionTableProps) {
+  const hasActions = onEdit !== undefined || onDelete !== undefined;
+
   return (
     <>
       <div className="md:hidden">
@@ -53,6 +63,37 @@ function TransactionTable({
                     <span>{transaction.account}</span>
                   </p>
                 </div>
+                {showAttribution && transaction.addedByUserId !== undefined && (
+                  <p className="text-xs text-muted-foreground">
+                    Added by User {transaction.addedByUserId}
+                  </p>
+                )}
+                {hasActions && (
+                  <div className="flex justify-end gap-2">
+                    {onEdit && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onEdit(transaction)}
+                      >
+                        <PencilIcon aria-hidden="true" />
+                        Edit
+                      </Button>
+                    )}
+                    {onDelete && transaction.source !== "imported" && (
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => onDelete(transaction)}
+                      >
+                        <Trash2Icon aria-hidden="true" />
+                        Delete
+                      </Button>
+                    )}
+                  </div>
+                )}
               </li>
             ))}
           </ul>
@@ -70,13 +111,14 @@ function TransactionTable({
               <TableHead scope="col" className="text-right">
                 Amount
               </TableHead>
+              {hasActions && <TableHead scope="col">Actions</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {transactions.length === 0 && (
               <TableRow>
                 <TableCell
-                  colSpan={5}
+                  colSpan={hasActions ? 6 : 5}
                   className="py-10 text-center text-muted-foreground"
                 >
                   {emptyMessage}
@@ -90,6 +132,11 @@ function TransactionTable({
                 </TableCell>
                 <TableCell className="min-w-56 whitespace-normal">
                   <p className="font-medium">{transaction.description}</p>
+                  {showAttribution && transaction.addedByUserId !== undefined && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Added by User {transaction.addedByUserId}
+                    </p>
+                  )}
                 </TableCell>
                 <TableCell>
                   <CategoryBadge
@@ -105,6 +152,34 @@ function TransactionTable({
                 <TableCell className="text-right font-mono font-semibold tabular-nums">
                   <span>{formatMoney(transaction.amount)}</span>
                 </TableCell>
+                {hasActions && (
+                  <TableCell>
+                    <div className="flex justify-end gap-1">
+                      {onEdit && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => onEdit(transaction)}
+                          aria-label={`Edit ${transaction.description}`}
+                        >
+                          <PencilIcon aria-hidden="true" />
+                        </Button>
+                      )}
+                      {onDelete && transaction.source !== "imported" && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => onDelete(transaction)}
+                          aria-label={`Delete ${transaction.description}`}
+                        >
+                          <Trash2Icon aria-hidden="true" />
+                        </Button>
+                      )}
+                    </div>
+                  </TableCell>
+                )}
               </TableRow>
             ))}
           </TableBody>

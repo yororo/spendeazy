@@ -5,7 +5,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 
-import { getAccessibleSpaces, useApiClient } from "@/shared/api";
+import { useApiClient } from "@/shared/api";
 import {
   invalidateCategoryDependentQueries,
   invalidateCategoryRuleQueries,
@@ -46,17 +46,6 @@ function useCategoriesOverviewQuery(
     enabled,
     placeholderData: keepPreviousData,
     staleTime: queryPolicy.activityStaleTime,
-  });
-}
-
-function useAccessibleSpacesQuery(enabled: boolean) {
-  const apiClient = useApiClient();
-
-  return useQuery({
-    queryKey: ["spaces", "accessible"] as const,
-    queryFn: ({ signal }) => getAccessibleSpaces(apiClient, signal),
-    enabled,
-    staleTime: queryPolicy.categoryCatalogStaleTime,
   });
 }
 
@@ -214,7 +203,6 @@ function useDeleteCategoryBudgetMutation() {
 }
 
 export {
-  useAccessibleSpacesQuery,
   useCategoryBudgetQuery,
   useCategoryRulesQuery,
   useCategoriesOverviewQuery,

@@ -1,14 +1,22 @@
 import { DynamicModule, Module } from '@nestjs/common';
+import { SpacesModule } from '../spaces/spaces.module';
 import { TRANSACTION_CATEGORY_STORE } from './application/transaction-category-store';
-import { TRANSACTION_STORE } from './application/transaction-store';
-import { IMPORTED_TRANSACTION_STORE } from './application/imported-transaction-store';
+import {
+  SPACE_TRANSACTION_STORE,
+  TRANSACTION_STORE,
+} from './application/transaction-store';
+import {
+  IMPORTED_TRANSACTION_STORE,
+  SPACE_IMPORTED_TRANSACTION_STORE,
+} from './application/imported-transaction-store';
 import { TransactionsService } from './application/transactions.service';
 import { TypeOrmTransactionCategoryStore } from './infrastructure/typeorm-transaction-category-store';
 import { TypeOrmTransactionStore } from './infrastructure/typeorm-transaction-store';
 import { TypeOrmImportedTransactionStore } from './infrastructure/typeorm-imported-transaction-store';
 import { TransactionsController } from './presentation/transactions.controller';
+import { SpaceTransactionsController } from './presentation/space-transactions.controller';
 
-const controllers = [TransactionsController];
+const controllers = [TransactionsController, SpaceTransactionsController];
 
 @Module({})
 export class TransactionsModule {
@@ -23,6 +31,7 @@ export class TransactionsModule {
 
       return {
         module: TransactionsModule,
+        imports: [SpacesModule.register(false, options)],
         controllers,
         providers: [{ provide: TransactionsService, useValue: {} }],
       };
@@ -30,10 +39,15 @@ export class TransactionsModule {
 
     return {
       module: TransactionsModule,
+      imports: [SpacesModule.register(true, options)],
       controllers,
       providers: [
         TypeOrmTransactionStore,
         { provide: TRANSACTION_STORE, useExisting: TypeOrmTransactionStore },
+        {
+          provide: SPACE_TRANSACTION_STORE,
+          useExisting: TypeOrmTransactionStore,
+        },
         TypeOrmTransactionCategoryStore,
         {
           provide: TRANSACTION_CATEGORY_STORE,
@@ -42,6 +56,10 @@ export class TransactionsModule {
         TypeOrmImportedTransactionStore,
         {
           provide: IMPORTED_TRANSACTION_STORE,
+          useExisting: TypeOrmImportedTransactionStore,
+        },
+        {
+          provide: SPACE_IMPORTED_TRANSACTION_STORE,
           useExisting: TypeOrmImportedTransactionStore,
         },
         TransactionsService,

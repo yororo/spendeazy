@@ -17,6 +17,9 @@ import { DefaultCategoriesService } from '../src/categories/application/default-
 import { DEFAULT_CATEGORY_CATALOG } from '../src/categories/application/default-category-catalog';
 import { TypeOrmSpaceStore } from '../src/spaces/infrastructure/typeorm-space-store';
 import { SpaceAccessService } from '../src/spaces/application/space-access.service';
+import { TransactionsService } from '../src/transactions/application/transactions.service';
+import { TypeOrmTransactionCategoryStore } from '../src/transactions/infrastructure/typeorm-transaction-category-store';
+import { TypeOrmTransactionStore } from '../src/transactions/infrastructure/typeorm-transaction-store';
 import { TypeOrmUserStore } from '../src/users/infrastructure/typeorm-user-store';
 import { UsersService } from '../src/users/application/users.service';
 import type {
@@ -30,6 +33,7 @@ const describeDatabase = databaseUrl ? describe : describe.skip;
 describeDatabase('Spaces with PostgreSQL', () => {
   let database: DataSource;
   const createdUserIds: string[] = [];
+  const createdSharedSpaceIds: string[] = [];
 
   beforeAll(async () => {
     database = await new DataSource({
@@ -46,6 +50,9 @@ describeDatabase('Spaces with PostgreSQL', () => {
   afterEach(async () => {
     for (const userId of createdUserIds.splice(0)) {
       await deleteUserData(userId);
+    }
+    for (const spaceId of createdSharedSpaceIds.splice(0)) {
+      await database.getRepository(SpaceEntity).delete({ id: spaceId });
     }
   });
 
@@ -207,6 +214,136 @@ describeDatabase('Spaces with PostgreSQL', () => {
     ).rejects.toMatchObject({
       code: 'SPACE_NOT_FOUND',
     });
+  });
+
+  it('keeps shared Transaction ownership, same-Space Categories, and stale writes isolated', async () => {
+    const owner = await createUser('transaction-space-owner');
+    const member = await createUser('transaction-space-member');
+    const outsider = await createUser('transaction-space-outsider');
+    const spaceStore = new TypeOrmSpaceStore(database.manager);
+    const ownerPersonalSpaceId = await spaceStore.ensurePersonalSpace(owner.id);
+    const memberPersonalSpaceId = await spaceStore.ensurePersonalSpace(
+      member.id,
+    );
+    const sharedSpace = await database.getRepository(SpaceEntity).save({
+      kind: 'shared',
+      status: 'active',
+      personalOwnerUserId: null,
+    });
+    createdSharedSpaceIds.push(sharedSpace.id);
+    await database.getRepository(SpaceMembershipEntity).save([
+      {
+        spaceId: sharedSpace.id,
+        userId: owner.id,
+        accessLevel: 'write',
+      },
+      {
+        spaceId: sharedSpace.id,
+        userId: member.id,
+        accessLevel: 'write',
+      },
+    ]);
+
+    const sharedCategory = await database.getRepository(CategoryEntity).save({
+      userId: owner.id,
+      spaceId: sharedSpace.id,
+      name: 'Shared meals',
+      isActive: true,
+    });
+    const ownerPersonalCategory = await database
+      .getRepository(CategoryEntity)
+      .save({
+        userId: owner.id,
+        spaceId: ownerPersonalSpaceId,
+        name: 'Private meals',
+        isActive: true,
+      });
+    const access = new SpaceAccessService(spaceStore);
+
+    await expect(
+      access.requireWriteAccess(owner.id, sharedSpace.id),
+    ).resolves.toMatchObject({ accessLevel: 'write' });
+    await expect(
+      access.requireWriteAccess(member.id, sharedSpace.id),
+    ).resolves.toMatchObject({ accessLevel: 'write' });
+    await expect(
+      access.requireReadAccess(member.id, ownerPersonalSpaceId),
+    ).rejects.toMatchObject({ code: 'SPACE_NOT_FOUND' });
+    await expect(
+      access.requireReadAccess(owner.id, memberPersonalSpaceId),
+    ).rejects.toMatchObject({ code: 'SPACE_NOT_FOUND' });
+    await expect(
+      access.requireReadAccess(outsider.id, sharedSpace.id),
+    ).rejects.toMatchObject({ code: 'SPACE_NOT_FOUND' });
+
+    const transactionStore = new TypeOrmTransactionStore(database.manager);
+    const transactions = new TransactionsService(
+      transactionStore,
+      new TypeOrmTransactionCategoryStore(database.manager),
+      undefined,
+      transactionStore,
+    );
+    const created = await transactions.createManualTransactionInSpace(
+      member.id,
+      sharedSpace.id,
+      {
+        categoryId: sharedCategory.id,
+        purchaseDate: '2026-09-20',
+        description: 'Shared dinner',
+        amount: '24.50',
+      },
+    );
+
+    expect(created).toMatchObject({
+      spaceId: sharedSpace.id,
+      addedByUserId: member.id,
+      userId: member.id,
+    });
+    await expect(
+      transactions.createManualTransactionInSpace(owner.id, sharedSpace.id, {
+        categoryId: ownerPersonalCategory.id,
+        purchaseDate: '2026-09-20',
+        description: 'Private Category rejected',
+        amount: '1.00',
+      }),
+    ).rejects.toMatchObject({ code: 'CATEGORY_NOT_FOUND' });
+
+    await expect(
+      transactions.listTransactionsInSpace(sharedSpace.id, {}),
+    ).resolves.toMatchObject({
+      items: [expect.objectContaining({ id: created.id })],
+      nextCursor: null,
+    });
+
+    const updated = await transactions.updateManualTransactionInSpace(
+      sharedSpace.id,
+      created.id,
+      {
+        description: 'Shared dinner updated',
+        expectedUpdatedAt: created.updatedAt.toISOString(),
+      },
+    );
+    expect(updated).toMatchObject({
+      description: 'Shared dinner updated',
+      addedByUserId: member.id,
+    });
+    await expect(
+      transactions.updateManualTransactionInSpace(sharedSpace.id, created.id, {
+        description: 'Stale edit',
+        expectedUpdatedAt: created.updatedAt.toISOString(),
+      }),
+    ).rejects.toMatchObject({ code: 'STALE_EDIT' });
+
+    await expect(
+      transactions.deleteManualTransactionInSpace(
+        sharedSpace.id,
+        created.id,
+        updated.updatedAt.toISOString(),
+      ),
+    ).resolves.toBeUndefined();
+    await expect(
+      database.getRepository(TransactionEntity).findOneBy({ id: created.id }),
+    ).resolves.toBeNull();
   });
 
   async function createUser(label: string): Promise<UserEntity> {

@@ -3,17 +3,20 @@ import {
   Controller,
   Delete,
   Get,
+  Headers,
   HttpCode,
   HttpStatus,
   Param,
   Patch,
   Post,
+  Optional,
   Query,
   Req,
   Res,
 } from '@nestjs/common';
 import {
   ApiExtraModels,
+  ApiHeader,
   ApiOperation,
   ApiParam,
   ApiResponse,
@@ -28,6 +31,7 @@ import {
 } from '../../authentication/authentication';
 import { ApiStandardErrorResponses } from '../../http/api-error.dto';
 import { POSITIVE_INTEGER_ID_PATTERN } from '../../http/validation-patterns';
+import { SpaceAccessService } from '../../spaces/application/space-access.service';
 import type {
   ManualTransactionRecord,
   TransactionRecord,
@@ -59,7 +63,10 @@ import {
   TransactionHistoryPageResponseDto,
 )
 export class TransactionsController {
-  constructor(private readonly transactionsService: TransactionsService) {}
+  constructor(
+    private readonly transactionsService: TransactionsService,
+    @Optional() private readonly spaceAccessService?: SpaceAccessService,
+  ) {}
 
   @Post()
   @ApiOperation({ summary: 'Create a manual transaction.' })
@@ -94,10 +101,16 @@ export class TransactionsController {
     @Body() input: CreateManualTransactionDto,
     @Res({ passthrough: true }) response: Response,
   ): Promise<ManualTransactionResponseDto> {
-    const transaction = await this.transactionsService.createManualTransaction(
-      requireAuthenticatedUserId(request),
-      input,
-    );
+    const userId = requireAuthenticatedUserId(request);
+    const personalSpace =
+      await this.spaceAccessService?.requirePersonalWriteSpace(userId);
+    const transaction = personalSpace
+      ? await this.transactionsService.createManualTransactionInSpace(
+          userId,
+          personalSpace.id,
+          input,
+        )
+      : await this.transactionsService.createManualTransaction(userId, input);
     response.status(HttpStatus.CREATED);
     response.setHeader('Location', transactionLocation(transaction.id));
     return toManualTransactionResponse(transaction);
@@ -126,10 +139,15 @@ export class TransactionsController {
     @Req() request: AuthenticatedRequest,
     @Query() query: TransactionCollectionQueryDto,
   ): Promise<TransactionHistoryPageResponseDto> {
-    const page = await this.transactionsService.listTransactions(
-      requireAuthenticatedUserId(request),
-      query,
-    );
+    const userId = requireAuthenticatedUserId(request);
+    const personalSpace =
+      await this.spaceAccessService?.requirePersonalSpace(userId);
+    const page = personalSpace
+      ? await this.transactionsService.listTransactionsInSpace(
+          personalSpace.id,
+          query,
+        )
+      : await this.transactionsService.listTransactions(userId, query);
     return {
       items: page.items.map(toTransactionHistoryResponse),
       nextCursor: page.nextCursor,
@@ -164,11 +182,19 @@ export class TransactionsController {
     @Req() request: AuthenticatedRequest,
     @Param() params: TransactionParamsDto,
   ): Promise<ManualTransactionResponseDto> {
+    const userId = requireAuthenticatedUserId(request);
+    const personalSpace =
+      await this.spaceAccessService?.requirePersonalSpace(userId);
     return toManualTransactionResponse(
-      await this.transactionsService.getManualTransaction(
-        requireAuthenticatedUserId(request),
-        params.transactionId,
-      ),
+      personalSpace
+        ? await this.transactionsService.getManualTransactionInSpace(
+            personalSpace.id,
+            params.transactionId,
+          )
+        : await this.transactionsService.getManualTransaction(
+            userId,
+            params.transactionId,
+          ),
     );
   }
 
@@ -221,12 +247,22 @@ export class TransactionsController {
     @Param() params: TransactionParamsDto,
     @Body() input: UpdateManualTransactionDto,
   ): Promise<TransactionResponse> {
+    const userId = requireAuthenticatedUserId(request);
+    const personalSpace =
+      await this.spaceAccessService?.requirePersonalWriteSpace(userId);
+    const changes = toTransactionUpdate(input);
     return toTransactionResponse(
-      await this.transactionsService.updateTransaction(
-        requireAuthenticatedUserId(request),
-        params.transactionId,
-        input,
-      ),
+      personalSpace
+        ? await this.transactionsService.updateTransactionInSpace(
+            personalSpace.id,
+            params.transactionId,
+            changes,
+          )
+        : await this.transactionsService.updateTransaction(
+            userId,
+            params.transactionId,
+            changes,
+          ),
     );
   }
 
@@ -246,6 +282,13 @@ export class TransactionsController {
     status: HttpStatus.NO_CONTENT,
     description: 'Manual transaction deleted.',
   })
+  @ApiHeader({
+    name: 'if-match',
+    required: false,
+    description:
+      'Optional Transaction updatedAt timestamp. The delete is rejected when it is stale.',
+    schema: { type: 'string' },
+  })
   @ApiStandardErrorResponses(
     'UnauthenticatedError',
     'UserNotProvisionedError',
@@ -253,15 +296,38 @@ export class TransactionsController {
     'NotAcceptableError',
     'InternalError',
     'NotFoundError',
+    'ConflictError',
   )
   async deleteManualTransaction(
     @Req() request: AuthenticatedRequest,
     @Param() params: TransactionParamsDto,
+    @Headers('if-match') ifMatch?: string,
   ): Promise<void> {
-    await this.transactionsService.deleteManualTransaction(
-      requireAuthenticatedUserId(request),
-      params.transactionId,
-    );
+    const userId = requireAuthenticatedUserId(request);
+    const personalSpace =
+      await this.spaceAccessService?.requirePersonalWriteSpace(userId);
+    const expectedUpdatedAt = normalizeIfMatch(ifMatch);
+    if (personalSpace) {
+      await this.transactionsService.deleteManualTransactionInSpace(
+        personalSpace.id,
+        params.transactionId,
+        expectedUpdatedAt,
+      );
+      return;
+    }
+
+    if (expectedUpdatedAt === undefined) {
+      await this.transactionsService.deleteManualTransaction(
+        userId,
+        params.transactionId,
+      );
+    } else {
+      await this.transactionsService.deleteManualTransaction(
+        userId,
+        params.transactionId,
+        expectedUpdatedAt,
+      );
+    }
   }
 }
 
@@ -281,6 +347,7 @@ type TransactionResponseInput = Pick<
   | 'description'
   | 'amount'
   | 'source'
+  | 'addedByUserId'
   | 'createdAt'
   | 'updatedAt'
 >;
@@ -297,7 +364,7 @@ export function toTransactionResponse(
     : { ...response, source: 'imported' };
 }
 
-function toManualTransactionResponse(
+export function toManualTransactionResponse(
   transaction: ManualTransactionRecord,
 ): ManualTransactionResponseDto {
   return {
@@ -335,9 +402,28 @@ function toTransactionResponseFields(
     purchaseDate: transaction.purchaseDate,
     description: transaction.description,
     amount: transaction.amount,
+    ...(transaction.addedByUserId === undefined
+      ? {}
+      : { addedByUserId: transaction.addedByUserId }),
     createdAt: transaction.createdAt.toISOString(),
     updatedAt: transaction.updatedAt.toISOString(),
   };
+}
+
+function toTransactionUpdate(
+  input: UpdateManualTransactionDto,
+): Parameters<TransactionsService['updateTransaction']>[2] {
+  const { updatedAt, ...changes } = input;
+  return {
+    ...changes,
+    ...(updatedAt === undefined ? {} : { expectedUpdatedAt: updatedAt }),
+  };
+}
+
+function normalizeIfMatch(value: string | undefined): string | undefined {
+  const normalized = value?.trim();
+  if (!normalized) return undefined;
+  return normalized.replace(/^W\//u, '').replace(/^"|"$/gu, '');
 }
 
 function transactionLocation(transactionId: string): string {

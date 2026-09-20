@@ -35,6 +35,32 @@ export class TypeOrmTransactionCategoryStore implements TransactionCategoryStore
       ? {
           id: entity.id,
           userId: entity.userId,
+          ...(entity.spaceId === undefined ? {} : { spaceId: entity.spaceId }),
+          isActive: entity.isActive,
+        }
+      : null;
+  }
+
+  async findBySpaceId(
+    spaceId: string,
+    id: string,
+  ): Promise<TransactionCategoryRecord | null> {
+    const query = this.entityManager
+      .getRepository(CategoryEntity)
+      .createQueryBuilder('category')
+      .where('category.id = :id', { id })
+      .andWhere('category.space_id = :spaceId', { spaceId });
+    if (this.lockCategory) {
+      query.setLock('pessimistic_read');
+    }
+
+    const entity = await query.getOne();
+
+    return entity
+      ? {
+          id: entity.id,
+          userId: entity.userId,
+          spaceId: entity.spaceId,
           isActive: entity.isActive,
         }
       : null;

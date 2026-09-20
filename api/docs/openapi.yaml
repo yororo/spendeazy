@@ -1621,6 +1621,12 @@ paths:
             type: string
             pattern: ^[1-9]\d*$
             example: '42'
+        - name: if-match
+          required: false
+          in: header
+          description: Optional Transaction updatedAt timestamp. The delete is rejected when it is stale.
+          schema:
+            type: string
       responses:
         '204':
           description: Manual transaction deleted.
@@ -1634,9 +1640,319 @@ paths:
           $ref: '#/components/responses/NotFoundError'
         '406':
           $ref: '#/components/responses/NotAcceptableError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
         '500':
           $ref: '#/components/responses/InternalError'
       summary: Delete a manual transaction.
+      tags:
+        - Transactions
+  /api/v1/users/me/spaces/{spaceId}/transactions:
+    post:
+      operationId: SpaceTransactions_createTransaction
+      parameters:
+        - name: spaceId
+          required: true
+          in: path
+          description: Positive bigint Space identifier encoded as a string.
+          schema:
+            type: string
+            pattern: ^[1-9]\d*$
+            example: '7'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateManualTransactionDto'
+      responses:
+        '201':
+          description: Manual transaction created.
+          headers:
+            Location:
+              required: true
+              description: Relative canonical URI of the created Transaction.
+              schema:
+                type: string
+                example: /api/v1/users/me/spaces/7/transactions/42
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManualTransactionResponseDto'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthenticatedError'
+        '403':
+          $ref: '#/components/responses/UserNotProvisionedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '406':
+          $ref: '#/components/responses/NotAcceptableError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '413':
+          $ref: '#/components/responses/HttpError'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaTypeError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      summary: Create a manual Transaction in an authorized Space.
+      tags:
+        - Transactions
+    get:
+      description: Returns manual and imported Transactions in the authorized Space in purchaseDate descending, then Transaction ID descending order. Filters and keyset cursors retain the same semantics as the personal collection.
+      operationId: SpaceTransactions_listTransactions
+      parameters:
+        - name: spaceId
+          required: true
+          in: path
+          description: Positive bigint Space identifier encoded as a string.
+          schema:
+            type: string
+            pattern: ^[1-9]\d*$
+            example: '7'
+        - name: fromDate
+          required: false
+          in: query
+          description: Inclusive lower purchase date. It must be a valid calendar date in YYYY-MM-DD format and be on or before toDate when both filters are supplied.
+          schema:
+            format: date
+            pattern: ^\d{4}-\d{2}-\d{2}$
+            example: '2026-08-01'
+            type: string
+        - name: toDate
+          required: false
+          in: query
+          description: Inclusive upper purchase date. It must be a valid calendar date in YYYY-MM-DD format.
+          schema:
+            format: date
+            pattern: ^\d{4}-\d{2}-\d{2}$
+            example: '2026-08-31'
+            type: string
+        - name: categoryId
+          required: false
+          in: query
+          description: Only Transactions assigned to this positive bigint Category identifier owned by the authenticated User.
+          schema:
+            pattern: ^[1-9]\d*$
+            example: '42'
+            type: string
+        - name: categoryState
+          required: false
+          in: query
+          description: Whether to return categorized Transactions or Uncategorized Transactions.
+          schema:
+            example: categorized
+            type: string
+            enum:
+              - categorized
+              - uncategorized
+        - name: statementImportId
+          required: false
+          in: query
+          description: Only Transactions committed from this positive bigint Statement import identifier owned by the authenticated User.
+          schema:
+            pattern: ^[1-9]\d*$
+            example: '10'
+            type: string
+        - name: source
+          required: false
+          in: query
+          description: Whether to return manually recorded or imported Transactions.
+          schema:
+            example: imported
+            type: string
+            enum:
+              - manual
+              - imported
+        - name: pageSize
+          required: false
+          in: query
+          description: Number of Transactions to return per page. Must be between 1 and 100 inclusive; defaults to 20. The cursor is not coupled to page size.
+          schema:
+            minimum: 1
+            maximum: 100
+            default: 20
+            example: 20
+            type: integer
+        - name: cursor
+          required: false
+          in: query
+          description: Opaque base64url cursor for the next page. Reuse it only with the same filters; cursors encode the fixed purchaseDate-descending, ID-descending ordering.
+          schema:
+            minLength: 1
+            pattern: ^[A-Za-z0-9_-]+$
+            example: eyJ2ZXJzaW9uIjoxLCJvcmRlcmluZyI6InB1cmNoYXNlRGF0ZTpkZXNjLG...
+            type: string
+      responses:
+        '200':
+          description: Transaction page.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionHistoryPageResponseDto'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthenticatedError'
+        '403':
+          $ref: '#/components/responses/UserNotProvisionedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '406':
+          $ref: '#/components/responses/NotAcceptableError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      summary: List Transactions in an authorized Space.
+      tags:
+        - Transactions
+  /api/v1/users/me/spaces/{spaceId}/transactions/{transactionId}:
+    get:
+      operationId: SpaceTransactions_getTransaction
+      parameters:
+        - name: spaceId
+          required: true
+          in: path
+          description: Positive bigint Space identifier encoded as a string.
+          schema:
+            type: string
+            pattern: ^[1-9]\d*$
+            example: '7'
+        - name: transactionId
+          required: true
+          in: path
+          description: Positive bigint Transaction identifier encoded as a string.
+          schema:
+            type: string
+            pattern: ^[1-9]\d*$
+            example: '42'
+      responses:
+        '200':
+          description: Manual transaction.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManualTransactionResponseDto'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthenticatedError'
+        '403':
+          $ref: '#/components/responses/UserNotProvisionedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '406':
+          $ref: '#/components/responses/NotAcceptableError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      summary: Get a manual Transaction in an authorized Space.
+      tags:
+        - Transactions
+    patch:
+      description: Manual Transactions may be patched with any supplied fields. Imported Transactions may only change categoryId; their statement facts are immutable. The required updatedAt body field rejects stale edits.
+      operationId: SpaceTransactions_updateTransaction
+      parameters:
+        - name: spaceId
+          required: true
+          in: path
+          description: Positive bigint Space identifier encoded as a string.
+          schema:
+            type: string
+            pattern: ^[1-9]\d*$
+            example: '7'
+        - name: transactionId
+          required: true
+          in: path
+          description: Positive bigint Transaction identifier encoded as a string.
+          schema:
+            type: string
+            pattern: ^[1-9]\d*$
+            example: '42'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateSpaceTransactionDto'
+      responses:
+        '200':
+          description: Transaction updated.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ManualTransactionResponseDto'
+                  - $ref: '#/components/schemas/ImportedTransactionResponseDto'
+                discriminator:
+                  propertyName: source
+                  mapping:
+                    manual: '#/components/schemas/ManualTransactionResponseDto'
+                    imported: '#/components/schemas/ImportedTransactionResponseDto'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthenticatedError'
+        '403':
+          $ref: '#/components/responses/UserNotProvisionedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '406':
+          $ref: '#/components/responses/NotAcceptableError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '413':
+          $ref: '#/components/responses/HttpError'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaTypeError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      summary: Update a manual Transaction or recategorize an imported Transaction in an authorized Space.
+      tags:
+        - Transactions
+    delete:
+      operationId: SpaceTransactions_deleteTransaction
+      parameters:
+        - name: spaceId
+          required: true
+          in: path
+          description: Positive bigint Space identifier encoded as a string.
+          schema:
+            type: string
+            pattern: ^[1-9]\d*$
+            example: '7'
+        - name: transactionId
+          required: true
+          in: path
+          description: Positive bigint Transaction identifier encoded as a string.
+          schema:
+            type: string
+            pattern: ^[1-9]\d*$
+            example: '42'
+        - name: if-match
+          required: true
+          in: header
+          description: Transaction updatedAt timestamp from the last read. The delete is rejected when it is stale.
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Manual transaction deleted.
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthenticatedError'
+        '403':
+          $ref: '#/components/responses/UserNotProvisionedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '406':
+          $ref: '#/components/responses/NotAcceptableError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      summary: Delete a manual Transaction in an authorized Space.
       tags:
         - Transactions
   /api/v1/users/me/statement-imports/{statementImportId}:
@@ -2630,6 +2946,11 @@ components:
           pattern: ^[1-9]\d*$
           nullable: true
           example: '42'
+        updatedAt:
+          type: string
+          description: The UTC timestamp returned by the last read. A stale edit is rejected when another member changed this Transaction first.
+          format: date-time
+          example: '2026-08-29T00:00:00.000Z'
       additionalProperties: false
       minProperties: 1
     ManualTransactionResponseDto:
@@ -2670,6 +2991,11 @@ components:
           enum:
             - manual
           example: manual
+        addedByUserId:
+          type: string
+          description: Positive bigint identifier of the User who added the Transaction. It is immutable after creation.
+          pattern: ^[1-9]\d*$
+          example: '7'
         createdAt:
           type: string
           description: UTC timestamp when the Transaction was created.
@@ -2729,6 +3055,11 @@ components:
           enum:
             - imported
           example: imported
+        addedByUserId:
+          type: string
+          description: Positive bigint identifier of the User who added the Transaction. It is immutable after creation.
+          pattern: ^[1-9]\d*$
+          example: '7'
         createdAt:
           type: string
           description: UTC timestamp when the Transaction was created.
@@ -2788,6 +3119,11 @@ components:
           enum:
             - manual
           example: manual
+        addedByUserId:
+          type: string
+          description: Positive bigint identifier of the User who added the Transaction. It is immutable after creation.
+          pattern: ^[1-9]\d*$
+          example: '7'
         statementImportId:
           type: string
           description: Manual Transactions are not associated with a Statement import.
@@ -2856,6 +3192,11 @@ components:
           enum:
             - imported
           example: imported
+        addedByUserId:
+          type: string
+          description: Positive bigint identifier of the User who added the Transaction. It is immutable after creation.
+          pattern: ^[1-9]\d*$
+          example: '7'
         statementImportId:
           type: string
           description: Positive bigint Statement import identifier encoded as a string.
@@ -2910,6 +3251,42 @@ components:
       required:
         - items
         - nextCursor
+    UpdateSpaceTransactionDto:
+      type: object
+      properties:
+        purchaseDate:
+          type: string
+          description: Valid calendar purchase date in YYYY-MM-DD format.
+          format: date
+          pattern: ^\d{4}-\d{2}-\d{2}$
+          example: '2026-08-01'
+        description:
+          type: string
+          description: Transaction description, trimmed before storage.
+          minLength: 1
+          maxLength: 500
+          pattern: \S
+          example: Coffee
+        amount:
+          type: string
+          description: Positive exact two-decimal Transaction amount encoded as a string, with up to 13 integer digits.
+          pattern: ^(?=.*[1-9])\d{1,13}\.\d{2}$
+          example: '4.50'
+        categoryId:
+          type: string
+          description: Positive bigint Category identifier encoded as a string. Omit or set to null to leave the Transaction Uncategorized.
+          pattern: ^[1-9]\d*$
+          nullable: true
+          example: '42'
+        updatedAt:
+          type: string
+          description: The UTC timestamp returned by the last read. A Space edit must include it so stale changes are rejected.
+          format: date-time
+          example: '2026-08-29T00:00:00.000Z'
+      additionalProperties: false
+      minProperties: 2
+      required:
+        - updatedAt
     CommitReviewedStatementImportDto:
       type: object
       properties:

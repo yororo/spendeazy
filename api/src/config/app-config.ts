@@ -9,7 +9,11 @@ export const DEFAULT_PORT = 3000;
 export const DATABASE_POOL_SIZE = 1;
 export const DATABASE_CONNECTION_TIMEOUT_MS = 1000;
 export const DATABASE_IDLE_TIMEOUT_MS = 10000;
-export const CORS_ALLOWED_HEADERS = ['Content-Type', 'Authorization'];
+export const CORS_ALLOWED_HEADERS = [
+  'Content-Type',
+  'Authorization',
+  'If-Match',
+];
 export const CORS_EXPOSED_HEADERS = ['Location', 'X-Request-ID'];
 
 export const API_METHODS = [

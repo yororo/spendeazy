@@ -3,21 +3,26 @@ import {
   Not,
   type EntityManager,
   type FindOptionsWhere,
+  type Repository,
 } from 'typeorm';
 import { Injectable } from '@nestjs/common';
 import { InjectEntityManager } from '@nestjs/typeorm';
 import { assertActiveCategory } from '../../categories/application/active-category';
 import { CategoryEntity } from '../../database/entities/category.entity';
 import { TransactionEntity } from '../../database/entities/transaction.entity';
+import { StaleEditError } from '../../errors/application-error';
 import type {
   ImportedTransactionRecord,
   ImportedTransactionStore,
   NewImportedTransaction,
+  SpaceImportedTransactionStore,
   UpdateImportedTransactionCategory,
 } from '../application/imported-transaction-store';
 
 @Injectable()
-export class TypeOrmImportedTransactionStore implements ImportedTransactionStore {
+export class TypeOrmImportedTransactionStore
+  implements ImportedTransactionStore, SpaceImportedTransactionStore
+{
   constructor(
     @InjectEntityManager()
     public readonly entityManager: EntityManager,
@@ -41,6 +46,10 @@ export class TypeOrmImportedTransactionStore implements ImportedTransactionStore
   ): Promise<ImportedTransactionRecord> {
     const entity = this.entityManager.getRepository(TransactionEntity).create({
       userId: input.userId,
+      ...(input.spaceId === undefined ? {} : { spaceId: input.spaceId }),
+      ...(input.addedByUserId === undefined
+        ? {}
+        : { addedByUserId: input.addedByUserId }),
       categoryId: input.categoryId,
       statementImportId: input.statementImportId,
       purchaseDate: input.purchaseDate,
@@ -66,6 +75,17 @@ export class TypeOrmImportedTransactionStore implements ImportedTransactionStore
     return entity ? toRecord(entity) : null;
   }
 
+  async findByIdInSpace(
+    spaceId: string,
+    id: string,
+  ): Promise<ImportedTransactionRecord | null> {
+    const entity = await this.entityManager
+      .getRepository(TransactionEntity)
+      .findOne({ where: importedTransactionSpaceWhere(spaceId, { id }) });
+
+    return entity ? toRecord(entity) : null;
+  }
+
   async updateCategory(
     userId: string,
     id: string,
@@ -82,6 +102,74 @@ export class TypeOrmImportedTransactionStore implements ImportedTransactionStore
 
       if (input.categoryId !== null && input.categoryId !== entity.categoryId) {
         await ensureActiveCategory(entityManager, userId, input.categoryId);
+      }
+
+      if (input.expectedUpdatedAt !== undefined) {
+        const result = await updateCategoryIfCurrent(
+          repository,
+          entity.id,
+          { userId },
+          input,
+        );
+        if (result.affected !== 1) {
+          const current = await repository.findOne({
+            where: importedTransactionWhere(userId, { id }),
+          });
+          if (!current) return null;
+          throw new StaleEditError();
+        }
+
+        const updated = await repository.findOne({
+          where: importedTransactionWhere(userId, { id }),
+        });
+        return updated ? toRecord(updated) : null;
+      }
+
+      entity.categoryId = input.categoryId;
+      entity.categoryMatchConfidence = null;
+      return toRecord(await repository.save(entity));
+    });
+  }
+
+  async updateCategoryInSpace(
+    spaceId: string,
+    id: string,
+    input: UpdateImportedTransactionCategory,
+  ): Promise<ImportedTransactionRecord | null> {
+    return this.entityManager.transaction(async (entityManager) => {
+      const repository = entityManager.getRepository(TransactionEntity);
+      const entity = await repository.findOne({
+        where: importedTransactionSpaceWhere(spaceId, { id }),
+      });
+      if (!entity) return null;
+
+      if (input.categoryId !== null && input.categoryId !== entity.categoryId) {
+        await ensureActiveCategoryInSpace(
+          entityManager,
+          spaceId,
+          input.categoryId,
+        );
+      }
+
+      if (input.expectedUpdatedAt !== undefined) {
+        const result = await updateCategoryIfCurrent(
+          repository,
+          entity.id,
+          { spaceId },
+          input,
+        );
+        if (result.affected !== 1) {
+          const current = await repository.findOne({
+            where: importedTransactionSpaceWhere(spaceId, { id }),
+          });
+          if (!current) return null;
+          throw new StaleEditError();
+        }
+
+        const updated = await repository.findOne({
+          where: importedTransactionSpaceWhere(spaceId, { id }),
+        });
+        return updated ? toRecord(updated) : null;
       }
 
       entity.categoryId = input.categoryId;
@@ -105,6 +193,17 @@ function importedTransactionWhere(
   };
 }
 
+function importedTransactionSpaceWhere(
+  spaceId: string,
+  identifier: Pick<FindOptionsWhere<TransactionEntity>, 'id'>,
+): FindOptionsWhere<TransactionEntity> {
+  return {
+    spaceId,
+    ...identifier,
+    statementImportId: Not(IsNull()),
+  };
+}
+
 async function ensureActiveCategory(
   entityManager: EntityManager,
   userId: string,
@@ -121,10 +220,60 @@ async function ensureActiveCategory(
   assertActiveCategory(category);
 }
 
+async function ensureActiveCategoryInSpace(
+  entityManager: EntityManager,
+  spaceId: string,
+  categoryId: string,
+): Promise<void> {
+  const category = await entityManager
+    .getRepository(CategoryEntity)
+    .createQueryBuilder('category')
+    .where('category.id = :categoryId', { categoryId })
+    .andWhere('category.space_id = :spaceId', { spaceId })
+    .setLock('pessimistic_read')
+    .getOne();
+
+  assertActiveCategory(category);
+}
+
+async function updateCategoryIfCurrent(
+  repository: Repository<TransactionEntity>,
+  id: string,
+  scope: { userId?: string; spaceId?: string },
+  input: UpdateImportedTransactionCategory,
+) {
+  const query = repository
+    .createQueryBuilder()
+    .update(TransactionEntity)
+    .set({
+      categoryId: input.categoryId,
+      categoryMatchConfidence: null,
+    })
+    .where('id = :id', { id })
+    .andWhere('statement_import_id IS NOT NULL');
+
+  if (scope.userId !== undefined) {
+    query.andWhere('user_id = :userId', { userId: scope.userId });
+  }
+  if (scope.spaceId !== undefined) {
+    query.andWhere('space_id = :spaceId', { spaceId: scope.spaceId });
+  }
+
+  return query
+    .andWhere('updated_at = :expectedUpdatedAt', {
+      expectedUpdatedAt: new Date(input.expectedUpdatedAt!),
+    })
+    .execute();
+}
+
 function toRecord(entity: TransactionEntity): ImportedTransactionRecord {
   return {
     id: entity.id,
     userId: entity.userId,
+    ...(entity.spaceId === undefined ? {} : { spaceId: entity.spaceId }),
+    ...(entity.addedByUserId === undefined
+      ? {}
+      : { addedByUserId: entity.addedByUserId }),
     categoryId: entity.categoryId,
     statementImportId: entity.statementImportId as string,
     purchaseDate: entity.purchaseDate,

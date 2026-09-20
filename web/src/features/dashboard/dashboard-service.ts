@@ -32,7 +32,10 @@ import {
   getReportingPeriodBounds,
   type ReportingPeriod,
 } from "@/shared/reporting-period";
-import { projectTransactionHistoryItem } from "@/shared/transaction";
+import {
+  projectTransactionHistoryItem,
+  type TransactionProjection,
+} from "@/shared/transaction";
 
 interface SpendingPoint {
   label: string;
@@ -48,16 +51,7 @@ interface CategorySpend {
   share: number;
 }
 
-interface Transaction {
-  id: string;
-  date: string;
-  description: string;
-  category: CategoryKey;
-  categoryLabel: string;
-  categoryColor: CategoryColor | null;
-  account: string;
-  amount: number;
-}
+type Transaction = TransactionProjection;
 
 interface DashboardSummary {
   period: string;
@@ -120,13 +114,14 @@ async function loadAllTransactions(
   fromDate: string,
   toDate: string,
   signal?: AbortSignal,
+  spaceId?: string,
 ) {
   const transactions: TransactionHistoryItem[] = [];
   const seenCursors = new Set<string>();
   let cursor: string | null = null;
 
   do {
-    const path = buildApiPath("/transactions", {
+    const path = buildApiPath(buildTransactionCollectionPath(spaceId), {
       fromDate,
       toDate,
       pageSize: String(FULL_TRANSACTION_PAGE_SIZE),
@@ -161,8 +156,9 @@ async function loadRecentTransactions(
   fromDate: string,
   toDate: string,
   signal?: AbortSignal,
+  spaceId?: string,
 ) {
-  const path = buildApiPath("/transactions", {
+  const path = buildApiPath(buildTransactionCollectionPath(spaceId), {
     fromDate,
     toDate,
     pageSize: String(RECENT_TRANSACTION_PAGE_SIZE),
@@ -183,12 +179,13 @@ async function loadDashboardResources(
   apiClient: DashboardApiClient,
   period: ReportingPeriod,
   signal?: AbortSignal,
+  spaceId?: string,
 ): Promise<DashboardResources> {
   const { fromDate, toDate, daysInPeriod } = getReportingPeriodBounds(period);
-  const summaryPath = buildMonthlyCategorySummaryPath(period);
+  const summaryPath = buildMonthlyCategorySummaryPath(period, spaceId);
   const [categoryCatalogResponse, categorySummaryResponse] =
     await Promise.all([
-      apiClient.get<unknown>("/categories", { signal }),
+      apiClient.get<unknown>(buildCategoryCollectionPath(spaceId), { signal }),
       apiClient.get<CategorySummaryResponse>(summaryPath, { signal }),
     ]);
   const categoryCatalog = requireCategoryCatalog(
@@ -207,8 +204,8 @@ async function loadDashboardResources(
     createDashboardDataError,
   );
   const [transactions, recentTransactions] = await Promise.all([
-    loadAllTransactions(apiClient, fromDate, toDate, signal),
-    loadRecentTransactions(apiClient, fromDate, toDate, signal),
+    loadAllTransactions(apiClient, fromDate, toDate, signal, spaceId),
+    loadRecentTransactions(apiClient, fromDate, toDate, signal, spaceId),
   ]);
   const statementImports = await loadStatementImports(
     apiClient,
@@ -394,8 +391,14 @@ async function getDashboard(
   apiClient: DashboardApiClient,
   period: ReportingPeriod,
   signal?: AbortSignal,
+  spaceId?: string,
 ): Promise<DashboardData> {
-  const resources = await loadDashboardResources(apiClient, period, signal);
+  const resources = await loadDashboardResources(
+    apiClient,
+    period,
+    signal,
+    spaceId,
+  );
   const categoryById = resources.categoryById;
   const categorySummaryTotals = getCategorySummaryTotals(
     resources.categorySummary,
@@ -428,6 +431,18 @@ async function getDashboard(
       resources.statementImports,
     ),
   };
+}
+
+function buildCategoryCollectionPath(spaceId?: string): string {
+  return spaceId === undefined
+    ? "/categories"
+    : `/spaces/${encodeURIComponent(spaceId)}/categories`;
+}
+
+function buildTransactionCollectionPath(spaceId?: string): string {
+  return spaceId === undefined
+    ? "/transactions"
+    : `/spaces/${encodeURIComponent(spaceId)}/transactions`;
 }
 
 export { DashboardDataError, getDashboard };

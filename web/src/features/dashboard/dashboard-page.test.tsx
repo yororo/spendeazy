@@ -1,8 +1,11 @@
 // @vitest-environment jsdom
 
 import { cleanup, render, screen } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { ApiClientProvider } from "@/shared/api";
 
 import { DashboardPage } from "./dashboard-page";
 
@@ -55,13 +58,30 @@ vi.mock("./dashboard-queries", () => ({
 
 afterEach(cleanup);
 
+const apiConfig = { baseUrl: "https://api.example.test" };
+const getToken = vi.fn(async () => null);
+
+function renderDashboard() {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+
+  const view = render(
+    <ApiClientProvider config={apiConfig} getToken={getToken}>
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <DashboardPage />
+        </MemoryRouter>
+      </QueryClientProvider>
+    </ApiClientProvider>,
+  );
+
+  return { ...view, queryClient };
+}
+
 describe("DashboardPage", () => {
   it("removes categories from the previous Reporting Period while the next period loads", () => {
-    const view = render(
-      <MemoryRouter>
-        <DashboardPage />
-      </MemoryRouter>,
-    );
+    const view = renderDashboard();
     expect(
       screen.getByRole("img", { name: "Housing: 100% of monthly spending" }),
     ).toBeTruthy();
@@ -70,9 +90,13 @@ describe("DashboardPage", () => {
     dashboardState.query.isFetching = true;
     dashboardState.query.isPlaceholderData = true;
     view.rerender(
-      <MemoryRouter>
-        <DashboardPage />
-      </MemoryRouter>,
+      <ApiClientProvider config={apiConfig} getToken={getToken}>
+        <QueryClientProvider client={view.queryClient}>
+          <MemoryRouter>
+            <DashboardPage />
+          </MemoryRouter>
+        </QueryClientProvider>
+      </ApiClientProvider>,
     );
 
     expect(

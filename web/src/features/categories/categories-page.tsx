@@ -43,6 +43,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { CategoryBadge } from "@/shared/category";
+import { useAccessibleSpacesQuery } from "@/shared/api";
 import { formatMoney } from "@/shared/money";
 import {
   ReportingPeriodFilter,
@@ -52,7 +53,6 @@ import { MetricCard } from "@/shared/ui";
 
 import { filterCategoriesByName } from "./categories-filter";
 import {
-  useAccessibleSpacesQuery,
   useCategoriesOverviewQuery,
   useUpdateCategoryStatusMutation,
 } from "./categories-queries";

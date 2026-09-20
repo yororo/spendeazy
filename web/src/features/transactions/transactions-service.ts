@@ -6,34 +6,26 @@ import {
   requireApiResponse,
   requireMonthlyCategorySummary,
   requireTransactionHistoryPage,
-  type ApiGetClient,
+  requireTransactionResponse,
+  type ApiClient,
   type CategorySummaryResponse,
+  type TransactionResponse,
   type TransactionHistoryPage,
 } from "@/shared/api";
 import {
   isCategoryCatalog,
   projectCategoryCatalog,
   type CategoryCatalogItem,
-  type CategoryColor,
-  type CategoryKey,
 } from "@/shared/category";
 import {
   formatReportingPeriod,
   getReportingPeriodBounds,
   type ReportingPeriod,
 } from "@/shared/reporting-period";
-import { projectTransactionHistoryItem } from "@/shared/transaction";
-
-interface Transaction {
-  id: string;
-  date: string;
-  description: string;
-  category: CategoryKey;
-  categoryLabel: string;
-  categoryColor: CategoryColor | null;
-  account: string;
-  amount: number;
-}
+import {
+  projectTransactionHistoryItem,
+  type TransactionProjection,
+} from "@/shared/transaction";
 
 interface TransactionSummary {
   period: string;
@@ -45,15 +37,38 @@ interface ListTransactionsParams {
   period: ReportingPeriod;
   pageSize: number;
   cursor?: string | null;
+  spaceId?: string;
 }
 
 interface TransactionPage {
-  items: readonly Transaction[];
+  items: readonly TransactionProjection[];
   nextCursor: string | null;
   summary: TransactionSummary;
+  categories: readonly CategoryCatalogItem[];
 }
 
-type TransactionsApiClient = ApiGetClient;
+interface CreateTransactionInput {
+  readonly spaceId?: string;
+  readonly purchaseDate: string;
+  readonly description: string;
+  readonly amount: string;
+  readonly categoryId?: string | null;
+}
+
+interface UpdateTransactionInput {
+  readonly spaceId?: string;
+  readonly transactionId: string;
+  readonly purchaseDate?: string;
+  readonly description?: string;
+  readonly amount?: string;
+  readonly categoryId?: string | null;
+  readonly updatedAt?: string;
+}
+
+type TransactionsApiClient = Pick<
+  ApiClient,
+  "get" | "post" | "patch" | "delete"
+>;
 
 class TransactionsDataError extends Error {
   readonly kind = "data" as const;
@@ -110,18 +125,19 @@ async function listTransactions(
   const [categoriesResponse, summaryResponse, transactionsResponse] =
     await Promise.all([
       requireApiResponse(
-        await apiClient.get<readonly CategoryCatalogItem[]>("/categories", {
-          signal,
-        }),
+        await apiClient.get<readonly CategoryCatalogItem[]>(
+          buildCategoryCollectionPath(params.spaceId),
+          { signal },
+        ),
         "Category catalog",
         createTransactionsDataError,
       ),
       apiClient.get<CategorySummaryResponse>(
-        buildMonthlyCategorySummaryPath(params.period),
+        buildMonthlyCategorySummaryPath(params.period, params.spaceId),
         { signal },
       ),
-      apiClient.get<TransactionHistoryPage>(
-        buildApiPath("/transactions", {
+        apiClient.get<TransactionHistoryPage>(
+        buildApiPath(buildTransactionCollectionPath(params.spaceId), {
           fromDate,
           toDate,
           pageSize: String(pageSize),
@@ -167,14 +183,117 @@ async function listTransactions(
     ),
     nextCursor: transactionPage.nextCursor,
     summary: createTransactionSummary(categorySummary, params.period),
+    categories,
   };
 }
 
-export { TransactionsDataError, listTransactions };
+async function createTransaction(
+  apiClient: TransactionsApiClient,
+  input: CreateTransactionInput,
+): Promise<TransactionResponse> {
+  const response = await apiClient.post<unknown>(
+    buildTransactionCollectionPath(input.spaceId),
+    {
+      purchaseDate: input.purchaseDate,
+      description: input.description,
+      amount: input.amount,
+      ...(input.categoryId === undefined
+        ? {}
+        : { categoryId: input.categoryId }),
+    },
+    { expectedStatuses: [201] },
+  );
+
+  return requireTransactionResponse(
+    requireApiResponse(
+      response,
+      "created Transaction",
+      createTransactionsDataError,
+    ),
+    "created Transaction",
+    createTransactionsDataError,
+  );
+}
+
+async function updateTransaction(
+  apiClient: TransactionsApiClient,
+  input: UpdateTransactionInput,
+): Promise<TransactionResponse> {
+  const response = await apiClient.patch<unknown>(
+    buildTransactionPath(input.transactionId, input.spaceId),
+    {
+      ...(input.purchaseDate === undefined
+        ? {}
+        : { purchaseDate: input.purchaseDate }),
+      ...(input.description === undefined
+        ? {}
+        : { description: input.description }),
+      ...(input.amount === undefined ? {} : { amount: input.amount }),
+      ...(input.categoryId === undefined
+        ? {}
+        : { categoryId: input.categoryId }),
+      ...(input.updatedAt === undefined ? {} : { updatedAt: input.updatedAt }),
+    },
+    { expectedStatuses: [200] },
+  );
+
+  return requireTransactionResponse(
+    requireApiResponse(
+      response,
+      "updated Transaction",
+      createTransactionsDataError,
+    ),
+    "updated Transaction",
+    createTransactionsDataError,
+  );
+}
+
+async function deleteTransaction(
+  apiClient: TransactionsApiClient,
+  transactionId: string,
+  spaceId?: string,
+  updatedAt?: string,
+): Promise<void> {
+  await apiClient.delete(buildTransactionPath(transactionId, spaceId), {
+    ...(updatedAt === undefined
+      ? {}
+      : { headers: { "If-Match": updatedAt } }),
+    expectedStatuses: [204],
+  });
+}
+
+function buildCategoryCollectionPath(spaceId?: string): string {
+  return spaceId === undefined
+    ? "/categories"
+    : `/spaces/${encodeURIComponent(spaceId)}/categories`;
+}
+
+function buildTransactionCollectionPath(spaceId?: string): string {
+  return spaceId === undefined
+    ? "/transactions"
+    : `/spaces/${encodeURIComponent(spaceId)}/transactions`;
+}
+
+function buildTransactionPath(transactionId: string, spaceId?: string): string {
+  return `${buildTransactionCollectionPath(spaceId)}/${encodeURIComponent(transactionId)}`;
+}
+
+export {
+  TransactionsDataError,
+  buildCategoryCollectionPath,
+  buildTransactionCollectionPath,
+  buildTransactionPath,
+  createTransaction,
+  deleteTransaction,
+  listTransactions,
+  updateTransaction,
+};
 export type {
+  CreateTransactionInput,
   ListTransactionsParams,
-  Transaction,
   TransactionPage,
   TransactionSummary,
+  TransactionProjection as Transaction,
   TransactionsApiClient,
+  UpdateTransactionInput,
 };

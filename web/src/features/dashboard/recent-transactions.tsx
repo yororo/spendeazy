@@ -13,9 +13,13 @@ import type { Transaction } from "./dashboard-service";
 
 interface RecentTransactionsProps {
   transactions: readonly Transaction[];
+  showAttribution?: boolean;
 }
 
-function RecentTransactions({ transactions }: RecentTransactionsProps) {
+function RecentTransactions({
+  transactions,
+  showAttribution = false,
+}: RecentTransactionsProps) {
   return (
     <>
       <div className="md:hidden">
@@ -41,6 +45,11 @@ function RecentTransactions({ transactions }: RecentTransactionsProps) {
                     {transaction.categoryLabel}
                   </CategoryBadge>
                 </div>
+                {showAttribution && transaction.addedByUserId !== undefined && (
+                  <p className="text-xs text-muted-foreground">
+                    Added by User {transaction.addedByUserId}
+                  </p>
+                )}
               </li>
             ))}
           </ul>
@@ -77,6 +86,11 @@ function RecentTransactions({ transactions }: RecentTransactionsProps) {
                 </TableCell>
                 <TableCell className="min-w-56 whitespace-normal">
                   <p className="font-medium">{transaction.description}</p>
+                  {showAttribution && transaction.addedByUserId !== undefined && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Added by User {transaction.addedByUserId}
+                    </p>
+                  )}
                 </TableCell>
                 <TableCell>
                   <CategoryBadge category={transaction.category} color={transaction.categoryColor ?? undefined}>

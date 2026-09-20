@@ -35,10 +35,14 @@ export type {
   CategorySummaryResponse,
   CategorySummaryTotals,
 } from "./category-summary";
-export { requireTransactionHistoryPage } from "./transaction-history";
+export {
+  requireTransactionHistoryPage,
+  requireTransactionResponse,
+} from "./transaction-history";
 export type {
   TransactionHistoryItem,
   TransactionHistoryPage,
+  TransactionResponse,
 } from "./transaction-history";
 export {
   getAccessibleSpaces,
@@ -46,6 +50,7 @@ export {
   requireAccessibleSpaces,
 } from "./space";
 export type { AccessibleSpace } from "./space";
+export { useAccessibleSpacesQuery } from "./space-queries";
 export type {
   ApiClient,
   ApiAuthenticationFailureHandler,

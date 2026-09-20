@@ -8,6 +8,19 @@ interface TransactionHistoryItem {
   readonly amount: string;
   readonly source: "manual" | "imported";
   readonly statementImportId: string | null;
+  readonly updatedAt?: string;
+  readonly addedByUserId?: string;
+}
+
+interface TransactionResponse {
+  readonly id: string;
+  readonly categoryId: string | null;
+  readonly purchaseDate: string;
+  readonly description: string;
+  readonly amount: string;
+  readonly source: "manual" | "imported";
+  readonly updatedAt: string;
+  readonly addedByUserId?: string;
 }
 
 interface TransactionHistoryPage {
@@ -27,7 +40,25 @@ function isTransactionHistoryItem(
     typeof value.amount === "string" &&
     (value.source === "manual" || value.source === "imported") &&
     (value.statementImportId === null ||
-      typeof value.statementImportId === "string")
+      typeof value.statementImportId === "string") &&
+    (value.updatedAt === undefined || typeof value.updatedAt === "string") &&
+    (value.addedByUserId === undefined ||
+      typeof value.addedByUserId === "string")
+  );
+}
+
+function isTransactionResponse(value: unknown): value is TransactionResponse {
+  return (
+    isRecord(value) &&
+    typeof value.id === "string" &&
+    (value.categoryId === null || typeof value.categoryId === "string") &&
+    typeof value.purchaseDate === "string" &&
+    typeof value.description === "string" &&
+    typeof value.amount === "string" &&
+    (value.source === "manual" || value.source === "imported") &&
+    typeof value.updatedAt === "string" &&
+    (value.addedByUserId === undefined ||
+      typeof value.addedByUserId === "string")
   );
 }
 
@@ -48,5 +79,21 @@ function requireTransactionHistoryPage(
   return response as unknown as TransactionHistoryPage;
 }
 
-export { requireTransactionHistoryPage };
-export type { TransactionHistoryItem, TransactionHistoryPage };
+function requireTransactionResponse(
+  response: unknown,
+  description: string,
+  createError: ApiDataErrorFactory,
+): TransactionResponse {
+  if (!isTransactionResponse(response)) {
+    throw createError(`The API returned an invalid ${description}.`);
+  }
+
+  return response;
+}
+
+export { requireTransactionHistoryPage, requireTransactionResponse };
+export type {
+  TransactionHistoryItem,
+  TransactionHistoryPage,
+  TransactionResponse,
+};

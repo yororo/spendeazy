@@ -1,12 +1,36 @@
 # Spendeazy
 
-Spendeazy is a private personal-finance application for understanding spending, importing account statements, and assigning expenses to Categories with Budgets. It models expenses in one currency for independent Users.
+Spendeazy is a private personal-finance application for understanding spending, importing account statements, and assigning expenses to Categories with Budgets. It models expenses in one currency within Personal and Shared Spaces.
 
 ## Language
 
 **User**:
-The authenticated person using Spendeazy, whose Categories, Budgets, Transactions, Category Rules, and Committed Statement Imports belong only to them. Each User has one sign-in identity.
+The authenticated person using Spendeazy, with one sign-in identity, a private Personal Space, and membership in at most one active Shared Space.
 _Avoid_: API User, internal user, account holder
+
+**Space**:
+The separate financial context to which Categories, Budgets, Transactions, Category Rules, and Committed Statement Imports belong.
+_Avoid_: Account, ledger, workspace
+
+**Personal Space**:
+A Space accessible only to its User, whose financial data remains separate from Shared Spaces.
+_Avoid_: Individual account, private account
+
+**Shared Space**:
+A Space created when an invitation is accepted, in which two Users have equal authority to manage shared financial data.
+_Avoid_: Shared account, family account, household account
+
+**Archived Shared Space**:
+A former Shared Space preserved as read-only history for both members after either leaves; it does not count toward either User's active Shared Space limit.
+_Avoid_: Deleted Space, abandoned account
+
+**Shared Space Invitation**:
+An invitation sent to an email address to form a Shared Space, including when its recipient has not yet registered with Spendeazy. Acceptance requires registration and a signed-in User with the invited email verified.
+_Avoid_: Account invitation, membership link
+
+**Added By**:
+The User who originally recorded a Transaction manually or confirmed it through Statement Import; this attribution remains unchanged by later edits and does not identify who paid.
+_Avoid_: Owner, payer
 
 **Dashboard**:
 The authenticated overview of recent spending, monthly totals, budget usage, and recent transactions.
@@ -93,7 +117,7 @@ The calendar month and year used to scope Dashboard, Transaction, and Category f
 _Avoid_: Active Period, Date Filter
 
 **Default Category**:
-A Category copied from the maintained default catalog when a new User is provisioned. Default describes its origin only; subsequent catalog changes do not alter existing Users' Categories.
+A Category copied from the maintained default catalog when a Personal or Shared Space is created. Default describes its origin only; subsequent catalog changes do not alter existing Spaces' Categories.
 _Avoid_: System category, built-in category
 
 **Uncategorized**:
@@ -101,9 +125,9 @@ The state of a Transaction with no Category assignment. During Statement Import,
 _Avoid_: Unassigned, categoryless
 
 **Exact File Duplicate**:
-A statement file whose content hash matches a Committed Statement Import already owned by the same User.
+A statement file whose content hash matches a Committed Statement Import already in the destination Space.
 _Avoid_: Duplicate statement
 
 **Probable Duplicate**:
-An imported Transaction whose fingerprint matches another reviewed row or a previously imported Transaction for the same User. It is a review signal, not proof that the Transactions are identical.
+An imported Transaction whose fingerprint matches another reviewed row or a previously imported Transaction in the destination Space. It is a review signal, not proof that the Transactions are identical.
 _Avoid_: Duplicate transaction

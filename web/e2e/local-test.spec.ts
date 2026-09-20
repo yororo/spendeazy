@@ -21,7 +21,9 @@ test("provisions the fixed fictional User with Default Categories", async ({
     page.getByRole("heading", { name: "Budget overview" }),
   ).toBeVisible();
   await expect(
-    page.getByText("Food & Drink", { exact: true }).first(),
+    page
+      .getByRole("table", { name: "Desktop Budget Categories" })
+      .getByText("Food & Drink", { exact: true }),
   ).toBeVisible();
 });
 
@@ -39,7 +41,9 @@ test("creates a fresh User with real first-time provisioning", async ({
     page.getByRole("heading", { name: "Budget overview" }),
   ).toBeVisible();
   await expect(
-    page.getByText("Food & Drink", { exact: true }).first(),
+    page
+      .getByRole("table", { name: "Desktop Budget Categories" })
+      .getByText("Food & Drink", { exact: true }),
   ).toBeVisible();
 
   const firstFreshUser = await page
@@ -81,7 +85,7 @@ test("switches Users without exposing stale browser data", async ({ page }) => {
 
   await page.reload();
   await expect(
-    page.getByText(description, { exact: true }).first(),
+    page.getByRole("table").getByText(description, { exact: true }),
   ).toBeVisible();
 
   const panel = page.getByTestId("local-test-panel");
@@ -99,7 +103,7 @@ test("switches Users without exposing stale browser data", async ({ page }) => {
     "Local Test User",
   );
   await expect(
-    page.getByText(description, { exact: true }).first(),
+    page.getByRole("table").getByText(description, { exact: true }),
   ).toBeVisible();
   expect(created.body).toMatchObject({ description });
 });
@@ -303,7 +307,7 @@ test("revokes a session, clears private data, and allows deliberate re-entry", a
     page.getByRole("heading", { name: "Your spending" }),
   ).toBeVisible();
   await expect(
-    page.getByText(privateDescription, { exact: true }).first(),
+    page.getByRole("table").getByText(privateDescription, { exact: true }),
   ).toBeVisible();
 
   const panel = page.getByTestId("local-test-panel");

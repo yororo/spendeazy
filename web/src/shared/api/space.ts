@@ -18,6 +18,14 @@ interface AccessibleSpace {
 
 type SpaceClient = Pick<ApiClient, "get">;
 
+function getArchivedSpaces(
+  spaces: readonly AccessibleSpace[],
+): readonly AccessibleSpace[] {
+  return spaces.filter(
+    (space) => space.kind === "shared" && space.status === "archived",
+  );
+}
+
 function isAccessibleSpace(value: unknown): value is AccessibleSpace {
   return (
     isRecord(value) &&
@@ -66,5 +74,10 @@ async function getAccessibleSpaces(
   return requireAccessibleSpaces(response);
 }
 
-export { getAccessibleSpaces, isAccessibleSpace, requireAccessibleSpaces };
+export {
+  getAccessibleSpaces,
+  getArchivedSpaces,
+  isAccessibleSpace,
+  requireAccessibleSpaces,
+};
 export type { AccessibleSpace, SpaceMember };

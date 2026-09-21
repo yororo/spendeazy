@@ -21,6 +21,10 @@ import {
 import { AppSessionProvider, type AppSession } from "@/shared/session";
 
 vi.mock("@/shared/api", () => ({
+  getArchivedSpaces: (spaces: readonly { kind: string; status: string }[]) =>
+    spaces.filter(
+      (space) => space.kind === "shared" && space.status === "archived",
+    ),
   useAccessibleSpacesQuery: () => ({
     isError: false,
     isPending: false,
@@ -45,6 +49,18 @@ vi.mock("@/shared/api", () => ({
         members: [
           { id: "user-1", name: "Ada Lovelace" },
           { id: "user-2", name: "Grace Hopper" },
+        ],
+        createdAt: "2026-09-01T00:00:00.000Z",
+        updatedAt: "2026-09-01T00:00:00.000Z",
+      },
+      {
+        id: "archived-1",
+        kind: "shared",
+        status: "archived",
+        accessLevel: "read",
+        members: [
+          { id: "user-1", name: "Ada Lovelace" },
+          { id: "user-3", name: "Katherine Johnson" },
         ],
         createdAt: "2026-09-01T00:00:00.000Z",
         updatedAt: "2026-09-01T00:00:00.000Z",
@@ -80,6 +96,108 @@ afterEach(() => {
 });
 
 describe("AppShell", () => {
+  it("adds a separate History destination to desktop and mobile navigation when archives exist", () => {
+    render(
+      <AppSessionProvider session={session}>
+        <MemoryRouter initialEntries={["/transactions"]}>
+          <Routes>
+            <Route element={<AppShell />}>
+              <Route path="/transactions" element={<p>Transactions page</p>} />
+              <Route path="/history" element={<p>History page</p>} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      </AppSessionProvider>,
+    );
+
+    expect(screen.getAllByRole("link", { name: "History" })).toHaveLength(1);
+
+    fireEvent.click(screen.getByRole("link", { name: "History" }));
+    expect(screen.getByText("History page")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Open navigation" }));
+    expect(
+      within(screen.getByRole("dialog", { name: "Primary navigation" })).getByRole(
+        "link",
+        { name: "History" },
+      ),
+    ).toBeTruthy();
+  });
+
+  it("keeps archived history outside active Space restoration and switching", async () => {
+    function CurrentLocation() {
+      const location = useLocation();
+      return <p>{`${location.pathname}${location.search}`}</p>;
+    }
+
+    const view = render(
+      <AppSessionProvider session={session}>
+        <MemoryRouter initialEntries={["/history?spaceId=archived-1"]}>
+          <Routes>
+            <Route element={<AppShell />}>
+              <Route path="/history" element={<CurrentLocation />} />
+              <Route path="/" element={<CurrentLocation />} />
+              <Route path="/transactions" element={<CurrentLocation />} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      </AppSessionProvider>,
+    );
+
+    expect(await screen.findByText("/history?spaceId=archived-1")).toBeTruthy();
+
+    fireEvent.click(
+      screen.getAllByRole("button", { name: /Active Space/u })[0]!,
+    );
+    fireEvent.click(
+      screen.getByRole("menuitemradio", {
+        name: /Personal.*Ada Lovelace/u,
+      }),
+    );
+    expect(screen.getByText("/")).toBeTruthy();
+
+    view.unmount();
+    localStorage.clear();
+    sessionStorage.clear();
+    render(
+      <AppSessionProvider session={session}>
+        <MemoryRouter initialEntries={["/transactions?spaceId=archived-1"]}>
+          <Routes>
+            <Route element={<AppShell />}>
+              <Route path="/transactions" element={<CurrentLocation />} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      </AppSessionProvider>,
+    );
+
+    expect(await screen.findByText("/transactions")).toBeTruthy();
+    expect(screen.queryByText("/transactions?spaceId=archived-1")).toBeNull();
+  });
+
+  it("does not carry the active Space query into the History destination", () => {
+    function CurrentLocation() {
+      const location = useLocation();
+      return <p>{`${location.pathname}${location.search}`}</p>;
+    }
+
+    render(
+      <AppSessionProvider session={session}>
+        <MemoryRouter initialEntries={["/transactions?spaceId=shared-1"]}>
+          <Routes>
+            <Route element={<AppShell />}>
+              <Route path="/transactions" element={<CurrentLocation />} />
+              <Route path="/history" element={<CurrentLocation />} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      </AppSessionProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("link", { name: "History" }));
+    expect(screen.getByText("/history")).toBeTruthy();
+  });
+
   it("switches the current page to Shared from the profile panel", () => {
     function CurrentLocation() {
       const location = useLocation();

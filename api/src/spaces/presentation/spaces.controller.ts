@@ -27,7 +27,7 @@ export class SpacesController {
   @ApiOperation({
     summary: 'List Spaces accessible to the authenticated User.',
     description:
-      'The authenticated session determines the User. Client-supplied User identifiers are ignored, and only active memberships with read access are returned. Each Space includes the member identity needed for an explicit switcher label.',
+      'The authenticated session determines the User. Client-supplied User identifiers are ignored, and all authorized memberships with read access are returned, including archived Shared Space history. Each Space includes the member identity needed for an explicit switcher or history label.',
   })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -46,7 +46,7 @@ export class SpacesController {
   async listSpaces(
     @Req() request: AuthenticatedRequest,
   ): Promise<SpaceResponseDto[]> {
-    const spaces = await this.spaceAccessService.listActiveAccessibleSpaces(
+    const spaces = await this.spaceAccessService.listAccessibleSpaces(
       requireAuthenticatedUserId(request),
     );
     return spaces.map(toSpaceResponse);

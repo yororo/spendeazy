@@ -46,6 +46,7 @@ export type {
 } from "./transaction-history";
 export {
   getAccessibleSpaces,
+  getArchivedSpaces,
   isAccessibleSpace,
   requireAccessibleSpaces,
 } from "./space";

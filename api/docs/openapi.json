@@ -1221,7 +1221,7 @@
     },
     "/api/v1/users/me/spaces": {
       "get": {
-        "description": "The authenticated session determines the User. Client-supplied User identifiers are ignored, and only active memberships with read access are returned. Each Space includes the member identity needed for an explicit switcher label.",
+        "description": "The authenticated session determines the User. Client-supplied User identifiers are ignored, and all authorized memberships with read access are returned, including archived Shared Space history. Each Space includes the member identity needed for an explicit switcher or history label.",
         "operationId": "Spaces_listSpaces",
         "parameters": [],
         "responses": {

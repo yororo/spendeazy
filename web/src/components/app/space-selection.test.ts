@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { AccessibleSpace } from "@/shared/api";
+import { getArchivedSpaces, type AccessibleSpace } from "@/shared/api";
 
 import {
   buildCanonicalSpaceSearch,
@@ -63,6 +63,12 @@ describe("resolveSpaceSelection", () => {
 
   it("uses Personal when there is no remembered selection", () => {
     expect(resolveSpaceSelection(spaces, null, null)).toBe("10");
+  });
+});
+
+describe("getArchivedSpaces", () => {
+  it("keeps archived Shared Spaces available for history without making them active choices", () => {
+    expect(getArchivedSpaces(spaces)).toEqual([spaces[2]]);
   });
 });
 

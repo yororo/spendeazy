@@ -8,11 +8,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { useAccessibleSpacesQuery, type AccessibleSpace } from "@/shared/api";
+import { useAccessibleSpacesQuery } from "@/shared/api";
 import { useNavigationGuard } from "@/shared/navigation";
 import { useAppSession } from "@/shared/session";
-import { getSpaceIdentityLabel } from "@/shared/ui";
-import { getNameInitials } from "@/shared/user-name";
+import { getSpaceIdentityLabel, SpaceAvatarStack } from "@/shared/ui";
 import {
   buildCanonicalSpaceSearch,
   getActiveSpaces,
@@ -32,32 +31,34 @@ function SpaceSwitcher({ className, onNavigate }: SpaceSwitcherProps) {
   const { requestNavigation } = useNavigationGuard();
   const { user } = useAppSession();
   const currentSpaceId = new URLSearchParams(location.search).get("spaceId");
+  const isHistoryRoute = location.pathname === "/history";
   const activeSpaces = getActiveSpaces(spacesQuery.data ?? []);
   const personalSpace = getPersonalSpace(spacesQuery.data ?? []);
   const activeSpace =
-    activeSpaces.find((space) => space.id === currentSpaceId) ??
-    (currentSpaceId === null
-      ? personalSpace
-      : undefined);
+    activeSpaces.find((space) => space.id === currentSpaceId) ?? personalSpace;
   let activeLabel =
     currentSpaceId === null ? "Spaces unavailable" : "Space unavailable";
   if (activeSpace) {
     activeLabel = getSpaceIdentityLabel(activeSpace);
   } else if (spacesQuery.isPending) {
     activeLabel = "Loading Spaces…";
-  } else if (spacesQuery.isSuccess && spacesQuery.data.length === 0) {
+  } else if (spacesQuery.isSuccess && activeSpaces.length === 0) {
     activeLabel = "No active Spaces";
   }
 
   function switchSpace(spaceId: string) {
-    if (spaceId === (currentSpaceId ?? activeSpace?.id)) return;
+    if (!isHistoryRoute && spaceId === (currentSpaceId ?? activeSpace?.id)) {
+      return;
+    }
 
     const search = buildCanonicalSpaceSearch(
       location.search,
       spaceId,
       personalSpace?.id,
     );
-    const destination = `${location.pathname}${search}${location.hash}`;
+    const destination = isHistoryRoute
+      ? `/${buildCanonicalSpaceSearch("", spaceId, personalSpace?.id)}`
+      : `${location.pathname}${search}${location.hash}`;
     const completeSwitch = () => {
       persistSpaceSelection(user?.id, spaceId);
       navigate(destination);
@@ -76,7 +77,7 @@ function SpaceSwitcher({ className, onNavigate }: SpaceSwitcherProps) {
           className="focus-ledger flex min-h-10 w-full min-w-0 items-center gap-2 border border-sidebar-border px-2 text-left text-sidebar-foreground hover:bg-sidebar-foreground/10"
           aria-label={`Active Space: ${activeLabel}`}
         >
-          <SpaceAvatarStack space={activeSpace} />
+          <SpaceAvatarStack members={activeSpace?.members ?? []} />
           <span className="min-w-0 flex-1 truncate text-sm font-semibold leading-tight">
             {activeLabel}
           </span>
@@ -116,7 +117,7 @@ function SpaceSwitcher({ className, onNavigate }: SpaceSwitcherProps) {
                 onSelect={() => switchSpace(space.id)}
                 className="min-h-12 gap-3 text-sm normal-case tracking-normal"
               >
-                <SpaceAvatarStack space={space} />
+                <SpaceAvatarStack members={space.members} />
                 <span className="min-w-0 flex-1 truncate">
                   {getSpaceIdentityLabel(space)}
                 </span>
@@ -131,32 +132,6 @@ function SpaceSwitcher({ className, onNavigate }: SpaceSwitcherProps) {
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
-  );
-}
-
-function SpaceAvatarStack({ space }: { readonly space?: AccessibleSpace }) {
-  if (!space) {
-    return (
-      <span
-        aria-hidden="true"
-        className="grid size-6 shrink-0 place-content-center border border-sidebar-border bg-sidebar-foreground/10 text-xs font-bold"
-      >
-        ?
-      </span>
-    );
-  }
-
-  return (
-    <span className="flex shrink-0 -space-x-1" aria-hidden="true">
-      {space.members.slice(0, 2).map((member) => (
-        <span
-          key={member.id}
-          className="grid size-6 place-content-center border border-sidebar bg-primary text-xs font-bold text-primary-foreground"
-        >
-          {getNameInitials(member.name)}
-        </span>
-      ))}
-    </span>
   );
 }
 

@@ -50,6 +50,13 @@ const TransactionsPage = lazy(() =>
     default: TransactionsPage,
   })),
 );
+const ArchivedSpaceHistoryPage = lazy(() =>
+  import("@/features/transactions").then(
+    ({ ArchivedSpaceHistoryPage }) => ({
+      default: ArchivedSpaceHistoryPage,
+    }),
+  ),
+);
 
 function lazyRoute(page: ReactNode) {
   return <Suspense fallback={<RouteLoading />}>{page}</Suspense>;
@@ -165,6 +172,10 @@ function App({ signInElement }: AppProps = {}) {
             element={lazyRoute(<TransactionsRoute />)}
           />
           <Route path="categories" element={lazyRoute(<CategoriesRoute />)} />
+          <Route
+            path="history"
+            element={lazyRoute(<ArchivedSpaceHistoryPage />)}
+          />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Route>

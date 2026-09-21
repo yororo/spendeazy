@@ -30,7 +30,19 @@ describe('authenticated Space routes', () => {
     verifier = new FakeClerkTokenVerifier();
     spaceAccessService = {
       listActiveAccessibleSpaces: jest.fn().mockResolvedValue([spaceRecord()]),
-      listAccessibleSpaces: jest.fn().mockResolvedValue([spaceRecord()]),
+      listAccessibleSpaces: jest.fn().mockResolvedValue([
+        spaceRecord(),
+        spaceRecord({
+          id: '11',
+          kind: 'shared',
+          status: 'archived',
+          accessLevel: 'read',
+          members: [
+            { id: '42', name: 'Ada Lovelace' },
+            { id: '43', name: 'Grace Hopper' },
+          ],
+        }),
+      ]),
       requireReadAccess: jest.fn().mockResolvedValue(spaceRecord()),
     };
 
@@ -60,7 +72,7 @@ describe('authenticated Space routes', () => {
     await application.close();
   });
 
-  it('lists active identity-rich Spaces using the authenticated User rather than a caller-supplied User ID', async () => {
+  it('lists accessible identity-rich Spaces, including archived history, using the authenticated User rather than a caller-supplied User ID', async () => {
     const response = await request(application.getHttpServer() as Server)
       .get('/api/v1/users/me/spaces')
       .query({ userId: '99' })
@@ -78,10 +90,20 @@ describe('authenticated Space routes', () => {
         createdAt: '2026-09-20T00:00:00.000Z',
         updatedAt: '2026-09-20T00:00:00.000Z',
       },
+      {
+        id: '11',
+        kind: 'shared',
+        status: 'archived',
+        accessLevel: 'read',
+        members: [
+          { id: '42', name: 'Ada Lovelace' },
+          { id: '43', name: 'Grace Hopper' },
+        ],
+        createdAt: '2026-09-20T00:00:00.000Z',
+        updatedAt: '2026-09-20T00:00:00.000Z',
+      },
     ]);
-    expect(spaceAccessService.listActiveAccessibleSpaces).toHaveBeenCalledWith(
-      '42',
-    );
+    expect(spaceAccessService.listAccessibleSpaces).toHaveBeenCalledWith('42');
   });
 
   it('returns the same non-disclosing not-found response for an inaccessible Space', async () => {
@@ -123,7 +145,15 @@ class FakeClerkTokenVerifier implements ClerkTokenVerifier {
   }
 }
 
-function spaceRecord() {
+function spaceRecord(
+  overrides: Partial<{
+    id: string;
+    kind: 'personal' | 'shared';
+    status: 'active' | 'archived';
+    accessLevel: 'read' | 'write';
+    members: { id: string; name: string }[];
+  }> = {},
+) {
   const timestamp = new Date('2026-09-20T00:00:00.000Z');
   return {
     id: '10',
@@ -135,6 +165,7 @@ function spaceRecord() {
     members: [{ id: '42', name: 'Ada Lovelace' }],
     createdAt: timestamp,
     updatedAt: timestamp,
+    ...overrides,
   };
 }
 

@@ -1,4 +1,4 @@
-import { LogOutIcon } from "lucide-react";
+import { HistoryIcon, LogOutIcon } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 
 import { LedgerMark } from "@/components/app/ledger-mark";
@@ -12,6 +12,7 @@ import { getNameInitials } from "@/shared/user-name";
 
 interface PrimarySidebarProps {
   className?: string;
+  hasArchivedHistory?: boolean;
   onNavigate?: () => void;
 }
 
@@ -28,7 +29,20 @@ function getDisplayName(user: AppSessionUser | null): string {
   );
 }
 
-function PrimarySidebar({ className, onNavigate }: PrimarySidebarProps) {
+function getNavigationLinkClassName(isActive: boolean): string {
+  return cn(
+    "focus-ledger flex min-h-10 items-center gap-3 px-3 font-mono text-xs font-semibold tracking-wide transition-colors",
+    isActive
+      ? "bg-primary text-primary-foreground"
+      : "text-sidebar-foreground hover:bg-sidebar-foreground/10",
+  );
+}
+
+function PrimarySidebar({
+  className,
+  hasArchivedHistory = false,
+  onNavigate,
+}: PrimarySidebarProps) {
   const { signOut, user } = useAppSession();
   const navigate = useNavigate();
   const { requestNavigation } = useNavigationGuard();
@@ -68,14 +82,7 @@ function PrimarySidebar({ className, onNavigate }: PrimarySidebarProps) {
                   to={item.href}
                   end={item.href === "/"}
                   onClick={onNavigate}
-                  className={({ isActive }) =>
-                    cn(
-                      "focus-ledger flex min-h-10 items-center gap-3 px-3 font-mono text-xs font-semibold tracking-wide transition-colors",
-                      isActive
-                        ? "bg-primary text-primary-foreground"
-                        : "text-sidebar-foreground hover:bg-sidebar-foreground/10",
-                    )
-                  }
+                  className={({ isActive }) => getNavigationLinkClassName(isActive)}
                 >
                   <Icon className="size-4" aria-hidden="true" />
                   {item.label}
@@ -83,6 +90,19 @@ function PrimarySidebar({ className, onNavigate }: PrimarySidebarProps) {
               </li>
             );
           })}
+          {hasArchivedHistory && (
+            <li>
+              <NavLink
+                to="/history"
+                end
+                onClick={onNavigate}
+                className={({ isActive }) => getNavigationLinkClassName(isActive)}
+              >
+                <HistoryIcon className="size-4" aria-hidden="true" />
+                History
+              </NavLink>
+            </li>
+          )}
         </ul>
       </nav>
 

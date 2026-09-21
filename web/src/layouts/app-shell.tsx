@@ -23,7 +23,7 @@ import {
   NavigationGuardProvider,
   useNavigationGuard,
 } from "@/shared/navigation";
-import { useAccessibleSpacesQuery } from "@/shared/api";
+import { getArchivedSpaces, useAccessibleSpacesQuery } from "@/shared/api";
 import { useAppSession } from "@/shared/session";
 import {
   Sheet,
@@ -39,6 +39,7 @@ const pageTitles: Record<string, string> = {
   "/imports": "Statement Import · Spendeazy",
   "/transactions": "Transactions · Spendeazy",
   "/categories": "Budget overview · Spendeazy",
+  "/history": "Space history · Spendeazy",
 };
 
 function AppShell() {
@@ -57,11 +58,15 @@ function AppShellContent() {
   const spacesQuery = useAccessibleSpacesQuery(true);
   const location = useLocation();
   const { pathname } = location;
+  const isHistoryRoute = pathname === "/history";
   const navigate = useNavigate();
   const { requestNavigation } = useNavigationGuard();
   const rememberedSpaceIds = readRememberedSpaceIds(user?.id);
   const personalSpace = getPersonalSpace(spacesQuery.data ?? []);
-  const requestedSpaceId = getRequestedSpaceId(location.search);
+  const hasArchivedHistory = getArchivedSpaces(spacesQuery.data ?? []).length > 0;
+  const requestedSpaceId = isHistoryRoute
+    ? null
+    : getRequestedSpaceId(location.search);
   const rememberedSpaceId =
     rememberedSpaceIds.tab ?? rememberedSpaceIds.device;
   const selectedSpaceId = resolveSpaceSelection(
@@ -69,8 +74,9 @@ function AppShellContent() {
     requestedSpaceId,
     rememberedSpaceId,
   );
-  const canonicalSearch =
-    personalSpace && selectedSpaceId
+  const canonicalSearch = isHistoryRoute
+    ? location.search
+    : personalSpace && selectedSpaceId
       ? buildCanonicalSpaceSearch(
           location.search,
           selectedSpaceId,
@@ -78,6 +84,7 @@ function AppShellContent() {
         )
       : location.search;
   const selectionNeedsNavigation =
+    !isHistoryRoute &&
     spacesQuery.isSuccess &&
     personalSpace !== undefined &&
     selectedSpaceId !== undefined &&
@@ -85,6 +92,7 @@ function AppShellContent() {
 
   useEffect(() => {
     if (
+      isHistoryRoute ||
       !spacesQuery.isSuccess ||
       !personalSpace ||
       !selectedSpaceId ||
@@ -109,6 +117,7 @@ function AppShellContent() {
     personalSpace,
     selectedSpaceId,
     spacesQuery.isSuccess,
+    isHistoryRoute,
     user?.id,
   ]);
 
@@ -146,7 +155,10 @@ function AppShellContent() {
     }
 
     const anchorPath = `${destination.pathname}${destination.search}${destination.hash}`;
-    const activeSpaceId = new URLSearchParams(location.search).get("spaceId");
+    const activeSpaceId =
+      isHistoryRoute || destination.pathname === "/history"
+        ? null
+        : new URLSearchParams(location.search).get("spaceId");
     if (activeSpaceId && !destination.searchParams.has("spaceId")) {
       destination.searchParams.set("spaceId", activeSpaceId);
     }
@@ -201,7 +213,10 @@ function AppShellContent() {
       onClickCapture={handleNavigationClickCapture}
     >
       <aside className="hidden h-screen w-56 shrink-0 self-start lg:sticky lg:top-0 lg:block">
-        <PrimarySidebar className="h-full" />
+        <PrimarySidebar
+          className="h-full"
+          hasArchivedHistory={hasArchivedHistory}
+        />
       </aside>
 
       <header className="compact-app-header fixed inset-x-0 top-0 z-40 flex items-center justify-between gap-2 bg-sidebar text-sidebar-foreground lg:hidden">
@@ -236,6 +251,7 @@ function AppShellContent() {
               </SheetHeader>
               <PrimarySidebar
                 className="h-dvh flex-1 overflow-hidden pt-[max(1.75rem,env(safe-area-inset-top,0px))] pb-[max(1.75rem,env(safe-area-inset-bottom,0px))]"
+                hasArchivedHistory={hasArchivedHistory}
                 onNavigate={() => setNavigationOpen(false)}
               />
             </SheetContent>

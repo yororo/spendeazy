@@ -30,6 +30,11 @@ import type {
   StatementImportConfirmationContext,
   StatementImportConfirmationUnitOfWork,
 } from './statement-import-confirmation';
+import type {
+  NewTransactionActivity,
+  TransactionActivityRecord,
+  TransactionActivityStore,
+} from '../../transactions/application/transaction-activity-store';
 import { ApplicationError } from '../../errors/application-error';
 import { UserNotFoundError } from '../../users/application/user-errors';
 import type { UserRecord, UserStore } from '../../users/application/user-store';
@@ -41,11 +46,13 @@ describe('StatementImportsService', () => {
     const categories = new TransactionCategoryStoreFake([
       categoryRecord({ id: '42' }),
     ]);
+    const transactionActivities = new TransactionActivityStoreFake();
     const unitOfWork = new UnitOfWorkFake({
       users: userStore(),
       statementImports,
       importedTransactions,
       categories,
+      transactionActivities,
     });
     const service = new StatementImportsService(statementImports, unitOfWork);
 
@@ -91,6 +98,22 @@ describe('StatementImportsService', () => {
         }),
       ]),
     );
+    expect(transactionActivities.createdInputs).toEqual([
+      {
+        transactionId: '1',
+        spaceId: '7',
+        actorUserId: '7',
+        type: 'created',
+        occurredAt: new Date('2026-08-29T00:00:00.000Z'),
+      },
+      {
+        transactionId: '2',
+        spaceId: '7',
+        actorUserId: '7',
+        type: 'created',
+        occurredAt: new Date('2026-08-29T00:00:00.000Z'),
+      },
+    ]);
     expect(
       importedTransactions.createdInputs.every((input) =>
         /^[0-9a-f]{64}$/u.test(input.importFingerprint),
@@ -109,6 +132,7 @@ describe('StatementImportsService', () => {
       statementImports,
       importedTransactions,
       categories,
+      transactionActivities: new TransactionActivityStoreFake(),
       spaces: statementImports,
     });
     const service = new StatementImportsService(statementImports, unitOfWork);
@@ -152,6 +176,7 @@ describe('StatementImportsService', () => {
       statementImports,
       importedTransactions,
       categories: new TransactionCategoryStoreFake(),
+      transactionActivities: new TransactionActivityStoreFake(),
     });
     const service = new StatementImportsService(statementImports, unitOfWork);
 
@@ -194,6 +219,7 @@ describe('StatementImportsService', () => {
       categories: new TransactionCategoryStoreFake([
         categoryRecord({ id: '42' }),
       ]),
+      transactionActivities: new TransactionActivityStoreFake(),
     });
     const service = new StatementImportsService(statementImports, unitOfWork);
 
@@ -246,6 +272,7 @@ describe('StatementImportsService', () => {
       categories: new TransactionCategoryStoreFake([
         categoryRecord({ id: '42' }),
       ]),
+      transactionActivities: new TransactionActivityStoreFake(),
     });
     const service = new StatementImportsService(statementImports, unitOfWork);
 
@@ -274,6 +301,7 @@ describe('StatementImportsService', () => {
         categories: new TransactionCategoryStoreFake(
           category ? [categoryRecord(), category] : [categoryRecord()],
         ),
+        transactionActivities: new TransactionActivityStoreFake(),
       });
       const service = new StatementImportsService(statementImports, unitOfWork);
 
@@ -304,6 +332,7 @@ describe('StatementImportsService', () => {
       statementImports,
       importedTransactions,
       categories: new TransactionCategoryStoreFake(),
+      transactionActivities: new TransactionActivityStoreFake(),
     });
     const service = new StatementImportsService(statementImports, unitOfWork);
 
@@ -335,6 +364,7 @@ describe('StatementImportsService', () => {
       statementImports,
       importedTransactions,
       categories: new TransactionCategoryStoreFake(),
+      transactionActivities: new TransactionActivityStoreFake(),
     });
     const service = new StatementImportsService(statementImports, unitOfWork);
 
@@ -361,6 +391,7 @@ describe('StatementImportsService', () => {
       categories: new TransactionCategoryStoreFake([
         categoryRecord({ id: '42' }),
       ]),
+      transactionActivities: new TransactionActivityStoreFake(),
     });
     const service = new StatementImportsService(statementImports, unitOfWork);
 
@@ -615,6 +646,22 @@ class ImportedTransactionStoreFake implements SpaceImportedTransactionStore {
 
   updateCategoryInSpace(): Promise<ImportedTransactionRecord | null> {
     return Promise.resolve(null);
+  }
+}
+
+class TransactionActivityStoreFake implements TransactionActivityStore {
+  readonly createdInputs: NewTransactionActivity[] = [];
+
+  create(input: NewTransactionActivity): Promise<TransactionActivityRecord> {
+    this.createdInputs.push(input);
+    return Promise.resolve({
+      id: String(this.createdInputs.length),
+      ...input,
+    });
+  }
+
+  findByTransactionInSpace(): Promise<TransactionActivityRecord[]> {
+    return Promise.resolve([]);
   }
 }
 

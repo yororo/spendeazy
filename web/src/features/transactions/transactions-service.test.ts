@@ -4,8 +4,10 @@ import type { ApiRequestOptionsWithoutBody } from "@/shared/api";
 import type { ReportingPeriod } from "@/shared/reporting-period";
 
 import {
+  buildTransactionActivityPath,
   createTransaction as createTransactionRequest,
   deleteTransaction,
+  getTransactionActivity,
   listTransactions,
   updateTransaction,
   type TransactionsApiClient,
@@ -427,6 +429,54 @@ describe("Transaction mutations", () => {
       {
         headers: { "If-Match": "2026-08-31T00:00:00.000Z" },
         expectedStatuses: [204],
+      },
+    );
+  });
+});
+
+describe("Transaction activity", () => {
+  it("loads activity through the selected Space boundary", async () => {
+    const get = vi.fn(async () => [
+      {
+        id: "activity-1",
+        transactionId: "10",
+        type: "created",
+        actorUserId: "7",
+        occurredAt: "2026-08-31T00:00:00.000Z",
+      },
+    ]);
+    const apiClient = { get } as unknown as TransactionsApiClient;
+    const controller = new AbortController();
+
+    await expect(
+      getTransactionActivity(apiClient, "10", "space/7", controller.signal),
+    ).resolves.toEqual([
+      {
+        id: "activity-1",
+        transactionId: "10",
+        type: "created",
+        actorUserId: "7",
+        occurredAt: "2026-08-31T00:00:00.000Z",
+      },
+    ]);
+    expect(buildTransactionActivityPath("10", "space/7")).toBe(
+      "/spaces/space%2F7/transactions/10/activity",
+    );
+    expect(get).toHaveBeenCalledWith(
+      "/spaces/space%2F7/transactions/10/activity",
+      { signal: controller.signal },
+    );
+  });
+
+  it("rejects malformed activity responses", async () => {
+    const apiClient = {
+      get: vi.fn(async () => [{ id: "activity-1", type: "created" }]),
+    } as unknown as TransactionsApiClient;
+
+    await expect(getTransactionActivity(apiClient, "10")).rejects.toMatchObject(
+      {
+        kind: "data",
+        message: "The API returned invalid Transaction activity.",
       },
     );
   });

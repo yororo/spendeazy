@@ -1,6 +1,7 @@
 import { loadStatementImports } from "@/shared/account";
 import {
   buildApiPath,
+  isRecord,
   buildMonthlyCategorySummaryPath,
   getCategorySummaryTotals,
   requireApiResponse,
@@ -65,6 +66,14 @@ interface UpdateTransactionInput {
   readonly updatedAt?: string;
 }
 
+interface TransactionActivity {
+  readonly id: string;
+  readonly transactionId: string;
+  readonly type: "created";
+  readonly actorUserId: string;
+  readonly occurredAt: string;
+}
+
 type TransactionsApiClient = Pick<
   ApiClient,
   "get" | "post" | "patch" | "delete"
@@ -88,6 +97,30 @@ function requireCategoryCatalog(
   if (!isCategoryCatalog(response)) {
     throw createTransactionsDataError(
       "The API returned an invalid Category catalog.",
+    );
+  }
+
+  return response;
+}
+
+function isTransactionActivity(value: unknown): value is TransactionActivity {
+  return (
+    isRecord(value) &&
+    typeof value.id === "string" &&
+    typeof value.transactionId === "string" &&
+    value.type === "created" &&
+    typeof value.actorUserId === "string" &&
+    typeof value.occurredAt === "string" &&
+    Number.isFinite(Date.parse(value.occurredAt))
+  );
+}
+
+function requireTransactionActivity(
+  response: unknown,
+): readonly TransactionActivity[] {
+  if (!Array.isArray(response) || !response.every(isTransactionActivity)) {
+    throw createTransactionsDataError(
+      "The API returned invalid Transaction activity.",
     );
   }
 
@@ -216,6 +249,26 @@ async function createTransaction(
   );
 }
 
+async function getTransactionActivity(
+  apiClient: Pick<TransactionsApiClient, "get">,
+  transactionId: string,
+  spaceId?: string,
+  signal?: AbortSignal,
+): Promise<readonly TransactionActivity[]> {
+  const response = await apiClient.get<unknown>(
+    buildTransactionActivityPath(transactionId, spaceId),
+    { signal },
+  );
+
+  return requireTransactionActivity(
+    requireApiResponse(
+      response,
+      "Transaction activity",
+      createTransactionsDataError,
+    ),
+  );
+}
+
 async function updateTransaction(
   apiClient: TransactionsApiClient,
   input: UpdateTransactionInput,
@@ -279,19 +332,29 @@ function buildTransactionPath(transactionId: string, spaceId?: string): string {
   return `${buildTransactionCollectionPath(spaceId)}/${encodeURIComponent(transactionId)}`;
 }
 
+function buildTransactionActivityPath(
+  transactionId: string,
+  spaceId?: string,
+): string {
+  return `${buildTransactionPath(transactionId, spaceId)}/activity`;
+}
+
 export {
   TransactionsDataError,
   buildCategoryCollectionPath,
   buildTransactionCollectionPath,
+  buildTransactionActivityPath,
   buildTransactionPath,
   createTransaction,
   deleteTransaction,
+  getTransactionActivity,
   listTransactions,
   updateTransaction,
 };
 export type {
   CreateTransactionInput,
   ListTransactionsParams,
+  TransactionActivity,
   TransactionPage,
   TransactionSummary,
   TransactionProjection as Transaction,

@@ -30,6 +30,16 @@ describe('Space transaction API routes', () => {
       items: [transaction],
       nextCursor: null,
     }),
+    listTransactionActivityInSpace: jest.fn().mockResolvedValue([
+      {
+        id: '200',
+        transactionId: '100',
+        spaceId: '10',
+        actorUserId: '8',
+        type: 'created',
+        occurredAt: new Date(TRANSACTION_TIMESTAMP),
+      },
+    ]),
     createManualTransactionInSpace: jest.fn().mockResolvedValue(transaction),
     updateTransactionInSpace: jest.fn().mockResolvedValue(transaction),
     deleteManualTransactionInSpace: jest.fn().mockResolvedValue(undefined),
@@ -99,6 +109,27 @@ describe('Space transaction API routes', () => {
       '10',
       {},
     );
+
+    const activityResponse = await request(
+      application.getHttpServer() as Server,
+    )
+      .get('/api/v1/users/me/spaces/10/transactions/100/activity')
+      .set('Authorization', 'Bearer token-a')
+      .set('Accept', 'application/json');
+
+    expect(activityResponse.status).toBe(200);
+    expect(activityResponse.body).toEqual([
+      {
+        id: '200',
+        transactionId: '100',
+        type: 'created',
+        actorUserId: '8',
+        occurredAt: TRANSACTION_TIMESTAMP,
+      },
+    ]);
+    expect(
+      transactionsService.listTransactionActivityInSpace,
+    ).toHaveBeenCalledWith('10', '100');
 
     const createResponse = await request(application.getHttpServer() as Server)
       .post('/api/v1/users/me/spaces/10/transactions')

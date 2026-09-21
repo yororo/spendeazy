@@ -5,6 +5,7 @@ import { CategoryRuleEntity } from '../entities/category-rule.entity';
 import { CategoryEntity } from '../entities/category.entity';
 import { StatementImportEntity } from '../entities/statement-import.entity';
 import { TransactionEntity } from '../entities/transaction.entity';
+import { TransactionActivityEntity } from '../entities/transaction-activity.entity';
 import { UserEntity } from '../entities/user.entity';
 import { SpaceEntity } from '../entities/space.entity';
 import { normalizeMatchingText } from '../../normalization/matching-text';
@@ -94,6 +95,9 @@ async function removeExistingSeedUser(manager: EntityManager): Promise<void> {
     await manager.delete(UserEntity, { id: seedUser.id });
     return;
   }
+  await manager.delete(TransactionActivityEntity, {
+    spaceId: personalSpace.id,
+  });
   await manager.delete(TransactionEntity, { spaceId: personalSpace.id });
   await manager.delete(CategoryRuleEntity, { spaceId: personalSpace.id });
   await manager

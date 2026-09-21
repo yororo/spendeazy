@@ -22,6 +22,7 @@ describe('TypeOrmStatementImportConfirmationUnitOfWork', () => {
           'importedTransactions',
           'spaces',
           'statementImports',
+          'transactionActivities',
           'users',
         ]);
         return Promise.resolve(expectedResult);

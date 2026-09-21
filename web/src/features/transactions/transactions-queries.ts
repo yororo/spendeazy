@@ -1,4 +1,5 @@
 import {
+  useQuery,
   useInfiniteQuery,
   useMutation,
   useQueryClient,
@@ -19,9 +20,11 @@ import type { ReportingPeriod } from "@/shared/reporting-period";
 import {
   createTransaction,
   deleteTransaction,
+  getTransactionActivity,
   listTransactions,
   updateTransaction,
   type CreateTransactionInput,
+  type TransactionActivity,
   type UpdateTransactionInput,
 } from "./transactions-service";
 
@@ -52,6 +55,30 @@ function useTransactionsQuery(
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     enabled,
+    staleTime: queryPolicy.activityStaleTime,
+  });
+}
+
+function useTransactionActivityQuery(
+  transactionId: string | null,
+  spaceId?: string,
+  enabled = true,
+) {
+  const apiClient = useApiClient();
+  const scope = useFinancialQueryScope(spaceId);
+
+  return useQuery({
+    ...financialQueryOptions,
+    queryKey: buildFinancialQueryKey(
+      scope,
+      ["transaction-activity"],
+      transactionId,
+    ),
+    queryFn: ({ signal }) =>
+      transactionId === null
+        ? Promise.resolve([] as readonly TransactionActivity[])
+        : getTransactionActivity(apiClient, transactionId, spaceId, signal),
+    enabled: enabled && transactionId !== null,
     staleTime: queryPolicy.activityStaleTime,
   });
 }
@@ -127,6 +154,7 @@ function useDeleteTransactionMutation() {
 export {
   useCreateTransactionMutation,
   useDeleteTransactionMutation,
+  useTransactionActivityQuery,
   useTransactionsQuery,
   useUpdateTransactionMutation,
 };

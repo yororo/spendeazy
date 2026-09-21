@@ -17,9 +17,14 @@ describe('Transaction OpenAPI contract', () => {
       document.paths[`/${API_PREFIX}/users/me/transactions`];
     const itemPath =
       document.paths[`/${API_PREFIX}/users/me/transactions/{transactionId}`];
+    const activityPath =
+      document.paths[
+        `/${API_PREFIX}/users/me/transactions/{transactionId}/activity`
+      ];
     const createOperation = collectionPath?.post as OperationObject;
     const listOperation = collectionPath?.get as OperationObject;
     const getOperation = itemPath?.get as OperationObject;
+    const activityOperation = activityPath?.get as OperationObject;
     const updateOperation = itemPath?.patch as OperationObject;
     const deleteOperation = itemPath?.delete as OperationObject;
 
@@ -53,6 +58,11 @@ describe('Transaction OpenAPI contract', () => {
       tags: ['Transactions'],
       summary: 'Get a manual transaction.',
     });
+    expect(activityOperation).toMatchObject({
+      operationId: 'Transactions_listTransactionActivity',
+      tags: ['Transactions'],
+      summary: 'List activity for a Transaction.',
+    });
     expect(updateOperation).toMatchObject({
       operationId: 'Transactions_updateTransaction',
       tags: ['Transactions'],
@@ -83,6 +93,7 @@ describe('Transaction OpenAPI contract', () => {
     });
     expect(listOperation.requestBody).toBeUndefined();
     expect(getOperation.requestBody).toBeUndefined();
+    expect(activityOperation.requestBody).toBeUndefined();
     expect(deleteOperation.requestBody).toBeUndefined();
 
     expect(createOperation.responses['201']).toMatchObject({
@@ -124,6 +135,19 @@ describe('Transaction OpenAPI contract', () => {
         },
       },
     });
+    expect(activityOperation.responses['200']).toMatchObject({
+      description: 'Transaction activity events.',
+      content: {
+        'application/json': {
+          schema: {
+            type: 'array',
+            items: {
+              $ref: '#/components/schemas/TransactionActivityResponseDto',
+            },
+          },
+        },
+      },
+    });
     expect(updateOperation.responses['200']).toMatchObject({
       description: 'Transaction updated.',
       content: {
@@ -160,6 +184,7 @@ describe('Transaction OpenAPI contract', () => {
     for (const operation of [getOperation, updateOperation, deleteOperation]) {
       expectPathParameter(operation, 'transactionId');
     }
+    expectPathParameter(activityOperation, 'transactionId');
 
     expectTransactionQueryParameters(listOperation);
     expectResponseStatuses(createOperation, [
@@ -179,6 +204,15 @@ describe('Transaction OpenAPI contract', () => {
       '400',
       '401',
       '403',
+      '406',
+      '500',
+    ]);
+    expectResponseStatuses(activityOperation, [
+      '200',
+      '400',
+      '401',
+      '403',
+      '404',
       '406',
       '500',
     ]);
@@ -229,6 +263,14 @@ describe('Transaction OpenAPI contract', () => {
       '400': 'ValidationError',
       '401': 'UnauthenticatedError',
       '403': 'UserNotProvisionedError',
+      '406': 'NotAcceptableError',
+      '500': 'InternalError',
+    });
+    expectResponseReferences(activityOperation, {
+      '400': 'ValidationError',
+      '401': 'UnauthenticatedError',
+      '403': 'UserNotProvisionedError',
+      '404': 'NotFoundError',
       '406': 'NotAcceptableError',
       '500': 'InternalError',
     });
@@ -318,6 +360,27 @@ describe('Transaction OpenAPI contract', () => {
     expect(importedResponseSchema).not.toHaveProperty(
       'properties.importFingerprint',
     );
+
+    const activityResponseSchema = schema(
+      document,
+      'TransactionActivityResponseDto',
+    );
+    expect(activityResponseSchema).toMatchObject({
+      type: 'object',
+      additionalProperties: false,
+      required: ['id', 'transactionId', 'type', 'actorUserId', 'occurredAt'],
+      properties: {
+        id: { type: 'string', pattern: '^[1-9]\\d*$', example: '200' },
+        transactionId: {
+          type: 'string',
+          pattern: '^[1-9]\\d*$',
+          example: '100',
+        },
+        type: { type: 'string', enum: ['created'], example: 'created' },
+        actorUserId: { type: 'string', pattern: '^[1-9]\\d*$', example: '7' },
+        occurredAt: { type: 'string', format: 'date-time' },
+      },
+    });
 
     const pageSchema = schema(document, 'TransactionHistoryPageResponseDto');
     expect(pageSchema).toMatchObject({

@@ -35,6 +35,7 @@ import type {
   ManualTransactionRecord,
   TransactionRecord,
 } from '../application/transaction-store';
+import type { TransactionActivityRecord } from '../application/transaction-activity-store';
 import { TransactionsService } from '../application/transactions.service';
 import {
   CreateManualTransactionDto,
@@ -48,6 +49,7 @@ import {
   ManualTransactionHistoryResponseDto,
   ManualTransactionResponseDto,
   TransactionHistoryPageResponseDto,
+  TransactionActivityResponseDto,
 } from './transaction-response.dto';
 
 @Controller('users/me/transactions')
@@ -60,6 +62,7 @@ import {
   ManualTransactionHistoryResponseDto,
   ImportedTransactionHistoryResponseDto,
   TransactionHistoryPageResponseDto,
+  TransactionActivityResponseDto,
 )
 export class TransactionsController {
   constructor(
@@ -148,6 +151,46 @@ export class TransactionsController {
       items: page.items.map(toTransactionHistoryResponse),
       nextCursor: page.nextCursor,
     };
+  }
+
+  @Get(':transactionId/activity')
+  @ApiOperation({ summary: 'List activity for a Transaction.' })
+  @ApiParam({
+    name: 'transactionId',
+    description: 'Positive bigint identifier encoded as a decimal JSON string.',
+    schema: {
+      type: 'string',
+      pattern: POSITIVE_INTEGER_ID_PATTERN.source,
+      example: '42',
+    },
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Transaction activity events.',
+    type: TransactionActivityResponseDto,
+    isArray: true,
+  })
+  @ApiStandardErrorResponses(
+    'UnauthenticatedError',
+    'UserNotProvisionedError',
+    'ValidationError',
+    'NotAcceptableError',
+    'NotFoundError',
+    'InternalError',
+  )
+  async listTransactionActivity(
+    @Req() request: AuthenticatedRequest,
+    @Param() params: TransactionParamsDto,
+  ): Promise<TransactionActivityResponseDto[]> {
+    const userId = requireAuthenticatedUserId(request);
+    const personalSpace =
+      await this.spaceAccessService.requirePersonalSpace(userId);
+    const activity =
+      await this.transactionsService.listTransactionActivityInSpace(
+        personalSpace.id,
+        params.transactionId,
+      );
+    return activity.map(toTransactionActivityResponse);
   }
 
   @Get(':transactionId')
@@ -359,6 +402,18 @@ export function toTransactionHistoryResponse(
     ...response,
     source: 'imported',
     statementImportId: transaction.statementImportId,
+  };
+}
+
+export function toTransactionActivityResponse(
+  activity: TransactionActivityRecord,
+): TransactionActivityResponseDto {
+  return {
+    id: activity.id,
+    transactionId: activity.transactionId,
+    type: activity.type,
+    actorUserId: activity.actorUserId,
+    occurredAt: activity.occurredAt.toISOString(),
   };
 }
 

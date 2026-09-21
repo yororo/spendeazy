@@ -45,9 +45,11 @@ import {
   ManualTransactionHistoryResponseDto,
   ManualTransactionResponseDto,
   TransactionHistoryPageResponseDto,
+  TransactionActivityResponseDto,
 } from './transaction-response.dto';
 import {
   toManualTransactionResponse,
+  toTransactionActivityResponse,
   toTransactionHistoryResponse,
   toTransactionResponse,
 } from './transactions.controller';
@@ -65,6 +67,7 @@ import { SpaceTransactionParamsDto } from './space-transaction.dto';
   ManualTransactionHistoryResponseDto,
   ImportedTransactionHistoryResponseDto,
   TransactionHistoryPageResponseDto,
+  TransactionActivityResponseDto,
 )
 @ApiParam({
   name: 'spaceId',
@@ -167,6 +170,47 @@ export class SpaceTransactionsController {
       items: page.items.map(toTransactionHistoryResponse),
       nextCursor: page.nextCursor,
     };
+  }
+
+  @Get(':transactionId/activity')
+  @ApiOperation({
+    summary: 'List activity for a Transaction in an authorized Space.',
+  })
+  @ApiParam({
+    name: 'transactionId',
+    description: 'Positive bigint Transaction identifier encoded as a string.',
+    schema: {
+      type: 'string',
+      pattern: POSITIVE_INTEGER_ID_PATTERN.source,
+      example: '42',
+    },
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Transaction activity events.',
+    type: TransactionActivityResponseDto,
+    isArray: true,
+  })
+  @ApiStandardErrorResponses(
+    'UnauthenticatedError',
+    'UserNotProvisionedError',
+    'ValidationError',
+    'NotAcceptableError',
+    'NotFoundError',
+    'InternalError',
+  )
+  async listTransactionActivity(
+    @Req() request: AuthenticatedRequest,
+    @Param() params: SpaceTransactionParamsDto,
+  ): Promise<TransactionActivityResponseDto[]> {
+    const userId = requireAuthenticatedUserId(request);
+    await this.spaceAccessService.requireReadAccess(userId, params.spaceId);
+    const activity =
+      await this.transactionsService.listTransactionActivityInSpace(
+        params.spaceId,
+        params.transactionId,
+      );
+    return activity.map(toTransactionActivityResponse);
   }
 
   @Get(':transactionId')

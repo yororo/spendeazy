@@ -7,7 +7,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { PencilIcon, Trash2Icon } from "lucide-react";
+import { HistoryIcon, PencilIcon, Trash2Icon } from "lucide-react";
 import { CategoryBadge } from "@/shared/category";
 import { formatMoney } from "@/shared/money";
 
@@ -18,6 +18,7 @@ interface TransactionTableProps {
   emptyMessage: string;
   onEdit?: (transaction: Transaction) => void;
   onDelete?: (transaction: Transaction) => void;
+  onViewActivity?: (transaction: Transaction) => void;
   showAttribution?: boolean;
 }
 
@@ -26,9 +27,13 @@ function TransactionTable({
   emptyMessage,
   onEdit,
   onDelete,
+  onViewActivity,
   showAttribution = false,
 }: TransactionTableProps) {
-  const hasActions = onEdit !== undefined || onDelete !== undefined;
+  const hasActions =
+    onEdit !== undefined ||
+    onDelete !== undefined ||
+    onViewActivity !== undefined;
 
   return (
     <>
@@ -90,6 +95,17 @@ function TransactionTable({
                       >
                         <Trash2Icon aria-hidden="true" />
                         Delete
+                      </Button>
+                    )}
+                    {onViewActivity && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onViewActivity(transaction)}
+                      >
+                        <HistoryIcon aria-hidden="true" />
+                        Activity
                       </Button>
                     )}
                   </div>
@@ -175,6 +191,17 @@ function TransactionTable({
                           aria-label={`Delete ${transaction.description}`}
                         >
                           <Trash2Icon aria-hidden="true" />
+                        </Button>
+                      )}
+                      {onViewActivity && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => onViewActivity(transaction)}
+                          aria-label={`View activity for ${transaction.description}`}
+                        >
+                          <HistoryIcon aria-hidden="true" />
                         </Button>
                       )}
                     </div>

@@ -2687,6 +2687,61 @@
         ]
       }
     },
+    "/api/v1/users/me/transactions/{transactionId}/activity": {
+      "get": {
+        "operationId": "Transactions_listTransactionActivity",
+        "parameters": [
+          {
+            "name": "transactionId",
+            "required": true,
+            "in": "path",
+            "description": "Positive bigint identifier encoded as a decimal JSON string.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9]\\d*$",
+              "example": "42"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Transaction activity events.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TransactionActivityResponseDto"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthenticatedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/UserNotProvisionedError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          },
+          "406": {
+            "$ref": "#/components/responses/NotAcceptableError"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "List activity for a Transaction.",
+        "tags": [
+          "Transactions"
+        ]
+      }
+    },
     "/api/v1/users/me/transactions/{transactionId}": {
       "get": {
         "operationId": "Transactions_getManualTransaction",
@@ -3104,6 +3159,72 @@
           }
         },
         "summary": "List Transactions in an authorized Space.",
+        "tags": [
+          "Transactions"
+        ]
+      }
+    },
+    "/api/v1/users/me/spaces/{spaceId}/transactions/{transactionId}/activity": {
+      "get": {
+        "operationId": "SpaceTransactions_listTransactionActivity",
+        "parameters": [
+          {
+            "name": "spaceId",
+            "required": true,
+            "in": "path",
+            "description": "Positive bigint Space identifier encoded as a string.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9]\\d*$",
+              "example": "7"
+            }
+          },
+          {
+            "name": "transactionId",
+            "required": true,
+            "in": "path",
+            "description": "Positive bigint Transaction identifier encoded as a string.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9]\\d*$",
+              "example": "42"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Transaction activity events.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TransactionActivityResponseDto"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthenticatedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/UserNotProvisionedError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          },
+          "406": {
+            "$ref": "#/components/responses/NotAcceptableError"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "List activity for a Transaction in an authorized Space.",
         "tags": [
           "Transactions"
         ]
@@ -5437,6 +5558,52 @@
         "required": [
           "items",
           "nextCursor"
+        ]
+      },
+      "TransactionActivityResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Positive bigint activity identifier encoded as a string.",
+            "pattern": "^[1-9]\\d*$",
+            "example": "200"
+          },
+          "transactionId": {
+            "type": "string",
+            "description": "Positive bigint Transaction identifier encoded as a string.",
+            "pattern": "^[1-9]\\d*$",
+            "example": "100"
+          },
+          "type": {
+            "type": "string",
+            "description": "The activity event type.",
+            "enum": [
+              "created"
+            ],
+            "example": "created"
+          },
+          "actorUserId": {
+            "type": "string",
+            "description": "Positive bigint identifier of the User who caused the event.",
+            "pattern": "^[1-9]\\d*$",
+            "example": "7"
+          },
+          "occurredAt": {
+            "type": "string",
+            "description": "UTC timestamp when the activity event occurred.",
+            "format": "date-time",
+            "example": "2026-08-29T00:00:00.000Z"
+          }
+        },
+        "description": "A recorded activity event for a Transaction. Legacy Transactions may have no activity records.",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "transactionId",
+          "type",
+          "actorUserId",
+          "occurredAt"
         ]
       },
       "UpdateSpaceTransactionDto": {

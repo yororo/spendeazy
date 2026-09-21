@@ -1,7 +1,13 @@
 // @vitest-environment jsdom
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -78,6 +84,22 @@ const pageState = vi.hoisted(() => ({
     isError: false,
     refetch: vi.fn(),
   },
+  activityQuery: {
+    data: [
+      {
+        id: "activity-1",
+        transactionId: "transaction-1",
+        type: "created" as const,
+        actorUserId: "user-3",
+        occurredAt: "2026-09-03T00:00:00.000Z",
+      },
+    ],
+    isPending: false,
+    isError: false,
+    error: null,
+    isSuccess: true,
+    refetch: vi.fn(),
+  },
   lastTransactionQueryArgs: undefined as
     | [string, string | undefined, boolean]
     | undefined,
@@ -101,6 +123,7 @@ vi.mock("./transactions-queries", () => ({
     pageState.lastTransactionQueryArgs = [period, spaceId, enabled];
     return pageState.transactionQuery;
   },
+  useTransactionActivityQuery: () => pageState.activityQuery,
 }));
 
 afterEach(() => {
@@ -154,6 +177,12 @@ describe("ArchivedSpaceHistoryPage", () => {
     expect(
       screen.queryByRole("button", { name: "Delete Archived dinner" }),
     ).toBeNull();
+    fireEvent.click(
+      screen.getByRole("button", { name: "View activity for Archived dinner" }),
+    );
+    expect(
+      within(screen.getByRole("dialog")).getByText("Created by User user-3"),
+    ).toBeTruthy();
     expect(pageState.lastTransactionQueryArgs?.slice(1)).toEqual([
       "archived-1",
       true,

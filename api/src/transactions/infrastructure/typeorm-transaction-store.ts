@@ -17,6 +17,7 @@ import { POSTGRES_FOREIGN_KEY_VIOLATION } from '../../database/database-error-co
 import { CategoryEntity } from '../../database/entities/category.entity';
 import { TransactionEntity } from '../../database/entities/transaction.entity';
 import { StaleEditError } from '../../errors/application-error';
+import { TypeOrmTransactionActivityStore } from './typeorm-transaction-activity-store';
 import type {
   ManualTransactionRecord,
   NewManualTransaction,
@@ -138,7 +139,15 @@ export class TypeOrmTransactionStore implements SpaceTransactionStore {
         importFingerprint: null,
       });
 
-      return saveManualTransaction(repository, entity);
+      const transaction = await saveManualTransaction(repository, entity);
+      await new TypeOrmTransactionActivityStore(entityManager).create({
+        transactionId: transaction.id,
+        spaceId: transaction.spaceId,
+        actorUserId: transaction.addedByUserId,
+        type: 'created',
+        occurredAt: transaction.createdAt,
+      });
+      return transaction;
     });
   }
 

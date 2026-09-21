@@ -2,6 +2,7 @@ import type { TransactionCategoryStore } from '../../transactions/application/tr
 import type { SpaceImportedTransactionStore } from '../../transactions/application/imported-transaction-store';
 import type { UserStore } from '../../users/application/user-store';
 import type { StatementImportStore } from './statement-import-store';
+import type { TransactionActivityStore } from '../../transactions/application/transaction-activity-store';
 
 export const STATEMENT_IMPORT_CONFIRMATION_UNIT_OF_WORK = Symbol(
   'STATEMENT_IMPORT_CONFIRMATION_UNIT_OF_WORK',
@@ -24,6 +25,11 @@ export type StatementImportConfirmationTransactionStore = Pick<
   'findByFingerprintInSpace' | 'create'
 >;
 
+export type StatementImportConfirmationActivityStore = Pick<
+  TransactionActivityStore,
+  'create'
+>;
+
 export interface StatementImportConfirmationSpaceStore {
   lockForStatementImport(spaceId: string, userId: string): Promise<void>;
 }
@@ -33,6 +39,7 @@ export interface StatementImportConfirmationContext {
   readonly categories: StatementImportConfirmationCategoryStore;
   readonly statementImports: StatementImportConfirmationStore;
   readonly importedTransactions: StatementImportConfirmationTransactionStore;
+  readonly transactionActivities: StatementImportConfirmationActivityStore;
   readonly spaces?: StatementImportConfirmationSpaceStore;
 }
 

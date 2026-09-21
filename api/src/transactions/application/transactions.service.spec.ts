@@ -12,6 +12,11 @@ import type {
   SpaceTransactionStore,
   UpdateManualTransaction,
 } from './transaction-store';
+import type {
+  NewTransactionActivity,
+  TransactionActivityRecord,
+  TransactionActivityStore,
+} from './transaction-activity-store';
 import { TransactionsService } from './transactions.service';
 
 describe('TransactionsService', () => {
@@ -136,6 +141,34 @@ describe('TransactionsService', () => {
       pageSize: 20,
     });
   });
+
+  it('returns only recorded activity for an existing Transaction', async () => {
+    const transaction = transactionRecord({ id: '1', spaceId: 'space-7' });
+    const transactionStore = new TransactionStoreFake([transaction]);
+    const activityStore = new TransactionActivityStoreFake([
+      {
+        id: '200',
+        transactionId: '1',
+        spaceId: 'space-7',
+        actorUserId: 'member-2',
+        type: 'created',
+        occurredAt: transaction.createdAt,
+      },
+    ]);
+    const service = new TransactionsService(
+      new TransactionCategoryStoreFake(),
+      transactionStore,
+      transactionStore as never,
+      activityStore,
+    );
+
+    await expect(
+      service.listTransactionActivityInSpace('space-7', '1'),
+    ).resolves.toEqual(activityStore.activities);
+    await expect(
+      service.listTransactionActivityInSpace('space-8', '1'),
+    ).rejects.toMatchObject({ code: 'TRANSACTION_NOT_FOUND' });
+  });
 });
 
 class TransactionStoreFake implements SpaceTransactionStore {
@@ -234,6 +267,29 @@ class TransactionCategoryStoreFake implements TransactionCategoryStore {
       this.categories.find(
         (category) => category.spaceId === spaceId && category.id === id,
       ) ?? null,
+    );
+  }
+}
+
+class TransactionActivityStoreFake implements TransactionActivityStore {
+  constructor(public readonly activities: TransactionActivityRecord[] = []) {}
+
+  create(input: NewTransactionActivity): Promise<TransactionActivityRecord> {
+    const activity = { id: String(this.activities.length + 1), ...input };
+    this.activities.push(activity);
+    return Promise.resolve(activity);
+  }
+
+  findByTransactionInSpace(
+    spaceId: string,
+    transactionId: string,
+  ): Promise<TransactionActivityRecord[]> {
+    return Promise.resolve(
+      this.activities.filter(
+        (activity) =>
+          activity.spaceId === spaceId &&
+          activity.transactionId === transactionId,
+      ),
     );
   }
 }

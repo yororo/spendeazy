@@ -10,6 +10,7 @@ import { SpaceEntity } from '../src/database/entities/space.entity';
 import { SpaceMembershipEntity } from '../src/database/entities/space-membership.entity';
 import { StatementImportEntity } from '../src/database/entities/statement-import.entity';
 import { TransactionEntity } from '../src/database/entities/transaction.entity';
+import { TransactionActivityEntity } from '../src/database/entities/transaction-activity.entity';
 import { UserEntity } from '../src/database/entities/user.entity';
 import {
   computeImportFingerprint,
@@ -102,6 +103,9 @@ describeDatabase('Statement Import rollback with PostgreSQL', () => {
       return;
     }
 
+    await database.getRepository(TransactionActivityEntity).delete({
+      spaceId: personalSpaceId,
+    });
     await database.getRepository(TransactionEntity).delete({
       spaceId: personalSpaceId,
     });
@@ -112,6 +116,9 @@ describeDatabase('Statement Import rollback with PostgreSQL', () => {
       spaceId: personalSpaceId,
     });
     if (sharedSpaceId !== undefined) {
+      await database
+        .getRepository(TransactionActivityEntity)
+        .delete({ spaceId: sharedSpaceId });
       await database
         .getRepository(TransactionEntity)
         .delete({ spaceId: sharedSpaceId });
@@ -230,6 +237,11 @@ describeDatabase('Statement Import rollback with PostgreSQL', () => {
         .getRepository(TransactionEntity)
         .countBy({ spaceId: personalSpaceId }),
     ).resolves.toBe(1);
+    await expect(
+      database
+        .getRepository(TransactionActivityEntity)
+        .countBy({ spaceId: personalSpaceId }),
+    ).resolves.toBe(0);
   });
 
   it('allows the same file in another Space without cross-Space duplicate warnings', async () => {
@@ -302,6 +314,11 @@ describeDatabase('Statement Import rollback with PostgreSQL', () => {
       database.getRepository(TransactionEntity).countBy({
         spaceId: sharedSpace.id,
         importFingerprint: existingTransaction.importFingerprint,
+      }),
+    ).resolves.toBe(1);
+    await expect(
+      database.getRepository(TransactionActivityEntity).countBy({
+        spaceId: sharedSpace.id,
       }),
     ).resolves.toBe(1);
   });

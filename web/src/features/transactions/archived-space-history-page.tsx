@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { ArchiveIcon, ArrowLeftIcon, LoaderCircleIcon } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 
@@ -31,9 +32,13 @@ import {
 } from "@/shared/ui";
 
 import { TransactionTable } from "./transaction-table";
+import { TransactionActivityDialog } from "./transaction-activity-dialog";
 import { useTransactionsQuery } from "./transactions-queries";
+import type { Transaction } from "./transactions-service";
 
 function ArchivedSpaceHistoryPage() {
+  const [transactionToViewActivity, setTransactionToViewActivity] =
+    useState<Transaction | null>(null);
   const [searchParams] = useSearchParams();
   const selectedSpaceId = searchParams.get("spaceId") ?? undefined;
   const { period } = useReportingPeriod();
@@ -165,6 +170,7 @@ function ArchivedSpaceHistoryPage() {
           <TransactionTable
             transactions={transactions}
             emptyMessage="No Transactions were recorded for this Reporting Period."
+            onViewActivity={setTransactionToViewActivity}
             showAttribution
           />
         </div>
@@ -188,6 +194,14 @@ function ArchivedSpaceHistoryPage() {
           </CardContent>
         )}
       </Card>
+      <TransactionActivityDialog
+        open={transactionToViewActivity !== null}
+        transaction={transactionToViewActivity}
+        spaceId={selectedSpace.id}
+        onOpenChange={(open) => {
+          if (!open) setTransactionToViewActivity(null);
+        }}
+      />
     </div>
   );
 }

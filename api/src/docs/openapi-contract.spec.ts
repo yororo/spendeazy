@@ -447,6 +447,15 @@ const OPERATION_EXPECTATIONS = [
     errorResponses: { ...PROTECTED_ERRORS, ...VALIDATED_PATH_ERRORS },
   },
   {
+    operationId: 'Transactions_listTransactionActivity',
+    tag: 'Transactions',
+    pathParameter: 'transactionId',
+    bodyResponses: [
+      { status: '200', arrayItemSchemaRef: 'TransactionActivityResponseDto' },
+    ],
+    errorResponses: { ...PROTECTED_ERRORS, ...VALIDATED_PATH_ERRORS },
+  },
+  {
     operationId: 'Transactions_updateTransaction',
     tag: 'Transactions',
     requestSchemaRef: 'UpdateManualTransactionDto',
@@ -527,6 +536,15 @@ const OPERATION_EXPECTATIONS = [
     pathParameters: ['spaceId', 'transactionId'],
     bodyResponses: [
       { status: '200', schemaRef: 'ManualTransactionResponseDto' },
+    ],
+    errorResponses: { ...PROTECTED_ERRORS, ...VALIDATED_PATH_ERRORS },
+  },
+  {
+    operationId: 'SpaceTransactions_listTransactionActivity',
+    tag: 'Transactions',
+    pathParameters: ['spaceId', 'transactionId'],
+    bodyResponses: [
+      { status: '200', arrayItemSchemaRef: 'TransactionActivityResponseDto' },
     ],
     errorResponses: { ...PROTECTED_ERRORS, ...VALIDATED_PATH_ERRORS },
   },
@@ -662,6 +680,7 @@ const PUBLIC_RESPONSE_SCHEMA_NAMES = [
   'ManualTransactionHistoryResponseDto',
   'ImportedTransactionHistoryResponseDto',
   'TransactionHistoryPageResponseDto',
+  'TransactionActivityResponseDto',
   'StatementImportResponseDto',
   'StatementImportHistoryResponseDto',
   'StatementImportHistoryPageResponseDto',

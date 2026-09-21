@@ -136,6 +136,22 @@ const pageState = vi.hoisted(() => {
       mutateAsync: vi.fn(async () => undefined),
       reset: vi.fn(),
     },
+    activityQuery: {
+      data: [
+        {
+          id: "activity-1",
+          transactionId: "manual-1",
+          type: "created" as const,
+          actorUserId: "7",
+          occurredAt: "2026-08-31T00:00:00.000Z",
+        },
+      ],
+      isPending: false,
+      isError: false,
+      error: null,
+      isSuccess: true,
+      refetch: vi.fn(async () => undefined),
+    },
     lastTransactionQueryArgs: undefined as
       | [string, string | undefined, boolean]
       | undefined,
@@ -163,6 +179,7 @@ vi.mock("./transactions-queries", () => ({
   useCreateTransactionMutation: () => pageState.createMutation,
   useUpdateTransactionMutation: () => pageState.updateMutation,
   useDeleteTransactionMutation: () => pageState.deleteMutation,
+  useTransactionActivityQuery: () => pageState.activityQuery,
 }));
 
 afterEach(() => {
@@ -173,6 +190,7 @@ afterEach(() => {
   pageState.createMutation.mutateAsync.mockClear();
   pageState.updateMutation.mutateAsync.mockClear();
   pageState.deleteMutation.mutateAsync.mockClear();
+  pageState.activityQuery.refetch.mockClear();
   pageState.transactionQuery.refetch.mockClear();
   pageState.lastTransactionQueryArgs = undefined;
 });
@@ -213,6 +231,17 @@ describe("TransactionsPage", () => {
     expect(screen.getAllByText("Added by User 7").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Added by User 8").length).toBeGreaterThan(0);
     expect(pageState.lastTransactionQueryArgs?.[1]).toBe("99");
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "View activity for Coffee" }),
+    );
+    const activityDialog = screen.getByRole("dialog");
+    expect(
+      within(activityDialog).getByText("Created by User 7"),
+    ).toBeTruthy();
+    fireEvent.click(
+      within(activityDialog).getByRole("button", { name: "Close" }),
+    );
 
     fireEvent.click(screen.getByRole("button", { name: "Record Transaction" }));
     const createDialog = screen.getByRole("dialog");

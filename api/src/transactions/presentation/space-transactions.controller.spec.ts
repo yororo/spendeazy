@@ -3,6 +3,7 @@ import type { AuthenticatedRequest } from '../../authentication/authentication';
 import type { SpaceAccessService } from '../../spaces/application/space-access.service';
 import type { TransactionsService } from '../application/transactions.service';
 import type { ManualTransactionRecord } from '../application/transaction-store';
+import type { TransactionActivityRecord } from '../application/transaction-activity-store';
 import { SpaceTransactionsController } from './space-transactions.controller';
 
 describe('SpaceTransactionsController', () => {
@@ -95,6 +96,44 @@ describe('SpaceTransactionsController', () => {
       'Location',
       '/api/v1/users/me/spaces/10/transactions/100',
     );
+  });
+
+  it('checks Space membership before returning Transaction activity', async () => {
+    const transactionsService = {
+      listTransactionActivityInSpace: jest
+        .fn()
+        .mockResolvedValue([activityRecord()]),
+    };
+    const spaceAccessService = {
+      requireReadAccess: jest.fn().mockResolvedValue({ id: '10' }),
+    };
+    const controller = new SpaceTransactionsController(
+      transactionsService as unknown as TransactionsService,
+      spaceAccessService as unknown as SpaceAccessService,
+    );
+
+    await expect(
+      controller.listTransactionActivity(authenticatedRequest('7'), {
+        spaceId: '10',
+        transactionId: '100',
+      }),
+    ).resolves.toEqual([
+      {
+        id: '200',
+        transactionId: '100',
+        type: 'created',
+        actorUserId: '8',
+        occurredAt: '2026-09-20T00:00:00.000Z',
+      },
+    ]);
+
+    expect(spaceAccessService.requireReadAccess).toHaveBeenCalledWith(
+      '7',
+      '10',
+    );
+    expect(
+      transactionsService.listTransactionActivityInSpace,
+    ).toHaveBeenCalledWith('10', '100');
   });
 
   it('passes the authoritative version for edits and If-Match for deletes', async () => {
@@ -206,4 +245,15 @@ function transactionRecord(
 
 function authenticatedRequest(userId: string): AuthenticatedRequest {
   return { authenticatedUserId: userId } as AuthenticatedRequest;
+}
+
+function activityRecord(): TransactionActivityRecord {
+  return {
+    id: '200',
+    transactionId: '100',
+    spaceId: '10',
+    actorUserId: '8',
+    type: 'created',
+    occurredAt: new Date('2026-09-20T00:00:00.000Z'),
+  };
 }

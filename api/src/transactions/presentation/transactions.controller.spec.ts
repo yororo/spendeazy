@@ -9,6 +9,7 @@ import type {
   ManualTransactionRecord,
   TransactionRecord,
 } from '../application/transaction-store';
+import type { TransactionActivityRecord } from '../application/transaction-activity-store';
 import { TransactionsController } from './transactions.controller';
 
 describe('TransactionsController', () => {
@@ -130,6 +131,41 @@ describe('TransactionsController', () => {
     });
   });
 
+  it('authorizes the Personal Space before returning Transaction activity', async () => {
+    const listTransactionActivityInSpace = jest
+      .fn()
+      .mockResolvedValue([activityRecord()]);
+    const transactionsService = {
+      listTransactionActivityInSpace,
+    };
+    const requirePersonalSpace = jest.fn().mockResolvedValue({ id: '9' });
+    const spaceAccessService = {
+      requirePersonalSpace,
+      requirePersonalWriteSpace: jest.fn().mockResolvedValue({ id: '9' }),
+    };
+    const controller = new TransactionsController(
+      transactionsService as unknown as TransactionsService,
+      spaceAccessService,
+    );
+
+    await expect(
+      controller.listTransactionActivity(authenticatedRequest(), {
+        transactionId: '100',
+      }),
+    ).resolves.toEqual([
+      {
+        id: '200',
+        transactionId: '100',
+        type: 'created',
+        actorUserId: '8',
+        occurredAt: '2026-08-29T00:00:00.123Z',
+      },
+    ]);
+
+    expect(requirePersonalSpace).toHaveBeenCalledWith('7');
+    expect(listTransactionActivityInSpace).toHaveBeenCalledWith('9', '100');
+  });
+
   it('returns an imported transaction after a category-only patch', async () => {
     const transaction = importedTransactionRecord();
     const transactionsService = {
@@ -202,5 +238,16 @@ function importedTransactionRecord(): TransactionRecord {
     source: 'imported',
     createdAt: new Date('2026-08-29T00:00:00.000Z'),
     updatedAt: new Date('2026-08-29T00:00:00.000Z'),
+  };
+}
+
+function activityRecord(): TransactionActivityRecord {
+  return {
+    id: '200',
+    transactionId: '100',
+    spaceId: '9',
+    actorUserId: '8',
+    type: 'created',
+    occurredAt: new Date('2026-08-29T00:00:00.123Z'),
   };
 }

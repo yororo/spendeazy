@@ -5,6 +5,7 @@ import { TypeOrmStatementImportStore } from '../statement-imports/infrastructure
 import { TypeOrmImportedTransactionStore } from '../transactions/infrastructure/typeorm-imported-transaction-store';
 import { TypeOrmTransactionCategoryStore } from '../transactions/infrastructure/typeorm-transaction-category-store';
 import { TypeOrmUserStore } from '../users/infrastructure/typeorm-user-store';
+import { TypeOrmTransactionActivityStore } from '../transactions/infrastructure/typeorm-transaction-activity-store';
 
 import {
   type StatementImportConfirmationContext,
@@ -21,6 +22,7 @@ function createStatementImportConfirmationContext(
     categories: new TypeOrmTransactionCategoryStore(entityManager, true),
     statementImports,
     importedTransactions: new TypeOrmImportedTransactionStore(entityManager),
+    transactionActivities: new TypeOrmTransactionActivityStore(entityManager),
     spaces: statementImports,
   };
 }

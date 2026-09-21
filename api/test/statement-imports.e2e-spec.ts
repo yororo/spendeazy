@@ -35,6 +35,11 @@ import type {
   TransactionCategoryRecord,
   TransactionCategoryStore,
 } from '../src/transactions/application/transaction-category-store';
+import type {
+  NewTransactionActivity,
+  TransactionActivityRecord,
+  TransactionActivityStore,
+} from '../src/transactions/application/transaction-activity-store';
 import {
   USER_STORE,
   type NewUser,
@@ -404,6 +409,15 @@ describe('statement-import ownership through authenticated routes', () => {
     expect(
       typeof fixture.importedTransactions.createdInputs[0]?.statementImportId,
     ).toBe('string');
+    expect(fixture.transactionActivities.createdInputs).toHaveLength(1);
+    expect(fixture.transactionActivities.createdInputs[0]).toMatchObject({
+      spaceId: '42',
+      actorUserId: '42',
+      type: 'created',
+    });
+    expect(
+      typeof fixture.transactionActivities.createdInputs[0]?.transactionId,
+    ).toBe('string');
   });
 
   it('requires categories to belong to the authenticated User and commits transactions in that scope', async () => {
@@ -472,6 +486,15 @@ describe('statement-import ownership through authenticated routes', () => {
       addedByUserId: '42',
       categoryId: '42',
     });
+    expect(fixture.transactionActivities.createdInputs).toHaveLength(1);
+    expect(fixture.transactionActivities.createdInputs[0]).toMatchObject({
+      spaceId: '42',
+      actorUserId: '42',
+      type: 'created',
+    });
+    expect(
+      typeof fixture.transactionActivities.createdInputs[0]?.transactionId,
+    ).toBe('string');
   });
 });
 
@@ -793,12 +816,14 @@ class ProvisionedTestUserStore implements UserStore {
 class StatementImportHttpFixture implements StatementImportConfirmationUnitOfWork {
   readonly statementImports = new HttpStatementImportStore();
   readonly importedTransactions = new HttpImportedTransactionStore();
+  readonly transactionActivities = new HttpTransactionActivityStore();
   readonly categories = new HttpCategoryStore();
   private readonly context: StatementImportConfirmationContext = {
     users: new ProvisionedTestUserStore(),
     categories: this.categories,
     statementImports: this.statementImports,
     importedTransactions: this.importedTransactions,
+    transactionActivities: this.transactionActivities,
     spaces: { lockForStatementImport: () => Promise.resolve() },
   };
 
@@ -927,6 +952,16 @@ class HttpImportedTransactionStore implements SpaceImportedTransactionStore {
 
   updateCategoryInSpace(): Promise<ImportedTransactionRecord | null> {
     return Promise.resolve(null);
+  }
+}
+
+class HttpTransactionActivityStore implements TransactionActivityStore {
+  readonly createdInputs: NewTransactionActivity[] = [];
+  private nextId = 1;
+
+  create(input: NewTransactionActivity): Promise<TransactionActivityRecord> {
+    this.createdInputs.push(input);
+    return Promise.resolve({ ...input, id: String(this.nextId++) });
   }
 }
 

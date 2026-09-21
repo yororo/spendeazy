@@ -11,6 +11,7 @@ import { SpaceEntity } from '../src/database/entities/space.entity';
 import { SpaceMembershipEntity } from '../src/database/entities/space-membership.entity';
 import { StatementImportEntity } from '../src/database/entities/statement-import.entity';
 import { TransactionEntity } from '../src/database/entities/transaction.entity';
+import { TransactionActivityEntity } from '../src/database/entities/transaction-activity.entity';
 import { UserEntity } from '../src/database/entities/user.entity';
 import { TypeOrmCategoryStore } from '../src/categories/infrastructure/typeorm-category-store';
 import { DefaultCategoriesService } from '../src/categories/application/default-categories.service';
@@ -229,6 +230,19 @@ describeDatabase('Spaces with PostgreSQL', () => {
       addedByUserId: member.id,
     });
     await expect(
+      database.getRepository(TransactionActivityEntity).findBy({
+        spaceId: sharedSpace.id,
+        transactionId: created.id,
+      }),
+    ).resolves.toEqual([
+      expect.objectContaining({
+        transactionId: created.id,
+        actorUserId: member.id,
+        type: 'created',
+        occurredAt: created.createdAt,
+      }),
+    ]);
+    await expect(
       transactions.createManualTransactionInSpace(owner.id, sharedSpace.id, {
         categoryId: ownerPersonalCategory.id,
         purchaseDate: '2026-09-20',
@@ -292,6 +306,9 @@ describeDatabase('Spaces with PostgreSQL', () => {
       .findBy({ userId });
     const spaceIds = memberships.map((membership) => membership.spaceId);
     if (spaceIds.length > 0) {
+      await database.getRepository(TransactionActivityEntity).delete({
+        spaceId: In(spaceIds),
+      });
       await database.getRepository(TransactionEntity).delete({
         spaceId: In(spaceIds),
       });

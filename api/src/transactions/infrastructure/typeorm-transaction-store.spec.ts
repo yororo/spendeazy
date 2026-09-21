@@ -1,5 +1,6 @@
 import type { EntityManager } from 'typeorm';
 import { CategoryInactiveError } from '../../categories/application/category-errors';
+import { TransactionActivityEntity } from '../../database/entities/transaction-activity.entity';
 import { TransactionEntity } from '../../database/entities/transaction.entity';
 import type {
   ManualTransactionRecord,
@@ -14,16 +15,36 @@ describe('TypeOrmTransactionStore', () => {
       create: jest.fn().mockReturnValue(entity),
       save: jest.fn().mockResolvedValue(entity),
     };
+    const activityRepository = {
+      create: jest.fn().mockReturnValue({
+        id: '200',
+        transactionId: '1',
+        spaceId: '7',
+        actorUserId: '7',
+        type: 'created' as const,
+        occurredAt: entity.createdAt,
+      }),
+      save: jest.fn().mockResolvedValue({
+        id: '200',
+        transactionId: '1',
+        spaceId: '7',
+        actorUserId: '7',
+        type: 'created' as const,
+        occurredAt: entity.createdAt,
+      }),
+    };
     const categoryQuery = categoryQueryBuilder({ isActive: true });
     const entityManager = transactionalEntityManager(
       transactionRepository,
       categoryQuery,
+      activityRepository,
     );
     const store = new TypeOrmTransactionStore(entityManager);
 
     await expect(
       store.createInSpace({
         spaceId: '7',
+        addedByUserId: '7',
         categoryId: '42',
         purchaseDate: '2026-08-01',
         description: 'Coffee',
@@ -33,6 +54,7 @@ describe('TypeOrmTransactionStore', () => {
 
     expect(transactionRepository.create).toHaveBeenCalledWith({
       spaceId: '7',
+      addedByUserId: '7',
       categoryId: '42',
       statementImportId: null,
       purchaseDate: '2026-08-01',
@@ -42,6 +64,13 @@ describe('TypeOrmTransactionStore', () => {
       importFingerprint: null,
     });
     expect(categoryQuery.setLock).toHaveBeenCalledWith('pessimistic_read');
+    expect(activityRepository.create).toHaveBeenCalledWith({
+      transactionId: '1',
+      spaceId: '7',
+      actorUserId: '7',
+      type: 'created',
+      occurredAt: entity.createdAt,
+    });
   });
 
   it('rejects creation when the locked category is inactive', async () => {
@@ -189,14 +218,20 @@ function entityManagerFor(repository: object): EntityManager {
 function transactionalEntityManager(
   transactionRepository: object,
   categoryQuery: object,
+  activityRepository: object = {
+    create: jest.fn().mockReturnValue({}),
+    save: jest.fn().mockResolvedValue({}),
+  },
 ): EntityManager {
   const categoryRepository = {
     createQueryBuilder: jest.fn().mockReturnValue(categoryQuery),
   };
   const transactionalManager = {
-    getRepository: jest.fn((entity: typeof TransactionEntity) =>
-      entity === TransactionEntity ? transactionRepository : categoryRepository,
-    ),
+    getRepository: jest.fn((entity: typeof TransactionEntity) => {
+      if (entity === TransactionEntity) return transactionRepository;
+      if (entity === TransactionActivityEntity) return activityRepository;
+      return categoryRepository;
+    }),
   } as unknown as EntityManager;
 
   return {
@@ -245,6 +280,7 @@ function transactionEntity() {
   return {
     id: '1',
     spaceId: '7',
+    addedByUserId: '7',
     categoryId: '42',
     statementImportId: null,
     purchaseDate: '2026-08-01',
@@ -261,6 +297,7 @@ function transactionRecord(): ManualTransactionRecord {
   return {
     id: '1',
     spaceId: '7',
+    addedByUserId: '7',
     categoryId: '42',
     purchaseDate: '2026-08-01',
     description: 'Coffee',

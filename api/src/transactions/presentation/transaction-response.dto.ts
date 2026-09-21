@@ -356,6 +356,48 @@ export class ImportedTransactionHistoryResponseDto {
 
 @ApiSchema({
   description:
+    'A recorded activity event for a Transaction. Legacy Transactions may have no activity records.',
+  additionalProperties: false,
+} as ApiSchemaOptionsWithAdditionalProperties)
+export class TransactionActivityResponseDto {
+  @ApiProperty({
+    description: 'Positive bigint activity identifier encoded as a string.',
+    pattern: POSITIVE_INTEGER_ID_PATTERN.source,
+    example: '200',
+  })
+  id!: string;
+
+  @ApiProperty({
+    description: 'Positive bigint Transaction identifier encoded as a string.',
+    pattern: POSITIVE_INTEGER_ID_PATTERN.source,
+    example: '100',
+  })
+  transactionId!: string;
+
+  @ApiProperty({
+    description: 'The activity event type.',
+    enum: ['created'],
+    example: 'created',
+  })
+  type!: 'created';
+
+  @ApiProperty({
+    description: 'Positive bigint identifier of the User who caused the event.',
+    pattern: POSITIVE_INTEGER_ID_PATTERN.source,
+    example: '7',
+  })
+  actorUserId!: string;
+
+  @ApiProperty({
+    description: 'UTC timestamp when the activity event occurred.',
+    format: 'date-time',
+    example: '2026-08-29T00:00:00.000Z',
+  })
+  occurredAt!: string;
+}
+
+@ApiSchema({
+  description:
     'A keyset-paginated Transaction history page. Results are ordered by purchaseDate descending, then Transaction ID descending.',
   additionalProperties: false,
 } as ApiSchemaOptionsWithAdditionalProperties)

@@ -211,7 +211,7 @@ export class StatementImportsService {
     });
 
     for (const transaction of preparedTransactions) {
-      await context.importedTransactions.create({
+      const createdTransaction = await context.importedTransactions.create({
         spaceId,
         addedByUserId: userId,
         categoryId: transaction.categoryId ?? null,
@@ -221,6 +221,13 @@ export class StatementImportsService {
         amount: transaction.amount,
         categoryMatchConfidence: transaction.categoryMatchConfidence,
         importFingerprint: transaction.importFingerprint,
+      });
+      await context.transactionActivities.create({
+        transactionId: createdTransaction.id,
+        spaceId,
+        actorUserId: userId,
+        type: 'created',
+        occurredAt: createdTransaction.createdAt,
       });
     }
 

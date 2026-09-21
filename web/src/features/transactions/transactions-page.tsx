@@ -17,6 +17,7 @@ import { ActiveSpaceLabel, MetricCard } from "@/shared/ui";
 
 import { TransactionDeleteDialog } from "./transaction-delete-dialog";
 import { TransactionEditorDialog } from "./transaction-editor-dialog";
+import { TransactionActivityDialog } from "./transaction-activity-dialog";
 import { TransactionTable } from "./transaction-table";
 import { useTransactionsQuery } from "./transactions-queries";
 import type { Transaction } from "./transactions-service";
@@ -39,6 +40,8 @@ function TransactionsPage({
     useState<TransactionEditorState | null>(null);
   const [editorRevision, setEditorRevision] = useState(0);
   const [transactionToDelete, setTransactionToDelete] =
+    useState<Transaction | null>(null);
+  const [transactionToViewActivity, setTransactionToViewActivity] =
     useState<Transaction | null>(null);
   const shouldResolvePersonalSpace = onSpaceChange !== undefined;
   const spacesQuery = useAccessibleSpacesQuery(shouldResolvePersonalSpace);
@@ -152,6 +155,7 @@ function TransactionsPage({
               setEditorState({ mode: "edit", transaction });
             }}
             onDelete={setTransactionToDelete}
+            onViewActivity={setTransactionToViewActivity}
             showAttribution={spaceId !== undefined}
           />
         </div>
@@ -196,6 +200,14 @@ function TransactionsPage({
         }}
         onDeleted={() => setTransactionToDelete(null)}
         onReload={() => transactionsQuery.refetch()}
+      />
+      <TransactionActivityDialog
+        open={transactionToViewActivity !== null}
+        transaction={transactionToViewActivity}
+        spaceId={effectiveSpaceId}
+        onOpenChange={(open) => {
+          if (!open) setTransactionToViewActivity(null);
+        }}
       />
     </div>
   );

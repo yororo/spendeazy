@@ -12,6 +12,11 @@ import {
 import { TransactionNotFoundError } from './transaction-errors';
 import { ImportedTransactionImmutableError } from './transaction-errors';
 import {
+  TRANSACTION_ACTIVITY_STORE,
+  type TransactionActivityRecord,
+  type TransactionActivityStore,
+} from './transaction-activity-store';
+import {
   SPACE_IMPORTED_TRANSACTION_STORE,
   type ImportedTransactionRecord,
   type SpaceImportedTransactionStore,
@@ -54,6 +59,12 @@ const EMPTY_SPACE_IMPORTED_TRANSACTION_STORE: SpaceImportedTransactionStore = {
     Promise.reject(new Error(SPACE_STORE_NOT_CONFIGURED)),
 };
 
+const EMPTY_TRANSACTION_ACTIVITY_STORE: TransactionActivityStore = {
+  create: () => Promise.reject(new Error(SPACE_STORE_NOT_CONFIGURED)),
+  findByTransactionInSpace: () =>
+    Promise.reject(new Error(SPACE_STORE_NOT_CONFIGURED)),
+};
+
 export interface ListTransactionsInput extends TransactionFilters {
   cursor?: string;
   pageSize?: number;
@@ -80,6 +91,8 @@ export class TransactionsService {
     private readonly spaceTransactionStore: SpaceTransactionStore = EMPTY_SPACE_TRANSACTION_STORE,
     @Inject(SPACE_IMPORTED_TRANSACTION_STORE)
     private readonly spaceImportedTransactionStore: SpaceImportedTransactionStore = EMPTY_SPACE_IMPORTED_TRANSACTION_STORE,
+    @Inject(TRANSACTION_ACTIVITY_STORE)
+    private readonly transactionActivityStore: TransactionActivityStore = EMPTY_TRANSACTION_ACTIVITY_STORE,
   ) {}
 
   async createManualTransactionInSpace(
@@ -115,6 +128,24 @@ export class TransactionsService {
     }
 
     return transaction;
+  }
+
+  async listTransactionActivityInSpace(
+    spaceId: string,
+    transactionId: string,
+  ): Promise<TransactionActivityRecord[]> {
+    const transaction = await this.findTransactionInSpace(
+      spaceId,
+      transactionId,
+    );
+    if (!transaction) {
+      throw new TransactionNotFoundError();
+    }
+
+    return this.transactionActivityStore.findByTransactionInSpace(
+      spaceId,
+      transactionId,
+    );
   }
 
   async listTransactionsInSpace(
@@ -294,6 +325,24 @@ export class TransactionsService {
     if (!category.isActive) {
       throw new CategoryInactiveError();
     }
+  }
+
+  private async findTransactionInSpace(
+    spaceId: string,
+    transactionId: string,
+  ): Promise<ManualTransactionRecord | ImportedTransactionRecord | null> {
+    const manualTransaction = await this.spaceTransactionStore.findByIdInSpace(
+      spaceId,
+      transactionId,
+    );
+    if (manualTransaction) {
+      return manualTransaction;
+    }
+
+    return this.spaceImportedTransactionStore.findByIdInSpace(
+      spaceId,
+      transactionId,
+    );
   }
 }
 

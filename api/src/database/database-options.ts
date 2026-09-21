@@ -10,6 +10,7 @@ import { SpaceEntity } from './entities/space.entity';
 import { SpaceMembershipEntity } from './entities/space-membership.entity';
 import { InvitationEntity } from './entities/invitation.entity';
 import { InvitationDeliveryAttemptEntity } from './entities/invitation-delivery-attempt.entity';
+import { TransactionActivityEntity } from './entities/transaction-activity.entity';
 import { CreateExpenseTrackerSchema1710000000000 } from './migrations/1710000000000-create-expense-tracker-schema';
 import { SupportContainsCategoryRules1720000000000 } from './migrations/1720000000000-support-contains-category-rules';
 import { RemoveStatementImportAccountLast41730000000000 } from './migrations/1730000000000-remove-statement-import-account-last4';
@@ -22,6 +23,7 @@ import { RemoveLegacyFinancialReferenceConstraints1790000000000 } from './migrat
 import { RemoveLegacyFinancialProvisioningTriggers1800000000000 } from './migrations/1800000000000-remove-legacy-financial-provisioning-triggers';
 import { RemoveLegacyFinancialUserOwnership1810000000000 } from './migrations/1810000000000-remove-legacy-financial-user-ownership';
 import { CreateInvitations1820000000000 } from './migrations/1820000000000-create-invitations';
+import { CreateTransactionActivity1830000000000 } from './migrations/1830000000000-create-transaction-activity';
 
 export const DATABASE_MIGRATIONS = [
   CreateExpenseTrackerSchema1710000000000,
@@ -36,6 +38,7 @@ export const DATABASE_MIGRATIONS = [
   RemoveLegacyFinancialProvisioningTriggers1800000000000,
   RemoveLegacyFinancialUserOwnership1810000000000,
   CreateInvitations1820000000000,
+  CreateTransactionActivity1830000000000,
 ];
 
 export const DATABASE_ENTITIES = [
@@ -49,6 +52,7 @@ export const DATABASE_ENTITIES = [
   SpaceMembershipEntity,
   InvitationEntity,
   InvitationDeliveryAttemptEntity,
+  TransactionActivityEntity,
 ];
 
 export function createTypeOrmOptions(config: AppConfig): DataSourceOptions {

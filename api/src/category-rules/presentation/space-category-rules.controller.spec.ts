@@ -72,7 +72,6 @@ describe('Space Category Rule controllers', () => {
 
     expect(requireWriteAccess).toHaveBeenCalledTimes(2);
     expect(categoryRulesService.createCategoryRuleInSpace).toHaveBeenCalledWith(
-      '7',
       '10',
       { categoryId: '100', pattern: 'Groceries' },
     );
@@ -122,7 +121,6 @@ describe('Space Category Rule controllers', () => {
     expect(
       categoryRulesService.replaceCategoryRulesInSpace,
     ).toHaveBeenCalledWith(
-      '7',
       '10',
       '100',
       [{ pattern: 'Groceries', matchType: 'exact' }],
@@ -135,7 +133,6 @@ function categoryRuleRecord(): CategoryRuleRecord {
   const timestamp = new Date('2026-09-20T00:00:00.000Z');
   return {
     id: '42',
-    userId: '7',
     spaceId: '10',
     categoryId: '100',
     pattern: 'Groceries',

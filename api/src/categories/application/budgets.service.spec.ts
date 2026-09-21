@@ -22,7 +22,10 @@ describe('BudgetsService', () => {
     const service = new BudgetsService(categoryStore, budgetStore);
 
     await expect(
-      service.putBudget('7', '42', { amount: '250.00', period: 'monthly' }),
+      service.putBudgetInSpace('7', '42', {
+        amount: '250.00',
+        period: 'monthly',
+      }),
     ).resolves.toEqual({ budget, created: true });
     expect(budgetStore.createdInput).toEqual({
       categoryId: '42',
@@ -40,7 +43,10 @@ describe('BudgetsService', () => {
     );
 
     await expect(
-      service.putBudget('7', '42', { amount: '250.00', period: 'monthly' }),
+      service.putBudgetInSpace('7', '42', {
+        amount: '250.00',
+        period: 'monthly',
+      }),
     ).rejects.toBeInstanceOf(CategoryInactiveError);
     expect(budgetStore.createdInput).toBeUndefined();
   });
@@ -64,11 +70,16 @@ describe('BudgetsService', () => {
     );
 
     await expect(
-      service.putBudget('7', '42', { amount: '1200.00', period: 'yearly' }),
+      service.putBudgetInSpace('7', '42', {
+        amount: '1200.00',
+        period: 'yearly',
+        expectedUpdatedAt: existingBudget.updatedAt.toISOString(),
+      }),
     ).resolves.toEqual({ budget: replacedBudget, created: false });
     expect(budgetStore.updatedInput).toEqual({
       amount: '1200.00',
       period: 'yearly',
+      expectedUpdatedAt: existingBudget.updatedAt.toISOString(),
     });
     expect(replacedBudget.id).toBe(existingBudget.id);
     expect(replacedBudget.createdAt).toBe(existingBudget.createdAt);
@@ -86,7 +97,11 @@ describe('BudgetsService', () => {
     );
 
     await expect(
-      service.putBudget('7', '42', { amount: '250.00', period: 'monthly' }),
+      service.putBudgetInSpace('7', '42', {
+        amount: '250.00',
+        period: 'monthly',
+        expectedUpdatedAt: existingBudget.updatedAt.toISOString(),
+      }),
     ).resolves.toEqual({ budget: existingBudget, created: false });
     expect(budgetStore.updatedInput).toBeUndefined();
   });
@@ -109,7 +124,11 @@ describe('BudgetsService', () => {
     );
 
     await expect(
-      service.putBudget('7', '42', { amount: '1200.00', period: 'yearly' }),
+      service.putBudgetInSpace('7', '42', {
+        amount: '1200.00',
+        period: 'yearly',
+        expectedUpdatedAt: existingBudget.updatedAt.toISOString(),
+      }),
     ).resolves.toEqual({ budget: replacedBudget, created: false });
   });
 
@@ -120,16 +139,16 @@ describe('BudgetsService', () => {
       new BudgetStoreFake({ createdBudget: budgetRecord() }),
     );
     const crossUserService = new BudgetsService(
-      new CategoryStoreFake(categoryRecord({ userId: '8' })),
+      new CategoryStoreFake(categoryRecord({ spaceId: '8' })),
       new BudgetStoreFake({ createdBudget: budgetRecord() }),
     );
 
-    await expect(absentService.putBudget('7', '42', input)).rejects.toEqual(
-      expect.any(CategoryNotFoundError),
-    );
-    await expect(crossUserService.putBudget('7', '42', input)).rejects.toEqual(
-      expect.any(CategoryNotFoundError),
-    );
+    await expect(
+      absentService.putBudgetInSpace('7', '42', input),
+    ).rejects.toEqual(expect.any(CategoryNotFoundError));
+    await expect(
+      crossUserService.putBudgetInSpace('7', '42', input),
+    ).rejects.toEqual(expect.any(CategoryNotFoundError));
   });
 
   it('retrieves the owned category budget', async () => {
@@ -139,7 +158,7 @@ describe('BudgetsService', () => {
       new BudgetStoreFake({ createdBudget: budget, existingBudget: budget }),
     );
 
-    await expect(service.getBudget('7', '42')).resolves.toEqual(budget);
+    await expect(service.getBudgetInSpace('7', '42')).resolves.toEqual(budget);
   });
 
   it('does not reveal another user category and distinguishes a missing budget', async () => {
@@ -148,14 +167,14 @@ describe('BudgetsService', () => {
       new BudgetStoreFake({ createdBudget: budgetRecord() }),
     );
     const crossUserService = new BudgetsService(
-      new CategoryStoreFake(categoryRecord({ userId: '8' })),
+      new CategoryStoreFake(categoryRecord({ spaceId: '8' })),
       new BudgetStoreFake({ createdBudget: budgetRecord() }),
     );
 
-    await expect(missingBudgetService.getBudget('7', '42')).rejects.toEqual(
-      expect.any(BudgetNotFoundError),
-    );
-    await expect(crossUserService.getBudget('7', '42')).rejects.toEqual(
+    await expect(
+      missingBudgetService.getBudgetInSpace('7', '42'),
+    ).rejects.toEqual(expect.any(BudgetNotFoundError));
+    await expect(crossUserService.getBudgetInSpace('7', '42')).rejects.toEqual(
       expect.any(CategoryNotFoundError),
     );
   });
@@ -172,7 +191,9 @@ describe('BudgetsService', () => {
       budgetStore,
     );
 
-    await expect(service.deleteBudget('7', '42')).resolves.toBeUndefined();
+    await expect(
+      service.deleteBudgetInSpace('7', '42'),
+    ).resolves.toBeUndefined();
     expect(budgetStore.deletedCategoryId).toBe('42');
   });
 
@@ -182,7 +203,7 @@ describe('BudgetsService', () => {
       new BudgetStoreFake({ createdBudget: budgetRecord() }),
     );
 
-    await expect(service.deleteBudget('7', '42')).rejects.toEqual(
+    await expect(service.deleteBudgetInSpace('7', '42')).rejects.toEqual(
       expect.any(BudgetNotFoundError),
     );
   });
@@ -200,8 +221,10 @@ describe('BudgetsService', () => {
       budgetStore,
     );
 
-    await expect(service.getBudget('7', '42')).resolves.toEqual(budget);
-    await expect(service.deleteBudget('7', '42')).resolves.toBeUndefined();
+    await expect(service.getBudgetInSpace('7', '42')).resolves.toEqual(budget);
+    await expect(
+      service.deleteBudgetInSpace('7', '42'),
+    ).resolves.toBeUndefined();
     expect(category.isActive).toBe(false);
   });
 
@@ -357,6 +380,18 @@ class CategoryStoreFake implements CategoryStore {
         : null,
     );
   }
+
+  findAllBySpaceId(): Promise<CategoryRecord[]> {
+    return Promise.resolve([]);
+  }
+
+  findByNormalizedNameInSpace(): Promise<CategoryRecord | null> {
+    return Promise.resolve(null);
+  }
+
+  updateInSpace(): Promise<CategoryRecord | null> {
+    return Promise.resolve(null);
+  }
 }
 
 class BudgetStoreFake implements BudgetStore {
@@ -412,7 +447,7 @@ function categoryRecord(
   const timestamp = new Date('2026-08-29T00:00:00.000Z');
   return {
     id: '42',
-    userId: '7',
+    spaceId: '7',
     name: 'Groceries',
     description: null,
     isActive: true,

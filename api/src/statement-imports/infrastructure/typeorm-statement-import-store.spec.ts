@@ -48,17 +48,17 @@ describe('TypeOrmStatementImportStore', () => {
     ).rejects.toBeInstanceOf(SpaceNotWritableError);
   });
   it('finds a statement import only within the requested user scope', async () => {
-    const entity = statementImportEntity({ id: '108', userId: '42' });
+    const entity = statementImportEntity({ id: '108', spaceId: '42' });
     const repository = {
       findOne: jest.fn().mockResolvedValue(entity),
     };
     const store = new TypeOrmStatementImportStore(entityManagerFor(repository));
 
-    await expect(store.findById('42', '108')).resolves.toEqual(
-      statementImportRecord({ id: '108', userId: '42' }),
+    await expect(store.findByIdInSpace('42', '108')).resolves.toEqual(
+      statementImportRecord({ id: '108', spaceId: '42' }),
     );
     expect(repository.findOne).toHaveBeenCalledWith({
-      where: { id: '108', userId: '42' },
+      where: { id: '108', spaceId: '42' },
     });
   });
 
@@ -102,8 +102,8 @@ describe('TypeOrmStatementImportStore', () => {
     const store = new TypeOrmStatementImportStore(entityManagerFor(repository));
 
     await expect(
-      store.findPage({
-        userId: '7',
+      store.findPageInSpace({
+        spaceId: '7',
         filters: {
           fromDate: '2026-08-01',
           toDate: '2026-08-31',
@@ -125,8 +125,8 @@ describe('TypeOrmStatementImportStore', () => {
     ]);
 
     expect(query.where).toHaveBeenCalledWith(
-      'statementImport.userId = :userId',
-      { userId: '7' },
+      'statementImport.spaceId = :spaceId',
+      { spaceId: '7' },
     );
     expect(query.andWhere).toHaveBeenCalledWith(
       'statementImport.statementDate >= :fromDate',
@@ -143,7 +143,7 @@ describe('TypeOrmStatementImportStore', () => {
     expect(query.leftJoin).toHaveBeenCalledWith(
       TransactionEntity,
       'transaction',
-      'transaction.statementImportId = statementImport.id AND transaction.userId = statementImport.userId',
+      'transaction.statementImportId = statementImport.id AND transaction.spaceId = statementImport.spaceId',
     );
     expect(query.addSelect).toHaveBeenCalledWith(
       'COUNT(transaction.id)',
@@ -224,7 +224,7 @@ function statementImportEntity(
 ): StatementImportEntity {
   return {
     id: '1',
-    userId: '7',
+    spaceId: '7',
     fileName: 'august.pdf',
     fileHash: 'a'.repeat(64),
     statementDate: '2026-08-01',
@@ -240,7 +240,7 @@ function statementImportRecord(
 ): StatementImportRecord {
   return {
     id: '1',
-    userId: '7',
+    spaceId: '7',
     fileName: 'august.pdf',
     fileHash: 'a'.repeat(64),
     statementDate: '2026-08-01',
@@ -256,7 +256,7 @@ function statementImportHistoryRecord(
 ): StatementImportHistoryRecord {
   return {
     id: '1',
-    userId: '7',
+    spaceId: '7',
     fileName: 'august.pdf',
     statementDate: '2026-08-01',
     bank: 'Example Bank',

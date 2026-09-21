@@ -17,6 +17,7 @@ import {
 } from '../src/statement-imports/application/statement-imports.service';
 import { TypeOrmStatementImportConfirmationUnitOfWork } from '../src/database/unit-of-work';
 import { TypeOrmStatementImportStore } from '../src/statement-imports/infrastructure/typeorm-statement-import-store';
+import { TypeOrmSpaceStore } from '../src/spaces/infrastructure/typeorm-space-store';
 
 const databaseUrl = process.env.TEST_STATEMENT_IMPORT_ROLLBACK_DATABASE_URL;
 const describeDatabase = databaseUrl ? describe : describe.skip;
@@ -25,6 +26,7 @@ describeDatabase('Statement Import rollback with PostgreSQL', () => {
   let database: DataSource;
   let service: StatementImportsService;
   let userId: string | undefined;
+  let personalSpaceId: string | undefined;
   let sharedSpaceId: string | undefined;
   let failureTrigger: FailureTrigger | undefined;
 
@@ -52,16 +54,20 @@ describeDatabase('Statement Import rollback with PostgreSQL', () => {
       email: `${unique}@example.test`,
     });
     userId = user.id;
+    personalSpaceId = await new TypeOrmSpaceStore(
+      database.manager,
+    ).ensurePersonalSpace(user.id);
 
     const categories = await database.getRepository(CategoryEntity).save([
-      { userId, name: 'Existing category', isActive: true },
-      { userId, name: 'Attempted category', isActive: true },
+      { spaceId: personalSpaceId, name: 'Existing category', isActive: true },
+      { spaceId: personalSpaceId, name: 'Attempted category', isActive: true },
     ]);
 
     const existingImport = await database
       .getRepository(StatementImportEntity)
       .save({
-        userId,
+        spaceId: personalSpaceId,
+        importedByUserId: userId,
         fileName: 'existing.pdf',
         fileHash: uniqueHash('existing-import'),
         statementDate: '2026-08-31',
@@ -70,7 +76,8 @@ describeDatabase('Statement Import rollback with PostgreSQL', () => {
       });
 
     await database.getRepository(TransactionEntity).save({
-      userId,
+      spaceId: personalSpaceId,
+      addedByUserId: userId,
       categoryId: categories[0].id,
       statementImportId: existingImport.id,
       purchaseDate: '2026-08-15',
@@ -87,19 +94,39 @@ describeDatabase('Statement Import rollback with PostgreSQL', () => {
       failureTrigger = undefined;
     }
 
-    if (!database?.isInitialized || userId === undefined) {
+    if (
+      !database?.isInitialized ||
+      userId === undefined ||
+      personalSpaceId === undefined
+    ) {
       return;
     }
 
-    await database.getRepository(TransactionEntity).delete({ userId });
-    await database.getRepository(StatementImportEntity).delete({ userId });
-    await database.getRepository(CategoryEntity).delete({ userId });
+    await database.getRepository(TransactionEntity).delete({
+      spaceId: personalSpaceId,
+    });
+    await database.getRepository(StatementImportEntity).delete({
+      spaceId: personalSpaceId,
+    });
+    await database.getRepository(CategoryEntity).delete({
+      spaceId: personalSpaceId,
+    });
     if (sharedSpaceId !== undefined) {
+      await database
+        .getRepository(TransactionEntity)
+        .delete({ spaceId: sharedSpaceId });
+      await database
+        .getRepository(StatementImportEntity)
+        .delete({ spaceId: sharedSpaceId });
+      await database
+        .getRepository(CategoryEntity)
+        .delete({ spaceId: sharedSpaceId });
       await database.getRepository(SpaceEntity).delete({ id: sharedSpaceId });
       sharedSpaceId = undefined;
     }
     await database.getRepository(UserEntity).delete({ id: userId });
     userId = undefined;
+    personalSpaceId = undefined;
   });
 
   afterAll(async () => {
@@ -116,17 +143,17 @@ describeDatabase('Statement Import rollback with PostgreSQL', () => {
 
     const categories = await database
       .getRepository(CategoryEntity)
-      .find({ where: { userId: currentUserId }, order: { id: 'ASC' } });
+      .find({ where: { spaceId: personalSpaceId }, order: { id: 'ASC' } });
     const targetFileHash = uniqueHash('attempted-import');
     const firstDescription = `Attempted first transaction ${currentUserId}`;
     const failureDescription = `Force rollback failure ${currentUserId}`;
     const existingImport = await database
       .getRepository(StatementImportEntity)
-      .findOneByOrFail({ userId: currentUserId, fileName: 'existing.pdf' });
+      .findOneByOrFail({ spaceId: personalSpaceId, fileName: 'existing.pdf' });
     const existingTransaction = await database
       .getRepository(TransactionEntity)
       .findOneByOrFail({
-        userId: currentUserId,
+        spaceId: personalSpaceId,
         statementImportId: existingImport.id,
       });
 
@@ -161,21 +188,24 @@ describeDatabase('Statement Import rollback with PostgreSQL', () => {
 
     const attemptedImport = await database
       .getRepository(StatementImportEntity)
-      .findOneBy({ userId: currentUserId, fileHash: targetFileHash });
+      .findOneBy({ spaceId: personalSpaceId, fileHash: targetFileHash });
     const attemptedTransactions = await database
       .getRepository(TransactionEntity)
       .find({
         where: [
-          { userId: currentUserId, description: firstDescription },
-          { userId: currentUserId, description: failureDescription },
+          { spaceId: personalSpaceId, description: firstDescription },
+          { spaceId: personalSpaceId, description: failureDescription },
         ],
       });
     const persistedImport = await database
       .getRepository(StatementImportEntity)
-      .findOneByOrFail({ id: existingImport.id, userId: currentUserId });
+      .findOneByOrFail({ id: existingImport.id, spaceId: personalSpaceId });
     const persistedTransaction = await database
       .getRepository(TransactionEntity)
-      .findOneByOrFail({ id: existingTransaction.id, userId: currentUserId });
+      .findOneByOrFail({
+        id: existingTransaction.id,
+        spaceId: personalSpaceId,
+      });
 
     expect(attemptedImport).toBeNull();
     expect(attemptedTransactions).toEqual([]);
@@ -193,12 +223,12 @@ describeDatabase('Statement Import rollback with PostgreSQL', () => {
     await expect(
       database
         .getRepository(StatementImportEntity)
-        .countBy({ userId: currentUserId }),
+        .countBy({ spaceId: personalSpaceId }),
     ).resolves.toBe(1);
     await expect(
       database
         .getRepository(TransactionEntity)
-        .countBy({ userId: currentUserId }),
+        .countBy({ spaceId: personalSpaceId }),
     ).resolves.toBe(1);
   });
 
@@ -210,11 +240,11 @@ describeDatabase('Statement Import rollback with PostgreSQL', () => {
 
     const existingImport = await database
       .getRepository(StatementImportEntity)
-      .findOneByOrFail({ userId: currentUserId, fileName: 'existing.pdf' });
+      .findOneByOrFail({ spaceId: personalSpaceId, fileName: 'existing.pdf' });
     const existingTransaction = await database
       .getRepository(TransactionEntity)
       .findOneByOrFail({
-        userId: currentUserId,
+        spaceId: personalSpaceId,
         statementImportId: existingImport.id,
       });
     const sharedSpace = await database.getRepository(SpaceEntity).save({
@@ -230,7 +260,6 @@ describeDatabase('Statement Import rollback with PostgreSQL', () => {
       accessLevel: 'write',
     });
     const sharedCategory = await database.getRepository(CategoryEntity).save({
-      userId: currentUserId,
       spaceId: sharedSpace.id,
       name: 'Shared category',
       isActive: true,
@@ -266,13 +295,11 @@ describeDatabase('Statement Import rollback with PostgreSQL', () => {
     expect(committedImport.spaceId).toBe(sharedSpace.id);
     await expect(
       database.getRepository(StatementImportEntity).countBy({
-        userId: currentUserId,
         fileHash: existingImport.fileHash,
       }),
     ).resolves.toBe(2);
     await expect(
       database.getRepository(TransactionEntity).countBy({
-        userId: currentUserId,
         spaceId: sharedSpace.id,
         importFingerprint: existingTransaction.importFingerprint,
       }),

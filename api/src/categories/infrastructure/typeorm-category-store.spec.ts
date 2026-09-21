@@ -9,7 +9,7 @@ describe('TypeOrmCategoryStore', () => {
   it('carries descriptions and selected colors through create and update persistence operations', async () => {
     const saved = {
       id: '2',
-      userId: '1',
+      spaceId: '1',
       name: 'Dining',
       description: 'Restaurants',
       color: 'teal',
@@ -31,20 +31,20 @@ describe('TypeOrmCategoryStore', () => {
 
     await expect(
       store.create({
-        userId: '1',
+        spaceId: '1',
         name: 'Dining',
         description: 'Restaurants',
         color: 'teal',
       }),
     ).resolves.toMatchObject({ description: 'Restaurants', color: 'teal' });
     expect(repository.create).toHaveBeenCalledWith({
-      userId: '1',
+      spaceId: '1',
       name: 'Dining',
       description: 'Restaurants',
       color: 'teal',
     });
     await expect(
-      store.update('1', '2', { description: null, color: 'forest' }),
+      store.updateInSpace('1', '2', { description: null, color: 'forest' }),
     ).resolves.toMatchObject({ description: null, color: 'forest' });
   });
 
@@ -64,7 +64,7 @@ describe('TypeOrmCategoryStore', () => {
     const store = new TypeOrmCategoryStore(entityManager);
 
     await expect(
-      store.create({ userId: '1', name: 'Groceries', description: null }),
+      store.create({ spaceId: '1', name: 'Groceries', description: null }),
     ).rejects.toBeInstanceOf(CategoryNameConflictError);
   });
 
@@ -84,7 +84,7 @@ describe('TypeOrmCategoryStore', () => {
     const store = new TypeOrmCategoryStore(entityManager);
 
     await expect(
-      store.create({ userId: '404', name: 'Groceries', description: null }),
+      store.create({ spaceId: '404', name: 'Groceries', description: null }),
     ).rejects.toBeInstanceOf(CategoryOwnerNotFoundError);
   });
 });

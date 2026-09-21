@@ -40,7 +40,7 @@ describe('CategorySummariesService', () => {
     const service = new CategorySummariesService(store);
 
     await expect(
-      service.getCategorySummary('7', {
+      service.getCategorySummaryInSpace('7', {
         period: 'monthly',
         year: '2026',
         month: '08',
@@ -83,7 +83,7 @@ describe('CategorySummariesService', () => {
     });
 
     expect(store.query).toEqual({
-      userId: '7',
+      spaceId: '7',
       fromDate: '2026-08-01',
       toDate: '2026-08-31',
     });
@@ -98,14 +98,17 @@ describe('CategorySummariesService', () => {
     const service = new CategorySummariesService(store);
 
     await expect(
-      service.getCategorySummary('99', { period: 'yearly', year: '2028' }),
+      service.getCategorySummaryInSpace('99', {
+        period: 'yearly',
+        year: '2028',
+      }),
     ).resolves.toMatchObject({
       period: 'yearly',
       year: '2028',
       month: null,
       categories: [{ categoryId: '1' }],
     });
-    expect(store.query?.userId).toBe('99');
+    expect(store.query?.spaceId).toBe('99');
 
     const otherUserStore = new CategorySummaryStoreFake('7', {
       categories: [categorySummary({ categoryId: '2' })],
@@ -113,30 +116,33 @@ describe('CategorySummariesService', () => {
       uncategorizedCount: '0',
     });
     await expect(
-      new CategorySummariesService(otherUserStore).getCategorySummary('99', {
-        period: 'yearly',
-        year: '2028',
-      }),
+      new CategorySummariesService(otherUserStore).getCategorySummaryInSpace(
+        '99',
+        {
+          period: 'yearly',
+          year: '2028',
+        },
+      ),
     ).resolves.toMatchObject({ categories: [], uncategorizedTotal: '0.00' });
   });
 });
 
 class CategorySummaryStoreFake implements CategorySummaryStore {
-  query: { userId: string; fromDate: string; toDate: string } | undefined;
+  query: { spaceId: string; fromDate: string; toDate: string } | undefined;
 
   constructor(
-    private readonly ownerUserId: string,
+    private readonly ownerSpaceId: string,
     private readonly data: CategorySummaryData,
   ) {}
 
   findSummary(query: {
-    userId: string;
+    spaceId: string;
     fromDate: string;
     toDate: string;
   }): Promise<CategorySummaryData> {
     this.query = query;
     return Promise.resolve(
-      query.userId === this.ownerUserId
+      query.spaceId === this.ownerSpaceId
         ? this.data
         : {
             categories: [],

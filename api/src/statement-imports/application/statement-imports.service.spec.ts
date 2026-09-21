@@ -8,8 +8,8 @@ import type {
 } from '../../transactions/application/transaction-category-store';
 import type {
   ImportedTransactionRecord,
-  ImportedTransactionStore,
   NewImportedTransaction,
+  SpaceImportedTransactionStore,
 } from '../../transactions/application/imported-transaction-store';
 import {
   StatementImportFileAlreadyExistsError,
@@ -19,7 +19,6 @@ import {
 } from './statement-import-errors';
 import type {
   NewStatementImport,
-  StatementImportHistoryPageQuery,
   StatementImportHistoryRecord,
   StatementImportRecord,
   StatementImportStore,
@@ -50,7 +49,8 @@ describe('StatementImportsService', () => {
     });
     const service = new StatementImportsService(statementImports, unitOfWork);
 
-    const committedImport = await service.commitReviewedStatementImport(
+    const committedImport = await service.commitReviewedStatementImportInSpace(
+      '7',
       '7',
       statementInput(),
     );
@@ -58,7 +58,8 @@ describe('StatementImportsService', () => {
     expect(unitOfWork.executeCalls).toBe(1);
     expect(committedImport).toEqual(statementImports.createdImport);
     expect(statementImports.createdInput).toMatchObject({
-      userId: '7',
+      spaceId: '7',
+      importedByUserId: '7',
       fileName: 'august.pdf',
       fileHash: validFileHash(),
       statementDate: '2026-08-31',
@@ -69,7 +70,8 @@ describe('StatementImportsService', () => {
     expect(importedTransactions.createdInputs).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          userId: '7',
+          spaceId: '7',
+          addedByUserId: '7',
           statementImportId: '100',
           categoryId: '42',
           purchaseDate: '2026-08-01',
@@ -78,7 +80,8 @@ describe('StatementImportsService', () => {
           categoryMatchConfidence: '0.9000',
         }),
         expect.objectContaining({
-          userId: '7',
+          spaceId: '7',
+          addedByUserId: '7',
           statementImportId: '100',
           categoryId: null,
           purchaseDate: '2026-08-02',
@@ -124,7 +127,6 @@ describe('StatementImportsService', () => {
       { spaceId: '55', userId: '7' },
     ]);
     expect(statementImports.createdInput).toMatchObject({
-      userId: '7',
       spaceId: '55',
       importedByUserId: '7',
     });
@@ -133,7 +135,6 @@ describe('StatementImportsService', () => {
     expect(importedTransactions.createdInputs).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          userId: '7',
           spaceId: '55',
           addedByUserId: '7',
         }),
@@ -155,7 +156,7 @@ describe('StatementImportsService', () => {
     const service = new StatementImportsService(statementImports, unitOfWork);
 
     await expect(
-      service.commitReviewedStatementImport('7', {
+      service.commitReviewedStatementImportInSpace('7', '7', {
         ...statementInput(),
         acknowledgeProbableDuplicates: true,
       }),
@@ -197,7 +198,7 @@ describe('StatementImportsService', () => {
     const service = new StatementImportsService(statementImports, unitOfWork);
 
     await expect(
-      service.commitReviewedStatementImport('7', {
+      service.commitReviewedStatementImportInSpace('7', '7', {
         ...input,
         transactions: [duplicateTransaction, duplicateTransaction],
       }),
@@ -249,7 +250,7 @@ describe('StatementImportsService', () => {
     const service = new StatementImportsService(statementImports, unitOfWork);
 
     await expect(
-      service.commitReviewedStatementImport('7', {
+      service.commitReviewedStatementImportInSpace('7', '7', {
         ...input,
         acknowledgeProbableDuplicates: true,
         transactions: [duplicateTransaction, duplicateTransaction],
@@ -277,7 +278,7 @@ describe('StatementImportsService', () => {
       const service = new StatementImportsService(statementImports, unitOfWork);
 
       await expect(
-        service.commitReviewedStatementImport('7', {
+        service.commitReviewedStatementImportInSpace('7', '7', {
           ...statementInput(),
           transactions: [
             statementInput().transactions[0],
@@ -307,7 +308,7 @@ describe('StatementImportsService', () => {
     const service = new StatementImportsService(statementImports, unitOfWork);
 
     await expect(
-      service.commitReviewedStatementImport('7', {
+      service.commitReviewedStatementImportInSpace('7', '7', {
         ...statementInput(),
         fileName: ' ',
         statementDate: '2026-02-29',
@@ -338,7 +339,11 @@ describe('StatementImportsService', () => {
     const service = new StatementImportsService(statementImports, unitOfWork);
 
     await expect(
-      service.commitReviewedStatementImport('999', statementInput()),
+      service.commitReviewedStatementImportInSpace(
+        '999',
+        '7',
+        statementInput(),
+      ),
     ).rejects.toBeInstanceOf(UserNotFoundError);
 
     expect(statementImports.createdInput).toBeUndefined();
@@ -360,7 +365,7 @@ describe('StatementImportsService', () => {
     const service = new StatementImportsService(statementImports, unitOfWork);
 
     await expect(
-      service.commitReviewedStatementImport('7', statementInput()),
+      service.commitReviewedStatementImportInSpace('7', '7', statementInput()),
     ).rejects.toThrow('transaction write failed');
 
     expect(statementImports.createdInput).toBeDefined();
@@ -383,7 +388,7 @@ describe('StatementImportsService', () => {
       toDate: '2026-08-31',
     };
 
-    const page = await service.listStatementImports('7', {
+    const page = await service.listStatementImportsInSpace('7', {
       ...filters,
       pageSize: 2,
     });
@@ -393,8 +398,8 @@ describe('StatementImportsService', () => {
     expect(
       decodeStatementImportCursor(page.nextCursor ?? '', filters).position,
     ).toEqual({ statementDate: '2026-08-03', statementImportId: '2' });
-    expect(statementImports.pageQuery).toEqual({
-      userId: '7',
+    expect(statementImports.spacePageQuery).toEqual({
+      spaceId: '7',
       filters,
       after: null,
       pageSize: 2,
@@ -404,7 +409,7 @@ describe('StatementImportsService', () => {
       statementImportHistoryRecord({ id: '1', statementDate: '2026-08-02' }),
     ];
     await expect(
-      service.listStatementImports('7', {
+      service.listStatementImportsInSpace('7', {
         ...filters,
         pageSize: 1,
         cursor: page.nextCursor ?? undefined,
@@ -413,8 +418,8 @@ describe('StatementImportsService', () => {
       items: statementImports.pageResults,
       nextCursor: null,
     });
-    expect(statementImports.pageQuery).toEqual({
-      userId: '7',
+    expect(statementImports.spacePageQuery).toEqual({
+      spaceId: '7',
       filters,
       after: { statementDate: '2026-08-03', statementImportId: '2' },
       pageSize: 1,
@@ -422,46 +427,48 @@ describe('StatementImportsService', () => {
   });
 
   it('retrieves only an owned statement import and maps absent identifiers to not found', async () => {
-    const ownedImport = statementRecord({ id: '108', userId: '42' });
+    const ownedImport = statementRecord({ id: '108', spaceId: '42' });
     const statementImports = new StatementImportStoreFake([
       ownedImport,
-      statementRecord({ id: '109', userId: '7' }),
+      statementRecord({ id: '109', spaceId: '7' }),
     ]);
     const service = new StatementImportsService(statementImports);
 
-    await expect(service.getStatementImport('42', '108')).resolves.toEqual(
-      ownedImport,
-    );
-    await expect(service.getStatementImport('42', '109')).rejects.toEqual(
-      expect.any(StatementImportNotFoundError),
-    );
-    await expect(service.getStatementImport('42', '404')).rejects.toEqual(
-      expect.any(StatementImportNotFoundError),
-    );
+    await expect(
+      service.getStatementImportInSpace('42', '108'),
+    ).resolves.toEqual(ownedImport);
+    await expect(
+      service.getStatementImportInSpace('42', '109'),
+    ).rejects.toEqual(expect.any(StatementImportNotFoundError));
+    await expect(
+      service.getStatementImportInSpace('42', '404'),
+    ).rejects.toEqual(expect.any(StatementImportNotFoundError));
   });
 
   it('does not return history owned by another user', async () => {
     const statementImports = new StatementImportStoreFake(
       [],
       [
-        statementImportHistoryRecord({ id: '1', userId: '7' }),
-        statementImportHistoryRecord({ id: '2', userId: '8' }),
+        statementImportHistoryRecord({ id: '1', spaceId: '7' }),
+        statementImportHistoryRecord({ id: '2', spaceId: '8' }),
       ],
     );
     const service = new StatementImportsService(statementImports);
 
-    await expect(service.listStatementImports('7', {})).resolves.toEqual({
-      items: [statementImports.pageResults[0]],
-      nextCursor: null,
-    });
-    expect(statementImports.pageQuery?.userId).toBe('7');
+    await expect(service.listStatementImportsInSpace('7', {})).resolves.toEqual(
+      {
+        items: [statementImports.pageResults[0]],
+        nextCursor: null,
+      },
+    );
+    expect(statementImports.spacePageQuery?.spaceId).toBe('7');
   });
 
   it('rejects an empty cursor instead of treating it as the first page', async () => {
     const service = new StatementImportsService(new StatementImportStoreFake());
 
     await expect(
-      service.listStatementImports('7', { cursor: '' }),
+      service.listStatementImportsInSpace('7', { cursor: '' }),
     ).rejects.toBeInstanceOf(ApplicationError);
   });
 });
@@ -475,7 +482,13 @@ class UnitOfWorkFake implements StatementImportConfirmationUnitOfWork {
     work: (context: StatementImportConfirmationContext) => Promise<TResult>,
   ): Promise<TResult> {
     this.executeCalls += 1;
-    return work(this.context);
+    return work({
+      ...this.context,
+      spaces:
+        this.context.spaces ??
+        (this.context
+          .statementImports as StatementImportConfirmationContext['spaces']),
+    });
   }
 }
 
@@ -484,7 +497,9 @@ class StatementImportStoreFake implements StatementImportStore {
   createdImport: StatementImportRecord | undefined;
   spaceFileHashQuery: { spaceId: string; fileHash: string } | undefined;
   spaceLockQueries: { spaceId: string; userId: string }[] = [];
-  pageQuery: StatementImportHistoryPageQuery | undefined;
+  spacePageQuery:
+    | import('./statement-import-store').SpaceStatementImportHistoryPageQuery
+    | undefined;
   pageResults: StatementImportHistoryRecord[];
 
   constructor(
@@ -492,32 +507,6 @@ class StatementImportStoreFake implements StatementImportStore {
     pageResults: StatementImportHistoryRecord[] = [],
   ) {
     this.pageResults = pageResults;
-  }
-
-  findById(
-    userId: string,
-    statementImportId: string,
-  ): Promise<StatementImportRecord | null> {
-    return Promise.resolve(
-      this.imports.find(
-        (statementImport) =>
-          statementImport.userId === userId &&
-          statementImport.id === statementImportId,
-      ) ?? null,
-    );
-  }
-
-  findByFileHash(
-    userId: string,
-    fileHash: string,
-  ): Promise<StatementImportRecord | null> {
-    return Promise.resolve(
-      this.imports.find(
-        (statementImport) =>
-          statementImport.userId === userId &&
-          statementImport.fileHash === fileHash,
-      ) ?? null,
-    );
   }
 
   findByFileHashInSpace(
@@ -556,7 +545,6 @@ class StatementImportStoreFake implements StatementImportStore {
     this.createdInput = input;
     this.createdImport = statementRecord({
       id: '100',
-      userId: input.userId,
       spaceId: input.spaceId,
       importedByUserId: input.importedByUserId,
       fileName: input.fileName,
@@ -569,20 +557,10 @@ class StatementImportStoreFake implements StatementImportStore {
     return Promise.resolve(this.createdImport);
   }
 
-  findPage(
-    query: StatementImportHistoryPageQuery,
-  ): Promise<StatementImportHistoryRecord[]> {
-    this.pageQuery = query;
-    return Promise.resolve(
-      this.pageResults.filter(
-        (statementImport) => statementImport.userId === query.userId,
-      ),
-    );
-  }
-
   findPageInSpace(
     query: import('./statement-import-store').SpaceStatementImportHistoryPageQuery,
   ): Promise<StatementImportHistoryRecord[]> {
+    this.spacePageQuery = query;
     return Promise.resolve(
       this.pageResults.filter(
         (statementImport) => statementImport.spaceId === query.spaceId,
@@ -591,7 +569,7 @@ class StatementImportStoreFake implements StatementImportStore {
   }
 }
 
-class ImportedTransactionStoreFake implements ImportedTransactionStore {
+class ImportedTransactionStoreFake implements SpaceImportedTransactionStore {
   readonly createdInputs: NewImportedTransaction[] = [];
   readonly spaceFingerprintQueries: { spaceId: string; fingerprint: string }[] =
     [];
@@ -606,13 +584,6 @@ class ImportedTransactionStoreFake implements ImportedTransactionStore {
 
   get createCallCount(): number {
     return this.createdInputs.length;
-  }
-
-  findByFingerprint(
-    _userId: string,
-    fingerprint: string,
-  ): Promise<ImportedTransactionRecord[]> {
-    return Promise.resolve(this.matchesByFingerprint.get(fingerprint) ?? []);
   }
 
   findByFingerprintInSpace(
@@ -638,28 +609,17 @@ class ImportedTransactionStoreFake implements ImportedTransactionStore {
     });
   }
 
-  findById(): Promise<ImportedTransactionRecord | null> {
+  findByIdInSpace(): Promise<ImportedTransactionRecord | null> {
     return Promise.resolve(null);
   }
 
-  updateCategory(): Promise<ImportedTransactionRecord | null> {
+  updateCategoryInSpace(): Promise<ImportedTransactionRecord | null> {
     return Promise.resolve(null);
   }
 }
 
 class TransactionCategoryStoreFake implements TransactionCategoryStore {
   constructor(private readonly categories: TransactionCategoryRecord[] = []) {}
-
-  findById(
-    userId: string,
-    id: string,
-  ): Promise<TransactionCategoryRecord | null> {
-    return Promise.resolve(
-      this.categories.find(
-        (category) => category.userId === userId && category.id === id,
-      ) ?? null,
-    );
-  }
 
   findBySpaceId(
     spaceId: string,
@@ -724,7 +684,8 @@ function importedTransactionRecord(
 ): ImportedTransactionRecord {
   return {
     id: '1',
-    userId: '7',
+    spaceId: '7',
+    addedByUserId: '7',
     categoryId: '42',
     statementImportId: '100',
     purchaseDate: '2026-08-01',
@@ -748,7 +709,7 @@ function categoryRecord(
 ): TransactionCategoryRecord {
   return {
     id: '42',
-    userId: '7',
+    spaceId: '7',
     isActive: true,
     ...overrides,
   };
@@ -759,7 +720,8 @@ function statementRecord(
 ): StatementImportRecord {
   return {
     id: '100',
-    userId: '7',
+    spaceId: '7',
+    importedByUserId: '7',
     fileName: 'august.pdf',
     fileHash: validFileHash(),
     statementDate: '2026-08-31',
@@ -775,7 +737,8 @@ function statementImportHistoryRecord(
 ): StatementImportHistoryRecord {
   return {
     id: '1',
-    userId: '7',
+    spaceId: '7',
+    importedByUserId: '7',
     fileName: 'august.pdf',
     statementDate: '2026-08-01',
     bank: 'Example Bank',

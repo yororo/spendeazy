@@ -22,8 +22,8 @@ describe('TypeOrmTransactionStore', () => {
     const store = new TypeOrmTransactionStore(entityManager);
 
     await expect(
-      store.create({
-        userId: '7',
+      store.createInSpace({
+        spaceId: '7',
         categoryId: '42',
         purchaseDate: '2026-08-01',
         description: 'Coffee',
@@ -32,7 +32,7 @@ describe('TypeOrmTransactionStore', () => {
     ).resolves.toEqual(transactionRecord());
 
     expect(transactionRepository.create).toHaveBeenCalledWith({
-      userId: '7',
+      spaceId: '7',
       categoryId: '42',
       statementImportId: null,
       purchaseDate: '2026-08-01',
@@ -55,8 +55,8 @@ describe('TypeOrmTransactionStore', () => {
     );
 
     await expect(
-      store.create({
-        userId: '7',
+      store.createInSpace({
+        spaceId: '7',
         categoryId: '42',
         purchaseDate: '2026-08-01',
         description: 'Coffee',
@@ -78,7 +78,7 @@ describe('TypeOrmTransactionStore', () => {
     );
 
     await expect(
-      store.update('7', '1', {
+      store.updateInSpace('7', '1', {
         categoryId: '43',
         purchaseDate: '2026-08-02',
         description: 'Dinner',
@@ -104,9 +104,9 @@ describe('TypeOrmTransactionStore', () => {
       entityManagerFor(transactionRepository),
     );
 
-    await expect(store.delete('7', '1')).resolves.toBe(true);
+    await expect(store.deleteInSpace('7', '1')).resolves.toBe(true);
     expect(transactionRepository.delete).toHaveBeenCalledWith(
-      expect.objectContaining({ id: '1', userId: '7' }),
+      expect.objectContaining({ id: '1', spaceId: '7' }),
     );
   });
 
@@ -124,8 +124,8 @@ describe('TypeOrmTransactionStore', () => {
     const store = new TypeOrmTransactionStore(pagedEntityManager(query));
 
     await expect(
-      store.findPage({
-        userId: '7',
+      store.findPageInSpace({
+        spaceId: '7',
         filters: {
           fromDate: '2026-08-01',
           toDate: '2026-08-31',
@@ -142,8 +142,8 @@ describe('TypeOrmTransactionStore', () => {
       importedTransactionRecord(),
     ]);
 
-    expect(query.where).toHaveBeenCalledWith('transaction.userId = :userId', {
-      userId: '7',
+    expect(query.where).toHaveBeenCalledWith('transaction.spaceId = :spaceId', {
+      spaceId: '7',
     });
     expect(query.andWhere).toHaveBeenCalledWith(
       'transaction.purchaseDate >= :fromDate',
@@ -235,7 +235,7 @@ function categoryQueryBuilder(category: {
     setLock: jest.fn().mockReturnThis(),
     getOne: jest.fn().mockResolvedValue({
       id: '42',
-      userId: '7',
+      spaceId: '7',
       isActive: category.isActive,
     }),
   };
@@ -244,7 +244,7 @@ function categoryQueryBuilder(category: {
 function transactionEntity() {
   return {
     id: '1',
-    userId: '7',
+    spaceId: '7',
     categoryId: '42',
     statementImportId: null,
     purchaseDate: '2026-08-01',
@@ -260,7 +260,7 @@ function transactionEntity() {
 function transactionRecord(): ManualTransactionRecord {
   return {
     id: '1',
-    userId: '7',
+    spaceId: '7',
     categoryId: '42',
     purchaseDate: '2026-08-01',
     description: 'Coffee',

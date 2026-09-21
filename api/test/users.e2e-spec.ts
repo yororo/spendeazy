@@ -118,7 +118,7 @@ describe('authenticated User routes', () => {
       listCategories: jest
         .fn()
         .mockImplementation((userId: string) =>
-          defaultCategoryStore.findAll(userId),
+          defaultCategoryStore.findAllBySpaceId(userId),
         ),
       getCategory: jest.fn().mockResolvedValue(categoryRecord({ id: '100' })),
       updateCategory: jest
@@ -169,11 +169,8 @@ describe('authenticated User routes', () => {
       deleteManualTransaction: jest.fn().mockResolvedValue(undefined),
     };
     Object.assign(categoriesService, {
-      createCategoryInSpace: (
-        userId: string,
-        _spaceId: string,
-        input: unknown,
-      ) => invoke(categoriesService.createCategory, userId, input),
+      createCategoryInSpace: (spaceId: string, input: unknown) =>
+        invoke(categoriesService.createCategory, spaceId, input),
       listCategoriesInSpace: (spaceId: string) =>
         invoke(categoriesService.listCategories, spaceId),
       getCategoryInSpace: (spaceId: string, id: string) =>
@@ -194,11 +191,8 @@ describe('authenticated User routes', () => {
         invoke(categorySummariesService.getCategorySummary, spaceId, query),
     });
     Object.assign(categoryRulesService, {
-      createCategoryRuleInSpace: (
-        userId: string,
-        _spaceId: string,
-        input: unknown,
-      ) => invoke(categoryRulesService.createCategoryRule, userId, input),
+      createCategoryRuleInSpace: (spaceId: string, input: unknown) =>
+        invoke(categoryRulesService.createCategoryRule, spaceId, input),
       listCategoryRulesInSpace: async (spaceId: string) => ({
         rules: await invoke(categoryRulesService.listCategoryRules, spaceId),
         revision: '0',
@@ -354,8 +348,8 @@ describe('authenticated User routes', () => {
         updatedAt: category.updatedAt.toISOString(),
       })),
     );
-    expect(await defaultCategoryStore.findAll('42')).toEqual(defaults);
-    expect(await defaultCategoryStore.findAll('999')).toEqual([]);
+    expect(await defaultCategoryStore.findAllBySpaceId('42')).toEqual(defaults);
+    expect(await defaultCategoryStore.findAllBySpaceId('999')).toEqual([]);
     expect(budgetsService.putBudget).not.toHaveBeenCalled();
   });
 
@@ -1736,21 +1730,21 @@ class InMemoryDefaultCategoryStore implements CategoryStore {
     return Promise.resolve(category);
   }
 
-  findAll(userId: string): Promise<CategoryRecord[]> {
+  findAllBySpaceId(spaceId: string): Promise<CategoryRecord[]> {
     return Promise.resolve(
-      this.categories.filter((category) => category.userId === userId),
+      this.categories.filter((category) => category.spaceId === spaceId),
     );
   }
 
-  findById(): Promise<CategoryRecord | null> {
+  findBySpaceId(): Promise<CategoryRecord | null> {
     throw new Error('Not used');
   }
 
-  findByNormalizedName(): Promise<CategoryRecord | null> {
+  findByNormalizedNameInSpace(): Promise<CategoryRecord | null> {
     throw new Error('Not used');
   }
 
-  update(): Promise<CategoryRecord | null> {
+  updateInSpace(): Promise<CategoryRecord | null> {
     throw new Error('Not used');
   }
 }
@@ -1786,6 +1780,7 @@ function session(userId: string): ClerkSession {
 interface TestCategoryRecord {
   id: string;
   userId: string;
+  spaceId: string;
   name: string;
   description: string | null;
   color: CategoryRecord['color'];
@@ -1801,6 +1796,7 @@ function categoryRecord(
   return {
     id: '42',
     userId: '42',
+    spaceId: '42',
     name: 'Groceries',
     description: null,
     color: null,

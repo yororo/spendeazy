@@ -9,6 +9,7 @@ import {
 import { CategoryEntity } from '../src/database/entities/category.entity';
 import { UserEntity } from '../src/database/entities/user.entity';
 import { TypeOrmCategoryStore } from '../src/categories/infrastructure/typeorm-category-store';
+import { TypeOrmSpaceStore } from '../src/spaces/infrastructure/typeorm-space-store';
 
 const databaseUrl = process.env.TEST_CATEGORY_COLOR_DATABASE_URL;
 const describeDatabase = databaseUrl ? describe : describe.skip;
@@ -16,7 +17,7 @@ const describeDatabase = databaseUrl ? describe : describe.skip;
 describeDatabase('category colors with PostgreSQL', () => {
   let database: DataSource;
   let categories: CategoriesService;
-  let userId: string;
+  let spaceId: string;
 
   beforeAll(async () => {
     database = await new DataSource({
@@ -40,7 +41,9 @@ describeDatabase('category colors with PostgreSQL', () => {
       name: 'Category color test',
       email: `${unique}@example.test`,
     });
-    userId = user.id;
+    spaceId = await new TypeOrmSpaceStore(database.manager).ensurePersonalSpace(
+      user.id,
+    );
   });
 
   afterAll(async () => {
@@ -48,7 +51,7 @@ describeDatabase('category colors with PostgreSQL', () => {
   });
 
   it('persists saved colors across reloads and Category lifecycle changes', async () => {
-    const created = await categories.createCategory(userId, {
+    const created = await categories.createCategoryInSpace(spaceId, {
       name: 'Dining',
       color: 'teal',
     });
@@ -58,21 +61,24 @@ describeDatabase('category colors with PostgreSQL', () => {
       new TypeOrmCategoryStore(database.manager),
     );
     await expect(
-      reloadedService.getCategory(userId, created.id),
+      reloadedService.getCategoryInSpace(spaceId, created.id),
     ).resolves.toMatchObject({ color: 'teal' });
 
-    await reloadedService.updateCategory(userId, created.id, {
+    await reloadedService.updateCategoryInSpace(spaceId, created.id, {
       color: 'forest',
     });
-    await reloadedService.updateCategory(userId, created.id, {
+    await reloadedService.updateCategoryInSpace(spaceId, created.id, {
       name: 'Dining renamed',
       isActive: false,
     });
-    await reloadedService.updateCategory(userId, created.id, {
+    await reloadedService.updateCategoryInSpace(spaceId, created.id, {
       isActive: true,
     });
 
-    const persisted = await reloadedService.getCategory(userId, created.id);
+    const persisted = await reloadedService.getCategoryInSpace(
+      spaceId,
+      created.id,
+    );
     expect(persisted).toMatchObject({
       name: 'Dining renamed',
       color: 'forest',
@@ -81,23 +87,23 @@ describeDatabase('category colors with PostgreSQL', () => {
   });
 
   it('resolves a null legacy color from Category identity, unchanged by rename', async () => {
-    const legacy = await categories.createCategory(userId, {
+    const legacy = await categories.createCategoryInSpace(spaceId, {
       name: 'Legacy category',
     });
     expect(legacy.color).toBeNull();
     const defaultColor = toCategoryResponse(legacy).color;
 
-    await categories.updateCategory(userId, legacy.id, {
+    await categories.updateCategoryInSpace(spaceId, legacy.id, {
       name: 'Legacy category renamed',
     });
 
-    const reloaded = await categories.getCategory(userId, legacy.id);
+    const reloaded = await categories.getCategoryInSpace(spaceId, legacy.id);
     expect(reloaded.color).toBeNull();
     expect(toCategoryResponse(reloaded).color).toBe(defaultColor);
   });
 
   it('rejects unsupported palette values at the database boundary', async () => {
-    const category = await categories.createCategory(userId, {
+    const category = await categories.createCategoryInSpace(spaceId, {
       name: 'Database validation',
       color: 'teal',
     });
@@ -109,7 +115,7 @@ describeDatabase('category colors with PostgreSQL', () => {
     ).rejects.toBeDefined();
 
     await expect(
-      categories.getCategory(userId, category.id),
+      categories.getCategoryInSpace(spaceId, category.id),
     ).resolves.toMatchObject({ color: 'teal' });
   });
 });

@@ -28,8 +28,8 @@ import {
 } from '../src/spaces/application/space-errors';
 import type {
   ImportedTransactionRecord,
-  ImportedTransactionStore,
   NewImportedTransaction,
+  SpaceImportedTransactionStore,
 } from '../src/transactions/application/imported-transaction-store';
 import type {
   TransactionCategoryRecord,
@@ -45,7 +45,6 @@ import {
 import {
   STATEMENT_IMPORT_STORE,
   type NewStatementImport,
-  type StatementImportHistoryPageQuery,
   type StatementImportHistoryRecord,
   type StatementImportRecord,
   type StatementImportStore,
@@ -126,6 +125,7 @@ describe('authenticated statement-import routes', () => {
     );
     expect(commitResponse.body).toEqual({
       id: '400',
+      importedByUserId: '42',
       fileName: 'august.pdf',
       statementDate: '2026-08-31',
       bank: 'Example Bank',
@@ -301,7 +301,7 @@ describe('statement-import ownership through authenticated routes', () => {
 
   it('returns non-disclosing 404s for absent and cross-user imports', async () => {
     fixture.statementImports.seed(
-      statementImportRecord({ id: '501', userId: '42' }),
+      statementImportRecord({ id: '501', spaceId: '42' }),
     );
     const absent = await statementRequest(application)
       .get('/api/v1/users/me/statement-imports/404')
@@ -319,8 +319,8 @@ describe('statement-import ownership through authenticated routes', () => {
 
   it('only lists statement imports owned by the authenticated User', async () => {
     fixture.statementImports.seed(
-      statementImportRecord({ id: '500', userId: '99' }),
-      statementImportRecord({ id: '501', userId: '42' }),
+      statementImportRecord({ id: '500', spaceId: '99' }),
+      statementImportRecord({ id: '501', spaceId: '42' }),
     );
 
     const ownerHistory = await statementRequest(application)
@@ -343,7 +343,7 @@ describe('statement-import ownership through authenticated routes', () => {
     expect(otherUserHistory.status).toBe(200);
     expect(otherUserHistoryBody.items.map((item) => item.id)).toEqual(['501']);
     expect(
-      fixture.statementImports.pageQueries.map((query) => query.userId),
+      fixture.statementImports.pageQueries.map((query) => query.spaceId),
     ).toEqual(['99', '42']);
   });
 
@@ -353,14 +353,14 @@ describe('statement-import ownership through authenticated routes', () => {
     fixture.statementImports.seed(
       statementImportRecord({
         id: '500',
-        userId: '99',
+        spaceId: '99',
         fileHash: 'b'.repeat(64),
       }),
     );
     fixture.importedTransactions.seed(
       importedTransactionRecord({
         id: '700',
-        userId: '99',
+        spaceId: '99',
         statementImportId: '500',
         importFingerprint: fingerprint,
       }),
@@ -392,10 +392,14 @@ describe('statement-import ownership through authenticated routes', () => {
       'STATEMENT_IMPORT_PROBABLE_DUPLICATES',
     );
     expect(fixture.statementImports.createdInputs).toHaveLength(1);
-    expect(fixture.statementImports.createdInputs[0]?.userId).toBe('42');
+    expect(fixture.statementImports.createdInputs[0]).toMatchObject({
+      spaceId: '42',
+      importedByUserId: '42',
+    });
     expect(fixture.importedTransactions.createdInputs).toHaveLength(1);
     expect(fixture.importedTransactions.createdInputs[0]).toMatchObject({
-      userId: '42',
+      spaceId: '42',
+      addedByUserId: '42',
     });
     expect(
       typeof fixture.importedTransactions.createdInputs[0]?.statementImportId,
@@ -403,7 +407,11 @@ describe('statement-import ownership through authenticated routes', () => {
   });
 
   it('requires categories to belong to the authenticated User and commits transactions in that scope', async () => {
-    fixture.categories.seed({ id: '42', userId: '42', isActive: true });
+    fixture.categories.seed({
+      id: '42',
+      spaceId: '42',
+      isActive: true,
+    });
 
     const crossUserCategory = await statementRequest(application)
       .post('/api/v1/users/me/statement-imports')
@@ -454,10 +462,14 @@ describe('statement-import ownership through authenticated routes', () => {
     expect(errorCode(crossUserCategory)).toBe('CATEGORY_NOT_FOUND');
     expect(ownedCategory.status).toBe(201);
     expect(fixture.statementImports.createdInputs).toHaveLength(1);
-    expect(fixture.statementImports.createdInputs[0]?.userId).toBe('42');
+    expect(fixture.statementImports.createdInputs[0]).toMatchObject({
+      spaceId: '42',
+      importedByUserId: '42',
+    });
     expect(fixture.importedTransactions.createdInputs).toHaveLength(1);
     expect(fixture.importedTransactions.createdInputs[0]).toMatchObject({
-      userId: '42',
+      spaceId: '42',
+      addedByUserId: '42',
       categoryId: '42',
     });
   });
@@ -799,43 +811,12 @@ class StatementImportHttpFixture implements StatementImportConfirmationUnitOfWor
 
 class HttpStatementImportStore implements StatementImportStore {
   readonly createdInputs: NewStatementImport[] = [];
-  readonly pageQueries: StatementImportHistoryPageQuery[] = [];
+  readonly pageQueries: SpaceStatementImportHistoryPageQuery[] = [];
   private readonly imports: StatementImportRecord[] = [];
   private nextId = 900;
 
   seed(...records: StatementImportRecord[]): void {
-    this.imports.push(
-      ...records.map((record) => ({
-        ...record,
-        spaceId: record.spaceId ?? record.userId,
-      })),
-    );
-  }
-
-  findById(
-    userId: string,
-    statementImportId: string,
-  ): Promise<StatementImportRecord | null> {
-    return Promise.resolve(
-      this.imports.find(
-        (statementImport) =>
-          statementImport.userId === userId &&
-          statementImport.id === statementImportId,
-      ) ?? null,
-    );
-  }
-
-  findByFileHash(
-    userId: string,
-    fileHash: string,
-  ): Promise<StatementImportRecord | null> {
-    return Promise.resolve(
-      this.imports.find(
-        (statementImport) =>
-          statementImport.userId === userId &&
-          statementImport.fileHash === fileHash,
-      ) ?? null,
-    );
+    this.imports.push(...records);
   }
 
   findByIdInSpace(
@@ -864,36 +845,10 @@ class HttpStatementImportStore implements StatementImportStore {
     );
   }
 
-  findPage(
-    query: StatementImportHistoryPageQuery,
-  ): Promise<StatementImportHistoryRecord[]> {
-    this.pageQueries.push(query);
-    const records = this.imports.filter((statementImport) => {
-      if (statementImport.userId !== query.userId) return false;
-      if (
-        query.filters.fromDate !== undefined &&
-        statementImport.statementDate < query.filters.fromDate
-      ) {
-        return false;
-      }
-      if (
-        query.filters.toDate !== undefined &&
-        statementImport.statementDate > query.filters.toDate
-      ) {
-        return false;
-      }
-      return true;
-    });
-
-    return Promise.resolve(
-      records.slice(0, query.pageSize + 1).map(toHistoryRecord),
-    );
-  }
-
   findPageInSpace(
     query: SpaceStatementImportHistoryPageQuery,
   ): Promise<StatementImportHistoryRecord[]> {
-    this.pageQueries.push({ ...query, userId: query.spaceId });
+    this.pageQueries.push(query);
     const records = this.imports.filter((statementImport) => {
       if (statementImport.spaceId !== query.spaceId) return false;
       if (
@@ -927,30 +882,12 @@ class HttpStatementImportStore implements StatementImportStore {
   }
 }
 
-class HttpImportedTransactionStore implements ImportedTransactionStore {
+class HttpImportedTransactionStore implements SpaceImportedTransactionStore {
   readonly createdInputs: NewImportedTransaction[] = [];
   private readonly transactions: ImportedTransactionRecord[] = [];
 
   seed(...records: ImportedTransactionRecord[]): void {
-    this.transactions.push(
-      ...records.map((record) => ({
-        ...record,
-        spaceId: record.spaceId ?? record.userId,
-      })),
-    );
-  }
-
-  findByFingerprint(
-    userId: string,
-    fingerprint: string,
-  ): Promise<ImportedTransactionRecord[]> {
-    return Promise.resolve(
-      this.transactions.filter(
-        (transaction) =>
-          transaction.userId === userId &&
-          transaction.importFingerprint === fingerprint,
-      ),
-    );
+    this.transactions.push(...records);
   }
 
   findByFingerprintInSpace(
@@ -976,18 +913,19 @@ class HttpImportedTransactionStore implements ImportedTransactionStore {
     return Promise.resolve(record);
   }
 
-  findById(
-    userId: string,
+  findByIdInSpace(
+    spaceId: string,
     id: string,
   ): Promise<ImportedTransactionRecord | null> {
     return Promise.resolve(
       this.transactions.find(
-        (transaction) => transaction.userId === userId && transaction.id === id,
+        (transaction) =>
+          transaction.spaceId === spaceId && transaction.id === id,
       ) ?? null,
     );
   }
 
-  updateCategory(): Promise<ImportedTransactionRecord | null> {
+  updateCategoryInSpace(): Promise<ImportedTransactionRecord | null> {
     return Promise.resolve(null);
   }
 }
@@ -996,23 +934,7 @@ class HttpCategoryStore implements TransactionCategoryStore {
   private readonly categories: TransactionCategoryRecord[] = [];
 
   seed(...categories: TransactionCategoryRecord[]): void {
-    this.categories.push(
-      ...categories.map((category) => ({
-        ...category,
-        spaceId: category.spaceId ?? category.userId,
-      })),
-    );
-  }
-
-  findById(
-    userId: string,
-    id: string,
-  ): Promise<TransactionCategoryRecord | null> {
-    return Promise.resolve(
-      this.categories.find(
-        (category) => category.userId === userId && category.id === id,
-      ) ?? null,
-    );
+    this.categories.push(...categories);
   }
 
   findBySpaceId(
@@ -1078,7 +1000,8 @@ function statementImportRecord(
 ): StatementImportRecord {
   return {
     id: '400',
-    userId: '42',
+    spaceId: '42',
+    importedByUserId: '42',
     fileName: 'august.pdf',
     fileHash: 'a'.repeat(64),
     statementDate: '2026-08-31',
@@ -1094,7 +1017,8 @@ function statementImportHistoryRecord(
 ): StatementImportHistoryRecord {
   return {
     id: '400',
-    userId: '42',
+    spaceId: '42',
+    importedByUserId: '42',
     fileName: 'august.pdf',
     statementDate: '2026-08-31',
     bank: 'Example Bank',
@@ -1110,7 +1034,8 @@ function importedTransactionRecord(
 ): ImportedTransactionRecord {
   return {
     id: '700',
-    userId: '99',
+    spaceId: '99',
+    addedByUserId: '99',
     categoryId: null,
     statementImportId: '500',
     purchaseDate: '2026-08-01',
@@ -1130,7 +1055,8 @@ function toHistoryRecord(
 ): StatementImportHistoryRecord {
   return {
     id: statementImport.id,
-    userId: statementImport.userId,
+    spaceId: statementImport.spaceId,
+    importedByUserId: statementImport.importedByUserId,
     fileName: statementImport.fileName,
     statementDate: statementImport.statementDate,
     bank: statementImport.bank,

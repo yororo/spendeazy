@@ -38,7 +38,7 @@ describe('TypeOrmCategorySummaryStore', () => {
 
     await expect(
       store.findSummary({
-        userId: '7',
+        spaceId: '7',
         fromDate: '2026-08-01',
         toDate: '2026-08-31',
       }),
@@ -59,8 +59,8 @@ describe('TypeOrmCategorySummaryStore', () => {
     });
 
     expect(categoryQuery.where).toHaveBeenCalledWith(
-      'category.userId = :userId',
-      { userId: '7' },
+      'category.spaceId = :spaceId',
+      { spaceId: '7' },
     );
     expect(categoryQuery.leftJoin).toHaveBeenCalledWith(
       TransactionEntity,
@@ -75,8 +75,8 @@ describe('TypeOrmCategorySummaryStore', () => {
       'budget.categoryId = category.id',
     );
     expect(uncategorizedQuery.where).toHaveBeenCalledWith(
-      'transaction.userId = :userId',
-      { userId: '7' },
+      'transaction.spaceId = :spaceId',
+      { spaceId: '7' },
     );
     expect(uncategorizedQuery.andWhere).toHaveBeenCalledWith(
       'transaction.purchaseDate BETWEEN :fromDate AND :toDate',
@@ -103,7 +103,7 @@ describe('TypeOrmCategorySummaryStore', () => {
 
     await expect(
       store.findSummary({
-        userId: '7',
+        spaceId: '7',
         fromDate: '2026-08-01',
         toDate: '2026-08-31',
       }),

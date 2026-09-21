@@ -12,11 +12,10 @@ describe('DefaultCategoriesService', () => {
     const store = new RecordingCategoryStore();
     const service = new DefaultCategoriesService(store, new RecordingLogger());
 
-    await service.createForSpace('99', '42');
+    await service.createForSpace('99');
 
     expect(store.createAttempts).toEqual(
       DEFAULT_CATEGORY_CATALOG.map((category) => ({
-        userId: '42',
         spaceId: '99',
         name: category.name,
         description: category.description,
@@ -55,11 +54,10 @@ describe('DefaultCategoriesService', () => {
     const store = new RecordingCategoryStore();
     const service = new DefaultCategoriesService(store, new RecordingLogger());
 
-    await service.createForSpace('99', '42');
+    await service.createForSpace('99');
 
     expect(store.createAttempts).toEqual(
       DEFAULT_CATEGORY_CATALOG.map((category) => ({
-        userId: '42',
         spaceId: '99',
         name: category.name,
         description: category.description,

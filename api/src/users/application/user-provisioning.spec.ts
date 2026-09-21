@@ -39,7 +39,7 @@ describe('UsersService provisioning', () => {
       email: 'ada@example.com',
     });
     expect(defaultCategories.requestedSpaces).toEqual([
-      { spaceId: '10', actorUserId: '2' },
+      { spaceId: '10', actorUserId: undefined },
     ]);
     expect(personalSpaces.requestedUserIds).toEqual(['2']);
   });
@@ -109,7 +109,7 @@ describe('UsersService provisioning', () => {
     await service.provisionUser('user_42');
 
     expect(defaultCategories.requestedSpaces).toEqual([
-      { spaceId: '10', actorUserId: '2' },
+      { spaceId: '10', actorUserId: undefined },
     ]);
   });
 
@@ -129,7 +129,7 @@ describe('UsersService provisioning', () => {
     await service.provisionUser(current.clerkUserId);
 
     expect(defaultCategories.requestedSpaces).toEqual([
-      { spaceId: '10', actorUserId: current.id },
+      { spaceId: '10', actorUserId: undefined },
     ]);
   });
 

@@ -1,5 +1,5 @@
-import { createHash, randomUUID } from 'node:crypto';
-import { DataSource } from 'typeorm';
+import { randomUUID } from 'node:crypto';
+import { DataSource, In } from 'typeorm';
 
 import {
   DATABASE_ENTITIES,
@@ -60,94 +60,6 @@ describeDatabase('Spaces with PostgreSQL', () => {
     if (database?.isInitialized) await database.destroy();
   });
 
-  it('associates legacy-shaped financial writes with one private Personal Space without changing record identities', async () => {
-    const user = await createUser('legacy-shaped');
-    const category = await database.getRepository(CategoryEntity).save({
-      userId: user.id,
-      name: 'Legacy category',
-      isActive: true,
-    });
-    const statementImport = await database
-      .getRepository(StatementImportEntity)
-      .save({
-        userId: user.id,
-        fileName: 'legacy.pdf',
-        fileHash: uniqueHash('legacy-file'),
-        statementDate: '2026-09-20',
-        bank: 'Legacy Bank',
-        cardType: null,
-      });
-    const transaction = await database.getRepository(TransactionEntity).save({
-      userId: user.id,
-      categoryId: category.id,
-      statementImportId: statementImport.id,
-      purchaseDate: '2026-09-20',
-      description: 'Legacy transaction',
-      amount: '12.34',
-      categoryMatchConfidence: null,
-      importFingerprint: uniqueHash('legacy-transaction'),
-    });
-    const rule = await database.getRepository(CategoryRuleEntity).save({
-      userId: user.id,
-      categoryId: category.id,
-      pattern: 'Legacy',
-      normalizedPattern: 'legacy',
-      matchType: 'exact',
-    });
-
-    const spaces = await database.getRepository(SpaceEntity).findBy({
-      personalOwnerUserId: user.id,
-    });
-    const memberships = await database
-      .getRepository(SpaceMembershipEntity)
-      .findBy({ userId: user.id });
-    const persistedCategory = await database
-      .getRepository(CategoryEntity)
-      .findOneByOrFail({ id: category.id });
-    const persistedImport = await database
-      .getRepository(StatementImportEntity)
-      .findOneByOrFail({ id: statementImport.id });
-    const persistedTransaction = await database
-      .getRepository(TransactionEntity)
-      .findOneByOrFail({ id: transaction.id });
-    const persistedRule = await database
-      .getRepository(CategoryRuleEntity)
-      .findOneByOrFail({ id: rule.id });
-
-    expect(spaces).toHaveLength(1);
-    expect(memberships).toHaveLength(1);
-    expect(memberships[0]).toMatchObject({
-      spaceId: spaces[0].id,
-      userId: user.id,
-      accessLevel: 'write',
-    });
-    expect(persistedCategory).toMatchObject({
-      id: category.id,
-      userId: user.id,
-      spaceId: spaces[0].id,
-    });
-    expect(persistedImport).toMatchObject({
-      id: statementImport.id,
-      userId: user.id,
-      spaceId: spaces[0].id,
-      importedByUserId: user.id,
-    });
-    expect(persistedTransaction).toMatchObject({
-      id: transaction.id,
-      userId: user.id,
-      categoryId: category.id,
-      statementImportId: statementImport.id,
-      spaceId: spaces[0].id,
-      addedByUserId: user.id,
-    });
-    expect(persistedRule).toMatchObject({
-      id: rule.id,
-      userId: user.id,
-      categoryId: category.id,
-      spaceId: spaces[0].id,
-    });
-  });
-
   it('provisions one idempotent Personal Space and default Categories for a new User', async () => {
     const unique = randomUUID();
     const profileService = new FixedProfileService({
@@ -183,7 +95,7 @@ describeDatabase('Spaces with PostgreSQL', () => {
     });
     const persistedCategories = await database
       .getRepository(CategoryEntity)
-      .findBy({ userId: first.user.id });
+      .findBy({ spaceId: spaces[0].id });
 
     expect(spaces).toHaveLength(1);
     expect(persistedCategories).toHaveLength(DEFAULT_CATEGORY_CATALOG.length);
@@ -245,7 +157,6 @@ describeDatabase('Spaces with PostgreSQL', () => {
     ]);
 
     const sharedCategory = await database.getRepository(CategoryEntity).save({
-      userId: owner.id,
       spaceId: sharedSpace.id,
       name: 'Shared meals',
       isActive: true,
@@ -253,7 +164,6 @@ describeDatabase('Spaces with PostgreSQL', () => {
     const ownerPersonalCategory = await database
       .getRepository(CategoryEntity)
       .save({
-        userId: owner.id,
         spaceId: ownerPersonalSpaceId,
         name: 'Private meals',
         isActive: true,
@@ -278,10 +188,9 @@ describeDatabase('Spaces with PostgreSQL', () => {
 
     const transactionStore = new TypeOrmTransactionStore(database.manager);
     const transactions = new TransactionsService(
-      transactionStore,
       new TypeOrmTransactionCategoryStore(database.manager),
-      undefined,
       transactionStore,
+      undefined,
     );
     const created = await transactions.createManualTransactionInSpace(
       member.id,
@@ -297,7 +206,6 @@ describeDatabase('Spaces with PostgreSQL', () => {
     expect(created).toMatchObject({
       spaceId: sharedSpace.id,
       addedByUserId: member.id,
-      userId: member.id,
     });
     await expect(
       transactions.createManualTransactionInSpace(owner.id, sharedSpace.id, {
@@ -358,16 +266,23 @@ describeDatabase('Spaces with PostgreSQL', () => {
   }
 
   async function deleteUserData(userId: string): Promise<void> {
-    await database.getRepository(TransactionEntity).delete({ userId });
-    await database.getRepository(CategoryRuleEntity).delete({ userId });
-    await database.getRepository(StatementImportEntity).delete({ userId });
-    const categoryIds = await database
-      .getRepository(CategoryEntity)
+    const memberships = await database
+      .getRepository(SpaceMembershipEntity)
       .findBy({ userId });
-    if (categoryIds.length > 0) {
-      await database
-        .getRepository(CategoryEntity)
-        .delete(categoryIds.map((category) => category.id));
+    const spaceIds = memberships.map((membership) => membership.spaceId);
+    if (spaceIds.length > 0) {
+      await database.getRepository(TransactionEntity).delete({
+        spaceId: In(spaceIds),
+      });
+      await database.getRepository(CategoryRuleEntity).delete({
+        spaceId: In(spaceIds),
+      });
+      await database.getRepository(StatementImportEntity).delete({
+        spaceId: In(spaceIds),
+      });
+      await database.getRepository(CategoryEntity).delete({
+        spaceId: In(spaceIds),
+      });
     }
     await database.getRepository(UserEntity).delete({ id: userId });
   }
@@ -379,8 +294,4 @@ class FixedProfileService implements ClerkProfileService {
   getUserProfile(): Promise<ClerkUserProfile> {
     return Promise.resolve(this.profile);
   }
-}
-
-function uniqueHash(value: string): string {
-  return createHash('sha256').update(value).digest('hex');
 }

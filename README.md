@@ -4,7 +4,7 @@ Spendeazy is a private personal-finance application for tracking expenses, manag
 
 ## Sharing release gate
 
-Shared Space support is still in progress. Before enabling it for production Users, complete the financial ownership migration in [issue 20](https://github.com/yororo/spendeazy/issues/20): retire remaining legacy User ownership paths, verify existing Personal history through migrations, exercise two-member Shared workflows and forbidden cross-Space references against PostgreSQL, and validate the complete browser flow. The current Space routes and database constraints alone do not establish that release readiness.
+Financial persistence and authorization are Space-scoped, including migrated Personal history and actor attribution. Shared Space support remains disabled for production Users until the invitation, membership management, Space switching, and complete browser sharing workflows are implemented and validated.
 
 | Project | Responsibility | Development guide |
 | --- | --- | --- |

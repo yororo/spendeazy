@@ -16,14 +16,14 @@ describe('CategoriesService', () => {
     const store = new CategoryStoreFake();
     const service = new CategoriesService(store);
 
-    const category = await service.createCategory('1', {
+    const category = await service.createCategoryInSpace('1', {
       name: '  Dining Out  ',
       description: '  Restaurants and cafes  ',
     });
 
     expect(category).toEqual(store.createdCategory);
     expect(store.createdInput).toEqual({
-      userId: '1',
+      spaceId: '1',
       name: 'Dining Out',
       description: 'Restaurants and cafes',
     });
@@ -34,13 +34,13 @@ describe('CategoriesService', () => {
     const store = new CategoryStoreFake();
     const service = new CategoriesService(store);
 
-    await service.createCategory('1', {
+    await service.createCategoryInSpace('1', {
       name: 'Dining',
       color: 'teal',
     });
 
     expect(store.createdInput).toEqual({
-      userId: '1',
+      spaceId: '1',
       name: 'Dining',
       description: null,
       color: 'teal',
@@ -52,14 +52,17 @@ describe('CategoriesService', () => {
     const store = new CategoryStoreFake({ categories: [original] });
     const service = new CategoriesService(store);
 
-    await service.createCategory('1', { name: 'Dining', description: '   ' });
+    await service.createCategoryInSpace('1', {
+      name: 'Dining',
+      description: '   ',
+    });
     expect(store.createdInput).toEqual({
-      userId: '1',
+      spaceId: '1',
       name: 'Dining',
       description: null,
     });
 
-    await service.updateCategory('1', '1', { description: '   ' });
+    await service.updateCategoryInSpace('1', '1', { description: '   ' });
     expect(store.updatedInput).toEqual({ description: null });
   });
 
@@ -68,12 +71,15 @@ describe('CategoriesService', () => {
     const store = new CategoryStoreFake({ categories: [original] });
     const service = new CategoriesService(store);
 
-    await service.createCategory('1', { name: 'Dining' });
+    await service.createCategoryInSpace('1', { name: 'Dining' });
     expect(store.createdInput?.description).toBeNull();
-    await service.createCategory('1', { name: 'Dining', description: null });
+    await service.createCategoryInSpace('1', {
+      name: 'Dining',
+      description: null,
+    });
     expect(store.createdInput?.description).toBeNull();
 
-    await service.updateCategory('1', '1', {
+    await service.updateCategoryInSpace('1', '1', {
       description: '  Everyday food  ',
     });
     expect(store.updatedInput).toEqual({ description: 'Everyday food' });
@@ -81,29 +87,29 @@ describe('CategoriesService', () => {
 
   it('rejects a duplicate normalized name for the same user', async () => {
     const store = new CategoryStoreFake({
-      categories: [categoryRecord({ userId: '1', name: 'Groceries' })],
+      categories: [categoryRecord({ spaceId: '1', name: 'Groceries' })],
     });
     const service = new CategoriesService(store);
 
     await expect(
-      service.createCategory('1', { name: ' groceries ' }),
+      service.createCategoryInSpace('1', { name: ' groceries ' }),
     ).rejects.toBeInstanceOf(CategoryNameConflictError);
     expect(store.createdInput).toBeUndefined();
   });
 
   it("allows another user's category to use the same normalized name", async () => {
     const store = new CategoryStoreFake({
-      categories: [categoryRecord({ userId: '2', name: 'Groceries' })],
+      categories: [categoryRecord({ spaceId: '2', name: 'Groceries' })],
     });
     const service = new CategoriesService(store);
 
     await expect(
-      service.createCategory('1', { name: ' groceries ' }),
+      service.createCategoryInSpace('1', { name: ' groceries ' }),
     ).resolves.toEqual(
-      expect.objectContaining({ userId: '1', name: 'groceries' }),
+      expect.objectContaining({ spaceId: '1', name: 'groceries' }),
     );
     expect(store.createdInput).toEqual({
-      userId: '1',
+      spaceId: '1',
       name: 'groceries',
       description: null,
     });
@@ -111,24 +117,26 @@ describe('CategoriesService', () => {
 
   it('lists all owned categories with their active state', async () => {
     const categories = [
-      categoryRecord({ id: '1', userId: '1', isActive: true }),
-      categoryRecord({ id: '2', userId: '1', isActive: false }),
+      categoryRecord({ id: '1', spaceId: '1', isActive: true }),
+      categoryRecord({ id: '2', spaceId: '1', isActive: false }),
     ];
     const service = new CategoriesService(
       new CategoryStoreFake({ categories }),
     );
 
-    await expect(service.listCategories('1')).resolves.toEqual(categories);
+    await expect(service.listCategoriesInSpace('1')).resolves.toEqual(
+      categories,
+    );
   });
 
   it('does not expose categories owned by another user', async () => {
     const store = new CategoryStoreFake({
-      categories: [categoryRecord({ id: '2', userId: '2' })],
+      categories: [categoryRecord({ id: '2', spaceId: '2' })],
     });
     const service = new CategoriesService(store);
 
-    await expect(service.listCategories('1')).resolves.toEqual([]);
-    await expect(service.getCategory('1', '2')).rejects.toBeInstanceOf(
+    await expect(service.listCategoriesInSpace('1')).resolves.toEqual([]);
+    await expect(service.getCategoryInSpace('1', '2')).rejects.toBeInstanceOf(
       CategoryNotFoundError,
     );
   });
@@ -136,7 +144,7 @@ describe('CategoriesService', () => {
   it('returns the same not-found error for an absent category', async () => {
     const service = new CategoriesService(new CategoryStoreFake());
 
-    await expect(service.getCategory('1', '404')).rejects.toBeInstanceOf(
+    await expect(service.getCategoryInSpace('1', '404')).rejects.toBeInstanceOf(
       CategoryNotFoundError,
     );
   });
@@ -154,7 +162,7 @@ describe('CategoriesService', () => {
     const service = new CategoriesService(store);
 
     await expect(
-      service.updateCategory('1', '1', { name: ' Restaurants ' }),
+      service.updateCategoryInSpace('1', '1', { name: ' Restaurants ' }),
     ).resolves.toEqual(updated);
     expect(store.updatedInput).toEqual({ name: 'Restaurants' });
     expect(store.checkedName).toBe('restaurants');
@@ -170,7 +178,7 @@ describe('CategoriesService', () => {
     const service = new CategoriesService(store);
 
     await expect(
-      service.updateCategory('1', '1', { color: 'teal' }),
+      service.updateCategoryInSpace('1', '1', { color: 'teal' }),
     ).resolves.toEqual(updated);
     expect(store.updatedInput).toEqual({ color: 'teal' });
   });
@@ -185,7 +193,7 @@ describe('CategoriesService', () => {
     const service = new CategoriesService(store);
 
     await expect(
-      service.updateCategory('1', '1', { name: ' GROCERIES ' }),
+      service.updateCategoryInSpace('1', '1', { name: ' GROCERIES ' }),
     ).rejects.toBeInstanceOf(CategoryNameConflictError);
     expect(store.updatedInput).toBeUndefined();
   });
@@ -200,7 +208,7 @@ describe('CategoriesService', () => {
     const service = new CategoriesService(store);
 
     await expect(
-      service.updateCategory('1', '1', {
+      service.updateCategoryInSpace('1', '1', {
         name: ' Groceries ',
         isActive: false,
       }),
@@ -218,15 +226,15 @@ describe('CategoriesService', () => {
     });
     const service = new CategoriesService(store);
 
-    await expect(service.deactivateCategory('1', '1')).resolves.toEqual(
-      deactivated,
-    );
+    await expect(
+      service.updateCategoryInSpace('1', '1', { isActive: false }),
+    ).resolves.toEqual(deactivated);
 
     store.categories[0] = deactivated;
     store.updatedCategory = reactivated;
-    await expect(service.reactivateCategory('1', '1')).resolves.toEqual(
-      reactivated,
-    );
+    await expect(
+      service.updateCategoryInSpace('1', '1', { isActive: true }),
+    ).resolves.toEqual(reactivated);
     expect(store.updatedInput).toEqual({ isActive: true });
   });
 
@@ -253,10 +261,9 @@ describe('CategoriesService', () => {
       CategoryNotFoundError,
     );
     await expect(
-      service.createCategoryInSpace('7', '10', { name: ' Dining ' }),
+      service.createCategoryInSpace('10', { name: ' Dining ' }),
     ).resolves.toEqual(expect.objectContaining({ spaceId: '10' }));
     expect(store.createdInput).toEqual({
-      userId: '7',
       spaceId: '10',
       name: 'Dining',
       description: null,
@@ -409,7 +416,7 @@ function categoryRecord(
   const timestamp = new Date('2026-08-29T00:00:00.000Z');
   return {
     id: '1',
-    userId: '1',
+    spaceId: '1',
     name: 'Groceries',
     description: null,
     color: 'coral',

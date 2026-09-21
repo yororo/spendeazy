@@ -46,9 +46,7 @@ export class UsersService {
     @Inject(DEFAULT_CATEGORY_PROVISIONER)
     private readonly defaultCategoryProvisioner: DefaultCategoryProvisioner,
     @Inject(PERSONAL_SPACE_PROVISIONER)
-    private readonly personalSpaceProvisioner: PersonalSpaceProvisioner = {
-      ensurePersonalSpace: () => Promise.resolve(),
-    },
+    private readonly personalSpaceProvisioner: PersonalSpaceProvisioner,
   ) {}
 
   async provisionUser(clerkUserId: string): Promise<UserProvisioningResult> {
@@ -135,28 +133,17 @@ export class UsersService {
       return { user: racedUser, created: false };
     }
 
-    const hasSpaceDefaults = await this.ensurePersonalSpaceDefaults(user.id);
-    if (!hasSpaceDefaults) {
-      await this.defaultCategoryProvisioner.createForNewUser(user.id);
-    }
+    await this.ensurePersonalSpaceDefaults(user.id);
     return { user, created: true };
   }
 
-  private async ensurePersonalSpaceDefaults(userId: string): Promise<boolean> {
+  private async ensurePersonalSpaceDefaults(userId: string): Promise<void> {
     const personalSpaceId =
       await this.personalSpaceProvisioner.ensurePersonalSpace(userId);
-    if (
-      typeof personalSpaceId !== 'string' ||
-      !this.defaultCategoryProvisioner.createForSpace
-    ) {
-      return false;
-    }
-
     await this.defaultCategoryProvisioner.createForSpace(
       personalSpaceId,
       userId,
     );
-    return true;
   }
 }
 

@@ -1,4 +1,6 @@
 import type { ClerkProfileService } from '../../authentication/clerk-profile-service';
+import type { DefaultCategoryProvisioner } from '../../categories/application/default-categories.service';
+import type { PersonalSpaceProvisioner } from '../../spaces/application/space-store';
 import { UserNotFoundError } from './user-errors';
 import type { UserStore } from './user-store';
 import { UsersService } from './users.service';
@@ -19,6 +21,8 @@ describe('UsersService', () => {
     const service = new UsersService(
       store as unknown as UserStore,
       {} as ClerkProfileService,
+      {} as DefaultCategoryProvisioner,
+      {} as PersonalSpaceProvisioner,
     );
 
     await expect(service.getUserById('42')).resolves.toEqual(user);
@@ -32,6 +36,8 @@ describe('UsersService', () => {
     const service = new UsersService(
       store as unknown as UserStore,
       {} as ClerkProfileService,
+      {} as DefaultCategoryProvisioner,
+      {} as PersonalSpaceProvisioner,
     );
 
     await expect(service.getUserById('missing_user')).rejects.toBeInstanceOf(

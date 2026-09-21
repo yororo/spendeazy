@@ -258,7 +258,9 @@ describe('authenticated User routes', () => {
         {
           provide: PERSONAL_SPACE_PROVISIONER,
           useValue: {
-            ensurePersonalSpace: jest.fn().mockResolvedValue(undefined),
+            ensurePersonalSpace: jest
+              .fn()
+              .mockImplementation((userId: string) => Promise.resolve(userId)),
           },
         },
         {
@@ -331,6 +333,7 @@ describe('authenticated User routes', () => {
       categoryRecord({
         id: String(index + 1),
         userId: '42',
+        spaceId: '42',
         ...category,
       }),
     );

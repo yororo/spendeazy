@@ -8,15 +8,16 @@ import { DEFAULT_CATEGORY_CATALOG } from './default-category-catalog';
 import { DefaultCategoriesService } from './default-categories.service';
 
 describe('DefaultCategoriesService', () => {
-  it('attempts every maintained Default Category in catalog order for the new User', async () => {
+  it('attempts every maintained Default Category in catalog order for a Space', async () => {
     const store = new RecordingCategoryStore();
     const service = new DefaultCategoriesService(store, new RecordingLogger());
 
-    await service.createForNewUser('42');
+    await service.createForSpace('99', '42');
 
     expect(store.createAttempts).toEqual(
       DEFAULT_CATEGORY_CATALOG.map((category) => ({
         userId: '42',
+        spaceId: '99',
         name: category.name,
         description: category.description,
       })),
@@ -31,7 +32,7 @@ describe('DefaultCategoriesService', () => {
     const logger = new RecordingLogger();
     const service = new DefaultCategoriesService(store, logger);
 
-    await expect(service.createForNewUser('42')).resolves.toBeUndefined();
+    await expect(service.createForSpace('99', '42')).resolves.toBeUndefined();
 
     expect(store.createAttempts).toHaveLength(DEFAULT_CATEGORY_CATALOG.length);
     expect(store.createdCategories.map(({ name }) => name)).toEqual(

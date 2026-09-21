@@ -55,7 +55,8 @@ export class SpacesModule {
 }
 
 const unconfiguredPersonalSpaceProvisioner = {
-  ensurePersonalSpace: (): Promise<void> => Promise.resolve(),
+  ensurePersonalSpace: (): Promise<never> =>
+    Promise.reject(new SpaceNotFoundError()),
 };
 
 const unconfiguredSpaceAccessService = {

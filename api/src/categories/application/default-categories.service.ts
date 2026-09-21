@@ -9,8 +9,7 @@ export const DEFAULT_CATEGORY_PROVISIONER = Symbol(
 );
 
 export interface DefaultCategoryProvisioner {
-  createForNewUser(userId: string): Promise<void>;
-  createForSpace?(spaceId: string, actorUserId: string): Promise<void>;
+  createForSpace(spaceId: string, actorUserId: string): Promise<void>;
 }
 
 @Injectable()
@@ -20,16 +19,6 @@ export class DefaultCategoriesService implements DefaultCategoryProvisioner {
     @Inject(DEFAULT_CATEGORIES_LOGGER)
     private readonly logger: ExceptionReporter,
   ) {}
-
-  async createForNewUser(userId: string): Promise<void> {
-    for (const category of DEFAULT_CATEGORY_CATALOG) {
-      try {
-        await this.categoryStore.create({ userId, ...category });
-      } catch (error: unknown) {
-        this.logger.report('default_category_creation_failed', error);
-      }
-    }
-  }
 
   async createForSpace(spaceId: string, actorUserId: string): Promise<void> {
     const existingNames = new Set(

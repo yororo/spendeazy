@@ -13,7 +13,10 @@ import {
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ApiClientProvider } from "@/shared/api";
-import { NavigationGuardProvider } from "@/shared/navigation";
+import {
+  NavigationGuardProvider,
+  useNavigationGuard,
+} from "@/shared/navigation";
 
 import type { Statement } from "./statement-parser/transformer";
 import { transformStatement } from "./statement-parser/transformer";
@@ -247,8 +250,13 @@ async function openStatementImportCategorize(
 
 async function openReadyStatementImportReview(
   fetchMock: ReturnType<typeof createFetchMock>,
+  options: {
+    readonly spaceId?: string;
+    readonly onSpaceChange?: (spaceId?: string) => void;
+    readonly navigationAction?: () => void;
+  } = {},
 ) {
-  renderStatementImportPage(fetchMock);
+  renderStatementImportPage(fetchMock, options);
   await screen.findByRole("heading", { name: "Upload your statement" });
   await uploadStatementFile("statement.pdf");
   fireEvent.click(screen.getByRole("button", { name: "Review 1 Transactions" }));
@@ -263,6 +271,21 @@ async function uploadStatementFile(fileName: string) {
     target: { files: [namedFile] },
   });
   await screen.findByRole("heading", { name: "Categorize and update" });
+}
+
+function NavigationProbe({ onNavigate }: { readonly onNavigate: () => void }) {
+  const { requestNavigation } = useNavigationGuard();
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        if (!requestNavigation(onNavigate)) onNavigate();
+      }}
+    >
+      Attempt Space switch
+    </button>
+  );
 }
 
 async function beginRememberedRuleSave({
@@ -390,7 +413,11 @@ function restoreDefaultStatement() {
 
 function renderStatementImportPage(
   fetchMock: ReturnType<typeof createFetchMock>,
-  options: { readonly spaceId?: string; readonly onSpaceChange?: (spaceId?: string) => void } = {},
+  options: {
+    readonly spaceId?: string;
+    readonly onSpaceChange?: (spaceId?: string) => void;
+    readonly navigationAction?: () => void;
+  } = {},
 ) {
   vi.stubGlobal("fetch", fetchMock);
 
@@ -413,6 +440,9 @@ function renderStatementImportPage(
             onSpaceChange={options.onSpaceChange}
             onViewTransactions={vi.fn()}
           />
+          {options.navigationAction && (
+            <NavigationProbe onNavigate={options.navigationAction} />
+          )}
         </QueryClientProvider>
       </ApiClientProvider>
     </NavigationGuardProvider>,
@@ -434,6 +464,33 @@ afterEach(() => {
 });
 
 describe("StatementImportPage Space destination", () => {
+  it("identifies a Personal destination with the User name", async () => {
+    const fetchMock = createFetchMock({
+      accessibleSpaces: [
+        {
+          id: "1",
+          kind: "personal",
+          status: "active",
+          accessLevel: "write",
+          members: [{ id: "1", name: "Ada Lovelace" }],
+          createdAt: "2026-01-01T00:00:00.000Z",
+          updatedAt: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+    });
+    renderStatementImportPage(fetchMock, {
+      spaceId: "1",
+      onSpaceChange: vi.fn(),
+    });
+
+    await screen.findByRole("heading", { name: "Upload your statement" });
+    await uploadStatementFile("personal-statement.pdf");
+
+    expect(
+      screen.getByText("Destination: Personal Space · Ada Lovelace"),
+    ).toBeTruthy();
+  });
+
   it("keeps the selected destination across review and confirmation", async () => {
     const fetchMock = createFetchMock({
       accessibleSpaces: [
@@ -491,13 +548,17 @@ describe("StatementImportPage Space destination", () => {
     });
 
     await uploadStatementFile("shared-statement.pdf");
-    expect(screen.getByText("Destination: Shared Space · 10")).toBeTruthy();
+    expect(
+      screen.getByText("Destination: Shared Space · Ada Lovelace & Grace Hopper"),
+    ).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Review 1 Transactions" }));
     await screen.findByRole("heading", { name: "Review your imported statement" });
-    expect(screen.getByText("Destination: Shared Space · 10")).toBeTruthy();
+    expect(
+      screen.getByText("Destination: Shared Space · Ada Lovelace & Grace Hopper"),
+    ).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Import 1 Transactions" }));
     await screen.findByRole("heading", { name: "Statement imported" });
-    expect(screen.getByText("Shared Space · 10")).toBeTruthy();
+    expect(screen.getByText("Shared Space · Ada Lovelace & Grace Hopper")).toBeTruthy();
 
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining("/spaces/10/statement-imports"),
@@ -860,6 +921,146 @@ describe("StatementImportPage Categorize lifecycle", () => {
     fireEvent.click(screen.getByRole("button", { name: "Back to Upload" }));
     fireEvent.click(screen.getByRole("button", { name: "Leave Categorize" }));
     await screen.findByRole("heading", { name: "Upload your statement" });
+  });
+
+  it("discards Categorize before completing a requested Space switch", async () => {
+    const fetchMock = createFetchMock();
+    const navigationAction = vi.fn();
+    renderStatementImportPage(fetchMock, { navigationAction });
+    await screen.findByRole("heading", { name: "Upload your statement" });
+    await uploadStatementFile("statement.pdf");
+
+    fireEvent.click(screen.getByRole("button", { name: "Attempt Space switch" }));
+    expect(screen.getByRole("dialog", { name: "Leave Statement Import?" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Stay in Categorize" }));
+    expect(navigationAction).not.toHaveBeenCalled();
+    expect(screen.getByRole("heading", { name: "Categorize and update" })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Attempt Space switch" }));
+    fireEvent.click(screen.getByRole("button", { name: "Leave Categorize" }));
+    expect(navigationAction).toHaveBeenCalledTimes(1);
+    await screen.findByRole("heading", { name: "Upload your statement" });
+  });
+
+  it("guards Review navigation and preserves reviewed Transactions when canceled", async () => {
+    const fetchMock = createFetchMock({
+      categoryRules: [
+        {
+          id: "1",
+          categoryId: "42",
+          pattern: "Green Market Cafe",
+          matchType: "exact",
+        },
+      ],
+    });
+    const navigationAction = vi.fn();
+    await openReadyStatementImportReview(fetchMock, { navigationAction });
+
+    fireEvent.click(screen.getByRole("button", { name: "Attempt Space switch" }));
+    expect(screen.getByRole("dialog", { name: "Leave Statement Import?" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Stay in Review" }));
+
+    expect(navigationAction).not.toHaveBeenCalled();
+    expect(screen.getByRole("heading", { name: "Review your imported statement" })).toBeTruthy();
+    expect(screen.getAllByText("Green Market Cafe").length).toBeGreaterThan(0);
+  });
+
+  it("discards Review before completing a requested Space switch", async () => {
+    const fetchMock = createFetchMock({
+      categoryRules: [
+        {
+          id: "1",
+          categoryId: "42",
+          pattern: "Green Market Cafe",
+          matchType: "exact",
+        },
+      ],
+    });
+    const navigationAction = vi.fn();
+    await openReadyStatementImportReview(fetchMock, { navigationAction });
+
+    fireEvent.click(screen.getByRole("button", { name: "Attempt Space switch" }));
+    fireEvent.click(screen.getByRole("button", { name: "Leave Review" }));
+
+    expect(navigationAction).toHaveBeenCalledTimes(1);
+    await screen.findByRole("heading", { name: "Upload your statement" });
+  });
+
+  it("allows a Space switch after the Statement Import finishes", async () => {
+    const fetchMock = createFetchMock({
+      categoryRules: [
+        {
+          id: "1",
+          categoryId: "42",
+          pattern: "Green Market Cafe",
+          matchType: "exact",
+        },
+      ],
+    });
+    const navigationAction = vi.fn();
+    await openReadyStatementImportReview(fetchMock, { navigationAction });
+
+    fireEvent.click(screen.getByRole("button", { name: "Import 1 Transactions" }));
+    await screen.findByRole("heading", { name: "Statement imported" });
+    fireEvent.click(screen.getByRole("button", { name: "Attempt Space switch" }));
+
+    expect(navigationAction).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("dialog", { name: "Leave Statement Import?" })).toBeNull();
+  });
+
+  it("discards an in-flight confirmation before completing a requested Space switch", async () => {
+    const commitResponse = createDeferred<Response>();
+    const fetchMock = createFetchMock({
+      categoryRules: [
+        {
+          id: "1",
+          categoryId: "42",
+          pattern: "Green Market Cafe",
+          matchType: "exact",
+        },
+      ],
+      commitResponse: () => commitResponse.promise,
+    });
+    const navigationAction = vi.fn();
+    await openReadyStatementImportReview(fetchMock, { navigationAction });
+
+    fireEvent.click(screen.getByRole("button", { name: "Import 1 Transactions" }));
+    await waitFor(() => {
+      expect(
+        fetchMock.mock.calls.some(
+          ([input, init]) =>
+            init?.method === "POST" &&
+            new URL(input.toString()).pathname.endsWith("/statement-imports"),
+        ),
+      ).toBe(true);
+    });
+    expect(
+      screen.getByRole("button", { name: "Import 1 Transactions" }),
+    ).toHaveProperty("disabled", true);
+
+    fireEvent.click(screen.getByRole("button", { name: "Attempt Space switch" }));
+    expect(screen.getByRole("button", { name: "Leave Review" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Leave Review" }));
+    await screen.findByRole("heading", { name: "Upload your statement" });
+    expect(navigationAction).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      commitResponse.resolve(
+        jsonResponse(
+          {
+            id: "100",
+            fileName: "statement.pdf",
+            statementDate: "2026-08-31",
+            bank: "BDO",
+            cardType: "AMEX",
+            importedAt: "2026-09-01T00:00:00.000Z",
+          },
+          201,
+        ),
+      );
+      await commitResponse.promise;
+    });
+    expect(screen.getByRole("heading", { name: "Upload your statement" })).toBeTruthy();
   });
 
   it("blocks browser exit while Categorize is active", async () => {

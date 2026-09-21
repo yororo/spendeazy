@@ -19,17 +19,31 @@ interface StatementImportNavigationGuard {
   readonly dialog: ReactNode;
 }
 
+type GuardedImportStage = "categorize" | "review";
+
+interface PendingNavigation {
+  readonly action: NavigationAction;
+  readonly guardKey: object | null;
+}
+
 function useStatementImportNavigationGuard(
-  enabled: boolean,
+  options: {
+    readonly enabled: boolean;
+    readonly guardKey: object | null;
+    readonly stage: GuardedImportStage;
+    readonly onDiscard: () => void;
+  },
 ): StatementImportNavigationGuard {
+  const { enabled, guardKey, onDiscard, stage } = options;
   const { registerNavigationGuard, requestNavigation } = useNavigationGuard();
-  const [pendingAction, setPendingAction] = useState<NavigationAction | null>(
-    null,
-  );
+  const [pendingNavigation, setPendingNavigation] =
+    useState<PendingNavigation | null>(null);
 
   const onNavigationAttempt = useCallback((action: NavigationAction) => {
-    setPendingAction((current) => current ?? action);
-  }, []);
+    setPendingNavigation((current) =>
+      current?.guardKey === guardKey ? current : { action, guardKey },
+    );
+  }, [guardKey]);
 
   useEffect(() => {
     return registerNavigationGuard({
@@ -59,14 +73,26 @@ function useStatementImportNavigationGuard(
   );
 
   const cancelExit = useCallback(() => {
-    setPendingAction(null);
+    setPendingNavigation(null);
   }, []);
+
+  const pendingAction =
+    enabled && pendingNavigation?.guardKey === guardKey
+      ? pendingNavigation.action
+      : null;
 
   const confirmExit = useCallback(() => {
     const action = pendingAction;
-    setPendingAction(null);
+    setPendingNavigation(null);
+    onDiscard();
     action?.();
-  }, [pendingAction]);
+  }, [onDiscard, pendingAction]);
+
+  const stageLabel = stage === "review" ? "Review" : "Categorize";
+  const stageDescription =
+    stage === "review"
+      ? "Your reviewed statement is still open. Leaving now will discard the statement and any changes you have made."
+      : "Your statement is still being categorized. Leaving now will discard the statement and any changes you have made.";
 
   return {
     requestExit,
@@ -80,17 +106,14 @@ function useStatementImportNavigationGuard(
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Leave Statement Import?</DialogTitle>
-            <DialogDescription>
-              Your statement is still being categorized. Leaving now will
-              discard the statement and any changes you have made.
-            </DialogDescription>
+            <DialogDescription>{stageDescription}</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={cancelExit}>
-              Stay in Categorize
+              Stay in {stageLabel}
             </Button>
             <Button type="button" variant="destructive" onClick={confirmExit}>
-              Leave Categorize
+              Leave {stageLabel}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -100,3 +123,4 @@ function useStatementImportNavigationGuard(
 }
 
 export { useStatementImportNavigationGuard };
+export type { GuardedImportStage };

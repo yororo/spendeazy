@@ -6,8 +6,8 @@ import {
   FeatureDataError,
   FeatureDataLoading,
 } from "@/components/app/feature-data-state";
-import { useAccessibleSpacesQuery } from "@/shared/api";
-import { ActiveSpaceLabel } from "@/shared/ui";
+import { useAccessibleSpacesQuery, type AccessibleSpace } from "@/shared/api";
+import { ActiveSpaceLabel, getSpaceIdentityLabel } from "@/shared/ui";
 import { ImportProgress } from "./import-progress";
 import { ImportSuccess } from "./import-success";
 import { ReviewStatement } from "./review-statement";
@@ -92,11 +92,18 @@ function StatementImportPage({
         spaceId: destinationSpaceId,
       }),
   });
-  const isCategorizing =
-    workflowState.stage === "categorize" &&
+  const hasGuardedImport =
+    workflowState.stage !== "upload" &&
+    workflowState.commit.result === null &&
     Boolean(workflowState.importedFile && workflowState.statement);
+  const guardStage = workflowState.stage === "review" ? "review" : "categorize";
   const { dialog: navigationGuardDialog, requestExit } =
-    useStatementImportNavigationGuard(isCategorizing);
+    useStatementImportNavigationGuard({
+      enabled: hasGuardedImport,
+      guardKey: workflowState.importedFile,
+      stage: guardStage,
+      onDiscard: resetImport,
+    });
 
   function withNavigationGuard(content: ReactNode) {
     return (
@@ -369,11 +376,11 @@ export { StatementImportPage };
 
 function getDestinationLabel(
   spaceId: string | undefined,
-  spaces: readonly { id: string; kind: "personal" | "shared" }[] | undefined,
+  spaces: readonly AccessibleSpace[] | undefined,
 ): string {
   const space = spaces?.find((candidate) => candidate.id === spaceId);
-  if (space?.kind === "shared") return `Shared Space · ${space.id}`;
-  if (space?.kind === "personal" || spaceId === undefined) {
+  if (space) return getSpaceIdentityLabel(space, true);
+  if (spaceId === undefined) {
     return "Personal Space";
   }
 

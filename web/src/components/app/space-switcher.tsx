@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { useAccessibleSpacesQuery, type AccessibleSpace } from "@/shared/api";
 import { useNavigationGuard } from "@/shared/navigation";
 import { useAppSession } from "@/shared/session";
+import { getSpaceIdentityLabel } from "@/shared/ui";
 import { getNameInitials } from "@/shared/user-name";
 import {
   buildCanonicalSpaceSearch,
@@ -41,7 +42,7 @@ function SpaceSwitcher({ className, onNavigate }: SpaceSwitcherProps) {
   let activeLabel =
     currentSpaceId === null ? "Spaces unavailable" : "Space unavailable";
   if (activeSpace) {
-    activeLabel = getSpaceLabel(activeSpace);
+    activeLabel = getSpaceIdentityLabel(activeSpace);
   } else if (spacesQuery.isPending) {
     activeLabel = "Loading Spaces…";
   } else if (spacesQuery.isSuccess && spacesQuery.data.length === 0) {
@@ -111,13 +112,13 @@ function SpaceSwitcher({ className, onNavigate }: SpaceSwitcherProps) {
                 key={space.id}
                 role="menuitemradio"
                 aria-checked={isActive}
-                aria-label={getSpaceLabel(space)}
+                aria-label={getSpaceIdentityLabel(space)}
                 onSelect={() => switchSpace(space.id)}
                 className="min-h-12 gap-3 text-sm normal-case tracking-normal"
               >
                 <SpaceAvatarStack space={space} />
                 <span className="min-w-0 flex-1 truncate">
-                  {getSpaceLabel(space)}
+                  {getSpaceIdentityLabel(space)}
                 </span>
                 {isActive && (
                   <span className="shrink-0 text-xs" aria-label="Current Space">
@@ -131,15 +132,6 @@ function SpaceSwitcher({ className, onNavigate }: SpaceSwitcherProps) {
       </DropdownMenu>
     </div>
   );
-}
-
-function getSpaceLabel(space: AccessibleSpace): string {
-  const memberNames = space.members.map((member) => member.name);
-  const identity = memberNames.length > 0 ? memberNames.join(" & ") : "Members";
-
-  return space.kind === "personal"
-    ? `Personal · ${identity}`
-    : `Shared · ${identity}`;
 }
 
 function SpaceAvatarStack({ space }: { readonly space?: AccessibleSpace }) {

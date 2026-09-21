@@ -246,7 +246,7 @@ export class TypeOrmInvitationStore implements InvitationStore {
       InvitationDeliveryAttemptEntity,
     );
     const attempt = await repository.findOne({ where: { id: attemptId } });
-    if (!attempt) return;
+    if (!attempt) throw new InvitationNotFoundError();
     attempt.succeeded = succeeded;
     attempt.error = error;
     await repository.save(attempt);

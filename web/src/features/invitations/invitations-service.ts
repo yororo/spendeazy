@@ -188,4 +188,3 @@ export {
   retryInvitation,
 };
 export type { InvitationsApiClient };
-

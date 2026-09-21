@@ -288,4 +288,3 @@ function IncomingInvitationCard({
 }
 
 export { SharingPage };
-

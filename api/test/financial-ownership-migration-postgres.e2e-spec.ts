@@ -218,6 +218,21 @@ describeDatabase(
         [personalSpaceId, newUser.id],
       );
       expect(membership.access_level).toBe('write');
+
+      await expect(
+        database.query(
+          "INSERT INTO categories (user_id, name) VALUES ($1, 'Missing Space')",
+          [newUser.id],
+        ),
+      ).rejects.toMatchObject({ driverError: { code: '23502' } });
+      await expect(
+        database.query(
+          `INSERT INTO transactions
+             (user_id, space_id, purchase_date, description, amount)
+           VALUES ($1, $2, '2026-02-01', 'Missing actor', '1.00')`,
+          [newUser.id, personalSpaceId],
+        ),
+      ).rejects.toMatchObject({ driverError: { code: '23502' } });
     });
   },
 );

@@ -17,6 +17,7 @@ import { ScopeCategoryNamesToSpaces1760000000000 } from './migrations/1760000000
 import { ScopeCategoryRulesToSpaces1770000000000 } from './migrations/1770000000000-scope-category-rules-to-spaces';
 import { ScopeStatementImportDuplicatesToSpaces1780000000000 } from './migrations/1780000000000-scope-statement-import-duplicates-to-spaces';
 import { RemoveLegacyFinancialReferenceConstraints1790000000000 } from './migrations/1790000000000-remove-legacy-financial-reference-constraints';
+import { RemoveLegacyFinancialProvisioningTriggers1800000000000 } from './migrations/1800000000000-remove-legacy-financial-provisioning-triggers';
 
 export const DATABASE_MIGRATIONS = [
   CreateExpenseTrackerSchema1710000000000,
@@ -28,6 +29,7 @@ export const DATABASE_MIGRATIONS = [
   ScopeCategoryRulesToSpaces1770000000000,
   ScopeStatementImportDuplicatesToSpaces1780000000000,
   RemoveLegacyFinancialReferenceConstraints1790000000000,
+  RemoveLegacyFinancialProvisioningTriggers1800000000000,
 ];
 
 export const DATABASE_ENTITIES = [

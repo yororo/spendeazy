@@ -10,13 +10,6 @@ export interface StatementImportHistoryCursorPosition {
   statementImportId: string;
 }
 
-export interface StatementImportHistoryPageQuery {
-  userId: string;
-  filters: StatementImportHistoryFilters;
-  after: StatementImportHistoryCursorPosition | null;
-  pageSize: number;
-}
-
 export interface SpaceStatementImportHistoryPageQuery {
   spaceId: string;
   filters: StatementImportHistoryFilters;
@@ -26,9 +19,8 @@ export interface SpaceStatementImportHistoryPageQuery {
 
 export interface StatementImportRecord {
   id: string;
-  userId: string;
-  spaceId?: string;
-  importedByUserId?: string;
+  spaceId: string;
+  importedByUserId: string;
   fileName: string;
   fileHash: string;
   statementDate: string;
@@ -45,9 +37,8 @@ export interface StatementImportHistoryRecord extends Omit<
 }
 
 export interface NewStatementImport {
-  userId: string;
-  spaceId?: string;
-  importedByUserId?: string;
+  spaceId: string;
+  importedByUserId: string;
   fileName: string;
   fileHash: string;
   statementDate: string;
@@ -71,16 +62,5 @@ export interface SpaceStatementImportStore {
 }
 
 export interface StatementImportStore extends SpaceStatementImportStore {
-  findById(
-    userId: string,
-    statementImportId: string,
-  ): Promise<StatementImportRecord | null>;
-  findByFileHash(
-    userId: string,
-    fileHash: string,
-  ): Promise<StatementImportRecord | null>;
-  findPage(
-    query: StatementImportHistoryPageQuery,
-  ): Promise<StatementImportHistoryRecord[]>;
   create(input: NewStatementImport): Promise<StatementImportRecord>;
 }

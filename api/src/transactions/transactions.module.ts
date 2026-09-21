@@ -1,14 +1,8 @@
 import { DynamicModule, Module } from '@nestjs/common';
 import { SpacesModule } from '../spaces/spaces.module';
 import { TRANSACTION_CATEGORY_STORE } from './application/transaction-category-store';
-import {
-  SPACE_TRANSACTION_STORE,
-  TRANSACTION_STORE,
-} from './application/transaction-store';
-import {
-  IMPORTED_TRANSACTION_STORE,
-  SPACE_IMPORTED_TRANSACTION_STORE,
-} from './application/imported-transaction-store';
+import { SPACE_TRANSACTION_STORE } from './application/transaction-store';
+import { SPACE_IMPORTED_TRANSACTION_STORE } from './application/imported-transaction-store';
 import { TransactionsService } from './application/transactions.service';
 import { TypeOrmTransactionCategoryStore } from './infrastructure/typeorm-transaction-category-store';
 import { TypeOrmTransactionStore } from './infrastructure/typeorm-transaction-store';
@@ -43,7 +37,6 @@ export class TransactionsModule {
       controllers,
       providers: [
         TypeOrmTransactionStore,
-        { provide: TRANSACTION_STORE, useExisting: TypeOrmTransactionStore },
         {
           provide: SPACE_TRANSACTION_STORE,
           useExisting: TypeOrmTransactionStore,
@@ -54,10 +47,6 @@ export class TransactionsModule {
           useExisting: TypeOrmTransactionCategoryStore,
         },
         TypeOrmImportedTransactionStore,
-        {
-          provide: IMPORTED_TRANSACTION_STORE,
-          useExisting: TypeOrmImportedTransactionStore,
-        },
         {
           provide: SPACE_IMPORTED_TRANSACTION_STORE,
           useExisting: TypeOrmImportedTransactionStore,

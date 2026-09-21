@@ -8,12 +8,6 @@ import {
 } from 'typeorm';
 
 @Entity({ name: 'transactions' })
-@Index('ix_transactions_user_purchase_date', ['userId', 'purchaseDate'])
-@Index('ix_transactions_user_category_purchase_date', [
-  'userId',
-  'categoryId',
-  'purchaseDate',
-])
 @Index('ix_transactions_space_purchase_date', ['spaceId', 'purchaseDate'])
 @Index('ix_transactions_space_category_purchase_date', [
   'spaceId',
@@ -22,10 +16,6 @@ import {
 ])
 @Index('ix_transactions_added_by_user', ['addedByUserId'])
 @Index('ix_transactions_statement_import', ['statementImportId'])
-@Index('ix_transactions_user_import_fingerprint', [
-  'userId',
-  'importFingerprint',
-])
 @Index('ix_transactions_space_import_fingerprint', [
   'spaceId',
   'importFingerprint',
@@ -37,9 +27,6 @@ export class TransactionEntity {
     primaryKeyConstraintName: 'pk_transactions',
   })
   id!: string;
-
-  @Column({ type: 'bigint', name: 'user_id' })
-  userId!: string;
 
   @Column({ type: 'bigint', name: 'space_id' })
   spaceId!: string;

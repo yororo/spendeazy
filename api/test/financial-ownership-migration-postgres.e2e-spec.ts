@@ -11,7 +11,6 @@ const describeDatabase = databaseUrl ? describe : describe.skip;
 interface MigratedFinancialRow {
   category_id: string;
   space_id: string;
-  user_id: string;
   color: string;
   budget_id: string;
   budget_amount: string;
@@ -128,7 +127,7 @@ describeDatabase(
       await database.runMigrations();
 
       const [saved] = await rows<MigratedFinancialRow>(
-        `SELECT c.id AS category_id, c.space_id, c.user_id, c.color,
+        `SELECT c.id AS category_id, c.space_id, c.color,
               b.id AS budget_id, b.amount AS budget_amount,
               si.id AS import_id, si.imported_by_user_id,
               t.id AS transaction_id, t.amount AS transaction_amount,
@@ -136,7 +135,7 @@ describeDatabase(
               cr.id AS rule_id, cr.space_id AS rule_space_id
          FROM categories c
          JOIN budgets b ON b.category_id = c.id
-         JOIN statement_imports si ON si.user_id = c.user_id
+         JOIN statement_imports si ON si.space_id = c.space_id
          JOIN transactions t ON t.category_id = c.id AND t.statement_import_id = si.id
          JOIN category_rules cr ON cr.category_id = c.id
         WHERE c.id = $1`,
@@ -144,7 +143,6 @@ describeDatabase(
       );
       expect(saved).toMatchObject({
         category_id: category.id,
-        user_id: owner.id,
         color: 'teal',
         budget_id: budget.id,
         budget_amount: '125.50',
@@ -178,9 +176,8 @@ describeDatabase(
       );
       await expect(
         database.query(
-          'INSERT INTO statement_imports (user_id, space_id, imported_by_user_id, file_name, file_hash, statement_date, bank) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+          'INSERT INTO statement_imports (space_id, imported_by_user_id, file_name, file_hash, statement_date, bank) VALUES ($1, $2, $3, $4, $5, $6)',
           [
-            owner.id,
             saved.space_id,
             owner.id,
             'duplicate.pdf',
@@ -192,9 +189,8 @@ describeDatabase(
       ).rejects.toMatchObject({ driverError: { code: '23505' } });
       await expect(
         database.query(
-          'INSERT INTO transactions (user_id, space_id, added_by_user_id, category_id, purchase_date, description, amount) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+          'INSERT INTO transactions (space_id, added_by_user_id, category_id, purchase_date, description, amount) VALUES ($1, $2, $3, $4, $5, $6)',
           [
-            other.id,
             otherSaved.space_id,
             other.id,
             category.id,
@@ -219,18 +215,26 @@ describeDatabase(
       );
       expect(membership.access_level).toBe('write');
 
+      const legacyOwnershipColumns = await rows<{ table_name: string }>(`
+        SELECT table_name
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND column_name = 'user_id'
+          AND table_name IN ('categories', 'category_rules', 'statement_imports', 'transactions')
+      `);
+      expect(legacyOwnershipColumns).toEqual([]);
+
       await expect(
         database.query(
-          "INSERT INTO categories (user_id, name) VALUES ($1, 'Missing Space')",
-          [newUser.id],
+          "INSERT INTO categories (name) VALUES ('Missing Space')",
         ),
       ).rejects.toMatchObject({ driverError: { code: '23502' } });
       await expect(
         database.query(
           `INSERT INTO transactions
-             (user_id, space_id, purchase_date, description, amount)
-           VALUES ($1, $2, '2026-02-01', 'Missing actor', '1.00')`,
-          [newUser.id, personalSpaceId],
+             (space_id, purchase_date, description, amount)
+           VALUES ($1, '2026-02-01', 'Missing actor', '1.00')`,
+          [personalSpaceId],
         ),
       ).rejects.toMatchObject({ driverError: { code: '23502' } });
     });

@@ -11,7 +11,6 @@ import { SpaceNotFoundError } from '../../spaces/application/space-errors';
 import { assertWritableSpace } from '../../spaces/application/assert-writable-space';
 import type {
   NewStatementImport,
-  StatementImportHistoryPageQuery,
   StatementImportHistoryRecord,
   StatementImportRecord,
   StatementImportStore,
@@ -20,7 +19,6 @@ import type {
 
 const STATEMENT_IMPORT_FILE_HASH_UNIQUE_CONSTRAINTS = new Set([
   'ux_statement_imports_space_file_hash',
-  'ux_statement_imports_user_file_hash',
 ]);
 
 @Injectable()
@@ -50,17 +48,6 @@ export class TypeOrmStatementImportStore implements StatementImportStore {
     assertWritableSpace(space.status, membership.accessLevel);
   }
 
-  async findById(
-    userId: string,
-    statementImportId: string,
-  ): Promise<StatementImportRecord | null> {
-    const entity = await this.entityManager
-      .getRepository(StatementImportEntity)
-      .findOne({ where: { id: statementImportId, userId } });
-
-    return entity ? toRecord(entity) : null;
-  }
-
   async findByIdInSpace(
     spaceId: string,
     statementImportId: string,
@@ -68,19 +55,6 @@ export class TypeOrmStatementImportStore implements StatementImportStore {
     const entity = await this.entityManager
       .getRepository(StatementImportEntity)
       .findOne({ where: { id: statementImportId, spaceId } });
-
-    return entity ? toRecord(entity) : null;
-  }
-
-  async findByFileHash(
-    userId: string,
-    fileHash: string,
-  ): Promise<StatementImportRecord | null> {
-    const entity = await this.entityManager
-      .getRepository(StatementImportEntity)
-      .findOne({
-        where: { userId, fileHash },
-      });
 
     return entity ? toRecord(entity) : null;
   }
@@ -96,22 +70,8 @@ export class TypeOrmStatementImportStore implements StatementImportStore {
     return entity ? toRecord(entity) : null;
   }
 
-  async findPage(
-    query: StatementImportHistoryPageQuery,
-  ): Promise<StatementImportHistoryRecord[]> {
-    return this.findPageForScope(query, { userId: query.userId });
-  }
-
   async findPageInSpace(
     query: SpaceStatementImportHistoryPageQuery,
-  ): Promise<StatementImportHistoryRecord[]> {
-    return this.findPageForScope(query, { spaceId: query.spaceId });
-  }
-
-  private async findPageForScope(
-    query:
-      StatementImportHistoryPageQuery | SpaceStatementImportHistoryPageQuery,
-    scope: { userId?: string; spaceId?: string },
   ): Promise<StatementImportHistoryRecord[]> {
     const statementImportQuery = this.entityManager
       .getRepository(StatementImportEntity)
@@ -119,17 +79,12 @@ export class TypeOrmStatementImportStore implements StatementImportStore {
       .leftJoin(
         TransactionEntity,
         'transaction',
-        scope.spaceId === undefined
-          ? 'transaction.statementImportId = statementImport.id AND transaction.userId = statementImport.userId'
-          : 'transaction.statementImportId = statementImport.id AND transaction.spaceId = statementImport.spaceId',
+        'transaction.statementImportId = statementImport.id AND transaction.spaceId = statementImport.spaceId',
       )
       .addSelect('COUNT(transaction.id)', 'transactionCount')
-      .where(
-        scope.spaceId === undefined
-          ? 'statementImport.userId = :userId'
-          : 'statementImport.spaceId = :spaceId',
-        scope,
-      );
+      .where('statementImport.spaceId = :spaceId', {
+        spaceId: query.spaceId,
+      });
 
     if (query.filters.fromDate !== undefined) {
       statementImportQuery.andWhere(
@@ -174,11 +129,8 @@ export class TypeOrmStatementImportStore implements StatementImportStore {
     const entity = this.entityManager
       .getRepository(StatementImportEntity)
       .create({
-        userId: input.userId,
-        ...(input.spaceId === undefined ? {} : { spaceId: input.spaceId }),
-        ...(input.importedByUserId === undefined
-          ? {}
-          : { importedByUserId: input.importedByUserId }),
+        spaceId: input.spaceId,
+        importedByUserId: input.importedByUserId,
         fileName: input.fileName,
         fileHash: input.fileHash,
         statementDate: input.statementDate,
@@ -206,11 +158,8 @@ export class TypeOrmStatementImportStore implements StatementImportStore {
 function toRecord(entity: StatementImportEntity): StatementImportRecord {
   return {
     id: entity.id,
-    userId: entity.userId,
-    ...(entity.spaceId === undefined ? {} : { spaceId: entity.spaceId }),
-    ...(entity.importedByUserId === undefined
-      ? {}
-      : { importedByUserId: entity.importedByUserId }),
+    spaceId: entity.spaceId,
+    importedByUserId: entity.importedByUserId,
     fileName: entity.fileName,
     fileHash: entity.fileHash,
     statementDate: entity.statementDate,
@@ -226,11 +175,8 @@ function toHistoryRecord(
 ): StatementImportHistoryRecord {
   return {
     id: entity.id,
-    userId: entity.userId,
-    ...(entity.spaceId === undefined ? {} : { spaceId: entity.spaceId }),
-    ...(entity.importedByUserId === undefined
-      ? {}
-      : { importedByUserId: entity.importedByUserId }),
+    spaceId: entity.spaceId,
+    importedByUserId: entity.importedByUserId,
     fileName: entity.fileName,
     statementDate: entity.statementDate,
     bank: entity.bank,

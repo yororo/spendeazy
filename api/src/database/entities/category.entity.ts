@@ -10,7 +10,6 @@ import type { CategoryColor } from '../../categories/application/category-color'
 
 @Entity({ name: 'categories' })
 @Index('ux_categories_space_name', ['spaceId', 'name'], { unique: true })
-@Index('ix_categories_user_active', ['userId', 'isActive'])
 @Index('ix_categories_space_active', ['spaceId', 'isActive'])
 export class CategoryEntity {
   @PrimaryGeneratedColumn('identity', {
@@ -19,9 +18,6 @@ export class CategoryEntity {
     primaryKeyConstraintName: 'pk_categories',
   })
   id!: string;
-
-  @Column({ type: 'bigint', name: 'user_id' })
-  userId!: string;
 
   @Column({ type: 'bigint', name: 'space_id' })
   spaceId!: string;

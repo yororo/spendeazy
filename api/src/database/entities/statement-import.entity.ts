@@ -10,7 +10,6 @@ import {
 @Index('ux_statement_imports_space_file_hash', ['spaceId', 'fileHash'], {
   unique: true,
 })
-@Index('ix_statement_imports_user_statement_date', ['userId', 'statementDate'])
 @Index('ix_statement_imports_space_statement_date', [
   'spaceId',
   'statementDate',
@@ -23,9 +22,6 @@ export class StatementImportEntity {
     primaryKeyConstraintName: 'pk_statement_imports',
   })
   id!: string;
-
-  @Column({ type: 'bigint', name: 'user_id' })
-  userId!: string;
 
   @Column({ type: 'bigint', name: 'space_id' })
   spaceId!: string;

@@ -12,7 +12,6 @@ import {
 import { CategoryEntity } from '../../database/entities/category.entity';
 import { CategoryRuleEntity } from '../../database/entities/category-rule.entity';
 import { SpaceEntity } from '../../database/entities/space.entity';
-import { UserEntity } from '../../database/entities/user.entity';
 import { StaleEditError } from '../../errors/application-error';
 import {
   ruleKey,
@@ -39,28 +38,6 @@ export class TypeOrmCategoryRuleStore implements CategoryRuleStore {
     @InjectEntityManager()
     public readonly entityManager: EntityManager,
   ) {}
-
-  async findById(
-    userId: string,
-    id: string,
-  ): Promise<CategoryRuleRecord | null> {
-    const entity = await this.entityManager
-      .getRepository(CategoryRuleEntity)
-      .findOne({ where: { id, userId } });
-
-    return entity ? toCategoryRuleRecord(entity) : null;
-  }
-
-  async findAll(userId: string): Promise<CategoryRuleRecord[]> {
-    const entities = await this.entityManager
-      .getRepository(CategoryRuleEntity)
-      .find({
-        where: { userId },
-        order: { id: 'ASC' },
-      });
-
-    return entities.map(toCategoryRuleRecord);
-  }
 
   async findByIdInSpace(
     spaceId: string,
@@ -92,31 +69,6 @@ export class TypeOrmCategoryRuleStore implements CategoryRuleStore {
     });
   }
 
-  async findByNormalizedPattern(
-    userId: string,
-    normalizedPattern: string,
-    excludingId?: string,
-    matchType: CategoryRuleMatchType = EXACT_CATEGORY_RULE_MATCH_TYPE,
-  ): Promise<CategoryRuleRecord | null> {
-    const query = this.entityManager
-      .getRepository(CategoryRuleEntity)
-      .createQueryBuilder('categoryRule')
-      .where('categoryRule.user_id = :userId', { userId })
-      .andWhere('categoryRule.match_type = :matchType', {
-        matchType,
-      })
-      .andWhere('categoryRule.normalized_pattern = :normalizedPattern', {
-        normalizedPattern,
-      });
-
-    if (excludingId !== undefined) {
-      query.andWhere('categoryRule.id <> :excludingId', { excludingId });
-    }
-
-    const entity = await query.getOne();
-    return entity ? toCategoryRuleRecord(entity) : null;
-  }
-
   async findByNormalizedPatternInSpace(
     spaceId: string,
     normalizedPattern: string,
@@ -142,41 +94,17 @@ export class TypeOrmCategoryRuleStore implements CategoryRuleStore {
     return entity ? toCategoryRuleRecord(entity) : null;
   }
 
-  async create(input: NewCategoryRule): Promise<CategoryRuleRecord> {
-    return this.entityManager.transaction(async (entityManager) => {
-      await lockRuleOwner(entityManager, input.userId);
-      await ensureActiveCategory(entityManager, input.userId, input.categoryId);
-
-      const repository = entityManager.getRepository(CategoryRuleEntity);
-      const entity = repository.create({
-        userId: input.userId,
-        categoryId: input.categoryId,
-        pattern: input.pattern,
-        normalizedPattern: input.normalizedPattern,
-        matchType: input.matchType ?? EXACT_CATEGORY_RULE_MATCH_TYPE,
-      });
-
-      await ensurePatternAvailable(repository, entity);
-      return saveCategoryRule(repository, entity);
-    });
-  }
-
   async createInSpace(input: NewCategoryRule): Promise<CategoryRuleRecord> {
-    if (input.spaceId === undefined) {
-      throw new Error('Space-scoped Category Rule creation requires a Space.');
-    }
-
     return this.entityManager.transaction(async (entityManager) => {
-      await lockRuleSpace(entityManager, input.spaceId!);
+      await lockRuleSpace(entityManager, input.spaceId);
       await ensureActiveCategoryInSpace(
         entityManager,
-        input.spaceId!,
+        input.spaceId,
         input.categoryId,
       );
 
       const repository = entityManager.getRepository(CategoryRuleEntity);
       const entity = repository.create({
-        userId: input.userId,
         spaceId: input.spaceId,
         categoryId: input.categoryId,
         pattern: input.pattern,
@@ -184,51 +112,10 @@ export class TypeOrmCategoryRuleStore implements CategoryRuleStore {
         matchType: input.matchType ?? EXACT_CATEGORY_RULE_MATCH_TYPE,
       });
 
-      await ensurePatternAvailable(repository, entity, 'space');
-      const saved = await saveCategoryRule(repository, entity);
-      await bumpRuleRevision(entityManager, input.spaceId!);
-      return saved;
-    });
-  }
-
-  async update(
-    userId: string,
-    id: string,
-    input: UpdateCategoryRule,
-  ): Promise<CategoryRuleRecord | null> {
-    return this.entityManager.transaction(async (entityManager) => {
-      await lockRuleOwner(entityManager, userId);
-      const repository = entityManager.getRepository(CategoryRuleEntity);
-      const entity = await repository.findOne({ where: { id, userId } });
-      if (!entity) {
-        return null;
-      }
-      const unchanged =
-        (input.categoryId === undefined ||
-          input.categoryId === entity.categoryId) &&
-        (input.pattern === undefined || input.pattern === entity.pattern) &&
-        (input.matchType === undefined || input.matchType === entity.matchType);
-      if (unchanged) return toCategoryRuleRecord(entity);
-
-      if (
-        input.categoryId !== undefined &&
-        input.categoryId !== entity.categoryId
-      ) {
-        await ensureActiveCategory(entityManager, userId, input.categoryId);
-        entity.categoryId = input.categoryId;
-      }
-      if (input.pattern !== undefined) {
-        entity.pattern = input.pattern;
-      }
-      if (input.normalizedPattern !== undefined) {
-        entity.normalizedPattern = input.normalizedPattern;
-      }
-      if (input.matchType !== undefined) {
-        entity.matchType = input.matchType;
-      }
-
       await ensurePatternAvailable(repository, entity);
-      return saveCategoryRule(repository, entity);
+      const saved = await saveCategoryRule(repository, entity);
+      await bumpRuleRevision(entityManager, input.spaceId);
+      return saved;
     });
   }
 
@@ -270,20 +157,10 @@ export class TypeOrmCategoryRuleStore implements CategoryRuleStore {
       }
       if (input.matchType !== undefined) entity.matchType = input.matchType;
 
-      await ensurePatternAvailable(repository, entity, 'space');
+      await ensurePatternAvailable(repository, entity);
       const saved = await saveCategoryRule(repository, entity);
       await bumpRuleRevision(entityManager, spaceId);
       return saved;
-    });
-  }
-
-  async delete(userId: string, id: string): Promise<boolean> {
-    return this.entityManager.transaction(async (entityManager) => {
-      await lockRuleOwner(entityManager, userId);
-      const result = await entityManager
-        .getRepository(CategoryRuleEntity)
-        .delete({ id, userId });
-      return result.affected === 1;
     });
   }
 
@@ -311,51 +188,7 @@ export class TypeOrmCategoryRuleStore implements CategoryRuleStore {
     });
   }
 
-  async replaceForCategory(
-    userId: string,
-    categoryId: string,
-    rules: NormalizedReplacementCategoryRule[],
-  ): Promise<CategoryRuleRecord[]> {
-    return this.entityManager.transaction(async (entityManager) => {
-      await lockRuleOwner(entityManager, userId);
-      await ensureActiveCategory(entityManager, userId, categoryId);
-      const repository = entityManager.getRepository(CategoryRuleEntity);
-      const allRules = await repository.find({
-        where: { userId },
-        order: { id: 'ASC' },
-      });
-      validateReplacementConflicts(categoryId, rules, allRules);
-      const currentRules = allRules.filter(
-        (rule) => rule.categoryId === categoryId,
-      );
-      const currentByKey = new Map(
-        currentRules.map((rule) => [ruleKey(rule), rule]),
-      );
-      const requestedKeys = new Set(rules.map(ruleKey));
-      for (const rule of currentRules) {
-        if (!requestedKeys.has(ruleKey(rule))) {
-          await repository.delete({ id: rule.id, userId, categoryId });
-        }
-      }
-      for (const rule of rules) {
-        const current = currentByKey.get(ruleKey(rule));
-        if (current && current.pattern === rule.pattern) continue;
-        const entity = current
-          ? Object.assign(current, { pattern: rule.pattern })
-          : repository.create({ userId, categoryId, ...rule });
-        await saveCategoryRule(repository, entity);
-      }
-      return (
-        await repository.find({
-          where: { userId, categoryId },
-          order: { id: 'ASC' },
-        })
-      ).map(toCategoryRuleRecord);
-    });
-  }
-
   async replaceForCategoryInSpace(
-    userId: string,
     spaceId: string,
     categoryId: string,
     rules: NormalizedReplacementCategoryRule[],
@@ -397,7 +230,6 @@ export class TypeOrmCategoryRuleStore implements CategoryRuleStore {
         const entity = current
           ? Object.assign(current, { pattern: rule.pattern })
           : repository.create({ spaceId, categoryId, ...rule });
-        if (!current) entity.userId = userId;
         await saveCategoryRule(repository, entity);
         changed = true;
       }
@@ -417,20 +249,6 @@ export class TypeOrmCategoryRuleStore implements CategoryRuleStore {
   }
 }
 
-async function lockRuleOwner(
-  entityManager: EntityManager,
-  userId: string,
-): Promise<void> {
-  // All rule mutations share this lock, including inserts into an empty rule set.
-  const user = await entityManager
-    .getRepository(UserEntity)
-    .createQueryBuilder('user')
-    .where('user.id = :userId', { userId })
-    .setLock('pessimistic_write')
-    .getOne();
-  if (!user) throw new CategoryRuleOwnerNotFoundError();
-}
-
 async function lockRuleSpace(
   entityManager: EntityManager,
   spaceId: string,
@@ -448,40 +266,16 @@ async function lockRuleSpace(
 async function ensurePatternAvailable(
   repository: Repository<CategoryRuleEntity>,
   entity: CategoryRuleEntity,
-  scope: 'user' | 'space' = 'user',
 ): Promise<void> {
   const existing = await repository.findOne({
     where: {
-      ...(scope === 'space'
-        ? { spaceId: entity.spaceId }
-        : { userId: entity.userId }),
+      spaceId: entity.spaceId,
       normalizedPattern: entity.normalizedPattern,
       matchType: entity.matchType,
     },
   });
   if (existing && existing.id !== entity.id)
     throw new CategoryRulePatternConflictError(existing.categoryId);
-}
-
-async function ensureActiveCategory(
-  entityManager: EntityManager,
-  userId: string,
-  categoryId: string,
-): Promise<void> {
-  const category = await entityManager
-    .getRepository(CategoryEntity)
-    .createQueryBuilder('category')
-    .where('category.id = :categoryId', { categoryId })
-    .andWhere('category.user_id = :userId', { userId })
-    .setLock('pessimistic_read')
-    .getOne();
-
-  if (!category) {
-    throw new CategoryNotFoundError();
-  }
-  if (!category.isActive) {
-    throw new CategoryInactiveError();
-  }
 }
 
 async function ensureActiveCategoryInSpace(
@@ -567,7 +361,6 @@ async function saveCategoryRule(
 function toCategoryRuleRecord(entity: CategoryRuleEntity): CategoryRuleRecord {
   return {
     id: entity.id,
-    userId: entity.userId,
     spaceId: entity.spaceId,
     categoryId: entity.categoryId,
     pattern: entity.pattern,

@@ -6,7 +6,9 @@ import { CategoryEntity } from '../entities/category.entity';
 import { StatementImportEntity } from '../entities/statement-import.entity';
 import { TransactionEntity } from '../entities/transaction.entity';
 import { UserEntity } from '../entities/user.entity';
+import { SpaceEntity } from '../entities/space.entity';
 import { normalizeMatchingText } from '../../normalization/matching-text';
+import { TypeOrmSpaceStore } from '../../spaces/infrastructure/typeorm-space-store';
 import {
   dateInCurrentMonth,
   SEED_CATEGORIES,
@@ -85,19 +87,27 @@ async function removeExistingSeedUser(manager: EntityManager): Promise<void> {
 
   if (!seedUser) return;
 
-  await manager.delete(TransactionEntity, { userId: seedUser.id });
-  await manager.delete(CategoryRuleEntity, { userId: seedUser.id });
+  const personalSpace = await manager.findOne(SpaceEntity, {
+    where: { personalOwnerUserId: seedUser.id },
+  });
+  if (!personalSpace) {
+    await manager.delete(UserEntity, { id: seedUser.id });
+    return;
+  }
+  await manager.delete(TransactionEntity, { spaceId: personalSpace.id });
+  await manager.delete(CategoryRuleEntity, { spaceId: personalSpace.id });
   await manager
     .createQueryBuilder()
     .delete()
     .from(BudgetEntity)
     .where(
-      'category_id IN (SELECT id FROM categories WHERE user_id = :userId)',
-      { userId: seedUser.id },
+      'category_id IN (SELECT id FROM categories WHERE space_id = :spaceId)',
+      { spaceId: personalSpace.id },
     )
     .execute();
-  await manager.delete(StatementImportEntity, { userId: seedUser.id });
-  await manager.delete(CategoryEntity, { userId: seedUser.id });
+  await manager.delete(StatementImportEntity, { spaceId: personalSpace.id });
+  await manager.delete(CategoryEntity, { spaceId: personalSpace.id });
+  await manager.delete(SpaceEntity, { id: personalSpace.id });
   await manager.delete(UserEntity, { id: seedUser.id });
 }
 
@@ -109,10 +119,13 @@ async function createSeedScenario(manager: EntityManager): Promise<SeedCounts> {
       clerkUserId: SEED_USER.clerkUserId,
     }),
   );
+  const spaceId = await new TypeOrmSpaceStore(manager).ensurePersonalSpace(
+    user.id,
+  );
   const categories = await manager.save(
     SEED_CATEGORIES.map((category) =>
       manager.create(CategoryEntity, {
-        userId: user.id,
+        spaceId,
         name: category.name,
         description: category.description,
         isActive: true,
@@ -150,7 +163,7 @@ async function createSeedScenario(manager: EntityManager): Promise<SeedCounts> {
     SEED_CATEGORY_RULES.map(({ categoryName, pattern }) => {
       const category = requireCategory(categoriesByName, categoryName);
       return manager.create(CategoryRuleEntity, {
-        userId: user.id,
+        spaceId,
         categoryId: category.id,
         pattern,
         normalizedPattern: normalizeMatchingText(pattern),
@@ -161,7 +174,8 @@ async function createSeedScenario(manager: EntityManager): Promise<SeedCounts> {
 
   const statementImport = await manager.save(
     manager.create(StatementImportEntity, {
-      userId: user.id,
+      spaceId,
+      importedByUserId: user.id,
       fileName: 'dev-credit-card-statement.pdf',
       fileHash: sha256('spendeazy deterministic development statement'),
       statementDate: dateInCurrentMonth(20),
@@ -173,6 +187,7 @@ async function createSeedScenario(manager: EntityManager): Promise<SeedCounts> {
   await manager.save([
     createTransaction(
       manager,
+      spaceId,
       user.id,
       requireCategory(categoriesByName, 'Groceries').id,
       null,
@@ -184,6 +199,7 @@ async function createSeedScenario(manager: EntityManager): Promise<SeedCounts> {
     ),
     createTransaction(
       manager,
+      spaceId,
       user.id,
       null,
       null,
@@ -195,6 +211,7 @@ async function createSeedScenario(manager: EntityManager): Promise<SeedCounts> {
     ),
     createTransaction(
       manager,
+      spaceId,
       user.id,
       appSubscriptions.id,
       statementImport.id,
@@ -206,6 +223,7 @@ async function createSeedScenario(manager: EntityManager): Promise<SeedCounts> {
     ),
     createTransaction(
       manager,
+      spaceId,
       user.id,
       requireCategory(categoriesByName, 'Commute').id,
       statementImport.id,
@@ -229,7 +247,8 @@ async function createSeedScenario(manager: EntityManager): Promise<SeedCounts> {
 
 function createTransaction(
   manager: EntityManager,
-  userId: string,
+  spaceId: string,
+  addedByUserId: string,
   categoryId: string | null,
   statementImportId: string | null,
   day: number,
@@ -239,7 +258,8 @@ function createTransaction(
   importFingerprint: string | null,
 ): TransactionEntity {
   return manager.create(TransactionEntity, {
-    userId,
+    spaceId,
+    addedByUserId,
     categoryId,
     statementImportId,
     purchaseDate: dateInCurrentMonth(day),

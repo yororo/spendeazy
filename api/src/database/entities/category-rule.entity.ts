@@ -22,9 +22,6 @@ export class CategoryRuleEntity {
   })
   id!: string;
 
-  @Column({ type: 'bigint', name: 'user_id' })
-  userId!: string;
-
   @Column({ type: 'bigint', name: 'space_id' })
   spaceId!: string;
 

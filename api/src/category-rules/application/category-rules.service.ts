@@ -39,9 +39,8 @@ export class CategoryRulesService {
   ) {}
 
   async createCategoryRuleInSpace(
-    userId: string,
     spaceId: string,
-    input: Omit<NewCategoryRule, 'userId' | 'spaceId' | 'normalizedPattern'>,
+    input: Omit<NewCategoryRule, 'spaceId' | 'normalizedPattern'>,
   ): Promise<CategoryRuleRecord> {
     await this.ensureActiveCategoryInSpace(spaceId, input.categoryId);
 
@@ -56,7 +55,6 @@ export class CategoryRulesService {
     );
 
     return this.categoryRuleStore.createInSpace({
-      userId,
       spaceId,
       categoryId: input.categoryId,
       pattern: input.pattern,
@@ -72,7 +70,6 @@ export class CategoryRulesService {
   }
 
   async replaceCategoryRulesInSpace(
-    userId: string,
     spaceId: string,
     categoryId: string,
     rules: ReplacementCategoryRule[],
@@ -92,7 +89,6 @@ export class CategoryRulesService {
     validateReplacementConflicts(categoryId, normalizedRules, []);
 
     return this.categoryRuleStore.replaceForCategoryInSpace(
-      userId,
       spaceId,
       categoryId,
       normalizedRules,

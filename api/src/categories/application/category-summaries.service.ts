@@ -55,7 +55,6 @@ export class CategorySummariesService {
   ): Promise<CategorySummaryResult> {
     const calendarPeriod = getCalendarPeriod(input);
     const summary = await this.categorySummaryStore.findSummary({
-      userId: '',
       spaceId,
       fromDate: calendarPeriod.fromDate,
       toDate: calendarPeriod.toDate,

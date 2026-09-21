@@ -3,8 +3,7 @@ import type { BudgetPeriod } from './budget-store';
 export const CATEGORY_SUMMARY_STORE = Symbol('CATEGORY_SUMMARY_STORE');
 
 export interface CategorySummaryQuery {
-  userId: string;
-  spaceId?: string;
+  spaceId: string;
   fromDate: string;
   toDate: string;
 }

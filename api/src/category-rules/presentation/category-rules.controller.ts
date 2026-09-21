@@ -96,7 +96,6 @@ export class CategoryRulesController {
     const userId = requireAuthenticatedUserId(request);
     const personalSpace = await this.requirePersonalWriteSpace(userId);
     const rule = await this.categoryRulesService.createCategoryRuleInSpace(
-      userId,
       personalSpace.id,
       input,
     );

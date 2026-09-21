@@ -92,7 +92,6 @@ export class SpaceCategoriesController {
     const userId = requireAuthenticatedUserId(request);
     await this.spaceAccessService.requireWriteAccess(userId, params.spaceId);
     const category = await this.categoriesService.createCategoryInSpace(
-      userId,
       params.spaceId,
       input,
     );

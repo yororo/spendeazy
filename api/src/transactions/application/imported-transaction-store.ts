@@ -1,13 +1,11 @@
-export const IMPORTED_TRANSACTION_STORE = Symbol('IMPORTED_TRANSACTION_STORE');
 export const SPACE_IMPORTED_TRANSACTION_STORE = Symbol(
   'SPACE_IMPORTED_TRANSACTION_STORE',
 );
 
 export interface ImportedTransactionRecord {
   id: string;
-  userId: string;
-  spaceId?: string;
-  addedByUserId?: string;
+  spaceId: string;
+  addedByUserId: string;
   categoryId: string | null;
   statementImportId: string;
   purchaseDate: string;
@@ -21,9 +19,8 @@ export interface ImportedTransactionRecord {
 }
 
 export interface NewImportedTransaction {
-  userId: string;
-  spaceId?: string;
-  addedByUserId?: string;
+  spaceId: string;
+  addedByUserId: string;
   categoryId: string | null;
   statementImportId: string;
   purchaseDate: string;
@@ -46,24 +43,8 @@ export interface UpdateImportedTransactionInput {
   expectedUpdatedAt?: string;
 }
 
-export interface ImportedTransactionStore {
-  findByFingerprint(
-    userId: string,
-    fingerprint: string,
-  ): Promise<ImportedTransactionRecord[]>;
-  create(input: NewImportedTransaction): Promise<ImportedTransactionRecord>;
-  findById(
-    userId: string,
-    id: string,
-  ): Promise<ImportedTransactionRecord | null>;
-  updateCategory(
-    userId: string,
-    id: string,
-    input: UpdateImportedTransactionCategory,
-  ): Promise<ImportedTransactionRecord | null>;
-}
-
 export interface SpaceImportedTransactionStore {
+  create(input: NewImportedTransaction): Promise<ImportedTransactionRecord>;
   findByFingerprintInSpace(
     spaceId: string,
     fingerprint: string,

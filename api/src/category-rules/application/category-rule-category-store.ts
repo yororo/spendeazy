@@ -4,16 +4,11 @@ export const CATEGORY_RULE_CATEGORY_STORE = Symbol(
 
 export interface CategoryRuleCategoryRecord {
   id: string;
-  userId: string;
-  spaceId?: string;
+  spaceId: string;
   isActive: boolean;
 }
 
 export interface CategoryRuleCategoryStore {
-  findById(
-    userId: string,
-    id: string,
-  ): Promise<CategoryRuleCategoryRecord | null>;
   findBySpaceId(
     spaceId: string,
     id: string,

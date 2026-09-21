@@ -12,15 +12,6 @@ import {
 } from './category-store';
 import type { CategoryColor } from './category-color';
 
-type SpaceCategoryStore = {
-  findBySpaceId: NonNullable<CategoryStore['findBySpaceId']>;
-  findAllBySpaceId: NonNullable<CategoryStore['findAllBySpaceId']>;
-  findByNormalizedNameInSpace: NonNullable<
-    CategoryStore['findByNormalizedNameInSpace']
-  >;
-  updateInSpace: NonNullable<CategoryStore['updateInSpace']>;
-};
-
 @Injectable()
 export class CategoriesService {
   constructor(
@@ -28,7 +19,6 @@ export class CategoriesService {
   ) {}
 
   async createCategoryInSpace(
-    userId: string,
     spaceId: string,
     input: {
       name: string;
@@ -40,7 +30,6 @@ export class CategoriesService {
     await this.ensureNameAvailableInSpace(spaceId, name);
 
     return this.categoryStore.create({
-      userId,
       spaceId,
       name,
       description: normalizeCategoryDescription(input.description),
@@ -49,17 +38,14 @@ export class CategoriesService {
   }
 
   listCategoriesInSpace(spaceId: string): Promise<CategoryRecord[]> {
-    return this.getSpaceCategoryStore().findAllBySpaceId(spaceId);
+    return this.categoryStore.findAllBySpaceId(spaceId);
   }
 
   async getCategoryInSpace(
     spaceId: string,
     id: string,
   ): Promise<CategoryRecord> {
-    const category = await this.getSpaceCategoryStore().findBySpaceId(
-      spaceId,
-      id,
-    );
+    const category = await this.categoryStore.findBySpaceId(spaceId, id);
     if (!category) {
       throw new CategoryNotFoundError();
     }
@@ -88,7 +74,7 @@ export class CategoriesService {
       return currentCategory;
     }
 
-    const updatedCategory = await this.getSpaceCategoryStore().updateInSpace(
+    const updatedCategory = await this.categoryStore.updateInSpace(
       spaceId,
       id,
       changes,
@@ -106,33 +92,13 @@ export class CategoriesService {
     currentCategoryId?: string,
   ): Promise<void> {
     const existingCategory =
-      await this.getSpaceCategoryStore().findByNormalizedNameInSpace(
+      await this.categoryStore.findByNormalizedNameInSpace(
         spaceId,
         normalizeCategoryName(name),
       );
     if (existingCategory && existingCategory.id !== currentCategoryId) {
       throw new CategoryNameConflictError();
     }
-  }
-
-  private getSpaceCategoryStore(): SpaceCategoryStore {
-    const store = this.categoryStore;
-    if (
-      !store.findBySpaceId ||
-      !store.findByNormalizedNameInSpace ||
-      !store.updateInSpace
-    ) {
-      throw new Error('Space-scoped Category persistence is not configured.');
-    }
-
-    return {
-      findBySpaceId: (spaceId, id) => store.findBySpaceId!(spaceId, id),
-      findAllBySpaceId: (spaceId) => store.findAllBySpaceId(spaceId),
-      findByNormalizedNameInSpace: (spaceId, normalizedName) =>
-        store.findByNormalizedNameInSpace!(spaceId, normalizedName),
-      updateInSpace: (spaceId, id, input) =>
-        store.updateInSpace!(spaceId, id, input),
-    };
   }
 }
 

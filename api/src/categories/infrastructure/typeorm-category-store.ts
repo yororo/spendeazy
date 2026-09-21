@@ -30,14 +30,6 @@ export class TypeOrmCategoryStore implements CategoryStore {
     public readonly entityManager: EntityManager,
   ) {}
 
-  async findById(userId: string, id: string): Promise<CategoryRecord | null> {
-    const entity = await this.entityManager
-      .getRepository(CategoryEntity)
-      .findOne({ where: { id, userId } });
-
-    return entity ? toCategoryRecord(entity) : null;
-  }
-
   async findBySpaceId(
     spaceId: string,
     id: string,
@@ -49,17 +41,6 @@ export class TypeOrmCategoryStore implements CategoryStore {
     return entity ? toCategoryRecord(entity) : null;
   }
 
-  async findAll(userId: string): Promise<CategoryRecord[]> {
-    const entities = await this.entityManager
-      .getRepository(CategoryEntity)
-      .find({
-        where: { userId },
-        order: { id: 'ASC' },
-      });
-
-    return entities.map(toCategoryRecord);
-  }
-
   async findAllBySpaceId(spaceId: string): Promise<CategoryRecord[]> {
     const entities = await this.entityManager
       .getRepository(CategoryEntity)
@@ -69,22 +50,6 @@ export class TypeOrmCategoryStore implements CategoryStore {
       });
 
     return entities.map(toCategoryRecord);
-  }
-
-  async findByNormalizedName(
-    userId: string,
-    normalizedName: string,
-  ): Promise<CategoryRecord | null> {
-    const entity = await this.entityManager
-      .getRepository(CategoryEntity)
-      .createQueryBuilder('category')
-      .where('category.user_id = :userId', { userId })
-      .andWhere('LOWER(category.name) = :normalizedName', {
-        normalizedName,
-      })
-      .getOne();
-
-    return entity ? toCategoryRecord(entity) : null;
   }
 
   async findByNormalizedNameInSpace(
@@ -106,28 +71,11 @@ export class TypeOrmCategoryStore implements CategoryStore {
   async create(input: NewCategory): Promise<CategoryRecord> {
     const repository = this.entityManager.getRepository(CategoryEntity);
     const entity = repository.create({
-      userId: input.userId,
-      ...(input.spaceId === undefined ? {} : { spaceId: input.spaceId }),
+      spaceId: input.spaceId,
       name: input.name,
       description: input.description,
       color: input.color ?? null,
     });
-
-    return saveCategory(repository, entity);
-  }
-
-  async update(
-    userId: string,
-    id: string,
-    input: UpdateCategory,
-  ): Promise<CategoryRecord | null> {
-    const repository = this.entityManager.getRepository(CategoryEntity);
-    const entity = await repository.findOne({ where: { id, userId } });
-    if (!entity) {
-      return null;
-    }
-
-    applyCategoryChanges(entity, input);
 
     return saveCategory(repository, entity);
   }
@@ -221,7 +169,6 @@ async function saveCategory(
 function toCategoryRecord(entity: CategoryEntity): CategoryRecord {
   return {
     id: entity.id,
-    userId: entity.userId,
     spaceId: entity.spaceId,
     name: entity.name,
     description: entity.description,

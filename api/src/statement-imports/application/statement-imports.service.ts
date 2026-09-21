@@ -36,7 +36,6 @@ import type {
 } from './statement-import-store';
 import type { ErrorDetail } from '../../errors/application-error';
 import { UserNotFoundError } from '../../users/application/user-errors';
-import type { ImportedTransactionRecord } from '../../transactions/application/imported-transaction-store';
 
 export const DEFAULT_STATEMENT_IMPORT_PAGE_SIZE = 20;
 export const MAX_STATEMENT_IMPORT_PAGE_SIZE = 100;
@@ -95,7 +94,7 @@ export class StatementImportsService {
     }
 
     return this.unitOfWork.execute((context) =>
-      this.commitWithinTransaction(context, userId, input, spaceId),
+      this.commitWithinTransaction(context, userId, spaceId, input),
     );
   }
 
@@ -155,8 +154,8 @@ export class StatementImportsService {
   private async commitWithinTransaction(
     context: StatementImportConfirmationContext,
     userId: string,
+    spaceId: string,
     input: CommitReviewedStatementImportInput,
-    spaceId?: string,
   ): Promise<StatementImportRecord> {
     validateReviewedStatementInput(input);
 
@@ -165,32 +164,20 @@ export class StatementImportsService {
       throw new UserNotFoundError();
     }
 
-    if (spaceId !== undefined) {
-      if (!context.spaces) {
-        throw new Error('Space statement import persistence is not configured');
-      }
-
-      await context.spaces.lockForStatementImport(spaceId, userId);
+    if (!context.spaces) {
+      throw new Error('Space statement import persistence is not configured');
     }
+    await context.spaces.lockForStatementImport(spaceId, userId);
 
-    const existingImport =
-      spaceId === undefined
-        ? await context.statementImports.findByFileHash(userId, input.fileHash)
-        : await requireSpaceStatementImportLookup(
-            context,
-            spaceId,
-            input.fileHash,
-          );
+    const existingImport = await context.statementImports.findByFileHashInSpace(
+      spaceId,
+      input.fileHash,
+    );
     if (existingImport) {
       throw new StatementImportFileAlreadyExistsError();
     }
 
-    await ensureCategoriesAreActive(
-      context,
-      userId,
-      input.transactions,
-      spaceId,
-    );
+    await ensureCategoriesAreActive(context, spaceId, input.transactions);
     const preparedTransactions = input.transactions.map((transaction) => ({
       categoryId: transaction.categoryId ?? null,
       purchaseDate: transaction.purchaseDate,
@@ -202,9 +189,8 @@ export class StatementImportsService {
 
     const probableDuplicateGroups = await findProbableDuplicates(
       context,
-      userId,
-      preparedTransactions,
       spaceId,
+      preparedTransactions,
     );
     if (
       probableDuplicateGroups.length > 0 &&
@@ -214,9 +200,8 @@ export class StatementImportsService {
     }
 
     const statementImport = await context.statementImports.create({
-      userId,
       importedByUserId: userId,
-      ...(spaceId === undefined ? {} : { spaceId }),
+      spaceId,
       fileName: input.fileName,
       fileHash: input.fileHash,
       statementDate: input.statementDate,
@@ -227,8 +212,8 @@ export class StatementImportsService {
 
     for (const transaction of preparedTransactions) {
       await context.importedTransactions.create({
-        userId,
-        ...(spaceId === undefined ? {} : { spaceId, addedByUserId: userId }),
+        spaceId,
+        addedByUserId: userId,
         categoryId: transaction.categoryId ?? null,
         statementImportId: statementImport.id,
         purchaseDate: transaction.purchaseDate,
@@ -243,21 +228,12 @@ export class StatementImportsService {
   }
 }
 
-async function requireSpaceStatementImportLookup(
-  context: StatementImportConfirmationContext,
-  spaceId: string,
-  fileHash: string,
-): Promise<StatementImportRecord | null> {
-  return context.statementImports.findByFileHashInSpace(spaceId, fileHash);
-}
-
 async function findProbableDuplicates(
   context: StatementImportConfirmationContext,
-  userId: string,
+  spaceId: string,
   preparedTransactions: readonly {
     importFingerprint: string;
   }[],
-  spaceId?: string,
 ) {
   const fingerprints = [
     ...new Set(
@@ -268,12 +244,10 @@ async function findProbableDuplicates(
 
   for (const fingerprint of fingerprints) {
     const committedMatches =
-      spaceId === undefined
-        ? await context.importedTransactions.findByFingerprint(
-            userId,
-            fingerprint,
-          )
-        : await requireSpaceFingerprintLookup(context, spaceId, fingerprint);
+      await context.importedTransactions.findByFingerprintInSpace(
+        spaceId,
+        fingerprint,
+      );
     committedMatchesByFingerprint.set(fingerprint, committedMatches);
   }
 
@@ -288,9 +262,8 @@ async function findProbableDuplicates(
 
 async function ensureCategoriesAreActive(
   context: StatementImportConfirmationContext,
-  userId: string,
+  spaceId: string,
   transactions: ReviewedStatementTransactionInput[],
-  spaceId?: string,
 ): Promise<void> {
   const categoryIds = new Set(
     transactions
@@ -299,31 +272,12 @@ async function ensureCategoriesAreActive(
   );
 
   for (const categoryId of categoryIds) {
-    const category =
-      spaceId === undefined
-        ? await context.categories.findById(userId, categoryId)
-        : await requireSpaceCategoryLookup(context, spaceId, categoryId);
+    const category = await context.categories.findBySpaceId(
+      spaceId,
+      categoryId,
+    );
     assertActiveCategory(category);
   }
-}
-
-async function requireSpaceFingerprintLookup(
-  context: StatementImportConfirmationContext,
-  spaceId: string,
-  fingerprint: string,
-): Promise<ImportedTransactionRecord[]> {
-  return context.importedTransactions.findByFingerprintInSpace(
-    spaceId,
-    fingerprint,
-  );
-}
-
-async function requireSpaceCategoryLookup(
-  context: StatementImportConfirmationContext,
-  spaceId: string,
-  categoryId: string,
-) {
-  return context.categories.findBySpaceId(spaceId, categoryId);
 }
 
 function validateReviewedStatementInput(

@@ -1,4 +1,3 @@
-export const TRANSACTION_STORE = Symbol('TRANSACTION_STORE');
 export const SPACE_TRANSACTION_STORE = Symbol('SPACE_TRANSACTION_STORE');
 export const TRANSACTION_DESCRIPTION_MAX_LENGTH = 500;
 
@@ -19,13 +18,6 @@ export interface TransactionCursorPosition {
   transactionId: string;
 }
 
-export interface TransactionPageQuery {
-  userId: string;
-  filters: TransactionFilters;
-  after: TransactionCursorPosition | null;
-  pageSize: number;
-}
-
 export interface SpaceTransactionPageQuery {
   spaceId: string;
   filters: TransactionFilters;
@@ -35,9 +27,8 @@ export interface SpaceTransactionPageQuery {
 
 export interface TransactionRecord {
   id: string;
-  userId: string;
-  spaceId?: string;
-  addedByUserId?: string;
+  spaceId: string;
+  addedByUserId: string;
   categoryId: string | null;
   statementImportId: string | null;
   purchaseDate: string;
@@ -56,9 +47,8 @@ export interface ManualTransactionRecord extends Omit<
 }
 
 export interface NewManualTransaction {
-  userId: string;
-  spaceId?: string;
-  addedByUserId?: string;
+  spaceId: string;
+  addedByUserId: string;
   categoryId: string | null;
   purchaseDate: string;
   description: string;
@@ -71,22 +61,6 @@ export interface UpdateManualTransaction {
   description?: string;
   amount?: string;
   expectedUpdatedAt?: string;
-}
-
-export interface TransactionStore {
-  findById(userId: string, id: string): Promise<ManualTransactionRecord | null>;
-  findPage(query: TransactionPageQuery): Promise<TransactionRecord[]>;
-  create(input: NewManualTransaction): Promise<ManualTransactionRecord>;
-  update(
-    userId: string,
-    id: string,
-    input: UpdateManualTransaction,
-  ): Promise<ManualTransactionRecord | null>;
-  delete(
-    userId: string,
-    id: string,
-    expectedUpdatedAt?: string,
-  ): Promise<boolean>;
 }
 
 export interface SpaceTransactionStore {

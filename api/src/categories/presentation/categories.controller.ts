@@ -85,7 +85,6 @@ export class CategoriesController {
     const userId = requireAuthenticatedUserId(request);
     const personalSpace = await this.requirePersonalWriteSpace(userId);
     const category = await this.categoriesService.createCategoryInSpace(
-      userId,
       personalSpace.id,
       input,
     );

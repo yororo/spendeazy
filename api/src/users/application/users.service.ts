@@ -140,10 +140,7 @@ export class UsersService {
   private async ensurePersonalSpaceDefaults(userId: string): Promise<void> {
     const personalSpaceId =
       await this.personalSpaceProvisioner.ensurePersonalSpace(userId);
-    await this.defaultCategoryProvisioner.createForSpace(
-      personalSpaceId,
-      userId,
-    );
+    await this.defaultCategoryProvisioner.createForSpace(personalSpaceId);
   }
 }
 

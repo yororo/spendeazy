@@ -16,31 +16,6 @@ export class TypeOrmTransactionCategoryStore implements TransactionCategoryStore
     private readonly lockCategory = false,
   ) {}
 
-  async findById(
-    userId: string,
-    id: string,
-  ): Promise<TransactionCategoryRecord | null> {
-    const query = this.entityManager
-      .getRepository(CategoryEntity)
-      .createQueryBuilder('category')
-      .where('category.id = :id', { id })
-      .andWhere('category.user_id = :userId', { userId });
-    if (this.lockCategory) {
-      query.setLock('pessimistic_read');
-    }
-
-    const entity = await query.getOne();
-
-    return entity
-      ? {
-          id: entity.id,
-          userId: entity.userId,
-          ...(entity.spaceId === undefined ? {} : { spaceId: entity.spaceId }),
-          isActive: entity.isActive,
-        }
-      : null;
-  }
-
   async findBySpaceId(
     spaceId: string,
     id: string,
@@ -59,7 +34,6 @@ export class TypeOrmTransactionCategoryStore implements TransactionCategoryStore
     return entity
       ? {
           id: entity.id,
-          userId: entity.userId,
           spaceId: entity.spaceId,
           isActive: entity.isActive,
         }

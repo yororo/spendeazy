@@ -64,7 +64,6 @@ export class CategoryRuleReplacementController {
       await this.spaceAccessService.requirePersonalWriteSpace(userId);
     const rules = (
       await this.categoryRulesService.replaceCategoryRulesInSpace(
-        userId,
         personalSpace.id,
         params.categoryId,
         input.rules,

@@ -13,33 +13,17 @@ import { TransactionEntity } from '../../database/entities/transaction.entity';
 import { StaleEditError } from '../../errors/application-error';
 import type {
   ImportedTransactionRecord,
-  ImportedTransactionStore,
   NewImportedTransaction,
   SpaceImportedTransactionStore,
   UpdateImportedTransactionCategory,
 } from '../application/imported-transaction-store';
 
 @Injectable()
-export class TypeOrmImportedTransactionStore
-  implements ImportedTransactionStore, SpaceImportedTransactionStore
-{
+export class TypeOrmImportedTransactionStore implements SpaceImportedTransactionStore {
   constructor(
     @InjectEntityManager()
     public readonly entityManager: EntityManager,
   ) {}
-
-  async findByFingerprint(
-    userId: string,
-    importFingerprint: string,
-  ): Promise<ImportedTransactionRecord[]> {
-    const entities = await this.entityManager
-      .getRepository(TransactionEntity)
-      .find({
-        where: importedTransactionWhere(userId, { importFingerprint }),
-      });
-
-    return entities.map(toRecord);
-  }
 
   async findByFingerprintInSpace(
     spaceId: string,
@@ -60,11 +44,8 @@ export class TypeOrmImportedTransactionStore
     input: NewImportedTransaction,
   ): Promise<ImportedTransactionRecord> {
     const entity = this.entityManager.getRepository(TransactionEntity).create({
-      userId: input.userId,
-      ...(input.spaceId === undefined ? {} : { spaceId: input.spaceId }),
-      ...(input.addedByUserId === undefined
-        ? {}
-        : { addedByUserId: input.addedByUserId }),
+      spaceId: input.spaceId,
+      addedByUserId: input.addedByUserId,
       categoryId: input.categoryId,
       statementImportId: input.statementImportId,
       purchaseDate: input.purchaseDate,
@@ -79,17 +60,6 @@ export class TypeOrmImportedTransactionStore
     );
   }
 
-  async findById(
-    userId: string,
-    id: string,
-  ): Promise<ImportedTransactionRecord | null> {
-    const entity = await this.entityManager
-      .getRepository(TransactionEntity)
-      .findOne({ where: importedTransactionWhere(userId, { id }) });
-
-    return entity ? toRecord(entity) : null;
-  }
-
   async findByIdInSpace(
     spaceId: string,
     id: string,
@@ -99,51 +69,6 @@ export class TypeOrmImportedTransactionStore
       .findOne({ where: importedTransactionSpaceWhere(spaceId, { id }) });
 
     return entity ? toRecord(entity) : null;
-  }
-
-  async updateCategory(
-    userId: string,
-    id: string,
-    input: UpdateImportedTransactionCategory,
-  ): Promise<ImportedTransactionRecord | null> {
-    return this.entityManager.transaction(async (entityManager) => {
-      const repository = entityManager.getRepository(TransactionEntity);
-      const entity = await repository.findOne({
-        where: importedTransactionWhere(userId, { id }),
-      });
-      if (!entity) {
-        return null;
-      }
-
-      if (input.categoryId !== null && input.categoryId !== entity.categoryId) {
-        await ensureActiveCategory(entityManager, userId, input.categoryId);
-      }
-
-      if (input.expectedUpdatedAt !== undefined) {
-        const result = await updateCategoryIfCurrent(
-          repository,
-          entity.id,
-          { userId },
-          input,
-        );
-        if (result.affected !== 1) {
-          const current = await repository.findOne({
-            where: importedTransactionWhere(userId, { id }),
-          });
-          if (!current) return null;
-          throw new StaleEditError();
-        }
-
-        const updated = await repository.findOne({
-          where: importedTransactionWhere(userId, { id }),
-        });
-        return updated ? toRecord(updated) : null;
-      }
-
-      entity.categoryId = input.categoryId;
-      entity.categoryMatchConfidence = null;
-      return toRecord(await repository.save(entity));
-    });
   }
 
   async updateCategoryInSpace(
@@ -170,7 +95,7 @@ export class TypeOrmImportedTransactionStore
         const result = await updateCategoryIfCurrent(
           repository,
           entity.id,
-          { spaceId },
+          spaceId,
           input,
         );
         if (result.affected !== 1) {
@@ -194,20 +119,6 @@ export class TypeOrmImportedTransactionStore
   }
 }
 
-function importedTransactionWhere(
-  userId: string,
-  identifier: Pick<
-    FindOptionsWhere<TransactionEntity>,
-    'id' | 'importFingerprint'
-  >,
-): FindOptionsWhere<TransactionEntity> {
-  return {
-    userId,
-    ...identifier,
-    statementImportId: Not(IsNull()),
-  };
-}
-
 function importedTransactionSpaceWhere(
   spaceId: string,
   identifier: Pick<
@@ -220,22 +131,6 @@ function importedTransactionSpaceWhere(
     ...identifier,
     statementImportId: Not(IsNull()),
   };
-}
-
-async function ensureActiveCategory(
-  entityManager: EntityManager,
-  userId: string,
-  categoryId: string,
-): Promise<void> {
-  const category = await entityManager
-    .getRepository(CategoryEntity)
-    .createQueryBuilder('category')
-    .where('category.id = :categoryId', { categoryId })
-    .andWhere('category.user_id = :userId', { userId })
-    .setLock('pessimistic_read')
-    .getOne();
-
-  assertActiveCategory(category);
 }
 
 async function ensureActiveCategoryInSpace(
@@ -257,7 +152,7 @@ async function ensureActiveCategoryInSpace(
 async function updateCategoryIfCurrent(
   repository: Repository<TransactionEntity>,
   id: string,
-  scope: { userId?: string; spaceId?: string },
+  spaceId: string,
   input: UpdateImportedTransactionCategory,
 ) {
   const query = repository
@@ -270,12 +165,7 @@ async function updateCategoryIfCurrent(
     .where('id = :id', { id })
     .andWhere('statement_import_id IS NOT NULL');
 
-  if (scope.userId !== undefined) {
-    query.andWhere('user_id = :userId', { userId: scope.userId });
-  }
-  if (scope.spaceId !== undefined) {
-    query.andWhere('space_id = :spaceId', { spaceId: scope.spaceId });
-  }
+  query.andWhere('space_id = :spaceId', { spaceId });
 
   return query
     .andWhere('updated_at = :expectedUpdatedAt', {
@@ -287,11 +177,8 @@ async function updateCategoryIfCurrent(
 function toRecord(entity: TransactionEntity): ImportedTransactionRecord {
   return {
     id: entity.id,
-    userId: entity.userId,
-    ...(entity.spaceId === undefined ? {} : { spaceId: entity.spaceId }),
-    ...(entity.addedByUserId === undefined
-      ? {}
-      : { addedByUserId: entity.addedByUserId }),
+    spaceId: entity.spaceId,
+    addedByUserId: entity.addedByUserId,
     categoryId: entity.categoryId,
     statementImportId: entity.statementImportId as string,
     purchaseDate: entity.purchaseDate,

@@ -79,7 +79,6 @@ export class SpaceCategoryRuleReplacementController {
     await this.spaceAccessService.requireWriteAccess(userId, params.spaceId);
     return toCategoryRuleCollectionResponse(
       await this.categoryRulesService.replaceCategoryRulesInSpace(
-        userId,
         params.spaceId,
         params.categoryId,
         input.rules,

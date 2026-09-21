@@ -111,7 +111,6 @@ export class SpaceCategoryRulesController {
     const userId = requireAuthenticatedUserId(request);
     await this.spaceAccessService.requireWriteAccess(userId, params.spaceId);
     const rule = await this.categoryRulesService.createCategoryRuleInSpace(
-      userId,
       params.spaceId,
       input,
     );

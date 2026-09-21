@@ -1,8 +1,5 @@
 import type { TransactionCategoryStore } from '../../transactions/application/transaction-category-store';
-import type {
-  ImportedTransactionStore,
-  SpaceImportedTransactionStore,
-} from '../../transactions/application/imported-transaction-store';
+import type { SpaceImportedTransactionStore } from '../../transactions/application/imported-transaction-store';
 import type { UserStore } from '../../users/application/user-store';
 import type { StatementImportStore } from './statement-import-store';
 
@@ -14,21 +11,18 @@ export type StatementImportConfirmationUserStore = Pick<UserStore, 'findById'>;
 
 export type StatementImportConfirmationCategoryStore = Pick<
   TransactionCategoryStore,
-  'findById'
-> & {
-  findBySpaceId: NonNullable<TransactionCategoryStore['findBySpaceId']>;
-};
+  'findBySpaceId'
+>;
 
 export type StatementImportConfirmationStore = Pick<
   StatementImportStore,
-  'findByFileHash' | 'findByFileHashInSpace' | 'create'
+  'findByFileHashInSpace' | 'create'
 >;
 
 export type StatementImportConfirmationTransactionStore = Pick<
-  ImportedTransactionStore,
-  'findByFingerprint' | 'create'
-> &
-  Pick<SpaceImportedTransactionStore, 'findByFingerprintInSpace'>;
+  SpaceImportedTransactionStore,
+  'findByFingerprintInSpace' | 'create'
+>;
 
 export interface StatementImportConfirmationSpaceStore {
   lockForStatementImport(spaceId: string, userId: string): Promise<void>;

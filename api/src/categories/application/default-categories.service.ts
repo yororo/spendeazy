@@ -9,7 +9,7 @@ export const DEFAULT_CATEGORY_PROVISIONER = Symbol(
 );
 
 export interface DefaultCategoryProvisioner {
-  createForSpace(spaceId: string, actorUserId: string): Promise<void>;
+  createForSpace(spaceId: string): Promise<void>;
 }
 
 @Injectable()
@@ -20,7 +20,7 @@ export class DefaultCategoriesService implements DefaultCategoryProvisioner {
     private readonly logger: ExceptionReporter,
   ) {}
 
-  async createForSpace(spaceId: string, actorUserId: string): Promise<void> {
+  async createForSpace(spaceId: string): Promise<void> {
     const existingNames = new Set(
       (await this.categoryStore.findAllBySpaceId(spaceId)).map((category) =>
         normalizeCategoryName(category.name),
@@ -32,7 +32,6 @@ export class DefaultCategoriesService implements DefaultCategoryProvisioner {
 
       try {
         await this.categoryStore.create({
-          userId: actorUserId,
           spaceId,
           ...category,
         });

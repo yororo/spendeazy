@@ -12,10 +12,8 @@ import {
 import { TransactionNotFoundError } from './transaction-errors';
 import { ImportedTransactionImmutableError } from './transaction-errors';
 import {
-  IMPORTED_TRANSACTION_STORE,
   SPACE_IMPORTED_TRANSACTION_STORE,
   type ImportedTransactionRecord,
-  type ImportedTransactionStore,
   type SpaceImportedTransactionStore,
 } from './imported-transaction-store';
 import {
@@ -24,27 +22,17 @@ import {
 } from './transaction-cursor';
 import {
   SPACE_TRANSACTION_STORE,
-  TRANSACTION_STORE,
   type ManualTransactionRecord,
   type NewManualTransaction,
   type SpaceTransactionStore,
   type SpaceTransactionPageQuery,
   type TransactionFilters,
   type TransactionRecord,
-  type TransactionStore,
   type UpdateManualTransaction,
 } from './transaction-store';
 
 export const DEFAULT_TRANSACTION_PAGE_SIZE = 20;
 export const MAX_TRANSACTION_PAGE_SIZE = 100;
-
-const EMPTY_IMPORTED_TRANSACTION_STORE: ImportedTransactionStore = {
-  findByFingerprint: () => Promise.resolve([]),
-  create: () =>
-    Promise.reject(new Error('Imported transaction store is not configured')),
-  findById: () => Promise.resolve(null),
-  updateCategory: () => Promise.resolve(null),
-};
 
 const SPACE_STORE_NOT_CONFIGURED =
   'Space transaction persistence is not configured';
@@ -58,6 +46,7 @@ const EMPTY_SPACE_TRANSACTION_STORE: SpaceTransactionStore = {
 };
 
 const EMPTY_SPACE_IMPORTED_TRANSACTION_STORE: SpaceImportedTransactionStore = {
+  create: () => Promise.reject(new Error(SPACE_STORE_NOT_CONFIGURED)),
   findByFingerprintInSpace: () =>
     Promise.reject(new Error(SPACE_STORE_NOT_CONFIGURED)),
   findByIdInSpace: () => Promise.reject(new Error(SPACE_STORE_NOT_CONFIGURED)),
@@ -85,12 +74,8 @@ export interface CreateManualTransactionInput extends Omit<
 @Injectable()
 export class TransactionsService {
   constructor(
-    @Inject(TRANSACTION_STORE)
-    private readonly transactionStore: TransactionStore,
     @Inject(TRANSACTION_CATEGORY_STORE)
     private readonly categoryStore: TransactionCategoryStore,
-    @Inject(IMPORTED_TRANSACTION_STORE)
-    private readonly importedTransactionStore: ImportedTransactionStore = EMPTY_IMPORTED_TRANSACTION_STORE,
     @Inject(SPACE_TRANSACTION_STORE)
     private readonly spaceTransactionStore: SpaceTransactionStore = EMPTY_SPACE_TRANSACTION_STORE,
     @Inject(SPACE_IMPORTED_TRANSACTION_STORE)
@@ -108,7 +93,6 @@ export class TransactionsService {
     }
 
     return this.spaceTransactionStore.createInSpace({
-      userId,
       spaceId,
       addedByUserId: userId,
       categoryId,

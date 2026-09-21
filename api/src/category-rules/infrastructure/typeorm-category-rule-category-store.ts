@@ -14,23 +14,6 @@ export class TypeOrmCategoryRuleCategoryStore implements CategoryRuleCategorySto
     public readonly entityManager: EntityManager,
   ) {}
 
-  async findById(
-    userId: string,
-    id: string,
-  ): Promise<CategoryRuleCategoryRecord | null> {
-    const entity = await this.entityManager
-      .getRepository(CategoryEntity)
-      .findOne({ where: { id, userId } });
-
-    return entity
-      ? {
-          id: entity.id,
-          userId: entity.userId,
-          isActive: entity.isActive,
-        }
-      : null;
-  }
-
   async findBySpaceId(
     spaceId: string,
     id: string,
@@ -42,7 +25,6 @@ export class TypeOrmCategoryRuleCategoryStore implements CategoryRuleCategorySto
     return entity
       ? {
           id: entity.id,
-          userId: entity.userId,
           spaceId: entity.spaceId,
           isActive: entity.isActive,
         }

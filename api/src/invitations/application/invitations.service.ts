@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { isEmail } from 'class-validator';
 
 import { ApplicationError } from '../../errors/application-error';
+import { VALIDATION_FAILED_CODE } from '../../errors/application-error-codes';
 import { SpaceAccessService } from '../../spaces/application/space-access.service';
 import {
   USER_STORE,
@@ -91,7 +92,11 @@ export class InvitationsService {
       this.invitationStore.listIncoming(userId, user.email),
     ]);
     return {
-      outgoing: outgoing ? await this.toView(outgoing) : null,
+      outgoing:
+        outgoing &&
+        (outgoing.status === 'pending' || outgoing.status === 'expired')
+          ? await this.toView(outgoing)
+          : null,
       incoming: await Promise.all(incoming.map((item) => this.toView(item))),
     };
   }
@@ -345,7 +350,7 @@ export function normalizeInvitationEmail(value: string): string {
   const normalized = value.trim().toLowerCase();
   if (!isEmail(normalized)) {
     throw new ApplicationError(
-      'VALIDATION_FAILED',
+      VALIDATION_FAILED_CODE,
       'Invalid invitation email',
       [
         {

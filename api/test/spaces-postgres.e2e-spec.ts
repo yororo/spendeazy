@@ -93,11 +93,20 @@ describeDatabase('Spaces with PostgreSQL', () => {
     const spaces = await database.getRepository(SpaceEntity).findBy({
       personalOwnerUserId: first.user.id,
     });
+    const accessibleSpaces = await new TypeOrmSpaceStore(
+      database.manager,
+    ).listAccessible(first.user.id);
     const persistedCategories = await database
       .getRepository(CategoryEntity)
       .findBy({ spaceId: spaces[0].id });
 
     expect(spaces).toHaveLength(1);
+    expect(accessibleSpaces).toEqual([
+      expect.objectContaining({
+        id: spaces[0].id,
+        members: [{ id: first.user.id, name: 'New Space User' }],
+      }),
+    ]);
     expect(persistedCategories).toHaveLength(DEFAULT_CATEGORY_CATALOG.length);
     expect(
       new Set(persistedCategories.map((category) => category.spaceId)),
@@ -155,6 +164,18 @@ describeDatabase('Spaces with PostgreSQL', () => {
         accessLevel: 'write',
       },
     ]);
+
+    await expect(spaceStore.listAccessible(owner.id)).resolves.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: sharedSpace.id,
+          members: [
+            { id: owner.id, name: owner.name },
+            { id: member.id, name: member.name },
+          ],
+        }),
+      ]),
+    );
 
     const sharedCategory = await database.getRepository(CategoryEntity).save({
       spaceId: sharedSpace.id,

@@ -15,6 +15,33 @@ describe('SpaceAccessService', () => {
     expect(store.listAccessibleCalls).toEqual(['42']);
   });
 
+  it('limits the Space catalog to active Spaces while retaining member identity', async () => {
+    const store = new SpaceStoreFake([
+      spaceRecord({
+        id: '10',
+        userId: '42',
+        accessLevel: 'write',
+        status: 'active',
+        members: [{ id: '42', name: 'Ada Lovelace' }],
+      }),
+      spaceRecord({
+        id: '11',
+        userId: '42',
+        accessLevel: 'read',
+        status: 'archived',
+        members: [{ id: '42', name: 'Ada Lovelace' }],
+      }),
+    ]);
+    const service = new SpaceAccessService(store);
+
+    await expect(service.listActiveAccessibleSpaces('42')).resolves.toEqual([
+      expect.objectContaining({
+        id: '10',
+        members: [{ id: '42', name: 'Ada Lovelace' }],
+      }),
+    ]);
+  });
+
   it('requires read access through the authenticated User and Space identifier', async () => {
     const store = new SpaceStoreFake([
       spaceRecord({ id: '10', userId: '42', accessLevel: 'read' }),
@@ -129,6 +156,7 @@ function spaceRecord(
     status: 'active',
     userId: '42',
     accessLevel: 'write',
+    members: [{ id: '42', name: 'Test User' }],
     createdAt: timestamp,
     updatedAt: timestamp,
     ...overrides,

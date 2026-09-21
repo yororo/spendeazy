@@ -809,7 +809,7 @@ paths:
         - Category summaries
   /api/v1/users/me/spaces:
     get:
-      description: The authenticated session determines the User. Client-supplied User identifiers are ignored, and only memberships with read access are returned.
+      description: The authenticated session determines the User. Client-supplied User identifiers are ignored, and only active memberships with read access are returned. Each Space includes the member identity needed for an explicit switcher label.
       operationId: Spaces_listSpaces
       parameters: []
       responses:
@@ -2829,6 +2829,23 @@ components:
         - transactionCount
         - budgetAmount
         - remainingAmount
+    SpaceMemberResponseDto:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Positive bigint User identifier encoded as a string.
+          pattern: ^[1-9]\d*$
+          example: '42'
+        name:
+          type: string
+          description: Display name of a User in the Space.
+          minLength: 1
+          example: Ada Lovelace
+      additionalProperties: false
+      required:
+        - id
+        - name
     SpaceResponseDto:
       type: object
       properties:
@@ -2858,6 +2875,12 @@ components:
             - read
             - write
           example: write
+        members:
+          description: Users whose membership identity may be displayed for this authorized Space.
+          minItems: 1
+          type: array
+          items:
+            $ref: '#/components/schemas/SpaceMemberResponseDto'
         createdAt:
           type: string
           description: UTC timestamp when the Space was created.
@@ -2874,6 +2897,7 @@ components:
         - kind
         - status
         - accessLevel
+        - members
         - createdAt
         - updatedAt
     SpaceParamsDto:

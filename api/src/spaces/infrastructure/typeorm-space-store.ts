@@ -4,9 +4,11 @@ import { In, QueryFailedError, type EntityManager } from 'typeorm';
 import { POSTGRES_UNIQUE_VIOLATION } from '../../database/database-error-codes';
 import { SpaceEntity } from '../../database/entities/space.entity';
 import { SpaceMembershipEntity } from '../../database/entities/space-membership.entity';
+import { UserEntity } from '../../database/entities/user.entity';
 import type {
   AccessibleSpaceRecord,
   PersonalSpaceProvisioner,
+  SpaceMemberRecord,
   SpaceRecord,
   SpaceStore,
 } from '../application/space-store';
@@ -30,12 +32,22 @@ export class TypeOrmSpaceStore implements SpaceStore, PersonalSpaceProvisioner {
       .getRepository(SpaceEntity)
       .findBy({ id: In(memberships.map((membership) => membership.spaceId)) });
     const spacesById = new Map(spaces.map((space) => [space.id, space]));
+    const membersBySpaceId = await this.listMembersBySpaceId(
+      memberships.map((membership) => membership.spaceId),
+    );
 
     return memberships
       .flatMap((membership) => {
         const space = spacesById.get(membership.spaceId);
         return space
-          ? [toAccessibleSpaceRecord(space, membership.accessLevel, userId)]
+          ? [
+              toAccessibleSpaceRecord(
+                space,
+                membership.accessLevel,
+                userId,
+                membersBySpaceId.get(space.id) ?? [],
+              ),
+            ]
           : [];
       })
       .sort(compareAccessibleSpaces);
@@ -55,9 +67,46 @@ export class TypeOrmSpaceStore implements SpaceStore, PersonalSpaceProvisioner {
     const space = await this.entityManager
       .getRepository(SpaceEntity)
       .findOne({ where: { id: spaceId } });
-    return space
-      ? toAccessibleSpaceRecord(space, membership.accessLevel, userId)
-      : null;
+    if (!space) return null;
+
+    const membersBySpaceId = await this.listMembersBySpaceId([spaceId]);
+    return toAccessibleSpaceRecord(
+      space,
+      membership.accessLevel,
+      userId,
+      membersBySpaceId.get(spaceId) ?? [],
+    );
+  }
+
+  private async listMembersBySpaceId(
+    spaceIds: readonly string[],
+  ): Promise<Map<string, SpaceMemberRecord[]>> {
+    const membersBySpaceId = new Map<string, SpaceMemberRecord[]>();
+    if (spaceIds.length === 0) return membersBySpaceId;
+
+    const memberships = await this.entityManager
+      .getRepository(SpaceMembershipEntity)
+      .find({
+        where: { spaceId: In([...new Set(spaceIds)]) },
+        order: { spaceId: 'ASC', userId: 'ASC' },
+      });
+    if (memberships.length === 0) return membersBySpaceId;
+
+    const users = await this.entityManager.getRepository(UserEntity).findBy({
+      id: In([...new Set(memberships.map((membership) => membership.userId))]),
+    });
+    const usersById = new Map(users.map((user) => [user.id, user]));
+
+    for (const membership of memberships) {
+      const user = usersById.get(membership.userId);
+      if (!user) continue;
+
+      const members = membersBySpaceId.get(membership.spaceId) ?? [];
+      members.push({ id: user.id, name: user.name });
+      membersBySpaceId.set(membership.spaceId, members);
+    }
+
+    return membersBySpaceId;
   }
 
   async ensurePersonalSpace(userId: string): Promise<string> {
@@ -148,8 +197,9 @@ function toAccessibleSpaceRecord(
   entity: SpaceEntity,
   accessLevel: AccessibleSpaceRecord['accessLevel'],
   userId: string,
+  members: readonly SpaceMemberRecord[],
 ): AccessibleSpaceRecord {
-  return { ...toSpaceRecord(entity), userId, accessLevel };
+  return { ...toSpaceRecord(entity), userId, accessLevel, members };
 }
 
 function compareAccessibleSpaces(

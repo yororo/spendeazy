@@ -18,9 +18,15 @@ export interface SpaceRecord {
   updatedAt: Date;
 }
 
+export interface SpaceMemberRecord {
+  id: string;
+  name: string;
+}
+
 export interface AccessibleSpaceRecord extends SpaceRecord {
   userId: string;
   accessLevel: SpaceAccessLevel;
+  members: readonly SpaceMemberRecord[];
 }
 
 export interface SpaceStore {

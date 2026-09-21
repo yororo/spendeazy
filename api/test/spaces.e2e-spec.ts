@@ -21,6 +21,7 @@ describe('authenticated Space routes', () => {
   let application: INestApplication;
   let verifier: FakeClerkTokenVerifier;
   let spaceAccessService: {
+    listActiveAccessibleSpaces: jest.Mock;
     listAccessibleSpaces: jest.Mock;
     requireReadAccess: jest.Mock;
   };
@@ -28,6 +29,7 @@ describe('authenticated Space routes', () => {
   beforeAll(async () => {
     verifier = new FakeClerkTokenVerifier();
     spaceAccessService = {
+      listActiveAccessibleSpaces: jest.fn().mockResolvedValue([spaceRecord()]),
       listAccessibleSpaces: jest.fn().mockResolvedValue([spaceRecord()]),
       requireReadAccess: jest.fn().mockResolvedValue(spaceRecord()),
     };
@@ -58,7 +60,7 @@ describe('authenticated Space routes', () => {
     await application.close();
   });
 
-  it('lists Spaces using the authenticated User rather than a caller-supplied User ID', async () => {
+  it('lists active identity-rich Spaces using the authenticated User rather than a caller-supplied User ID', async () => {
     const response = await request(application.getHttpServer() as Server)
       .get('/api/v1/users/me/spaces')
       .query({ userId: '99' })
@@ -72,11 +74,14 @@ describe('authenticated Space routes', () => {
         kind: 'personal',
         status: 'active',
         accessLevel: 'write',
+        members: [{ id: '42', name: 'Ada Lovelace' }],
         createdAt: '2026-09-20T00:00:00.000Z',
         updatedAt: '2026-09-20T00:00:00.000Z',
       },
     ]);
-    expect(spaceAccessService.listAccessibleSpaces).toHaveBeenCalledWith('42');
+    expect(spaceAccessService.listActiveAccessibleSpaces).toHaveBeenCalledWith(
+      '42',
+    );
   });
 
   it('returns the same non-disclosing not-found response for an inaccessible Space', async () => {
@@ -127,6 +132,7 @@ function spaceRecord() {
     personalOwnerUserId: '42',
     userId: '42',
     accessLevel: 'write' as const,
+    members: [{ id: '42', name: 'Ada Lovelace' }],
     createdAt: timestamp,
     updatedAt: timestamp,
   };

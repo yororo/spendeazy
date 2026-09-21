@@ -60,6 +60,7 @@ const pageState = vi.hoisted(() => {
           kind: "personal" as const,
           status: "active" as const,
           accessLevel: "write" as const,
+          members: [{ id: "1", name: "Ada Lovelace" }],
           createdAt: updatedAt,
           updatedAt,
         },
@@ -68,6 +69,10 @@ const pageState = vi.hoisted(() => {
           kind: "shared" as const,
           status: "active" as const,
           accessLevel: "write" as const,
+          members: [
+            { id: "1", name: "Ada Lovelace" },
+            { id: "2", name: "Grace Hopper" },
+          ],
           createdAt: updatedAt,
           updatedAt,
         },

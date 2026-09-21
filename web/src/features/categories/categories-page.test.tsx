@@ -152,6 +152,7 @@ function createFetchMock(options: FetchOptions = {}) {
           kind: "personal",
           status: "active",
           accessLevel: "write",
+          members: [{ id: "1", name: "Ada Lovelace" }],
           createdAt: "2026-09-01T00:00:00.000Z",
           updatedAt: "2026-09-01T00:00:00.000Z",
         },
@@ -160,6 +161,10 @@ function createFetchMock(options: FetchOptions = {}) {
           kind: "shared",
           status: "active",
           accessLevel: "write",
+          members: [
+            { id: "1", name: "Ada Lovelace" },
+            { id: "2", name: "Grace Hopper" },
+          ],
           createdAt: "2026-09-01T00:00:00.000Z",
           updatedAt: "2026-09-01T00:00:00.000Z",
         },

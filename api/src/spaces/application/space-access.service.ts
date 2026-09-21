@@ -15,8 +15,15 @@ export class SpaceAccessService {
     return this.spaceStore.listAccessible(userId);
   }
 
+  async listActiveAccessibleSpaces(
+    userId: string,
+  ): Promise<AccessibleSpaceRecord[]> {
+    const spaces = await this.listAccessibleSpaces(userId);
+    return spaces.filter((space) => space.status === 'active');
+  }
+
   async requirePersonalSpace(userId: string): Promise<AccessibleSpaceRecord> {
-    const personalSpace = (await this.listAccessibleSpaces(userId)).find(
+    const personalSpace = (await this.listActiveAccessibleSpaces(userId)).find(
       (space) => space.kind === 'personal',
     );
     if (!personalSpace) {

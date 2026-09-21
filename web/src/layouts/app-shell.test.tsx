@@ -1,6 +1,13 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { useCallback, useEffect, useState } from "react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -15,8 +22,19 @@ import { AppSessionProvider, type AppSession } from "@/shared/session";
 vi.mock("@/shared/api", () => ({
   useAccessibleSpacesQuery: () => ({
     data: [
-      { id: "personal-1", kind: "personal" },
-      { id: "shared-1", kind: "shared" },
+      {
+        id: "personal-1",
+        kind: "personal",
+        members: [{ id: "user-1", name: "Ada Lovelace" }],
+      },
+      {
+        id: "shared-1",
+        kind: "shared",
+        members: [
+          { id: "user-1", name: "Ada Lovelace" },
+          { id: "user-2", name: "Grace Hopper" },
+        ],
+      },
     ],
   }),
 }));
@@ -64,14 +82,145 @@ describe("AppShell", () => {
       </AppSessionProvider>,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Shared" }));
+    fireEvent.click(
+      screen.getAllByRole("button", { name: /Active Space/u })[0]!,
+    );
+    fireEvent.click(
+      screen.getByRole("menuitemradio", {
+        name: /Shared.*Ada Lovelace.*Grace Hopper/u,
+      }),
+    );
     expect(screen.getByText("/transactions?month=2026-09&spaceId=shared-1")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Personal" }));
+    fireEvent.click(
+      screen.getAllByRole("button", { name: /Active Space/u })[0]!,
+    );
+    fireEvent.click(
+      screen.getByRole("menuitemradio", { name: /Personal.*Ada Lovelace/u }),
+    );
     expect(screen.getByText("/transactions?month=2026-09")).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Open navigation" }));
-    fireEvent.click(screen.getAllByRole("button", { name: "Shared" }).at(-1)!);
+    fireEvent.click(
+      within(screen.getByRole("dialog", { name: "Primary navigation" })).getByRole(
+        "button",
+        { name: /Active Space/u },
+      ),
+    );
+    fireEvent.click(
+      screen.getByRole("menuitemradio", {
+        name: /Shared.*Ada Lovelace.*Grace Hopper/u,
+      }),
+    );
     expect(screen.getByText("/transactions?month=2026-09&spaceId=shared-1")).toBeTruthy();
+  });
+
+  it("shows the identity-rich Space switcher directly in the mobile header", () => {
+    function CurrentLocation() {
+      const location = useLocation();
+      return <p>{`${location.pathname}${location.search}`}</p>;
+    }
+
+    render(
+      <AppSessionProvider session={session}>
+        <MemoryRouter initialEntries={["/"]}>
+          <Routes>
+            <Route element={<AppShell />}>
+              <Route index element={<CurrentLocation />} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      </AppSessionProvider>,
+    );
+
+    const header = screen.getByRole("banner");
+    expect(within(header).getByText(/Personal.*Ada Lovelace/u)).toBeTruthy();
+    fireEvent.click(
+      within(header).getByRole("button", { name: /Active Space/u }),
+    );
+    expect(
+      screen.getByRole("menuitemradio", {
+        name: /Shared.*Ada Lovelace.*Grace Hopper/u,
+      }),
+    ).toBeTruthy();
+    fireEvent.click(
+      screen.getByRole("menuitemradio", {
+        name: /Shared.*Ada Lovelace.*Grace Hopper/u,
+      }),
+    );
+    expect(screen.getByText("/?spaceId=shared-1")).toBeTruthy();
+  });
+
+  it("supports keyboard Space switching from the desktop control", async () => {
+    function CurrentLocation() {
+      const location = useLocation();
+      return <p>{`${location.pathname}${location.search}`}</p>;
+    }
+
+    render(
+      <AppSessionProvider session={session}>
+        <MemoryRouter initialEntries={["/transactions?month=2026-09"]}>
+          <Routes>
+            <Route element={<AppShell />}>
+              <Route path="/transactions" element={<CurrentLocation />} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      </AppSessionProvider>,
+    );
+
+    const trigger = screen.getAllByRole("button", {
+      name: /Active Space/u,
+    })[0]!;
+    trigger.focus();
+    fireEvent.keyDown(trigger, { key: "ArrowDown" });
+    const personalOption = await waitFor(() =>
+      screen.getByRole("menuitemradio", {
+        name: /Personal.*Ada Lovelace/u,
+      }),
+    );
+    expect(document.activeElement).toBe(personalOption);
+
+    const sharedOption = await waitFor(() =>
+      screen.getByRole("menuitemradio", {
+        name: /Shared.*Ada Lovelace.*Grace Hopper/u,
+      }),
+    );
+    fireEvent.keyDown(personalOption, { key: "ArrowDown" });
+    expect(document.activeElement).toBe(sharedOption);
+
+    fireEvent.keyDown(sharedOption, { key: "Enter" });
+    expect(
+      screen.getByText("/transactions?month=2026-09&spaceId=shared-1"),
+    ).toBeTruthy();
+  });
+
+  it("preserves the selected Space through app navigation", () => {
+    function CurrentLocation() {
+      const location = useLocation();
+      return <p>{`${location.pathname}${location.search}`}</p>;
+    }
+
+    render(
+      <AppSessionProvider session={session}>
+        <MemoryRouter
+          initialEntries={["/transactions?month=2026-09&spaceId=shared-1"]}
+        >
+          <Routes>
+            <Route element={<AppShell />}>
+              <Route path="/" element={<CurrentLocation />} />
+              <Route path="/transactions" element={<CurrentLocation />} />
+              <Route path="/categories" element={<CurrentLocation />} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      </AppSessionProvider>,
+    );
+
+    fireEvent.click(screen.getAllByRole("link", { name: "Categories" })[0]!);
+    expect(screen.getByText("/categories?spaceId=shared-1")).toBeTruthy();
+
+    fireEvent.click(screen.getAllByRole("link", { name: "Dashboard" })[0]!);
+    expect(screen.getByText("/?spaceId=shared-1")).toBeTruthy();
   });
 
   it("guards primary navigation while a Statement Import is being categorized", () => {

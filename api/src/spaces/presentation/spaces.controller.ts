@@ -15,11 +15,11 @@ import { ApiStandardErrorResponses } from '../../http/api-error.dto';
 import { SpaceAccessService } from '../application/space-access.service';
 import type { AccessibleSpaceRecord } from '../application/space-store';
 import { SpaceParamsDto } from './space.dto';
-import { SpaceResponseDto } from './space-response.dto';
+import { SpaceMemberResponseDto, SpaceResponseDto } from './space-response.dto';
 
 @Controller('users/me/spaces')
 @ApiTags('Spaces')
-@ApiExtraModels(SpaceResponseDto, SpaceParamsDto)
+@ApiExtraModels(SpaceMemberResponseDto, SpaceResponseDto, SpaceParamsDto)
 export class SpacesController {
   constructor(private readonly spaceAccessService: SpaceAccessService) {}
 
@@ -27,7 +27,7 @@ export class SpacesController {
   @ApiOperation({
     summary: 'List Spaces accessible to the authenticated User.',
     description:
-      'The authenticated session determines the User. Client-supplied User identifiers are ignored, and only memberships with read access are returned.',
+      'The authenticated session determines the User. Client-supplied User identifiers are ignored, and only active memberships with read access are returned. Each Space includes the member identity needed for an explicit switcher label.',
   })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -46,7 +46,7 @@ export class SpacesController {
   async listSpaces(
     @Req() request: AuthenticatedRequest,
   ): Promise<SpaceResponseDto[]> {
-    const spaces = await this.spaceAccessService.listAccessibleSpaces(
+    const spaces = await this.spaceAccessService.listActiveAccessibleSpaces(
       requireAuthenticatedUserId(request),
     );
     return spaces.map(toSpaceResponse);
@@ -101,6 +101,10 @@ export function toSpaceResponse(
     kind: space.kind,
     status: space.status,
     accessLevel: space.accessLevel,
+    members: space.members.map((member) => ({
+      id: member.id,
+      name: member.name,
+    })),
     createdAt: space.createdAt.toISOString(),
     updatedAt: space.updatedAt.toISOString(),
   };

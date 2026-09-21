@@ -49,7 +49,7 @@ export {
   isAccessibleSpace,
   requireAccessibleSpaces,
 } from "./space";
-export type { AccessibleSpace } from "./space";
+export type { AccessibleSpace, SpaceMember } from "./space";
 export { useAccessibleSpacesQuery } from "./space-queries";
 export type {
   ApiClient,

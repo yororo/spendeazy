@@ -1,11 +1,17 @@
 import { ApiError, type ApiClient } from "./api-client";
 import { isRecord } from "./api-response";
 
+interface SpaceMember {
+  readonly id: string;
+  readonly name: string;
+}
+
 interface AccessibleSpace {
   readonly id: string;
   readonly kind: "personal" | "shared";
   readonly status: "active" | "archived";
   readonly accessLevel: "read" | "write";
+  readonly members: readonly SpaceMember[];
   readonly createdAt: string;
   readonly updatedAt: string;
 }
@@ -20,8 +26,21 @@ function isAccessibleSpace(value: unknown): value is AccessibleSpace {
     (value.kind === "personal" || value.kind === "shared") &&
     (value.status === "active" || value.status === "archived") &&
     (value.accessLevel === "read" || value.accessLevel === "write") &&
+    Array.isArray(value.members) &&
+    value.members.length > 0 &&
+    value.members.every(isSpaceMember) &&
     typeof value.createdAt === "string" &&
     typeof value.updatedAt === "string"
+  );
+}
+
+function isSpaceMember(value: unknown): value is SpaceMember {
+  return (
+    isRecord(value) &&
+    typeof value.id === "string" &&
+    /^[1-9]\d*$/u.test(value.id) &&
+    typeof value.name === "string" &&
+    value.name.trim().length > 0
   );
 }
 
@@ -48,4 +67,4 @@ async function getAccessibleSpaces(
 }
 
 export { getAccessibleSpaces, isAccessibleSpace, requireAccessibleSpaces };
-export type { AccessibleSpace };
+export type { AccessibleSpace, SpaceMember };

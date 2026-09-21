@@ -61,6 +61,7 @@ const unconfiguredPersonalSpaceProvisioner = {
 
 const unconfiguredSpaceAccessService = {
   listAccessibleSpaces: (): Promise<never[]> => Promise.resolve([]),
+  listActiveAccessibleSpaces: (): Promise<never[]> => Promise.resolve([]),
   requirePersonalSpace: (): Promise<never> =>
     Promise.reject(new SpaceNotFoundError()),
   requirePersonalWriteSpace: (): Promise<never> =>

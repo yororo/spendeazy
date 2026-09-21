@@ -5,6 +5,7 @@ import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { LedgerMark } from "@/components/app/ledger-mark";
 import { MobileTabBar } from "@/components/app/mobile-tab-bar";
 import { PrimarySidebar } from "@/components/app/primary-sidebar";
+import { SpaceSwitcher } from "@/components/app/space-switcher";
 import { Button } from "@/components/ui/button";
 import {
   NavigationGuardProvider,
@@ -76,14 +77,20 @@ function AppShellContent() {
       return;
     }
 
+    const anchorPath = `${destination.pathname}${destination.search}${destination.hash}`;
+    const activeSpaceId = new URLSearchParams(location.search).get("spaceId");
+    if (activeSpaceId && !destination.searchParams.has("spaceId")) {
+      destination.searchParams.set("spaceId", activeSpaceId);
+    }
+    const destinationPath = `${destination.pathname}${destination.search}${destination.hash}`;
+
     if (
-      requestNavigation(() =>
-        navigate(
-          `${destination.pathname}${destination.search}${destination.hash}`,
-        ),
-      )
+      requestNavigation(() => navigate(destinationPath))
     ) {
       event.preventDefault();
+    } else if (destinationPath !== anchorPath) {
+      event.preventDefault();
+      navigate(destinationPath);
     }
   }
 
@@ -103,40 +110,43 @@ function AppShellContent() {
         <PrimarySidebar className="h-full" />
       </aside>
 
-      <header className="compact-app-header fixed inset-x-0 top-0 z-40 flex items-center justify-between bg-sidebar text-sidebar-foreground lg:hidden">
+      <header className="compact-app-header fixed inset-x-0 top-0 z-40 flex items-center justify-between gap-2 bg-sidebar text-sidebar-foreground lg:hidden">
         <LedgerMark />
-        <Sheet open={navigationOpen} onOpenChange={setNavigationOpen}>
-          <SheetTrigger asChild>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="text-sidebar-foreground hover:bg-sidebar-foreground/10 hover:text-sidebar-foreground"
+        <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
+          <SpaceSwitcher className="min-w-0 max-w-[min(16rem,calc(100vw-10rem))] flex-1" />
+          <Sheet open={navigationOpen} onOpenChange={setNavigationOpen}>
+            <SheetTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="text-sidebar-foreground hover:bg-sidebar-foreground/10 hover:text-sidebar-foreground"
+              >
+                <MenuIcon className="size-5" />
+                <span className="sr-only">Open navigation</span>
+              </Button>
+            </SheetTrigger>
+            <SheetContent
+              side="left"
+              onEscapeKeyDown={(event) => {
+                // Let an open nested menu consume Escape before closing the Sheet.
+                if (event.target instanceof Element && event.target.closest('[role="menu"]')) {
+                  event.preventDefault();
+                }
+              }}
+              className="gap-0 border-0 bg-sidebar p-0 text-sidebar-foreground"
             >
-              <MenuIcon className="size-5" />
-              <span className="sr-only">Open navigation</span>
-            </Button>
-          </SheetTrigger>
-          <SheetContent
-            side="left"
-            onEscapeKeyDown={(event) => {
-              // Let an open nested menu consume Escape before closing the Sheet.
-              if (event.target instanceof Element && event.target.closest('[role="menu"]')) {
-                event.preventDefault();
-              }
-            }}
-            className="gap-0 border-0 bg-sidebar p-0 text-sidebar-foreground"
-          >
-            <SheetHeader className="sr-only">
-              <SheetTitle>Primary navigation</SheetTitle>
-              <SheetDescription>Navigate through Spendeazy.</SheetDescription>
-            </SheetHeader>
-            <PrimarySidebar
-              className="h-dvh flex-1 overflow-hidden pt-[max(1.75rem,env(safe-area-inset-top,0px))] pb-[max(1.75rem,env(safe-area-inset-bottom,0px))]"
-              onNavigate={() => setNavigationOpen(false)}
-            />
-          </SheetContent>
-        </Sheet>
+              <SheetHeader className="sr-only">
+                <SheetTitle>Primary navigation</SheetTitle>
+                <SheetDescription>Navigate through Spendeazy.</SheetDescription>
+              </SheetHeader>
+              <PrimarySidebar
+                className="h-dvh flex-1 overflow-hidden pt-[max(1.75rem,env(safe-area-inset-top,0px))] pb-[max(1.75rem,env(safe-area-inset-bottom,0px))]"
+                onNavigate={() => setNavigationOpen(false)}
+              />
+            </SheetContent>
+          </Sheet>
+        </div>
       </header>
 
       <div

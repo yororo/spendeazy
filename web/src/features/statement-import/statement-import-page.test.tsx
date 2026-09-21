@@ -442,6 +442,7 @@ describe("StatementImportPage Space destination", () => {
           kind: "personal",
           status: "active",
           accessLevel: "write",
+          members: [{ id: "1", name: "Ada Lovelace" }],
           createdAt: "2026-01-01T00:00:00.000Z",
           updatedAt: "2026-01-01T00:00:00.000Z",
         },
@@ -450,6 +451,10 @@ describe("StatementImportPage Space destination", () => {
           kind: "shared",
           status: "active",
           accessLevel: "write",
+          members: [
+            { id: "1", name: "Ada Lovelace" },
+            { id: "2", name: "Grace Hopper" },
+          ],
           createdAt: "2026-01-01T00:00:00.000Z",
           updatedAt: "2026-01-01T00:00:00.000Z",
         },

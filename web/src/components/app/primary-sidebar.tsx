@@ -1,13 +1,14 @@
 import { LogOutIcon } from "lucide-react";
-import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 
 import { LedgerMark } from "@/components/app/ledger-mark";
 import { AppearanceSelector } from "@/components/app/appearance-selector";
 import { primaryNavigation } from "@/components/app/primary-navigation";
+import { SpaceSwitcher } from "@/components/app/space-switcher";
 import { cn } from "@/lib/utils";
-import { useAccessibleSpacesQuery } from "@/shared/api";
 import { useNavigationGuard } from "@/shared/navigation";
 import { useAppSession, type AppSessionUser } from "@/shared/session";
+import { getNameInitials } from "@/shared/user-name";
 
 interface PrimarySidebarProps {
   className?: string;
@@ -27,42 +28,11 @@ function getDisplayName(user: AppSessionUser | null): string {
   );
 }
 
-function getInitials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-
-  if (parts.length === 0) return "SU";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-
-  return `${parts[0][0]}${parts.at(-1)?.[0] ?? ""}`.toUpperCase();
-}
-
 function PrimarySidebar({ className, onNavigate }: PrimarySidebarProps) {
   const { signOut, user } = useAppSession();
   const navigate = useNavigate();
-  const location = useLocation();
   const { requestNavigation } = useNavigationGuard();
-  const spacesQuery = useAccessibleSpacesQuery(true);
   const displayName = getDisplayName(user);
-  const sharedSpace = spacesQuery.data?.find((space) => space.kind === "shared");
-  const isShared = new URLSearchParams(location.search).has("spaceId");
-
-  const switchSpace = (spaceId?: string) => {
-    if ((spaceId === undefined && !isShared) || spaceId === new URLSearchParams(location.search).get("spaceId")) return;
-
-    const nextParams = new URLSearchParams(location.search);
-    if (spaceId === undefined) nextParams.delete("spaceId");
-    else nextParams.set("spaceId", spaceId);
-
-    const query = nextParams.toString();
-    const destination = `${location.pathname}${query ? `?${query}` : ""}${location.hash}`;
-    const completeSwitch = () => {
-      navigate(destination);
-      onNavigate?.();
-    };
-
-    if (requestNavigation(completeSwitch)) return;
-    completeSwitch();
-  };
 
   const completeSignOut = async () => {
     onNavigate?.();
@@ -85,7 +55,9 @@ function PrimarySidebar({ className, onNavigate }: PrimarySidebarProps) {
     >
       <LedgerMark />
 
-      <nav aria-label="Primary navigation" className="mt-7 min-h-0 flex-1 overflow-y-auto">
+      <SpaceSwitcher className="mt-6" onNavigate={onNavigate} />
+
+      <nav aria-label="Primary navigation" className="mt-6 min-h-0 flex-1 overflow-y-auto">
         <ul className="space-y-2">
           {primaryNavigation.map((item) => {
             const Icon = item.icon;
@@ -120,32 +92,12 @@ function PrimarySidebar({ className, onNavigate }: PrimarySidebarProps) {
             aria-hidden="true"
             className="grid size-8 shrink-0 place-content-center bg-primary font-mono text-xs font-bold text-primary-foreground"
           >
-            {getInitials(displayName)}
+            {getNameInitials(displayName)}
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold">{displayName}</p>
           </div>
         </div>
-        {sharedSpace && (
-          <div className="mt-3 grid grid-cols-2 border border-sidebar-border p-0.5" role="group" aria-label="Active Space">
-            <button
-              type="button"
-              aria-pressed={!isShared}
-              onClick={() => switchSpace()}
-              className={cn("focus-ledger min-h-10 px-2 text-sm transition-colors", !isShared ? "bg-primary font-semibold text-primary-foreground" : "hover:bg-sidebar-foreground/10")}
-            >
-              Personal
-            </button>
-            <button
-              type="button"
-              aria-pressed={isShared}
-              onClick={() => switchSpace(sharedSpace.id)}
-              className={cn("focus-ledger min-h-10 px-2 text-sm transition-colors", isShared ? "bg-primary font-semibold text-primary-foreground" : "hover:bg-sidebar-foreground/10")}
-            >
-              Shared
-            </button>
-          </div>
-        )}
         <div className="mt-3 flex items-center gap-2 border-t border-sidebar-border pt-3">
           <button
             type="button"

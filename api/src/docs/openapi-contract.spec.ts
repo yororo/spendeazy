@@ -154,6 +154,19 @@ const OPERATION_EXPECTATIONS = [
     errorResponses: { ...PROTECTED_ERRORS, '404': 'NotFoundError' },
   },
   {
+    operationId: 'Spaces_listSpaces',
+    tag: 'Spaces',
+    bodyResponses: [{ status: '200', arrayItemSchemaRef: 'SpaceResponseDto' }],
+    errorResponses: PROTECTED_ERRORS,
+  },
+  {
+    operationId: 'Spaces_getSpace',
+    tag: 'Spaces',
+    pathParameter: 'spaceId',
+    bodyResponses: [{ status: '200', schemaRef: 'SpaceResponseDto' }],
+    errorResponses: { ...PROTECTED_ERRORS, ...VALIDATED_PATH_ERRORS },
+  },
+  {
     operationId: 'Categories_createCategory',
     tag: 'Categories',
     requestSchemaRef: 'CreateCategoryDto',
@@ -636,6 +649,8 @@ const OPERATION_EXPECTATIONS = [
 const PUBLIC_RESPONSE_SCHEMA_NAMES = [
   'HealthResponseDto',
   'UserResponseDto',
+  'SpaceMemberResponseDto',
+  'SpaceResponseDto',
   'CategoryResponseDto',
   'BudgetResponseDto',
   'CategorySummaryResponseDto',
@@ -1048,6 +1063,32 @@ describe('complete generated OpenAPI contract', () => {
       'minProperties',
       1,
     );
+
+    expect(schema(document, 'SpaceMemberResponseDto')).toMatchObject({
+      required: ['id', 'name'],
+      properties: {
+        id: { type: 'string', pattern: '^[1-9]\\d*$' },
+        name: { type: 'string', minLength: 1 },
+      },
+    });
+    expect(schema(document, 'SpaceResponseDto')).toMatchObject({
+      required: [
+        'id',
+        'kind',
+        'status',
+        'accessLevel',
+        'members',
+        'createdAt',
+        'updatedAt',
+      ],
+      properties: {
+        members: {
+          type: 'array',
+          minItems: 1,
+          items: { $ref: '#/components/schemas/SpaceMemberResponseDto' },
+        },
+      },
+    });
   });
 
   it('models shared errors, distinct conflict examples, and the empty 204 contract', () => {

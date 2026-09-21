@@ -16,9 +16,9 @@ import {
 } from '../application/invitation-errors';
 import type {
   DeliveryReservation,
+  DeliveryReservationRequest,
   InvitationRecord,
   InvitationStore,
-  NewDeliveryAttempt,
   NewInvitation,
   UpdateInvitation,
 } from '../application/invitation-store';
@@ -167,14 +167,14 @@ export class TypeOrmInvitationStore implements InvitationStore {
       .execute();
   }
 
-  async reserveDeliveryAttempt(
-    senderUserId: string,
-    invitationId: string,
-    now: Date,
-    cooldownMs: number,
-    dailyLimit: number,
-    since: Date,
-  ): Promise<DeliveryReservation> {
+  async reserveDeliveryAttempt({
+    senderUserId,
+    invitationId,
+    now,
+    cooldownMs,
+    dailyLimit,
+    since,
+  }: DeliveryReservationRequest): Promise<DeliveryReservation> {
     return this.entityManager.transaction(async (entityManager) => {
       const sender = await entityManager
         .getRepository(UserEntity)
@@ -251,22 +251,6 @@ export class TypeOrmInvitationStore implements InvitationStore {
     attempt.error = error;
     await repository.save(attempt);
   }
-
-  async recordDeliveryAttempt(input: NewDeliveryAttempt): Promise<void> {
-    await this.entityManager
-      .getRepository(InvitationDeliveryAttemptEntity)
-      .save(
-        this.entityManager
-          .getRepository(InvitationDeliveryAttemptEntity)
-          .create({
-            invitationId: input.invitationId,
-            senderUserId: input.senderUserId,
-            attemptedAt: input.attemptedAt,
-            succeeded: input.succeeded,
-            error: input.error,
-          }),
-      );
-  }
 }
 
 function toInvitationRecord(entity: InvitationEntity): InvitationRecord {
@@ -289,6 +273,9 @@ function toInvitationRecord(entity: InvitationEntity): InvitationRecord {
 function isUniqueViolation(error: unknown): boolean {
   return (
     error instanceof QueryFailedError &&
-    (error.driverError as { code?: unknown }).code === POSTGRES_UNIQUE_VIOLATION
+    (error.driverError as { code?: unknown; constraint?: unknown }).code ===
+      POSTGRES_UNIQUE_VIOLATION &&
+    (error.driverError as { constraint?: unknown }).constraint ===
+      'ux_invitations_sender_pending'
   );
 }

@@ -12,9 +12,9 @@ import {
 } from './invitations.service';
 import type {
   DeliveryReservation,
+  DeliveryReservationRequest,
   InvitationRecord,
   InvitationStore,
-  NewDeliveryAttempt,
   NewInvitation,
   UpdateInvitation,
 } from './invitation-store';
@@ -26,6 +26,14 @@ import {
   InvitationNotFoundError,
   InvitationRateLimitedError,
 } from './invitation-errors';
+
+interface FakeDeliveryAttempt {
+  invitationId: string;
+  senderUserId: string;
+  attemptedAt: Date;
+  succeeded: boolean;
+  error: string | null;
+}
 
 describe('InvitationsService', () => {
   it('keeps registered and unregistered sends uniform while storing a seven-day link', async () => {
@@ -246,8 +254,8 @@ class FakeSpaceAccessService {
 
 class FakeInvitationStore implements InvitationStore {
   records: InvitationRecord[] = [];
-  private attempts: NewDeliveryAttempt[] = [];
-  private readonly reservations = new Map<string, NewDeliveryAttempt>();
+  private attempts: FakeDeliveryAttempt[] = [];
+  private readonly reservations = new Map<string, FakeDeliveryAttempt>();
   private nextId = 1;
   private nextAttemptId = 1;
 
@@ -349,14 +357,14 @@ class FakeInvitationStore implements InvitationStore {
     return Promise.resolve();
   }
 
-  reserveDeliveryAttempt(
-    senderUserId: string,
-    invitationId: string,
-    now: Date,
-    cooldownMs: number,
-    dailyLimit: number,
-    since: Date,
-  ): Promise<DeliveryReservation> {
+  reserveDeliveryAttempt({
+    senderUserId,
+    invitationId,
+    now,
+    cooldownMs,
+    dailyLimit,
+    since,
+  }: DeliveryReservationRequest): Promise<DeliveryReservation> {
     const invitation = this.records.find(
       (record) =>
         record.id === invitationId && record.senderUserId === senderUserId,
@@ -387,7 +395,7 @@ class FakeInvitationStore implements InvitationStore {
     invitation.deliveryStatus = 'pending';
     invitation.deliveryError = null;
     const id = String(this.nextAttemptId++);
-    const attempt: NewDeliveryAttempt = {
+    const attempt: FakeDeliveryAttempt = {
       invitationId,
       senderUserId,
       attemptedAt: now,
@@ -409,11 +417,6 @@ class FakeInvitationStore implements InvitationStore {
       attempt.succeeded = succeeded;
       attempt.error = error;
     }
-    return Promise.resolve();
-  }
-
-  recordDeliveryAttempt(input: NewDeliveryAttempt): Promise<void> {
-    this.attempts.push(input);
     return Promise.resolve();
   }
 

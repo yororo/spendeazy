@@ -41,16 +41,17 @@ export interface UpdateInvitation {
   deliveryError?: string | null;
 }
 
-export interface NewDeliveryAttempt {
-  invitationId: string;
-  senderUserId: string;
-  attemptedAt: Date;
-  succeeded: boolean;
-  error: string | null;
-}
-
 export interface DeliveryReservation {
   id: string;
+}
+
+export interface DeliveryReservationRequest {
+  senderUserId: string;
+  invitationId: string;
+  now: Date;
+  cooldownMs: number;
+  dailyLimit: number;
+  since: Date;
 }
 
 export interface InvitationStore {
@@ -76,17 +77,11 @@ export interface InvitationStore {
   ): Promise<void>;
   expirePending(before: Date): Promise<void>;
   reserveDeliveryAttempt(
-    senderUserId: string,
-    invitationId: string,
-    now: Date,
-    cooldownMs: number,
-    dailyLimit: number,
-    since: Date,
+    input: DeliveryReservationRequest,
   ): Promise<DeliveryReservation>;
   completeDeliveryAttempt(
     attemptId: string,
     succeeded: boolean,
     error: string | null,
   ): Promise<void>;
-  recordDeliveryAttempt(input: NewDeliveryAttempt): Promise<void>;
 }

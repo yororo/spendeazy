@@ -139,14 +139,14 @@ export class InvitationsService {
     });
     let reservation: DeliveryReservation;
     try {
-      reservation = await this.invitationStore.reserveDeliveryAttempt(
+      reservation = await this.invitationStore.reserveDeliveryAttempt({
         senderUserId,
-        invitation.id,
+        invitationId: invitation.id,
         now,
-        0,
-        INVITATION_DAILY_EMAIL_LIMIT,
-        startOfUtcDay(now),
-      );
+        cooldownMs: 0,
+        dailyLimit: INVITATION_DAILY_EMAIL_LIMIT,
+        since: startOfUtcDay(now),
+      });
     } catch (error: unknown) {
       await this.invitationStore.update(invitation.id, { status: 'canceled' });
       throw error;
@@ -181,14 +181,14 @@ export class InvitationsService {
     );
     if (invitation.status === 'canceled') throw new InvitationCanceledError();
     if (invitation.status === 'declined') throw new InvitationDeclinedError();
-    const reservation = await this.invitationStore.reserveDeliveryAttempt(
+    const reservation = await this.invitationStore.reserveDeliveryAttempt({
       senderUserId,
-      invitation.id,
+      invitationId: invitation.id,
       now,
-      INVITATION_RESEND_COOLDOWN_MS,
-      INVITATION_DAILY_EMAIL_LIMIT,
-      startOfUtcDay(now),
-    );
+      cooldownMs: INVITATION_RESEND_COOLDOWN_MS,
+      dailyLimit: INVITATION_DAILY_EMAIL_LIMIT,
+      since: startOfUtcDay(now),
+    });
 
     const token = createInvitationToken();
     const updated = await this.invitationStore.update(invitation.id, {
@@ -277,7 +277,7 @@ export class InvitationsService {
     invitation: InvitationRecord,
     token: string,
     sender: UserRecord,
-    reservation?: DeliveryReservation,
+    reservation: DeliveryReservation,
   ): Promise<void> {
     const email: InvitationEmail = {
       invitationId: invitation.id,
@@ -285,51 +285,24 @@ export class InvitationsService {
       senderName: sender.name,
       invitationUrl: `${this.webBaseUrl.replace(/\/$/u, '')}/invite/${encodeURIComponent(token)}`,
     };
+    let deliveryError: string | null = null;
     try {
       await this.invitationDelivery.send(email);
-      if (reservation) {
-        await this.invitationStore.completeDeliveryAttempt(
-          reservation.id,
-          true,
-          null,
-        );
-      } else {
-        await this.invitationStore.recordDeliveryAttempt({
-          invitationId: invitation.id,
-          senderUserId: invitation.senderUserId,
-          attemptedAt: this.clock.now(),
-          succeeded: true,
-          error: null,
-        });
-      }
-      await this.invitationStore.update(invitation.id, {
-        deliveryStatus: 'sent',
-        deliveryError: null,
-      });
     } catch (error: unknown) {
       const message =
         error instanceof Error ? error.message : 'Delivery failed';
-      const safeMessage = message.slice(0, 500);
-      if (reservation) {
-        await this.invitationStore.completeDeliveryAttempt(
-          reservation.id,
-          false,
-          safeMessage,
-        );
-      } else {
-        await this.invitationStore.recordDeliveryAttempt({
-          invitationId: invitation.id,
-          senderUserId: invitation.senderUserId,
-          attemptedAt: this.clock.now(),
-          succeeded: false,
-          error: safeMessage,
-        });
-      }
-      await this.invitationStore.update(invitation.id, {
-        deliveryStatus: 'failed',
-        deliveryError: safeMessage,
-      });
+      deliveryError = message.slice(0, 500);
     }
+
+    await this.invitationStore.completeDeliveryAttempt(
+      reservation.id,
+      deliveryError === null,
+      deliveryError,
+    );
+    await this.invitationStore.update(invitation.id, {
+      deliveryStatus: deliveryError === null ? 'sent' : 'failed',
+      deliveryError,
+    });
   }
 
   private async assertSenderEligible(senderUserId: string): Promise<void> {

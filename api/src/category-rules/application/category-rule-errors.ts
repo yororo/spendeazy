@@ -2,7 +2,6 @@ import {
   ApplicationError,
   type ErrorDetail,
 } from '../../errors/application-error';
-import { USER_NOT_FOUND_CODE } from '../../errors/application-error-codes';
 
 export const CATEGORY_RULE_NOT_FOUND_CODE = 'CATEGORY_RULE_NOT_FOUND';
 export const CATEGORY_RULE_PATTERN_ALREADY_EXISTS_CODE =
@@ -29,11 +28,5 @@ export class CategoryRulePatternConflictError extends ApplicationError {
       'Category rule pattern is already in use',
       details,
     );
-  }
-}
-
-export class CategoryRuleOwnerNotFoundError extends ApplicationError {
-  constructor() {
-    super(USER_NOT_FOUND_CODE, 'User was not found');
   }
 }

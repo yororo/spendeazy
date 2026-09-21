@@ -255,7 +255,8 @@ function transactionRecord(
   const timestamp = new Date('2026-08-29T00:00:00.000Z');
   return {
     id: '1',
-    userId: '7',
+    spaceId: 'space-7',
+    addedByUserId: '7',
     categoryId: '42',
     purchaseDate: '2026-08-01',
     description: 'Coffee',
@@ -273,7 +274,8 @@ function transactionPageRecord(
   const timestamp = new Date('2026-08-29T00:00:00.000Z');
   return {
     id: '1',
-    userId: '7',
+    spaceId: 'space-7',
+    addedByUserId: '7',
     categoryId: '42',
     statementImportId: null,
     purchaseDate: '2026-08-01',

@@ -312,34 +312,6 @@ class CategoryStoreFake implements CategoryStore {
     this.updatedCategory = options.updatedCategory;
   }
 
-  findById(userId: string, id: string): Promise<CategoryRecord | null> {
-    return Promise.resolve(
-      this.categories.find(
-        (category) => category.userId === userId && category.id === id,
-      ) ?? null,
-    );
-  }
-
-  findAll(userId: string): Promise<CategoryRecord[]> {
-    return Promise.resolve(
-      this.categories.filter((category) => category.userId === userId),
-    );
-  }
-
-  findByNormalizedName(
-    userId: string,
-    normalizedName: string,
-  ): Promise<CategoryRecord | null> {
-    this.checkedName = normalizedName;
-    return Promise.resolve(
-      this.categories.find(
-        (category) =>
-          category.userId === userId &&
-          normalizeCategoryName(category.name) === normalizedName,
-      ) ?? null,
-    );
-  }
-
   create(input: NewCategory): Promise<CategoryRecord> {
     this.createdInput = input;
     this.createdCategory = categoryRecord({
@@ -347,22 +319,6 @@ class CategoryStoreFake implements CategoryStore {
       id: '2',
     });
     return Promise.resolve(this.createdCategory);
-  }
-
-  update(
-    _userId: string,
-    id: string,
-    input: UpdateCategory,
-  ): Promise<CategoryRecord | null> {
-    this.updatedInput = input;
-    return Promise.resolve(
-      this.updatedCategory ??
-        categoryRecord({
-          ...this.categories.find((category) => category.id === id),
-          ...input,
-          id,
-        }),
-    );
   }
 
   findBySpaceId(spaceId: string, id: string): Promise<CategoryRecord | null> {

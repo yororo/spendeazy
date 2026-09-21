@@ -12,10 +12,8 @@ import {
 } from '../../database/database-error-codes';
 import { CategoryEntity } from '../../database/entities/category.entity';
 import { StaleEditError } from '../../errors/application-error';
-import {
-  CategoryNameConflictError,
-  CategoryOwnerNotFoundError,
-} from '../application/category-errors';
+import { SpaceNotFoundError } from '../../spaces/application/space-errors';
+import { CategoryNameConflictError } from '../application/category-errors';
 import type {
   CategoryRecord,
   CategoryStore,
@@ -159,7 +157,7 @@ async function saveCategory(
       throw new CategoryNameConflictError();
     }
     if (isForeignKeyViolation(error)) {
-      throw new CategoryOwnerNotFoundError();
+      throw new SpaceNotFoundError();
     }
 
     throw error;

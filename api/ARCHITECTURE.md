@@ -66,15 +66,15 @@ Shared code exists only where the concern is genuinely cross-cutting:
 6. A feature controller obtains the authenticated local User ID, maps the DTO, and calls an application service. Space-aware features must pass that trusted ID through the reusable `SpaceAccessService`; a client-supplied Space ID is only a lookup key and never an ownership grant.
 7. `ApiExceptionFilter` translates application, HTTP, parser, and database failures to the common error envelope.
 
-Health and documentation routes are public and excluded from the `/api/v1` prefix. Financial features expose authorized Space routes, and the older `/users/me` routes must resolve the authenticated User's Personal Space before calling Space-scoped application methods. Space IDs in requests are lookup keys; the authenticated membership determines access. Persistence still carries legacy `user_id` columns and User-scoped service methods, so removing that unused compatibility code remains a release gate. Cross-feature references are constrained by Space, while actor columns preserve Transaction and Statement Import attribution.
+Health and documentation routes are public and excluded from the `/api/v1` prefix. Financial features expose authorized Space routes, and the older `/users/me` routes resolve the authenticated User's Personal Space before calling the same Space-scoped application methods. Space IDs in requests are lookup keys; authenticated membership determines access. Financial persistence stores ownership only by `space_id`; actor columns preserve Transaction and Statement Import attribution. Cross-feature references are constrained by Space.
 
 ## Persistence and transactions
 
 Each feature's application layer owns small, capability-specific store interfaces and injection tokens. TypeORM adapters map between database entities and application records. Keep TypeORM types and query details out of controllers and application services.
 
-The database schema is managed by explicit migrations. Entities describe the runtime mapping; migrations remain the authoritative history of schema changes. Preserve user ownership in both queries and relational constraints.
+The database schema is managed by explicit migrations. Entities describe the runtime mapping; migrations remain the authoritative history of schema changes. Scope financial queries, uniqueness, and relational constraints by Space. Preserve User references only for membership, Personal Space ownership, and immutable actor attribution.
 
-Use the injected feature store for work contained within one persistence seam. A workflow that must coordinate multiple feature-owned stores atomically owns a narrow application-facing unit-of-work port in its feature application layer. Statement Import confirmation's context exposes only User lookup by ID, Category lookup by User and ID, Statement Import file-hash lookup and creation, and imported Transaction fingerprint lookup and creation. It does not expose `EntityManager` or the unrelated methods of those feature stores. The TypeORM unit-of-work implementation remains in persistence infrastructure, where it creates all participating adapters from one transaction-bound `EntityManager`; every read and write in the workflow must use the supplied context. Statement import confirmation is the reference implementation.
+Use the injected feature store for work contained within one persistence seam. A workflow that must coordinate multiple feature-owned stores atomically owns a narrow application-facing unit-of-work port in its feature application layer. Statement Import confirmation's context exposes only User lookup by ID, membership locking for the destination Space, Category lookup by Space and ID, Statement Import file-hash lookup and creation, and imported Transaction fingerprint lookup and creation. It does not expose `EntityManager` or unrelated store methods. The TypeORM unit-of-work implementation remains in persistence infrastructure, where it creates all participating adapters from one transaction-bound `EntityManager`; every read and write in the workflow uses the supplied context. Statement import confirmation is the reference implementation.
 
 Add a store to an atomic workflow context only for a real cross-feature workflow, and expose only the operations that workflow uses. Keep each port owned by its feature and each adapter feature-local.
 
@@ -98,7 +98,7 @@ When adding behavior:
 6. Use the unit of work only when the complete operation must commit or roll back across stores.
 7. Test pure rules and services with fakes, adapters against a database-capable test setup, controllers at the HTTP boundary, and critical assembled flows in `test/`.
 
-A change is architecturally complete when dependency direction remains inward, every write is scoped to the authenticated user, atomic work uses one transaction context, expected failures retain stable public codes, and affected unit, controller, adapter, and end-to-end contracts pass.
+A change is architecturally complete when dependency direction remains inward, every financial write is scoped to an authorized Space and carries actor attribution where required, atomic work uses one transaction context, expected failures retain stable public codes, and affected unit, controller, adapter, and end-to-end contracts pass.
 
 ## Decision records
 

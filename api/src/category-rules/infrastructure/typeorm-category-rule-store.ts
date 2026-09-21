@@ -13,14 +13,12 @@ import { CategoryEntity } from '../../database/entities/category.entity';
 import { CategoryRuleEntity } from '../../database/entities/category-rule.entity';
 import { SpaceEntity } from '../../database/entities/space.entity';
 import { StaleEditError } from '../../errors/application-error';
+import { SpaceNotFoundError } from '../../spaces/application/space-errors';
 import {
   ruleKey,
   validateReplacementConflicts,
 } from '../application/category-rule-validation';
-import {
-  CategoryRuleOwnerNotFoundError,
-  CategoryRulePatternConflictError,
-} from '../application/category-rule-errors';
+import { CategoryRulePatternConflictError } from '../application/category-rule-errors';
 import type {
   CategoryRuleRecord,
   CategoryRuleCollectionRecord,
@@ -259,7 +257,7 @@ async function lockRuleSpace(
     .where('space.id = :spaceId', { spaceId })
     .setLock('pessimistic_write')
     .getOne();
-  if (!space) throw new CategoryRuleOwnerNotFoundError();
+  if (!space) throw new SpaceNotFoundError();
   return space;
 }
 
@@ -313,7 +311,7 @@ async function bumpRuleRevision(
   const space = await entityManager
     .getRepository(SpaceEntity)
     .findOne({ where: { id: spaceId } });
-  if (!space) throw new CategoryRuleOwnerNotFoundError();
+  if (!space) throw new SpaceNotFoundError();
   return space.categoryRulesRevision;
 }
 
@@ -373,10 +371,9 @@ function toCategoryRuleRecord(entity: CategoryRuleEntity): CategoryRuleRecord {
 
 function mapForeignKeyViolation(error: QueryFailedError): Error {
   const driverError = error.driverError as { constraint?: unknown };
-  return driverError.constraint === 'fk_category_rules_category_user' ||
-    driverError.constraint === 'fk_category_rules_category_space'
+  return driverError.constraint === 'fk_category_rules_category_space'
     ? new CategoryNotFoundError()
-    : new CategoryRuleOwnerNotFoundError();
+    : new SpaceNotFoundError();
 }
 
 function isUniqueViolation(error: unknown): boolean {

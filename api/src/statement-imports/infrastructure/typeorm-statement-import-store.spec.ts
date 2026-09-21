@@ -47,7 +47,7 @@ describe('TypeOrmStatementImportStore', () => {
       store.lockForStatementImport('55', '7'),
     ).rejects.toBeInstanceOf(SpaceNotWritableError);
   });
-  it('finds a statement import only within the requested user scope', async () => {
+  it('finds a statement import only within the requested Space scope', async () => {
     const entity = statementImportEntity({ id: '108', spaceId: '42' });
     const repository = {
       findOne: jest.fn().mockResolvedValue(entity),

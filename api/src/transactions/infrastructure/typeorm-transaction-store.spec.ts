@@ -96,7 +96,7 @@ describe('TypeOrmTransactionStore', () => {
     expect(categoryQuery.setLock).toHaveBeenCalledWith('pessimistic_read');
   });
 
-  it('reports whether an owned manual transaction was removed', async () => {
+  it('reports whether a Space-scoped manual Transaction was removed', async () => {
     const transactionRepository = {
       delete: jest.fn().mockResolvedValue({ affected: 1 }),
     };

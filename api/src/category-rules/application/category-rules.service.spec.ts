@@ -17,21 +17,19 @@ describe('CategoryRulesService', () => {
     const ruleStore = new CategoryRuleStoreFake([
       ruleRecord({
         id: '1',
-        userId: '1',
         spaceId: '10',
         categoryId: '100',
       }),
       ruleRecord({
         id: '2',
-        userId: '99',
         spaceId: '99',
         categoryId: '900',
         normalizedPattern: 'shared elsewhere',
       }),
     ]);
     const categoryStore = new CategoryRuleCategoryStoreFake([
-      categoryRecord({ id: '100', userId: '1', spaceId: '10' }),
-      categoryRecord({ id: '101', userId: '2', spaceId: '10' }),
+      categoryRecord({ id: '100', spaceId: '10' }),
+      categoryRecord({ id: '101', spaceId: '10' }),
     ]);
     const service = new CategoryRulesService(ruleStore, categoryStore);
 
@@ -104,29 +102,14 @@ describe('CategoryRulesService', () => {
 });
 
 class CategoryRuleStoreFake implements CategoryRuleStore {
-  replaceForCategory = jest.fn().mockResolvedValue([]);
   replaceForCategoryInSpace = jest.fn().mockResolvedValue({
     rules: [],
     revision: '4',
   });
-  createdInput: NewCategoryRule | undefined;
-  createdRule: CategoryRuleRecord | undefined;
   createdInSpaceInput: NewCategoryRule | undefined;
-  updatedInput: UpdateCategoryRule | undefined;
   updatedInSpaceInput: UpdateCategoryRule | undefined;
 
   constructor(public readonly rules: CategoryRuleRecord[] = []) {}
-
-  findById(userId: string, id: string): Promise<CategoryRuleRecord | null> {
-    return Promise.resolve(
-      this.rules.find((rule) => rule.userId === userId && rule.id === id) ??
-        null,
-    );
-  }
-
-  findAll(userId: string): Promise<CategoryRuleRecord[]> {
-    return Promise.resolve(this.rules.filter((rule) => rule.userId === userId));
-  }
 
   findByIdInSpace(
     spaceId: string,
@@ -143,23 +126,6 @@ class CategoryRuleStoreFake implements CategoryRuleStore {
       rules: this.rules.filter((rule) => rule.spaceId === spaceId),
       revision: '4',
     });
-  }
-
-  findByNormalizedPattern(
-    userId: string,
-    normalizedPattern: string,
-    excludingId?: string,
-    matchType: CategoryRuleMatchType = 'exact',
-  ): Promise<CategoryRuleRecord | null> {
-    return Promise.resolve(
-      this.rules.find(
-        (rule) =>
-          rule.userId === userId &&
-          rule.id !== excludingId &&
-          rule.matchType === matchType &&
-          rule.normalizedPattern === normalizedPattern,
-      ) ?? null,
-    );
   }
 
   findByNormalizedPatternInSpace = jest.fn(
@@ -180,35 +146,11 @@ class CategoryRuleStoreFake implements CategoryRuleStore {
       ),
   );
 
-  create(input: NewCategoryRule): Promise<CategoryRuleRecord> {
-    this.createdInput = input;
-    this.createdRule = ruleRecord({ ...input, id: '2' });
-    this.rules.push(this.createdRule);
-    return Promise.resolve(this.createdRule);
-  }
-
   createInSpace(input: NewCategoryRule): Promise<CategoryRuleRecord> {
     this.createdInSpaceInput = input;
     const created = ruleRecord({ ...input, id: '3' });
     this.rules.push(created);
     return Promise.resolve(created);
-  }
-
-  update(
-    userId: string,
-    id: string,
-    input: UpdateCategoryRule,
-  ): Promise<CategoryRuleRecord | null> {
-    this.updatedInput = input;
-    const rule = this.rules.find(
-      (candidate) => candidate.userId === userId && candidate.id === id,
-    );
-    if (!rule) {
-      return Promise.resolve(null);
-    }
-
-    Object.assign(rule, input, { updatedAt: new Date() });
-    return Promise.resolve(rule);
   }
 
   updateInSpace(
@@ -226,18 +168,6 @@ class CategoryRuleStoreFake implements CategoryRuleStore {
     return Promise.resolve(rule);
   }
 
-  delete(userId: string, id: string): Promise<boolean> {
-    const index = this.rules.findIndex(
-      (rule) => rule.userId === userId && rule.id === id,
-    );
-    if (index === -1) {
-      return Promise.resolve(false);
-    }
-
-    this.rules.splice(index, 1);
-    return Promise.resolve(true);
-  }
-
   deleteInSpace(spaceId: string, id: string): Promise<boolean> {
     const index = this.rules.findIndex(
       (rule) => rule.spaceId === spaceId && rule.id === id,
@@ -250,17 +180,6 @@ class CategoryRuleStoreFake implements CategoryRuleStore {
 
 class CategoryRuleCategoryStoreFake implements CategoryRuleCategoryStore {
   constructor(private readonly categories: CategoryRuleCategoryRecord[] = []) {}
-
-  findById(
-    userId: string,
-    id: string,
-  ): Promise<CategoryRuleCategoryRecord | null> {
-    return Promise.resolve(
-      this.categories.find(
-        (category) => category.userId === userId && category.id === id,
-      ) ?? null,
-    );
-  }
 
   findBySpaceId(
     spaceId: string,
@@ -280,7 +199,6 @@ function ruleRecord(
   const timestamp = new Date('2026-08-29T00:00:00.000Z');
   return {
     id: '1',
-    userId: '1',
     spaceId: '10',
     categoryId: '10',
     pattern: 'Groceries',
@@ -297,7 +215,6 @@ function categoryRecord(
 ): CategoryRuleCategoryRecord {
   return {
     id: '10',
-    userId: '1',
     spaceId: '10',
     isActive: true,
     ...overrides,

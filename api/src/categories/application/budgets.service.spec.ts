@@ -335,40 +335,7 @@ describe('BudgetsService', () => {
 class CategoryStoreFake implements CategoryStore {
   constructor(private readonly category: CategoryRecord | null) {}
 
-  findById(userId: string, id: string): Promise<CategoryRecord | null> {
-    return Promise.resolve(
-      this.category?.userId === userId && this.category.id === id
-        ? this.category
-        : null,
-    );
-  }
-
-  findAll(_userId: string): Promise<CategoryRecord[]> {
-    void _userId;
-    return Promise.resolve([]);
-  }
-
-  findByNormalizedName(
-    _userId: string,
-    _normalizedName: string,
-  ): Promise<CategoryRecord | null> {
-    void _userId;
-    void _normalizedName;
-    return Promise.resolve(null);
-  }
-
   create(_input: never): Promise<CategoryRecord> {
-    void _input;
-    return Promise.reject(new Error('Not implemented'));
-  }
-
-  update(
-    _userId: string,
-    _id: string,
-    _input: never,
-  ): Promise<CategoryRecord | null> {
-    void _userId;
-    void _id;
     void _input;
     return Promise.reject(new Error('Not implemented'));
   }

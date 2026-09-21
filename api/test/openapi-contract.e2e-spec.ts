@@ -159,11 +159,8 @@ describe('runtime responses against the generated OpenAPI contract', () => {
       requirePersonalWriteSpace: jest.fn(),
     };
     Object.assign(categoriesService, {
-      createCategoryInSpace: (
-        _userId: string,
-        _spaceId: string,
-        input: unknown,
-      ) => invoke(categoriesService.createCategory, _userId, input),
+      createCategoryInSpace: (_spaceId: string, input: unknown) =>
+        invoke(categoriesService.createCategory, '7', input),
       listCategoriesInSpace: () =>
         invoke(categoriesService.listCategories, '7'),
       getCategoryInSpace: (_spaceId: string, id: string) =>
@@ -184,11 +181,8 @@ describe('runtime responses against the generated OpenAPI contract', () => {
         invoke(categorySummariesService.getCategorySummary, '7', query),
     });
     Object.assign(categoryRulesService, {
-      createCategoryRuleInSpace: (
-        _userId: string,
-        _spaceId: string,
-        input: unknown,
-      ) => invoke(categoryRulesService.createCategoryRule, _userId, input),
+      createCategoryRuleInSpace: (_spaceId: string, input: unknown) =>
+        invoke(categoryRulesService.createCategoryRule, '7', input),
       listCategoryRulesInSpace: async () => ({
         rules: await invoke(categoryRulesService.listCategoryRules, '7'),
         revision: '0',
@@ -203,14 +197,13 @@ describe('runtime responses against the generated OpenAPI contract', () => {
       deleteCategoryRuleInSpace: (_spaceId: string, id: string) =>
         invoke(categoryRulesService.deleteCategoryRule, '7', id),
       replaceCategoryRulesInSpace: async (
-        _userId: string,
         _spaceId: string,
         id: string,
         rules: unknown,
       ) => ({
         rules: await invoke(
           categoryRulesService.replaceCategoryRules,
-          _userId,
+          '7',
           id,
           rules,
         ),

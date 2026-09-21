@@ -1,8 +1,6 @@
 import { QueryFailedError, type EntityManager } from 'typeorm';
-import {
-  CategoryNameConflictError,
-  CategoryOwnerNotFoundError,
-} from '../application/category-errors';
+import { SpaceNotFoundError } from '../../spaces/application/space-errors';
+import { CategoryNameConflictError } from '../application/category-errors';
 import { TypeOrmCategoryStore } from './typeorm-category-store';
 
 describe('TypeOrmCategoryStore', () => {
@@ -68,7 +66,7 @@ describe('TypeOrmCategoryStore', () => {
     ).rejects.toBeInstanceOf(CategoryNameConflictError);
   });
 
-  it('translates a PostgreSQL owner foreign-key violation into a user not-found error', async () => {
+  it('translates a PostgreSQL Space foreign-key violation into a Space not-found error', async () => {
     const driverError = Object.assign(new Error('foreign key violation'), {
       code: '23503',
     });
@@ -85,6 +83,6 @@ describe('TypeOrmCategoryStore', () => {
 
     await expect(
       store.create({ spaceId: '404', name: 'Groceries', description: null }),
-    ).rejects.toBeInstanceOf(CategoryOwnerNotFoundError);
+    ).rejects.toBeInstanceOf(SpaceNotFoundError);
   });
 });

@@ -66,7 +66,7 @@ Shared code exists only where the concern is genuinely cross-cutting:
 6. A feature controller obtains the authenticated local User ID, maps the DTO, and calls an application service. Space-aware features must pass that trusted ID through the reusable `SpaceAccessService`; a client-supplied Space ID is only a lookup key and never an ownership grant.
 7. `ApiExceptionFilter` translates application, HTTP, parser, and database failures to the common error envelope.
 
-Health and documentation routes are public and excluded from the `/api/v1` prefix. Financial features expose authorized Space routes, and the older `/users/me` routes resolve the authenticated User's Personal Space. Space IDs in requests are lookup keys; the authenticated membership determines access. Persistence still carries legacy `user_id` columns and User-scoped service methods, so removing that compatibility path remains a release gate. Cross-feature references are constrained by Space, while actor columns preserve Transaction and Statement Import attribution.
+Health and documentation routes are public and excluded from the `/api/v1` prefix. Financial features expose authorized Space routes, and the older `/users/me` routes must resolve the authenticated User's Personal Space before calling Space-scoped application methods. Space IDs in requests are lookup keys; the authenticated membership determines access. Persistence still carries legacy `user_id` columns and User-scoped service methods, so removing that unused compatibility code remains a release gate. Cross-feature references are constrained by Space, while actor columns preserve Transaction and Statement Import attribution.
 
 ## Persistence and transactions
 

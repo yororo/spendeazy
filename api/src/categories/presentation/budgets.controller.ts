@@ -10,7 +10,6 @@ import {
   Put,
   Req,
   Res,
-  Optional,
 } from '@nestjs/common';
 import {
   ApiExtraModels,
@@ -50,7 +49,7 @@ import { SpaceAccessService } from '../../spaces/application/space-access.servic
 export class BudgetsController {
   constructor(
     private readonly budgetsService: BudgetsService,
-    @Optional() private readonly spaceAccessService?: SpaceAccessService,
+    private readonly spaceAccessService: SpaceAccessService,
   ) {}
 
   @Put()
@@ -98,13 +97,11 @@ export class BudgetsController {
   ): Promise<BudgetResponseDto> {
     const userId = requireAuthenticatedUserId(request);
     const personalSpace = await this.requirePersonalWriteSpace(userId);
-    const result = personalSpace
-      ? await this.budgetsService.putBudgetInSpace(
-          personalSpace.id,
-          params.categoryId,
-          toBudgetUpdate(input),
-        )
-      : await this.budgetsService.putBudget(userId, params.categoryId, input);
+    const result = await this.budgetsService.putBudgetInSpace(
+      personalSpace.id,
+      params.categoryId,
+      toBudgetUpdate(input),
+    );
     if (result.created) {
       response.status(HttpStatus.CREATED);
       response.setHeader('Location', budgetLocation(params.categoryId));
@@ -135,12 +132,10 @@ export class BudgetsController {
     const userId = requireAuthenticatedUserId(request);
     const personalSpace = await this.requirePersonalReadSpace(userId);
     return toBudgetResponse(
-      personalSpace
-        ? await this.budgetsService.getBudgetInSpace(
-            personalSpace.id,
-            params.categoryId,
-          )
-        : await this.budgetsService.getBudget(userId, params.categoryId),
+      await this.budgetsService.getBudgetInSpace(
+        personalSpace.id,
+        params.categoryId,
+      ),
     );
   }
 
@@ -173,23 +168,19 @@ export class BudgetsController {
   ): Promise<void> {
     const userId = requireAuthenticatedUserId(request);
     const personalSpace = await this.requirePersonalWriteSpace(userId);
-    if (personalSpace) {
-      await this.budgetsService.deleteBudgetInSpace(
-        personalSpace.id,
-        params.categoryId,
-        normalizeIfMatch(ifMatch),
-      );
-    } else {
-      await this.budgetsService.deleteBudget(userId, params.categoryId);
-    }
+    await this.budgetsService.deleteBudgetInSpace(
+      personalSpace.id,
+      params.categoryId,
+      normalizeIfMatch(ifMatch),
+    );
   }
 
   private requirePersonalReadSpace(userId: string) {
-    return this.spaceAccessService?.requirePersonalSpace(userId);
+    return this.spaceAccessService.requirePersonalSpace(userId);
   }
 
   private requirePersonalWriteSpace(userId: string) {
-    return this.spaceAccessService?.requirePersonalWriteSpace(userId);
+    return this.spaceAccessService.requirePersonalWriteSpace(userId);
   }
 }
 

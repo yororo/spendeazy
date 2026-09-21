@@ -1,5 +1,6 @@
 import type { Response } from 'express';
 import type { AuthenticatedRequest } from '../../authentication/authentication';
+import type { SpaceAccessService } from '../../spaces/application/space-access.service';
 import type {
   ListTransactionsInput,
   TransactionsService,
@@ -14,10 +15,11 @@ describe('TransactionsController', () => {
   it('returns a created manual transaction with canonical Location and API encodings', async () => {
     const transaction = transactionRecord();
     const transactionsService = {
-      createManualTransaction: jest.fn().mockResolvedValue(transaction),
+      createManualTransactionInSpace: jest.fn().mockResolvedValue(transaction),
     };
     const controller = new TransactionsController(
       transactionsService as unknown as TransactionsService,
+      personalSpaceAccess(),
     );
     const status = jest.fn();
     const setHeader = jest.fn();
@@ -59,13 +61,14 @@ describe('TransactionsController', () => {
       pageSize: 10,
     };
     const transactionsService = {
-      listTransactions: jest.fn().mockResolvedValue({
+      listTransactionsInSpace: jest.fn().mockResolvedValue({
         items: [transaction],
         nextCursor: 'next-page',
       }),
     };
     const controller = new TransactionsController(
       transactionsService as unknown as TransactionsService,
+      personalSpaceAccess(),
     );
 
     await expect(
@@ -87,8 +90,8 @@ describe('TransactionsController', () => {
       nextCursor: 'next-page',
     });
 
-    expect(transactionsService.listTransactions).toHaveBeenCalledWith(
-      '7',
+    expect(transactionsService.listTransactionsInSpace).toHaveBeenCalledWith(
+      '9',
       query,
     );
   });
@@ -97,13 +100,14 @@ describe('TransactionsController', () => {
     const transaction = importedTransactionRecord();
     transaction.categoryId = null;
     const transactionsService = {
-      listTransactions: jest.fn().mockResolvedValue({
+      listTransactionsInSpace: jest.fn().mockResolvedValue({
         items: [transaction],
         nextCursor: null,
       }),
     };
     const controller = new TransactionsController(
       transactionsService as unknown as TransactionsService,
+      personalSpaceAccess(),
     );
 
     await expect(
@@ -129,10 +133,11 @@ describe('TransactionsController', () => {
   it('returns an imported transaction after a category-only patch', async () => {
     const transaction = importedTransactionRecord();
     const transactionsService = {
-      updateTransaction: jest.fn().mockResolvedValue(transaction),
+      updateTransactionInSpace: jest.fn().mockResolvedValue(transaction),
     };
     const controller = new TransactionsController(
       transactionsService as unknown as TransactionsService,
+      personalSpaceAccess(),
     );
 
     await expect(
@@ -152,8 +157,8 @@ describe('TransactionsController', () => {
       updatedAt: '2026-08-29T00:00:00.000Z',
     });
 
-    expect(transactionsService.updateTransaction).toHaveBeenCalledWith(
-      '7',
+    expect(transactionsService.updateTransactionInSpace).toHaveBeenCalledWith(
+      '9',
       '100',
       { categoryId: '43' },
     );
@@ -176,6 +181,13 @@ function transactionRecord(): ManualTransactionRecord {
 
 function authenticatedRequest(): AuthenticatedRequest {
   return { authenticatedUserId: '7' } as AuthenticatedRequest;
+}
+
+function personalSpaceAccess(): SpaceAccessService {
+  return {
+    requirePersonalSpace: jest.fn().mockResolvedValue({ id: '9' }),
+    requirePersonalWriteSpace: jest.fn().mockResolvedValue({ id: '9' }),
+  } as unknown as SpaceAccessService;
 }
 
 function importedTransactionRecord(): TransactionRecord {

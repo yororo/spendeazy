@@ -1,5 +1,6 @@
 import type { Response } from 'express';
 import type { AuthenticatedRequest } from '../../authentication/authentication';
+import type { SpaceAccessService } from '../../spaces/application/space-access.service';
 import type { CategoryRulesService } from '../application/category-rules.service';
 import type { CategoryRuleRecord } from '../application/category-rule-store';
 import { CategoryRulesController } from './category-rules.controller';
@@ -8,10 +9,11 @@ describe('CategoryRulesController', () => {
   it('sets the created status and relative canonical Location while serializing the rule', async () => {
     const rule = categoryRuleRecord();
     const categoryRulesService = {
-      createCategoryRule: jest.fn().mockResolvedValue(rule),
+      createCategoryRuleInSpace: jest.fn().mockResolvedValue(rule),
     };
     const controller = new CategoryRulesController(
       categoryRulesService as unknown as CategoryRulesService,
+      personalSpaceAccess(),
     );
     const status = jest.fn();
     const setHeader = jest.fn();
@@ -55,4 +57,11 @@ function categoryRuleRecord(): CategoryRuleRecord {
 
 function authenticatedRequest(): AuthenticatedRequest {
   return { authenticatedUserId: '7' } as AuthenticatedRequest;
+}
+
+function personalSpaceAccess(): SpaceAccessService {
+  return {
+    requirePersonalSpace: jest.fn().mockResolvedValue({ id: '9' }),
+    requirePersonalWriteSpace: jest.fn().mockResolvedValue({ id: '9' }),
+  } as unknown as SpaceAccessService;
 }

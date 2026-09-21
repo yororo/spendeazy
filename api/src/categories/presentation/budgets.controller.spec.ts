@@ -1,5 +1,6 @@
 import type { Response } from 'express';
 import type { AuthenticatedRequest } from '../../authentication/authentication';
+import type { SpaceAccessService } from '../../spaces/application/space-access.service';
 import type { BudgetRecord, BudgetPeriod } from '../application/budget-store';
 import type { BudgetsService } from '../application/budgets.service';
 import { BudgetsController } from './budgets.controller';
@@ -8,10 +9,11 @@ describe('BudgetsController', () => {
   it('returns a created budget with string identifiers and money and a canonical Location', async () => {
     const budget = budgetRecord();
     const budgetsService = {
-      putBudget: jest.fn().mockResolvedValue({ budget, created: true }),
+      putBudgetInSpace: jest.fn().mockResolvedValue({ budget, created: true }),
     };
     const controller = new BudgetsController(
       budgetsService as unknown as BudgetsService,
+      personalSpaceAccess(),
     );
     const status = jest.fn();
     const setHeader = jest.fn();
@@ -54,4 +56,11 @@ function budgetRecord(): BudgetRecord {
 
 function authenticatedRequest(): AuthenticatedRequest {
   return { authenticatedUserId: '7' } as AuthenticatedRequest;
+}
+
+function personalSpaceAccess(): SpaceAccessService {
+  return {
+    requirePersonalSpace: jest.fn().mockResolvedValue({ id: '9' }),
+    requirePersonalWriteSpace: jest.fn().mockResolvedValue({ id: '9' }),
+  } as unknown as SpaceAccessService;
 }

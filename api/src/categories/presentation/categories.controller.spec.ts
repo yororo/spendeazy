@@ -1,17 +1,35 @@
 import type { Response } from 'express';
 import type { AuthenticatedRequest } from '../../authentication/authentication';
+import type { SpaceAccessService } from '../../spaces/application/space-access.service';
 import type { CategoriesService } from '../application/categories.service';
 import type { CategoryRecord } from '../application/category-store';
 import { CategoriesController } from './categories.controller';
 
 describe('CategoriesController', () => {
+  it('does not query Categories when Personal Space access is denied', async () => {
+    const categoriesService = { listCategoriesInSpace: jest.fn() };
+    const access = {
+      requirePersonalSpace: jest.fn().mockRejectedValue(new Error('denied')),
+    } as unknown as SpaceAccessService;
+    const controller = new CategoriesController(
+      categoriesService as unknown as CategoriesService,
+      access,
+    );
+
+    await expect(
+      controller.listCategories(authenticatedRequest()),
+    ).rejects.toThrow('denied');
+    expect(categoriesService.listCategoriesInSpace).not.toHaveBeenCalled();
+  });
+
   it('sets the created status and relative canonical Location while serializing the category', async () => {
     const category = categoryRecord();
     const categoriesService = {
-      createCategory: jest.fn().mockResolvedValue(category),
+      createCategoryInSpace: jest.fn().mockResolvedValue(category),
     };
     const controller = new CategoriesController(
       categoriesService as unknown as CategoriesService,
+      personalSpaceAccess(),
     );
     const status = jest.fn();
     const setHeader = jest.fn();
@@ -56,4 +74,11 @@ function categoryRecord(): CategoryRecord {
 
 function authenticatedRequest(): AuthenticatedRequest {
   return { authenticatedUserId: '7' } as AuthenticatedRequest;
+}
+
+function personalSpaceAccess(): SpaceAccessService {
+  return {
+    requirePersonalSpace: jest.fn().mockResolvedValue({ id: '9' }),
+    requirePersonalWriteSpace: jest.fn().mockResolvedValue({ id: '9' }),
+  } as unknown as SpaceAccessService;
 }

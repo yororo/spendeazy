@@ -6,7 +6,6 @@ import {
   Param,
   Patch,
   Post,
-  Optional,
   Req,
   Res,
 } from '@nestjs/common';
@@ -43,7 +42,7 @@ import { SpaceAccessService } from '../../spaces/application/space-access.servic
 export class CategoriesController {
   constructor(
     private readonly categoriesService: CategoriesService,
-    @Optional() private readonly spaceAccessService?: SpaceAccessService,
+    private readonly spaceAccessService: SpaceAccessService,
   ) {}
 
   @Post()
@@ -85,13 +84,11 @@ export class CategoriesController {
   ): Promise<CategoryResponseDto> {
     const userId = requireAuthenticatedUserId(request);
     const personalSpace = await this.requirePersonalWriteSpace(userId);
-    const category = personalSpace
-      ? await this.categoriesService.createCategoryInSpace(
-          userId,
-          personalSpace.id,
-          input,
-        )
-      : await this.categoriesService.createCategory(userId, input);
+    const category = await this.categoriesService.createCategoryInSpace(
+      userId,
+      personalSpace.id,
+      input,
+    );
     response.status(HttpStatus.CREATED);
     response.setHeader('Location', categoryLocation(category.id));
     return toCategoryResponse(category);
@@ -118,9 +115,9 @@ export class CategoriesController {
   ): Promise<CategoryResponseDto[]> {
     const userId = requireAuthenticatedUserId(request);
     const personalSpace = await this.requirePersonalReadSpace(userId);
-    const categories = personalSpace
-      ? await this.categoriesService.listCategoriesInSpace(personalSpace.id)
-      : await this.categoriesService.listCategories(userId);
+    const categories = await this.categoriesService.listCategoriesInSpace(
+      personalSpace.id,
+    );
     return categories.map(toCategoryResponse);
   }
 
@@ -155,12 +152,10 @@ export class CategoriesController {
     const userId = requireAuthenticatedUserId(request);
     const personalSpace = await this.requirePersonalReadSpace(userId);
     return toCategoryResponse(
-      personalSpace
-        ? await this.categoriesService.getCategoryInSpace(
-            personalSpace.id,
-            params.categoryId,
-          )
-        : await this.categoriesService.getCategory(userId, params.categoryId),
+      await this.categoriesService.getCategoryInSpace(
+        personalSpace.id,
+        params.categoryId,
+      ),
     );
   }
 
@@ -203,26 +198,20 @@ export class CategoriesController {
     const userId = requireAuthenticatedUserId(request);
     const personalSpace = await this.requirePersonalWriteSpace(userId);
     return toCategoryResponse(
-      personalSpace
-        ? await this.categoriesService.updateCategoryInSpace(
-            personalSpace.id,
-            params.categoryId,
-            toCategoryUpdate(input),
-          )
-        : await this.categoriesService.updateCategory(
-            userId,
-            params.categoryId,
-            input,
-          ),
+      await this.categoriesService.updateCategoryInSpace(
+        personalSpace.id,
+        params.categoryId,
+        toCategoryUpdate(input),
+      ),
     );
   }
 
   private requirePersonalReadSpace(userId: string) {
-    return this.spaceAccessService?.requirePersonalSpace(userId);
+    return this.spaceAccessService.requirePersonalSpace(userId);
   }
 
   private requirePersonalWriteSpace(userId: string) {
-    return this.spaceAccessService?.requirePersonalWriteSpace(userId);
+    return this.spaceAccessService.requirePersonalWriteSpace(userId);
   }
 }
 

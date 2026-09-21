@@ -60,6 +60,10 @@ import { OpenApiModule } from '../src/docs/openapi.module';
 type HttpMethod = 'get' | 'post' | 'put' | 'patch' | 'delete';
 type JsonSchema = Record<string, unknown>;
 
+function invoke(mock: jest.Mock, ...args: unknown[]): Promise<unknown> {
+  return Promise.resolve(mock(...args) as unknown);
+}
+
 describe('runtime responses against the generated OpenAPI contract', () => {
   let app: INestApplication;
   let document: OpenAPIObject;
@@ -154,6 +158,99 @@ describe('runtime responses against the generated OpenAPI contract', () => {
       requirePersonalSpace: jest.fn(),
       requirePersonalWriteSpace: jest.fn(),
     };
+    Object.assign(categoriesService, {
+      createCategoryInSpace: (
+        _userId: string,
+        _spaceId: string,
+        input: unknown,
+      ) => invoke(categoriesService.createCategory, _userId, input),
+      listCategoriesInSpace: () =>
+        invoke(categoriesService.listCategories, '7'),
+      getCategoryInSpace: (_spaceId: string, id: string) =>
+        invoke(categoriesService.getCategory, '7', id),
+      updateCategoryInSpace: (_spaceId: string, id: string, input: unknown) =>
+        invoke(categoriesService.updateCategory, '7', id, input),
+    });
+    Object.assign(budgetsService, {
+      putBudgetInSpace: (_spaceId: string, id: string, input: unknown) =>
+        invoke(budgetsService.putBudget, '7', id, input),
+      getBudgetInSpace: (_spaceId: string, id: string) =>
+        invoke(budgetsService.getBudget, '7', id),
+      deleteBudgetInSpace: (_spaceId: string, id: string) =>
+        invoke(budgetsService.deleteBudget, '7', id),
+    });
+    Object.assign(categorySummariesService, {
+      getCategorySummaryInSpace: (_spaceId: string, query: unknown) =>
+        invoke(categorySummariesService.getCategorySummary, '7', query),
+    });
+    Object.assign(categoryRulesService, {
+      createCategoryRuleInSpace: (
+        _userId: string,
+        _spaceId: string,
+        input: unknown,
+      ) => invoke(categoryRulesService.createCategoryRule, _userId, input),
+      listCategoryRulesInSpace: async () => ({
+        rules: await invoke(categoryRulesService.listCategoryRules, '7'),
+        revision: '0',
+      }),
+      getCategoryRuleInSpace: (_spaceId: string, id: string) =>
+        invoke(categoryRulesService.getCategoryRule, '7', id),
+      updateCategoryRuleInSpace: (
+        _spaceId: string,
+        id: string,
+        input: unknown,
+      ) => invoke(categoryRulesService.updateCategoryRule, '7', id, input),
+      deleteCategoryRuleInSpace: (_spaceId: string, id: string) =>
+        invoke(categoryRulesService.deleteCategoryRule, '7', id),
+      replaceCategoryRulesInSpace: async (
+        _userId: string,
+        _spaceId: string,
+        id: string,
+        rules: unknown,
+      ) => ({
+        rules: await invoke(
+          categoryRulesService.replaceCategoryRules,
+          _userId,
+          id,
+          rules,
+        ),
+        revision: '0',
+      }),
+    });
+    Object.assign(transactionsService, {
+      createManualTransactionInSpace: (
+        _userId: string,
+        _spaceId: string,
+        input: unknown,
+      ) => invoke(transactionsService.createManualTransaction, _userId, input),
+      listTransactionsInSpace: (_spaceId: string, query: unknown) =>
+        invoke(transactionsService.listTransactions, '7', query),
+      getManualTransactionInSpace: (_spaceId: string, id: string) =>
+        invoke(transactionsService.getManualTransaction, '7', id),
+      updateTransactionInSpace: (
+        _spaceId: string,
+        id: string,
+        input: unknown,
+      ) => invoke(transactionsService.updateTransaction, '7', id, input),
+      deleteManualTransactionInSpace: (_spaceId: string, id: string) =>
+        invoke(transactionsService.deleteManualTransaction, '7', id),
+    });
+    Object.assign(statementImportsService, {
+      getStatementImportInSpace: (_spaceId: string, id: string) =>
+        invoke(statementImportsService.getStatementImport, '7', id),
+      listStatementImportsInSpace: (_spaceId: string, query: unknown) =>
+        invoke(statementImportsService.listStatementImports, '7', query),
+      commitReviewedStatementImportInSpace: (
+        _userId: string,
+        _spaceId: string,
+        input: unknown,
+      ) =>
+        invoke(
+          statementImportsService.commitReviewedStatementImport,
+          _userId,
+          input,
+        ),
+    });
 
     const testingModule = Test.createTestingModule({
       imports: [OpenApiModule],
@@ -468,7 +565,7 @@ describe('runtime responses against the generated OpenAPI contract', () => {
         status: 201,
         body: statementImportRequest(),
         expectedBody: statementImportResponse(),
-        location: '/api/v1/users/me/statement-imports/10',
+        location: '/api/v1/users/me/spaces/9/statement-imports/10',
       },
     ];
 
@@ -994,10 +1091,10 @@ describe('runtime responses against the generated OpenAPI contract', () => {
       .mockResolvedValue(statementImportRecord());
     spaceAccessService.requirePersonalSpace
       .mockReset()
-      .mockResolvedValue(undefined);
+      .mockResolvedValue({ id: '9' });
     spaceAccessService.requirePersonalWriteSpace
       .mockReset()
-      .mockResolvedValue(undefined);
+      .mockResolvedValue({ id: '9' });
   }
 });
 

@@ -122,7 +122,7 @@ describe('authenticated statement-import routes', () => {
       statementImportsService.commitReviewedStatementImport,
     ).toHaveBeenCalledWith(userId, commitInput);
     expect(commitResponse.headers.location).toBe(
-      '/api/v1/users/me/statement-imports/400',
+      '/api/v1/users/me/spaces/99/statement-imports/400',
     );
     expect(commitResponse.body).toEqual({
       id: '400',
@@ -646,6 +646,10 @@ async function createSpaceStatementImportApplication(
   return application;
 }
 
+function invoke(mock: jest.Mock, ...args: unknown[]): Promise<unknown> {
+  return Promise.resolve(mock(...args) as unknown);
+}
+
 async function createStatementImportApplication(
   statementImportsProvider:
     | typeof StatementImportsService
@@ -663,7 +667,31 @@ async function createStatementImportApplication(
     ClerkAuthenticationGuard,
     ProvisionedUserGuard,
     statementImportsProvider,
+    {
+      provide: SpaceAccessService,
+      useValue: {
+        requirePersonalSpace: (userId: string) =>
+          Promise.resolve({ id: userId }),
+        requirePersonalWriteSpace: (userId: string) =>
+          Promise.resolve({ id: userId }),
+      },
+    },
   ];
+  if (typeof statementImportsProvider !== 'function') {
+    const service =
+      statementImportsProvider.useValue as StatementImportsServiceMock;
+    service.getStatementImportInSpace = jest.fn((spaceId: string, id: string) =>
+      invoke(service.getStatementImport, spaceId, id),
+    );
+    service.listStatementImportsInSpace = jest.fn(
+      (spaceId: string, query: unknown) =>
+        invoke(service.listStatementImports, spaceId, query),
+    );
+    service.commitReviewedStatementImportInSpace = jest.fn(
+      (userId: string, _spaceId: string, input: unknown) =>
+        invoke(service.commitReviewedStatementImport, userId, input),
+    );
+  }
   if (unitOfWork !== undefined) {
     providers.push({
       provide: STATEMENT_IMPORT_CONFIRMATION_UNIT_OF_WORK,
@@ -759,6 +787,7 @@ class StatementImportHttpFixture implements StatementImportConfirmationUnitOfWor
     categories: this.categories,
     statementImports: this.statementImports,
     importedTransactions: this.importedTransactions,
+    spaces: { lockForStatementImport: () => Promise.resolve() },
   };
 
   execute<TResult>(
@@ -775,7 +804,12 @@ class HttpStatementImportStore implements StatementImportStore {
   private nextId = 900;
 
   seed(...records: StatementImportRecord[]): void {
-    this.imports.push(...records);
+    this.imports.push(
+      ...records.map((record) => ({
+        ...record,
+        spaceId: record.spaceId ?? record.userId,
+      })),
+    );
   }
 
   findById(
@@ -859,6 +893,7 @@ class HttpStatementImportStore implements StatementImportStore {
   findPageInSpace(
     query: SpaceStatementImportHistoryPageQuery,
   ): Promise<StatementImportHistoryRecord[]> {
+    this.pageQueries.push({ ...query, userId: query.spaceId });
     const records = this.imports.filter((statementImport) => {
       if (statementImport.spaceId !== query.spaceId) return false;
       if (
@@ -897,7 +932,12 @@ class HttpImportedTransactionStore implements ImportedTransactionStore {
   private readonly transactions: ImportedTransactionRecord[] = [];
 
   seed(...records: ImportedTransactionRecord[]): void {
-    this.transactions.push(...records);
+    this.transactions.push(
+      ...records.map((record) => ({
+        ...record,
+        spaceId: record.spaceId ?? record.userId,
+      })),
+    );
   }
 
   findByFingerprint(
@@ -956,7 +996,12 @@ class HttpCategoryStore implements TransactionCategoryStore {
   private readonly categories: TransactionCategoryRecord[] = [];
 
   seed(...categories: TransactionCategoryRecord[]): void {
-    this.categories.push(...categories);
+    this.categories.push(
+      ...categories.map((category) => ({
+        ...category,
+        spaceId: category.spaceId ?? category.userId,
+      })),
+    );
   }
 
   findById(

@@ -1,5 +1,6 @@
 import type { Response } from 'express';
 import type { AuthenticatedRequest } from '../../authentication/authentication';
+import type { SpaceAccessService } from '../../spaces/application/space-access.service';
 import type { StatementImportsService } from '../application/statement-imports.service';
 import type {
   StatementImportHistoryRecord,
@@ -15,10 +16,11 @@ describe('StatementImportsController', () => {
       cardType: null,
     });
     const statementImportsService = {
-      getStatementImport: jest.fn().mockResolvedValue(statementImport),
+      getStatementImportInSpace: jest.fn().mockResolvedValue(statementImport),
     };
     const controller = new StatementImportsController(
       statementImportsService as unknown as StatementImportsService,
+      personalSpaceAccess(),
     );
 
     await expect(
@@ -34,21 +36,21 @@ describe('StatementImportsController', () => {
       importedAt: '2026-08-29T00:00:00.000Z',
     });
 
-    expect(statementImportsService.getStatementImport).toHaveBeenCalledWith(
-      '7',
-      '108',
-    );
+    expect(
+      statementImportsService.getStatementImportInSpace,
+    ).toHaveBeenCalledWith('9', '108');
   });
 
   it('returns the committed import without exposing its file hash', async () => {
     const statementImport = statementImportRecord();
     const statementImportsService = {
-      commitReviewedStatementImport: jest
+      commitReviewedStatementImportInSpace: jest
         .fn()
         .mockResolvedValue(statementImport),
     };
     const controller = new StatementImportsController(
       statementImportsService as unknown as StatementImportsService,
+      personalSpaceAccess(),
     );
     const status = jest.fn();
     const setHeader = jest.fn();
@@ -79,7 +81,7 @@ describe('StatementImportsController', () => {
     expect(status).toHaveBeenCalledWith(201);
     expect(setHeader).toHaveBeenCalledWith(
       'Location',
-      '/api/v1/users/me/statement-imports/100',
+      '/api/v1/users/me/spaces/9/statement-imports/100',
     );
   });
 
@@ -87,13 +89,14 @@ describe('StatementImportsController', () => {
     const statementImport = statementImportHistoryRecord();
     const query = { fromDate: '2026-08-01', pageSize: 10 };
     const statementImportsService = {
-      listStatementImports: jest.fn().mockResolvedValue({
+      listStatementImportsInSpace: jest.fn().mockResolvedValue({
         items: [statementImport],
         nextCursor: 'next-page',
       }),
     };
     const controller = new StatementImportsController(
       statementImportsService as unknown as StatementImportsService,
+      personalSpaceAccess(),
     );
 
     await expect(
@@ -112,10 +115,9 @@ describe('StatementImportsController', () => {
       ],
       nextCursor: 'next-page',
     });
-    expect(statementImportsService.listStatementImports).toHaveBeenCalledWith(
-      '7',
-      query,
-    );
+    expect(
+      statementImportsService.listStatementImportsInSpace,
+    ).toHaveBeenCalledWith('9', query);
   });
 });
 
@@ -137,6 +139,13 @@ function statementImportRecord(
 
 function authenticatedRequest(): AuthenticatedRequest {
   return { authenticatedUserId: '7' } as AuthenticatedRequest;
+}
+
+function personalSpaceAccess(): SpaceAccessService {
+  return {
+    requirePersonalSpace: jest.fn().mockResolvedValue({ id: '9' }),
+    requirePersonalWriteSpace: jest.fn().mockResolvedValue({ id: '9' }),
+  } as unknown as SpaceAccessService;
 }
 
 function statementImportHistoryRecord(): StatementImportHistoryRecord {

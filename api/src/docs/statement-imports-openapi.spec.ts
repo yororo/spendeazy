@@ -65,7 +65,7 @@ describe('Statement import OpenAPI contract', () => {
           required: true,
           schema: {
             type: 'string',
-            example: `/${API_PREFIX}/users/me/statement-imports/42`,
+            example: `/${API_PREFIX}/users/me/spaces/7/statement-imports/42`,
           },
         },
       },

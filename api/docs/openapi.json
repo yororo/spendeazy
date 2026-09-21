@@ -3098,7 +3098,7 @@
                 "description": "Relative canonical URI of the created Statement import.",
                 "schema": {
                   "type": "string",
-                  "example": "/api/v1/users/me/statement-imports/42"
+                  "example": "/api/v1/users/me/spaces/7/statement-imports/42"
                 }
               }
             },

@@ -55,6 +55,7 @@ import { StatementImportsService } from '../src/statement-imports/application/st
 import { UsersController } from '../src/users/presentation/users.controller';
 import { UsersService } from '../src/users/application/users.service';
 import { PERSONAL_SPACE_PROVISIONER } from '../src/spaces/application/space-store';
+import { SpaceAccessService } from '../src/spaces/application/space-access.service';
 import {
   USER_STORE,
   type NewUser,
@@ -64,6 +65,10 @@ import {
 } from '../src/users/application/user-store';
 
 let application: INestApplication;
+
+function invoke(mock: jest.Mock, ...args: unknown[]): Promise<unknown> {
+  return Promise.resolve(mock(...args) as unknown);
+}
 
 describe('authenticated User routes', () => {
   let verifier: FakeClerkTokenVerifier;
@@ -163,6 +168,66 @@ describe('authenticated User routes', () => {
         ),
       deleteManualTransaction: jest.fn().mockResolvedValue(undefined),
     };
+    Object.assign(categoriesService, {
+      createCategoryInSpace: (
+        userId: string,
+        _spaceId: string,
+        input: unknown,
+      ) => invoke(categoriesService.createCategory, userId, input),
+      listCategoriesInSpace: (spaceId: string) =>
+        invoke(categoriesService.listCategories, spaceId),
+      getCategoryInSpace: (spaceId: string, id: string) =>
+        invoke(categoriesService.getCategory, spaceId, id),
+      updateCategoryInSpace: (spaceId: string, id: string, input: unknown) =>
+        invoke(categoriesService.updateCategory, spaceId, id, input),
+    });
+    Object.assign(budgetsService, {
+      putBudgetInSpace: (spaceId: string, id: string, input: unknown) =>
+        invoke(budgetsService.putBudget, spaceId, id, input),
+      getBudgetInSpace: (spaceId: string, id: string) =>
+        invoke(budgetsService.getBudget, spaceId, id),
+      deleteBudgetInSpace: (spaceId: string, id: string) =>
+        invoke(budgetsService.deleteBudget, spaceId, id),
+    });
+    Object.assign(categorySummariesService, {
+      getCategorySummaryInSpace: (spaceId: string, query: unknown) =>
+        invoke(categorySummariesService.getCategorySummary, spaceId, query),
+    });
+    Object.assign(categoryRulesService, {
+      createCategoryRuleInSpace: (
+        userId: string,
+        _spaceId: string,
+        input: unknown,
+      ) => invoke(categoryRulesService.createCategoryRule, userId, input),
+      listCategoryRulesInSpace: async (spaceId: string) => ({
+        rules: await invoke(categoryRulesService.listCategoryRules, spaceId),
+        revision: '0',
+      }),
+      getCategoryRuleInSpace: (spaceId: string, id: string) =>
+        invoke(categoryRulesService.getCategoryRule, spaceId, id),
+      updateCategoryRuleInSpace: (
+        spaceId: string,
+        id: string,
+        input: unknown,
+      ) => invoke(categoryRulesService.updateCategoryRule, spaceId, id, input),
+      deleteCategoryRuleInSpace: (spaceId: string, id: string) =>
+        invoke(categoryRulesService.deleteCategoryRule, spaceId, id),
+    });
+    Object.assign(transactionsService, {
+      createManualTransactionInSpace: (
+        userId: string,
+        _spaceId: string,
+        input: unknown,
+      ) => invoke(transactionsService.createManualTransaction, userId, input),
+      listTransactionsInSpace: (spaceId: string, query: unknown) =>
+        invoke(transactionsService.listTransactions, spaceId, query),
+      getManualTransactionInSpace: (spaceId: string, id: string) =>
+        invoke(transactionsService.getManualTransaction, spaceId, id),
+      updateTransactionInSpace: (spaceId: string, id: string, input: unknown) =>
+        invoke(transactionsService.updateTransaction, spaceId, id, input),
+      deleteManualTransactionInSpace: (spaceId: string, id: string) =>
+        invoke(transactionsService.deleteManualTransaction, spaceId, id),
+    });
     const module = await Test.createTestingModule({
       controllers: [
         UsersController,
@@ -204,6 +269,15 @@ describe('authenticated User routes', () => {
         { provide: CategoryRulesService, useValue: categoryRulesService },
         { provide: TransactionsService, useValue: transactionsService },
         { provide: StatementImportsService, useValue: {} },
+        {
+          provide: SpaceAccessService,
+          useValue: {
+            requirePersonalSpace: (userId: string) =>
+              Promise.resolve({ id: userId }),
+            requirePersonalWriteSpace: (userId: string) =>
+              Promise.resolve({ id: userId }),
+          },
+        },
         UsersService,
         ProvisionedUserGuard,
       ],

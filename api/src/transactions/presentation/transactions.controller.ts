@@ -9,7 +9,6 @@ import {
   Param,
   Patch,
   Post,
-  Optional,
   Query,
   Req,
   Res,
@@ -65,7 +64,7 @@ import {
 export class TransactionsController {
   constructor(
     private readonly transactionsService: TransactionsService,
-    @Optional() private readonly spaceAccessService?: SpaceAccessService,
+    private readonly spaceAccessService: SpaceAccessService,
   ) {}
 
   @Post()
@@ -103,14 +102,13 @@ export class TransactionsController {
   ): Promise<ManualTransactionResponseDto> {
     const userId = requireAuthenticatedUserId(request);
     const personalSpace =
-      await this.spaceAccessService?.requirePersonalWriteSpace(userId);
-    const transaction = personalSpace
-      ? await this.transactionsService.createManualTransactionInSpace(
-          userId,
-          personalSpace.id,
-          input,
-        )
-      : await this.transactionsService.createManualTransaction(userId, input);
+      await this.spaceAccessService.requirePersonalWriteSpace(userId);
+    const transaction =
+      await this.transactionsService.createManualTransactionInSpace(
+        userId,
+        personalSpace.id,
+        input,
+      );
     response.status(HttpStatus.CREATED);
     response.setHeader('Location', transactionLocation(transaction.id));
     return toManualTransactionResponse(transaction);
@@ -141,13 +139,11 @@ export class TransactionsController {
   ): Promise<TransactionHistoryPageResponseDto> {
     const userId = requireAuthenticatedUserId(request);
     const personalSpace =
-      await this.spaceAccessService?.requirePersonalSpace(userId);
-    const page = personalSpace
-      ? await this.transactionsService.listTransactionsInSpace(
-          personalSpace.id,
-          query,
-        )
-      : await this.transactionsService.listTransactions(userId, query);
+      await this.spaceAccessService.requirePersonalSpace(userId);
+    const page = await this.transactionsService.listTransactionsInSpace(
+      personalSpace.id,
+      query,
+    );
     return {
       items: page.items.map(toTransactionHistoryResponse),
       nextCursor: page.nextCursor,
@@ -184,17 +180,12 @@ export class TransactionsController {
   ): Promise<ManualTransactionResponseDto> {
     const userId = requireAuthenticatedUserId(request);
     const personalSpace =
-      await this.spaceAccessService?.requirePersonalSpace(userId);
+      await this.spaceAccessService.requirePersonalSpace(userId);
     return toManualTransactionResponse(
-      personalSpace
-        ? await this.transactionsService.getManualTransactionInSpace(
-            personalSpace.id,
-            params.transactionId,
-          )
-        : await this.transactionsService.getManualTransaction(
-            userId,
-            params.transactionId,
-          ),
+      await this.transactionsService.getManualTransactionInSpace(
+        personalSpace.id,
+        params.transactionId,
+      ),
     );
   }
 
@@ -249,20 +240,14 @@ export class TransactionsController {
   ): Promise<TransactionResponse> {
     const userId = requireAuthenticatedUserId(request);
     const personalSpace =
-      await this.spaceAccessService?.requirePersonalWriteSpace(userId);
+      await this.spaceAccessService.requirePersonalWriteSpace(userId);
     const changes = toTransactionUpdate(input);
     return toTransactionResponse(
-      personalSpace
-        ? await this.transactionsService.updateTransactionInSpace(
-            personalSpace.id,
-            params.transactionId,
-            changes,
-          )
-        : await this.transactionsService.updateTransaction(
-            userId,
-            params.transactionId,
-            changes,
-          ),
+      await this.transactionsService.updateTransactionInSpace(
+        personalSpace.id,
+        params.transactionId,
+        changes,
+      ),
     );
   }
 
@@ -305,29 +290,13 @@ export class TransactionsController {
   ): Promise<void> {
     const userId = requireAuthenticatedUserId(request);
     const personalSpace =
-      await this.spaceAccessService?.requirePersonalWriteSpace(userId);
+      await this.spaceAccessService.requirePersonalWriteSpace(userId);
     const expectedUpdatedAt = normalizeIfMatch(ifMatch);
-    if (personalSpace) {
-      await this.transactionsService.deleteManualTransactionInSpace(
-        personalSpace.id,
-        params.transactionId,
-        expectedUpdatedAt,
-      );
-      return;
-    }
-
-    if (expectedUpdatedAt === undefined) {
-      await this.transactionsService.deleteManualTransaction(
-        userId,
-        params.transactionId,
-      );
-    } else {
-      await this.transactionsService.deleteManualTransaction(
-        userId,
-        params.transactionId,
-        expectedUpdatedAt,
-      );
-    }
+    await this.transactionsService.deleteManualTransactionInSpace(
+      personalSpace.id,
+      params.transactionId,
+      expectedUpdatedAt,
+    );
   }
 }
 

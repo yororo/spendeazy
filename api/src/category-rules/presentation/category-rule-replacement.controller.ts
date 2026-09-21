@@ -1,12 +1,4 @@
-import {
-  Body,
-  Controller,
-  HttpStatus,
-  Optional,
-  Param,
-  Put,
-  Req,
-} from '@nestjs/common';
+import { Body, Controller, HttpStatus, Param, Put, Req } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import {
   requireAuthenticatedUserId,
@@ -28,7 +20,7 @@ import { toCategoryRuleResponse } from './category-rule-response.mapper';
 export class CategoryRuleReplacementController {
   constructor(
     private readonly categoryRulesService: CategoryRulesService,
-    @Optional() private readonly spaceAccessService?: SpaceAccessService,
+    private readonly spaceAccessService: SpaceAccessService,
   ) {}
 
   @Put()
@@ -68,24 +60,17 @@ export class CategoryRuleReplacementController {
     @Body() input: ReplaceCategoryRulesDto,
   ): Promise<CategoryRuleResponseDto[]> {
     const userId = requireAuthenticatedUserId(request);
-    const personalSpace = this.spaceAccessService
-      ? await this.spaceAccessService.requirePersonalWriteSpace(userId)
-      : undefined;
-    const rules = personalSpace
-      ? (
-          await this.categoryRulesService.replaceCategoryRulesInSpace(
-            userId,
-            personalSpace.id,
-            params.categoryId,
-            input.rules,
-            input.revision,
-          )
-        ).rules
-      : await this.categoryRulesService.replaceCategoryRules(
-          userId,
-          params.categoryId,
-          input.rules,
-        );
+    const personalSpace =
+      await this.spaceAccessService.requirePersonalWriteSpace(userId);
+    const rules = (
+      await this.categoryRulesService.replaceCategoryRulesInSpace(
+        userId,
+        personalSpace.id,
+        params.categoryId,
+        input.rules,
+        input.revision,
+      )
+    ).rules;
     return rules.map(toCategoryRuleResponse);
   }
 }

@@ -580,7 +580,7 @@ const OPERATION_EXPECTATIONS = [
       {
         status: '201',
         schemaRef: 'StatementImportResponseDto',
-        location: `/${API_PREFIX}/users/me/statement-imports/42`,
+        location: `/${API_PREFIX}/users/me/spaces/7/statement-imports/42`,
       },
     ],
     errorResponses: {

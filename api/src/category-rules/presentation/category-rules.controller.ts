@@ -11,7 +11,6 @@ import {
   Post,
   Req,
   Res,
-  Optional,
 } from '@nestjs/common';
 import {
   ApiExtraModels,
@@ -54,7 +53,7 @@ import {
 export class CategoryRulesController {
   constructor(
     private readonly categoryRulesService: CategoryRulesService,
-    @Optional() private readonly spaceAccessService?: SpaceAccessService,
+    private readonly spaceAccessService: SpaceAccessService,
   ) {}
 
   @Post()
@@ -96,13 +95,11 @@ export class CategoryRulesController {
   ): Promise<CategoryRuleResponseDto> {
     const userId = requireAuthenticatedUserId(request);
     const personalSpace = await this.requirePersonalWriteSpace(userId);
-    const rule = personalSpace
-      ? await this.categoryRulesService.createCategoryRuleInSpace(
-          userId,
-          personalSpace.id,
-          input,
-        )
-      : await this.categoryRulesService.createCategoryRule(userId, input);
+    const rule = await this.categoryRulesService.createCategoryRuleInSpace(
+      userId,
+      personalSpace.id,
+      input,
+    );
     response.status(HttpStatus.CREATED);
     response.setHeader('Location', categoryRuleLocation(rule.id));
     return toCategoryRuleResponse(rule);
@@ -131,13 +128,9 @@ export class CategoryRulesController {
   ): Promise<CategoryRuleResponseDto[]> {
     const userId = requireAuthenticatedUserId(request);
     const personalSpace = await this.requirePersonalReadSpace(userId);
-    const rules = personalSpace
-      ? (
-          await this.categoryRulesService.listCategoryRulesInSpace(
-            personalSpace.id,
-          )
-        ).rules
-      : await this.categoryRulesService.listCategoryRules(userId);
+    const rules = (
+      await this.categoryRulesService.listCategoryRulesInSpace(personalSpace.id)
+    ).rules;
     return rules.map(toCategoryRuleResponse);
   }
 
@@ -172,15 +165,10 @@ export class CategoryRulesController {
     const userId = requireAuthenticatedUserId(request);
     const personalSpace = await this.requirePersonalReadSpace(userId);
     return toCategoryRuleResponse(
-      personalSpace
-        ? await this.categoryRulesService.getCategoryRuleInSpace(
-            personalSpace.id,
-            params.ruleId,
-          )
-        : await this.categoryRulesService.getCategoryRule(
-            userId,
-            params.ruleId,
-          ),
+      await this.categoryRulesService.getCategoryRuleInSpace(
+        personalSpace.id,
+        params.ruleId,
+      ),
     );
   }
 
@@ -223,17 +211,11 @@ export class CategoryRulesController {
     const userId = requireAuthenticatedUserId(request);
     const personalSpace = await this.requirePersonalWriteSpace(userId);
     return toCategoryRuleResponse(
-      personalSpace
-        ? await this.categoryRulesService.updateCategoryRuleInSpace(
-            personalSpace.id,
-            params.ruleId,
-            toCategoryRuleUpdate(input),
-          )
-        : await this.categoryRulesService.updateCategoryRule(
-            userId,
-            params.ruleId,
-            toCategoryRuleUpdate(input),
-          ),
+      await this.categoryRulesService.updateCategoryRuleInSpace(
+        personalSpace.id,
+        params.ruleId,
+        toCategoryRuleUpdate(input),
+      ),
     );
   }
 
@@ -275,24 +257,19 @@ export class CategoryRulesController {
   ): Promise<void> {
     const userId = requireAuthenticatedUserId(request);
     const personalSpace = await this.requirePersonalWriteSpace(userId);
-    if (personalSpace) {
-      await this.categoryRulesService.deleteCategoryRuleInSpace(
-        personalSpace.id,
-        params.ruleId,
-        normalizeIfMatch(ifMatch),
-      );
-      return;
-    }
-
-    await this.categoryRulesService.deleteCategoryRule(userId, params.ruleId);
+    await this.categoryRulesService.deleteCategoryRuleInSpace(
+      personalSpace.id,
+      params.ruleId,
+      normalizeIfMatch(ifMatch),
+    );
   }
 
   private requirePersonalReadSpace(userId: string) {
-    return this.spaceAccessService?.requirePersonalSpace(userId);
+    return this.spaceAccessService.requirePersonalSpace(userId);
   }
 
   private requirePersonalWriteSpace(userId: string) {
-    return this.spaceAccessService?.requirePersonalWriteSpace(userId);
+    return this.spaceAccessService.requirePersonalWriteSpace(userId);
   }
 }
 

@@ -4,11 +4,7 @@ import { isEmail } from 'class-validator';
 import { ApplicationError } from '../../errors/application-error';
 import { VALIDATION_FAILED_CODE } from '../../errors/application-error-codes';
 import { SpaceAccessService } from '../../spaces/application/space-access.service';
-import {
-  USER_STORE,
-  type UserRecord,
-  type UserStore,
-} from '../../users/application/user-store';
+import { type UserRecord } from '../../users/application/user-store';
 import {
   INVITATION_CLOCK,
   INVITATION_DELIVERY,
@@ -33,6 +29,10 @@ import {
   type InvitationRecord,
   type InvitationStore,
 } from './invitation-store';
+import {
+  INVITATION_USER_READER,
+  type InvitationUserReader,
+} from './invitation-user-reader';
 
 export const INVITATION_EXPIRY_DAYS = 7;
 export const INVITATION_RESEND_COOLDOWN_MS = 60_000;
@@ -72,7 +72,8 @@ export class InvitationsService {
   constructor(
     @Inject(INVITATION_STORE)
     private readonly invitationStore: InvitationStore,
-    @Inject(USER_STORE) private readonly userStore: UserStore,
+    @Inject(INVITATION_USER_READER)
+    private readonly userStore: InvitationUserReader,
     private readonly spaceAccessService: SpaceAccessService,
     @Inject(INVITATION_DELIVERY)
     private readonly invitationDelivery: InvitationDelivery,

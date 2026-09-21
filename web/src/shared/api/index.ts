@@ -4,7 +4,7 @@ export {
   readApiConfig,
 } from "./api-config";
 export type { ApiConfig, ApiEnvironment } from "./api-config";
-export { ApiError, createApiClient } from "./api-client";
+export { ApiError, createApiClient, createPublicApiClient } from "./api-client";
 export { ApiClientProvider } from "./api-client-provider";
 export { useApiClient } from "./use-api-client";
 export {
@@ -64,5 +64,8 @@ export type {
   ApiRequestOptionsWithoutBody,
   ApiTokenOptions,
   ApiTokenProvider,
+  PublicApiClient,
+  PublicApiRequestOptions,
+  PublicApiRequestOptionsWithoutBody,
 } from "./api-client";
 export type { UserProfile } from "./user-profile";

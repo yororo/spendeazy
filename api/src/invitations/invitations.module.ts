@@ -2,6 +2,7 @@ import { DynamicModule, Module } from '@nestjs/common';
 
 import type { AppConfig } from '../config/app-config';
 import { SpacesModule } from '../spaces/spaces.module';
+import { USER_STORE } from '../users/application/user-store';
 import { UsersModule } from '../users/users.module';
 import {
   INVITATION_CLOCK,
@@ -9,6 +10,7 @@ import {
   SystemInvitationClock,
 } from './application/invitation-delivery';
 import { INVITATION_STORE } from './application/invitation-store';
+import { INVITATION_USER_READER } from './application/invitation-user-reader';
 import { InvitationsService } from './application/invitations.service';
 import { TypeOrmInvitationStore } from './infrastructure/typeorm-invitation-store';
 import { HttpInvitationDelivery } from './infrastructure/http-invitation-delivery';
@@ -51,6 +53,7 @@ export class InvitationsModule {
       providers: [
         TypeOrmInvitationStore,
         { provide: INVITATION_STORE, useExisting: TypeOrmInvitationStore },
+        { provide: INVITATION_USER_READER, useExisting: USER_STORE },
         {
           provide: 'INVITATION_DELIVERY_CONFIG',
           useValue: {

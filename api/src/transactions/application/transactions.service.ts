@@ -17,7 +17,6 @@ import {
   type ImportedTransactionRecord,
   type ImportedTransactionStore,
   type SpaceImportedTransactionStore,
-  type UpdateImportedTransactionInput,
 } from './imported-transaction-store';
 import {
   decodeTransactionCursor,
@@ -31,7 +30,6 @@ import {
   type SpaceTransactionStore,
   type SpaceTransactionPageQuery,
   type TransactionFilters,
-  type TransactionPageQuery,
   type TransactionRecord,
   type TransactionStore,
   type UpdateManualTransaction,
@@ -99,24 +97,6 @@ export class TransactionsService {
     private readonly spaceImportedTransactionStore: SpaceImportedTransactionStore = EMPTY_SPACE_IMPORTED_TRANSACTION_STORE,
   ) {}
 
-  async createManualTransaction(
-    userId: string,
-    input: CreateManualTransactionInput,
-  ): Promise<ManualTransactionRecord> {
-    const categoryId = input.categoryId ?? null;
-    if (categoryId !== null) {
-      await this.ensureActiveCategory(userId, categoryId);
-    }
-
-    return this.transactionStore.create({
-      userId,
-      categoryId,
-      purchaseDate: input.purchaseDate,
-      description: normalizeDescription(input.description),
-      amount: normalizeAmount(input.amount),
-    });
-  }
-
   async createManualTransactionInSpace(
     userId: string,
     spaceId: string,
@@ -138,18 +118,6 @@ export class TransactionsService {
     });
   }
 
-  async getManualTransaction(
-    userId: string,
-    id: string,
-  ): Promise<ManualTransactionRecord> {
-    const transaction = await this.transactionStore.findById(userId, id);
-    if (!transaction) {
-      throw new TransactionNotFoundError();
-    }
-
-    return transaction;
-  }
-
   async getManualTransactionInSpace(
     spaceId: string,
     id: string,
@@ -163,32 +131,6 @@ export class TransactionsService {
     }
 
     return transaction;
-  }
-
-  async listTransactions(
-    userId: string,
-    input: ListTransactionsInput,
-  ): Promise<TransactionPage> {
-    const {
-      cursor,
-      pageSize = DEFAULT_TRANSACTION_PAGE_SIZE,
-      ...filters
-    } = input;
-    const after =
-      cursor !== undefined
-        ? decodeTransactionCursor(cursor, filters).position
-        : null;
-    const query: TransactionPageQuery = {
-      userId,
-      filters,
-      after,
-      pageSize,
-    };
-    return toTransactionPage(
-      await this.transactionStore.findPage(query),
-      pageSize,
-      filters,
-    );
   }
 
   async listTransactionsInSpace(
@@ -215,42 +157,6 @@ export class TransactionsService {
       pageSize,
       filters,
     );
-  }
-
-  async updateManualTransaction(
-    userId: string,
-    id: string,
-    input: UpdateManualTransaction,
-  ): Promise<ManualTransactionRecord> {
-    const currentTransaction = await this.getManualTransaction(userId, id);
-    const changes = normalizeUpdate(input);
-    assertCurrentVersion(
-      currentTransaction.updatedAt,
-      changes.expectedUpdatedAt,
-    );
-
-    if (
-      changes.categoryId !== undefined &&
-      changes.categoryId !== null &&
-      changes.categoryId !== currentTransaction.categoryId
-    ) {
-      await this.ensureActiveCategory(userId, changes.categoryId);
-    }
-
-    if (isNoOp(currentTransaction, changes)) {
-      return currentTransaction;
-    }
-
-    const updatedTransaction = await this.transactionStore.update(
-      userId,
-      id,
-      changes,
-    );
-    if (!updatedTransaction) {
-      throw new TransactionNotFoundError();
-    }
-
-    return updatedTransaction;
   }
 
   async updateManualTransactionInSpace(
@@ -292,41 +198,6 @@ export class TransactionsService {
     return updatedTransaction;
   }
 
-  async updateTransaction(
-    userId: string,
-    id: string,
-    input: UpdateManualTransaction,
-  ): Promise<ManualTransactionRecord | ImportedTransactionRecord> {
-    const manualTransaction = await this.transactionStore.findById(userId, id);
-    if (manualTransaction) {
-      return this.updateManualTransaction(userId, id, input);
-    }
-
-    const importedTransaction = await this.importedTransactionStore.findById(
-      userId,
-      id,
-    );
-    if (!importedTransaction) {
-      throw new TransactionNotFoundError();
-    }
-
-    if (
-      input.categoryId === undefined ||
-      Object.keys(input).some(
-        (key) => key !== 'categoryId' && key !== 'expectedUpdatedAt',
-      )
-    ) {
-      throw new ImportedTransactionImmutableError();
-    }
-
-    return this.updateImportedTransactionCategory(
-      userId,
-      id,
-      input.categoryId,
-      input.expectedUpdatedAt,
-    );
-  }
-
   async updateTransactionInSpace(
     spaceId: string,
     id: string,
@@ -363,21 +234,6 @@ export class TransactionsService {
     );
   }
 
-  async deleteManualTransaction(
-    userId: string,
-    id: string,
-    expectedUpdatedAt?: string,
-  ): Promise<void> {
-    const deleted = await this.transactionStore.delete(
-      userId,
-      id,
-      expectedUpdatedAt,
-    );
-    if (!deleted) {
-      throw new TransactionNotFoundError();
-    }
-  }
-
   async deleteManualTransactionInSpace(
     spaceId: string,
     id: string,
@@ -397,41 +253,6 @@ export class TransactionsService {
     if (!deleted) {
       throw new TransactionNotFoundError();
     }
-  }
-
-  async updateImportedTransactionCategory(
-    userId: string,
-    id: string,
-    categoryId: string | null,
-    expectedUpdatedAt?: string,
-  ): Promise<ImportedTransactionRecord> {
-    const importedTransaction = await this.importedTransactionStore.findById(
-      userId,
-      id,
-    );
-    if (!importedTransaction) {
-      throw new TransactionNotFoundError();
-    }
-    assertCurrentVersion(importedTransaction.updatedAt, expectedUpdatedAt);
-
-    if (categoryId !== null && categoryId !== importedTransaction.categoryId) {
-      await this.ensureActiveCategory(userId, categoryId);
-    }
-
-    if (categoryId === importedTransaction.categoryId) {
-      return importedTransaction;
-    }
-
-    const updatedTransaction =
-      await this.importedTransactionStore.updateCategory(userId, id, {
-        categoryId,
-        ...(expectedUpdatedAt === undefined ? {} : { expectedUpdatedAt }),
-      });
-    if (!updatedTransaction) {
-      throw new TransactionNotFoundError();
-    }
-
-    return updatedTransaction;
   }
 
   async updateImportedTransactionCategoryInSpace(
@@ -469,40 +290,6 @@ export class TransactionsService {
     }
 
     return updatedTransaction;
-  }
-
-  async updateImportedTransaction(
-    userId: string,
-    id: string,
-    input: UpdateImportedTransactionInput,
-  ): Promise<ImportedTransactionRecord> {
-    if (
-      Object.keys(input).some(
-        (key) => key !== 'categoryId' && key !== 'expectedUpdatedAt',
-      )
-    ) {
-      throw new ImportedTransactionImmutableError();
-    }
-
-    return this.updateImportedTransactionCategory(
-      userId,
-      id,
-      input.categoryId,
-      input.expectedUpdatedAt,
-    );
-  }
-
-  private async ensureActiveCategory(
-    userId: string,
-    categoryId: string,
-  ): Promise<void> {
-    const category = await this.categoryStore.findById(userId, categoryId);
-    if (!category) {
-      throw new CategoryNotFoundError();
-    }
-    if (!category.isActive) {
-      throw new CategoryInactiveError();
-    }
   }
 
   private async ensureActiveCategoryInSpace(

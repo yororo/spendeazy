@@ -81,23 +81,6 @@ export class StatementImportsService {
     private readonly unitOfWork?: StatementImportConfirmationUnitOfWork,
   ) {}
 
-  commitReviewedStatementImport(
-    userId: string,
-    input: CommitReviewedStatementImportInput,
-  ): Promise<StatementImportRecord> {
-    if (!this.unitOfWork) {
-      return Promise.reject(
-        new Error(
-          'Statement import confirmation persistence is not configured',
-        ),
-      );
-    }
-
-    return this.unitOfWork.execute((context) =>
-      this.commitWithinTransaction(context, userId, input),
-    );
-  }
-
   commitReviewedStatementImportInSpace(
     userId: string,
     spaceId: string,
@@ -116,21 +99,6 @@ export class StatementImportsService {
     );
   }
 
-  async getStatementImport(
-    userId: string,
-    statementImportId: string,
-  ): Promise<StatementImportRecord> {
-    const statementImport = await this.statementImportStore.findById(
-      userId,
-      statementImportId,
-    );
-    if (!statementImport) {
-      throw new StatementImportNotFoundError();
-    }
-
-    return statementImport;
-  }
-
   async getStatementImportInSpace(
     spaceId: string,
     statementImportId: string,
@@ -144,43 +112,6 @@ export class StatementImportsService {
     }
 
     return statementImport;
-  }
-
-  async listStatementImports(
-    userId: string,
-    input: ListStatementImportsInput,
-  ): Promise<StatementImportPage> {
-    const {
-      cursor,
-      pageSize = DEFAULT_STATEMENT_IMPORT_PAGE_SIZE,
-      ...filters
-    } = input;
-    const after =
-      cursor !== undefined
-        ? decodeStatementImportCursor(cursor, filters).position
-        : null;
-    const records = await this.statementImportStore.findPage({
-      userId,
-      filters,
-      after,
-      pageSize,
-    });
-    const items = records.slice(0, pageSize);
-    const lastItem = items.at(-1);
-
-    return {
-      items,
-      nextCursor:
-        records.length > pageSize && lastItem
-          ? encodeStatementImportCursor(
-              {
-                statementDate: lastItem.statementDate,
-                statementImportId: lastItem.id,
-              },
-              filters,
-            )
-          : null,
-    };
   }
 
   async listStatementImportsInSpace(

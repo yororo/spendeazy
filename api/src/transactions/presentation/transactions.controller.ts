@@ -381,7 +381,7 @@ function toTransactionResponseFields(
 
 function toTransactionUpdate(
   input: UpdateManualTransactionDto,
-): Parameters<TransactionsService['updateTransaction']>[2] {
+): Parameters<TransactionsService['updateTransactionInSpace']>[2] {
   const { updatedAt, ...changes } = input;
   return {
     ...changes,

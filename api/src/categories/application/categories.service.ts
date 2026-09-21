@@ -27,25 +27,6 @@ export class CategoriesService {
     @Inject(CATEGORY_STORE) private readonly categoryStore: CategoryStore,
   ) {}
 
-  async createCategory(
-    userId: string,
-    input: {
-      name: string;
-      description?: string | null;
-      color?: CategoryColor;
-    },
-  ): Promise<CategoryRecord> {
-    const name = normalizeCategoryDisplayName(input.name);
-    await this.ensureNameAvailable(userId, name);
-
-    return this.categoryStore.create({
-      userId,
-      name,
-      description: normalizeCategoryDescription(input.description),
-      ...(input.color === undefined ? {} : { color: input.color }),
-    });
-  }
-
   async createCategoryInSpace(
     userId: string,
     spaceId: string,
@@ -67,21 +48,8 @@ export class CategoriesService {
     });
   }
 
-  listCategories(userId: string): Promise<CategoryRecord[]> {
-    return this.categoryStore.findAll(userId);
-  }
-
   listCategoriesInSpace(spaceId: string): Promise<CategoryRecord[]> {
     return this.getSpaceCategoryStore().findAllBySpaceId(spaceId);
-  }
-
-  async getCategory(userId: string, id: string): Promise<CategoryRecord> {
-    const category = await this.categoryStore.findById(userId, id);
-    if (!category) {
-      throw new CategoryNotFoundError();
-    }
-
-    return category;
   }
 
   async getCategoryInSpace(
@@ -97,38 +65,6 @@ export class CategoriesService {
     }
 
     return category;
-  }
-
-  async updateCategory(
-    userId: string,
-    id: string,
-    input: UpdateCategory,
-  ): Promise<CategoryRecord> {
-    const currentCategory = await this.getCategory(userId, id);
-    const changes = normalizeUpdate(input);
-
-    if (
-      changes.name !== undefined &&
-      normalizeCategoryName(changes.name) !==
-        normalizeCategoryName(currentCategory.name)
-    ) {
-      await this.ensureNameAvailable(userId, changes.name, id);
-    }
-
-    if (isNoOp(currentCategory, changes)) {
-      return currentCategory;
-    }
-
-    const updatedCategory = await this.categoryStore.update(
-      userId,
-      id,
-      changes,
-    );
-    if (!updatedCategory) {
-      throw new CategoryNotFoundError();
-    }
-
-    return updatedCategory;
   }
 
   async updateCategoryInSpace(
@@ -162,28 +98,6 @@ export class CategoriesService {
     }
 
     return updatedCategory;
-  }
-
-  deactivateCategory(userId: string, id: string): Promise<CategoryRecord> {
-    return this.updateCategory(userId, id, { isActive: false });
-  }
-
-  reactivateCategory(userId: string, id: string): Promise<CategoryRecord> {
-    return this.updateCategory(userId, id, { isActive: true });
-  }
-
-  private async ensureNameAvailable(
-    userId: string,
-    name: string,
-    currentCategoryId?: string,
-  ): Promise<void> {
-    const existingCategory = await this.categoryStore.findByNormalizedName(
-      userId,
-      normalizeCategoryName(name),
-    );
-    if (existingCategory && existingCategory.id !== currentCategoryId) {
-      throw new CategoryNameConflictError();
-    }
   }
 
   private async ensureNameAvailableInSpace(

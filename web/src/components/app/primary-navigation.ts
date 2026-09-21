@@ -14,4 +14,8 @@ const primaryNavigation = [
   { label: "Sharing", href: "/sharing", icon: UsersRoundIcon },
 ];
 
-export { primaryNavigation };
+const mobileNavigation = primaryNavigation.filter(
+  ({ href }) => href !== "/sharing",
+);
+
+export { mobileNavigation, primaryNavigation };

@@ -10,7 +10,6 @@ export const INVITATION_INELIGIBLE_CODE = 'INVITATION_INELIGIBLE';
 export const INVITATION_EXPIRED_CODE = 'INVITATION_EXPIRED';
 export const INVITATION_CANCELED_CODE = 'INVITATION_CANCELED';
 export const INVITATION_DECLINED_CODE = 'INVITATION_DECLINED';
-export const INVITATION_DELIVERY_FAILED_CODE = 'INVITATION_DELIVERY_FAILED';
 
 export class InvitationNotFoundError extends ApplicationError {
   constructor() {
@@ -75,14 +74,5 @@ export class InvitationCanceledError extends ApplicationError {
 export class InvitationDeclinedError extends ApplicationError {
   constructor() {
     super(INVITATION_DECLINED_CODE, 'This invitation was declined');
-  }
-}
-
-export class InvitationDeliveryFailedError extends ApplicationError {
-  constructor() {
-    super(
-      INVITATION_DELIVERY_FAILED_CODE,
-      'The invitation was saved, but its email could not be delivered',
-    );
   }
 }

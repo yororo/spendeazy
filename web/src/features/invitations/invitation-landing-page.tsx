@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
 import { FeatureDataLoading } from '@/components/app/feature-data-state';
@@ -6,55 +6,36 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 
 import {
-  declinePublicInvitation,
-  getPublicInvitation,
-} from './public-invitation-service';
-import type { PublicInvitation } from './invitations-service';
+  useDeclinePublicInvitationMutation,
+  usePublicInvitationQuery,
+} from './public-invitation-queries';
 
 function InvitationLandingPage() {
   const { token = '' } = useParams();
-  const [invitation, setInvitation] = useState<PublicInvitation | null>(null);
-  const [loadedToken, setLoadedToken] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [confirmingDecline, setConfirmingDecline] = useState(false);
-  const [declined, setDeclined] = useState(false);
-  const [declinePending, setDeclinePending] = useState(false);
-
-  useEffect(() => {
-    let active = true;
-    void getPublicInvitation(token)
-      .then((result) => {
-        if (active) {
-          setInvitation(result);
-          setError(null);
-          setDeclined(false);
-        }
-      })
-      .catch((reason: unknown) => {
-        if (active) setError(reason instanceof Error ? reason.message : 'This invitation is unavailable.');
-      })
-      .finally(() => {
-        if (active) setLoadedToken(token);
-      });
-    return () => {
-      active = false;
-    };
-  }, [token]);
+  const [confirmingToken, setConfirmingToken] = useState<string | null>(null);
+  const [declinedToken, setDeclinedToken] = useState<string | null>(null);
+  const invitationQuery = usePublicInvitationQuery(token);
+  const declineMutation = useDeclinePublicInvitationMutation();
+  const invitation = invitationQuery.data;
+  const error = invitationQuery.error;
+  const declineError =
+    declineMutation.variables?.token === token ? declineMutation.error : null;
+  const confirmingDecline = confirmingToken === token;
+  const declined = declinedToken === token;
 
   async function confirmDecline() {
-    setDeclinePending(true);
     try {
-      await declinePublicInvitation(token);
-      setDeclined(true);
-      setConfirmingDecline(false);
-    } catch (reason: unknown) {
-      setError(reason instanceof Error ? reason.message : 'The invitation could not be declined.');
-    } finally {
-      setDeclinePending(false);
+      await declineMutation.mutateAsync({ token });
+      setDeclinedToken(token);
+      setConfirmingToken(null);
+    } catch {
+      // The mutation's error is rendered below and remains available for retry.
     }
   }
 
-  if (loadedToken !== token) return <FeatureDataLoading label="Loading invitation" />;
+  if (invitationQuery.isPending) {
+    return <FeatureDataLoading label="Loading invitation" />;
+  }
 
   return (
     <main className="grid min-h-screen place-items-center bg-background px-4 py-10">
@@ -64,10 +45,14 @@ function InvitationLandingPage() {
           <CardTitle className="mt-2 text-xl">Shared Space invitation</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 text-sm">
-          {error ? (
-            <p className="text-destructive" role="alert">{error}</p>
-          ) : declined ? (
+          {declined ? (
             <p role="status">The invitation was declined. No account or membership was created.</p>
+          ) : error || declineError ? (
+            <p className="text-destructive" role="alert">
+              {(error ?? declineError) instanceof Error
+                ? (error ?? declineError)?.message
+                : 'This invitation is unavailable.'}
+            </p>
           ) : invitation ? (
             <>
               <p>
@@ -86,15 +71,15 @@ function InvitationLandingPage() {
           {invitation?.canDecline && !declined && (
             confirmingDecline ? (
               <>
-                <Button type="button" variant="destructive" onClick={() => void confirmDecline()} disabled={declinePending}>
+                <Button type="button" variant="destructive" onClick={() => void confirmDecline()} disabled={declineMutation.isPending}>
                   Confirm decline
                 </Button>
-                <Button type="button" variant="ghost" onClick={() => setConfirmingDecline(false)} disabled={declinePending}>
+                <Button type="button" variant="ghost" onClick={() => setConfirmingToken(null)} disabled={declineMutation.isPending}>
                   Keep invitation
                 </Button>
               </>
             ) : (
-              <Button type="button" variant="outline" onClick={() => setConfirmingDecline(true)}>
+              <Button type="button" variant="outline" onClick={() => setConfirmingToken(token)}>
                 Decline invitation
               </Button>
             )

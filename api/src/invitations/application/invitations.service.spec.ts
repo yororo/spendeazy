@@ -11,6 +11,7 @@ import {
   InvitationsService,
 } from './invitations.service';
 import type {
+  DeliveryReservation,
   InvitationRecord,
   InvitationStore,
   NewDeliveryAttempt,
@@ -18,7 +19,10 @@ import type {
   UpdateInvitation,
 } from './invitation-store';
 import {
+  InvitationCanceledError,
   InvitationDailyLimitReachedError,
+  InvitationDeclinedError,
+  InvitationExpiredError,
   InvitationNotFoundError,
   InvitationRateLimitedError,
 } from './invitation-errors';
@@ -129,17 +133,48 @@ describe('InvitationsService', () => {
       deliveryError: null,
     });
   });
+
+  it('does not expose incoming invitations while the recipient has an active Shared Space', async () => {
+    const clock = new TestClock('2026-09-21T00:00:00.000Z');
+    const delivery = new TestDelivery();
+    const store = new FakeInvitationStore();
+    const senderService = createService(store, delivery, clock);
+    await senderService.create('1', 'companion@example.test');
+
+    const recipientService = createService(store, delivery, clock, [
+      { kind: 'shared' } as AccessibleSpaceRecord,
+    ]);
+    await expect(recipientService.listForUser('2')).resolves.toMatchObject({
+      incoming: [],
+    });
+  });
+
+  it('reports an expired preview without mutating the invitation', async () => {
+    const clock = new TestClock('2026-09-21T00:00:00.000Z');
+    const delivery = new TestDelivery();
+    const store = new FakeInvitationStore();
+    const service = createService(store, delivery, clock);
+    await service.create('1', 'unregistered@example.test');
+    const token = delivery.messages[0].invitationUrl.split('/').at(-1)!;
+
+    clock.advance(7 * 24 * 60 * 60 * 1000);
+    await expect(service.getPublic(token)).rejects.toBeInstanceOf(
+      InvitationExpiredError,
+    );
+    expect(store.records[0].status).toBe('pending');
+  });
 });
 
 function createService(
   store: FakeInvitationStore,
   delivery: TestDelivery,
   clock: TestClock,
+  activeSpaces: AccessibleSpaceRecord[] = [],
 ): InvitationsService {
   return new InvitationsService(
     store,
     new FakeUserStore(),
-    new FakeSpaceAccessService(),
+    new FakeSpaceAccessService(activeSpaces),
     delivery,
     clock,
     'https://app.test',
@@ -202,15 +237,19 @@ class FakeUserStore implements UserStore {
 }
 
 class FakeSpaceAccessService {
+  constructor(private readonly spaces: AccessibleSpaceRecord[] = []) {}
+
   listActiveAccessibleSpaces(): Promise<AccessibleSpaceRecord[]> {
-    return Promise.resolve([]);
+    return Promise.resolve(this.spaces);
   }
 }
 
 class FakeInvitationStore implements InvitationStore {
   records: InvitationRecord[] = [];
   private attempts: NewDeliveryAttempt[] = [];
+  private readonly reservations = new Map<string, NewDeliveryAttempt>();
   private nextId = 1;
+  private nextAttemptId = 1;
 
   findPendingBySender(senderUserId: string): Promise<InvitationRecord | null> {
     return Promise.resolve(
@@ -261,7 +300,7 @@ class FakeInvitationStore implements InvitationStore {
   }
 
   create(input: NewInvitation): Promise<InvitationRecord> {
-    const now = new Date(input.lastSentAt);
+    const now = new Date(input.lastSentAt ?? input.expiresAt);
     const record: InvitationRecord = {
       ...input,
       id: String(this.nextId++),
@@ -310,13 +349,67 @@ class FakeInvitationStore implements InvitationStore {
     return Promise.resolve();
   }
 
-  countDeliveryAttempts(senderUserId: string, since: Date): Promise<number> {
-    return Promise.resolve(
+  reserveDeliveryAttempt(
+    senderUserId: string,
+    invitationId: string,
+    now: Date,
+    cooldownMs: number,
+    dailyLimit: number,
+    since: Date,
+  ): Promise<DeliveryReservation> {
+    const invitation = this.records.find(
+      (record) =>
+        record.id === invitationId && record.senderUserId === senderUserId,
+    );
+    if (!invitation) return Promise.reject(new InvitationNotFoundError());
+    if (invitation.status === 'canceled') {
+      return Promise.reject(new InvitationCanceledError());
+    }
+    if (invitation.status === 'declined') {
+      return Promise.reject(new InvitationDeclinedError());
+    }
+    if (
+      invitation.lastSentAt &&
+      now.getTime() - invitation.lastSentAt.getTime() < cooldownMs
+    ) {
+      return Promise.reject(new InvitationRateLimitedError());
+    }
+    if (
       this.attempts.filter(
         (attempt) =>
           attempt.senderUserId === senderUserId && attempt.attemptedAt >= since,
-      ).length,
-    );
+      ).length >= dailyLimit
+    ) {
+      return Promise.reject(new InvitationDailyLimitReachedError());
+    }
+
+    invitation.lastSentAt = now;
+    invitation.deliveryStatus = 'pending';
+    invitation.deliveryError = null;
+    const id = String(this.nextAttemptId++);
+    const attempt: NewDeliveryAttempt = {
+      invitationId,
+      senderUserId,
+      attemptedAt: now,
+      succeeded: false,
+      error: null,
+    };
+    this.attempts.push(attempt);
+    this.reservations.set(id, attempt);
+    return Promise.resolve({ id });
+  }
+
+  completeDeliveryAttempt(
+    attemptId: string,
+    succeeded: boolean,
+    error: string | null,
+  ): Promise<void> {
+    const attempt = this.reservations.get(attemptId);
+    if (attempt) {
+      attempt.succeeded = succeeded;
+      attempt.error = error;
+    }
+    return Promise.resolve();
   }
 
   recordDeliveryAttempt(input: NewDeliveryAttempt): Promise<void> {

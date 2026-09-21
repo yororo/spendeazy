@@ -48,7 +48,6 @@ import {
   INVITATION_EXPIRED_CODE,
   INVITATION_CANCELED_CODE,
   INVITATION_DECLINED_CODE,
-  INVITATION_DELIVERY_FAILED_CODE,
 } from '../errors/application-error-codes';
 import { TRANSACTION_NOT_FOUND_CODE } from '../transactions/application/transaction-errors';
 import { IMPORTED_TRANSACTION_IMMUTABLE_CODE } from '../transactions/application/transaction-errors';
@@ -328,7 +327,6 @@ function applicationErrorStatus(code: string): number {
     case INVITATION_DAILY_LIMIT_REACHED_CODE:
     case INVITATION_SELF_CODE:
     case INVITATION_INELIGIBLE_CODE:
-    case INVITATION_DELIVERY_FAILED_CODE:
       return HttpStatus.CONFLICT;
     default:
       return HttpStatus.INTERNAL_SERVER_ERROR;

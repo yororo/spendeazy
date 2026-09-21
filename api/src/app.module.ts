@@ -37,7 +37,7 @@ export function createAppModule(
         provide: DATABASE_READINESS,
         useClass: PostgresDatabaseReadiness,
       }),
-      ...createApiFeatureModules(Boolean(config.databaseUrl)),
+      ...createApiFeatureModules(Boolean(config.databaseUrl), {}, config),
     ],
     controllers: [DocsController],
     providers: [ProvisionedUserGuard, OpenApiDocumentService],

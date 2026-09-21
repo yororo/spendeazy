@@ -77,6 +77,25 @@ describe('loadAppConfig', () => {
     ).toThrow('CLERK_SECRET_KEY must be a valid Clerk secret key');
   });
 
+  it('validates invitation delivery URLs and preserves configured values', () => {
+    expect(
+      loadAppConfig({
+        NODE_ENV: 'test',
+        INVITATION_DELIVERY_URL: ' https://mailer.example.test/send/ ',
+        INVITATION_DELIVERY_API_KEY: ' delivery-secret ',
+        INVITATION_WEB_BASE_URL: 'https://app.example.test/ ',
+      }),
+    ).toMatchObject({
+      invitationDeliveryUrl: 'https://mailer.example.test/send',
+      invitationDeliveryApiKey: 'delivery-secret',
+      invitationWebBaseUrl: 'https://app.example.test',
+    });
+
+    expect(() =>
+      loadAppConfig({ INVITATION_DELIVERY_URL: 'ftp://mailer.example.test' }),
+    ).toThrow('INVITATION_DELIVERY_URL must be an HTTP(S) URL');
+  });
+
   it('rejects Clerk public key formats unsupported by the verifier', () => {
     const rsaPkcs1Key = generateKeyPairSync('rsa', { modulusLength: 2048 })
       .publicKey.export({ type: 'pkcs1', format: 'pem' })

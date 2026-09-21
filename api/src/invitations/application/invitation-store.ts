@@ -26,7 +26,7 @@ export interface NewInvitation {
   recipientUserId: string | null;
   tokenHash: string;
   expiresAt: Date;
-  lastSentAt: Date;
+  lastSentAt: Date | null;
   deliveryStatus?: InvitationDeliveryStatus;
   deliveryError?: string | null;
 }
@@ -47,6 +47,10 @@ export interface NewDeliveryAttempt {
   attemptedAt: Date;
   succeeded: boolean;
   error: string | null;
+}
+
+export interface DeliveryReservation {
+  id: string;
 }
 
 export interface InvitationStore {
@@ -71,6 +75,18 @@ export interface InvitationStore {
     recipientEmail: string,
   ): Promise<void>;
   expirePending(before: Date): Promise<void>;
-  countDeliveryAttempts(senderUserId: string, since: Date): Promise<number>;
+  reserveDeliveryAttempt(
+    senderUserId: string,
+    invitationId: string,
+    now: Date,
+    cooldownMs: number,
+    dailyLimit: number,
+    since: Date,
+  ): Promise<DeliveryReservation>;
+  completeDeliveryAttempt(
+    attemptId: string,
+    succeeded: boolean,
+    error: string | null,
+  ): Promise<void>;
   recordDeliveryAttempt(input: NewDeliveryAttempt): Promise<void>;
 }

@@ -1,13 +1,13 @@
 import { NavLink } from "react-router-dom";
 
-import { primaryNavigation } from "@/components/app/primary-navigation";
+import { mobileNavigation } from "@/components/app/primary-navigation";
 import { cn } from "@/lib/utils";
 
 function MobileTabBar() {
   return (
     <nav aria-label="Mobile navigation" className="mobile-tab-bar">
-      <ul className="grid h-[var(--mobile-tab-bar-height)] grid-cols-5">
-        {primaryNavigation.map(({ label, href, icon: Icon }) => (
+      <ul className="grid h-[var(--mobile-tab-bar-height)] grid-cols-4">
+        {mobileNavigation.map(({ label, href, icon: Icon }) => (
           <li key={href} className="min-w-0">
             <NavLink
               to={href}

@@ -10,6 +10,7 @@ function publicInvitationUrl(baseUrl: string, token: string, action?: 'decline')
 async function publicInvitationRequest<T>(
   token: string,
   action: 'preview' | 'decline',
+  signal?: AbortSignal,
 ): Promise<T | undefined> {
   const { baseUrl } = readApiConfig();
   const response = await fetch(
@@ -20,6 +21,7 @@ async function publicInvitationRequest<T>(
         Accept: 'application/json',
         ...(action === 'decline' ? { 'Content-Type': 'application/json' } : {}),
       },
+      signal,
       ...(action === 'decline' ? { body: JSON.stringify({ confirm: true }) } : {}),
     },
   );
@@ -34,16 +36,26 @@ async function publicInvitationRequest<T>(
   return body as T | undefined;
 }
 
-async function getPublicInvitation(token: string): Promise<PublicInvitation> {
-  const response = await publicInvitationRequest<unknown>(token, 'preview');
+async function getPublicInvitation(
+  token: string,
+  signal?: AbortSignal,
+): Promise<PublicInvitation> {
+  const response = await publicInvitationRequest<unknown>(
+    token,
+    'preview',
+    signal,
+  );
   if (!isPublicInvitation(response)) {
     throw new Error('The invitation response was invalid.');
   }
   return response;
 }
 
-async function declinePublicInvitation(token: string): Promise<void> {
-  await publicInvitationRequest(token, 'decline');
+async function declinePublicInvitation(
+  token: string,
+  signal?: AbortSignal,
+): Promise<void> {
+  await publicInvitationRequest(token, 'decline', signal);
 }
 
 function isPublicInvitation(value: unknown): value is PublicInvitation {
@@ -66,4 +78,3 @@ function isPublicInvitation(value: unknown): value is PublicInvitation {
 }
 
 export { declinePublicInvitation, getPublicInvitation, isPublicInvitation };
-

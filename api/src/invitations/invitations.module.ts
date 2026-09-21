@@ -1,16 +1,17 @@
 import { DynamicModule, Module } from '@nestjs/common';
 
+import type { AppConfig } from '../config/app-config';
 import { SpacesModule } from '../spaces/spaces.module';
 import { UsersModule } from '../users/users.module';
 import {
   INVITATION_CLOCK,
   INVITATION_DELIVERY,
   SystemInvitationClock,
-  HttpInvitationDelivery,
 } from './application/invitation-delivery';
 import { INVITATION_STORE } from './application/invitation-store';
 import { InvitationsService } from './application/invitations.service';
 import { TypeOrmInvitationStore } from './infrastructure/typeorm-invitation-store';
+import { HttpInvitationDelivery } from './infrastructure/http-invitation-delivery';
 import { InvitationsController } from './presentation/invitations.controller';
 import { PublicInvitationsController } from './presentation/public-invitations.controller';
 
@@ -21,6 +22,7 @@ export class InvitationsModule {
   static register(
     databaseIsConfigured: boolean,
     options: { includeControllers?: boolean } = {},
+    config?: AppConfig,
   ): DynamicModule {
     const shouldIncludeControllers =
       databaseIsConfigured || options.includeControllers === true;
@@ -51,11 +53,10 @@ export class InvitationsModule {
         { provide: INVITATION_STORE, useExisting: TypeOrmInvitationStore },
         {
           provide: 'INVITATION_DELIVERY_CONFIG',
-          useFactory: () => ({
-            url: readOptionalUrl(process.env.INVITATION_DELIVERY_URL),
-            apiKey:
-              process.env.INVITATION_DELIVERY_API_KEY?.trim() || undefined,
-          }),
+          useValue: {
+            url: config?.invitationDeliveryUrl,
+            apiKey: config?.invitationDeliveryApiKey,
+          },
         },
         HttpInvitationDelivery,
         { provide: INVITATION_DELIVERY, useExisting: HttpInvitationDelivery },
@@ -63,24 +64,10 @@ export class InvitationsModule {
         { provide: INVITATION_CLOCK, useExisting: SystemInvitationClock },
         {
           provide: 'INVITATION_WEB_BASE_URL',
-          useFactory: () =>
-            readOptionalUrl(process.env.INVITATION_WEB_BASE_URL) ??
-            'http://localhost:5173',
+          useValue: config?.invitationWebBaseUrl ?? 'http://localhost:5173',
         },
         InvitationsService,
       ],
     };
-  }
-}
-
-function readOptionalUrl(value: string | undefined): string | undefined {
-  const trimmed = value?.trim();
-  if (!trimmed) return undefined;
-  try {
-    const url = new URL(trimmed);
-    if (!['http:', 'https:'].includes(url.protocol)) return undefined;
-    return url.toString().replace(/\/$/u, '');
-  } catch {
-    return undefined;
   }
 }

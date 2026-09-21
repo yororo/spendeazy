@@ -21,16 +21,15 @@ import {
 import {
   InvitationAlreadyPendingError,
   InvitationCanceledError,
-  InvitationDailyLimitReachedError,
   InvitationDeclinedError,
   InvitationExpiredError,
   InvitationIneligibleError,
   InvitationNotFoundError,
-  InvitationRateLimitedError,
   InvitationSelfError,
 } from './invitation-errors';
 import {
   INVITATION_STORE,
+  type DeliveryReservation,
   type InvitationRecord,
   type InvitationStore,
 } from './invitation-store';
@@ -87,9 +86,16 @@ export class InvitationsService {
     await this.invitationStore.expirePending(now);
     const user = await this.requireUser(userId);
     await this.invitationStore.associateRecipientEmail(userId, user.email);
+    const activeSpaces =
+      await this.spaceAccessService.listActiveAccessibleSpaces(userId);
+    const canReceiveInvitations = !activeSpaces.some(
+      (space) => space.kind === 'shared',
+    );
     const [outgoing, incoming] = await Promise.all([
       this.invitationStore.findLatestBySender(userId),
-      this.invitationStore.listIncoming(userId, user.email),
+      canReceiveInvitations
+        ? this.invitationStore.listIncoming(userId, user.email)
+        : Promise.resolve([]),
     ]);
     return {
       outgoing:
@@ -119,7 +125,6 @@ export class InvitationsService {
       await this.invitationStore.findPendingBySender(senderUserId);
     if (existing) throw new InvitationAlreadyPendingError();
 
-    await this.assertDailyLimit(senderUserId, now);
     const recipient = await this.userStore.findByEmail(
       normalizedRecipientEmail,
     );
@@ -130,9 +135,23 @@ export class InvitationsService {
       recipientUserId: recipient?.id ?? null,
       tokenHash: hashInvitationToken(token),
       expiresAt: addExpiry(now),
-      lastSentAt: now,
+      lastSentAt: null,
     });
-    await this.deliver(invitation, token, sender);
+    let reservation: DeliveryReservation;
+    try {
+      reservation = await this.invitationStore.reserveDeliveryAttempt(
+        senderUserId,
+        invitation.id,
+        now,
+        0,
+        INVITATION_DAILY_EMAIL_LIMIT,
+        startOfUtcDay(now),
+      );
+    } catch (error: unknown) {
+      await this.invitationStore.update(invitation.id, { status: 'canceled' });
+      throw error;
+    }
+    await this.deliver(invitation, token, sender, reservation);
     const current =
       (await this.invitationStore.findBySender(senderUserId, invitation.id)) ??
       invitation;
@@ -162,26 +181,32 @@ export class InvitationsService {
     );
     if (invitation.status === 'canceled') throw new InvitationCanceledError();
     if (invitation.status === 'declined') throw new InvitationDeclinedError();
-    if (
-      invitation.lastSentAt &&
-      now.getTime() - invitation.lastSentAt.getTime() <
-        INVITATION_RESEND_COOLDOWN_MS
-    ) {
-      throw new InvitationRateLimitedError();
-    }
-    await this.assertDailyLimit(senderUserId, now);
+    const reservation = await this.invitationStore.reserveDeliveryAttempt(
+      senderUserId,
+      invitation.id,
+      now,
+      INVITATION_RESEND_COOLDOWN_MS,
+      INVITATION_DAILY_EMAIL_LIMIT,
+      startOfUtcDay(now),
+    );
 
     const token = createInvitationToken();
     const updated = await this.invitationStore.update(invitation.id, {
       tokenHash: hashInvitationToken(token),
       status: 'pending',
       expiresAt: addExpiry(now),
-      lastSentAt: now,
       deliveryStatus: 'pending',
       deliveryError: null,
     });
-    if (!updated) throw new InvitationNotFoundError();
-    await this.deliver(updated, token, sender);
+    if (!updated) {
+      await this.invitationStore.completeDeliveryAttempt(
+        reservation.id,
+        false,
+        'Invitation could not be updated',
+      );
+      throw new InvitationNotFoundError();
+    }
+    await this.deliver(updated, token, sender, reservation);
     const current =
       (await this.invitationStore.findBySender(senderUserId, invitation.id)) ??
       updated;
@@ -252,6 +277,7 @@ export class InvitationsService {
     invitation: InvitationRecord,
     token: string,
     sender: UserRecord,
+    reservation?: DeliveryReservation,
   ): Promise<void> {
     const email: InvitationEmail = {
       invitationId: invitation.id,
@@ -261,13 +287,21 @@ export class InvitationsService {
     };
     try {
       await this.invitationDelivery.send(email);
-      await this.invitationStore.recordDeliveryAttempt({
-        invitationId: invitation.id,
-        senderUserId: invitation.senderUserId,
-        attemptedAt: this.clock.now(),
-        succeeded: true,
-        error: null,
-      });
+      if (reservation) {
+        await this.invitationStore.completeDeliveryAttempt(
+          reservation.id,
+          true,
+          null,
+        );
+      } else {
+        await this.invitationStore.recordDeliveryAttempt({
+          invitationId: invitation.id,
+          senderUserId: invitation.senderUserId,
+          attemptedAt: this.clock.now(),
+          succeeded: true,
+          error: null,
+        });
+      }
       await this.invitationStore.update(invitation.id, {
         deliveryStatus: 'sent',
         deliveryError: null,
@@ -276,30 +310,25 @@ export class InvitationsService {
       const message =
         error instanceof Error ? error.message : 'Delivery failed';
       const safeMessage = message.slice(0, 500);
-      await this.invitationStore.recordDeliveryAttempt({
-        invitationId: invitation.id,
-        senderUserId: invitation.senderUserId,
-        attemptedAt: this.clock.now(),
-        succeeded: false,
-        error: safeMessage,
-      });
+      if (reservation) {
+        await this.invitationStore.completeDeliveryAttempt(
+          reservation.id,
+          false,
+          safeMessage,
+        );
+      } else {
+        await this.invitationStore.recordDeliveryAttempt({
+          invitationId: invitation.id,
+          senderUserId: invitation.senderUserId,
+          attemptedAt: this.clock.now(),
+          succeeded: false,
+          error: safeMessage,
+        });
+      }
       await this.invitationStore.update(invitation.id, {
         deliveryStatus: 'failed',
         deliveryError: safeMessage,
       });
-    }
-  }
-
-  private async assertDailyLimit(
-    senderUserId: string,
-    now: Date,
-  ): Promise<void> {
-    const attempts = await this.invitationStore.countDeliveryAttempts(
-      senderUserId,
-      startOfUtcDay(now),
-    );
-    if (attempts >= INVITATION_DAILY_EMAIL_LIMIT) {
-      throw new InvitationDailyLimitReachedError();
     }
   }
 

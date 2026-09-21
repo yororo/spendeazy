@@ -34,6 +34,9 @@ export interface AppConfig {
   clerkJwtKey: string | undefined;
   clerkSecretKey: string | undefined;
   clerkAuthorizedParties: string[];
+  invitationDeliveryUrl?: string;
+  invitationDeliveryApiKey?: string;
+  invitationWebBaseUrl?: string;
 }
 
 export function loadAppConfig(
@@ -47,6 +50,17 @@ export function loadAppConfig(
   const clerkSecretKey = readClerkSecretKey(processEnv.CLERK_SECRET_KEY);
   const clerkAuthorizedParties = readClerkAuthorizedParties(
     processEnv.CLERK_AUTHORIZED_PARTIES,
+  );
+  const invitationDeliveryUrl = readOptionalHttpUrl(
+    processEnv.INVITATION_DELIVERY_URL,
+    'INVITATION_DELIVERY_URL',
+  );
+  const invitationWebBaseUrl = readOptionalHttpUrl(
+    processEnv.INVITATION_WEB_BASE_URL,
+    'INVITATION_WEB_BASE_URL',
+  );
+  const invitationDeliveryApiKey = readOptionalSecret(
+    processEnv.INVITATION_DELIVERY_API_KEY,
   );
 
   if (currentEnvironment === PRODUCTION_ENVIRONMENT) {
@@ -68,6 +82,9 @@ export function loadAppConfig(
     clerkJwtKey,
     clerkSecretKey,
     clerkAuthorizedParties,
+    ...(invitationDeliveryUrl ? { invitationDeliveryUrl } : {}),
+    ...(invitationDeliveryApiKey ? { invitationDeliveryApiKey } : {}),
+    ...(invitationWebBaseUrl ? { invitationWebBaseUrl } : {}),
   };
 }
 
@@ -133,6 +150,34 @@ function readExplicitHttpOrigins(
   }
 
   return origins as string[];
+}
+
+function readOptionalHttpUrl(
+  value: string | undefined,
+  variableName: string,
+): string | undefined {
+  const trimmed = value?.trim();
+  if (!trimmed) return undefined;
+
+  try {
+    const parsed = new URL(trimmed);
+    if (
+      !['http:', 'https:'].includes(parsed.protocol) ||
+      !parsed.hostname ||
+      parsed.username ||
+      parsed.password
+    ) {
+      throw new Error('invalid URL');
+    }
+    return parsed.toString().replace(/\/$/u, '');
+  } catch {
+    throw new Error(`${variableName} must be an HTTP(S) URL`);
+  }
+}
+
+function readOptionalSecret(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed || undefined;
 }
 
 function readClerkJwtKey(value: string | undefined): string | undefined {

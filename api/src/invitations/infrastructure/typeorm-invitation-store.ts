@@ -5,8 +5,17 @@ import { QueryFailedError, type EntityManager } from 'typeorm';
 import { POSTGRES_UNIQUE_VIOLATION } from '../../database/database-error-codes';
 import { InvitationDeliveryAttemptEntity } from '../../database/entities/invitation-delivery-attempt.entity';
 import { InvitationEntity } from '../../database/entities/invitation.entity';
-import { InvitationAlreadyPendingError } from '../application/invitation-errors';
+import { UserEntity } from '../../database/entities/user.entity';
+import {
+  InvitationAlreadyPendingError,
+  InvitationCanceledError,
+  InvitationDailyLimitReachedError,
+  InvitationDeclinedError,
+  InvitationNotFoundError,
+  InvitationRateLimitedError,
+} from '../application/invitation-errors';
 import type {
+  DeliveryReservation,
   InvitationRecord,
   InvitationStore,
   NewDeliveryAttempt,
@@ -158,16 +167,89 @@ export class TypeOrmInvitationStore implements InvitationStore {
       .execute();
   }
 
-  async countDeliveryAttempts(
+  async reserveDeliveryAttempt(
     senderUserId: string,
+    invitationId: string,
+    now: Date,
+    cooldownMs: number,
+    dailyLimit: number,
     since: Date,
-  ): Promise<number> {
-    return this.entityManager
-      .getRepository(InvitationDeliveryAttemptEntity)
-      .createQueryBuilder('attempt')
-      .where('attempt.senderUserId = :senderUserId', { senderUserId })
-      .andWhere('attempt.attemptedAt >= :since', { since })
-      .getCount();
+  ): Promise<DeliveryReservation> {
+    return this.entityManager.transaction(async (entityManager) => {
+      const sender = await entityManager
+        .getRepository(UserEntity)
+        .createQueryBuilder('sender')
+        .where('sender.id = :senderUserId', { senderUserId })
+        .setLock('pessimistic_write')
+        .getOne();
+      if (!sender) throw new InvitationNotFoundError();
+
+      const invitation = await entityManager
+        .getRepository(InvitationEntity)
+        .createQueryBuilder('invitation')
+        .where('invitation.id = :invitationId', { invitationId })
+        .andWhere('invitation.sender_user_id = :senderUserId', {
+          senderUserId,
+        })
+        .setLock('pessimistic_write')
+        .getOne();
+      if (!invitation) throw new InvitationNotFoundError();
+      if (invitation.status === 'canceled') {
+        throw new InvitationCanceledError();
+      }
+      if (invitation.status === 'declined') {
+        throw new InvitationDeclinedError();
+      }
+      if (
+        invitation.lastSentAt &&
+        now.getTime() - invitation.lastSentAt.getTime() < cooldownMs
+      ) {
+        throw new InvitationRateLimitedError();
+      }
+
+      const attempts = await entityManager
+        .getRepository(InvitationDeliveryAttemptEntity)
+        .createQueryBuilder('attempt')
+        .where('attempt.sender_user_id = :senderUserId', { senderUserId })
+        .andWhere('attempt.attempted_at >= :since', { since })
+        .getCount();
+      if (attempts >= dailyLimit) {
+        throw new InvitationDailyLimitReachedError();
+      }
+
+      invitation.lastSentAt = now;
+      invitation.deliveryStatus = 'pending';
+      invitation.deliveryError = null;
+      await entityManager.getRepository(InvitationEntity).save(invitation);
+
+      const attempt = await entityManager
+        .getRepository(InvitationDeliveryAttemptEntity)
+        .save(
+          entityManager.getRepository(InvitationDeliveryAttemptEntity).create({
+            invitationId,
+            senderUserId,
+            attemptedAt: now,
+            succeeded: false,
+            error: null,
+          }),
+        );
+      return { id: attempt.id };
+    });
+  }
+
+  async completeDeliveryAttempt(
+    attemptId: string,
+    succeeded: boolean,
+    error: string | null,
+  ): Promise<void> {
+    const repository = this.entityManager.getRepository(
+      InvitationDeliveryAttemptEntity,
+    );
+    const attempt = await repository.findOne({ where: { id: attemptId } });
+    if (!attempt) return;
+    attempt.succeeded = succeeded;
+    attempt.error = error;
+    await repository.save(attempt);
   }
 
   async recordDeliveryAttempt(input: NewDeliveryAttempt): Promise<void> {

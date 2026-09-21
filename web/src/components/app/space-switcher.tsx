@@ -10,7 +10,14 @@ import {
 import { cn } from "@/lib/utils";
 import { useAccessibleSpacesQuery, type AccessibleSpace } from "@/shared/api";
 import { useNavigationGuard } from "@/shared/navigation";
+import { useAppSession } from "@/shared/session";
 import { getNameInitials } from "@/shared/user-name";
+import {
+  buildCanonicalSpaceSearch,
+  getActiveSpaces,
+  getPersonalSpace,
+  persistSpaceSelection,
+} from "./space-selection";
 
 interface SpaceSwitcherProps {
   readonly className?: string;
@@ -22,11 +29,14 @@ function SpaceSwitcher({ className, onNavigate }: SpaceSwitcherProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { requestNavigation } = useNavigationGuard();
+  const { user } = useAppSession();
   const currentSpaceId = new URLSearchParams(location.search).get("spaceId");
+  const activeSpaces = getActiveSpaces(spacesQuery.data ?? []);
+  const personalSpace = getPersonalSpace(spacesQuery.data ?? []);
   const activeSpace =
-    spacesQuery.data?.find((space) => space.id === currentSpaceId) ??
+    activeSpaces.find((space) => space.id === currentSpaceId) ??
     (currentSpaceId === null
-      ? spacesQuery.data?.find((space) => space.kind === "personal")
+      ? personalSpace
       : undefined);
   let activeLabel =
     currentSpaceId === null ? "Spaces unavailable" : "Space unavailable";
@@ -41,19 +51,14 @@ function SpaceSwitcher({ className, onNavigate }: SpaceSwitcherProps) {
   function switchSpace(spaceId: string) {
     if (spaceId === (currentSpaceId ?? activeSpace?.id)) return;
 
-    const nextParams = new URLSearchParams(location.search);
-    const personalSpace = spacesQuery.data?.find(
-      (space) => space.kind === "personal",
+    const search = buildCanonicalSpaceSearch(
+      location.search,
+      spaceId,
+      personalSpace?.id,
     );
-    if (spaceId === personalSpace?.id) {
-      nextParams.delete("spaceId");
-    } else {
-      nextParams.set("spaceId", spaceId);
-    }
-
-    const query = nextParams.toString();
-    const destination = `${location.pathname}${query ? `?${query}` : ""}${location.hash}`;
+    const destination = `${location.pathname}${search}${location.hash}`;
     const completeSwitch = () => {
+      persistSpaceSelection(user?.id, spaceId);
       navigate(destination);
       onNavigate?.();
     };
@@ -94,10 +99,10 @@ function SpaceSwitcher({ className, onNavigate }: SpaceSwitcherProps) {
               Spaces unavailable. Try again.
             </p>
           )}
-          {spacesQuery.isSuccess && spacesQuery.data.length === 0 && (
+          {spacesQuery.isSuccess && activeSpaces.length === 0 && (
             <p className="px-3 py-2 text-xs">No active Spaces are available.</p>
           )}
-          {spacesQuery.data?.map((space) => {
+          {activeSpaces.map((space) => {
             const isActive =
               space.id === (currentSpaceId ?? activeSpace?.id);
 

@@ -2,15 +2,29 @@ import { useEffect, useRef, useState, type MouseEvent } from "react";
 import { MenuIcon } from "lucide-react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 
+import {
+  FeatureDataError,
+  FeatureDataLoading,
+} from "@/components/app/feature-data-state";
 import { LedgerMark } from "@/components/app/ledger-mark";
 import { MobileTabBar } from "@/components/app/mobile-tab-bar";
 import { PrimarySidebar } from "@/components/app/primary-sidebar";
 import { SpaceSwitcher } from "@/components/app/space-switcher";
+import {
+  buildCanonicalSpaceSearch,
+  getPersonalSpace,
+  getRequestedSpaceId,
+  persistSpaceSelection,
+  readRememberedSpaceIds,
+  resolveSpaceSelection,
+} from "@/components/app/space-selection";
 import { Button } from "@/components/ui/button";
 import {
   NavigationGuardProvider,
   useNavigationGuard,
 } from "@/shared/navigation";
+import { useAccessibleSpacesQuery } from "@/shared/api";
+import { useAppSession } from "@/shared/session";
 import {
   Sheet,
   SheetContent,
@@ -39,10 +53,64 @@ function AppShellContent() {
   const [navigationOpen, setNavigationOpen] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
   const mainRef = useRef<HTMLElement>(null);
+  const { user } = useAppSession();
+  const spacesQuery = useAccessibleSpacesQuery(true);
   const location = useLocation();
   const { pathname } = location;
   const navigate = useNavigate();
   const { requestNavigation } = useNavigationGuard();
+  const rememberedSpaceIds = readRememberedSpaceIds(user?.id);
+  const personalSpace = getPersonalSpace(spacesQuery.data ?? []);
+  const requestedSpaceId = getRequestedSpaceId(location.search);
+  const rememberedSpaceId =
+    rememberedSpaceIds.tab ?? rememberedSpaceIds.device;
+  const selectedSpaceId = resolveSpaceSelection(
+    spacesQuery.data ?? [],
+    requestedSpaceId,
+    rememberedSpaceId,
+  );
+  const canonicalSearch =
+    personalSpace && selectedSpaceId
+      ? buildCanonicalSpaceSearch(
+          location.search,
+          selectedSpaceId,
+          personalSpace.id,
+        )
+      : location.search;
+  const selectionNeedsNavigation =
+    spacesQuery.isSuccess &&
+    personalSpace !== undefined &&
+    selectedSpaceId !== undefined &&
+    canonicalSearch !== location.search;
+
+  useEffect(() => {
+    if (
+      !spacesQuery.isSuccess ||
+      !personalSpace ||
+      !selectedSpaceId ||
+      !user?.id
+    ) {
+      return;
+    }
+
+    if (canonicalSearch !== location.search) {
+      const destination = `${location.pathname}${canonicalSearch}${location.hash}`;
+      navigate(destination, { replace: true });
+      return;
+    }
+
+    persistSpaceSelection(user.id, selectedSpaceId);
+  }, [
+    canonicalSearch,
+    location.hash,
+    location.pathname,
+    location.search,
+    navigate,
+    personalSpace,
+    selectedSpaceId,
+    spacesQuery.isSuccess,
+    user?.id,
+  ]);
 
   function handleNavigationClickCapture(event: MouseEvent<HTMLDivElement>) {
     if (
@@ -100,6 +168,32 @@ function AppShellContent() {
     contentRef.current?.scrollTo({ top: 0, behavior: "auto" });
     mainRef.current?.focus({ preventScroll: true });
   }, [pathname]);
+
+  if (spacesQuery.isPending) {
+    return <FeatureDataLoading label="Loading Spaces" />;
+  }
+
+  if (spacesQuery.isError) {
+    return (
+      <FeatureDataError
+        message={spacesQuery.error.message}
+        onRetry={() => void spacesQuery.refetch()}
+      />
+    );
+  }
+
+  if (!personalSpace) {
+    return (
+      <FeatureDataError
+        message="Personal Space is unavailable."
+        onRetry={() => void spacesQuery.refetch()}
+      />
+    );
+  }
+
+  if (selectionNeedsNavigation) {
+    return <FeatureDataLoading label="Restoring Space" />;
+  }
 
   return (
     <div

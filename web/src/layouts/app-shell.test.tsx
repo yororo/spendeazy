@@ -13,6 +13,7 @@ import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AppShell } from "./app-shell";
+import { getSpaceStorageKey } from "@/components/app/space-selection";
 import {
   useNavigationGuard,
   type NavigationAction,
@@ -21,19 +22,32 @@ import { AppSessionProvider, type AppSession } from "@/shared/session";
 
 vi.mock("@/shared/api", () => ({
   useAccessibleSpacesQuery: () => ({
+    isError: false,
+    isPending: false,
+    isSuccess: true,
+    error: null,
+    refetch: vi.fn(),
     data: [
       {
         id: "personal-1",
         kind: "personal",
+        status: "active",
+        accessLevel: "write",
         members: [{ id: "user-1", name: "Ada Lovelace" }],
+        createdAt: "2026-09-01T00:00:00.000Z",
+        updatedAt: "2026-09-01T00:00:00.000Z",
       },
       {
         id: "shared-1",
         kind: "shared",
+        status: "active",
+        accessLevel: "write",
         members: [
           { id: "user-1", name: "Ada Lovelace" },
           { id: "user-2", name: "Grace Hopper" },
         ],
+        createdAt: "2026-09-01T00:00:00.000Z",
+        updatedAt: "2026-09-01T00:00:00.000Z",
       },
     ],
   }),
@@ -54,6 +68,8 @@ const session: AppSession = {
 };
 
 beforeEach(() => {
+  localStorage.clear();
+  sessionStorage.clear();
   window.scrollTo = vi.fn();
   HTMLElement.prototype.scrollTo = vi.fn();
 });
@@ -221,6 +237,181 @@ describe("AppShell", () => {
 
     fireEvent.click(screen.getAllByRole("link", { name: "Dashboard" })[0]!);
     expect(screen.getByText("/?spaceId=shared-1")).toBeTruthy();
+  });
+
+  it("restores the device's last active Space in a new tab", async () => {
+    function CurrentLocation() {
+      const location = useLocation();
+      return <p>{`${location.pathname}${location.search}`}</p>;
+    }
+
+    const firstTab = render(
+      <AppSessionProvider session={session}>
+        <MemoryRouter initialEntries={["/transactions"]}>
+          <Routes>
+            <Route element={<AppShell />}>
+              <Route path="/transactions" element={<CurrentLocation />} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      </AppSessionProvider>,
+    );
+
+    fireEvent.click(
+      screen.getAllByRole("button", { name: /Active Space/u })[0]!,
+    );
+    fireEvent.click(
+      screen.getByRole("menuitemradio", {
+        name: /Shared.*Ada Lovelace.*Grace Hopper/u,
+      }),
+    );
+    expect(screen.getByText("/transactions?spaceId=shared-1")).toBeTruthy();
+
+    firstTab.unmount();
+    sessionStorage.removeItem(getSpaceStorageKey("tab", session.user!.id));
+
+    render(
+      <AppSessionProvider session={session}>
+        <MemoryRouter initialEntries={["/transactions"]}>
+          <Routes>
+            <Route element={<AppShell />}>
+              <Route path="/transactions" element={<CurrentLocation />} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      </AppSessionProvider>,
+    );
+
+    expect(
+      await screen.findByText("/transactions?spaceId=shared-1"),
+    ).toBeTruthy();
+  });
+
+  it("falls back to Personal before rendering an unavailable URL Space", async () => {
+    function CurrentLocation() {
+      const location = useLocation();
+      return <p>{`${location.pathname}${location.search}`}</p>;
+    }
+
+    render(
+      <AppSessionProvider session={session}>
+        <MemoryRouter initialEntries={["/transactions?spaceId=missing"]}>
+          <Routes>
+            <Route element={<AppShell />}>
+              <Route path="/transactions" element={<CurrentLocation />} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      </AppSessionProvider>,
+    );
+
+    expect(screen.queryByText("/transactions?spaceId=missing")).toBeNull();
+    expect(await screen.findByText("/transactions")).toBeTruthy();
+    expect(screen.queryByText("/transactions?spaceId=missing")).toBeNull();
+  });
+
+  it("retains the tab's selected Space when the app remounts", async () => {
+    function CurrentLocation() {
+      const location = useLocation();
+      return <p>{`${location.pathname}${location.search}`}</p>;
+    }
+
+    const firstTab = render(
+      <AppSessionProvider session={session}>
+        <MemoryRouter initialEntries={["/transactions"]}>
+          <Routes>
+            <Route element={<AppShell />}>
+              <Route path="/transactions" element={<CurrentLocation />} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      </AppSessionProvider>,
+    );
+
+    fireEvent.click(
+      screen.getAllByRole("button", { name: /Active Space/u })[0]!,
+    );
+    fireEvent.click(
+      screen.getByRole("menuitemradio", {
+        name: /Shared.*Ada Lovelace.*Grace Hopper/u,
+      }),
+    );
+    expect(screen.getByText("/transactions?spaceId=shared-1")).toBeTruthy();
+
+    firstTab.unmount();
+    localStorage.clear();
+
+    render(
+      <AppSessionProvider session={session}>
+        <MemoryRouter initialEntries={["/transactions"]}>
+          <Routes>
+            <Route element={<AppShell />}>
+              <Route path="/transactions" element={<CurrentLocation />} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      </AppSessionProvider>,
+    );
+
+    expect(
+      await screen.findByText("/transactions?spaceId=shared-1"),
+    ).toBeTruthy();
+  });
+
+  it("keeps two already-open tabs on independent Space selections", () => {
+    function CurrentLocation({ label }: { readonly label: string }) {
+      const location = useLocation();
+      return (
+        <p>{`${label}:${location.pathname}${location.search}`}</p>
+      );
+    }
+
+    render(
+      <>
+        <div data-testid="tab-one">
+          <AppSessionProvider session={session}>
+            <MemoryRouter initialEntries={["/transactions"]}>
+              <Routes>
+                <Route element={<AppShell />}>
+                  <Route
+                    path="/transactions"
+                    element={<CurrentLocation label="one" />}
+                  />
+                </Route>
+              </Routes>
+            </MemoryRouter>
+          </AppSessionProvider>
+        </div>
+        <div data-testid="tab-two">
+          <AppSessionProvider session={session}>
+            <MemoryRouter initialEntries={["/transactions"]}>
+              <Routes>
+                <Route element={<AppShell />}>
+                  <Route
+                    path="/transactions"
+                    element={<CurrentLocation label="two" />}
+                  />
+                </Route>
+              </Routes>
+            </MemoryRouter>
+          </AppSessionProvider>
+        </div>
+      </>,
+    );
+
+    const tabOne = screen.getByTestId("tab-one");
+    const tabTwo = screen.getByTestId("tab-two");
+    fireEvent.click(
+      within(tabOne).getAllByRole("button", { name: /Active Space/u })[0]!,
+    );
+    fireEvent.click(
+      screen.getByRole("menuitemradio", {
+        name: /Shared.*Ada Lovelace.*Grace Hopper/u,
+      }),
+    );
+
+    expect(within(tabOne).getByText("one:/transactions?spaceId=shared-1")).toBeTruthy();
+    expect(within(tabTwo).getByText("two:/transactions")).toBeTruthy();
   });
 
   it("guards primary navigation while a Statement Import is being categorized", () => {

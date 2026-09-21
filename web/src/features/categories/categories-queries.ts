@@ -1,5 +1,4 @@
 import {
-  keepPreviousData,
   useMutation,
   useQuery,
   useQueryClient,
@@ -7,9 +6,14 @@ import {
 
 import { useApiClient } from "@/shared/api";
 import {
+  buildFinancialQueryKey,
+  captureFinancialMutationScope,
+  financialQueryOptions,
   invalidateCategoryDependentQueries,
   invalidateCategoryRuleQueries,
   queryPolicy,
+  useAuthenticatedIdentityId,
+  useFinancialQueryScope,
 } from "@/shared/query";
 import type { ReportingPeriod } from "@/shared/reporting-period";
 
@@ -38,22 +42,25 @@ function useCategoriesOverviewQuery(
   enabled = true,
 ) {
   const apiClient = useApiClient();
+  const scope = useFinancialQueryScope(spaceId);
 
   return useQuery({
-    queryKey: ["categories", "overview", period, spaceId ?? null] as const,
+    ...financialQueryOptions,
+    queryKey: buildFinancialQueryKey(scope, ["categories", "overview"], period),
     queryFn: ({ signal }) =>
       getCategoriesOverview(apiClient, period, signal, spaceId),
     enabled,
-    placeholderData: keepPreviousData,
     staleTime: queryPolicy.activityStaleTime,
   });
 }
 
 function useCategoryRulesQuery(enabled: boolean, spaceId?: string) {
   const apiClient = useApiClient();
+  const scope = useFinancialQueryScope(spaceId);
 
   return useQuery({
-    queryKey: ["categories", "rules", spaceId ?? null] as const,
+    ...financialQueryOptions,
+    queryKey: buildFinancialQueryKey(scope, ["categories", "rules"]),
     queryFn: ({ signal }) =>
       getCategoryRuleSnapshot(apiClient, signal, spaceId),
     enabled,
@@ -64,6 +71,7 @@ function useCategoryRulesQuery(enabled: boolean, spaceId?: string) {
 function useReplaceCategoryRulesMutation() {
   const apiClient = useApiClient();
   const queryClient = useQueryClient();
+  const identityId = useAuthenticatedIdentityId();
 
   return useMutation({
     retry: 0,
@@ -80,27 +88,40 @@ function useReplaceCategoryRulesMutation() {
         input.spaceId,
         input.revision,
       ),
-    onSuccess: () => invalidateCategoryRuleQueries(queryClient),
+    onMutate: (input) =>
+      captureFinancialMutationScope(identityId, input.spaceId),
+    onSuccess: (_data, input, mutationScope) =>
+      invalidateCategoryRuleQueries(
+        queryClient,
+        mutationScope ?? captureFinancialMutationScope(identityId, input.spaceId),
+      ),
   });
 }
 
 function useCreateCategoryMutation() {
   const apiClient = useApiClient();
   const queryClient = useQueryClient();
+  const identityId = useAuthenticatedIdentityId();
 
   return useMutation({
     retry: 0,
     mutationFn: ({ input }: { readonly input: CreateCategoryInput }) =>
       createCategory(apiClient, input),
-    onSuccess: () => {
-      void invalidateCategoryDependentQueries(queryClient);
-    },
+    onMutate: ({ input }) =>
+      captureFinancialMutationScope(identityId, input.spaceId),
+    onSuccess: (_data, variables, mutationScope) =>
+      invalidateCategoryDependentQueries(
+        queryClient,
+        mutationScope ??
+          captureFinancialMutationScope(identityId, variables.input.spaceId),
+      ),
   });
 }
 
 function useCreateCategoryBudgetMutation() {
   const apiClient = useApiClient();
   const queryClient = useQueryClient();
+  const identityId = useAuthenticatedIdentityId();
 
   return useMutation({
     retry: 0,
@@ -112,17 +133,27 @@ function useCreateCategoryBudgetMutation() {
         input.spaceId,
         input.updatedAt,
       ),
-    onSuccess: () => {
-      void invalidateCategoryDependentQueries(queryClient);
-    },
+    onMutate: (input) =>
+      captureFinancialMutationScope(identityId, input.spaceId),
+    onSuccess: (_data, input, mutationScope) =>
+      invalidateCategoryDependentQueries(
+        queryClient,
+        mutationScope ?? captureFinancialMutationScope(identityId, input.spaceId),
+      ),
   });
 }
 
 function useCategoryBudgetQuery(categoryId: string | null, spaceId?: string) {
   const apiClient = useApiClient();
+  const scope = useFinancialQueryScope(spaceId);
 
   return useQuery({
-    queryKey: ["categories", "budget", categoryId, spaceId ?? null] as const,
+    ...financialQueryOptions,
+    queryKey: buildFinancialQueryKey(
+      scope,
+      ["categories", "budget"],
+      categoryId,
+    ),
     queryFn: ({ signal }) =>
       categoryId === null
         ? Promise.resolve(null)
@@ -136,30 +167,45 @@ function useCategoryBudgetQuery(categoryId: string | null, spaceId?: string) {
 function useUpdateCategoryMutation() {
   const apiClient = useApiClient();
   const queryClient = useQueryClient();
+  const identityId = useAuthenticatedIdentityId();
 
   return useMutation({
     retry: 0,
     mutationFn: (input: UpdateCategoryInput) =>
       updateCategory(apiClient, input),
-    onSuccess: () => invalidateCategoryDependentQueries(queryClient),
+    onMutate: (input) =>
+      captureFinancialMutationScope(identityId, input.spaceId),
+    onSuccess: (_data, input, mutationScope) =>
+      invalidateCategoryDependentQueries(
+        queryClient,
+        mutationScope ?? captureFinancialMutationScope(identityId, input.spaceId),
+      ),
   });
 }
 
 function useUpdateCategoryStatusMutation() {
   const apiClient = useApiClient();
   const queryClient = useQueryClient();
+  const identityId = useAuthenticatedIdentityId();
 
   return useMutation({
     retry: 0,
     mutationFn: (input: UpdateCategoryStatusInput) =>
       updateCategoryStatus(apiClient, input),
-    onSuccess: () => invalidateCategoryDependentQueries(queryClient),
+    onMutate: (input) =>
+      captureFinancialMutationScope(identityId, input.spaceId),
+    onSuccess: (_data, input, mutationScope) =>
+      invalidateCategoryDependentQueries(
+        queryClient,
+        mutationScope ?? captureFinancialMutationScope(identityId, input.spaceId),
+      ),
   });
 }
 
 function useUpdateCategoryBudgetMutation() {
   const apiClient = useApiClient();
   const queryClient = useQueryClient();
+  const identityId = useAuthenticatedIdentityId();
 
   return useMutation({
     retry: 0,
@@ -171,13 +217,20 @@ function useUpdateCategoryBudgetMutation() {
         input.spaceId,
         input.updatedAt,
       ),
-    onSuccess: () => invalidateCategoryDependentQueries(queryClient),
+    onMutate: (input) =>
+      captureFinancialMutationScope(identityId, input.spaceId),
+    onSuccess: (_data, input, mutationScope) =>
+      invalidateCategoryDependentQueries(
+        queryClient,
+        mutationScope ?? captureFinancialMutationScope(identityId, input.spaceId),
+      ),
   });
 }
 
 function useDeleteCategoryBudgetMutation() {
   const apiClient = useApiClient();
   const queryClient = useQueryClient();
+  const identityId = useAuthenticatedIdentityId();
 
   return useMutation({
     retry: 0,
@@ -197,8 +250,21 @@ function useDeleteCategoryBudgetMutation() {
             input.categoryId,
             input.spaceId,
             input.updatedAt,
+        ),
+    onMutate: (input) =>
+      captureFinancialMutationScope(
+        identityId,
+        typeof input === "string" ? undefined : input.spaceId,
+      ),
+    onSuccess: (_data, input, mutationScope) =>
+      invalidateCategoryDependentQueries(
+        queryClient,
+        mutationScope ??
+          captureFinancialMutationScope(
+            identityId,
+            typeof input === "string" ? undefined : input.spaceId,
           ),
-    onSuccess: () => invalidateCategoryDependentQueries(queryClient),
+      ),
   });
 }
 

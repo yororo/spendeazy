@@ -1,28 +1,47 @@
 import type { QueryClient } from "@tanstack/react-query";
 
+import {
+  buildFinancialQueryKey,
+  type FinancialQueryScope,
+} from "./financial-query-scope";
+
 const CATEGORY_DEPENDENT_QUERY_KEYS = [
-  ["categories"],
+  ["categories", "overview"],
+  ["categories", "rules"],
+  ["categories", "budget"],
   ["dashboard"],
   ["transactions"],
-  ["statement-import"],
+  ["statement-import", "categories"],
+  ["statement-import", "rules"],
+  ["statement-import", "recent"],
 ] as const;
 const CATEGORY_RULE_QUERY_KEYS = [
   ["categories", "rules"],
   ["statement-import", "rules"],
 ] as const;
 
-async function invalidateCategoryDependentQueries(queryClient: QueryClient) {
+async function invalidateCategoryDependentQueries(
+  queryClient: QueryClient,
+  scope: FinancialQueryScope,
+) {
   await Promise.all(
     CATEGORY_DEPENDENT_QUERY_KEYS.map((queryKey) =>
-      queryClient.invalidateQueries({ queryKey }),
+      queryClient.invalidateQueries({
+        queryKey: buildFinancialQueryKey(scope, queryKey),
+      }),
     ),
   );
 }
 
-async function invalidateCategoryRuleQueries(queryClient: QueryClient) {
+async function invalidateCategoryRuleQueries(
+  queryClient: QueryClient,
+  scope: FinancialQueryScope,
+) {
   await Promise.all(
     CATEGORY_RULE_QUERY_KEYS.map((queryKey) =>
-      queryClient.invalidateQueries({ queryKey }),
+      queryClient.invalidateQueries({
+        queryKey: buildFinancialQueryKey(scope, queryKey),
+      }),
     ),
   );
 }

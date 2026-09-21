@@ -1347,9 +1347,9 @@ describe("CategoriesPage", () => {
     const queryClient = renderCategoriesPage(fetchMock);
 
     await screen.findByRole("heading", { name: "Budget overview" });
-    queryClient.setQueryData(["dashboard", "2026-08"], { stale: false });
-    queryClient.setQueryData(["transactions", "2026-08"], { stale: false });
-    queryClient.setQueryData(["statement-import", "categories"], {
+    queryClient.setQueryData(["dashboard", null, null, "2026-08"], { stale: false });
+    queryClient.setQueryData(["transactions", null, null, "2026-08"], { stale: false });
+    queryClient.setQueryData(["statement-import", "categories", null, null], {
       stale: false,
     });
 
@@ -1366,13 +1366,13 @@ describe("CategoriesPage", () => {
       color: "coral",
     });
     expect(
-      queryClient.getQueryState(["dashboard", "2026-08"])?.isInvalidated,
+      queryClient.getQueryState(["dashboard", null, null, "2026-08"])?.isInvalidated,
     ).toBe(true);
     expect(
-      queryClient.getQueryState(["transactions", "2026-08"])?.isInvalidated,
+      queryClient.getQueryState(["transactions", null, null, "2026-08"])?.isInvalidated,
     ).toBe(true);
     expect(
-      queryClient.getQueryState(["statement-import", "categories"])
+      queryClient.getQueryState(["statement-import", "categories", null, null])
         ?.isInvalidated,
     ).toBe(true);
     expect(within(getDesktopTable()).getByText("Cash")).toBeTruthy();
@@ -1540,9 +1540,9 @@ describe("CategoriesPage", () => {
     const queryClient = renderCategoriesPage(fetchMock);
 
     await screen.findByRole("heading", { name: "Budget overview" });
-    queryClient.setQueryData(["dashboard", "2026-09"], { stale: false });
-    queryClient.setQueryData(["transactions", "2026-09"], { stale: false });
-    queryClient.setQueryData(["statement-import", "categories"], {
+    queryClient.setQueryData(["dashboard", null, null, "2026-09"], { stale: false });
+    queryClient.setQueryData(["transactions", null, null, "2026-09"], { stale: false });
+    queryClient.setQueryData(["statement-import", "categories", null, null], {
       stale: false,
     });
     fireEvent.click(getDesktopEditButton("Housing"));
@@ -1581,13 +1581,13 @@ describe("CategoriesPage", () => {
       period: "monthly",
     });
     expect(
-      queryClient.getQueryState(["dashboard", "2026-09"])?.isInvalidated,
+      queryClient.getQueryState(["dashboard", null, null, "2026-09"])?.isInvalidated,
     ).toBe(true);
     expect(
-      queryClient.getQueryState(["transactions", "2026-09"])?.isInvalidated,
+      queryClient.getQueryState(["transactions", null, null, "2026-09"])?.isInvalidated,
     ).toBe(true);
     expect(
-      queryClient.getQueryState(["statement-import", "categories"])
+      queryClient.getQueryState(["statement-import", "categories", null, null])
         ?.isInvalidated,
     ).toBe(true);
     const firstBudgetGetIndex = fetchMock.mock.calls.findIndex(
@@ -2057,9 +2057,9 @@ describe("CategoriesPage", () => {
     const queryClient = renderCategoriesPage(fetchMock);
 
     await screen.findByRole("heading", { name: "Budget overview" });
-    queryClient.setQueryData(["dashboard", "2026-09"], { stale: false });
-    queryClient.setQueryData(["transactions", "2026-09"], { stale: false });
-    queryClient.setQueryData(["statement-import", "categories"], {
+    queryClient.setQueryData(["dashboard", null, null, "2026-09"], { stale: false });
+    queryClient.setQueryData(["transactions", null, null, "2026-09"], { stale: false });
+    queryClient.setQueryData(["statement-import", "categories", null, null], {
       stale: false,
     });
     const showInactive = screen.getByRole("checkbox", {
@@ -2108,13 +2108,13 @@ describe("CategoriesPage", () => {
     expect(getRequestBody(fetchMock, "PATCH")).toEqual({ isActive: false });
     expect(within(getDesktopTable()).getByText("Inactive")).toBeTruthy();
     expect(
-      queryClient.getQueryState(["dashboard", "2026-09"])?.isInvalidated,
+      queryClient.getQueryState(["dashboard", null, null, "2026-09"])?.isInvalidated,
     ).toBe(true);
     expect(
-      queryClient.getQueryState(["transactions", "2026-09"])?.isInvalidated,
+      queryClient.getQueryState(["transactions", null, null, "2026-09"])?.isInvalidated,
     ).toBe(true);
     expect(
-      queryClient.getQueryState(["statement-import", "categories"])
+      queryClient.getQueryState(["statement-import", "categories", null, null])
         ?.isInvalidated,
     ).toBe(true);
   });

@@ -1,7 +1,12 @@
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 
 import { useApiClient } from "@/shared/api";
-import { queryPolicy } from "@/shared/query";
+import {
+  buildFinancialQueryKey,
+  financialQueryOptions,
+  queryPolicy,
+  useFinancialQueryScope,
+} from "@/shared/query";
 import type { ReportingPeriod } from "@/shared/reporting-period";
 
 import { getDashboard } from "./dashboard-service";
@@ -12,15 +17,14 @@ function useDashboardQuery(
   enabled = true,
 ) {
   const apiClient = useApiClient();
+  const scope = useFinancialQueryScope(spaceId);
 
   return useQuery({
-    queryKey: ["dashboard", period, spaceId ?? null] as const,
+    ...financialQueryOptions,
+    queryKey: buildFinancialQueryKey(scope, ["dashboard"], period),
     queryFn: ({ signal }) => getDashboard(apiClient, period, signal, spaceId),
     enabled,
-    placeholderData: keepPreviousData,
     staleTime: queryPolicy.activityStaleTime,
-    refetchOnMount: "always",
-    refetchOnWindowFocus: "always",
   });
 }
 

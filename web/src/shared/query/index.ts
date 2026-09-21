@@ -5,6 +5,17 @@ export {
   invalidateCategoryDependentQueries,
 } from "./category-invalidation";
 export {
+  buildFinancialQueryKey,
+  captureFinancialMutationScope,
+  financialQueryOptions,
+  useAuthenticatedIdentityId,
+  useFinancialQueryScope,
+} from "./financial-query-scope";
+export type {
+  FinancialMutationScope,
+  FinancialQueryScope,
+} from "./financial-query-scope";
+export {
   isRetryableProvisioningFailure,
   queryPolicy,
   shouldRetryProvisioning,

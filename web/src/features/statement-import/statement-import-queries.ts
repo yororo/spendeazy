@@ -2,10 +2,16 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useApiClient } from "@/shared/api";
 import {
+  buildFinancialQueryKey,
+  captureFinancialMutationScope,
+  financialQueryOptions,
   invalidateCategoryDependentQueries,
   invalidateCategoryRuleQueries,
   queryPolicy,
+  useAuthenticatedIdentityId,
+  useFinancialQueryScope,
 } from "@/shared/query";
+import type { FinancialMutationScope } from "@/shared/query";
 
 import {
   commitStatementImport,
@@ -36,9 +42,11 @@ function useStatementImportCategoriesQuery(
   enabled = true,
 ) {
   const apiClient = useApiClient();
+  const scope = useFinancialQueryScope(spaceId);
 
   return useQuery({
-    queryKey: ["statement-import", "categories", spaceId ?? null] as const,
+    ...financialQueryOptions,
+    queryKey: buildFinancialQueryKey(scope, ["statement-import", "categories"]),
     queryFn: ({ signal }) =>
       getCategoryCatalogOptions(apiClient, signal, spaceId),
     enabled,
@@ -48,9 +56,11 @@ function useStatementImportCategoriesQuery(
 
 function useStatementImportRulesQuery(spaceId?: string, enabled = true) {
   const apiClient = useApiClient();
+  const scope = useFinancialQueryScope(spaceId);
 
   return useQuery({
-    queryKey: ["statement-import", "rules", spaceId ?? null] as const,
+    ...financialQueryOptions,
+    queryKey: buildFinancialQueryKey(scope, ["statement-import", "rules"]),
     queryFn: ({ signal }) => getCategoryRules(apiClient, signal, spaceId),
     enabled,
     staleTime: queryPolicy.categoryCatalogStaleTime,
@@ -59,9 +69,11 @@ function useStatementImportRulesQuery(spaceId?: string, enabled = true) {
 
 function useRecentImportsQuery(spaceId?: string, enabled = true) {
   const apiClient = useApiClient();
+  const scope = useFinancialQueryScope(spaceId);
 
   return useQuery({
-    queryKey: ["statement-import", "recent", spaceId ?? null] as const,
+    ...financialQueryOptions,
+    queryKey: buildFinancialQueryKey(scope, ["statement-import", "recent"]),
     queryFn: ({ signal }) => getRecentImports(apiClient, signal, spaceId),
     enabled,
     staleTime: queryPolicy.activityStaleTime,
@@ -71,22 +83,31 @@ function useRecentImportsQuery(spaceId?: string, enabled = true) {
 function useRememberCategoryRuleMutation() {
   const apiClient = useApiClient();
   const queryClient = useQueryClient();
+  const identityId = useAuthenticatedIdentityId();
 
   return useMutation<
     RememberCategoryRuleResult,
     Error,
-    RememberCategoryRuleMutationInput
+    RememberCategoryRuleMutationInput,
+    FinancialMutationScope
   >({
     retry: 0,
     mutationFn: ({ input, existingRules, spaceId }) =>
       rememberCategoryRule(apiClient, input, existingRules, undefined, spaceId),
-    onSuccess: () => invalidateCategoryRuleQueries(queryClient),
+    onMutate: ({ spaceId }) =>
+      captureFinancialMutationScope(identityId, spaceId),
+    onSuccess: (_data, input, mutationScope) =>
+      invalidateCategoryRuleQueries(
+        queryClient,
+        mutationScope ?? captureFinancialMutationScope(identityId, input.spaceId),
+      ),
   });
 }
 
 function useCommitStatementImportMutation() {
   const apiClient = useApiClient();
   const queryClient = useQueryClient();
+  const identityId = useAuthenticatedIdentityId();
 
   return useMutation({
     retry: 0,
@@ -96,7 +117,13 @@ function useCommitStatementImportMutation() {
       ...options
     }: CommitStatementImportMutationInput) =>
       commitStatementImport(apiClient, file, statement, options),
-    onSuccess: () => invalidateCategoryDependentQueries(queryClient),
+    onMutate: ({ spaceId }) =>
+      captureFinancialMutationScope(identityId, spaceId),
+    onSuccess: (_data, input, mutationScope) =>
+      invalidateCategoryDependentQueries(
+        queryClient,
+        mutationScope ?? captureFinancialMutationScope(identityId, input.spaceId),
+      ),
   });
 }
 

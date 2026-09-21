@@ -1,12 +1,19 @@
 import {
-  keepPreviousData,
   useInfiniteQuery,
   useMutation,
   useQueryClient,
 } from "@tanstack/react-query";
 
 import { useApiClient } from "@/shared/api";
-import { invalidateCategoryDependentQueries, queryPolicy } from "@/shared/query";
+import {
+  buildFinancialQueryKey,
+  captureFinancialMutationScope,
+  financialQueryOptions,
+  invalidateCategoryDependentQueries,
+  queryPolicy,
+  useAuthenticatedIdentityId,
+  useFinancialQueryScope,
+} from "@/shared/query";
 import type { ReportingPeriod } from "@/shared/reporting-period";
 
 import {
@@ -26,9 +33,11 @@ function useTransactionsQuery(
   enabled = true,
 ) {
   const apiClient = useApiClient();
+  const scope = useFinancialQueryScope(spaceId);
 
   return useInfiniteQuery({
-    queryKey: ["transactions", period, spaceId ?? null] as const,
+    ...financialQueryOptions,
+    queryKey: buildFinancialQueryKey(scope, ["transactions"], period),
     queryFn: ({ pageParam, signal }) =>
       listTransactions(
         apiClient,
@@ -43,55 +52,75 @@ function useTransactionsQuery(
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     enabled,
-    placeholderData: keepPreviousData,
     staleTime: queryPolicy.activityStaleTime,
-    refetchOnMount: "always",
-    refetchOnWindowFocus: "always",
   });
 }
 
 function useCreateTransactionMutation() {
   const apiClient = useApiClient();
   const queryClient = useQueryClient();
+  const identityId = useAuthenticatedIdentityId();
 
   return useMutation({
     retry: 0,
     mutationFn: (input: CreateTransactionInput) =>
       createTransaction(apiClient, input),
-    onSuccess: () => invalidateCategoryDependentQueries(queryClient),
+    onMutate: (input) =>
+      captureFinancialMutationScope(identityId, input.spaceId),
+    onSuccess: (_data, input, mutationScope) =>
+      invalidateCategoryDependentQueries(
+        queryClient,
+        mutationScope ?? captureFinancialMutationScope(identityId, input.spaceId),
+      ),
   });
 }
 
 function useUpdateTransactionMutation() {
   const apiClient = useApiClient();
   const queryClient = useQueryClient();
+  const identityId = useAuthenticatedIdentityId();
 
   return useMutation({
     retry: 0,
     mutationFn: (input: UpdateTransactionInput) =>
       updateTransaction(apiClient, input),
-    onSuccess: () => invalidateCategoryDependentQueries(queryClient),
+    onMutate: (input) =>
+      captureFinancialMutationScope(identityId, input.spaceId),
+    onSuccess: (_data, input, mutationScope) =>
+      invalidateCategoryDependentQueries(
+        queryClient,
+        mutationScope ?? captureFinancialMutationScope(identityId, input.spaceId),
+      ),
   });
 }
 
 function useDeleteTransactionMutation() {
   const apiClient = useApiClient();
   const queryClient = useQueryClient();
+  const identityId = useAuthenticatedIdentityId();
+
+  type DeleteTransactionMutationInput = {
+    readonly transactionId: string;
+    readonly spaceId?: string;
+    readonly updatedAt?: string;
+  };
 
   return useMutation({
     retry: 0,
-    mutationFn: (input: {
-      readonly transactionId: string;
-      readonly spaceId?: string;
-      readonly updatedAt?: string;
-    }) =>
+    mutationFn: (input: DeleteTransactionMutationInput) =>
       deleteTransaction(
         apiClient,
         input.transactionId,
         input.spaceId,
         input.updatedAt,
       ),
-    onSuccess: () => invalidateCategoryDependentQueries(queryClient),
+    onMutate: (input) =>
+      captureFinancialMutationScope(identityId, input.spaceId),
+    onSuccess: (_data, input, mutationScope) =>
+      invalidateCategoryDependentQueries(
+        queryClient,
+        mutationScope ?? captureFinancialMutationScope(identityId, input.spaceId),
+      ),
   });
 }
 

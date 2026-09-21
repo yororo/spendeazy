@@ -22,8 +22,8 @@ export class DefaultCategoriesService implements DefaultCategoryProvisioner {
 
   async createForSpace(spaceId: string, actorUserId: string): Promise<void> {
     const existingNames = new Set(
-      ((await this.categoryStore.findAllBySpaceId?.(spaceId)) ?? []).map(
-        (category) => normalizeCategoryName(category.name),
+      (await this.categoryStore.findAllBySpaceId(spaceId)).map((category) =>
+        normalizeCategoryName(category.name),
       ),
     );
 

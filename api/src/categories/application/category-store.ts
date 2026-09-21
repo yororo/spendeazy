@@ -46,7 +46,7 @@ export interface CategoryStore {
     input: UpdateCategory,
   ): Promise<CategoryRecord | null>;
   findBySpaceId?(spaceId: string, id: string): Promise<CategoryRecord | null>;
-  findAllBySpaceId?(spaceId: string): Promise<CategoryRecord[]>;
+  findAllBySpaceId(spaceId: string): Promise<CategoryRecord[]>;
   findByNormalizedNameInSpace?(
     spaceId: string,
     normalizedName: string,

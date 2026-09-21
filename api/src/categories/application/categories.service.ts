@@ -205,7 +205,6 @@ export class CategoriesService {
     const store = this.categoryStore;
     if (
       !store.findBySpaceId ||
-      !store.findAllBySpaceId ||
       !store.findByNormalizedNameInSpace ||
       !store.updateInSpace
     ) {
@@ -214,7 +213,7 @@ export class CategoriesService {
 
     return {
       findBySpaceId: (spaceId, id) => store.findBySpaceId!(spaceId, id),
-      findAllBySpaceId: (spaceId) => store.findAllBySpaceId!(spaceId),
+      findAllBySpaceId: (spaceId) => store.findAllBySpaceId(spaceId),
       findByNormalizedNameInSpace: (spaceId, normalizedName) =>
         store.findByNormalizedNameInSpace!(spaceId, normalizedName),
       updateInSpace: (spaceId, id, input) =>

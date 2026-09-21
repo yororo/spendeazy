@@ -24,6 +24,7 @@ describeDatabase('category colors with PostgreSQL', () => {
       url: databaseUrl,
       entities: DATABASE_ENTITIES,
       migrations: DATABASE_MIGRATIONS,
+      migrationsTableName: 'typeorm_migrations',
       synchronize: false,
     }).initialize();
     await database.runMigrations();

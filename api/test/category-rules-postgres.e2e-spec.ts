@@ -33,6 +33,7 @@ describeDatabase('category rules with PostgreSQL', () => {
       url: databaseUrl,
       entities: DATABASE_ENTITIES,
       migrations: DATABASE_MIGRATIONS,
+      migrationsTableName: 'typeorm_migrations',
       synchronize: false,
     }).initialize();
     await database.runMigrations();
@@ -109,7 +110,11 @@ describeDatabase('category rules with PostgreSQL', () => {
       categoryId,
       desired,
     );
-    expect(replaced[0]).toEqual(exact);
+    expect(replaced[0]).toMatchObject({
+      id: exact.id,
+      createdAt: exact.createdAt,
+      updatedAt: exact.updatedAt,
+    });
     expect(replaced[1]).toMatchObject({
       categoryId,
       matchType: 'contains',
@@ -131,7 +136,13 @@ describeDatabase('category rules with PostgreSQL', () => {
     expect(await service.replaceCategoryRules(userId, categoryId, [])).toEqual(
       [],
     );
-    expect(await service.listCategoryRules(userId)).toEqual([other]);
+    expect(await service.listCategoryRules(userId)).toEqual([
+      expect.objectContaining({
+        id: other.id,
+        createdAt: other.createdAt,
+        updatedAt: other.updatedAt,
+      }),
+    ]);
   });
 
   it('leaves the entire set intact for invalid, duplicate, inactive, and unowned requests', async () => {

@@ -7,6 +7,7 @@ import {
 } from '../src/database/database-options';
 import { CategoryEntity } from '../src/database/entities/category.entity';
 import { SpaceEntity } from '../src/database/entities/space.entity';
+import { SpaceMembershipEntity } from '../src/database/entities/space-membership.entity';
 import { StatementImportEntity } from '../src/database/entities/statement-import.entity';
 import { TransactionEntity } from '../src/database/entities/transaction.entity';
 import { UserEntity } from '../src/database/entities/user.entity';
@@ -18,8 +19,9 @@ import { TypeOrmStatementImportConfirmationUnitOfWork } from '../src/database/un
 import { TypeOrmStatementImportStore } from '../src/statement-imports/infrastructure/typeorm-statement-import-store';
 
 const databaseUrl = process.env.TEST_STATEMENT_IMPORT_ROLLBACK_DATABASE_URL;
+const describeDatabase = databaseUrl ? describe : describe.skip;
 
-describe('Statement Import rollback with PostgreSQL', () => {
+describeDatabase('Statement Import rollback with PostgreSQL', () => {
   let database: DataSource;
   let service: StatementImportsService;
   let userId: string | undefined;
@@ -27,17 +29,12 @@ describe('Statement Import rollback with PostgreSQL', () => {
   let failureTrigger: FailureTrigger | undefined;
 
   beforeAll(async () => {
-    if (!databaseUrl) {
-      throw new Error(
-        'TEST_STATEMENT_IMPORT_ROLLBACK_DATABASE_URL must point to a PostgreSQL database',
-      );
-    }
-
     database = await new DataSource({
       type: 'postgres',
       url: databaseUrl,
       entities: DATABASE_ENTITIES,
       migrations: DATABASE_MIGRATIONS,
+      migrationsTableName: 'typeorm_migrations',
       synchronize: false,
     }).initialize();
     await database.runMigrations();
@@ -227,6 +224,11 @@ describe('Statement Import rollback with PostgreSQL', () => {
       personalOwnerUserId: null,
     });
     sharedSpaceId = sharedSpace.id;
+    await database.getRepository(SpaceMembershipEntity).save({
+      spaceId: sharedSpace.id,
+      userId: currentUserId,
+      accessLevel: 'write',
+    });
     const sharedCategory = await database.getRepository(CategoryEntity).save({
       userId: currentUserId,
       spaceId: sharedSpace.id,

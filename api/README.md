@@ -50,6 +50,8 @@ npm run test:cov   # Unit tests with coverage
 npm run lint       # Lint the project
 ```
 
+PostgreSQL end-to-end suites use `TEST_SPACES_DATABASE_URL`, `TEST_CATEGORY_RULES_DATABASE_URL`, `TEST_CATEGORY_COLOR_DATABASE_URL`, and `TEST_STATEMENT_IMPORT_ROLLBACK_DATABASE_URL`. Point these at a disposable test database. The historical ownership migration suite uses `TEST_FINANCIAL_OWNERSHIP_MIGRATION_DATABASE_URL` and requires a separate, empty disposable database because it starts from the pre-Space schema. The suites skip when their URL is unset.
+
 ## OpenAPI contract
 
 The OpenAPI contract is generated from the Nest controllers and DTO metadata

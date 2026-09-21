@@ -209,9 +209,11 @@ class TestDelivery implements InvitationDelivery {
   readonly messages: InvitationEmail[] = [];
   fail = false;
 
-  async send(input: InvitationEmail): Promise<void> {
+  send(input: InvitationEmail): Promise<void> {
     this.messages.push(input);
-    if (this.fail) throw new Error('provider unavailable');
+    return this.fail
+      ? Promise.reject(new Error('provider unavailable'))
+      : Promise.resolve();
   }
 }
 

@@ -57,6 +57,16 @@ const ArchivedSpaceHistoryPage = lazy(() =>
     }),
   ),
 );
+const SharingPage = lazy(() =>
+  import("@/features/invitations").then(({ SharingPage }) => ({
+    default: SharingPage,
+  })),
+);
+const InvitationLandingPage = lazy(() =>
+  import("@/features/invitations").then(({ InvitationLandingPage }) => ({
+    default: InvitationLandingPage,
+  })),
+);
 
 function lazyRoute(page: ReactNode) {
   return <Suspense fallback={<RouteLoading />}>{page}</Suspense>;
@@ -160,6 +170,10 @@ function App({ signInElement }: AppProps = {}) {
       <Route path="sso-callback" element={lazyRoute(<SsoCallbackPage />)} />
       <Route path="privacy" element={lazyRoute(<PrivacyPolicyPage />)} />
       <Route path="terms" element={lazyRoute(<TermsOfServicePage />)} />
+      <Route
+        path="invite/:token"
+        element={lazyRoute(<InvitationLandingPage />)}
+      />
       <Route element={<AuthenticatedRoute />}>
         <Route element={<AppShell />}>
           <Route index element={lazyRoute(<DashboardRoute />)} />
@@ -176,6 +190,7 @@ function App({ signInElement }: AppProps = {}) {
             path="history"
             element={lazyRoute(<ArchivedSpaceHistoryPage />)}
           />
+          <Route path="sharing" element={lazyRoute(<SharingPage />)} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Route>

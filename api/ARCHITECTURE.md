@@ -34,7 +34,7 @@ Feature modules bind symbolic application tokens such as `USER_STORE` to concret
 
 ## Feature modules
 
-The business features are `users`, `categories`, `category-rules`, `transactions`, and `statement-imports`. A feature normally contains:
+The business features are `users`, `invitations`, `categories`, `category-rules`, `transactions`, and `statement-imports`. A feature normally contains:
 
 - `presentation/`: controllers, request/response DTOs, and HTTP mapping.
 - `application/`: use-case services, errors, records and inputs, and store ports.

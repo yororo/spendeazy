@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 function MobileTabBar() {
   return (
     <nav aria-label="Mobile navigation" className="mobile-tab-bar">
-      <ul className="grid h-[var(--mobile-tab-bar-height)] grid-cols-4">
+      <ul className="grid h-[var(--mobile-tab-bar-height)] grid-cols-5">
         {primaryNavigation.map(({ label, href, icon: Icon }) => (
           <li key={href} className="min-w-0">
             <NavLink

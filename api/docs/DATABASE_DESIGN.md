@@ -17,6 +17,8 @@ Read these files for exact columns, lengths, constraints, and transport validati
 | `users` | Local User linked to a unique Clerk identity; email uniqueness is case-insensitive. The optional active Shared Space reference is reserved for the shared-membership migration. |
 | `spaces` | Personal or Shared financial context with active/archived lifecycle. Personal Spaces have one User as their private owner; Shared Space creation remains behind later invitation work. |
 | `space_memberships` | User access to a Space, with `read` or `write` access. The Personal Space migration creates one writable membership per User. |
+| `invitations` | Rotating, hashed-link invitations sent by a User, with pending lifecycle, seven-day expiry, recipient association, and delivery status. Pending invitations do not create memberships. |
+| `invitation_delivery_attempts` | Append-only sender-scoped email delivery attempts used to enforce resend cooldowns and the five-email daily quota. |
 | `categories` | Space-owned classifications with optional description and named color, plus active/inactive status. Names are unique per Space. |
 | `budgets` | At most one monthly or yearly Budget per Category; ownership derives through the Category. |
 | `statement_imports` | Space-owned Committed Statement Import provenance, including provider/account-type metadata and a file hash unique per Space. `imported_by_user_id` preserves actor attribution. |

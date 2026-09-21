@@ -40,6 +40,7 @@ const pageTitles: Record<string, string> = {
   "/transactions": "Transactions · Spendeazy",
   "/categories": "Budget overview · Spendeazy",
   "/history": "Space history · Spendeazy",
+  "/sharing": "Sharing · Spendeazy",
 };
 
 function AppShell() {

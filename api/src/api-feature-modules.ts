@@ -4,6 +4,7 @@ import { CategoryRulesModule } from './category-rules/category-rules.module';
 import { StatementImportsModule } from './statement-imports/statement-imports.module';
 import { TransactionsModule } from './transactions/transactions.module';
 import { UsersModule } from './users/users.module';
+import { InvitationsModule } from './invitations/invitations.module';
 
 export interface ApiFeatureModuleOptions {
   includeControllers?: boolean;
@@ -15,6 +16,7 @@ export function createApiFeatureModules(
 ): DynamicModule[] {
   return [
     UsersModule.register(databaseIsConfigured, options),
+    InvitationsModule.register(databaseIsConfigured, options),
     CategoriesModule.register(databaseIsConfigured, options),
     CategoryRulesModule.register(databaseIsConfigured, options),
     TransactionsModule.register(databaseIsConfigured, options),

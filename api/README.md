@@ -24,6 +24,8 @@ npm run migration:run
 
 Set `CLERK_JWT_KEY` to the PEM public key from Clerk, `CLERK_SECRET_KEY` to the Clerk backend secret, and `CLERK_AUTHORIZED_PARTIES` to the comma-separated frontend origins that may issue session tokens. Production startup also requires `CORS_ORIGINS` and the Clerk settings.
 
+Invitation email delivery is an external boundary. Set `INVITATION_DELIVERY_URL` (and, when required, `INVITATION_DELIVERY_API_KEY`) to connect a provider; `INVITATION_WEB_BASE_URL` controls the links included in messages.
+
 Optionally load deterministic development data with `npm run db:seed`. The seed commands are restricted to non-production environments and local databases.
 
 Start the API in watch mode:

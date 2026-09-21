@@ -23,6 +23,28 @@ describe('public documentation routes', () => {
       false,
     );
   });
+
+  it('recognizes invitation previews and confirmed declines without opening other API routes', () => {
+    const token = 'a'.repeat(43);
+    expect(
+      isPublicRoute(
+        request({ method: 'GET', path: `/api/v1/invitations/${token}` }),
+      ),
+    ).toBe(true);
+    expect(
+      isPublicRoute(
+        request({
+          method: 'POST',
+          path: `/api/v1/invitations/${token}/decline`,
+        }),
+      ),
+    ).toBe(true);
+    expect(
+      isPublicRoute(
+        request({ method: 'POST', path: `/api/v1/invitations/${token}` }),
+      ),
+    ).toBe(false);
+  });
 });
 
 function request(values: Record<string, unknown>): Request {

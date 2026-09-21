@@ -39,6 +39,26 @@ describe('Space transaction API routes', () => {
         type: 'created',
         occurredAt: new Date(TRANSACTION_TIMESTAMP),
       },
+      {
+        id: '201',
+        transactionId: '100',
+        spaceId: '10',
+        actorUserId: '7',
+        type: 'edited',
+        occurredAt: new Date(TRANSACTION_TIMESTAMP),
+        before: {
+          categoryId: '42',
+          purchaseDate: '2026-08-01',
+          description: 'Coffee',
+          amount: '4.50',
+        },
+        after: {
+          categoryId: '42',
+          purchaseDate: '2026-08-01',
+          description: 'Dinner',
+          amount: '4.50',
+        },
+      },
     ]),
     createManualTransactionInSpace: jest.fn().mockResolvedValue(transaction),
     updateTransactionInSpace: jest.fn().mockResolvedValue(transaction),
@@ -126,6 +146,25 @@ describe('Space transaction API routes', () => {
         actorUserId: '8',
         occurredAt: TRANSACTION_TIMESTAMP,
       },
+      {
+        id: '201',
+        transactionId: '100',
+        type: 'edited',
+        actorUserId: '7',
+        occurredAt: TRANSACTION_TIMESTAMP,
+        before: {
+          categoryId: '42',
+          purchaseDate: '2026-08-01',
+          description: 'Coffee',
+          amount: '4.50',
+        },
+        after: {
+          categoryId: '42',
+          purchaseDate: '2026-08-01',
+          description: 'Dinner',
+          amount: '4.50',
+        },
+      },
     ]);
     expect(
       transactionsService.listTransactionActivityInSpace,
@@ -163,6 +202,7 @@ describe('Space transaction API routes', () => {
 
     expect(updateResponse.status).toBe(200);
     expect(transactionsService.updateTransactionInSpace).toHaveBeenCalledWith(
+      '42',
       '10',
       '100',
       { description: 'Dinner', expectedUpdatedAt: TRANSACTION_TIMESTAMP },
@@ -199,6 +239,29 @@ describe('Space transaction API routes', () => {
       },
     });
     expect(transactionsService.listTransactionsInSpace).not.toHaveBeenCalled();
+  });
+
+  it('does not disclose activity for an inaccessible Space', async () => {
+    spaceAccessService.requireReadAccess.mockRejectedValueOnce(
+      new SpaceNotFoundError(),
+    );
+
+    const response = await request(application.getHttpServer() as Server)
+      .get('/api/v1/users/me/spaces/11/transactions/100/activity')
+      .set('Authorization', 'Bearer token-a')
+      .set('Accept', 'application/json');
+
+    expect(response.status).toBe(404);
+    expect(response.body).toEqual({
+      error: {
+        code: 'SPACE_NOT_FOUND',
+        message: 'Space was not found',
+        details: [],
+      },
+    });
+    expect(
+      transactionsService.listTransactionActivityInSpace,
+    ).not.toHaveBeenCalled();
   });
 });
 

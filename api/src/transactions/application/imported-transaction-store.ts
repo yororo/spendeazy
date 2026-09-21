@@ -57,5 +57,6 @@ export interface SpaceImportedTransactionStore {
     spaceId: string,
     id: string,
     input: UpdateImportedTransactionCategory,
+    actorUserId: string,
   ): Promise<ImportedTransactionRecord | null>;
 }

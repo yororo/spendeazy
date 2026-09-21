@@ -17,7 +17,11 @@ import { POSTGRES_FOREIGN_KEY_VIOLATION } from '../../database/database-error-co
 import { CategoryEntity } from '../../database/entities/category.entity';
 import { TransactionEntity } from '../../database/entities/transaction.entity';
 import { StaleEditError } from '../../errors/application-error';
-import { TypeOrmTransactionActivityStore } from './typeorm-transaction-activity-store';
+import {
+  recordEditedTransactionActivity,
+  TypeOrmTransactionActivityStore,
+} from './typeorm-transaction-activity-store';
+import { toTransactionActivitySnapshot } from '../application/transaction-activity-store';
 import type {
   ManualTransactionRecord,
   NewManualTransaction,
@@ -155,12 +159,14 @@ export class TypeOrmTransactionStore implements SpaceTransactionStore {
     spaceId: string,
     id: string,
     input: UpdateManualTransaction,
+    actorUserId: string,
   ): Promise<ManualTransactionRecord | null> {
     return this.entityManager.transaction(async (entityManager) => {
       const repository = entityManager.getRepository(TransactionEntity);
       const where = manualTransactionSpaceWhere(spaceId, id);
       const entity = await repository.findOne({ where });
       if (!entity) return null;
+      const before = toTransactionActivitySnapshot(entity);
 
       if (
         input.categoryId !== undefined &&
@@ -188,11 +194,27 @@ export class TypeOrmTransactionStore implements SpaceTransactionStore {
         }
 
         const updated = await repository.findOne({ where });
-        return updated ? toManualTransactionRecord(updated) : null;
+        if (!updated) return null;
+
+        const transaction = toManualTransactionRecord(updated);
+        await recordEditedTransactionActivity(
+          entityManager,
+          transaction,
+          actorUserId,
+          before,
+        );
+        return transaction;
       }
 
       applyManualTransactionChanges(entity, input);
-      return saveManualTransaction(repository, entity);
+      const transaction = await saveManualTransaction(repository, entity);
+      await recordEditedTransactionActivity(
+        entityManager,
+        transaction,
+        actorUserId,
+        before,
+      );
+      return transaction;
     });
   }
 

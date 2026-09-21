@@ -147,7 +147,7 @@ describe("transaction mutation scope", () => {
       ),
     );
 
-    await waitFor(() => expect(invalidateQueries).toHaveBeenCalledTimes(8));
+    await waitFor(() => expect(invalidateQueries).toHaveBeenCalledTimes(9));
 
     expect(fetchMock.mock.calls[0]?.[0]).toBe(
       "https://api.example.test/api/v1/users/me/spaces/space-a/transactions",

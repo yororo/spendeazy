@@ -86,6 +86,7 @@ describe('TransactionsService', () => {
     );
 
     const updatedTransaction = await service.updateManualTransactionInSpace(
+      'member-2',
       'space-7',
       '1',
       {
@@ -100,10 +101,11 @@ describe('TransactionsService', () => {
       description: 'Shared dinner',
       expectedUpdatedAt: updatedAt.toISOString(),
     });
+    expect(transactionStore.spaceUpdatedActorUserId).toBe('member-2');
     expect(updatedTransaction.addedByUserId).toBe('member-1');
 
     await expect(
-      service.updateManualTransactionInSpace('space-7', '1', {
+      service.updateManualTransactionInSpace('member-2', 'space-7', '1', {
         description: 'Conflicting edit',
         expectedUpdatedAt: '2026-08-30T00:00:00.000Z',
       }),
@@ -175,6 +177,7 @@ class TransactionStoreFake implements SpaceTransactionStore {
   spaceCreatedInput: NewManualTransaction | undefined;
   updatedTransaction: ManualTransactionRecord | undefined;
   spaceUpdatedInput: UpdateManualTransaction | undefined;
+  spaceUpdatedActorUserId: string | undefined;
   spacePageQuery: SpaceTransactionPageQuery | undefined;
   pageResults: TransactionRecord[];
 
@@ -224,8 +227,10 @@ class TransactionStoreFake implements SpaceTransactionStore {
     spaceId: string,
     id: string,
     input: UpdateManualTransaction,
+    actorUserId: string,
   ): Promise<ManualTransactionRecord | null> {
     this.spaceUpdatedInput = input;
+    this.spaceUpdatedActorUserId = actorUserId;
     const transaction = this.transactions.find(
       (candidate) => candidate.spaceId === spaceId && candidate.id === id,
     );

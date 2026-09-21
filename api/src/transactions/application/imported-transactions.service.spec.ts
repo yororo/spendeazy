@@ -19,7 +19,12 @@ describe('TransactionsService imported transactions', () => {
     const imported = new ImportedTransactionStoreFake(importedRecord());
     const service = createService(imported, [categoryRecord({ id: '43' })]);
     await expect(
-      service.updateImportedTransactionCategoryInSpace('space-7', '1', '43'),
+      service.updateImportedTransactionCategoryInSpace(
+        'member-2',
+        'space-7',
+        '1',
+        '43',
+      ),
     ).resolves.toMatchObject({
       categoryId: '43',
       categoryMatchConfidence: null,
@@ -33,13 +38,28 @@ describe('TransactionsService imported transactions', () => {
       categoryRecord({ id: '43', isActive: false }),
     ]);
     await expect(
-      service.updateImportedTransactionCategoryInSpace('space-7', '1', '404'),
+      service.updateImportedTransactionCategoryInSpace(
+        'member-2',
+        'space-7',
+        '1',
+        '404',
+      ),
     ).rejects.toBeInstanceOf(CategoryNotFoundError);
     await expect(
-      service.updateImportedTransactionCategoryInSpace('space-7', '1', '43'),
+      service.updateImportedTransactionCategoryInSpace(
+        'member-2',
+        'space-7',
+        '1',
+        '43',
+      ),
     ).rejects.toBeInstanceOf(CategoryInactiveError);
     await expect(
-      service.updateImportedTransactionCategoryInSpace('space-8', '1', null),
+      service.updateImportedTransactionCategoryInSpace(
+        'member-2',
+        'space-8',
+        '1',
+        null,
+      ),
     ).rejects.toEqual(
       expect.objectContaining({ code: 'TRANSACTION_NOT_FOUND' }),
     );
@@ -50,13 +70,15 @@ describe('TransactionsService imported transactions', () => {
     const imported = new ImportedTransactionStoreFake(importedRecord());
     const service = createService(imported, [categoryRecord({ id: '43' })]);
     await expect(
-      service.updateTransactionInSpace('space-7', '1', { categoryId: '43' }),
+      service.updateTransactionInSpace('member-2', 'space-7', '1', {
+        categoryId: '43',
+      }),
     ).resolves.toMatchObject({
       categoryId: '43',
       categoryMatchConfidence: null,
     });
     await expect(
-      service.updateTransactionInSpace('space-7', '1', {
+      service.updateTransactionInSpace('member-2', 'space-7', '1', {
         categoryId: '43',
         amount: '99.00',
       }),
@@ -77,6 +99,7 @@ function createService(
 
 class ImportedTransactionStoreFake implements SpaceImportedTransactionStore {
   updatedInput: UpdateImportedTransactionCategory | undefined;
+  updatedActorUserId: string | undefined;
   constructor(private readonly transaction: ImportedTransactionRecord) {}
   create(): Promise<ImportedTransactionRecord> {
     return Promise.reject(new Error('not used'));
@@ -95,8 +118,10 @@ class ImportedTransactionStoreFake implements SpaceImportedTransactionStore {
     spaceId: string,
     id: string,
     input: UpdateImportedTransactionCategory,
+    actorUserId: string,
   ) {
     this.updatedInput = input;
+    this.updatedActorUserId = actorUserId;
     if (this.transaction.spaceId !== spaceId || this.transaction.id !== id)
       return Promise.resolve(null);
     return Promise.resolve({

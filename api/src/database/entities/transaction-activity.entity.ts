@@ -1,5 +1,12 @@
 import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 
+interface TransactionActivityState {
+  categoryId: string | null;
+  purchaseDate: string;
+  description: string;
+  amount: string;
+}
+
 @Entity({ name: 'transaction_activities' })
 @Index('ix_transaction_activities_space_transaction_occurred_at', [
   'spaceId',
@@ -29,8 +36,14 @@ export class TransactionActivityEntity {
   actorUserId!: string;
 
   @Column({ type: 'varchar', length: 20, name: 'activity_type' })
-  type!: 'created';
+  type!: 'created' | 'edited';
 
   @Column({ type: 'timestamptz', precision: 3, name: 'occurred_at' })
   occurredAt!: Date;
+
+  @Column({ type: 'jsonb', nullable: true, name: 'before_state' })
+  beforeState!: TransactionActivityState | null;
+
+  @Column({ type: 'jsonb', nullable: true, name: 'after_state' })
+  afterState!: TransactionActivityState | null;
 }

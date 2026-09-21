@@ -1,6 +1,24 @@
 export const TRANSACTION_ACTIVITY_STORE = Symbol('TRANSACTION_ACTIVITY_STORE');
 
-export type TransactionActivityType = 'created';
+export type TransactionActivityType = 'created' | 'edited';
+
+export interface TransactionActivitySnapshot {
+  categoryId: string | null;
+  purchaseDate: string;
+  description: string;
+  amount: string;
+}
+
+export function toTransactionActivitySnapshot(
+  transaction: TransactionActivitySnapshot,
+): TransactionActivitySnapshot {
+  return {
+    categoryId: transaction.categoryId,
+    purchaseDate: transaction.purchaseDate,
+    description: transaction.description,
+    amount: transaction.amount,
+  };
+}
 
 export interface TransactionActivityRecord {
   id: string;
@@ -9,6 +27,8 @@ export interface TransactionActivityRecord {
   actorUserId: string;
   type: TransactionActivityType;
   occurredAt: Date;
+  before?: TransactionActivitySnapshot;
+  after?: TransactionActivitySnapshot;
 }
 
 export interface NewTransactionActivity {
@@ -17,6 +37,8 @@ export interface NewTransactionActivity {
   actorUserId: string;
   type: TransactionActivityType;
   occurredAt: Date;
+  before?: TransactionActivitySnapshot;
+  after?: TransactionActivitySnapshot;
 }
 
 export interface TransactionActivityStore {

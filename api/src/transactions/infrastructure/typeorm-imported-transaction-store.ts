@@ -11,6 +11,8 @@ import { assertActiveCategory } from '../../categories/application/active-catego
 import { CategoryEntity } from '../../database/entities/category.entity';
 import { TransactionEntity } from '../../database/entities/transaction.entity';
 import { StaleEditError } from '../../errors/application-error';
+import { toTransactionActivitySnapshot } from '../application/transaction-activity-store';
+import { recordEditedTransactionActivity } from './typeorm-transaction-activity-store';
 import type {
   ImportedTransactionRecord,
   NewImportedTransaction,
@@ -75,6 +77,7 @@ export class TypeOrmImportedTransactionStore implements SpaceImportedTransaction
     spaceId: string,
     id: string,
     input: UpdateImportedTransactionCategory,
+    actorUserId: string,
   ): Promise<ImportedTransactionRecord | null> {
     return this.entityManager.transaction(async (entityManager) => {
       const repository = entityManager.getRepository(TransactionEntity);
@@ -82,6 +85,7 @@ export class TypeOrmImportedTransactionStore implements SpaceImportedTransaction
         where: importedTransactionSpaceWhere(spaceId, { id }),
       });
       if (!entity) return null;
+      const before = toTransactionActivitySnapshot(entity);
 
       if (input.categoryId !== null && input.categoryId !== entity.categoryId) {
         await ensureActiveCategoryInSpace(
@@ -109,12 +113,28 @@ export class TypeOrmImportedTransactionStore implements SpaceImportedTransaction
         const updated = await repository.findOne({
           where: importedTransactionSpaceWhere(spaceId, { id }),
         });
-        return updated ? toRecord(updated) : null;
+        if (!updated) return null;
+
+        const transaction = toRecord(updated);
+        await recordEditedTransactionActivity(
+          entityManager,
+          transaction,
+          actorUserId,
+          before,
+        );
+        return transaction;
       }
 
       entity.categoryId = input.categoryId;
       entity.categoryMatchConfidence = null;
-      return toRecord(await repository.save(entity));
+      const transaction = toRecord(await repository.save(entity));
+      await recordEditedTransactionActivity(
+        entityManager,
+        transaction,
+        actorUserId,
+        before,
+      );
+      return transaction;
     });
   }
 }

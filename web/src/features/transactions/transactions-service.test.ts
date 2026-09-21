@@ -444,6 +444,25 @@ describe("Transaction activity", () => {
         actorUserId: "7",
         occurredAt: "2026-08-31T00:00:00.000Z",
       },
+      {
+        id: "activity-2",
+        transactionId: "10",
+        type: "edited",
+        actorUserId: "8",
+        occurredAt: "2026-09-01T00:00:00.000Z",
+        before: {
+          categoryId: null,
+          purchaseDate: "2026-08-31",
+          description: "Coffee",
+          amount: "4.50",
+        },
+        after: {
+          categoryId: "42",
+          purchaseDate: "2026-08-31",
+          description: "Team coffee",
+          amount: "4.50",
+        },
+      },
     ]);
     const apiClient = { get } as unknown as TransactionsApiClient;
     const controller = new AbortController();
@@ -458,6 +477,25 @@ describe("Transaction activity", () => {
         actorUserId: "7",
         occurredAt: "2026-08-31T00:00:00.000Z",
       },
+      {
+        id: "activity-2",
+        transactionId: "10",
+        type: "edited",
+        actorUserId: "8",
+        occurredAt: "2026-09-01T00:00:00.000Z",
+        before: {
+          categoryId: null,
+          purchaseDate: "2026-08-31",
+          description: "Coffee",
+          amount: "4.50",
+        },
+        after: {
+          categoryId: "42",
+          purchaseDate: "2026-08-31",
+          description: "Team coffee",
+          amount: "4.50",
+        },
+      },
     ]);
     expect(buildTransactionActivityPath("10", "space/7")).toBe(
       "/spaces/space%2F7/transactions/10/activity",
@@ -471,6 +509,33 @@ describe("Transaction activity", () => {
   it("rejects malformed activity responses", async () => {
     const apiClient = {
       get: vi.fn(async () => [{ id: "activity-1", type: "created" }]),
+    } as unknown as TransactionsApiClient;
+
+    await expect(getTransactionActivity(apiClient, "10")).rejects.toMatchObject(
+      {
+        kind: "data",
+        message: "The API returned invalid Transaction activity.",
+      },
+    );
+  });
+
+  it("rejects edited activity without complete snapshots", async () => {
+    const apiClient = {
+      get: vi.fn(async () => [
+        {
+          id: "activity-1",
+          transactionId: "10",
+          type: "edited",
+          actorUserId: "7",
+          occurredAt: "2026-08-31T00:00:00.000Z",
+          before: {
+            categoryId: null,
+            purchaseDate: "2026-08-31",
+            description: "Coffee",
+            amount: "4.50",
+          },
+        },
+      ]),
     } as unknown as TransactionsApiClient;
 
     await expect(getTransactionActivity(apiClient, "10")).rejects.toMatchObject(

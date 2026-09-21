@@ -356,6 +356,48 @@ export class ImportedTransactionHistoryResponseDto {
 
 @ApiSchema({
   description:
+    'The editable Transaction values captured before or after an edit.',
+  additionalProperties: false,
+} as ApiSchemaOptionsWithAdditionalProperties)
+export class TransactionActivitySnapshotDto {
+  @ApiProperty({
+    description:
+      'Positive bigint Category identifier encoded as a string, or null when the Transaction was Uncategorized.',
+    type: String,
+    pattern: POSITIVE_INTEGER_ID_PATTERN.source,
+    nullable: true,
+    example: '42',
+  })
+  categoryId!: string | null;
+
+  @ApiProperty({
+    description: 'Valid calendar purchase date encoded as YYYY-MM-DD.',
+    format: 'date',
+    pattern: DOMAIN_DATE_PATTERN.source,
+    example: '2026-08-01',
+  })
+  purchaseDate!: string;
+
+  @ApiProperty({
+    description: 'Trimmed Transaction description at the time of the event.',
+    minLength: 1,
+    maxLength: TRANSACTION_DESCRIPTION_MAX_LENGTH,
+    pattern: '\\S',
+    example: 'Coffee',
+  })
+  description!: string;
+
+  @ApiProperty({
+    description:
+      'Positive exact two-decimal Transaction amount encoded as a string.',
+    pattern: POSITIVE_TWO_DECIMAL_AMOUNT_PATTERN.source,
+    example: '4.50',
+  })
+  amount!: string;
+}
+
+@ApiSchema({
+  description:
     'A recorded activity event for a Transaction. Legacy Transactions may have no activity records.',
   additionalProperties: false,
 } as ApiSchemaOptionsWithAdditionalProperties)
@@ -376,10 +418,10 @@ export class TransactionActivityResponseDto {
 
   @ApiProperty({
     description: 'The activity event type.',
-    enum: ['created'],
+    enum: ['created', 'edited'],
     example: 'created',
   })
-  type!: 'created';
+  type!: 'created' | 'edited';
 
   @ApiProperty({
     description: 'Positive bigint identifier of the User who caused the event.',
@@ -394,6 +436,20 @@ export class TransactionActivityResponseDto {
     example: '2026-08-29T00:00:00.000Z',
   })
   occurredAt!: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Transaction values before an edit. Present only for edited events.',
+    type: TransactionActivitySnapshotDto,
+  })
+  before?: TransactionActivitySnapshotDto;
+
+  @ApiPropertyOptional({
+    description:
+      'Transaction values after an edit. Present only for edited events.',
+    type: TransactionActivitySnapshotDto,
+  })
+  after?: TransactionActivitySnapshotDto;
 }
 
 @ApiSchema({

@@ -70,6 +70,8 @@ describe('TypeOrmTransactionStore', () => {
       actorUserId: '7',
       type: 'created',
       occurredAt: entity.createdAt,
+      beforeState: null,
+      afterState: null,
     });
   });
 
@@ -101,18 +103,31 @@ describe('TypeOrmTransactionStore', () => {
       findOne: jest.fn().mockResolvedValue(entity),
       save: jest.fn().mockResolvedValue(entity),
     };
+    const activityRepository = {
+      create: jest.fn().mockReturnValue({}),
+      save: jest.fn().mockResolvedValue({}),
+    };
     const categoryQuery = categoryQueryBuilder({ isActive: true });
     const store = new TypeOrmTransactionStore(
-      transactionalEntityManager(transactionRepository, categoryQuery),
+      transactionalEntityManager(
+        transactionRepository,
+        categoryQuery,
+        activityRepository,
+      ),
     );
 
     await expect(
-      store.updateInSpace('7', '1', {
-        categoryId: '43',
-        purchaseDate: '2026-08-02',
-        description: 'Dinner',
-        amount: '12.99',
-      }),
+      store.updateInSpace(
+        '7',
+        '1',
+        {
+          categoryId: '43',
+          purchaseDate: '2026-08-02',
+          description: 'Dinner',
+          amount: '12.99',
+        },
+        '8',
+      ),
     ).resolves.toEqual({
       ...transactionRecord(),
       categoryId: '43',
@@ -123,6 +138,25 @@ describe('TypeOrmTransactionStore', () => {
 
     expect(transactionRepository.save).toHaveBeenCalledWith(entity);
     expect(categoryQuery.setLock).toHaveBeenCalledWith('pessimistic_read');
+    expect(activityRepository.create).toHaveBeenCalledWith({
+      transactionId: '1',
+      spaceId: '7',
+      actorUserId: '8',
+      type: 'edited',
+      occurredAt: entity.updatedAt,
+      beforeState: {
+        categoryId: '42',
+        purchaseDate: '2026-08-01',
+        description: 'Coffee',
+        amount: '4.50',
+      },
+      afterState: {
+        categoryId: '43',
+        purchaseDate: '2026-08-02',
+        description: 'Dinner',
+        amount: '12.99',
+      },
+    });
   });
 
   it('reports whether a Space-scoped manual Transaction was removed', async () => {
@@ -137,6 +171,48 @@ describe('TypeOrmTransactionStore', () => {
     expect(transactionRepository.delete).toHaveBeenCalledWith(
       expect.objectContaining({ id: '1', spaceId: '7' }),
     );
+  });
+
+  it('does not create an edit activity when the optimistic version is stale', async () => {
+    const entity = transactionEntity();
+    const updateQuery = {
+      update: jest.fn().mockReturnThis(),
+      set: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      execute: jest.fn().mockResolvedValue({ affected: 0 }),
+    };
+    const transactionRepository = {
+      findOne: jest.fn().mockResolvedValue(entity),
+      createQueryBuilder: jest.fn().mockReturnValue(updateQuery),
+      save: jest.fn(),
+    };
+    const activityRepository = {
+      create: jest.fn(),
+      save: jest.fn(),
+    };
+    const store = new TypeOrmTransactionStore(
+      transactionalEntityManager(
+        transactionRepository,
+        categoryQueryBuilder({ isActive: true }),
+        activityRepository,
+      ),
+    );
+
+    await expect(
+      store.updateInSpace(
+        '7',
+        '1',
+        {
+          description: 'Stale edit',
+          expectedUpdatedAt: '2026-08-30T00:00:00.000Z',
+        },
+        '8',
+      ),
+    ).rejects.toMatchObject({ code: 'STALE_EDIT' });
+
+    expect(activityRepository.create).not.toHaveBeenCalled();
+    expect(transactionRepository.save).not.toHaveBeenCalled();
   });
 
   it('queries a stable filtered transaction page with a forward-only boundary', async () => {

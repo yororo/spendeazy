@@ -217,8 +217,12 @@ describe('authenticated User routes', () => {
         invoke(transactionsService.listTransactions, spaceId, query),
       getManualTransactionInSpace: (spaceId: string, id: string) =>
         invoke(transactionsService.getManualTransaction, spaceId, id),
-      updateTransactionInSpace: (spaceId: string, id: string, input: unknown) =>
-        invoke(transactionsService.updateTransaction, spaceId, id, input),
+      updateTransactionInSpace: (
+        _actorUserId: string,
+        spaceId: string,
+        id: string,
+        input: unknown,
+      ) => invoke(transactionsService.updateTransaction, spaceId, id, input),
       deleteManualTransactionInSpace: (spaceId: string, id: string) =>
         invoke(transactionsService.deleteManualTransaction, spaceId, id),
     });

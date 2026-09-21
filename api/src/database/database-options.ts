@@ -24,6 +24,7 @@ import { RemoveLegacyFinancialProvisioningTriggers1800000000000 } from './migrat
 import { RemoveLegacyFinancialUserOwnership1810000000000 } from './migrations/1810000000000-remove-legacy-financial-user-ownership';
 import { CreateInvitations1820000000000 } from './migrations/1820000000000-create-invitations';
 import { CreateTransactionActivity1830000000000 } from './migrations/1830000000000-create-transaction-activity';
+import { AddTransactionEditActivity1840000000000 } from './migrations/1840000000000-add-transaction-edit-activity';
 
 export const DATABASE_MIGRATIONS = [
   CreateExpenseTrackerSchema1710000000000,
@@ -39,6 +40,7 @@ export const DATABASE_MIGRATIONS = [
   RemoveLegacyFinancialUserOwnership1810000000000,
   CreateInvitations1820000000000,
   CreateTransactionActivity1830000000000,
+  AddTransactionEditActivity1840000000000,
 ];
 
 export const DATABASE_ENTITIES = [

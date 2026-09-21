@@ -11,6 +11,7 @@ const CATEGORY_DEPENDENT_QUERY_KEYS = [
   ["categories", "budget"],
   ["dashboard"],
   ["transactions"],
+  ["transaction-activity"],
   ["statement-import", "categories"],
   ["statement-import", "rules"],
   ["statement-import", "recent"],

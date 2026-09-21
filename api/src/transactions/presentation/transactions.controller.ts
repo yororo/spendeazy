@@ -49,6 +49,7 @@ import {
   ManualTransactionHistoryResponseDto,
   ManualTransactionResponseDto,
   TransactionHistoryPageResponseDto,
+  TransactionActivitySnapshotDto,
   TransactionActivityResponseDto,
 } from './transaction-response.dto';
 
@@ -62,6 +63,7 @@ import {
   ManualTransactionHistoryResponseDto,
   ImportedTransactionHistoryResponseDto,
   TransactionHistoryPageResponseDto,
+  TransactionActivitySnapshotDto,
   TransactionActivityResponseDto,
 )
 export class TransactionsController {
@@ -287,6 +289,7 @@ export class TransactionsController {
     const changes = toTransactionUpdate(input);
     return toTransactionResponse(
       await this.transactionsService.updateTransactionInSpace(
+        userId,
         personalSpace.id,
         params.transactionId,
         changes,
@@ -408,12 +411,26 @@ export function toTransactionHistoryResponse(
 export function toTransactionActivityResponse(
   activity: TransactionActivityRecord,
 ): TransactionActivityResponseDto {
-  return {
+  const response = {
     id: activity.id,
     transactionId: activity.transactionId,
     type: activity.type,
     actorUserId: activity.actorUserId,
     occurredAt: activity.occurredAt.toISOString(),
+  };
+
+  if (activity.type === 'created') {
+    return response;
+  }
+
+  if (activity.before === undefined || activity.after === undefined) {
+    throw new Error('Edited Transaction activity is missing its snapshots');
+  }
+
+  return {
+    ...response,
+    before: activity.before,
+    after: activity.after,
   };
 }
 
@@ -436,7 +453,7 @@ function toTransactionResponseFields(
 
 function toTransactionUpdate(
   input: UpdateManualTransactionDto,
-): Parameters<TransactionsService['updateTransactionInSpace']>[2] {
+): Parameters<TransactionsService['updateTransactionInSpace']>[3] {
   const { updatedAt, ...changes } = input;
   return {
     ...changes,

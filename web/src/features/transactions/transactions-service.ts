@@ -66,13 +66,34 @@ interface UpdateTransactionInput {
   readonly updatedAt?: string;
 }
 
-interface TransactionActivity {
+interface TransactionActivitySnapshot {
+  readonly categoryId: string | null;
+  readonly purchaseDate: string;
+  readonly description: string;
+  readonly amount: string;
+}
+
+interface TransactionCreatedActivity {
   readonly id: string;
   readonly transactionId: string;
   readonly type: "created";
   readonly actorUserId: string;
   readonly occurredAt: string;
 }
+
+interface TransactionEditedActivity {
+  readonly id: string;
+  readonly transactionId: string;
+  readonly type: "edited";
+  readonly actorUserId: string;
+  readonly occurredAt: string;
+  readonly before: TransactionActivitySnapshot;
+  readonly after: TransactionActivitySnapshot;
+}
+
+type TransactionActivity =
+  | TransactionCreatedActivity
+  | TransactionEditedActivity;
 
 type TransactionsApiClient = Pick<
   ApiClient,
@@ -103,15 +124,34 @@ function requireCategoryCatalog(
   return response;
 }
 
-function isTransactionActivity(value: unknown): value is TransactionActivity {
+function isTransactionActivitySnapshot(
+  value: unknown,
+): value is TransactionActivitySnapshot {
   return (
+    isRecord(value) &&
+    (value.categoryId === null || typeof value.categoryId === "string") &&
+    typeof value.purchaseDate === "string" &&
+    typeof value.description === "string" &&
+    typeof value.amount === "string"
+  );
+}
+
+function isTransactionActivity(value: unknown): value is TransactionActivity {
+  const hasCommonFields =
     isRecord(value) &&
     typeof value.id === "string" &&
     typeof value.transactionId === "string" &&
-    value.type === "created" &&
     typeof value.actorUserId === "string" &&
     typeof value.occurredAt === "string" &&
-    Number.isFinite(Date.parse(value.occurredAt))
+    Number.isFinite(Date.parse(value.occurredAt));
+
+  if (!hasCommonFields) return false;
+
+  return (
+    value.type === "created" ||
+    (value.type === "edited" &&
+      isTransactionActivitySnapshot(value.before) &&
+      isTransactionActivitySnapshot(value.after))
   );
 }
 
@@ -355,6 +395,7 @@ export type {
   CreateTransactionInput,
   ListTransactionsParams,
   TransactionActivity,
+  TransactionActivitySnapshot,
   TransactionPage,
   TransactionSummary,
   TransactionProjection as Transaction,

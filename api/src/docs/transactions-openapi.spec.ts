@@ -376,9 +376,31 @@ describe('Transaction OpenAPI contract', () => {
           pattern: '^[1-9]\\d*$',
           example: '100',
         },
-        type: { type: 'string', enum: ['created'], example: 'created' },
+        type: {
+          type: 'string',
+          enum: ['created', 'edited'],
+          example: 'created',
+        },
         actorUserId: { type: 'string', pattern: '^[1-9]\\d*$', example: '7' },
         occurredAt: { type: 'string', format: 'date-time' },
+        before: {
+          allOf: [
+            {
+              $ref: '#/components/schemas/TransactionActivitySnapshotDto',
+            },
+          ],
+          description:
+            'Transaction values before an edit. Present only for edited events.',
+        },
+        after: {
+          allOf: [
+            {
+              $ref: '#/components/schemas/TransactionActivitySnapshotDto',
+            },
+          ],
+          description:
+            'Transaction values after an edit. Present only for edited events.',
+        },
       },
     });
 

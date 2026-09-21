@@ -36,6 +36,8 @@ describe('TypeOrmTransactionActivityStore', () => {
       actorUserId: '8',
       type: 'created',
       occurredAt: entity.occurredAt,
+      beforeState: null,
+      afterState: null,
     });
   });
 
@@ -58,13 +60,57 @@ describe('TypeOrmTransactionActivityStore', () => {
     );
 
     await expect(store.findByTransactionInSpace('7', '100')).resolves.toEqual(
-      entities,
+      entities.map((entity) => ({
+        id: entity.id,
+        transactionId: entity.transactionId,
+        spaceId: entity.spaceId,
+        actorUserId: entity.actorUserId,
+        type: entity.type,
+        occurredAt: entity.occurredAt,
+      })),
     );
 
     expect(repository.find).toHaveBeenCalledWith({
       where: { spaceId: '7', transactionId: '100' },
       order: { occurredAt: 'ASC', id: 'ASC' },
     });
+  });
+
+  it('maps edit snapshots from persistence', async () => {
+    const entity = activityEntity({
+      type: 'edited',
+      beforeState: {
+        categoryId: null,
+        purchaseDate: '2026-08-01',
+        description: 'Coffee',
+        amount: '4.50',
+      },
+      afterState: {
+        categoryId: '42',
+        purchaseDate: '2026-08-01',
+        description: 'Team coffee',
+        amount: '4.50',
+      },
+    });
+    const repository = {
+      find: jest.fn().mockResolvedValue([entity]),
+    };
+    const store = new TypeOrmTransactionActivityStore(
+      entityManagerFor(repository),
+    );
+
+    await expect(store.findByTransactionInSpace('7', '100')).resolves.toEqual([
+      {
+        id: '200',
+        transactionId: '100',
+        spaceId: '7',
+        actorUserId: '8',
+        type: 'edited',
+        occurredAt: entity.occurredAt,
+        before: entity.beforeState,
+        after: entity.afterState,
+      },
+    ]);
   });
 });
 
@@ -87,6 +133,8 @@ function activityEntity(
     actorUserId: '8',
     type: 'created',
     occurredAt: new Date('2026-08-29T00:00:01.000Z'),
+    beforeState: null,
+    afterState: null,
     ...overrides,
   };
 }

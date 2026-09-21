@@ -76,6 +76,7 @@ export interface SpaceTransactionStore {
     spaceId: string,
     id: string,
     input: UpdateManualTransaction,
+    actorUserId: string,
   ): Promise<ManualTransactionRecord | null>;
   deleteInSpace(
     spaceId: string,

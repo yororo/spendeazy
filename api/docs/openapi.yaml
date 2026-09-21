@@ -3903,6 +3903,40 @@ components:
       required:
         - items
         - nextCursor
+    TransactionActivitySnapshotDto:
+      type: object
+      properties:
+        categoryId:
+          type: string
+          description: Positive bigint Category identifier encoded as a string, or null when the Transaction was Uncategorized.
+          pattern: ^[1-9]\d*$
+          nullable: true
+          example: '42'
+        purchaseDate:
+          type: string
+          description: Valid calendar purchase date encoded as YYYY-MM-DD.
+          format: date
+          pattern: ^\d{4}-\d{2}-\d{2}$
+          example: '2026-08-01'
+        description:
+          type: string
+          description: Trimmed Transaction description at the time of the event.
+          minLength: 1
+          maxLength: 500
+          pattern: \S
+          example: Coffee
+        amount:
+          type: string
+          description: Positive exact two-decimal Transaction amount encoded as a string.
+          pattern: ^(?=.*[1-9])\d{1,13}\.\d{2}$
+          example: '4.50'
+      description: The editable Transaction values captured before or after an edit.
+      additionalProperties: false
+      required:
+        - categoryId
+        - purchaseDate
+        - description
+        - amount
     TransactionActivityResponseDto:
       type: object
       properties:
@@ -3921,6 +3955,7 @@ components:
           description: The activity event type.
           enum:
             - created
+            - edited
           example: created
         actorUserId:
           type: string
@@ -3932,6 +3967,14 @@ components:
           description: UTC timestamp when the activity event occurred.
           format: date-time
           example: '2026-08-29T00:00:00.000Z'
+        before:
+          description: Transaction values before an edit. Present only for edited events.
+          allOf:
+            - $ref: '#/components/schemas/TransactionActivitySnapshotDto'
+        after:
+          description: Transaction values after an edit. Present only for edited events.
+          allOf:
+            - $ref: '#/components/schemas/TransactionActivitySnapshotDto'
       description: A recorded activity event for a Transaction. Legacy Transactions may have no activity records.
       additionalProperties: false
       required:

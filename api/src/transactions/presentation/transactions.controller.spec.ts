@@ -166,6 +166,44 @@ describe('TransactionsController', () => {
     expect(listTransactionActivityInSpace).toHaveBeenCalledWith('9', '100');
   });
 
+  it('returns before-and-after values for an edited activity event', async () => {
+    const transactionsService = {
+      listTransactionActivityInSpace: jest
+        .fn()
+        .mockResolvedValue([editedActivityRecord()]),
+    };
+    const controller = new TransactionsController(
+      transactionsService as unknown as TransactionsService,
+      personalSpaceAccess(),
+    );
+
+    await expect(
+      controller.listTransactionActivity(authenticatedRequest(), {
+        transactionId: '100',
+      }),
+    ).resolves.toEqual([
+      {
+        id: '201',
+        transactionId: '100',
+        type: 'edited',
+        actorUserId: '8',
+        occurredAt: '2026-09-20T00:00:00.123Z',
+        before: {
+          categoryId: '42',
+          purchaseDate: '2026-08-01',
+          description: 'Coffee',
+          amount: '4.50',
+        },
+        after: {
+          categoryId: '43',
+          purchaseDate: '2026-08-01',
+          description: 'Dinner',
+          amount: '4.50',
+        },
+      },
+    ]);
+  });
+
   it('returns an imported transaction after a category-only patch', async () => {
     const transaction = importedTransactionRecord();
     const transactionsService = {
@@ -194,6 +232,7 @@ describe('TransactionsController', () => {
     });
 
     expect(transactionsService.updateTransactionInSpace).toHaveBeenCalledWith(
+      '7',
       '9',
       '100',
       { categoryId: '43' },
@@ -249,5 +288,28 @@ function activityRecord(): TransactionActivityRecord {
     actorUserId: '8',
     type: 'created',
     occurredAt: new Date('2026-08-29T00:00:00.123Z'),
+  };
+}
+
+function editedActivityRecord(): TransactionActivityRecord {
+  return {
+    id: '201',
+    transactionId: '100',
+    spaceId: '9',
+    actorUserId: '8',
+    type: 'edited',
+    occurredAt: new Date('2026-09-20T00:00:00.123Z'),
+    before: {
+      categoryId: '42',
+      purchaseDate: '2026-08-01',
+      description: 'Coffee',
+      amount: '4.50',
+    },
+    after: {
+      categoryId: '43',
+      purchaseDate: '2026-08-01',
+      description: 'Dinner',
+      amount: '4.50',
+    },
   };
 }

@@ -3,6 +3,7 @@ import { AlertCircleIcon } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { FeatureDataLoading } from "@/components/app/feature-data-state";
 import { Button } from "@/components/ui/button";
+import { formatExactMoney } from "@/shared/money";
 import {
   Dialog,
   DialogContent,
@@ -13,7 +14,10 @@ import {
 } from "@/components/ui/dialog";
 
 import { useTransactionActivityQuery } from "./transactions-queries";
-import type { Transaction } from "./transactions-service";
+import type {
+  Transaction,
+  TransactionActivitySnapshot,
+} from "./transactions-service";
 
 interface TransactionActivityDialogProps {
   readonly open: boolean;
@@ -98,10 +102,12 @@ function TransactionActivityDialog({
                   className="border-l-2 border-foreground pl-4"
                 >
                   <p className="font-mono text-sm font-bold uppercase">
-                    Created
+                    {activity.type === "created" ? "Created" : "Edited"}
                   </p>
                   <p className="mt-1 text-sm">
-                    Created by User {activity.actorUserId}
+                    {activity.type === "created" ? "Created" : "Edited"} by
+                    {" User "}
+                    {activity.actorUserId}
                   </p>
                   <time
                     className="mt-1 block text-xs text-muted-foreground"
@@ -109,6 +115,18 @@ function TransactionActivityDialog({
                   >
                     {activityDateFormatter.format(new Date(activity.occurredAt))}
                   </time>
+                  {activity.type === "edited" && (
+                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                      <TransactionActivitySnapshotView
+                        label="Before"
+                        snapshot={activity.before}
+                      />
+                      <TransactionActivitySnapshotView
+                        label="After"
+                        snapshot={activity.after}
+                      />
+                    </div>
+                  )}
                 </li>
               ))}
             </ol>
@@ -122,6 +140,40 @@ function TransactionActivityDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function TransactionActivitySnapshotView({
+  label,
+  snapshot,
+}: {
+  readonly label: string;
+  readonly snapshot: TransactionActivitySnapshot;
+}) {
+  return (
+    <div className="border p-3">
+      <p className="text-label text-muted-foreground">{label}</p>
+      <dl className="mt-2 grid gap-2 text-sm">
+        <div>
+          <dt className="text-muted-foreground">Purchase date</dt>
+          <dd className="font-mono">{snapshot.purchaseDate}</dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground">Description</dt>
+          <dd className="wrap-anywhere">{snapshot.description}</dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground">Category</dt>
+          <dd>{snapshot.categoryId ?? "Uncategorized"}</dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground">Amount</dt>
+          <dd className="font-mono tabular-nums">
+            {formatExactMoney(snapshot.amount)}
+          </dd>
+        </div>
+      </dl>
+    </div>
   );
 }
 

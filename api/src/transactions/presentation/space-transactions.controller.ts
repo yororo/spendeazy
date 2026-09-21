@@ -45,6 +45,7 @@ import {
   ManualTransactionHistoryResponseDto,
   ManualTransactionResponseDto,
   TransactionHistoryPageResponseDto,
+  TransactionActivitySnapshotDto,
   TransactionActivityResponseDto,
 } from './transaction-response.dto';
 import {
@@ -67,6 +68,7 @@ import { SpaceTransactionParamsDto } from './space-transaction.dto';
   ManualTransactionHistoryResponseDto,
   ImportedTransactionHistoryResponseDto,
   TransactionHistoryPageResponseDto,
+  TransactionActivitySnapshotDto,
   TransactionActivityResponseDto,
 )
 @ApiParam({
@@ -305,6 +307,7 @@ export class SpaceTransactionsController {
     const updatedAt = requireScopedTransactionVersion(input.updatedAt);
     return toTransactionResponse(
       await this.transactionsService.updateTransactionInSpace(
+        userId,
         params.spaceId,
         params.transactionId,
         toTransactionUpdate({ ...input, updatedAt }),
@@ -367,7 +370,7 @@ export class SpaceTransactionsController {
 
 function toTransactionUpdate(
   input: UpdateManualTransactionDto,
-): Parameters<TransactionsService['updateTransactionInSpace']>[2] {
+): Parameters<TransactionsService['updateTransactionInSpace']>[3] {
   const { updatedAt, ...changes } = input;
   return {
     ...changes,

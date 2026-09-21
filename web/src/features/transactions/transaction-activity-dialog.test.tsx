@@ -1,19 +1,22 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { Transaction } from "./transactions-service";
+import type {
+  Transaction,
+  TransactionActivity,
+} from "./transactions-service";
 import { TransactionActivityDialog } from "./transaction-activity-dialog";
 
 const queryState = vi.hoisted(() => ({
-  data: [] as readonly {
-    readonly id: string;
-    readonly transactionId: string;
-    readonly type: "created";
-    readonly actorUserId: string;
-    readonly occurredAt: string;
-  }[],
+  data: [] as readonly TransactionActivity[],
   isPending: false,
   isError: false,
   isSuccess: true,
@@ -86,5 +89,39 @@ describe("TransactionActivityDialog", () => {
     expect(screen.getByText("Activity unavailable")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Retry" }));
     expect(queryState.refetch).toHaveBeenCalledOnce();
+  });
+
+  it("shows the actor and before-and-after values for an edit", () => {
+    queryState.data = [
+      {
+        id: "activity-2",
+        transactionId: "10",
+        type: "edited",
+        actorUserId: "8",
+        occurredAt: "2026-09-01T00:00:00.000Z",
+        before: {
+          categoryId: null,
+          purchaseDate: "2026-08-31",
+          description: "Legacy lunch",
+          amount: "10.00",
+        },
+        after: {
+          categoryId: "42",
+          purchaseDate: "2026-08-31",
+          description: "Team lunch",
+          amount: "10.00",
+        },
+      },
+    ];
+
+    renderDialog();
+
+    const dialog = screen.getByRole("dialog");
+    expect(screen.getByText("Edited by User 8")).toBeTruthy();
+    expect(within(dialog).getByText("Before")).toBeTruthy();
+    expect(within(dialog).getByText("After")).toBeTruthy();
+    expect(within(dialog).getByText("Legacy lunch")).toBeTruthy();
+    expect(within(dialog).getByText("Team lunch")).toBeTruthy();
+    expect(within(dialog).getByText("Uncategorized")).toBeTruthy();
   });
 });

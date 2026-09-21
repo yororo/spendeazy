@@ -165,6 +165,7 @@ describe('SpaceTransactionsController', () => {
     );
 
     expect(transactionsService.updateTransactionInSpace).toHaveBeenCalledWith(
+      '7',
       '10',
       '100',
       {

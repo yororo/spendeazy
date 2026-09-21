@@ -2,10 +2,12 @@ import { Injectable } from '@nestjs/common';
 import { InjectEntityManager } from '@nestjs/typeorm';
 import type { EntityManager } from 'typeorm';
 import { TransactionActivityEntity } from '../../database/entities/transaction-activity.entity';
-import type {
-  NewTransactionActivity,
-  TransactionActivityRecord,
-  TransactionActivityStore,
+import {
+  toTransactionActivitySnapshot,
+  type NewTransactionActivity,
+  type TransactionActivityRecord,
+  type TransactionActivityStore,
+  type TransactionActivitySnapshot,
 } from '../application/transaction-activity-store';
 
 @Injectable()
@@ -27,6 +29,8 @@ export class TypeOrmTransactionActivityStore implements TransactionActivityStore
       actorUserId: input.actorUserId,
       type: input.type,
       occurredAt: input.occurredAt,
+      beforeState: input.before ?? null,
+      afterState: input.after ?? null,
     });
 
     return toRecord(await repository.save(entity));
@@ -47,6 +51,29 @@ export class TypeOrmTransactionActivityStore implements TransactionActivityStore
   }
 }
 
+export function recordEditedTransactionActivity(
+  entityManager: EntityManager,
+  transaction: TransactionActivitySnapshot & {
+    id: string;
+    spaceId: string;
+    updatedAt: Date;
+  },
+  actorUserId: string,
+  before: TransactionActivitySnapshot,
+): Promise<void> {
+  return new TypeOrmTransactionActivityStore(entityManager)
+    .create({
+      transactionId: transaction.id,
+      spaceId: transaction.spaceId,
+      actorUserId,
+      type: 'edited',
+      occurredAt: transaction.updatedAt,
+      before,
+      after: toTransactionActivitySnapshot(transaction),
+    })
+    .then(() => undefined);
+}
+
 function toRecord(
   entity: TransactionActivityEntity,
 ): TransactionActivityRecord {
@@ -57,5 +84,11 @@ function toRecord(
     actorUserId: entity.actorUserId,
     type: entity.type,
     occurredAt: entity.occurredAt,
+    ...(entity.beforeState === null || entity.beforeState === undefined
+      ? {}
+      : { before: entity.beforeState }),
+    ...(entity.afterState === null || entity.afterState === undefined
+      ? {}
+      : { after: entity.afterState }),
   };
 }

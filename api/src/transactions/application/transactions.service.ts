@@ -175,6 +175,7 @@ export class TransactionsService {
   }
 
   async updateManualTransactionInSpace(
+    actorUserId: string,
     spaceId: string,
     id: string,
     input: UpdateManualTransaction,
@@ -205,6 +206,7 @@ export class TransactionsService {
       spaceId,
       id,
       changes,
+      actorUserId,
     );
     if (!updatedTransaction) {
       throw new TransactionNotFoundError();
@@ -214,6 +216,7 @@ export class TransactionsService {
   }
 
   async updateTransactionInSpace(
+    actorUserId: string,
     spaceId: string,
     id: string,
     input: UpdateManualTransaction,
@@ -223,7 +226,12 @@ export class TransactionsService {
       id,
     );
     if (manualTransaction) {
-      return this.updateManualTransactionInSpace(spaceId, id, input);
+      return this.updateManualTransactionInSpace(
+        actorUserId,
+        spaceId,
+        id,
+        input,
+      );
     }
 
     const importedTransaction =
@@ -242,6 +250,7 @@ export class TransactionsService {
     }
 
     return this.updateImportedTransactionCategoryInSpace(
+      actorUserId,
       spaceId,
       id,
       input.categoryId,
@@ -271,6 +280,7 @@ export class TransactionsService {
   }
 
   async updateImportedTransactionCategoryInSpace(
+    actorUserId: string,
     spaceId: string,
     id: string,
     categoryId: string | null,
@@ -299,6 +309,7 @@ export class TransactionsService {
           categoryId,
           ...(expectedUpdatedAt === undefined ? {} : { expectedUpdatedAt }),
         },
+        actorUserId,
       );
     if (!updatedTransaction) {
       throw new TransactionNotFoundError();

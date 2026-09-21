@@ -259,6 +259,7 @@ describeDatabase('Spaces with PostgreSQL', () => {
     });
 
     const updated = await transactions.updateManualTransactionInSpace(
+      owner.id,
       sharedSpace.id,
       created.id,
       {
@@ -271,10 +272,40 @@ describeDatabase('Spaces with PostgreSQL', () => {
       addedByUserId: member.id,
     });
     await expect(
-      transactions.updateManualTransactionInSpace(sharedSpace.id, created.id, {
-        description: 'Stale edit',
-        expectedUpdatedAt: created.updatedAt.toISOString(),
+      database.getRepository(TransactionActivityEntity).findBy({
+        spaceId: sharedSpace.id,
+        transactionId: created.id,
       }),
+    ).resolves.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          actorUserId: owner.id,
+          type: 'edited',
+          beforeState: {
+            categoryId: sharedCategory.id,
+            purchaseDate: '2026-09-20',
+            description: 'Shared dinner',
+            amount: '24.50',
+          },
+          afterState: {
+            categoryId: sharedCategory.id,
+            purchaseDate: '2026-09-20',
+            description: 'Shared dinner updated',
+            amount: '24.50',
+          },
+        }),
+      ]),
+    );
+    await expect(
+      transactions.updateManualTransactionInSpace(
+        owner.id,
+        sharedSpace.id,
+        created.id,
+        {
+          description: 'Stale edit',
+          expectedUpdatedAt: created.updatedAt.toISOString(),
+        },
+      ),
     ).rejects.toMatchObject({ code: 'STALE_EDIT' });
 
     await expect(

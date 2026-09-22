@@ -14,6 +14,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ReportingPeriodProvider } from "@/shared/reporting-period";
 
 import { ArchivedSpaceHistoryPage } from "./archived-space-history-page";
+import type { Transaction, TransactionActivity } from "./transactions-service";
 
 const pageState = vi.hoisted(() => ({
   spacesQuery: {
@@ -84,6 +85,25 @@ const pageState = vi.hoisted(() => ({
     isError: false,
     refetch: vi.fn(),
   },
+  deletedTransactionQuery: {
+    data: {
+      pages: [
+        {
+          items: [] as Transaction[],
+          nextCursor: null,
+        },
+      ],
+    },
+    hasNextPage: false,
+    isFetching: false,
+    isFetchingNextPage: false,
+    isPending: false,
+    isError: false,
+    isSuccess: true,
+    error: new Error("Deleted Transactions unavailable"),
+    refetch: vi.fn(async () => undefined),
+    fetchNextPage: vi.fn(async () => undefined),
+  },
   activityQuery: {
     data: [
       {
@@ -93,7 +113,7 @@ const pageState = vi.hoisted(() => ({
         actorUserId: "user-3",
         occurredAt: "2026-09-03T00:00:00.000Z",
       },
-    ],
+    ] as TransactionActivity[],
     isPending: false,
     isError: false,
     error: null,
@@ -123,12 +143,23 @@ vi.mock("./transactions-queries", () => ({
     pageState.lastTransactionQueryArgs = [period, spaceId, enabled];
     return pageState.transactionQuery;
   },
+  useDeletedTransactionsQuery: () => pageState.deletedTransactionQuery,
   useTransactionActivityQuery: () => pageState.activityQuery,
 }));
 
 afterEach(() => {
   cleanup();
   pageState.lastTransactionQueryArgs = undefined;
+  pageState.activityQuery.data = [
+    {
+      id: "activity-1",
+      transactionId: "transaction-1",
+      type: "created",
+      actorUserId: "user-3",
+      occurredAt: "2026-09-03T00:00:00.000Z",
+    },
+  ];
+  pageState.deletedTransactionQuery.data.pages[0].items = [];
 });
 
 function renderPage(initialEntry = "/history") {
@@ -187,6 +218,37 @@ describe("ArchivedSpaceHistoryPage", () => {
       "archived-1",
       true,
     ]);
+  });
+
+  it("shows retained deleted Transactions and their deletion activity", () => {
+    pageState.deletedTransactionQuery.data.pages[0].items = [
+      {
+        ...pageState.transactionQuery.data.pages[0].items[0],
+        deletedAt: "2026-09-05T00:00:00.000Z",
+      } as unknown as Transaction,
+    ];
+    pageState.activityQuery.data = [
+      {
+        id: "activity-deleted",
+        transactionId: "transaction-1",
+        type: "deleted",
+        actorUserId: "user-1",
+        occurredAt: "2026-09-05T00:00:00.000Z",
+      },
+    ];
+
+    renderPage("/history?spaceId=archived-1");
+
+    expect(
+      screen.getByRole("heading", { name: "Deleted Transactions" }),
+    ).toBeTruthy();
+    const activityButtons = screen.getAllByRole("button", {
+      name: "View activity for Archived dinner",
+    });
+    fireEvent.click(activityButtons.at(-1)!);
+    expect(
+      within(screen.getByRole("dialog")).getByText("Deleted by User user-1"),
+    ).toBeTruthy();
   });
 
   it("selects an archive without changing the active financial route", () => {

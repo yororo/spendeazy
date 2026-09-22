@@ -2687,6 +2687,143 @@
         ]
       }
     },
+    "/api/v1/users/me/transactions/history": {
+      "get": {
+        "operationId": "Transactions_listDeletedTransactions",
+        "parameters": [
+          {
+            "name": "fromDate",
+            "required": false,
+            "in": "query",
+            "description": "Inclusive lower purchase date. It must be a valid calendar date in YYYY-MM-DD format and be on or before toDate when both filters are supplied.",
+            "schema": {
+              "format": "date",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "example": "2026-08-01",
+              "type": "string"
+            }
+          },
+          {
+            "name": "toDate",
+            "required": false,
+            "in": "query",
+            "description": "Inclusive upper purchase date. It must be a valid calendar date in YYYY-MM-DD format.",
+            "schema": {
+              "format": "date",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "example": "2026-08-31",
+              "type": "string"
+            }
+          },
+          {
+            "name": "categoryId",
+            "required": false,
+            "in": "query",
+            "description": "Only Transactions assigned to this positive bigint Category identifier owned by the authenticated User.",
+            "schema": {
+              "pattern": "^[1-9]\\d*$",
+              "example": "42",
+              "type": "string"
+            }
+          },
+          {
+            "name": "categoryState",
+            "required": false,
+            "in": "query",
+            "description": "Whether to return categorized Transactions or Uncategorized Transactions.",
+            "schema": {
+              "example": "categorized",
+              "type": "string",
+              "enum": [
+                "categorized",
+                "uncategorized"
+              ]
+            }
+          },
+          {
+            "name": "statementImportId",
+            "required": false,
+            "in": "query",
+            "description": "Only Transactions committed from this positive bigint Statement import identifier owned by the authenticated User.",
+            "schema": {
+              "pattern": "^[1-9]\\d*$",
+              "example": "10",
+              "type": "string"
+            }
+          },
+          {
+            "name": "source",
+            "required": false,
+            "in": "query",
+            "description": "Whether to return manually recorded or imported Transactions.",
+            "schema": {
+              "example": "imported",
+              "type": "string",
+              "enum": [
+                "manual",
+                "imported"
+              ]
+            }
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "description": "Number of Transactions to return per page. Must be between 1 and 100 inclusive; defaults to 20. The cursor is not coupled to page size.",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "example": 20,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "Opaque base64url cursor for the next page. Reuse it only with the same filters; cursors encode the fixed purchaseDate-descending, ID-descending ordering.",
+            "schema": {
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9_-]+$",
+              "example": "eyJ2ZXJzaW9uIjoxLCJvcmRlcmluZyI6InB1cmNoYXNlRGF0ZTpkZXNjLG...",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Retained deleted Transaction history page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransactionHistoryPageResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthenticatedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/UserNotProvisionedError"
+          },
+          "406": {
+            "$ref": "#/components/responses/NotAcceptableError"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "List retained deleted Transactions.",
+        "tags": [
+          "Transactions"
+        ]
+      }
+    },
     "/api/v1/users/me/transactions/{transactionId}/activity": {
       "get": {
         "operationId": "Transactions_listTransactionActivity",
@@ -3159,6 +3296,157 @@
           }
         },
         "summary": "List Transactions in an authorized Space.",
+        "tags": [
+          "Transactions"
+        ]
+      }
+    },
+    "/api/v1/users/me/spaces/{spaceId}/transactions/history": {
+      "get": {
+        "operationId": "SpaceTransactions_listDeletedTransactions",
+        "parameters": [
+          {
+            "name": "spaceId",
+            "required": true,
+            "in": "path",
+            "description": "Positive bigint Space identifier encoded as a string.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9]\\d*$",
+              "example": "7"
+            }
+          },
+          {
+            "name": "fromDate",
+            "required": false,
+            "in": "query",
+            "description": "Inclusive lower purchase date. It must be a valid calendar date in YYYY-MM-DD format and be on or before toDate when both filters are supplied.",
+            "schema": {
+              "format": "date",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "example": "2026-08-01",
+              "type": "string"
+            }
+          },
+          {
+            "name": "toDate",
+            "required": false,
+            "in": "query",
+            "description": "Inclusive upper purchase date. It must be a valid calendar date in YYYY-MM-DD format.",
+            "schema": {
+              "format": "date",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "example": "2026-08-31",
+              "type": "string"
+            }
+          },
+          {
+            "name": "categoryId",
+            "required": false,
+            "in": "query",
+            "description": "Only Transactions assigned to this positive bigint Category identifier owned by the authenticated User.",
+            "schema": {
+              "pattern": "^[1-9]\\d*$",
+              "example": "42",
+              "type": "string"
+            }
+          },
+          {
+            "name": "categoryState",
+            "required": false,
+            "in": "query",
+            "description": "Whether to return categorized Transactions or Uncategorized Transactions.",
+            "schema": {
+              "example": "categorized",
+              "type": "string",
+              "enum": [
+                "categorized",
+                "uncategorized"
+              ]
+            }
+          },
+          {
+            "name": "statementImportId",
+            "required": false,
+            "in": "query",
+            "description": "Only Transactions committed from this positive bigint Statement import identifier owned by the authenticated User.",
+            "schema": {
+              "pattern": "^[1-9]\\d*$",
+              "example": "10",
+              "type": "string"
+            }
+          },
+          {
+            "name": "source",
+            "required": false,
+            "in": "query",
+            "description": "Whether to return manually recorded or imported Transactions.",
+            "schema": {
+              "example": "imported",
+              "type": "string",
+              "enum": [
+                "manual",
+                "imported"
+              ]
+            }
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "description": "Number of Transactions to return per page. Must be between 1 and 100 inclusive; defaults to 20. The cursor is not coupled to page size.",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "example": 20,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "Opaque base64url cursor for the next page. Reuse it only with the same filters; cursors encode the fixed purchaseDate-descending, ID-descending ordering.",
+            "schema": {
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9_-]+$",
+              "example": "eyJ2ZXJzaW9uIjoxLCJvcmRlcmluZyI6InB1cmNoYXNlRGF0ZTpkZXNjLG...",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Retained deleted Transaction history page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransactionHistoryPageResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthenticatedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/UserNotProvisionedError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          },
+          "406": {
+            "$ref": "#/components/responses/NotAcceptableError"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "List retained deleted Transactions in a Space.",
         "tags": [
           "Transactions"
         ]
@@ -5420,6 +5708,12 @@
             "description": "UTC timestamp when the Transaction was last updated.",
             "format": "date-time",
             "example": "2026-08-29T00:00:00.000Z"
+          },
+          "deletedAt": {
+            "type": "string",
+            "description": "UTC timestamp when the Transaction was deleted. Omitted for active Transactions.",
+            "format": "date-time",
+            "example": "2026-09-20T00:00:00.000Z"
           }
         },
         "description": "A manually recorded Transaction in the history collection. Manual Transactions have no Statement import relationship.",
@@ -5504,6 +5798,12 @@
             "description": "UTC timestamp when the Transaction was last updated.",
             "format": "date-time",
             "example": "2026-08-29T00:00:00.000Z"
+          },
+          "deletedAt": {
+            "type": "string",
+            "description": "UTC timestamp when the Transaction was deleted. Omitted for active Transactions.",
+            "format": "date-time",
+            "example": "2026-09-20T00:00:00.000Z"
           }
         },
         "description": "An imported Transaction in the history collection. Imported Transactions retain their Statement import relationship.",
@@ -5553,7 +5853,7 @@
             "example": null
           }
         },
-        "description": "A keyset-paginated Transaction history page. Results are ordered by purchaseDate descending, then Transaction ID descending.",
+        "description": "A keyset-paginated Transaction history page. Results are ordered by purchaseDate descending, then Transaction ID descending. Active pages omit deleted Transactions; retained-history pages contain only deleted Transactions.",
         "additionalProperties": false,
         "required": [
           "items",
@@ -5621,7 +5921,8 @@
             "description": "The activity event type.",
             "enum": [
               "created",
-              "edited"
+              "edited",
+              "deleted"
             ],
             "example": "created"
           },

@@ -14,6 +14,12 @@ import {
   'categoryId',
   'purchaseDate',
 ])
+@Index('ix_transactions_space_deleted_purchase_date', [
+  'spaceId',
+  'deletedAt',
+  'purchaseDate',
+  'id',
+])
 @Index('ix_transactions_added_by_user', ['addedByUserId'])
 @Index('ix_transactions_statement_import', ['statementImportId'])
 @Index('ix_transactions_space_import_fingerprint', [
@@ -71,4 +77,12 @@ export class TransactionEntity {
 
   @UpdateDateColumn({ type: 'timestamptz', precision: 3, name: 'updated_at' })
   updatedAt!: Date;
+
+  @Column({
+    type: 'timestamptz',
+    precision: 3,
+    nullable: true,
+    name: 'deleted_at',
+  })
+  deletedAt!: Date | null;
 }

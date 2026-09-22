@@ -23,6 +23,7 @@ export interface SpaceTransactionPageQuery {
   filters: TransactionFilters;
   after: TransactionCursorPosition | null;
   pageSize: number;
+  deletedOnly?: boolean;
 }
 
 export interface TransactionRecord {
@@ -37,6 +38,7 @@ export interface TransactionRecord {
   source: TransactionSource;
   createdAt: Date;
   updatedAt: Date;
+  deletedAt?: Date | null;
 }
 
 export interface ManualTransactionRecord extends Omit<
@@ -68,6 +70,10 @@ export interface SpaceTransactionStore {
     spaceId: string,
     id: string,
   ): Promise<ManualTransactionRecord | null>;
+  findByIdInHistoryInSpace(
+    spaceId: string,
+    id: string,
+  ): Promise<ManualTransactionRecord | null>;
   findPageInSpace(
     query: SpaceTransactionPageQuery,
   ): Promise<TransactionRecord[]>;
@@ -81,6 +87,7 @@ export interface SpaceTransactionStore {
   deleteInSpace(
     spaceId: string,
     id: string,
+    actorUserId: string,
     expectedUpdatedAt?: string,
   ): Promise<boolean>;
 }

@@ -74,20 +74,39 @@ test("shows archived Shared history separately and read-only", async ({
   await page.route(
     "**/api/v1/users/me/spaces/77/transactions**",
     async (route) => {
+      const pathname = new URL(route.request().url()).pathname;
+      if (pathname.endsWith("/activity")) {
+        await route.fulfill({
+          contentType: "application/json",
+          body: JSON.stringify([
+            {
+              id: "activity-701",
+              transactionId: "701",
+              type: "deleted",
+              actorUserId: "11",
+              occurredAt: "2026-09-05T00:00:00.000Z",
+            },
+          ]),
+        });
+        return;
+      }
+
+      const deleted = pathname.endsWith("/history");
       await route.fulfill({
         contentType: "application/json",
         body: JSON.stringify({
           items: [
             {
-              id: "700",
+              id: deleted ? "701" : "700",
               categoryId: null,
               purchaseDate: "2026-09-04",
-              description: "Archived dinner",
+              description: deleted ? "Deleted dinner" : "Archived dinner",
               amount: "45.00",
               source: "manual",
               statementImportId: null,
               updatedAt: "2026-09-04T00:00:00.000Z",
               addedByUserId: "12",
+              ...(deleted ? { deletedAt: "2026-09-05T00:00:00.000Z" } : {}),
             },
           ],
           nextCursor: null,
@@ -136,4 +155,18 @@ test("shows archived Shared history separately and read-only", async ({
   await expect(
     page.getByRole("button", { name: /Delete Archived dinner/u }),
   ).toHaveCount(0);
+  await expect(
+    page.getByRole("heading", { name: "Deleted Transactions" }),
+  ).toBeVisible();
+  await expect(page.getByText("Deleted dinner", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /Edit Deleted dinner/u }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: /Delete Deleted dinner/u }),
+  ).toHaveCount(0);
+  await page
+    .getByRole("button", { name: "View activity for Deleted dinner" })
+    .click();
+  await expect(page.getByText("Deleted by User 11")).toBeVisible();
 });

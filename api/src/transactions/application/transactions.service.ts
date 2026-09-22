@@ -44,6 +44,8 @@ const SPACE_STORE_NOT_CONFIGURED =
 
 const EMPTY_SPACE_TRANSACTION_STORE: SpaceTransactionStore = {
   findByIdInSpace: () => Promise.reject(new Error(SPACE_STORE_NOT_CONFIGURED)),
+  findByIdInHistoryInSpace: () =>
+    Promise.reject(new Error(SPACE_STORE_NOT_CONFIGURED)),
   findPageInSpace: () => Promise.reject(new Error(SPACE_STORE_NOT_CONFIGURED)),
   createInSpace: () => Promise.reject(new Error(SPACE_STORE_NOT_CONFIGURED)),
   updateInSpace: () => Promise.reject(new Error(SPACE_STORE_NOT_CONFIGURED)),
@@ -55,6 +57,8 @@ const EMPTY_SPACE_IMPORTED_TRANSACTION_STORE: SpaceImportedTransactionStore = {
   findByFingerprintInSpace: () =>
     Promise.reject(new Error(SPACE_STORE_NOT_CONFIGURED)),
   findByIdInSpace: () => Promise.reject(new Error(SPACE_STORE_NOT_CONFIGURED)),
+  findByIdInHistoryInSpace: () =>
+    Promise.reject(new Error(SPACE_STORE_NOT_CONFIGURED)),
   updateCategoryInSpace: () =>
     Promise.reject(new Error(SPACE_STORE_NOT_CONFIGURED)),
 };
@@ -134,7 +138,7 @@ export class TransactionsService {
     spaceId: string,
     transactionId: string,
   ): Promise<TransactionActivityRecord[]> {
-    const transaction = await this.findTransactionInSpace(
+    const transaction = await this.findTransactionInHistoryInSpace(
       spaceId,
       transactionId,
     );
@@ -152,26 +156,14 @@ export class TransactionsService {
     spaceId: string,
     input: ListTransactionsInput,
   ): Promise<TransactionPage> {
-    const {
-      cursor,
-      pageSize = DEFAULT_TRANSACTION_PAGE_SIZE,
-      ...filters
-    } = input;
-    const after =
-      cursor !== undefined
-        ? decodeTransactionCursor(cursor, filters).position
-        : null;
-    const query: SpaceTransactionPageQuery = {
-      spaceId,
-      filters,
-      after,
-      pageSize,
-    };
-    return toTransactionPage(
-      await this.spaceTransactionStore.findPageInSpace(query),
-      pageSize,
-      filters,
-    );
+    return this.listTransactionsPageInSpace(spaceId, input, false);
+  }
+
+  async listDeletedTransactionsInSpace(
+    spaceId: string,
+    input: ListTransactionsInput,
+  ): Promise<TransactionPage> {
+    return this.listTransactionsPageInSpace(spaceId, input, true);
   }
 
   async updateManualTransactionInSpace(
@@ -259,6 +251,7 @@ export class TransactionsService {
   }
 
   async deleteManualTransactionInSpace(
+    actorUserId: string,
     spaceId: string,
     id: string,
     expectedUpdatedAt?: string,
@@ -272,6 +265,7 @@ export class TransactionsService {
     const deleted = await this.spaceTransactionStore.deleteInSpace(
       spaceId,
       id,
+      actorUserId,
       expectedUpdatedAt,
     );
     if (!deleted) {
@@ -338,19 +332,48 @@ export class TransactionsService {
     }
   }
 
-  private async findTransactionInSpace(
+  private async listTransactionsPageInSpace(
+    spaceId: string,
+    input: ListTransactionsInput,
+    deletedOnly: boolean,
+  ): Promise<TransactionPage> {
+    const cursor = input.cursor;
+    const pageSize = input.pageSize ?? DEFAULT_TRANSACTION_PAGE_SIZE;
+    const filters = { ...input };
+    delete filters.cursor;
+    delete filters.pageSize;
+    const after =
+      cursor !== undefined
+        ? decodeTransactionCursor(cursor, filters).position
+        : null;
+    const query: SpaceTransactionPageQuery = {
+      spaceId,
+      filters,
+      after,
+      pageSize,
+      ...(deletedOnly ? { deletedOnly: true } : {}),
+    };
+    return toTransactionPage(
+      await this.spaceTransactionStore.findPageInSpace(query),
+      pageSize,
+      filters,
+    );
+  }
+
+  private async findTransactionInHistoryInSpace(
     spaceId: string,
     transactionId: string,
   ): Promise<ManualTransactionRecord | ImportedTransactionRecord | null> {
-    const manualTransaction = await this.spaceTransactionStore.findByIdInSpace(
-      spaceId,
-      transactionId,
-    );
+    const manualTransaction =
+      await this.spaceTransactionStore.findByIdInHistoryInSpace(
+        spaceId,
+        transactionId,
+      );
     if (manualTransaction) {
       return manualTransaction;
     }
 
-    return this.spaceImportedTransactionStore.findByIdInSpace(
+    return this.spaceImportedTransactionStore.findByIdInHistoryInSpace(
       spaceId,
       transactionId,
     );

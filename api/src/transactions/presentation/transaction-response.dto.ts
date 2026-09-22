@@ -264,6 +264,14 @@ export class ManualTransactionHistoryResponseDto {
     example: '2026-08-29T00:00:00.000Z',
   })
   updatedAt!: string;
+
+  @ApiPropertyOptional({
+    description:
+      'UTC timestamp when the Transaction was deleted. Omitted for active Transactions.',
+    format: 'date-time',
+    example: '2026-09-20T00:00:00.000Z',
+  })
+  deletedAt?: string;
 }
 
 @ApiSchema({
@@ -352,6 +360,14 @@ export class ImportedTransactionHistoryResponseDto {
     example: '2026-08-29T00:00:00.000Z',
   })
   updatedAt!: string;
+
+  @ApiPropertyOptional({
+    description:
+      'UTC timestamp when the Transaction was deleted. Omitted for active Transactions.',
+    format: 'date-time',
+    example: '2026-09-20T00:00:00.000Z',
+  })
+  deletedAt?: string;
 }
 
 @ApiSchema({
@@ -418,10 +434,10 @@ export class TransactionActivityResponseDto {
 
   @ApiProperty({
     description: 'The activity event type.',
-    enum: ['created', 'edited'],
+    enum: ['created', 'edited', 'deleted'],
     example: 'created',
   })
-  type!: 'created' | 'edited';
+  type!: 'created' | 'edited' | 'deleted';
 
   @ApiProperty({
     description: 'Positive bigint identifier of the User who caused the event.',
@@ -454,7 +470,7 @@ export class TransactionActivityResponseDto {
 
 @ApiSchema({
   description:
-    'A keyset-paginated Transaction history page. Results are ordered by purchaseDate descending, then Transaction ID descending.',
+    'A keyset-paginated Transaction history page. Results are ordered by purchaseDate descending, then Transaction ID descending. Active pages omit deleted Transactions; retained-history pages contain only deleted Transactions.',
   additionalProperties: false,
 } as ApiSchemaOptionsWithAdditionalProperties)
 export class TransactionHistoryPageResponseDto {

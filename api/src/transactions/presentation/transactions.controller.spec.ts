@@ -97,6 +97,38 @@ describe('TransactionsController', () => {
     );
   });
 
+  it('lists retained deleted Transactions through the Personal Space boundary', async () => {
+    const deletedAt = new Date('2026-09-20T00:01:00.000Z');
+    const transaction = transactionRecord();
+    const transactionsService = {
+      listDeletedTransactionsInSpace: jest.fn().mockResolvedValue({
+        items: [{ ...transaction, deletedAt }],
+        nextCursor: null,
+      }),
+    };
+    const controller = new TransactionsController(
+      transactionsService as unknown as TransactionsService,
+      personalSpaceAccess(),
+    );
+
+    await expect(
+      controller.listDeletedTransactions(authenticatedRequest(), {}),
+    ).resolves.toEqual({
+      items: [
+        expect.objectContaining({
+          id: '100',
+          source: 'manual',
+          deletedAt: deletedAt.toISOString(),
+        }),
+      ],
+      nextCursor: null,
+    });
+
+    expect(
+      transactionsService.listDeletedTransactionsInSpace,
+    ).toHaveBeenCalledWith('9', {});
+  });
+
   it('maps imported transaction history with its statement relationship and nullable category', async () => {
     const transaction = importedTransactionRecord();
     transaction.categoryId = null;
@@ -204,6 +236,39 @@ describe('TransactionsController', () => {
     ]);
   });
 
+  it('maps a deletion activity without inventing an after-state', async () => {
+    const transactionsService = {
+      listTransactionActivityInSpace: jest.fn().mockResolvedValue([
+        {
+          id: '202',
+          transactionId: '100',
+          spaceId: '9',
+          actorUserId: '8',
+          type: 'deleted' as const,
+          occurredAt: new Date('2026-09-20T00:02:00.000Z'),
+        },
+      ]),
+    };
+    const controller = new TransactionsController(
+      transactionsService as unknown as TransactionsService,
+      personalSpaceAccess(),
+    );
+
+    await expect(
+      controller.listTransactionActivity(authenticatedRequest(), {
+        transactionId: '100',
+      }),
+    ).resolves.toEqual([
+      {
+        id: '202',
+        transactionId: '100',
+        type: 'deleted',
+        actorUserId: '8',
+        occurredAt: '2026-09-20T00:02:00.000Z',
+      },
+    ]);
+  });
+
   it('returns an imported transaction after a category-only patch', async () => {
     const transaction = importedTransactionRecord();
     const transactionsService = {
@@ -251,6 +316,7 @@ function transactionRecord(): ManualTransactionRecord {
     source: 'manual',
     createdAt: new Date('2026-08-29T00:00:00.123Z'),
     updatedAt: new Date('2026-08-29T00:00:00.456Z'),
+    deletedAt: null,
   };
 }
 
@@ -277,6 +343,7 @@ function importedTransactionRecord(): TransactionRecord {
     source: 'imported',
     createdAt: new Date('2026-08-29T00:00:00.000Z'),
     updatedAt: new Date('2026-08-29T00:00:00.000Z'),
+    deletedAt: null,
   };
 }
 

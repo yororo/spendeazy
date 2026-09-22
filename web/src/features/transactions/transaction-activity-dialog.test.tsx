@@ -124,4 +124,21 @@ describe("TransactionActivityDialog", () => {
     expect(within(dialog).getByText("Team lunch")).toBeTruthy();
     expect(within(dialog).getByText("Uncategorized")).toBeTruthy();
   });
+
+  it("shows the actor and time for a deletion", () => {
+    queryState.data = [
+      {
+        id: "activity-3",
+        transactionId: "10",
+        type: "deleted",
+        actorUserId: "9",
+        occurredAt: "2026-09-02T00:00:00.000Z",
+      },
+    ];
+
+    renderDialog();
+
+    expect(screen.getByText("Deleted by User 9")).toBeTruthy();
+    expect(screen.getByText("Deleted")).toBeTruthy();
+  });
 });

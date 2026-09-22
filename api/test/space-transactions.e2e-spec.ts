@@ -30,6 +30,10 @@ describe('Space transaction API routes', () => {
       items: [transaction],
       nextCursor: null,
     }),
+    listDeletedTransactionsInSpace: jest.fn().mockResolvedValue({
+      items: [{ ...transaction, deletedAt: new Date(TRANSACTION_TIMESTAMP) }],
+      nextCursor: null,
+    }),
     listTransactionActivityInSpace: jest.fn().mockResolvedValue([
       {
         id: '200',
@@ -130,6 +134,27 @@ describe('Space transaction API routes', () => {
       {},
     );
 
+    const deletedHistoryResponse = await request(
+      application.getHttpServer() as Server,
+    )
+      .get('/api/v1/users/me/spaces/10/transactions/history')
+      .set('Authorization', 'Bearer token-a')
+      .set('Accept', 'application/json');
+
+    expect(deletedHistoryResponse.status).toBe(200);
+    expect(deletedHistoryResponse.body).toEqual({
+      items: [
+        expect.objectContaining({
+          id: '100',
+          deletedAt: TRANSACTION_TIMESTAMP,
+        }),
+      ],
+      nextCursor: null,
+    });
+    expect(
+      transactionsService.listDeletedTransactionsInSpace,
+    ).toHaveBeenCalledWith('10', {});
+
     const activityResponse = await request(
       application.getHttpServer() as Server,
     )
@@ -217,7 +242,7 @@ describe('Space transaction API routes', () => {
     expect(deleteResponse.status).toBe(204);
     expect(
       transactionsService.deleteManualTransactionInSpace,
-    ).toHaveBeenCalledWith('10', '100', TRANSACTION_TIMESTAMP);
+    ).toHaveBeenCalledWith('42', '10', '100', TRANSACTION_TIMESTAMP);
   });
 
   it('does not disclose an inaccessible Space', async () => {
@@ -261,6 +286,29 @@ describe('Space transaction API routes', () => {
     });
     expect(
       transactionsService.listTransactionActivityInSpace,
+    ).not.toHaveBeenCalled();
+  });
+
+  it('does not disclose retained history for an inaccessible Space', async () => {
+    spaceAccessService.requireReadAccess.mockRejectedValueOnce(
+      new SpaceNotFoundError(),
+    );
+
+    const response = await request(application.getHttpServer() as Server)
+      .get('/api/v1/users/me/spaces/11/transactions/history')
+      .set('Authorization', 'Bearer token-a')
+      .set('Accept', 'application/json');
+
+    expect(response.status).toBe(404);
+    expect(response.body).toEqual({
+      error: {
+        code: 'SPACE_NOT_FOUND',
+        message: 'Space was not found',
+        details: [],
+      },
+    });
+    expect(
+      transactionsService.listDeletedTransactionsInSpace,
     ).not.toHaveBeenCalled();
   });
 });

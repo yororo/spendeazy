@@ -23,6 +23,7 @@ describe("Category-dependent cache invalidation", () => {
       ["categories", "budget", "user-1", "space-1"],
       ["dashboard", "user-1", "space-1"],
       ["transactions", "user-1", "space-1"],
+      ["transactions", "deleted", "user-1", "space-1"],
       ["transaction-activity", "user-1", "space-1"],
       ["statement-import", "categories", "user-1", "space-1"],
       ["statement-import", "rules", "user-1", "space-1"],

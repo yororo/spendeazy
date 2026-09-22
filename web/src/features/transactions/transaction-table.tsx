@@ -20,6 +20,7 @@ interface TransactionTableProps {
   onDelete?: (transaction: Transaction) => void;
   onViewActivity?: (transaction: Transaction) => void;
   showAttribution?: boolean;
+  ariaLabel?: string;
 }
 
 function TransactionTable({
@@ -29,6 +30,7 @@ function TransactionTable({
   onDelete,
   onViewActivity,
   showAttribution = false,
+  ariaLabel = "All transactions",
 }: TransactionTableProps) {
   const hasActions =
     onEdit !== undefined ||
@@ -43,13 +45,18 @@ function TransactionTable({
             {emptyMessage}
           </p>
         ) : (
-          <ul className="divide-y" aria-label="All transactions">
+          <ul className="divide-y" aria-label={ariaLabel}>
             {transactions.map((transaction) => (
               <li key={transaction.id} className="space-y-3 px-4 py-4">
                 <div className="flex items-start justify-between gap-3">
                   <p className="min-w-0 font-medium wrap-anywhere">
                     {transaction.description}
                   </p>
+                  {transaction.deletedAt !== undefined && (
+                    <p className="text-xs font-medium uppercase text-destructive">
+                      Deleted
+                    </p>
+                  )}
                   <p className="max-w-1/2 shrink-0 text-right font-mono text-sm font-semibold tabular-nums wrap-anywhere">
                     {formatMoney(transaction.amount)}
                   </p>
@@ -117,7 +124,7 @@ function TransactionTable({
       </div>
 
       <div className="hidden md:block">
-        <Table>
+        <Table aria-label={ariaLabel}>
           <TableHeader>
             <TableRow>
               <TableHead scope="col">Date</TableHead>
@@ -148,6 +155,11 @@ function TransactionTable({
                 </TableCell>
                 <TableCell className="min-w-56 whitespace-normal">
                   <p className="font-medium">{transaction.description}</p>
+                  {transaction.deletedAt !== undefined && (
+                    <p className="mt-1 text-xs font-medium uppercase text-destructive">
+                      Deleted
+                    </p>
+                  )}
                   {showAttribution && transaction.addedByUserId !== undefined && (
                     <p className="mt-1 text-xs text-muted-foreground">
                       Added by User {transaction.addedByUserId}

@@ -174,6 +174,38 @@ export class SpaceTransactionsController {
     };
   }
 
+  @Get('history')
+  @ApiOperation({ summary: 'List retained deleted Transactions in a Space.' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Retained deleted Transaction history page.',
+    type: TransactionHistoryPageResponseDto,
+  })
+  @ApiStandardErrorResponses(
+    'UnauthenticatedError',
+    'UserNotProvisionedError',
+    'ValidationError',
+    'NotFoundError',
+    'NotAcceptableError',
+    'InternalError',
+  )
+  async listDeletedTransactions(
+    @Req() request: AuthenticatedRequest,
+    @Param() params: SpaceParamsDto,
+    @Query() query: TransactionCollectionQueryDto,
+  ): Promise<TransactionHistoryPageResponseDto> {
+    const userId = requireAuthenticatedUserId(request);
+    await this.spaceAccessService.requireReadAccess(userId, params.spaceId);
+    const page = await this.transactionsService.listDeletedTransactionsInSpace(
+      params.spaceId,
+      query,
+    );
+    return {
+      items: page.items.map(toTransactionHistoryResponse),
+      nextCursor: page.nextCursor,
+    };
+  }
+
   @Get(':transactionId/activity')
   @ApiOperation({
     summary: 'List activity for a Transaction in an authorized Space.',
@@ -361,6 +393,7 @@ export class SpaceTransactionsController {
       '/headers/if-match',
     );
     await this.transactionsService.deleteManualTransactionInSpace(
+      userId,
       params.spaceId,
       params.transactionId,
       expectedUpdatedAt,

@@ -55,6 +55,7 @@ export class TypeOrmImportedTransactionStore implements SpaceImportedTransaction
       amount: input.amount,
       categoryMatchConfidence: input.categoryMatchConfidence,
       importFingerprint: input.importFingerprint,
+      deletedAt: null,
     });
 
     return toRecord(
@@ -69,6 +70,17 @@ export class TypeOrmImportedTransactionStore implements SpaceImportedTransaction
     const entity = await this.entityManager
       .getRepository(TransactionEntity)
       .findOne({ where: importedTransactionSpaceWhere(spaceId, { id }) });
+
+    return entity ? toRecord(entity) : null;
+  }
+
+  async findByIdInHistoryInSpace(
+    spaceId: string,
+    id: string,
+  ): Promise<ImportedTransactionRecord | null> {
+    const entity = await this.entityManager
+      .getRepository(TransactionEntity)
+      .findOne({ where: importedTransactionHistoryWhere(spaceId, { id }) });
 
     return entity ? toRecord(entity) : null;
   }
@@ -150,6 +162,21 @@ function importedTransactionSpaceWhere(
     spaceId,
     ...identifier,
     statementImportId: Not(IsNull()),
+    deletedAt: IsNull(),
+  };
+}
+
+function importedTransactionHistoryWhere(
+  spaceId: string,
+  identifier: Pick<
+    FindOptionsWhere<TransactionEntity>,
+    'id' | 'importFingerprint'
+  >,
+): FindOptionsWhere<TransactionEntity> {
+  return {
+    spaceId,
+    ...identifier,
+    statementImportId: Not(IsNull()),
   };
 }
 
@@ -186,6 +213,7 @@ async function updateCategoryIfCurrent(
     .andWhere('statement_import_id IS NOT NULL');
 
   query.andWhere('space_id = :spaceId', { spaceId });
+  query.andWhere('deleted_at IS NULL');
 
   return query
     .andWhere('updated_at = :expectedUpdatedAt', {
@@ -209,5 +237,6 @@ function toRecord(entity: TransactionEntity): ImportedTransactionRecord {
     source: 'imported',
     createdAt: entity.createdAt,
     updatedAt: entity.updatedAt,
+    deletedAt: entity.deletedAt,
   };
 }

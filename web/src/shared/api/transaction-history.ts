@@ -10,6 +10,7 @@ interface TransactionHistoryItem {
   readonly statementImportId: string | null;
   readonly updatedAt?: string;
   readonly addedByUserId?: string;
+  readonly deletedAt?: string;
 }
 
 interface TransactionResponse {
@@ -43,7 +44,8 @@ function isTransactionHistoryItem(
       typeof value.statementImportId === "string") &&
     (value.updatedAt === undefined || typeof value.updatedAt === "string") &&
     (value.addedByUserId === undefined ||
-      typeof value.addedByUserId === "string")
+      typeof value.addedByUserId === "string") &&
+    (value.deletedAt === undefined || typeof value.deletedAt === "string")
   );
 }
 

@@ -14,6 +14,7 @@ import { TransactionEntity } from '../src/database/entities/transaction.entity';
 import { TransactionActivityEntity } from '../src/database/entities/transaction-activity.entity';
 import { UserEntity } from '../src/database/entities/user.entity';
 import { TypeOrmCategoryStore } from '../src/categories/infrastructure/typeorm-category-store';
+import { TypeOrmCategorySummaryStore } from '../src/categories/infrastructure/typeorm-category-summary-store';
 import { DefaultCategoriesService } from '../src/categories/application/default-categories.service';
 import { DEFAULT_CATEGORY_CATALOG } from '../src/categories/application/default-category-catalog';
 import { TypeOrmSpaceStore } from '../src/spaces/infrastructure/typeorm-space-store';
@@ -310,14 +311,54 @@ describeDatabase('Spaces with PostgreSQL', () => {
 
     await expect(
       transactions.deleteManualTransactionInSpace(
+        owner.id,
         sharedSpace.id,
         created.id,
         updated.updatedAt.toISOString(),
       ),
     ).resolves.toBeUndefined();
+    const retainedTransaction = await database
+      .getRepository(TransactionEntity)
+      .findOneBy({ id: created.id });
+    expect(retainedTransaction).toMatchObject({ id: created.id });
+    expect(retainedTransaction?.deletedAt).toBeInstanceOf(Date);
     await expect(
-      database.getRepository(TransactionEntity).findOneBy({ id: created.id }),
-    ).resolves.toBeNull();
+      transactions.listTransactionsInSpace(sharedSpace.id, {}),
+    ).resolves.toMatchObject({ items: [], nextCursor: null });
+    const deletedPage = await transactions.listDeletedTransactionsInSpace(
+      sharedSpace.id,
+      {},
+    );
+    expect(deletedPage).toMatchObject({ nextCursor: null });
+    expect(deletedPage.items).toHaveLength(1);
+    expect(deletedPage.items[0]).toMatchObject({ id: created.id });
+    expect(deletedPage.items[0]?.deletedAt).toBeInstanceOf(Date);
+    await expect(
+      new TypeOrmCategorySummaryStore(database.manager).findSummary({
+        spaceId: sharedSpace.id,
+        fromDate: '2026-09-01',
+        toDate: '2026-09-30',
+      }),
+    ).resolves.toMatchObject({
+      categories: [
+        expect.objectContaining({
+          categoryId: sharedCategory.id,
+          totalAmount: '0',
+          transactionCount: '0',
+        }),
+      ],
+      uncategorizedAmount: '0',
+      uncategorizedCount: '0',
+    });
+    await expect(
+      database.getRepository(TransactionActivityEntity).findBy({
+        spaceId: sharedSpace.id,
+        transactionId: created.id,
+        type: 'deleted',
+      }),
+    ).resolves.toEqual([
+      expect.objectContaining({ actorUserId: owner.id, type: 'deleted' }),
+    ]);
   });
 
   async function createUser(label: string): Promise<UserEntity> {

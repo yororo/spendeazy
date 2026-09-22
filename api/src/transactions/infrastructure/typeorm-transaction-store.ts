@@ -18,6 +18,7 @@ import { CategoryEntity } from '../../database/entities/category.entity';
 import { TransactionEntity } from '../../database/entities/transaction.entity';
 import { StaleEditError } from '../../errors/application-error';
 import {
+  recordDeletedTransactionActivity,
   recordEditedTransactionActivity,
   TypeOrmTransactionActivityStore,
 } from './typeorm-transaction-activity-store';
@@ -51,6 +52,17 @@ export class TypeOrmTransactionStore implements SpaceTransactionStore {
     return entity ? toManualTransactionRecord(entity) : null;
   }
 
+  async findByIdInHistoryInSpace(
+    spaceId: string,
+    id: string,
+  ): Promise<ManualTransactionRecord | null> {
+    const entity = await this.entityManager
+      .getRepository(TransactionEntity)
+      .findOne({ where: manualTransactionHistoryWhere(spaceId, id) });
+
+    return entity ? toManualTransactionRecord(entity) : null;
+  }
+
   async findPageInSpace(
     query: SpaceTransactionPageQuery,
   ): Promise<TransactionRecord[]> {
@@ -66,6 +78,12 @@ export class TypeOrmTransactionStore implements SpaceTransactionStore {
     transactionQuery: SelectQueryBuilder<TransactionEntity>,
     query: SpaceTransactionPageQuery,
   ): Promise<TransactionRecord[]> {
+    transactionQuery.andWhere(
+      query.deletedOnly
+        ? 'transaction.deletedAt IS NOT NULL'
+        : 'transaction.deletedAt IS NULL',
+    );
+
     if (query.filters.fromDate !== undefined) {
       transactionQuery.andWhere('transaction.purchaseDate >= :fromDate', {
         fromDate: query.filters.fromDate,
@@ -141,6 +159,7 @@ export class TypeOrmTransactionStore implements SpaceTransactionStore {
         amount: input.amount,
         categoryMatchConfidence: null,
         importFingerprint: null,
+        deletedAt: null,
       });
 
       const transaction = await saveManualTransaction(repository, entity);
@@ -221,23 +240,47 @@ export class TypeOrmTransactionStore implements SpaceTransactionStore {
   async deleteInSpace(
     spaceId: string,
     id: string,
+    actorUserId: string,
     expectedUpdatedAt?: string,
   ): Promise<boolean> {
-    const repository = this.entityManager.getRepository(TransactionEntity);
-    const where = manualTransactionSpaceWhere(spaceId, id);
-    const result = await repository.delete(
-      expectedUpdatedAt === undefined
-        ? where
-        : { ...where, updatedAt: new Date(expectedUpdatedAt) },
-    );
+    return this.entityManager.transaction(async (entityManager) => {
+      const repository = entityManager.getRepository(TransactionEntity);
+      const deletedAt = new Date();
+      const query = repository
+        .createQueryBuilder()
+        .update(TransactionEntity)
+        .set({ deletedAt })
+        .where('id = :id', { id })
+        .andWhere('statement_import_id IS NULL')
+        .andWhere('space_id = :spaceId', { spaceId })
+        .andWhere('deleted_at IS NULL');
 
-    if (result.affected === 1 || expectedUpdatedAt === undefined) {
-      return result.affected === 1;
-    }
+      if (expectedUpdatedAt !== undefined) {
+        query.andWhere('updated_at = :expectedUpdatedAt', {
+          expectedUpdatedAt: new Date(expectedUpdatedAt),
+        });
+      }
 
-    const current = await repository.findOne({ where });
-    if (current) throw new StaleEditError();
-    return false;
+      const result = await query.execute();
+      if (result.affected !== 1) {
+        const current = await repository.findOne({
+          where: manualTransactionSpaceWhere(spaceId, id),
+        });
+        if (current && expectedUpdatedAt !== undefined) {
+          throw new StaleEditError();
+        }
+        return false;
+      }
+
+      await recordDeletedTransactionActivity(
+        entityManager,
+        id,
+        spaceId,
+        actorUserId,
+        deletedAt,
+      );
+      return true;
+    });
   }
 }
 
@@ -276,6 +319,7 @@ async function updateManualTransactionIfCurrent(
     .andWhere('statement_import_id IS NULL');
 
   query.andWhere('space_id = :spaceId', { spaceId });
+  query.andWhere('deleted_at IS NULL');
 
   return query
     .andWhere('updated_at = :expectedUpdatedAt', {
@@ -285,6 +329,13 @@ async function updateManualTransactionIfCurrent(
 }
 
 function manualTransactionSpaceWhere(
+  spaceId: string,
+  id: string,
+): FindOptionsWhere<TransactionEntity> {
+  return { id, spaceId, statementImportId: IsNull(), deletedAt: IsNull() };
+}
+
+function manualTransactionHistoryWhere(
   spaceId: string,
   id: string,
 ): FindOptionsWhere<TransactionEntity> {
@@ -353,6 +404,7 @@ function toTransactionFields(
     amount: entity.amount,
     createdAt: entity.createdAt,
     updatedAt: entity.updatedAt,
+    deletedAt: entity.deletedAt,
   };
 }
 

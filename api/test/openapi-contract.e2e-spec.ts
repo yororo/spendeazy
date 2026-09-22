@@ -98,6 +98,7 @@ describe('runtime responses against the generated OpenAPI contract', () => {
   let transactionsService: {
     createManualTransaction: jest.Mock;
     listTransactions: jest.Mock;
+    listDeletedTransactions: jest.Mock;
     getManualTransaction: jest.Mock;
     updateTransaction: jest.Mock;
     deleteManualTransaction: jest.Mock;
@@ -145,6 +146,7 @@ describe('runtime responses against the generated OpenAPI contract', () => {
     transactionsService = {
       createManualTransaction: jest.fn(),
       listTransactions: jest.fn(),
+      listDeletedTransactions: jest.fn(),
       getManualTransaction: jest.fn(),
       updateTransaction: jest.fn(),
       deleteManualTransaction: jest.fn(),
@@ -218,6 +220,8 @@ describe('runtime responses against the generated OpenAPI contract', () => {
       ) => invoke(transactionsService.createManualTransaction, _userId, input),
       listTransactionsInSpace: (_spaceId: string, query: unknown) =>
         invoke(transactionsService.listTransactions, '7', query),
+      listDeletedTransactionsInSpace: (_spaceId: string, query: unknown) =>
+        invoke(transactionsService.listDeletedTransactions, '7', query),
       getManualTransactionInSpace: (_spaceId: string, id: string) =>
         invoke(transactionsService.getManualTransaction, '7', id),
       updateTransactionInSpace: (
@@ -225,8 +229,11 @@ describe('runtime responses against the generated OpenAPI contract', () => {
         id: string,
         input: unknown,
       ) => invoke(transactionsService.updateTransaction, '7', id, input),
-      deleteManualTransactionInSpace: (_spaceId: string, id: string) =>
-        invoke(transactionsService.deleteManualTransaction, '7', id),
+      deleteManualTransactionInSpace: (
+        _actorUserId: string,
+        _spaceId: string,
+        id: string,
+      ) => invoke(transactionsService.deleteManualTransaction, '7', id),
     });
     Object.assign(statementImportsService, {
       getStatementImportInSpace: (_spaceId: string, id: string) =>

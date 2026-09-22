@@ -438,6 +438,25 @@ const OPERATION_EXPECTATIONS = [
     errorResponses: { ...PROTECTED_ERRORS, ...VALIDATION_ERROR },
   },
   {
+    operationId: 'Transactions_listDeletedTransactions',
+    tag: 'Transactions',
+    queryParameters: [
+      'fromDate',
+      'toDate',
+      'categoryId',
+      'categoryState',
+      'statementImportId',
+      'source',
+      'pageSize',
+      'cursor',
+    ],
+    queryParameterSchemas: TRANSACTION_QUERY_SCHEMAS,
+    bodyResponses: [
+      { status: '200', schemaRef: 'TransactionHistoryPageResponseDto' },
+    ],
+    errorResponses: { ...PROTECTED_ERRORS, ...VALIDATION_ERROR },
+  },
+  {
     operationId: 'Transactions_getManualTransaction',
     tag: 'Transactions',
     pathParameter: 'transactionId',
@@ -509,6 +528,29 @@ const OPERATION_EXPECTATIONS = [
   },
   {
     operationId: 'SpaceTransactions_listTransactions',
+    tag: 'Transactions',
+    pathParameters: ['spaceId'],
+    queryParameters: [
+      'fromDate',
+      'toDate',
+      'categoryId',
+      'categoryState',
+      'statementImportId',
+      'source',
+      'pageSize',
+      'cursor',
+    ],
+    queryParameterSchemas: TRANSACTION_QUERY_SCHEMAS,
+    bodyResponses: [
+      { status: '200', schemaRef: 'TransactionHistoryPageResponseDto' },
+    ],
+    errorResponses: {
+      ...PROTECTED_ERRORS,
+      ...VALIDATED_PATH_ERRORS,
+    },
+  },
+  {
+    operationId: 'SpaceTransactions_listDeletedTransactions',
     tag: 'Transactions',
     pathParameters: ['spaceId'],
     queryParameters: [

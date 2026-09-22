@@ -14,6 +14,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ReportingPeriodProvider } from "@/shared/reporting-period";
 
 import { TransactionsPage } from "./transactions-page";
+import type { Transaction, TransactionActivity } from "./transactions-service";
 
 HTMLElement.prototype.scrollIntoView = vi.fn();
 
@@ -120,6 +121,25 @@ const pageState = vi.hoisted(() => {
       isError: false,
       refetch: vi.fn(async () => undefined),
     },
+    deletedTransactionQuery: {
+      data: {
+        pages: [
+          {
+            items: [] as Transaction[],
+            nextCursor: null,
+          },
+        ],
+      },
+      hasNextPage: false,
+      isFetching: false,
+      isFetchingNextPage: false,
+      isPending: false,
+      isError: false,
+      isSuccess: true,
+      error: new Error("Deleted Transactions unavailable"),
+      refetch: vi.fn(async () => undefined),
+      fetchNextPage: vi.fn(async () => undefined),
+    },
     createMutation: {
       error: null,
       isPending: false,
@@ -145,7 +165,7 @@ const pageState = vi.hoisted(() => {
           actorUserId: "7",
           occurredAt: "2026-08-31T00:00:00.000Z",
         },
-      ],
+      ] as TransactionActivity[],
       isPending: false,
       isError: false,
       error: null,
@@ -176,6 +196,7 @@ vi.mock("./transactions-queries", () => ({
     pageState.lastTransactionQueryArgs = [period, spaceId, enabled];
     return pageState.transactionQuery;
   },
+  useDeletedTransactionsQuery: () => pageState.deletedTransactionQuery,
   useCreateTransactionMutation: () => pageState.createMutation,
   useUpdateTransactionMutation: () => pageState.updateMutation,
   useDeleteTransactionMutation: () => pageState.deleteMutation,
@@ -191,7 +212,19 @@ afterEach(() => {
   pageState.updateMutation.mutateAsync.mockClear();
   pageState.deleteMutation.mutateAsync.mockClear();
   pageState.activityQuery.refetch.mockClear();
+  pageState.activityQuery.data = [
+    {
+      id: "activity-1",
+      transactionId: "manual-1",
+      type: "created",
+      actorUserId: "7",
+      occurredAt: "2026-08-31T00:00:00.000Z",
+    },
+  ];
   pageState.transactionQuery.refetch.mockClear();
+  pageState.deletedTransactionQuery.refetch.mockClear();
+  pageState.deletedTransactionQuery.fetchNextPage.mockClear();
+  pageState.deletedTransactionQuery.data.pages[0].items = [];
   pageState.lastTransactionQueryArgs = undefined;
 });
 
@@ -315,5 +348,33 @@ describe("TransactionsPage", () => {
       transactionId: "manual-1",
       updatedAt: "2026-08-31T00:00:00.000Z",
     });
+  });
+
+  it("shows retained deleted Transactions and their deletion activity", async () => {
+    pageState.deletedTransactionQuery.data.pages[0].items = [
+      {
+        ...pageState.transactionQuery.data.pages[0].items[0],
+        deletedAt: "2026-09-02T00:00:00.000Z",
+      } as Transaction,
+    ];
+    pageState.activityQuery.data = [
+      {
+        id: "activity-deleted",
+        transactionId: "manual-1",
+        type: "deleted",
+        actorUserId: "9",
+        occurredAt: "2026-09-02T00:00:00.000Z",
+      },
+    ];
+
+    renderPage();
+
+    expect(await screen.findByRole("heading", { name: "Deleted Transactions" })).toBeTruthy();
+    const activityButtons = screen.getAllByRole("button", {
+      name: "View activity for Coffee",
+    });
+    fireEvent.click(activityButtons.at(-1)!);
+
+    expect(within(screen.getByRole("dialog")).getByText("Deleted by User 9")).toBeTruthy();
   });
 });

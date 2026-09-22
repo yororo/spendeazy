@@ -5,9 +5,11 @@ import type { ReportingPeriod } from "@/shared/reporting-period";
 
 import {
   buildTransactionActivityPath,
+  buildDeletedTransactionCollectionPath,
   createTransaction as createTransactionRequest,
   deleteTransaction,
   getTransactionActivity,
+  listDeletedTransactions,
   listTransactions,
   updateTransaction,
   type TransactionsApiClient,
@@ -20,6 +22,7 @@ const firstTransactionsPath =
   "/transactions?fromDate=2026-08-01&toDate=2026-08-31&pageSize=20";
 const secondTransactionsPath =
   "/transactions?fromDate=2026-08-01&toDate=2026-08-31&pageSize=20&cursor=cursor-2";
+const deletedTransactionsPath = "/transactions/history?pageSize=20";
 
 function createSummary() {
   return {
@@ -434,6 +437,43 @@ describe("Transaction mutations", () => {
   });
 });
 
+describe("deleted Transaction history", () => {
+  it("loads retained Transactions through the history collection", async () => {
+    const responses = new Map<string, unknown>([
+      [categoriesPath, createCategories()],
+      [
+        deletedTransactionsPath,
+        {
+          items: [
+            createTransaction({
+              id: "deleted-1",
+              source: "manual",
+              statementImportId: null,
+              deletedAt: "2026-09-20T00:02:00.000Z",
+            }),
+          ],
+          nextCursor: null,
+        },
+      ],
+    ]);
+    const { apiClient, get } = createApiClient(responses);
+
+    await expect(
+      listDeletedTransactions(apiClient, { pageSize: 20 }),
+    ).resolves.toMatchObject({
+      items: [expect.objectContaining({ id: "deleted-1", deletedAt: "2026-09-20T00:02:00.000Z" })],
+      nextCursor: null,
+    });
+
+    expect(buildDeletedTransactionCollectionPath()).toBe(
+      "/transactions/history",
+    );
+    expect(get).toHaveBeenCalledWith(deletedTransactionsPath, {
+      signal: undefined,
+    });
+  });
+});
+
 describe("Transaction activity", () => {
   it("loads activity through the selected Space boundary", async () => {
     const get = vi.fn(async () => [
@@ -462,6 +502,13 @@ describe("Transaction activity", () => {
           description: "Team coffee",
           amount: "4.50",
         },
+      },
+      {
+        id: "activity-3",
+        transactionId: "10",
+        type: "deleted",
+        actorUserId: "9",
+        occurredAt: "2026-09-02T00:00:00.000Z",
       },
     ]);
     const apiClient = { get } as unknown as TransactionsApiClient;
@@ -495,6 +542,13 @@ describe("Transaction activity", () => {
           description: "Team coffee",
           amount: "4.50",
         },
+      },
+      {
+        id: "activity-3",
+        transactionId: "10",
+        type: "deleted",
+        actorUserId: "9",
+        occurredAt: "2026-09-02T00:00:00.000Z",
       },
     ]);
     expect(buildTransactionActivityPath("10", "space/7")).toBe(

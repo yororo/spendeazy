@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { LoaderCircleIcon, PlusIcon } from "lucide-react";
+import { PlusIcon } from "lucide-react";
 
 import {
   FeatureDataError,
@@ -18,8 +18,13 @@ import { ActiveSpaceLabel, MetricCard } from "@/shared/ui";
 import { TransactionDeleteDialog } from "./transaction-delete-dialog";
 import { TransactionEditorDialog } from "./transaction-editor-dialog";
 import { TransactionActivityDialog } from "./transaction-activity-dialog";
+import { DeletedTransactionsCard } from "./deleted-transactions-card";
+import { TransactionLoadMoreButton } from "./transaction-load-more-button";
 import { TransactionTable } from "./transaction-table";
-import { useTransactionsQuery } from "./transactions-queries";
+import {
+  useDeletedTransactionsQuery,
+  useTransactionsQuery,
+} from "./transactions-queries";
 import type { Transaction } from "./transactions-service";
 
 interface TransactionsPageProps {
@@ -49,6 +54,10 @@ function TransactionsPage({
     spaceId ?? spacesQuery.data?.find((space) => space.kind === "personal")?.id;
   const transactionsQuery = useTransactionsQuery(
     period,
+    effectiveSpaceId,
+    !shouldResolvePersonalSpace || spacesQuery.isSuccess,
+  );
+  const deletedTransactionsQuery = useDeletedTransactionsQuery(
     effectiveSpaceId,
     !shouldResolvePersonalSpace || spacesQuery.isSuccess,
   );
@@ -84,6 +93,10 @@ function TransactionsPage({
   if (!firstPage) return null;
 
   const transactions = transactionPages.flatMap((page) => page.items);
+  const deletedTransactionPages = deletedTransactionsQuery.data?.pages ?? [];
+  const deletedTransactions = deletedTransactionPages.flatMap(
+    (page) => page.items,
+  );
   const transactionSummary = firstPage.summary;
   const isScopeTransitioning =
     transactionsQuery.isFetching && transactionsQuery.isPlaceholderData;
@@ -161,24 +174,19 @@ function TransactionsPage({
         </div>
         {transactionsQuery.hasNextPage && (
           <CardContent className="flex justify-center border-t p-4 md:py-3">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="w-full md:w-auto"
-              disabled={transactionsQuery.isFetchingNextPage}
-              onClick={() => void transactionsQuery.fetchNextPage()}
-            >
-              {transactionsQuery.isFetchingNextPage && (
-                <LoaderCircleIcon className="animate-spin" aria-hidden="true" />
-              )}
-              {transactionsQuery.isFetchingNextPage
-                ? "Loading more"
-                : "Load more"}
-            </Button>
+            <TransactionLoadMoreButton
+              isFetchingNextPage={transactionsQuery.isFetchingNextPage}
+              onLoadMore={() => void transactionsQuery.fetchNextPage()}
+            />
           </CardContent>
         )}
       </Card>
+      <DeletedTransactionsCard
+        query={deletedTransactionsQuery}
+        transactions={deletedTransactions}
+        onViewActivity={setTransactionToViewActivity}
+        showAttribution={spaceId !== undefined}
+      />
       <TransactionEditorDialog
         key={editorRevision}
         open={editorState !== null}

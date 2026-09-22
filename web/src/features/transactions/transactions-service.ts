@@ -91,9 +91,29 @@ interface TransactionEditedActivity {
   readonly after: TransactionActivitySnapshot;
 }
 
+interface TransactionDeletedActivity {
+  readonly id: string;
+  readonly transactionId: string;
+  readonly type: "deleted";
+  readonly actorUserId: string;
+  readonly occurredAt: string;
+}
+
 type TransactionActivity =
   | TransactionCreatedActivity
-  | TransactionEditedActivity;
+  | TransactionEditedActivity
+  | TransactionDeletedActivity;
+
+interface ListDeletedTransactionsParams {
+  readonly pageSize: number;
+  readonly cursor?: string | null;
+  readonly spaceId?: string;
+}
+
+interface DeletedTransactionPage {
+  readonly items: readonly TransactionProjection[];
+  readonly nextCursor: string | null;
+}
 
 type TransactionsApiClient = Pick<
   ApiClient,
@@ -149,6 +169,7 @@ function isTransactionActivity(value: unknown): value is TransactionActivity {
 
   return (
     value.type === "created" ||
+    value.type === "deleted" ||
     (value.type === "edited" &&
       isTransactionActivitySnapshot(value.before) &&
       isTransactionActivitySnapshot(value.after))
@@ -261,6 +282,62 @@ async function listTransactions(
   };
 }
 
+async function listDeletedTransactions(
+  apiClient: TransactionsApiClient,
+  params: ListDeletedTransactionsParams,
+  signal?: AbortSignal,
+): Promise<DeletedTransactionPage> {
+  const pageSize = Math.min(
+    Math.max(1, Math.trunc(params.pageSize)),
+    MAX_PAGE_SIZE,
+  );
+  const [categoriesResponse, transactionsResponse] = await Promise.all([
+    requireApiResponse(
+      await apiClient.get<readonly CategoryCatalogItem[]>(
+        buildCategoryCollectionPath(params.spaceId),
+        { signal },
+      ),
+      "Category catalog",
+      createTransactionsDataError,
+    ),
+    apiClient.get<TransactionHistoryPage>(
+      buildApiPath(buildDeletedTransactionCollectionPath(params.spaceId), {
+        pageSize: String(pageSize),
+        cursor: params.cursor ?? undefined,
+      }),
+      { signal },
+    ),
+  ]);
+  const categories = requireCategoryCatalog(categoriesResponse);
+  const transactionPage = requireTransactionHistoryPage(
+    requireApiResponse(
+      transactionsResponse,
+      "deleted Transaction history page",
+      createTransactionsDataError,
+    ),
+    createTransactionsDataError,
+  );
+  const statementImports = await loadStatementImports(
+    apiClient,
+    transactionPage.items,
+    signal,
+    params.spaceId,
+  );
+  const categoryById = projectCategoryCatalog(categories);
+
+  return {
+    items: transactionPage.items.map((transaction) =>
+      projectTransactionHistoryItem(
+        transaction,
+        categoryById,
+        statementImports,
+        createTransactionsDataError,
+      ),
+    ),
+    nextCursor: transactionPage.nextCursor,
+  };
+}
+
 async function createTransaction(
   apiClient: TransactionsApiClient,
   input: CreateTransactionInput,
@@ -368,6 +445,10 @@ function buildTransactionCollectionPath(spaceId?: string): string {
     : `/spaces/${encodeURIComponent(spaceId)}/transactions`;
 }
 
+function buildDeletedTransactionCollectionPath(spaceId?: string): string {
+  return `${buildTransactionCollectionPath(spaceId)}/history`;
+}
+
 function buildTransactionPath(transactionId: string, spaceId?: string): string {
   return `${buildTransactionCollectionPath(spaceId)}/${encodeURIComponent(transactionId)}`;
 }
@@ -383,16 +464,20 @@ export {
   TransactionsDataError,
   buildCategoryCollectionPath,
   buildTransactionCollectionPath,
+  buildDeletedTransactionCollectionPath,
   buildTransactionActivityPath,
   buildTransactionPath,
   createTransaction,
   deleteTransaction,
   getTransactionActivity,
   listTransactions,
+  listDeletedTransactions,
   updateTransaction,
 };
 export type {
   CreateTransactionInput,
+  DeletedTransactionPage,
+  ListDeletedTransactionsParams,
   ListTransactionsParams,
   TransactionActivity,
   TransactionActivitySnapshot,

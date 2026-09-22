@@ -25,6 +25,7 @@ interface TransactionProjection {
   readonly statementImportId: string | null;
   readonly updatedAt?: string;
   readonly addedByUserId?: string;
+  readonly deletedAt?: string;
 }
 
 const transactionDateFormatter = new Intl.DateTimeFormat("en-US", {
@@ -76,6 +77,9 @@ function projectTransactionHistoryItem(
     ...(transaction.addedByUserId === undefined
       ? {}
       : { addedByUserId: transaction.addedByUserId }),
+    ...(transaction.deletedAt === undefined
+      ? {}
+      : { deletedAt: transaction.deletedAt }),
   };
 }
 

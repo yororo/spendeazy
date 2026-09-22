@@ -51,6 +51,41 @@ describe('SpaceTransactionsController', () => {
     );
   });
 
+  it('checks membership before listing retained deleted Transactions', async () => {
+    const deletedAt = new Date('2026-09-20T00:01:00.000Z');
+    const transactionsService = {
+      listDeletedTransactionsInSpace: jest.fn().mockResolvedValue({
+        items: [{ ...transactionRecord(), deletedAt }],
+        nextCursor: null,
+      }),
+    };
+    const spaceAccessService = {
+      requireReadAccess: jest.fn().mockResolvedValue({ id: '10' }),
+    };
+    const controller = new SpaceTransactionsController(
+      transactionsService as unknown as TransactionsService,
+      spaceAccessService as unknown as SpaceAccessService,
+    );
+
+    await expect(
+      controller.listDeletedTransactions(
+        authenticatedRequest('7'),
+        { spaceId: '10' },
+        {},
+      ),
+    ).resolves.toEqual({
+      items: [expect.objectContaining({ deletedAt: deletedAt.toISOString() })],
+      nextCursor: null,
+    });
+    expect(spaceAccessService.requireReadAccess).toHaveBeenCalledWith(
+      '7',
+      '10',
+    );
+    expect(
+      transactionsService.listDeletedTransactionsInSpace,
+    ).toHaveBeenCalledWith('10', {});
+  });
+
   it('uses equal Space write access for creation and maps the scoped Location', async () => {
     const transaction = transactionRecord({ addedByUserId: '7' });
     const transactionsService = {
@@ -175,7 +210,12 @@ describe('SpaceTransactionsController', () => {
     );
     expect(
       transactionsService.deleteManualTransactionInSpace,
-    ).toHaveBeenCalledWith('10', '100', transaction.updatedAt.toISOString());
+    ).toHaveBeenCalledWith(
+      '7',
+      '10',
+      '100',
+      transaction.updatedAt.toISOString(),
+    );
   });
 
   it('rejects Space writes without a concurrency version', async () => {
@@ -240,6 +280,7 @@ function transactionRecord(
     source: 'manual',
     createdAt: timestamp,
     updatedAt: timestamp,
+    deletedAt: null,
     ...overrides,
   };
 }

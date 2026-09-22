@@ -70,6 +70,11 @@ describe('TypeOrmCategorySummaryStore', () => {
       ),
     );
     expect(categoryQuery.leftJoin).toHaveBeenCalledWith(
+      TransactionEntity,
+      'transaction',
+      expect.stringContaining('transaction.deletedAt IS NULL'),
+    );
+    expect(categoryQuery.leftJoin).toHaveBeenCalledWith(
       expect.anything(),
       'budget',
       'budget.categoryId = category.id',
@@ -77,6 +82,9 @@ describe('TypeOrmCategorySummaryStore', () => {
     expect(uncategorizedQuery.where).toHaveBeenCalledWith(
       'transaction.spaceId = :spaceId',
       { spaceId: '7' },
+    );
+    expect(uncategorizedQuery.andWhere).toHaveBeenCalledWith(
+      'transaction.deletedAt IS NULL',
     );
     expect(uncategorizedQuery.andWhere).toHaveBeenCalledWith(
       'transaction.purchaseDate BETWEEN :fromDate AND :toDate',

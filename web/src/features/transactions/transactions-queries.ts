@@ -21,6 +21,7 @@ import {
   createTransaction,
   deleteTransaction,
   getTransactionActivity,
+  listDeletedTransactions,
   listTransactions,
   updateTransaction,
   type CreateTransactionInput,
@@ -79,6 +80,30 @@ function useTransactionActivityQuery(
         ? Promise.resolve([] as readonly TransactionActivity[])
         : getTransactionActivity(apiClient, transactionId, spaceId, signal),
     enabled: enabled && transactionId !== null,
+    staleTime: queryPolicy.activityStaleTime,
+  });
+}
+
+function useDeletedTransactionsQuery(spaceId?: string, enabled = true) {
+  const apiClient = useApiClient();
+  const scope = useFinancialQueryScope(spaceId);
+
+  return useInfiniteQuery({
+    ...financialQueryOptions,
+    queryKey: buildFinancialQueryKey(scope, ["transactions", "deleted"]),
+    queryFn: ({ pageParam, signal }) =>
+      listDeletedTransactions(
+        apiClient,
+        {
+          pageSize: TRANSACTION_PAGE_SIZE,
+          cursor: pageParam ?? undefined,
+          spaceId,
+        },
+        signal,
+      ),
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+    enabled,
     staleTime: queryPolicy.activityStaleTime,
   });
 }
@@ -154,6 +179,7 @@ function useDeleteTransactionMutation() {
 export {
   useCreateTransactionMutation,
   useDeleteTransactionMutation,
+  useDeletedTransactionsQuery,
   useTransactionActivityQuery,
   useTransactionsQuery,
   useUpdateTransactionMutation,

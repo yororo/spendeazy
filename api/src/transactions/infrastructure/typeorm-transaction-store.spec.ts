@@ -62,6 +62,7 @@ describe('TypeOrmTransactionStore', () => {
       amount: '4.50',
       categoryMatchConfidence: null,
       importFingerprint: null,
+      deletedAt: null,
     });
     expect(categoryQuery.setLock).toHaveBeenCalledWith('pessimistic_read');
     expect(activityRepository.create).toHaveBeenCalledWith({
@@ -159,18 +160,57 @@ describe('TypeOrmTransactionStore', () => {
     });
   });
 
-  it('reports whether a Space-scoped manual Transaction was removed', async () => {
+  it('soft-deletes a manual Transaction and records the deleting actor atomically', async () => {
+    const updateQuery = {
+      update: jest.fn().mockReturnThis(),
+      set: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      execute: jest.fn().mockResolvedValue({ affected: 1 }),
+    };
     const transactionRepository = {
-      delete: jest.fn().mockResolvedValue({ affected: 1 }),
+      createQueryBuilder: jest.fn().mockReturnValue(updateQuery),
+    };
+    const activityRepository = {
+      create: jest.fn().mockReturnValue({}),
+      save: jest.fn().mockResolvedValue({}),
     };
     const store = new TypeOrmTransactionStore(
-      entityManagerFor(transactionRepository),
+      transactionalEntityManager(
+        transactionRepository,
+        categoryQueryBuilder({ isActive: true }),
+        activityRepository,
+      ),
     );
 
-    await expect(store.deleteInSpace('7', '1')).resolves.toBe(true);
-    expect(transactionRepository.delete).toHaveBeenCalledWith(
-      expect.objectContaining({ id: '1', spaceId: '7' }),
-    );
+    await expect(store.deleteInSpace('7', '1', '8')).resolves.toBe(true);
+    const setChanges = (
+      updateQuery.set.mock.calls[0] as unknown as [{ deletedAt: unknown }]
+    )[0];
+    expect(setChanges.deletedAt).toBeInstanceOf(Date);
+    expect(updateQuery.andWhere).toHaveBeenCalledWith('deleted_at IS NULL');
+    const activityInput = (
+      activityRepository.create.mock.calls[0] as unknown as [
+        {
+          transactionId: string;
+          spaceId: string;
+          actorUserId: string;
+          type: string;
+          occurredAt: unknown;
+          beforeState: null;
+          afterState: null;
+        },
+      ]
+    )[0];
+    expect(activityInput).toMatchObject({
+      transactionId: '1',
+      spaceId: '7',
+      actorUserId: '8',
+      type: 'deleted',
+      beforeState: null,
+      afterState: null,
+    });
+    expect(activityInput.occurredAt).toBeInstanceOf(Date);
   });
 
   it('does not create an edit activity when the optimistic version is stale', async () => {
@@ -251,6 +291,9 @@ describe('TypeOrmTransactionStore', () => {
       spaceId: '7',
     });
     expect(query.andWhere).toHaveBeenCalledWith(
+      'transaction.deletedAt IS NULL',
+    );
+    expect(query.andWhere).toHaveBeenCalledWith(
       'transaction.purchaseDate >= :fromDate',
       { fromDate: '2026-08-01' },
     );
@@ -284,12 +327,6 @@ describe('TypeOrmTransactionStore', () => {
     expect(query.take).toHaveBeenCalledWith(3);
   });
 });
-
-function entityManagerFor(repository: object): EntityManager {
-  return {
-    getRepository: jest.fn().mockReturnValue(repository),
-  } as unknown as EntityManager;
-}
 
 function transactionalEntityManager(
   transactionRepository: object,
@@ -366,6 +403,7 @@ function transactionEntity() {
     importFingerprint: null,
     createdAt: new Date('2026-08-29T00:00:00.123Z'),
     updatedAt: new Date('2026-08-29T00:00:00.456Z'),
+    deletedAt: null,
   };
 }
 
@@ -381,6 +419,7 @@ function transactionRecord(): ManualTransactionRecord {
     source: 'manual',
     createdAt: new Date('2026-08-29T00:00:00.123Z'),
     updatedAt: new Date('2026-08-29T00:00:00.456Z'),
+    deletedAt: null,
   };
 }
 
@@ -391,5 +430,6 @@ function importedTransactionRecord(): TransactionRecord {
     categoryId: null,
     statementImportId: '9',
     source: 'imported',
+    deletedAt: null,
   };
 }

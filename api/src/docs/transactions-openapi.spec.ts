@@ -15,6 +15,8 @@ describe('Transaction OpenAPI contract', () => {
     const document = await createOpenApiDocument();
     const collectionPath =
       document.paths[`/${API_PREFIX}/users/me/transactions`];
+    const historyPath =
+      document.paths[`/${API_PREFIX}/users/me/transactions/history`];
     const itemPath =
       document.paths[`/${API_PREFIX}/users/me/transactions/{transactionId}`];
     const activityPath =
@@ -23,6 +25,7 @@ describe('Transaction OpenAPI contract', () => {
       ];
     const createOperation = collectionPath?.post as OperationObject;
     const listOperation = collectionPath?.get as OperationObject;
+    const historyOperation = historyPath?.get as OperationObject;
     const getOperation = itemPath?.get as OperationObject;
     const activityOperation = activityPath?.get as OperationObject;
     const updateOperation = itemPath?.patch as OperationObject;
@@ -46,6 +49,11 @@ describe('Transaction OpenAPI contract', () => {
       tags: ['Transactions'],
       summary:
         'List filtered transactions in date-descending, ID-descending keyset pages.',
+    });
+    expect(historyOperation).toMatchObject({
+      operationId: 'Transactions_listDeletedTransactions',
+      tags: ['Transactions'],
+      summary: 'List retained deleted Transactions.',
     });
     expect(listOperation.description).toEqual(
       expect.stringContaining('purchaseDate descending'),
@@ -95,6 +103,7 @@ describe('Transaction OpenAPI contract', () => {
     expect(getOperation.requestBody).toBeUndefined();
     expect(activityOperation.requestBody).toBeUndefined();
     expect(deleteOperation.requestBody).toBeUndefined();
+    expect(historyOperation.requestBody).toBeUndefined();
 
     expect(createOperation.responses['201']).toMatchObject({
       description: 'Manual transaction created.',
@@ -127,6 +136,16 @@ describe('Transaction OpenAPI contract', () => {
     });
     expect(listOperation.responses['200']).toMatchObject({
       description: 'Transaction page.',
+      content: {
+        'application/json': {
+          schema: {
+            $ref: '#/components/schemas/TransactionHistoryPageResponseDto',
+          },
+        },
+      },
+    });
+    expect(historyOperation.responses['200']).toMatchObject({
+      description: 'Retained deleted Transaction history page.',
       content: {
         'application/json': {
           schema: {
@@ -181,12 +200,14 @@ describe('Transaction OpenAPI contract', () => {
 
     expectPathParameter(createOperation, undefined);
     expectPathParameter(listOperation, undefined);
+    expectPathParameter(historyOperation, undefined);
     for (const operation of [getOperation, updateOperation, deleteOperation]) {
       expectPathParameter(operation, 'transactionId');
     }
     expectPathParameter(activityOperation, 'transactionId');
 
     expectTransactionQueryParameters(listOperation);
+    expectTransactionQueryParameters(historyOperation);
     expectResponseStatuses(createOperation, [
       '201',
       '400',
@@ -200,6 +221,14 @@ describe('Transaction OpenAPI contract', () => {
       '500',
     ]);
     expectResponseStatuses(listOperation, [
+      '200',
+      '400',
+      '401',
+      '403',
+      '406',
+      '500',
+    ]);
+    expectResponseStatuses(historyOperation, [
       '200',
       '400',
       '401',
@@ -260,6 +289,13 @@ describe('Transaction OpenAPI contract', () => {
       '500': 'InternalError',
     });
     expectResponseReferences(listOperation, {
+      '400': 'ValidationError',
+      '401': 'UnauthenticatedError',
+      '403': 'UserNotProvisionedError',
+      '406': 'NotAcceptableError',
+      '500': 'InternalError',
+    });
+    expectResponseReferences(historyOperation, {
       '400': 'ValidationError',
       '401': 'UnauthenticatedError',
       '403': 'UserNotProvisionedError',
@@ -378,7 +414,7 @@ describe('Transaction OpenAPI contract', () => {
         },
         type: {
           type: 'string',
-          enum: ['created', 'edited'],
+          enum: ['created', 'edited', 'deleted'],
           example: 'created',
         },
         actorUserId: { type: 'string', pattern: '^[1-9]\\d*$', example: '7' },

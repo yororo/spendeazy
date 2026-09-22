@@ -74,6 +74,24 @@ export function recordEditedTransactionActivity(
     .then(() => undefined);
 }
 
+export function recordDeletedTransactionActivity(
+  entityManager: EntityManager,
+  transactionId: string,
+  spaceId: string,
+  actorUserId: string,
+  occurredAt: Date,
+): Promise<void> {
+  return new TypeOrmTransactionActivityStore(entityManager)
+    .create({
+      transactionId,
+      spaceId,
+      actorUserId,
+      type: 'deleted',
+      occurredAt,
+    })
+    .then(() => undefined);
+}
+
 function toRecord(
   entity: TransactionActivityEntity,
 ): TransactionActivityRecord {

@@ -79,7 +79,7 @@ export class TypeOrmStatementImportStore implements StatementImportStore {
       .leftJoin(
         TransactionEntity,
         'transaction',
-        'transaction.statementImportId = statementImport.id AND transaction.spaceId = statementImport.spaceId',
+        'transaction.statementImportId = statementImport.id AND transaction.spaceId = statementImport.spaceId AND transaction.deletedAt IS NULL',
       )
       .addSelect('COUNT(transaction.id)', 'transactionCount')
       .where('statementImport.spaceId = :spaceId', {

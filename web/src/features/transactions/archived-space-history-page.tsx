@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArchiveIcon, ArrowLeftIcon, LoaderCircleIcon } from "lucide-react";
+import { ArchiveIcon, ArrowLeftIcon } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 
 import {
@@ -33,7 +33,12 @@ import {
 
 import { TransactionTable } from "./transaction-table";
 import { TransactionActivityDialog } from "./transaction-activity-dialog";
-import { useTransactionsQuery } from "./transactions-queries";
+import { DeletedTransactionsCard } from "./deleted-transactions-card";
+import { TransactionLoadMoreButton } from "./transaction-load-more-button";
+import {
+  useDeletedTransactionsQuery,
+  useTransactionsQuery,
+} from "./transactions-queries";
 import type { Transaction } from "./transactions-service";
 
 function ArchivedSpaceHistoryPage() {
@@ -49,6 +54,10 @@ function ArchivedSpaceHistoryPage() {
   );
   const transactionsQuery = useTransactionsQuery(
     period,
+    selectedSpace?.id,
+    selectedSpace !== undefined,
+  );
+  const deletedTransactionsQuery = useDeletedTransactionsQuery(
     selectedSpace?.id,
     selectedSpace !== undefined,
   );
@@ -107,6 +116,9 @@ function ArchivedSpaceHistoryPage() {
   const transactions = transactionsQuery.data.pages.flatMap(
     (page) => page.items,
   );
+  const deletedTransactions = deletedTransactionsQuery.data?.pages.flatMap(
+    (page) => page.items,
+  ) ?? [];
 
   return (
     <div className="mx-auto w-full max-w-screen-2xl px-4 py-6 sm:px-6 lg:px-9 lg:py-7">
@@ -176,24 +188,19 @@ function ArchivedSpaceHistoryPage() {
         </div>
         {transactionsQuery.hasNextPage && (
           <CardContent className="flex justify-center border-t p-4 md:py-3">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="w-full md:w-auto"
-              disabled={transactionsQuery.isFetchingNextPage}
-              onClick={() => void transactionsQuery.fetchNextPage()}
-            >
-              {transactionsQuery.isFetchingNextPage && (
-                <LoaderCircleIcon className="animate-spin" aria-hidden="true" />
-              )}
-              {transactionsQuery.isFetchingNextPage
-                ? "Loading more"
-                : "Load more"}
-            </Button>
+            <TransactionLoadMoreButton
+              isFetchingNextPage={transactionsQuery.isFetchingNextPage}
+              onLoadMore={() => void transactionsQuery.fetchNextPage()}
+            />
           </CardContent>
         )}
       </Card>
+      <DeletedTransactionsCard
+        query={deletedTransactionsQuery}
+        transactions={deletedTransactions}
+        onViewActivity={setTransactionToViewActivity}
+        showAttribution
+      />
       <TransactionActivityDialog
         open={transactionToViewActivity !== null}
         transaction={transactionToViewActivity}

@@ -155,6 +155,37 @@ export class TransactionsController {
     };
   }
 
+  @Get('history')
+  @ApiOperation({ summary: 'List retained deleted Transactions.' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Retained deleted Transaction history page.',
+    type: TransactionHistoryPageResponseDto,
+  })
+  @ApiStandardErrorResponses(
+    'UnauthenticatedError',
+    'UserNotProvisionedError',
+    'ValidationError',
+    'NotAcceptableError',
+    'InternalError',
+  )
+  async listDeletedTransactions(
+    @Req() request: AuthenticatedRequest,
+    @Query() query: TransactionCollectionQueryDto,
+  ): Promise<TransactionHistoryPageResponseDto> {
+    const userId = requireAuthenticatedUserId(request);
+    const personalSpace =
+      await this.spaceAccessService.requirePersonalSpace(userId);
+    const page = await this.transactionsService.listDeletedTransactionsInSpace(
+      personalSpace.id,
+      query,
+    );
+    return {
+      items: page.items.map(toTransactionHistoryResponse),
+      nextCursor: page.nextCursor,
+    };
+  }
+
   @Get(':transactionId/activity')
   @ApiOperation({ summary: 'List activity for a Transaction.' })
   @ApiParam({
@@ -339,6 +370,7 @@ export class TransactionsController {
       await this.spaceAccessService.requirePersonalWriteSpace(userId);
     const expectedUpdatedAt = normalizeIfMatch(ifMatch);
     await this.transactionsService.deleteManualTransactionInSpace(
+      userId,
       personalSpace.id,
       params.transactionId,
       expectedUpdatedAt,
@@ -393,8 +425,19 @@ export function toTransactionHistoryResponse(
 ): TransactionHistoryResponse {
   const response = toTransactionResponseFields(transaction);
 
+  const historyResponse = {
+    ...response,
+    ...(transaction.deletedAt == null
+      ? {}
+      : { deletedAt: transaction.deletedAt.toISOString() }),
+  };
+
   if (transaction.source === 'manual') {
-    return { ...response, source: 'manual', statementImportId: null };
+    return {
+      ...historyResponse,
+      source: 'manual',
+      statementImportId: null,
+    };
   }
 
   if (transaction.statementImportId === null) {
@@ -402,7 +445,7 @@ export function toTransactionHistoryResponse(
   }
 
   return {
-    ...response,
+    ...historyResponse,
     source: 'imported',
     statementImportId: transaction.statementImportId,
   };
@@ -419,7 +462,7 @@ export function toTransactionActivityResponse(
     occurredAt: activity.occurredAt.toISOString(),
   };
 
-  if (activity.type === 'created') {
+  if (activity.type !== 'edited') {
     return response;
   }
 

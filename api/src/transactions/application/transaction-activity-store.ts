@@ -1,6 +1,6 @@
 export const TRANSACTION_ACTIVITY_STORE = Symbol('TRANSACTION_ACTIVITY_STORE');
 
-export type TransactionActivityType = 'created' | 'edited';
+export type TransactionActivityType = 'created' | 'edited' | 'deleted';
 
 export interface TransactionActivitySnapshot {
   categoryId: string | null;

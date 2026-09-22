@@ -16,6 +16,7 @@ export interface ImportedTransactionRecord {
   source: 'imported';
   createdAt: Date;
   updatedAt: Date;
+  deletedAt?: Date | null;
 }
 
 export interface NewImportedTransaction {
@@ -50,6 +51,10 @@ export interface SpaceImportedTransactionStore {
     fingerprint: string,
   ): Promise<ImportedTransactionRecord[]>;
   findByIdInSpace(
+    spaceId: string,
+    id: string,
+  ): Promise<ImportedTransactionRecord | null>;
+  findByIdInHistoryInSpace(
     spaceId: string,
     id: string,
   ): Promise<ImportedTransactionRecord | null>;

@@ -112,11 +112,32 @@ describe('TransactionsService', () => {
     ).rejects.toBeInstanceOf(StaleEditError);
     await expect(
       service.deleteManualTransactionInSpace(
+        'member-2',
         'space-7',
         '1',
         '2026-08-30T00:00:00.000Z',
       ),
     ).rejects.toBeInstanceOf(StaleEditError);
+  });
+
+  it('passes the deleting actor through the central mutation boundary', async () => {
+    const transactionStore = new TransactionStoreFake([
+      transactionRecord({ spaceId: 'space-7' }),
+    ]);
+    const service = new TransactionsService(
+      new TransactionCategoryStoreFake(),
+      transactionStore,
+      transactionStore,
+    );
+
+    await service.deleteManualTransactionInSpace(
+      'member-2',
+      'space-7',
+      '1',
+      transactionStore.transactions[0].updatedAt.toISOString(),
+    );
+
+    expect(transactionStore.spaceDeletedActorUserId).toBe('member-2');
   });
 
   it('lists a selected Space without rebinding the query to the current member', async () => {
@@ -171,6 +192,33 @@ describe('TransactionsService', () => {
       service.listTransactionActivityInSpace('space-8', '1'),
     ).rejects.toMatchObject({ code: 'TRANSACTION_NOT_FOUND' });
   });
+
+  it('lists retained deleted Transactions separately from active pages', async () => {
+    const transactionStore = new TransactionStoreFake([
+      transactionRecord({ id: '1', spaceId: 'space-7' }),
+      transactionRecord({
+        id: '2',
+        spaceId: 'space-7',
+        deletedAt: new Date('2026-09-01T00:00:00.000Z'),
+      }),
+    ]);
+    const service = new TransactionsService(
+      new TransactionCategoryStoreFake(),
+      transactionStore,
+      transactionStore,
+    );
+
+    await expect(
+      service.listDeletedTransactionsInSpace('space-7', { pageSize: 20 }),
+    ).resolves.toEqual({
+      items: [toPageRecord(transactionStore.transactions[1])],
+      nextCursor: null,
+    });
+    expect(transactionStore.spacePageQuery).toMatchObject({
+      spaceId: 'space-7',
+      deletedOnly: true,
+    });
+  });
 });
 
 class TransactionStoreFake implements SpaceTransactionStore {
@@ -178,6 +226,7 @@ class TransactionStoreFake implements SpaceTransactionStore {
   updatedTransaction: ManualTransactionRecord | undefined;
   spaceUpdatedInput: UpdateManualTransaction | undefined;
   spaceUpdatedActorUserId: string | undefined;
+  spaceDeletedActorUserId: string | undefined;
   spacePageQuery: SpaceTransactionPageQuery | undefined;
   pageResults: TransactionRecord[];
 
@@ -206,7 +255,11 @@ class TransactionStoreFake implements SpaceTransactionStore {
     this.spacePageQuery = query;
     return Promise.resolve(
       this.pageResults.filter(
-        (transaction) => transaction.spaceId === query.spaceId,
+        (transaction) =>
+          transaction.spaceId === query.spaceId &&
+          (query.deletedOnly
+            ? transaction.deletedAt !== null
+            : transaction.deletedAt === null),
       ),
     );
   }
@@ -218,7 +271,9 @@ class TransactionStoreFake implements SpaceTransactionStore {
     return Promise.resolve(
       this.transactions.find(
         (transaction) =>
-          transaction.spaceId === spaceId && transaction.id === id,
+          transaction.spaceId === spaceId &&
+          transaction.id === id &&
+          transaction.deletedAt === null,
       ) ?? null,
     );
   }
@@ -245,16 +300,36 @@ class TransactionStoreFake implements SpaceTransactionStore {
     return Promise.resolve(transaction);
   }
 
-  deleteInSpace(spaceId: string, id: string): Promise<boolean> {
-    const index = this.transactions.findIndex(
-      (transaction) => transaction.spaceId === spaceId && transaction.id === id,
+  deleteInSpace(
+    spaceId: string,
+    id: string,
+    actorUserId: string,
+  ): Promise<boolean> {
+    this.spaceDeletedActorUserId = actorUserId;
+    const transaction = this.transactions.find(
+      (candidate) =>
+        candidate.spaceId === spaceId &&
+        candidate.id === id &&
+        candidate.deletedAt === null,
     );
-    if (index === -1) {
+    if (!transaction) {
       return Promise.resolve(false);
     }
 
-    this.transactions.splice(index, 1);
+    transaction.deletedAt = new Date('2026-09-01T00:00:00.000Z');
     return Promise.resolve(true);
+  }
+
+  findByIdInHistoryInSpace(
+    spaceId: string,
+    id: string,
+  ): Promise<ManualTransactionRecord | null> {
+    return Promise.resolve(
+      this.transactions.find(
+        (transaction) =>
+          transaction.spaceId === spaceId && transaction.id === id,
+      ) ?? null,
+    );
   }
 }
 
@@ -325,6 +400,7 @@ function transactionRecord(
     source: 'manual',
     createdAt: timestamp,
     updatedAt: timestamp,
+    deletedAt: null,
     ...overrides,
   };
 }
@@ -345,6 +421,7 @@ function transactionPageRecord(
     source: 'manual',
     createdAt: timestamp,
     updatedAt: timestamp,
+    deletedAt: null,
     ...overrides,
   };
 }

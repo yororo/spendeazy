@@ -36,7 +36,7 @@ export class TransactionActivityEntity {
   actorUserId!: string;
 
   @Column({ type: 'varchar', length: 20, name: 'activity_type' })
-  type!: 'created' | 'edited';
+  type!: 'created' | 'edited' | 'deleted';
 
   @Column({ type: 'timestamptz', precision: 3, name: 'occurred_at' })
   occurredAt!: Date;

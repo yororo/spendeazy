@@ -143,7 +143,7 @@ describe('TypeOrmStatementImportStore', () => {
     expect(query.leftJoin).toHaveBeenCalledWith(
       TransactionEntity,
       'transaction',
-      'transaction.statementImportId = statementImport.id AND transaction.spaceId = statementImport.spaceId',
+      'transaction.statementImportId = statementImport.id AND transaction.spaceId = statementImport.spaceId AND transaction.deletedAt IS NULL',
     );
     expect(query.addSelect).toHaveBeenCalledWith(
       'COUNT(transaction.id)',
@@ -182,7 +182,7 @@ describe('TypeOrmStatementImportStore', () => {
     expect(query.leftJoin).toHaveBeenCalledWith(
       TransactionEntity,
       'transaction',
-      'transaction.statementImportId = statementImport.id AND transaction.spaceId = statementImport.spaceId',
+      'transaction.statementImportId = statementImport.id AND transaction.spaceId = statementImport.spaceId AND transaction.deletedAt IS NULL',
     );
   });
 });

@@ -99,6 +99,7 @@ describe('authenticated User routes', () => {
   let transactionsService: {
     createManualTransaction: jest.Mock;
     listTransactions: jest.Mock;
+    listDeletedTransactions: jest.Mock;
     getManualTransaction: jest.Mock;
     updateTransaction: jest.Mock;
     deleteManualTransaction: jest.Mock;
@@ -158,6 +159,10 @@ describe('authenticated User routes', () => {
         items: [transactionPageRecord({ id: '300', userId: '99' })],
         nextCursor: null,
       }),
+      listDeletedTransactions: jest.fn().mockResolvedValue({
+        items: [],
+        nextCursor: null,
+      }),
       getManualTransaction: jest
         .fn()
         .mockResolvedValue(transactionRecord({ id: '300', userId: '99' })),
@@ -215,6 +220,8 @@ describe('authenticated User routes', () => {
       ) => invoke(transactionsService.createManualTransaction, userId, input),
       listTransactionsInSpace: (spaceId: string, query: unknown) =>
         invoke(transactionsService.listTransactions, spaceId, query),
+      listDeletedTransactionsInSpace: (spaceId: string, query: unknown) =>
+        invoke(transactionsService.listDeletedTransactions, spaceId, query),
       getManualTransactionInSpace: (spaceId: string, id: string) =>
         invoke(transactionsService.getManualTransaction, spaceId, id),
       updateTransactionInSpace: (
@@ -223,8 +230,11 @@ describe('authenticated User routes', () => {
         id: string,
         input: unknown,
       ) => invoke(transactionsService.updateTransaction, spaceId, id, input),
-      deleteManualTransactionInSpace: (spaceId: string, id: string) =>
-        invoke(transactionsService.deleteManualTransaction, spaceId, id),
+      deleteManualTransactionInSpace: (
+        _actorUserId: string,
+        spaceId: string,
+        id: string,
+      ) => invoke(transactionsService.deleteManualTransaction, spaceId, id),
     });
     const module = await Test.createTestingModule({
       controllers: [

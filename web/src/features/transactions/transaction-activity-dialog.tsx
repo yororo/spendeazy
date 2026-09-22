@@ -16,6 +16,7 @@ import {
 import { useTransactionActivityQuery } from "./transactions-queries";
 import type {
   Transaction,
+  TransactionActivity,
   TransactionActivitySnapshot,
 } from "./transactions-service";
 
@@ -102,10 +103,10 @@ function TransactionActivityDialog({
                   className="border-l-2 border-foreground pl-4"
                 >
                   <p className="font-mono text-sm font-bold uppercase">
-                    {activity.type === "created" ? "Created" : "Edited"}
+                    {activityLabel(activity.type)}
                   </p>
                   <p className="mt-1 text-sm">
-                    {activity.type === "created" ? "Created" : "Edited"} by
+                    {activityLabel(activity.type)} by
                     {" User "}
                     {activity.actorUserId}
                   </p>
@@ -141,6 +142,14 @@ function TransactionActivityDialog({
       </DialogContent>
     </Dialog>
   );
+}
+
+function activityLabel(type: TransactionActivity["type"]): string {
+  return type === "created"
+    ? "Created"
+    : type === "deleted"
+      ? "Deleted"
+      : "Edited";
 }
 
 function TransactionActivitySnapshotView({

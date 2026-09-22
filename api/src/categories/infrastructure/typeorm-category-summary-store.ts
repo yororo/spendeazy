@@ -26,7 +26,7 @@ export class TypeOrmCategorySummaryStore implements CategorySummaryStore {
       .leftJoin(
         TransactionEntity,
         'transaction',
-        'transaction.categoryId = category.id AND transaction.spaceId = category.spaceId AND transaction.purchaseDate BETWEEN :fromDate AND :toDate',
+        'transaction.categoryId = category.id AND transaction.spaceId = category.spaceId AND transaction.deletedAt IS NULL AND transaction.purchaseDate BETWEEN :fromDate AND :toDate',
       )
       .leftJoin(BudgetEntity, 'budget', 'budget.categoryId = category.id')
       .where('category.spaceId = :spaceId', scopeParameters)
@@ -58,6 +58,7 @@ export class TypeOrmCategorySummaryStore implements CategorySummaryStore {
       .addSelect('COUNT(transaction.id)', 'uncategorizedCount')
       .where('transaction.spaceId = :spaceId', scopeParameters)
       .andWhere('transaction.categoryId IS NULL')
+      .andWhere('transaction.deletedAt IS NULL')
       .andWhere('transaction.purchaseDate BETWEEN :fromDate AND :toDate', {
         fromDate: query.fromDate,
         toDate: query.toDate,

@@ -116,6 +116,7 @@ describe("AuthenticatedRoute", () => {
       sessionId: sessionMock.sessionId,
       user: null,
       getToken: sessionMock.getToken,
+      openUserProfile: vi.fn(),
       signOut: sessionMock.signOut,
     };
 

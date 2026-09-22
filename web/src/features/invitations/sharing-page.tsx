@@ -6,6 +6,7 @@ import {
   RotateCcwIcon,
   XIcon,
 } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 
 import {
   FeatureDataEmpty,
@@ -24,6 +25,7 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useAppSession } from '@/shared/session';
 
 import {
   useCancelInvitationMutation,
@@ -34,10 +36,14 @@ import {
   useResendInvitationMutation,
   useRetryInvitationMutation,
 } from './invitation-queries';
-import type { Invitation } from './invitations-service';
+import { usePublicInvitationQuery } from './public-invitation-queries';
+import type { Invitation, PublicInvitation } from './invitations-service';
 
 function SharingPage() {
+  const [searchParams] = useSearchParams();
+  const invitationToken = searchParams.get('invitationToken') ?? '';
   const invitationsQuery = useInvitationsQuery();
+  const invitationContextQuery = usePublicInvitationQuery(invitationToken);
   const createMutation = useCreateInvitationMutation();
   const acceptMutation = useAcceptInvitationMutation();
   const cancelMutation = useCancelInvitationMutation();
@@ -59,6 +65,9 @@ function SharingPage() {
 
   const inbox = invitationsQuery.data;
   const outgoing = inbox.outgoing;
+  const focusedInvitation = invitationContextQuery.data
+    ? inbox.incoming.find((item) => item.id === invitationContextQuery.data?.id)
+    : undefined;
   const isMutating =
     createMutation.isPending ||
     cancelMutation.isPending ||
@@ -87,6 +96,13 @@ function SharingPage() {
           must make an explicit decision before a Shared Space can be created.
         </p>
       </header>
+
+      {invitationToken && (
+        <InvitationContinuationCard
+          query={invitationContextQuery}
+          matchingInvitation={focusedInvitation}
+        />
+      )}
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <Card variant="strong">
@@ -184,6 +200,101 @@ function SharingPage() {
       </section>
     </div>
   );
+}
+
+interface InvitationContinuationCardProps {
+  readonly query: ReturnType<typeof usePublicInvitationQuery>;
+  readonly matchingInvitation: Invitation | undefined;
+}
+
+function InvitationContinuationCard({
+  query,
+  matchingInvitation,
+}: InvitationContinuationCardProps) {
+  const { openUserProfile } = useAppSession();
+
+  if (query.isPending) {
+    return <FeatureDataLoading label="Loading invitation context" />;
+  }
+
+  if (query.isError || !query.data) {
+    return (
+      <Alert variant="destructive" className="mb-5">
+        <AlertTitle>Invitation context unavailable</AlertTitle>
+        <AlertDescription>
+          {query.error instanceof Error
+            ? query.error.message
+            : 'This invitation link is no longer available.'}
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
+  const invitation = query.data;
+  if (invitation.status === 'pending' && matchingInvitation) {
+    return (
+      <Alert className="mb-5" role="status">
+        <AlertTitle>Invitation ready for your decision</AlertTitle>
+        <AlertDescription>
+          Review the invitation from {invitation.senderName} below. Accepting
+          is the only action that creates a Shared Space.
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
+  if (invitation.status === 'pending') {
+    return (
+      <Card variant="strong" className="mb-5">
+        <CardHeader>
+          <CardTitle>Verify the invited email before accepting</CardTitle>
+          <CardDescription>
+            This invitation is addressed to {invitation.recipientEmail}.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3 text-sm">
+          <p>
+            Add and verify that address in your Clerk profile, including as a
+            secondary email if you registered with another address. Return
+            here and refresh this page; the invitation will appear only when
+            the verified identity matches it.
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => void openUserProfile()}
+          >
+            Manage verified email addresses
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Alert className="mb-5" role="status">
+      <AlertTitle>Invitation {invitationStatusLabel(invitation.status)}</AlertTitle>
+      <AlertDescription>
+        This invitation from {invitation.senderName} is no longer actionable.
+        Your Personal Space remains available.
+      </AlertDescription>
+    </Alert>
+  );
+}
+
+function invitationStatusLabel(status: PublicInvitation['status']): string {
+  switch (status) {
+    case 'accepted':
+      return 'already accepted';
+    case 'canceled':
+      return 'canceled';
+    case 'declined':
+      return 'declined';
+    case 'expired':
+      return 'expired';
+    case 'pending':
+      return 'pending';
+  }
 }
 
 interface OutgoingInvitationCardProps {

@@ -1,6 +1,9 @@
 import { createPublicApiClient, readApiConfig } from '@/shared/api';
 
-import type { PublicInvitation } from './invitations-service';
+import {
+  isInvitationStatus,
+  type PublicInvitation,
+} from './invitations-service';
 
 function publicInvitationPath(token: string, action?: 'decline'): string {
   return `/api/v1/invitations/${encodeURIComponent(token)}${action ? `/${action}` : ''}`;
@@ -42,11 +45,12 @@ function isPublicInvitation(value: unknown): value is PublicInvitation {
     'recipientEmail' in value &&
     typeof value.recipientEmail === 'string' &&
     'status' in value &&
-    value.status === 'pending' &&
+    isInvitationStatus(value.status) &&
     'expiresAt' in value &&
     typeof value.expiresAt === 'string' &&
     'canDecline' in value &&
-    typeof value.canDecline === 'boolean'
+    typeof value.canDecline === 'boolean' &&
+    (value.status === 'pending' ? value.canDecline : !value.canDecline)
   );
 }
 

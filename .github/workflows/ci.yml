@@ -71,8 +71,8 @@ jobs:
         run: npm test -- --run
         working-directory: web
 
-      - name: Install Playwright Chromium
-        run: npx playwright install --with-deps chromium
+      - name: Install Playwright Microsoft Edge
+        run: npx playwright install --with-deps msedge
         working-directory: web
 
       - name: Run isolated browser suite

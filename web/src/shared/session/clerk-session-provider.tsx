@@ -11,7 +11,7 @@ interface ClerkSessionProviderProps {
 function ClerkSessionProvider({ children }: ClerkSessionProviderProps) {
   const { isLoaded, isSignedIn, sessionId, getToken } = useAuth();
   const { user } = useUser();
-  const { signOut } = useClerk();
+  const { openUserProfile, signOut } = useClerk();
   const session = useMemo<AppSession>(
     () => ({
       isLoaded,
@@ -26,9 +26,10 @@ function ClerkSessionProvider({ children }: ClerkSessionProviderProps) {
           }
         : null,
       getToken,
+      openUserProfile,
       signOut: () => signOut(),
     }),
-    [getToken, isLoaded, isSignedIn, sessionId, signOut, user],
+    [getToken, isLoaded, isSignedIn, openUserProfile, sessionId, signOut, user],
   );
 
   return <AppSessionProvider session={session}>{children}</AppSessionProvider>;

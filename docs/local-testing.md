@@ -84,7 +84,7 @@ npm --prefix api run openapi:check
 npm --prefix web run lint
 npm --prefix web run build
 npm --prefix web test -- --run
-npm --prefix web exec playwright install --with-deps chromium
+npm --prefix web exec playwright install --with-deps msedge
 node .\scripts\local-test-launcher.mjs --e2e
 ```
 

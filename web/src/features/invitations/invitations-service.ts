@@ -36,7 +36,7 @@ export interface PublicInvitation {
   readonly id: string;
   readonly senderName: string;
   readonly recipientEmail: string;
-  readonly status: 'pending';
+  readonly status: InvitationStatus;
   readonly expiresAt: string;
   readonly canDecline: boolean;
 }
@@ -190,7 +190,7 @@ async function acceptInvitation(
   return value;
 }
 
-function isInvitationStatus(value: unknown): value is InvitationStatus {
+export function isInvitationStatus(value: unknown): value is InvitationStatus {
   return (
     value === 'pending' ||
     value === 'accepted' ||

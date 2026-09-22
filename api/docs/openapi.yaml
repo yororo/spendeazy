@@ -3604,6 +3604,10 @@ components:
           type: string
           enum:
             - pending
+            - accepted
+            - canceled
+            - declined
+            - expired
         expiresAt:
           type: string
           format: date-time

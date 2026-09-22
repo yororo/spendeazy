@@ -5230,7 +5230,11 @@
           "status": {
             "type": "string",
             "enum": [
-              "pending"
+              "pending",
+              "accepted",
+              "canceled",
+              "declined",
+              "expired"
             ]
           },
           "expiresAt": {

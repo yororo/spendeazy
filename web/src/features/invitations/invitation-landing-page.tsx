@@ -9,6 +9,7 @@ import {
   useDeclinePublicInvitationMutation,
   usePublicInvitationQuery,
 } from './public-invitation-queries';
+import type { InvitationStatus } from './invitations-service';
 
 function InvitationLandingPage() {
   const { token = '' } = useParams();
@@ -59,7 +60,9 @@ function InvitationLandingPage() {
                 <span className="font-semibold">{invitation.senderName}</span> invited you to share a financial Space on Spendeazy.
               </p>
               <p className="text-muted-foreground">
-                This limited page only lets you review or decline the invitation. Opening it has not changed its state.
+                {invitation.status === 'pending'
+                  ? 'This limited page only lets you review or decline the invitation. Opening it has not changed its state.'
+                  : invitationStatusMessage(invitation.status)}
               </p>
               <p className="text-xs text-muted-foreground">
                 Invitation for {invitation.recipientEmail} · expires {new Date(invitation.expiresAt).toLocaleDateString()}
@@ -85,12 +88,31 @@ function InvitationLandingPage() {
             )
           )}
           <Button asChild variant="secondary">
-            <Link to="/sign-in">Go to Spendeazy</Link>
+            <Link to={`/sharing?invitationToken=${encodeURIComponent(token)}`}>
+              Sign in or create an account
+            </Link>
           </Button>
         </CardFooter>
       </Card>
     </main>
   );
+}
+
+function invitationStatusMessage(
+  status: InvitationStatus,
+): string {
+  switch (status) {
+    case 'accepted':
+      return 'This invitation has already been accepted. You can still create or use your Personal Space.';
+    case 'canceled':
+      return 'This invitation was canceled. You can still create or use your Personal Space.';
+    case 'declined':
+      return 'This invitation was declined. You can still create or use your Personal Space.';
+    case 'expired':
+      return 'This invitation has expired. You can still create or use your Personal Space.';
+    case 'pending':
+      return 'This limited page only lets you review or decline the invitation. Opening it has not changed its state.';
+  }
 }
 
 export { InvitationLandingPage };

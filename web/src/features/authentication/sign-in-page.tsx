@@ -21,11 +21,29 @@ const benefits = [
   "Privacy first",
 ];
 
-function getRedirectUrl(state: SignInLocationState | null): string {
+function getRedirectUrl(
+  state: SignInLocationState | null,
+  search = "",
+): string {
+  const requestedReturnTo = new URLSearchParams(search).get("returnTo");
+  const returnTo = safeLocalPath(requestedReturnTo);
+  if (returnTo && returnTo !== "/sign-in") return returnTo;
+
   const from = state?.from;
   if (!from?.pathname || from.pathname === "/sign-in") return "/";
 
-  return `${from.pathname}${from.search ?? ""}${from.hash ?? ""}`;
+  return (
+    safeLocalPath(`${from.pathname}${from.search ?? ""}${from.hash ?? ""}`) ??
+    "/"
+  );
+}
+
+function safeLocalPath(value: string | null): string | null {
+  if (!value || !value.startsWith("/") || value.startsWith("//")) {
+    return null;
+  }
+
+  return value;
 }
 
 function SignInPage() {
@@ -38,11 +56,13 @@ function SignInPage() {
   }, []);
 
   if (!isAuthLoaded) return <AuthLoading />;
-  if (isSignedIn) return <Navigate to="/" replace />;
-
   const redirectUrl = getRedirectUrl(
     location.state as SignInLocationState | null,
+    location.search,
   );
+  if (isSignedIn) {
+    return <Navigate to={redirectUrl} replace />;
+  }
   const errorMessage = errors?.global?.[0]?.message;
   const isSubmitting = fetchStatus === "fetching";
 
@@ -86,9 +106,11 @@ function SignInPage() {
 
       <section className="flex items-center justify-center px-6 py-14 sm:px-12 lg:px-18">
         <div className="w-full max-w-[26.25rem]">
-          <h2 className="text-4xl font-bold tracking-tight">Welcome back</h2>
+          <h2 className="text-4xl font-bold tracking-tight">
+            Sign in or create an account
+          </h2>
           <p className="mt-3 text-base text-muted-foreground">
-            Choose your identity provider to continue to your dashboard.
+            Choose your identity provider to continue to Spendeazy.
           </p>
 
           <div className="mt-7 space-y-3">

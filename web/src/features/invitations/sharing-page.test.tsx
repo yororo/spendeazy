@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { SharingPage } from './sharing-page';
@@ -35,6 +36,25 @@ const pageState = vi.hoisted(() => ({
     variables: undefined as string | undefined,
     mutate: vi.fn(),
   },
+  invitationContextQuery: {
+    data: null as null | {
+      id: string;
+      senderName: string;
+      recipientEmail: string;
+      status: 'pending' | 'accepted' | 'canceled' | 'declined' | 'expired';
+      expiresAt: string;
+      canDecline: boolean;
+    },
+    error: null as Error | null,
+    isError: false,
+    isPending: false,
+  },
+}));
+
+const openUserProfile = vi.hoisted(() => vi.fn());
+
+vi.mock('@/shared/session', () => ({
+  useAppSession: () => ({ openUserProfile }),
 }));
 
 vi.mock('./invitation-queries', () => ({
@@ -50,14 +70,27 @@ vi.mock('./invitation-queries', () => ({
   useRetryInvitationMutation: () => basicMutation(),
 }));
 
+vi.mock('./public-invitation-queries', () => ({
+  usePublicInvitationQuery: () => pageState.invitationContextQuery,
+}));
+
 afterEach(() => {
   cleanup();
   pageState.acceptMutation.mutate.mockClear();
+  pageState.invitationContextQuery.data = null;
+  pageState.invitationContextQuery.error = null;
+  pageState.invitationContextQuery.isError = false;
+  pageState.invitationContextQuery.isPending = false;
+  openUserProfile.mockClear();
 });
 
 describe('SharingPage', () => {
   it('explains and submits acceptance for an incoming invitation', () => {
-    render(<SharingPage />);
+    render(
+      <MemoryRouter initialEntries={['/sharing']}>
+        <SharingPage />
+      </MemoryRouter>,
+    );
 
     expect(
       screen.getByText(/creates a separate Shared Space with Sender/u),
@@ -71,6 +104,36 @@ describe('SharingPage', () => {
     );
 
     expect(pageState.acceptMutation.mutate).toHaveBeenCalledWith('42');
+  });
+
+  it('guides a signed-in recipient to verify the invited address before acceptance', () => {
+    pageState.invitationsQuery.data = { outgoing: null, incoming: [] };
+    pageState.invitationContextQuery.data = {
+      id: '43',
+      senderName: 'Sender',
+      recipientEmail: 'invited@example.com',
+      status: 'pending',
+      expiresAt: '2026-09-28T00:00:00.000Z',
+      canDecline: true,
+    };
+
+    render(
+      <MemoryRouter initialEntries={['/sharing?invitationToken=invite-token']}>
+        <SharingPage />
+      </MemoryRouter>,
+    );
+
+    expect(
+      screen.getByText(/invited@example\.com/u),
+    ).toBeTruthy();
+    expect(
+      screen.getByText(/Add and verify that address in your Clerk profile/u),
+    ).toBeTruthy();
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Manage verified email addresses' }),
+    );
+    expect(openUserProfile).toHaveBeenCalledTimes(1);
   });
 });
 

@@ -111,7 +111,6 @@ async function main() {
             SPENDEAZY_E2E_TEST_CLOCK: configuration.testClock,
           }
         : {}),
-      ...(process.platform === "win32" ? { PLAYWRIGHT_CHANNEL: "msedge" } : {}),
     };
     start(
       "npm",

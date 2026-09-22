@@ -256,6 +256,7 @@ function SyntheticSessionProvider({
 
         return currentSession.token;
       },
+      openUserProfile: () => undefined,
       signOut,
     }),
     [currentSession, signOut],

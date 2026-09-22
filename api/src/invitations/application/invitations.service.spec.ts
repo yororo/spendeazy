@@ -30,7 +30,6 @@ import {
   InvitationCanceledError,
   InvitationDailyLimitReachedError,
   InvitationDeclinedError,
-  InvitationExpiredError,
   InvitationNotFoundError,
   InvitationRateLimitedError,
 } from './invitation-errors';
@@ -91,9 +90,10 @@ describe('InvitationsService', () => {
 
     await service.declinePublic(token);
     expect(store.records[0].status).toBe('declined');
-    await expect(service.getPublic(token)).rejects.toBeInstanceOf(
-      InvitationNotFoundError,
-    );
+    await expect(service.getPublic(token)).resolves.toMatchObject({
+      status: 'declined',
+      canDecline: false,
+    });
   });
 
   it('invalidates the previous link on resend and enforces cooldown and daily limits', async () => {
@@ -174,11 +174,31 @@ describe('InvitationsService', () => {
     const token = delivery.messages[0].invitationUrl.split('/').at(-1)!;
 
     clock.advance(7 * 24 * 60 * 60 * 1000);
-    await expect(service.getPublic(token)).rejects.toBeInstanceOf(
-      InvitationExpiredError,
-    );
+    await expect(service.getPublic(token)).resolves.toMatchObject({
+      status: 'expired',
+      canDecline: false,
+    });
     expect(store.records[0].status).toBe('pending');
   });
+
+  it.each(['expired', 'canceled', 'declined', 'accepted'] as const)(
+    'reports a %s invitation without authorizing acceptance',
+    async (status) => {
+      const clock = new TestClock('2026-09-21T00:00:00.000Z');
+      const delivery = new TestDelivery();
+      const store = new FakeInvitationStore();
+      const service = createService(store, delivery, clock);
+      await service.create('1', 'unregistered@example.test');
+      const token = delivery.messages[0].invitationUrl.split('/').at(-1)!;
+      store.records[0].status = status;
+
+      await expect(service.getPublic(token)).resolves.toMatchObject({
+        status,
+        canDecline: false,
+      });
+      expect(store.records[0].status).toBe(status);
+    },
+  );
 
   it('passes every verified identity email to the acceptance boundary', async () => {
     const clock = new TestClock('2026-09-21T00:00:00.000Z');

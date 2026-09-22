@@ -73,7 +73,7 @@ export interface PublicInvitationView {
   id: string;
   senderName: string;
   recipientEmail: string;
-  status: 'pending';
+  status: InvitationRecord['status'];
   expiresAt: string;
   canDecline: boolean;
 }
@@ -278,15 +278,16 @@ export class InvitationsService {
   }
 
   async getPublic(token: string): Promise<PublicInvitationView> {
-    const invitation = await this.findPublicRecord(token);
+    const invitation = await this.findPublicPreviewRecord(token);
     const sender = await this.requireUser(invitation.senderUserId);
+    const status = publicInvitationStatus(invitation, this.clock.now());
     return {
       id: invitation.id,
       senderName: sender.name,
       recipientEmail: invitation.recipientEmail,
-      status: 'pending',
+      status,
       expiresAt: invitation.expiresAt.toISOString(),
-      canDecline: invitation.status === 'pending',
+      canDecline: status === 'pending',
     };
   }
 
@@ -310,6 +311,16 @@ export class InvitationsService {
     if (invitation.status !== 'pending') {
       throw new InvitationNotFoundError();
     }
+    return invitation;
+  }
+
+  private async findPublicPreviewRecord(
+    token: string,
+  ): Promise<InvitationRecord> {
+    const invitation = await this.invitationStore.findByTokenHash(
+      hashInvitationToken(token),
+    );
+    if (!invitation) throw new InvitationNotFoundError();
     return invitation;
   }
 
@@ -464,4 +475,13 @@ function startOfUtcDay(now: Date): Date {
   return new Date(
     Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
   );
+}
+
+function publicInvitationStatus(
+  invitation: InvitationRecord,
+  now: Date,
+): InvitationRecord['status'] {
+  return invitation.status === 'pending' && invitation.expiresAt <= now
+    ? 'expired'
+    : invitation.status;
 }

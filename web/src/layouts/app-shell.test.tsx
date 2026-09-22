@@ -80,6 +80,7 @@ const session: AppSession = {
     primaryEmail: "ada@example.test",
   },
   getToken: vi.fn(async () => "session-token"),
+  openUserProfile: vi.fn(),
   signOut: vi.fn(async () => undefined),
 };
 

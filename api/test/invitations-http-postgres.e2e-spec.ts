@@ -10,6 +10,7 @@ import {
   type ClerkProfileService,
   type ClerkUserProfile,
 } from '../src/authentication/clerk-profile-service';
+import { hashInvitationToken } from '../src/invitations/application/invitation-delivery';
 import {
   CLERK_TOKEN_VERIFIER,
   type ClerkSession,
@@ -419,6 +420,72 @@ describeDatabase('Shared Space invitation HTTP journey with PostgreSQL', () => {
     ).resolves.toHaveLength(2);
   });
 
+  it('keeps registration independent and accepts a verified invited secondary email', async () => {
+    const sender = createIdentity('secondary-sender');
+    const recipient = createIdentity('secondary-recipient');
+    await provision(sender);
+    await provision(recipient);
+    const invitedEmail = `invited-secondary-${randomUUID()}@example.test`;
+    const invitationId = await createInvitation(sender, invitedEmail);
+
+    const beforeVerification = await http()
+      .get('/api/v1/users/me/invitations')
+      .set(...authorization(recipient));
+    expect(beforeVerification.status).toBe(200);
+    expect(
+      responseBody<InvitationInboxView>(beforeVerification).incoming,
+    ).toEqual([]);
+
+    profileService.addVerifiedEmail(recipient.clerkUserId, invitedEmail);
+
+    const afterVerification = await http()
+      .get('/api/v1/users/me/invitations')
+      .set(...authorization(recipient));
+    expect(afterVerification.status).toBe(200);
+    expect(
+      responseBody<InvitationInboxView>(afterVerification).incoming,
+    ).toEqual([expect.objectContaining({ id: invitationId })]);
+
+    const acceptance = await http()
+      .post(`/api/v1/users/me/invitations/${invitationId}/accept`)
+      .set(...authorization(recipient))
+      .send({});
+    expect(acceptance.status).toBe(200);
+    const spaces = await listSpaces(recipient);
+    expect(spaces.filter((space) => space.kind === 'personal')).toHaveLength(1);
+    expect(spaces.filter((space) => space.kind === 'shared')).toHaveLength(1);
+  });
+
+  it('shows a stale public invitation status without changing its pending record', async () => {
+    const sender = createIdentity('preview-sender');
+    const senderUserId = await provision(sender);
+    const token = randomUUID().replaceAll('-', '');
+    const invitation = await database.getRepository(InvitationEntity).save({
+      senderUserId,
+      recipientEmail: 'preview-recipient@example.test',
+      recipientUserId: null,
+      acceptedSpaceId: null,
+      tokenHash: hashInvitationToken(token),
+      status: 'pending',
+      expiresAt: new Date(0),
+      lastSentAt: null,
+      deliveryStatus: 'sent',
+      deliveryError: null,
+    });
+    createdInvitationIds.push(invitation.id);
+
+    const preview = await http().get(`/api/v1/invitations/${token}`);
+    expect(preview.status).toBe(200);
+    expect(responseBody(preview)).toMatchObject({
+      id: invitation.id,
+      status: 'expired',
+      canDecline: false,
+    });
+    await expect(
+      database.getRepository(InvitationEntity).findOneBy({ id: invitation.id }),
+    ).resolves.toMatchObject({ status: 'pending' });
+  });
+
   async function provision(identity: TestIdentity): Promise<string> {
     const response = await http()
       .put('/api/v1/users/me')
@@ -577,6 +644,11 @@ interface AcceptedSpaceView extends SpaceView {
   readonly members: readonly { readonly id: string }[];
 }
 
+interface InvitationInboxView {
+  readonly outgoing: unknown;
+  readonly incoming: readonly unknown[];
+}
+
 interface RulesResponse {
   readonly rules: readonly unknown[];
 }
@@ -638,6 +710,15 @@ class HttpProfileService implements ClerkProfileService {
       fullName: identity.name,
       primaryVerifiedEmail: identity.email,
       verifiedEmails: [identity.email],
+    });
+  }
+
+  addVerifiedEmail(clerkUserId: string, email: string): void {
+    const profile = this.profiles.get(clerkUserId);
+    if (!profile) throw new Error('Missing HTTP profile');
+    this.profiles.set(clerkUserId, {
+      ...profile,
+      verifiedEmails: [...(profile.verifiedEmails ?? []), email],
     });
   }
 

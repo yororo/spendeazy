@@ -46,6 +46,7 @@ function createSession(userId: string): AppSession {
       primaryEmail: `${userId}@example.test`,
     },
     getToken: async () => "token",
+    openUserProfile: () => undefined,
     signOut: async () => undefined,
   };
 }

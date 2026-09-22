@@ -51,6 +51,8 @@ describe('public invitation service', () => {
       'invalid',
     );
     expect(isPublicInvitation(preview)).toBe(true);
-    expect(isPublicInvitation({ ...preview, status: 'declined' })).toBe(false);
+    expect(
+      isPublicInvitation({ ...preview, status: 'declined', canDecline: false }),
+    ).toBe(true);
   });
 });

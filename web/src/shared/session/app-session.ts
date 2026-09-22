@@ -19,6 +19,7 @@ interface AppSession {
   readonly getToken: (
     options?: AppSessionTokenOptions,
   ) => Promise<string | null>;
+  readonly openUserProfile: () => void;
   readonly signOut: () => Promise<void>;
 }
 

@@ -50,6 +50,28 @@ describe('InvitationLandingPage', () => {
       'POST',
     ]);
   });
+
+  it('keeps a stale invitation visible and preserves its continuation path', async () => {
+    vi.stubEnv('VITE_API_BASE_URL', 'https://api.example.test');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({ ...preview, status: 'expired', canDecline: false }),
+          { status: 200 },
+        ),
+      ),
+    );
+
+    renderInvitationPage();
+
+    expect(await screen.findByText(/has expired/u)).toBeTruthy();
+    expect(
+      screen.getByRole('link', { name: /Sign in or create an account/u }).getAttribute(
+        'href',
+      ),
+    ).toBe(`/sharing?invitationToken=${token}`);
+  });
 });
 
 function renderInvitationPage() {

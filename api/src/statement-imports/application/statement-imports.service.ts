@@ -18,7 +18,9 @@ import {
   StatementImportFileHashInvalidError,
   StatementImportNotFoundError,
   StatementImportProbableDuplicatesError,
+  StatementImportCategoryEligibilityError,
   StatementImportValidationError,
+  type CategoryEligibilityConflict,
 } from './statement-import-errors';
 import {
   STATEMENT_IMPORT_STORE,
@@ -272,18 +274,38 @@ async function ensureCategoriesAreActive(
   spaceId: string,
   transactions: ReviewedStatementTransactionInput[],
 ): Promise<void> {
-  const categoryIds = new Set(
-    transactions
-      .map((transaction) => transaction.categoryId)
-      .filter((categoryId): categoryId is string => categoryId != null),
-  );
+  const transactionIndexesByCategory = new Map<string, number[]>();
+  transactions.forEach((transaction, transactionIndex) => {
+    if (transaction.categoryId == null) return;
 
-  for (const categoryId of categoryIds) {
+    const indexes = transactionIndexesByCategory.get(transaction.categoryId);
+    if (indexes) {
+      indexes.push(transactionIndex);
+      return;
+    }
+
+    transactionIndexesByCategory.set(transaction.categoryId, [
+      transactionIndex,
+    ]);
+  });
+
+  const inactiveCategories: CategoryEligibilityConflict[] = [];
+
+  for (const [categoryId, transactionIndexes] of transactionIndexesByCategory) {
     const category = await context.categories.findBySpaceId(
       spaceId,
       categoryId,
     );
-    assertActiveCategory(category);
+    if (!category) {
+      assertActiveCategory(category);
+    }
+    if (!category.isActive) {
+      inactiveCategories.push({ categoryId, transactionIndexes });
+    }
+  }
+
+  if (inactiveCategories.length > 0) {
+    throw new StatementImportCategoryEligibilityError(inactiveCategories);
   }
 }
 

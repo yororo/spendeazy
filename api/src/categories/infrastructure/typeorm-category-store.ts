@@ -11,6 +11,7 @@ import {
   POSTGRES_UNIQUE_VIOLATION,
 } from '../../database/database-error-codes';
 import { CategoryEntity } from '../../database/entities/category.entity';
+import { SpaceEntity } from '../../database/entities/space.entity';
 import { StaleEditError } from '../../errors/application-error';
 import { SpaceNotFoundError } from '../../spaces/application/space-errors';
 import { CategoryNameConflictError } from '../application/category-errors';
@@ -83,50 +84,96 @@ export class TypeOrmCategoryStore implements CategoryStore {
     id: string,
     input: UpdateCategory,
   ): Promise<CategoryRecord | null> {
-    const repository = this.entityManager.getRepository(CategoryEntity);
     const changes = withoutExpectedUpdatedAt(input);
 
-    if (input.expectedUpdatedAt !== undefined) {
-      let result: UpdateResult;
-      try {
-        result = await repository
-          .createQueryBuilder()
-          .update(CategoryEntity)
-          .set(changes)
-          .where('id = :id', { id })
-          .andWhere('space_id = :spaceId', { spaceId })
-          .andWhere('updated_at = :expectedUpdatedAt', {
-            expectedUpdatedAt: new Date(input.expectedUpdatedAt),
-          })
-          .execute();
-      } catch (error: unknown) {
-        if (isUniqueViolation(error)) {
-          throw new CategoryNameConflictError();
-        }
-
-        throw error;
-      }
-
-      if (result.affected !== 1) {
-        const current = await repository.findOne({ where: { id, spaceId } });
-        if (!current) {
-          return null;
-        }
-
-        throw new StaleEditError();
-      }
-
-      const updated = await repository.findOne({ where: { id, spaceId } });
-      return updated ? toCategoryRecord(updated) : null;
+    if (changes.isActive !== undefined) {
+      return this.entityManager.transaction(async (entityManager) => {
+        await lockDestinationSpace(entityManager, spaceId);
+        return updateCategoryInManager(
+          entityManager,
+          spaceId,
+          id,
+          input,
+          changes,
+        );
+      });
     }
 
-    const entity = await repository.findOne({ where: { id, spaceId } });
-    if (!entity) {
-      return null;
+    return updateCategoryInManager(
+      this.entityManager,
+      spaceId,
+      id,
+      input,
+      changes,
+    );
+  }
+}
+
+async function updateCategoryInManager(
+  entityManager: EntityManager,
+  spaceId: string,
+  id: string,
+  input: UpdateCategory,
+  changes: UpdateCategory,
+): Promise<CategoryRecord | null> {
+  const repository = entityManager.getRepository(CategoryEntity);
+
+  if (input.expectedUpdatedAt !== undefined) {
+    let result: UpdateResult;
+    try {
+      result = await repository
+        .createQueryBuilder()
+        .update(CategoryEntity)
+        .set(changes)
+        .where('id = :id', { id })
+        .andWhere('space_id = :spaceId', { spaceId })
+        .andWhere('updated_at = :expectedUpdatedAt', {
+          expectedUpdatedAt: new Date(input.expectedUpdatedAt),
+        })
+        .execute();
+    } catch (error: unknown) {
+      if (isUniqueViolation(error)) {
+        throw new CategoryNameConflictError();
+      }
+
+      throw error;
     }
 
-    applyCategoryChanges(entity, changes);
-    return saveCategory(repository, entity);
+    if (result.affected !== 1) {
+      const current = await repository.findOne({ where: { id, spaceId } });
+      if (!current) {
+        return null;
+      }
+
+      throw new StaleEditError();
+    }
+
+    const updated = await repository.findOne({ where: { id, spaceId } });
+    return updated ? toCategoryRecord(updated) : null;
+  }
+
+  const entity = await repository.findOne({ where: { id, spaceId } });
+  if (!entity) {
+    return null;
+  }
+
+  applyCategoryChanges(entity, changes);
+  return saveCategory(repository, entity);
+}
+
+async function lockDestinationSpace(
+  entityManager: EntityManager,
+  spaceId: string,
+): Promise<void> {
+  const space = await entityManager
+    .getRepository(SpaceEntity)
+    .createQueryBuilder('space')
+    .where('space.id = :spaceId', { spaceId })
+    .setLock('pessimistic_write')
+    .getOne();
+
+  if (!space) {
+    throw new SpaceNotFoundError();
   }
 }
 

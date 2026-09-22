@@ -168,6 +168,23 @@ function createFileDuplicateError() {
   });
 }
 
+function createCategoryEligibilityError() {
+  return new ApiError('Category is inactive', {
+    kind: 'http',
+    status: 409,
+    code: 'CATEGORY_INACTIVE',
+    details: [
+      {
+        field: '/transactions/0/categoryId',
+        code: 'category_inactive',
+        message: 'The reviewed transaction uses an inactive Category',
+        categoryId: '42',
+        transactionIndexes: [0],
+      },
+    ],
+  });
+}
+
 describe("Statement Import workflow", () => {
   it("owns the accepted statement and manual edit lifecycle", async () => {
     const workflow = createWorkflow();
@@ -609,6 +626,51 @@ describe("Statement Import workflow", () => {
       "committed",
     );
     expect(commitStatementImport).toHaveBeenCalledTimes(2);
+  });
+
+  it('preserves reviewed rows and exposes inactive Category assignments for correction', async () => {
+    const commitStatementImport = vi
+      .fn<CommitStatementImport>()
+      .mockRejectedValue(createCategoryEligibilityError());
+    const workflow = createWorkflow(undefined, commitStatementImport);
+    const reviewedTransactions = [
+      withTransaction({ categoryId: '42', assignment: 'manual' }),
+      withTransaction({
+        id: 'transaction-2',
+        description: 'Second Transaction',
+        categoryId: '43',
+        assignment: 'manual',
+      }),
+    ];
+    acceptReviewableStatement(workflow, reviewedTransactions);
+
+    await expect(workflow.confirmStatementImport(false)).resolves.toBe('failed');
+
+    expect(workflow.getSnapshot()).toMatchObject({
+      statement: { transactions: reviewedTransactions },
+      commit: {
+        categoryEligibilityConflict: {
+          details: [
+            expect.objectContaining({
+              categoryId: '42',
+              transactionIndexes: [0],
+            }),
+          ],
+        },
+        canConfirm: false,
+        canImportAnyway: false,
+      },
+    });
+
+    expect(workflow.returnToCategorize(categoryRules)).toBe(true);
+    expect(workflow.getSnapshot()).toMatchObject({
+      stage: 'categorize',
+      statement: { transactions: reviewedTransactions },
+      commit: {
+        categoryEligibilityConflict: null,
+        error: null,
+      },
+    });
   });
 
   it("makes an Exact File Duplicate terminal until the review is reset", async () => {

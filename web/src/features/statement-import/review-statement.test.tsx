@@ -7,7 +7,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "@/shared/api";
 
 import { ReviewStatement } from "./review-statement";
-import type { ProbableDuplicateConflict } from "./statement-import-errors";
+import type {
+  CategoryEligibilityConflict,
+  ProbableDuplicateConflict,
+} from "./statement-import-errors";
 import type { CategorizedTransaction } from "./statement-categorizer";
 
 const transaction: CategorizedTransaction = {
@@ -79,6 +82,7 @@ const defaultProps: ReviewProps = {
   transactions: [transaction],
   commitError: null,
   probableDuplicateConflict: null,
+  categoryEligibilityConflict: null,
   canImportAnyway: true,
   canConfirm: true,
   isCommitting: false,
@@ -142,6 +146,7 @@ describe("ReviewStatement ambiguity handling", () => {
         transactions={[transaction]}
         commitError={null}
         probableDuplicateConflict={null}
+        categoryEligibilityConflict={null}
         canImportAnyway={true}
         canConfirm={false}
         isCommitting={false}
@@ -316,5 +321,42 @@ describe("ReviewStatement import safeguards", () => {
 
     expect(screen.getAllByText("Import could not be saved")).toHaveLength(2);
     expect(screen.getAllByText("The API is unavailable.")).toHaveLength(2);
+  });
+
+  it("identifies inactive Category assignments and sends the review back for correction", () => {
+    const categoryEligibilityConflict: CategoryEligibilityConflict = {
+      message: "Category is inactive",
+      details: [
+        {
+          field: "/transactions/0/categoryId",
+          code: "category_inactive",
+          message: "The reviewed transaction uses an inactive Category",
+          categoryId: "42",
+          transactionIndexes: [0],
+        },
+      ],
+    };
+    const onResolve = vi.fn();
+
+    renderReview({
+      transactions: completeTransactions.slice(0, 2),
+      categoryEligibilityConflict,
+      canConfirm: false,
+      onResolve,
+    });
+
+    expect(
+      screen.getAllByText("Category assignments need correction"),
+    ).toHaveLength(2);
+    expect(screen.getAllByText(/uses Category 42/)).toHaveLength(2);
+    fireEvent.click(
+      screen.getAllByRole("button", {
+        name: "Resolve Category assignments",
+      })[0],
+    );
+    expect(onResolve).toHaveBeenCalledTimes(1);
+    expect(
+      screen.getByRole("button", { name: "Import 2 Transactions" }),
+    ).toHaveProperty("disabled", true);
   });
 });

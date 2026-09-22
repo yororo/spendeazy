@@ -3130,6 +3130,7 @@ components:
             oneOf:
               - $ref: '#/components/schemas/ErrorDetailDto'
               - $ref: '#/components/schemas/ProbableDuplicateDetailDto'
+              - $ref: '#/components/schemas/CategoryEligibilityDetailDto'
       additionalProperties: false
       required:
         - code
@@ -3212,6 +3213,36 @@ components:
         - message
         - transactionIndexes
         - committedTransactionIds
+    CategoryEligibilityDetailDto:
+      type: object
+      properties:
+        field:
+          type: string
+          example: /transactions/0/categoryId
+        code:
+          type: string
+          enum:
+            - category_inactive
+        message:
+          type: string
+        categoryId:
+          type: string
+          description: The inactive Category assigned to the reviewed rows.
+          pattern: ^[1-9]\d*$
+          example: '42'
+        transactionIndexes:
+          type: array
+          description: Zero-based reviewed Transaction indexes requiring correction.
+          items:
+            type: integer
+            minimum: 0
+      additionalProperties: false
+      required:
+        - field
+        - code
+        - message
+        - categoryId
+        - transactionIndexes
     CategoryResponseDto:
       type: object
       properties:
@@ -4950,6 +4981,13 @@ components:
                 error:
                   code: CATEGORY_INACTIVE
                   message: Category is inactive
-                  details: []
+                  details:
+                    - field: /transactions/0/categoryId
+                      code: category_inactive
+                      message: The reviewed transaction uses an inactive Category
+                      categoryId: '42'
+                      transactionIndexes:
+                        - 0
+                        - 2
 security:
   - bearerAuth: []

@@ -255,13 +255,19 @@ function StatementImportPage({
         statementSummary={statement.summary}
         transactions={statement.transactions}
         commitError={commit.error}
+        categoryEligibilityConflict={commit.categoryEligibilityConflict}
         probableDuplicateConflict={commit.probableDuplicateConflict}
         canImportAnyway={commit.canImportAnyway}
         canConfirm={commit.canConfirm}
         isCommitting={commit.isCommitting}
         hasFileDuplicate={commit.hasFileDuplicate}
         onBack={() => workflow.backToCategorize(categoryRules)}
-        onResolve={() => workflow.returnToCategorize(categoryRules)}
+        onResolve={() => {
+          if (commit.categoryEligibilityConflict) {
+            void categoryOptionsQuery.refetch();
+          }
+          workflow.returnToCategorize(categoryRules);
+        }}
         onCommit={(acknowledgeProbableDuplicates) => {
           void workflow.confirmStatementImport(acknowledgeProbableDuplicates);
         }}

@@ -130,6 +130,35 @@ export class ProbableDuplicateDetailDto {
 @ApiSchema({
   additionalProperties: false,
 } as ApiSchemaOptionsWithAdditionalProperties)
+export class CategoryEligibilityDetailDto {
+  @ApiProperty({ example: '/transactions/0/categoryId' })
+  field!: string;
+
+  @ApiProperty({ enum: ['category_inactive'] })
+  code!: 'category_inactive';
+
+  @ApiProperty()
+  message!: string;
+
+  @ApiProperty({
+    description: 'The inactive Category assigned to the reviewed rows.',
+    pattern: '^[1-9]\\d*$',
+    example: '42',
+  })
+  categoryId!: string;
+
+  @ApiProperty({
+    description:
+      'Zero-based reviewed Transaction indexes requiring correction.',
+    type: 'array',
+    items: { type: 'integer', minimum: 0 },
+  })
+  transactionIndexes!: number[];
+}
+
+@ApiSchema({
+  additionalProperties: false,
+} as ApiSchemaOptionsWithAdditionalProperties)
 export class ErrorResponseDto {
   @ApiProperty({
     description:
@@ -149,10 +178,13 @@ export class ErrorResponseDto {
       oneOf: [
         { $ref: getSchemaPath(ErrorDetailDto) },
         { $ref: getSchemaPath(ProbableDuplicateDetailDto) },
+        { $ref: getSchemaPath(CategoryEligibilityDetailDto) },
       ],
     },
   })
-  details!: Array<ErrorDetailDto | ProbableDuplicateDetailDto>;
+  details!: Array<
+    ErrorDetailDto | ProbableDuplicateDetailDto | CategoryEligibilityDetailDto
+  >;
 }
 
 @ApiSchema({
@@ -349,7 +381,15 @@ export const API_ERROR_RESPONSE_COMPONENTS = {
           error: {
             code: 'CATEGORY_INACTIVE',
             message: 'Category is inactive',
-            details: [],
+            details: [
+              {
+                field: '/transactions/0/categoryId',
+                code: 'category_inactive',
+                message: 'The reviewed transaction uses an inactive Category',
+                categoryId: '42',
+                transactionIndexes: [0, 2],
+              },
+            ],
           },
         },
       },
@@ -433,6 +473,7 @@ export function ApiStandardErrorResponses(
       ErrorResponseDto,
       ErrorDetailDto,
       ProbableDuplicateDetailDto,
+      CategoryEligibilityDetailDto,
     ),
     ...responseNames.map((responseName) => {
       const response = API_ERROR_RESPONSE_COMPONENTS[

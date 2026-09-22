@@ -13,7 +13,9 @@ import {
   type RememberCategoryRuleResult,
 } from "./statement-import-service";
 import {
+  getCategoryEligibilityConflict,
   getProbableDuplicateConflict,
+  type CategoryEligibilityConflict,
   type ProbableDuplicateConflict,
 } from "./statement-import-errors";
 import {
@@ -59,6 +61,7 @@ interface StatementImportCommitState {
   readonly result: CommittedStatementImport | null;
   readonly error: Error | null;
   readonly probableDuplicateConflict: ProbableDuplicateConflict | null;
+  readonly categoryEligibilityConflict: CategoryEligibilityConflict | null;
   readonly hasFileDuplicate: boolean;
   readonly canConfirm: boolean;
   readonly canImportAnyway: boolean;
@@ -109,6 +112,7 @@ const emptyCommit = (): StatementImportCommitState => ({
   result: null,
   error: null,
   probableDuplicateConflict: null,
+  categoryEligibilityConflict: null,
   hasFileDuplicate: false,
   canConfirm: false,
   canImportAnyway: false,
@@ -175,6 +179,7 @@ function getCommitState(
   probableDuplicateAcknowledgementAttempted: boolean,
 ): StatementImportCommitState {
   const probableDuplicateConflict = getProbableDuplicateConflict(commit.error);
+  const categoryEligibilityConflict = getCategoryEligibilityConflict(commit.error);
   const hasFileDuplicate =
     commit.error instanceof ApiError &&
     commit.error.code === "STATEMENT_IMPORT_FILE_ALREADY_EXISTS";
@@ -184,6 +189,7 @@ function getCommitState(
   return {
     ...commit,
     probableDuplicateConflict,
+    categoryEligibilityConflict,
     hasFileDuplicate,
     canConfirm:
       stage === "review" &&
@@ -192,6 +198,7 @@ function getCommitState(
       !commit.isCommitting &&
       !commit.result &&
       !probableDuplicateConflict &&
+      !categoryEligibilityConflict &&
       !hasFileDuplicate,
     canImportAnyway:
       stage === "review" &&
@@ -200,6 +207,7 @@ function getCommitState(
       !probableDuplicateAcknowledgementAttempted &&
       !commit.isCommitting &&
       !commit.result &&
+      !categoryEligibilityConflict &&
       !hasFileDuplicate,
   };
 }
@@ -767,7 +775,10 @@ class StatementImportWorkflow {
       stage: "categorize",
       categoryRules: [...categoryRules],
       editor: emptyEditor(),
-      commit: resetCommit ? emptyCommit() : current.commit,
+      commit:
+        resetCommit || current.commit.categoryEligibilityConflict !== null
+          ? emptyCommit()
+          : current.commit,
     }));
     return true;
   }

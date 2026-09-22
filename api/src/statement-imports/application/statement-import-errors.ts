@@ -2,6 +2,7 @@ import {
   ApplicationError,
   type ErrorDetail,
 } from '../../errors/application-error';
+import { CategoryInactiveError } from '../../categories/application/category-errors';
 import type { ProbableDuplicateGroup } from './probable-duplicates';
 
 export const STATEMENT_IMPORT_NOT_FOUND_CODE = 'STATEMENT_IMPORT_NOT_FOUND';
@@ -65,6 +66,36 @@ export class StatementImportProbableDuplicatesError extends ApplicationError {
       STATEMENT_IMPORT_PROBABLE_DUPLICATES_CODE,
       'Probable duplicate imported transactions require acknowledgement',
       details,
+    );
+  }
+}
+
+export interface CategoryEligibilityErrorDetail extends ErrorDetail {
+  code: 'category_inactive';
+  categoryId: string;
+  transactionIndexes: number[];
+}
+
+export interface CategoryEligibilityConflict {
+  categoryId: string;
+  transactionIndexes: number[];
+}
+
+export class StatementImportCategoryEligibilityError extends CategoryInactiveError {
+  constructor(conflicts: readonly CategoryEligibilityConflict[]) {
+    super(
+      conflicts.map(
+        ({
+          categoryId,
+          transactionIndexes,
+        }): CategoryEligibilityErrorDetail => ({
+          field: `/transactions/${transactionIndexes[0]}/categoryId`,
+          code: 'category_inactive',
+          message: 'The reviewed transaction uses an inactive Category',
+          categoryId,
+          transactionIndexes,
+        }),
+      ),
     );
   }
 }

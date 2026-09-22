@@ -1,4 +1,6 @@
 import { QueryFailedError, type EntityManager } from 'typeorm';
+import { CategoryEntity } from '../../database/entities/category.entity';
+import { SpaceEntity } from '../../database/entities/space.entity';
 import { SpaceNotFoundError } from '../../spaces/application/space-errors';
 import { CategoryNameConflictError } from '../application/category-errors';
 import { TypeOrmCategoryStore } from './typeorm-category-store';
@@ -84,5 +86,56 @@ describe('TypeOrmCategoryStore', () => {
     await expect(
       store.create({ spaceId: '404', name: 'Groceries', description: null }),
     ).rejects.toBeInstanceOf(SpaceNotFoundError);
+  });
+
+  it('locks the destination Space before changing Category eligibility', async () => {
+    const category = {
+      id: '2',
+      spaceId: '1',
+      name: 'Dining',
+      description: null,
+      color: null,
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const categoryRepository = {
+      findOne: jest.fn().mockResolvedValue(category),
+      save: jest
+        .fn()
+        .mockImplementation((value) =>
+          Promise.resolve({ ...category, ...value }),
+        ),
+    };
+    const spaceQuery = {
+      where: jest.fn().mockReturnThis(),
+      setLock: jest.fn().mockReturnThis(),
+      getOne: jest.fn().mockResolvedValue({ id: '1' }),
+    };
+    const getRepository = jest.fn((entity: unknown) =>
+      entity === SpaceEntity
+        ? { createQueryBuilder: () => spaceQuery }
+        : categoryRepository,
+    );
+    const transactionManager = {
+      getRepository,
+    } as unknown as EntityManager;
+    const transaction = jest.fn(
+      async (work: (manager: EntityManager) => Promise<unknown>) =>
+        work(transactionManager),
+    );
+    const entityManager = {
+      transaction,
+    } as unknown as EntityManager;
+    const store = new TypeOrmCategoryStore(entityManager);
+
+    await expect(
+      store.updateInSpace('1', '2', { isActive: false }),
+    ).resolves.toMatchObject({ isActive: false });
+
+    expect(transaction).toHaveBeenCalledTimes(1);
+    expect(getRepository).toHaveBeenCalledWith(SpaceEntity);
+    expect(spaceQuery.setLock).toHaveBeenCalledWith('pessimistic_write');
+    expect(getRepository).toHaveBeenCalledWith(CategoryEntity);
   });
 });

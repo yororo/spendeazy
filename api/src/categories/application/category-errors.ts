@@ -31,7 +31,7 @@ export class CategoryNameConflictError extends ApplicationError {
 }
 
 export class CategoryInactiveError extends ApplicationError {
-  constructor() {
-    super(CATEGORY_INACTIVE_CODE, 'Category is inactive');
+  constructor(details: ErrorDetail[] = []) {
+    super(CATEGORY_INACTIVE_CODE, 'Category is inactive', details);
   }
 }

@@ -324,6 +324,46 @@ describe('StatementImportsService', () => {
     }
   });
 
+  it('identifies every reviewed assignment affected by an inactive Category', async () => {
+    const statementImports = new StatementImportStoreFake();
+    const importedTransactions = new ImportedTransactionStoreFake();
+    const unitOfWork = new UnitOfWorkFake({
+      users: userStore(),
+      statementImports,
+      importedTransactions,
+      categories: new TransactionCategoryStoreFake([
+        categoryRecord({ id: '42', isActive: false }),
+        categoryRecord({ id: '43' }),
+      ]),
+      transactionActivities: new TransactionActivityStoreFake(),
+    });
+    const service = new StatementImportsService(statementImports, unitOfWork);
+
+    await expect(
+      service.commitReviewedStatementImportInSpace('7', '7', {
+        ...statementInput(),
+        transactions: [
+          { ...statementInput().transactions[0], categoryId: '42' },
+          { ...statementInput().transactions[1], categoryId: '43' },
+          { ...statementInput().transactions[0], categoryId: '42' },
+        ],
+      }),
+    ).rejects.toMatchObject({
+      code: 'CATEGORY_INACTIVE',
+      details: [
+        {
+          field: '/transactions/0/categoryId',
+          code: 'category_inactive',
+          categoryId: '42',
+          transactionIndexes: [0, 2],
+        },
+      ],
+    });
+
+    expect(statementImports.createdInput).toBeUndefined();
+    expect(importedTransactions.createdInputs).toEqual([]);
+  });
+
   it('checks reviewed statement fields before any persistence call', async () => {
     const statementImports = new StatementImportStoreFake();
     const importedTransactions = new ImportedTransactionStoreFake();

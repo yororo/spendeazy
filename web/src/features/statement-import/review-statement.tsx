@@ -38,6 +38,7 @@ import {
 import { ImportProgress } from "./import-progress";
 import type { CategoryColorOption } from "./statement-import-service";
 import type {
+  CategoryEligibilityConflict,
   ProbableDuplicateConflict,
   ProbableDuplicateDetail,
 } from "./statement-import-errors";
@@ -56,6 +57,7 @@ interface ReviewStatementProps {
   statementSummary: CategorizedStatement["summary"];
   transactions: readonly CategorizedTransaction[];
   commitError: Error | null;
+  categoryEligibilityConflict: CategoryEligibilityConflict | null;
   probableDuplicateConflict: ProbableDuplicateConflict | null;
   canImportAnyway: boolean;
   canConfirm: boolean;
@@ -117,6 +119,22 @@ function formatDuplicateDetail(
   return `${submittedTransactions} may already exist.${committedTransactions}`;
 }
 
+function formatCategoryEligibilityDetail(
+  detail: CategoryEligibilityConflict["details"][number],
+  submittedRows: readonly CategorizedTransaction[],
+) {
+  const submittedTransactions = detail.transactionIndexes
+    .map((index) => {
+      const row = submittedRows[index];
+      return row
+        ? `Transaction ${index + 1} (“${row.description}”)`
+        : `Transaction ${index + 1}`;
+    })
+    .join(", ");
+
+  return `${submittedTransactions} uses Category ${detail.categoryId}, which is no longer active.`;
+}
+
 function ReviewStatement({
   categoryOptions,
   destinationLabel,
@@ -125,6 +143,7 @@ function ReviewStatement({
   statementSummary,
   transactions,
   commitError,
+  categoryEligibilityConflict,
   probableDuplicateConflict,
   canImportAnyway,
   canConfirm,
@@ -302,6 +321,7 @@ function ReviewStatement({
         <div className="flex flex-col gap-4 md:hidden">
           <ReviewStatus
             commitError={commitError}
+            categoryEligibilityConflict={categoryEligibilityConflict}
             probableDuplicateConflict={probableDuplicateConflict}
             canImportAnyway={canImportAnyway}
             isCommitting={isCommitting}
@@ -495,6 +515,7 @@ function ReviewStatement({
             <ReviewStatus
               className="mb-auto"
               commitError={commitError}
+              categoryEligibilityConflict={categoryEligibilityConflict}
               probableDuplicateConflict={probableDuplicateConflict}
               canImportAnyway={canImportAnyway}
               isCommitting={isCommitting}
@@ -557,6 +578,7 @@ function ReviewStatement({
 interface ReviewStatusProps {
   className?: string;
   commitError: Error | null;
+  categoryEligibilityConflict: CategoryEligibilityConflict | null;
   probableDuplicateConflict: ProbableDuplicateConflict | null;
   canImportAnyway: boolean;
   isCommitting: boolean;
@@ -573,6 +595,7 @@ interface ReviewStatusProps {
 function ReviewStatus({
   className,
   commitError,
+  categoryEligibilityConflict,
   probableDuplicateConflict,
   canImportAnyway,
   isCommitting,
@@ -655,6 +678,36 @@ function ReviewStatus({
               </Button>
             </div>
           )}
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
+  if (categoryEligibilityConflict) {
+    return (
+      <Alert variant="warning" className={className}>
+        <AlertTriangleIcon aria-hidden="true" />
+        <AlertTitle className="uppercase">
+          Category assignments need correction
+        </AlertTitle>
+        <AlertDescription>
+          <p>{categoryEligibilityConflict.message}</p>
+          <ul className="mt-3 space-y-2 border-t border-warning pt-3">
+            {categoryEligibilityConflict.details.map((detail) => (
+              <li key={`${detail.categoryId}-${detail.transactionIndexes.join("-")}`}>
+                {formatCategoryEligibilityDetail(detail, includedTransactions)}
+              </li>
+            ))}
+          </ul>
+          <Button
+            type="button"
+            variant="secondary"
+            className="mt-3 w-full"
+            onClick={onResolve}
+          >
+            Resolve Category assignments
+            <ArrowRightIcon className="text-primary" aria-hidden="true" />
+          </Button>
         </AlertDescription>
       </Alert>
     );

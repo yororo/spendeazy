@@ -237,6 +237,7 @@ describe('Statement import OpenAPI contract', () => {
             oneOf: [
               { $ref: '#/components/schemas/ErrorDetailDto' },
               { $ref: '#/components/schemas/ProbableDuplicateDetailDto' },
+              { $ref: '#/components/schemas/CategoryEligibilityDetailDto' },
             ],
           },
         },

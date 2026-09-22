@@ -1320,6 +1320,7 @@ describe('complete generated OpenAPI contract', () => {
             oneOf: [
               { $ref: '#/components/schemas/ErrorDetailDto' },
               { $ref: '#/components/schemas/ProbableDuplicateDetailDto' },
+              { $ref: '#/components/schemas/CategoryEligibilityDetailDto' },
             ],
           },
         },

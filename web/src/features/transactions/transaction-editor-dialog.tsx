@@ -34,6 +34,7 @@ interface TransactionEditorDialogProps {
   readonly transaction: Transaction | null;
   readonly categories: readonly CategoryCatalogItem[];
   readonly spaceId?: string;
+  readonly allowImportedStatementFactEdits?: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly onSaved: () => void;
   readonly onReload: () => Promise<unknown>;
@@ -62,6 +63,7 @@ function TransactionEditorDialog({
   transaction,
   categories,
   spaceId,
+  allowImportedStatementFactEdits = false,
   onOpenChange,
   onSaved,
   onReload,
@@ -73,6 +75,10 @@ function TransactionEditorDialog({
   const mutation = transaction === null ? createMutation : updateMutation;
   const closeRequestedRef = useRef(false);
   const isImported = transaction?.source === "imported";
+  const importedStatementFactsAreEditable =
+    isImported && allowImportedStatementFactEdits;
+  const importedStatementFactsAreImmutable =
+    isImported && !allowImportedStatementFactEdits;
   const hasUnsavedChanges =
     draft.purchaseDate !== initialDraft.purchaseDate ||
     draft.description !== initialDraft.description ||
@@ -133,7 +139,7 @@ function TransactionEditorDialog({
         });
       } else {
         await updateMutation.mutateAsync(
-          isImported
+          isImported && importedStatementFactsAreImmutable
             ? {
                 spaceId,
                 transactionId: transaction.id,
@@ -180,14 +186,16 @@ function TransactionEditorDialog({
           <DialogTitle>
             {transaction === null
               ? "Record Transaction"
-              : isImported
+              : importedStatementFactsAreImmutable
                 ? "Categorize Transaction"
                 : "Edit Transaction"}
           </DialogTitle>
           <DialogDescription>
-            {isImported
+            {importedStatementFactsAreImmutable
               ? "Imported statement facts are fixed. You can update its Category."
-              : "Record an expense in the selected Space."}
+              : importedStatementFactsAreEditable
+                ? "Correct supported fields while retaining Statement Import provenance and Added By attribution."
+                : "Record an expense in the selected Space."}
           </DialogDescription>
         </DialogHeader>
 
@@ -229,7 +237,9 @@ function TransactionEditorDialog({
                   updateDraft({ purchaseDate: event.target.value })
                 }
                 required
-                disabled={isImported || mutation.isPending}
+                disabled={
+                  importedStatementFactsAreImmutable || mutation.isPending
+                }
               />
             </div>
             <div className="grid gap-2">
@@ -241,7 +251,9 @@ function TransactionEditorDialog({
                   updateDraft({ description: event.target.value })
                 }
                 required
-                disabled={isImported || mutation.isPending}
+                disabled={
+                  importedStatementFactsAreImmutable || mutation.isPending
+                }
               />
             </div>
             <div className="grid gap-2">
@@ -254,7 +266,9 @@ function TransactionEditorDialog({
                 onChange={(event) => updateDraft({ amount: event.target.value })}
                 placeholder="0.00"
                 required
-                disabled={isImported || mutation.isPending}
+                disabled={
+                  importedStatementFactsAreImmutable || mutation.isPending
+                }
               />
             </div>
             <div className="grid gap-2">

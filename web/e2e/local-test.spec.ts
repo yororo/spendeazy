@@ -753,21 +753,110 @@ test("completes the two-member Shared Space journey in independent browser conte
       sharedTransactions.body,
       "Secondary imported transaction",
     );
-    for (const [journeyPage, token] of [
-      [page, primaryToken],
-      [secondaryPage, secondarySession.token],
-    ] as const) {
-      const importedActivity = await browserApi(
-        journeyPage,
-        apiBaseUrl,
-        token,
-        `/api/v1/users/me/spaces/${sharedSpaceId}/transactions/${importedTransactionId}/activity`,
-      );
-      expect(importedActivity.status).toBe(200);
-      expect(JSON.stringify(importedActivity.body)).toContain(
-        '"type":"created"',
-      );
-    }
+    const importedUpdatedAt = readStringFieldByDescription(
+      sharedTransactions.body,
+      "Secondary imported transaction",
+      "updatedAt",
+    );
+    const importedAddedByUserId = readStringFieldByDescription(
+      sharedTransactions.body,
+      "Secondary imported transaction",
+      "addedByUserId",
+    );
+    const primaryImportedEdit = await browserApi(
+      page,
+      apiBaseUrl,
+      primaryToken,
+      `/api/v1/users/me/spaces/${sharedSpaceId}/transactions/${importedTransactionId}`,
+      {
+        method: "PATCH",
+        body: {
+          categoryId: primaryCategoryId,
+          purchaseDate: "2026-09-17",
+          description: "Secondary import corrected by primary",
+          amount: "46.67",
+          updatedAt: importedUpdatedAt,
+        },
+      },
+    );
+    expect(primaryImportedEdit.status).toBe(200);
+    expect(primaryImportedEdit.body).toMatchObject({
+      source: "imported",
+      addedByUserId: importedAddedByUserId,
+      description: "Secondary import corrected by primary",
+      amount: "46.67",
+    });
+
+    const primaryImported = await browserApi(
+      page,
+      apiBaseUrl,
+      primaryToken,
+      `/api/v1/users/me/spaces/${sharedSpaceId}/statement-imports`,
+      {
+        method: "POST",
+        body: {
+          fileName: "shared-browser-primary-journey.pdf",
+          fileHash: "d".repeat(64),
+          statementDate: purchaseDate,
+          bank: "Browser Primary Journey Bank",
+          cardType: "visa",
+          transactions: [
+            {
+              categoryId: primaryCategoryId,
+              purchaseDate,
+              description: "Primary imported transaction",
+              amount: "78.90",
+            },
+          ],
+        },
+      },
+    );
+    expect(primaryImported.status).toBe(201);
+    const primaryStatementImportId = readStringId(primaryImported.body);
+    const secondaryTransactions = await browserApi(
+      secondaryPage,
+      apiBaseUrl,
+      secondarySession.token,
+      `/api/v1/users/me/spaces/${sharedSpaceId}/transactions`,
+    );
+    expect(secondaryTransactions.status).toBe(200);
+    const primaryImportedTransactionId = readStringIdByDescription(
+      secondaryTransactions.body,
+      "Primary imported transaction",
+    );
+    const primaryImportedUpdatedAt = readStringFieldByDescription(
+      secondaryTransactions.body,
+      "Primary imported transaction",
+      "updatedAt",
+    );
+    const primaryImportedAddedByUserId = readStringFieldByDescription(
+      secondaryTransactions.body,
+      "Primary imported transaction",
+      "addedByUserId",
+    );
+    const secondaryImportedEdit = await browserApi(
+      secondaryPage,
+      apiBaseUrl,
+      secondarySession.token,
+      `/api/v1/users/me/spaces/${sharedSpaceId}/transactions/${primaryImportedTransactionId}`,
+      {
+        method: "PATCH",
+        body: {
+          categoryId: secondaryCategoryId,
+          purchaseDate: "2026-09-16",
+          description: "Primary import corrected by secondary",
+          amount: "80.90",
+          updatedAt: primaryImportedUpdatedAt,
+        },
+      },
+    );
+    expect(secondaryImportedEdit.status).toBe(200);
+    expect(secondaryImportedEdit.body).toMatchObject({
+      source: "imported",
+      addedByUserId: primaryImportedAddedByUserId,
+      description: "Primary import corrected by secondary",
+      amount: "80.90",
+    });
     expect(secondaryTransaction.status).toBe(201);
 
     for (const [journeyPage, token] of [
@@ -813,6 +902,108 @@ test("completes the two-member Shared Space journey in independent browser conte
       `/api/v1/users/me/spaces/${sharedSpaceId}/categories`,
     );
     expect(thirdSharedRead.status).toBe(404);
+    const unrelatedImportedEdit = await browserApi(
+      page,
+      apiBaseUrl,
+      thirdSession.token,
+      `/api/v1/users/me/spaces/${sharedSpaceId}/transactions/${importedTransactionId}`,
+      {
+        method: "PATCH",
+        body: {
+          description: "Unrelated correction",
+          updatedAt: readStringField(primaryImportedEdit.body, "updatedAt"),
+        },
+      },
+    );
+    expect(unrelatedImportedEdit.status).toBe(404);
+    const unrelatedImportedDelete = await browserApi(
+      page,
+      apiBaseUrl,
+      thirdSession.token,
+      `/api/v1/users/me/spaces/${sharedSpaceId}/transactions/${importedTransactionId}`,
+      {
+        method: "DELETE",
+        headers: {
+          "If-Match": readStringField(primaryImportedEdit.body, "updatedAt"),
+        },
+      },
+    );
+    expect(unrelatedImportedDelete.status).toBe(404);
+
+    const primaryImportedDelete = await browserApi(
+      page,
+      apiBaseUrl,
+      primaryToken,
+      `/api/v1/users/me/spaces/${sharedSpaceId}/transactions/${importedTransactionId}`,
+      {
+        method: "DELETE",
+        headers: {
+          "If-Match": readStringField(primaryImportedEdit.body, "updatedAt"),
+        },
+      },
+    );
+    expect(primaryImportedDelete.status).toBe(204);
+    const secondaryImportedDelete = await browserApi(
+      secondaryPage,
+      apiBaseUrl,
+      secondarySession.token,
+      `/api/v1/users/me/spaces/${sharedSpaceId}/transactions/${primaryImportedTransactionId}`,
+      {
+        method: "DELETE",
+        headers: {
+          "If-Match": readStringField(secondaryImportedEdit.body, "updatedAt"),
+        },
+      },
+    );
+    expect(secondaryImportedDelete.status).toBe(204);
+
+    for (const [journeyPage, token] of [
+      [page, primaryToken],
+      [secondaryPage, secondarySession.token],
+    ] as const) {
+      const activeTransactions = await browserApi(
+        journeyPage,
+        apiBaseUrl,
+        token,
+        `/api/v1/users/me/spaces/${sharedSpaceId}/transactions`,
+      );
+      expect(activeTransactions.status).toBe(200);
+      expect(JSON.stringify(activeTransactions.body)).not.toContain(
+        "Secondary import corrected by primary",
+      );
+      expect(JSON.stringify(activeTransactions.body)).not.toContain(
+        "Primary import corrected by secondary",
+      );
+
+      const retainedImportedHistory = await browserApi(
+        journeyPage,
+        apiBaseUrl,
+        token,
+        `/api/v1/users/me/spaces/${sharedSpaceId}/transactions/history`,
+      );
+      expect(retainedImportedHistory.status).toBe(200);
+      const historyJson = JSON.stringify(retainedImportedHistory.body);
+      expect(historyJson).toContain("Secondary import corrected by primary");
+      expect(historyJson).toContain("Primary import corrected by secondary");
+      expect(historyJson).toContain(primaryStatementImportId);
+    }
+
+    for (const transactionId of [
+      importedTransactionId,
+      primaryImportedTransactionId,
+    ]) {
+      const importedActivity = await browserApi(
+        secondaryPage,
+        apiBaseUrl,
+        secondarySession.token,
+        `/api/v1/users/me/spaces/${sharedSpaceId}/transactions/${transactionId}/activity`,
+      );
+      expect(importedActivity.status).toBe(200);
+      const activityJson = JSON.stringify(importedActivity.body);
+      expect(activityJson).toContain('"type":"created"');
+      expect(activityJson).toContain('"type":"edited"');
+      expect(activityJson).toContain('"type":"deleted"');
+    }
 
     const secondaryPersonalRead = await browserApi(
       secondaryPage,
@@ -949,6 +1140,14 @@ function readStringId(value: unknown): string {
 }
 
 function readStringIdByDescription(value: unknown, description: string): string {
+  return readStringFieldByDescription(value, description, "id");
+}
+
+function readStringFieldByDescription(
+  value: unknown,
+  description: string,
+  field: string,
+): string {
   if (value === null || typeof value !== "object" || Array.isArray(value)) {
     throw new Error("Expected a transaction page");
   }
@@ -965,7 +1164,7 @@ function readStringIdByDescription(value: unknown, description: string): string 
   );
   if (!item) throw new Error(`Missing transaction ${description}`);
 
-  return readStringId(item);
+  return readStringField(item, field);
 }
 
 function readStringField(value: unknown, field: string): string {

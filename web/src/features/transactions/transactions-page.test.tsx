@@ -341,20 +341,34 @@ describe("TransactionsPage", () => {
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Edit Lunch" }));
-    const categoryDialog = screen.getByRole("dialog");
+    const importedEditDialog = screen.getByRole("dialog");
+    fireEvent.change(
+      within(importedEditDialog).getByLabelText("Purchase date"),
+      { target: { value: "2026-08-06" } },
+    );
+    fireEvent.change(
+      within(importedEditDialog).getByLabelText("Description"),
+      { target: { value: "Lunch corrected" } },
+    );
+    fireEvent.change(within(importedEditDialog).getByLabelText("Amount"), {
+      target: { value: "11.00" },
+    });
     fireEvent.click(
-      within(categoryDialog).getByRole("combobox", {
+      within(importedEditDialog).getByRole("combobox", {
         name: "Category",
       }),
     );
     fireEvent.click(await screen.findByRole("option", { name: "Groceries" }));
     fireEvent.click(
-      within(categoryDialog).getByRole("button", { name: "Save changes" }),
+      within(importedEditDialog).getByRole("button", { name: "Save changes" }),
     );
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(pageState.updateMutation.mutateAsync).toHaveBeenLastCalledWith({
       spaceId: "99",
       transactionId: "imported-1",
+      purchaseDate: "2026-08-06",
+      description: "Lunch corrected",
+      amount: "11.00",
       categoryId: "43",
       updatedAt: "2026-08-31T00:00:00.000Z",
     });
@@ -368,6 +382,20 @@ describe("TransactionsPage", () => {
     expect(pageState.deleteMutation.mutateAsync).toHaveBeenCalledWith({
       spaceId: "99",
       transactionId: "manual-1",
+      updatedAt: "2026-08-31T00:00:00.000Z",
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete Lunch" }));
+    const importedDeleteDialog = screen.getByRole("dialog");
+    fireEvent.click(
+      within(importedDeleteDialog).getByRole("button", {
+        name: "Delete Transaction",
+      }),
+    );
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(pageState.deleteMutation.mutateAsync).toHaveBeenLastCalledWith({
+      spaceId: "99",
+      transactionId: "imported-1",
       updatedAt: "2026-08-31T00:00:00.000Z",
     });
   });

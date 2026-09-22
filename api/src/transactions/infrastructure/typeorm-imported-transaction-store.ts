@@ -12,12 +12,16 @@ import { CategoryEntity } from '../../database/entities/category.entity';
 import { TransactionEntity } from '../../database/entities/transaction.entity';
 import { StaleEditError } from '../../errors/application-error';
 import { toTransactionActivitySnapshot } from '../application/transaction-activity-store';
-import { recordEditedTransactionActivity } from './typeorm-transaction-activity-store';
+import {
+  recordDeletedTransactionActivity,
+  recordEditedTransactionActivity,
+} from './typeorm-transaction-activity-store';
 import type {
   ImportedTransactionRecord,
   NewImportedTransaction,
   SpaceImportedTransactionStore,
   UpdateImportedTransactionCategory,
+  UpdateImportedTransactionInput,
 } from '../application/imported-transaction-store';
 
 @Injectable()
@@ -91,6 +95,25 @@ export class TypeOrmImportedTransactionStore implements SpaceImportedTransaction
     input: UpdateImportedTransactionCategory,
     actorUserId: string,
   ): Promise<ImportedTransactionRecord | null> {
+    return this.updateInSpace(
+      spaceId,
+      id,
+      {
+        categoryId: input.categoryId,
+        ...(input.expectedUpdatedAt === undefined
+          ? {}
+          : { expectedUpdatedAt: input.expectedUpdatedAt }),
+      },
+      actorUserId,
+    );
+  }
+
+  async updateInSpace(
+    spaceId: string,
+    id: string,
+    input: UpdateImportedTransactionInput,
+    actorUserId: string,
+  ): Promise<ImportedTransactionRecord | null> {
     return this.entityManager.transaction(async (entityManager) => {
       const repository = entityManager.getRepository(TransactionEntity);
       const entity = await repository.findOne({
@@ -99,7 +122,11 @@ export class TypeOrmImportedTransactionStore implements SpaceImportedTransaction
       if (!entity) return null;
       const before = toTransactionActivitySnapshot(entity);
 
-      if (input.categoryId !== null && input.categoryId !== entity.categoryId) {
+      if (
+        input.categoryId !== undefined &&
+        input.categoryId !== null &&
+        input.categoryId !== entity.categoryId
+      ) {
         await ensureActiveCategoryInSpace(
           entityManager,
           spaceId,
@@ -108,7 +135,7 @@ export class TypeOrmImportedTransactionStore implements SpaceImportedTransaction
       }
 
       if (input.expectedUpdatedAt !== undefined) {
-        const result = await updateCategoryIfCurrent(
+        const result = await updateImportedTransactionIfCurrent(
           repository,
           entity.id,
           spaceId,
@@ -137,8 +164,7 @@ export class TypeOrmImportedTransactionStore implements SpaceImportedTransaction
         return transaction;
       }
 
-      entity.categoryId = input.categoryId;
-      entity.categoryMatchConfidence = null;
+      applyImportedTransactionChanges(entity, input);
       const transaction = toRecord(await repository.save(entity));
       await recordEditedTransactionActivity(
         entityManager,
@@ -147,6 +173,52 @@ export class TypeOrmImportedTransactionStore implements SpaceImportedTransaction
         before,
       );
       return transaction;
+    });
+  }
+
+  async deleteInSpace(
+    spaceId: string,
+    id: string,
+    actorUserId: string,
+    expectedUpdatedAt?: string,
+  ): Promise<boolean> {
+    return this.entityManager.transaction(async (entityManager) => {
+      const repository = entityManager.getRepository(TransactionEntity);
+      const deletedAt = new Date();
+      const query = repository
+        .createQueryBuilder()
+        .update(TransactionEntity)
+        .set({ deletedAt })
+        .where('id = :id', { id })
+        .andWhere('statement_import_id IS NOT NULL')
+        .andWhere('space_id = :spaceId', { spaceId })
+        .andWhere('deleted_at IS NULL');
+
+      if (expectedUpdatedAt !== undefined) {
+        query.andWhere('updated_at = :expectedUpdatedAt', {
+          expectedUpdatedAt: new Date(expectedUpdatedAt),
+        });
+      }
+
+      const result = await query.execute();
+      if (result.affected !== 1) {
+        const current = await repository.findOne({
+          where: importedTransactionSpaceWhere(spaceId, { id }),
+        });
+        if (current && expectedUpdatedAt !== undefined) {
+          throw new StaleEditError();
+        }
+        return false;
+      }
+
+      await recordDeletedTransactionActivity(
+        entityManager,
+        id,
+        spaceId,
+        actorUserId,
+        deletedAt,
+      );
+      return true;
     });
   }
 }
@@ -196,19 +268,34 @@ async function ensureActiveCategoryInSpace(
   assertActiveCategory(category);
 }
 
-async function updateCategoryIfCurrent(
+async function updateImportedTransactionIfCurrent(
   repository: Repository<TransactionEntity>,
   id: string,
   spaceId: string,
-  input: UpdateImportedTransactionCategory,
+  input: UpdateImportedTransactionInput,
 ) {
+  const changes: {
+    categoryId?: string | null;
+    purchaseDate?: string;
+    description?: string;
+    amount?: string;
+    categoryMatchConfidence: null;
+  } = {
+    categoryMatchConfidence: null,
+  };
+  if (input.categoryId !== undefined) changes.categoryId = input.categoryId;
+  if (input.purchaseDate !== undefined) {
+    changes.purchaseDate = input.purchaseDate;
+  }
+  if (input.description !== undefined) {
+    changes.description = input.description;
+  }
+  if (input.amount !== undefined) changes.amount = input.amount;
+
   const query = repository
     .createQueryBuilder()
     .update(TransactionEntity)
-    .set({
-      categoryId: input.categoryId,
-      categoryMatchConfidence: null,
-    })
+    .set(changes)
     .where('id = :id', { id })
     .andWhere('statement_import_id IS NOT NULL');
 
@@ -220,6 +307,21 @@ async function updateCategoryIfCurrent(
       expectedUpdatedAt: new Date(input.expectedUpdatedAt!),
     })
     .execute();
+}
+
+function applyImportedTransactionChanges(
+  entity: TransactionEntity,
+  input: UpdateImportedTransactionInput,
+): void {
+  if (input.categoryId !== undefined) entity.categoryId = input.categoryId;
+  if (input.purchaseDate !== undefined) {
+    entity.purchaseDate = input.purchaseDate;
+  }
+  if (input.description !== undefined) {
+    entity.description = input.description;
+  }
+  if (input.amount !== undefined) entity.amount = input.amount;
+  entity.categoryMatchConfidence = null;
 }
 
 function toRecord(entity: TransactionEntity): ImportedTransactionRecord {

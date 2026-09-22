@@ -37,7 +37,7 @@ export interface UpdateImportedTransactionCategory {
 }
 
 export interface UpdateImportedTransactionInput {
-  categoryId: string | null;
+  categoryId?: string | null;
   purchaseDate?: string;
   description?: string;
   amount?: string;
@@ -64,4 +64,16 @@ export interface SpaceImportedTransactionStore {
     input: UpdateImportedTransactionCategory,
     actorUserId: string,
   ): Promise<ImportedTransactionRecord | null>;
+  updateInSpace(
+    spaceId: string,
+    id: string,
+    input: UpdateImportedTransactionInput,
+    actorUserId: string,
+  ): Promise<ImportedTransactionRecord | null>;
+  deleteInSpace(
+    spaceId: string,
+    id: string,
+    actorUserId: string,
+    expectedUpdatedAt?: string,
+  ): Promise<boolean>;
 }

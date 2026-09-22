@@ -287,10 +287,9 @@ export class SpaceTransactionsController {
 
   @Patch(':transactionId')
   @ApiOperation({
-    summary:
-      'Update a manual Transaction or recategorize an imported Transaction in an authorized Space.',
+    summary: 'Update a Transaction in an authorized Space.',
     description:
-      'Manual Transactions may be patched with any supplied fields. Imported Transactions may only change categoryId; their statement facts are immutable. The required updatedAt body field rejects stale edits.',
+      'Manual Transactions may be patched in any writable Space. Imported Transactions in an active Shared Space may be patched with supported fields; writable Personal Spaces retain category-only imported compatibility. Imported Statement Import provenance and Added By attribution remain unchanged. The required updatedAt body field rejects stale edits.',
   })
   @ApiParam({
     name: 'transactionId',
@@ -335,22 +334,33 @@ export class SpaceTransactionsController {
     @Body() input: UpdateSpaceTransactionDto,
   ) {
     const userId = requireAuthenticatedUserId(request);
-    await this.spaceAccessService.requireWriteAccess(userId, params.spaceId);
-    const updatedAt = requireScopedTransactionVersion(input.updatedAt);
-    return toTransactionResponse(
-      await this.transactionsService.updateTransactionInSpace(
-        userId,
-        params.spaceId,
-        params.transactionId,
-        toTransactionUpdate({ ...input, updatedAt }),
-      ),
+    const space = await this.spaceAccessService.requireWriteAccess(
+      userId,
+      params.spaceId,
     );
+    const updatedAt = requireScopedTransactionVersion(input.updatedAt);
+    const changes = toTransactionUpdate({ ...input, updatedAt });
+    const updatedTransaction =
+      space.kind === 'shared'
+        ? await this.transactionsService.updateSharedTransactionInSpace(
+            userId,
+            params.spaceId,
+            params.transactionId,
+            changes,
+          )
+        : await this.transactionsService.updateTransactionInSpace(
+            userId,
+            params.spaceId,
+            params.transactionId,
+            changes,
+          );
+    return toTransactionResponse(updatedTransaction);
   }
 
   @Delete(':transactionId')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
-    summary: 'Delete a manual Transaction in an authorized Space.',
+    summary: 'Delete a Transaction in an authorized Space.',
   })
   @ApiParam({
     name: 'transactionId',
@@ -363,7 +373,7 @@ export class SpaceTransactionsController {
   })
   @ApiResponse({
     status: HttpStatus.NO_CONTENT,
-    description: 'Manual transaction deleted.',
+    description: 'Transaction deleted.',
   })
   @ApiHeader({
     name: 'if-match',
@@ -387,23 +397,35 @@ export class SpaceTransactionsController {
     @Headers('if-match') ifMatch?: string,
   ): Promise<void> {
     const userId = requireAuthenticatedUserId(request);
-    await this.spaceAccessService.requireWriteAccess(userId, params.spaceId);
+    const space = await this.spaceAccessService.requireWriteAccess(
+      userId,
+      params.spaceId,
+    );
     const expectedUpdatedAt = requireScopedTransactionVersion(
       normalizeIfMatch(ifMatch),
       '/headers/if-match',
     );
-    await this.transactionsService.deleteManualTransactionInSpace(
-      userId,
-      params.spaceId,
-      params.transactionId,
-      expectedUpdatedAt,
-    );
+    if (space.kind === 'shared') {
+      await this.transactionsService.deleteTransactionInSpace(
+        userId,
+        params.spaceId,
+        params.transactionId,
+        expectedUpdatedAt,
+      );
+    } else {
+      await this.transactionsService.deleteManualTransactionInSpace(
+        userId,
+        params.spaceId,
+        params.transactionId,
+        expectedUpdatedAt,
+      );
+    }
   }
 }
 
 function toTransactionUpdate(
   input: UpdateManualTransactionDto,
-): Parameters<TransactionsService['updateTransactionInSpace']>[3] {
+): Parameters<TransactionsService['updateSharedTransactionInSpace']>[3] {
   const { updatedAt, ...changes } = input;
   return {
     ...changes,

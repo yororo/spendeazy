@@ -92,7 +92,9 @@ describe('SpaceTransactionsController', () => {
       createManualTransactionInSpace: jest.fn().mockResolvedValue(transaction),
     };
     const spaceAccessService = {
-      requireWriteAccess: jest.fn().mockResolvedValue({ id: '10' }),
+      requireWriteAccess: jest
+        .fn()
+        .mockResolvedValue({ id: '10', kind: 'shared' }),
     };
     const status = jest.fn();
     const setHeader = jest.fn();
@@ -174,11 +176,13 @@ describe('SpaceTransactionsController', () => {
   it('passes the authoritative version for edits and If-Match for deletes', async () => {
     const transaction = transactionRecord();
     const transactionsService = {
-      updateTransactionInSpace: jest.fn().mockResolvedValue(transaction),
-      deleteManualTransactionInSpace: jest.fn().mockResolvedValue(undefined),
+      updateSharedTransactionInSpace: jest.fn().mockResolvedValue(transaction),
+      deleteTransactionInSpace: jest.fn().mockResolvedValue(undefined),
     };
     const spaceAccessService = {
-      requireWriteAccess: jest.fn().mockResolvedValue({ id: '10' }),
+      requireWriteAccess: jest
+        .fn()
+        .mockResolvedValue({ id: '10', kind: 'shared' }),
     };
     const controller = new SpaceTransactionsController(
       transactionsService as unknown as TransactionsService,
@@ -199,12 +203,58 @@ describe('SpaceTransactionsController', () => {
       `W/"${transaction.updatedAt.toISOString()}"`,
     );
 
+    expect(
+      transactionsService.updateSharedTransactionInSpace,
+    ).toHaveBeenCalledWith('7', '10', '100', {
+      description: 'Dinner',
+      expectedUpdatedAt: transaction.updatedAt.toISOString(),
+    });
+    expect(transactionsService.deleteTransactionInSpace).toHaveBeenCalledWith(
+      '7',
+      '10',
+      '100',
+      transaction.updatedAt.toISOString(),
+    );
+  });
+
+  it('keeps the legacy Personal Space mutation boundary', async () => {
+    const transaction = transactionRecord();
+    const transactionsService = {
+      updateTransactionInSpace: jest.fn().mockResolvedValue(transaction),
+      deleteManualTransactionInSpace: jest.fn().mockResolvedValue(undefined),
+      updateSharedTransactionInSpace: jest.fn(),
+      deleteTransactionInSpace: jest.fn(),
+    };
+    const spaceAccessService = {
+      requireWriteAccess: jest
+        .fn()
+        .mockResolvedValue({ id: '10', kind: 'personal' }),
+    };
+    const controller = new SpaceTransactionsController(
+      transactionsService as unknown as TransactionsService,
+      spaceAccessService as unknown as SpaceAccessService,
+    );
+
+    await controller.updateTransaction(
+      authenticatedRequest('7'),
+      { spaceId: '10', transactionId: '100' },
+      {
+        categoryId: '43',
+        updatedAt: transaction.updatedAt.toISOString(),
+      },
+    );
+    await controller.deleteTransaction(
+      authenticatedRequest('7'),
+      { spaceId: '10', transactionId: '100' },
+      transaction.updatedAt.toISOString(),
+    );
+
     expect(transactionsService.updateTransactionInSpace).toHaveBeenCalledWith(
       '7',
       '10',
       '100',
       {
-        description: 'Dinner',
+        categoryId: '43',
         expectedUpdatedAt: transaction.updatedAt.toISOString(),
       },
     );
@@ -216,15 +266,21 @@ describe('SpaceTransactionsController', () => {
       '100',
       transaction.updatedAt.toISOString(),
     );
+    expect(
+      transactionsService.updateSharedTransactionInSpace,
+    ).not.toHaveBeenCalled();
+    expect(transactionsService.deleteTransactionInSpace).not.toHaveBeenCalled();
   });
 
   it('rejects Space writes without a concurrency version', async () => {
     const transactionsService = {
-      updateTransactionInSpace: jest.fn(),
-      deleteManualTransactionInSpace: jest.fn(),
+      updateSharedTransactionInSpace: jest.fn(),
+      deleteTransactionInSpace: jest.fn(),
     };
     const spaceAccessService = {
-      requireWriteAccess: jest.fn().mockResolvedValue({ id: '10' }),
+      requireWriteAccess: jest
+        .fn()
+        .mockResolvedValue({ id: '10', kind: 'shared' }),
     };
     const controller = new SpaceTransactionsController(
       transactionsService as unknown as TransactionsService,
@@ -257,10 +313,10 @@ describe('SpaceTransactionsController', () => {
         }),
       ],
     });
-    expect(transactionsService.updateTransactionInSpace).not.toHaveBeenCalled();
     expect(
-      transactionsService.deleteManualTransactionInSpace,
+      transactionsService.updateSharedTransactionInSpace,
     ).not.toHaveBeenCalled();
+    expect(transactionsService.deleteTransactionInSpace).not.toHaveBeenCalled();
   });
 });
 

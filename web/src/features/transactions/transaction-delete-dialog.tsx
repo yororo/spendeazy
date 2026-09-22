@@ -21,6 +21,7 @@ interface TransactionDeleteDialogProps {
   readonly open: boolean;
   readonly transaction: Transaction | null;
   readonly spaceId?: string;
+  readonly allowImportedDeletion?: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly onDeleted: () => void;
   readonly onReload: () => Promise<unknown>;
@@ -30,6 +31,7 @@ function TransactionDeleteDialog({
   open,
   transaction,
   spaceId,
+  allowImportedDeletion = false,
   onOpenChange,
   onDeleted,
   onReload,
@@ -37,7 +39,9 @@ function TransactionDeleteDialog({
   const deleteMutation = useDeleteTransactionMutation();
   const [hasConfirmed, setHasConfirmed] = useState(false);
 
-  if (transaction?.source === "imported") return null;
+  if (transaction?.source === "imported" && !allowImportedDeletion) {
+    return null;
+  }
 
   const isStale =
     deleteMutation.error instanceof ApiError &&

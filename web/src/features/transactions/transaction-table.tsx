@@ -24,6 +24,7 @@ interface TransactionTableProps {
   onEdit?: (transaction: Transaction) => void;
   onDelete?: (transaction: Transaction) => void;
   onViewActivity?: (transaction: Transaction) => void;
+  allowImportedDeletion?: boolean;
   showAttribution?: boolean;
   attributionMembers?: readonly AttributionMember[];
   ariaLabel?: string;
@@ -35,6 +36,7 @@ function TransactionTable({
   onEdit,
   onDelete,
   onViewActivity,
+  allowImportedDeletion = false,
   showAttribution = false,
   attributionMembers,
   ariaLabel = "All transactions",
@@ -100,7 +102,9 @@ function TransactionTable({
                         Edit
                       </Button>
                     )}
-                    {onDelete && transaction.source !== "imported" && (
+                    {onDelete &&
+                      (transaction.source !== "imported" ||
+                        allowImportedDeletion) && (
                       <Button
                         type="button"
                         variant="destructive"
@@ -201,7 +205,9 @@ function TransactionTable({
                           <PencilIcon aria-hidden="true" />
                         </Button>
                       )}
-                      {onDelete && transaction.source !== "imported" && (
+                      {onDelete &&
+                        (transaction.source !== "imported" ||
+                          allowImportedDeletion) && (
                         <Button
                           type="button"
                           variant="ghost"

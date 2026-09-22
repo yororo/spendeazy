@@ -101,6 +101,13 @@ function TransactionsPage({
   const isScopeTransitioning =
     transactionsQuery.isFetching && transactionsQuery.isPlaceholderData;
   const controlsDisabled = isScopeTransitioning;
+  const selectedSpace = spacesQuery.data?.find(
+    (space) => space.id === effectiveSpaceId,
+  );
+  const canManageImportedTransactions =
+    selectedSpace?.kind === "shared" &&
+    selectedSpace.status === "active" &&
+    selectedSpace.accessLevel === "write";
   const editingTransaction =
     editorState?.mode === "edit" ? editorState.transaction : null;
   const attributionMembers =
@@ -173,6 +180,7 @@ function TransactionsPage({
             }}
             onDelete={setTransactionToDelete}
             onViewActivity={setTransactionToViewActivity}
+            allowImportedDeletion={canManageImportedTransactions}
             showAttribution={spaceId !== undefined}
             attributionMembers={attributionMembers}
           />
@@ -199,6 +207,7 @@ function TransactionsPage({
         transaction={editingTransaction}
         categories={firstPage.categories}
         spaceId={effectiveSpaceId}
+        allowImportedStatementFactEdits={canManageImportedTransactions}
         onOpenChange={(open) => {
           if (!open) setEditorState(null);
         }}
@@ -206,9 +215,11 @@ function TransactionsPage({
         onReload={() => transactionsQuery.refetch()}
       />
       <TransactionDeleteDialog
+        key={transactionToDelete?.id ?? "no-transaction"}
         open={transactionToDelete !== null}
         transaction={transactionToDelete}
         spaceId={effectiveSpaceId}
+        allowImportedDeletion={canManageImportedTransactions}
         onOpenChange={(open) => {
           if (!open) setTransactionToDelete(null);
         }}

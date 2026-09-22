@@ -296,6 +296,26 @@ describeDatabase('Shared Space invitation HTTP journey with PostgreSQL', () => {
     expect(importResponse.status).toBe(201);
     const statementImportId = readId(responseBody(importResponse));
 
+    const senderImportResponse = await http()
+      .post(`/api/v1/users/me/spaces/${sharedSpaceId}/statement-imports`)
+      .set(...authorization(sender))
+      .send({
+        fileName: 'shared-sender-journey.pdf',
+        fileHash: `${randomUUID().replaceAll('-', '')}${'b'.repeat(32)}`,
+        statementDate: '2026-09-18',
+        bank: 'Shared Sender Journey Bank',
+        cardType: 'visa',
+        transactions: [
+          {
+            categoryId: recipientCategory,
+            purchaseDate: '2026-09-17',
+            description: 'Sender imported transaction',
+            amount: '55.00',
+          },
+        ],
+      });
+    expect(senderImportResponse.status).toBe(201);
+
     const senderImports = await http()
       .get(`/api/v1/users/me/spaces/${sharedSpaceId}/statement-imports`)
       .set(...authorization(sender));
@@ -329,25 +349,8 @@ describeDatabase('Shared Space invitation HTTP journey with PostgreSQL', () => {
     if (!importedTransaction) {
       throw new Error('Expected the imported transaction in the shared space');
     }
-    const importedActivity = await http()
-      .get(
-        `/api/v1/users/me/spaces/${sharedSpaceId}/transactions/${readId(importedTransaction)}/activity`,
-      )
-      .set(...authorization(sender));
-    expect(importedActivity.status).toBe(200);
-    expect(responseBody<ActivityItem[]>(importedActivity)).toEqual([
-      expect.objectContaining({ type: 'created' }),
-    ]);
-
-    for (const identity of [sender, recipient]) {
-      const report = await http()
-        .get(
-          `/api/v1/users/me/spaces/${sharedSpaceId}/category-summaries?period=monthly&year=2026&month=09`,
-        )
-        .set(...authorization(identity));
-      expect(report.status).toBe(200);
-      expect(responseBody<ReportResponse>(report).period).toBe('monthly');
-    }
+    expect(importedTransaction.statementImportId).toBe(statementImportId);
+    expect(importedTransaction.addedByUserId).toBe(recipientUserId);
 
     const thirdUserId = await provision(thirdUser);
     const thirdSpaces = await listSpaces(thirdUser);
@@ -357,6 +360,168 @@ describeDatabase('Shared Space invitation HTTP journey with PostgreSQL', () => {
       status: 'active',
     });
     expect(thirdUserId).not.toBe(senderUserId);
+
+    const unrelatedImportedEdit = await http()
+      .patch(
+        `/api/v1/users/me/spaces/${sharedSpaceId}/transactions/${readId(importedTransaction)}`,
+      )
+      .set(...authorization(thirdUser))
+      .send({
+        description: 'Unrelated correction',
+        updatedAt: importedTransaction.updatedAt,
+      });
+    expect(unrelatedImportedEdit.status).toBe(404);
+    const unrelatedImportedDelete = await http()
+      .delete(
+        `/api/v1/users/me/spaces/${sharedSpaceId}/transactions/${readId(importedTransaction)}`,
+      )
+      .set(...authorization(thirdUser))
+      .set('if-match', importedTransaction.updatedAt);
+    expect(unrelatedImportedDelete.status).toBe(404);
+
+    const senderEdit = await http()
+      .patch(
+        `/api/v1/users/me/spaces/${sharedSpaceId}/transactions/${readId(importedTransaction)}`,
+      )
+      .set(...authorization(sender))
+      .send({
+        categoryId: recipientCategory,
+        purchaseDate: '2026-09-16',
+        description: 'Recipient import corrected by sender',
+        amount: '43.00',
+        updatedAt: importedTransaction.updatedAt,
+      });
+    expect(senderEdit.status).toBe(200);
+    expect(responseBody<TransactionResponse>(senderEdit)).toMatchObject({
+      source: 'imported',
+      addedByUserId: recipientUserId,
+      description: 'Recipient import corrected by sender',
+      amount: '43.00',
+    });
+
+    const staleSenderEdit = await http()
+      .patch(
+        `/api/v1/users/me/spaces/${sharedSpaceId}/transactions/${readId(importedTransaction)}`,
+      )
+      .set(...authorization(sender))
+      .send({
+        description: 'Stale correction',
+        updatedAt: importedTransaction.updatedAt,
+      });
+    expect(staleSenderEdit.status).toBe(409);
+    expect(staleSenderEdit.body).toMatchObject({
+      error: { code: 'STALE_EDIT' },
+    });
+    const staleSenderDelete = await http()
+      .delete(
+        `/api/v1/users/me/spaces/${sharedSpaceId}/transactions/${readId(importedTransaction)}`,
+      )
+      .set(...authorization(sender))
+      .set('if-match', importedTransaction.updatedAt);
+    expect(staleSenderDelete.status).toBe(409);
+    expect(staleSenderDelete.body).toMatchObject({
+      error: { code: 'STALE_EDIT' },
+    });
+
+    const recipientTransactions = await http()
+      .get(`/api/v1/users/me/spaces/${sharedSpaceId}/transactions`)
+      .set(...authorization(recipient));
+    expect(recipientTransactions.status).toBe(200);
+    const senderImportedTransaction = responseBody<TransactionPageResponse>(
+      recipientTransactions,
+    ).items.find((item) => item.description === 'Sender imported transaction');
+    if (!senderImportedTransaction) {
+      throw new Error(
+        'Expected the sender imported transaction in the shared space',
+      );
+    }
+    expect(senderImportedTransaction.addedByUserId).toBe(senderUserId);
+
+    const recipientEdit = await http()
+      .patch(
+        `/api/v1/users/me/spaces/${sharedSpaceId}/transactions/${readId(senderImportedTransaction)}`,
+      )
+      .set(...authorization(recipient))
+      .send({
+        categoryId: senderCategory,
+        purchaseDate: '2026-09-15',
+        description: 'Sender import corrected by recipient',
+        amount: '56.00',
+        updatedAt: senderImportedTransaction.updatedAt,
+      });
+    expect(recipientEdit.status).toBe(200);
+    expect(responseBody<TransactionResponse>(recipientEdit)).toMatchObject({
+      source: 'imported',
+      addedByUserId: senderUserId,
+      description: 'Sender import corrected by recipient',
+      amount: '56.00',
+    });
+
+    const senderDelete = await http()
+      .delete(
+        `/api/v1/users/me/spaces/${sharedSpaceId}/transactions/${readId(importedTransaction)}`,
+      )
+      .set(...authorization(sender))
+      .set('if-match', responseBody<TransactionResponse>(senderEdit).updatedAt);
+    expect(senderDelete.status).toBe(204);
+    const recipientDelete = await http()
+      .delete(
+        `/api/v1/users/me/spaces/${sharedSpaceId}/transactions/${readId(senderImportedTransaction)}`,
+      )
+      .set(...authorization(recipient))
+      .set(
+        'if-match',
+        responseBody<TransactionResponse>(recipientEdit).updatedAt,
+      );
+    expect(recipientDelete.status).toBe(204);
+
+    const retainedImportedHistory = await http()
+      .get(`/api/v1/users/me/spaces/${sharedSpaceId}/transactions/history`)
+      .set(...authorization(sender));
+    expect(retainedImportedHistory.status).toBe(200);
+    expect(
+      responseBody<ItemPageResponse>(retainedImportedHistory).items,
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          description: 'Recipient import corrected by sender',
+          source: 'imported',
+          statementImportId,
+        }),
+        expect.objectContaining({
+          description: 'Sender import corrected by recipient',
+          source: 'imported',
+        }),
+      ]),
+    );
+    for (const [transactionId, editingActor, deletingActor] of [
+      [readId(importedTransaction), senderUserId, senderUserId],
+      [readId(senderImportedTransaction), recipientUserId, recipientUserId],
+    ] as const) {
+      const importedActivity = await http()
+        .get(
+          `/api/v1/users/me/spaces/${sharedSpaceId}/transactions/${transactionId}/activity`,
+        )
+        .set(...authorization(recipient));
+      expect(importedActivity.status).toBe(200);
+      expect(responseBody<ActivityItem[]>(importedActivity)).toEqual([
+        expect.objectContaining({ type: 'created' }),
+        expect.objectContaining({ type: 'edited', actorUserId: editingActor }),
+        expect.objectContaining({
+          type: 'deleted',
+          actorUserId: deletingActor,
+        }),
+      ]);
+    }
+    for (const identity of [sender, recipient]) {
+      const report = await http()
+        .get(
+          `/api/v1/users/me/spaces/${sharedSpaceId}/category-summaries?period=monthly&year=2026&month=09`,
+        )
+        .set(...authorization(identity));
+      expect(report.status).toBe(200);
+      expect(responseBody<ReportResponse>(report).period).toBe('monthly');
+    }
 
     const thirdSharedRead = await http()
       .get(`/api/v1/users/me/spaces/${sharedSpaceId}/categories`)
@@ -656,6 +821,10 @@ interface RulesResponse {
 interface TransactionResponse {
   readonly id: string;
   readonly updatedAt: string;
+  readonly source?: 'manual' | 'imported';
+  readonly addedByUserId?: string;
+  readonly description?: string;
+  readonly amount?: string;
 }
 
 interface ItemPageResponse {
@@ -669,6 +838,10 @@ interface TransactionPageResponse {
 interface TransactionListItem {
   readonly id: string;
   readonly description: string;
+  readonly updatedAt: string;
+  readonly source?: 'manual' | 'imported';
+  readonly statementImportId?: string | null;
+  readonly addedByUserId?: string;
 }
 
 interface ActivityItem {

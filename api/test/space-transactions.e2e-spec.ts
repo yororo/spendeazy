@@ -65,12 +65,14 @@ describe('Space transaction API routes', () => {
       },
     ]),
     createManualTransactionInSpace: jest.fn().mockResolvedValue(transaction),
-    updateTransactionInSpace: jest.fn().mockResolvedValue(transaction),
-    deleteManualTransactionInSpace: jest.fn().mockResolvedValue(undefined),
+    updateSharedTransactionInSpace: jest.fn().mockResolvedValue(transaction),
+    deleteTransactionInSpace: jest.fn().mockResolvedValue(undefined),
   };
   const spaceAccessService = {
     requireReadAccess: jest.fn().mockResolvedValue({ id: '10' }),
-    requireWriteAccess: jest.fn().mockResolvedValue({ id: '10' }),
+    requireWriteAccess: jest
+      .fn()
+      .mockResolvedValue({ id: '10', kind: 'shared' }),
   };
 
   beforeAll(async () => {
@@ -101,7 +103,10 @@ describe('Space transaction API routes', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     spaceAccessService.requireReadAccess.mockResolvedValue({ id: '10' });
-    spaceAccessService.requireWriteAccess.mockResolvedValue({ id: '10' });
+    spaceAccessService.requireWriteAccess.mockResolvedValue({
+      id: '10',
+      kind: 'shared',
+    });
   });
 
   afterAll(async () => {
@@ -226,12 +231,12 @@ describe('Space transaction API routes', () => {
       .send({ description: 'Dinner', updatedAt: TRANSACTION_TIMESTAMP });
 
     expect(updateResponse.status).toBe(200);
-    expect(transactionsService.updateTransactionInSpace).toHaveBeenCalledWith(
-      '42',
-      '10',
-      '100',
-      { description: 'Dinner', expectedUpdatedAt: TRANSACTION_TIMESTAMP },
-    );
+    expect(
+      transactionsService.updateSharedTransactionInSpace,
+    ).toHaveBeenCalledWith('42', '10', '100', {
+      description: 'Dinner',
+      expectedUpdatedAt: TRANSACTION_TIMESTAMP,
+    });
 
     const deleteResponse = await request(application.getHttpServer() as Server)
       .delete('/api/v1/users/me/spaces/10/transactions/100')
@@ -240,9 +245,12 @@ describe('Space transaction API routes', () => {
       .set('If-Match', `W/"${TRANSACTION_TIMESTAMP}"`);
 
     expect(deleteResponse.status).toBe(204);
-    expect(
-      transactionsService.deleteManualTransactionInSpace,
-    ).toHaveBeenCalledWith('42', '10', '100', TRANSACTION_TIMESTAMP);
+    expect(transactionsService.deleteTransactionInSpace).toHaveBeenCalledWith(
+      '42',
+      '10',
+      '100',
+      TRANSACTION_TIMESTAMP,
+    );
   });
 
   it('does not disclose an inaccessible Space', async () => {

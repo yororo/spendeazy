@@ -61,6 +61,8 @@ const EMPTY_SPACE_IMPORTED_TRANSACTION_STORE: SpaceImportedTransactionStore = {
     Promise.reject(new Error(SPACE_STORE_NOT_CONFIGURED)),
   updateCategoryInSpace: () =>
     Promise.reject(new Error(SPACE_STORE_NOT_CONFIGURED)),
+  updateInSpace: () => Promise.reject(new Error(SPACE_STORE_NOT_CONFIGURED)),
+  deleteInSpace: () => Promise.reject(new Error(SPACE_STORE_NOT_CONFIGURED)),
 };
 
 const EMPTY_TRANSACTION_ACTIVITY_STORE: TransactionActivityStore = {
@@ -250,6 +252,77 @@ export class TransactionsService {
     );
   }
 
+  async updateSharedTransactionInSpace(
+    actorUserId: string,
+    spaceId: string,
+    id: string,
+    input: UpdateManualTransaction,
+  ): Promise<ManualTransactionRecord | ImportedTransactionRecord> {
+    const manualTransaction = await this.spaceTransactionStore.findByIdInSpace(
+      spaceId,
+      id,
+    );
+    if (manualTransaction) {
+      return this.updateManualTransactionInSpace(
+        actorUserId,
+        spaceId,
+        id,
+        input,
+      );
+    }
+
+    return this.updateImportedTransactionInSpace(
+      actorUserId,
+      spaceId,
+      id,
+      input,
+    );
+  }
+
+  async updateImportedTransactionInSpace(
+    actorUserId: string,
+    spaceId: string,
+    id: string,
+    input: UpdateManualTransaction,
+  ): Promise<ImportedTransactionRecord> {
+    const importedTransaction =
+      await this.spaceImportedTransactionStore.findByIdInSpace(spaceId, id);
+    if (!importedTransaction) {
+      throw new TransactionNotFoundError();
+    }
+
+    const changes = normalizeUpdate(input);
+    assertCurrentVersion(
+      importedTransaction.updatedAt,
+      changes.expectedUpdatedAt,
+    );
+
+    if (
+      changes.categoryId !== undefined &&
+      changes.categoryId !== null &&
+      changes.categoryId !== importedTransaction.categoryId
+    ) {
+      await this.ensureActiveCategoryInSpace(spaceId, changes.categoryId);
+    }
+
+    if (isNoOp(importedTransaction, changes)) {
+      return importedTransaction;
+    }
+
+    const updatedTransaction =
+      await this.spaceImportedTransactionStore.updateInSpace(
+        spaceId,
+        id,
+        changes,
+        actorUserId,
+      );
+    if (!updatedTransaction) {
+      throw new TransactionNotFoundError();
+    }
+
+    return updatedTransaction;
+  }
+
   async deleteManualTransactionInSpace(
     actorUserId: string,
     spaceId: string,
@@ -263,6 +336,43 @@ export class TransactionsService {
     assertCurrentVersion(currentTransaction.updatedAt, expectedUpdatedAt);
 
     const deleted = await this.spaceTransactionStore.deleteInSpace(
+      spaceId,
+      id,
+      actorUserId,
+      expectedUpdatedAt,
+    );
+    if (!deleted) {
+      throw new TransactionNotFoundError();
+    }
+  }
+
+  async deleteTransactionInSpace(
+    actorUserId: string,
+    spaceId: string,
+    id: string,
+    expectedUpdatedAt?: string,
+  ): Promise<void> {
+    const manualTransaction = await this.spaceTransactionStore.findByIdInSpace(
+      spaceId,
+      id,
+    );
+    if (manualTransaction) {
+      return this.deleteManualTransactionInSpace(
+        actorUserId,
+        spaceId,
+        id,
+        expectedUpdatedAt,
+      );
+    }
+
+    const importedTransaction =
+      await this.spaceImportedTransactionStore.findByIdInSpace(spaceId, id);
+    if (!importedTransaction) {
+      throw new TransactionNotFoundError();
+    }
+    assertCurrentVersion(importedTransaction.updatedAt, expectedUpdatedAt);
+
+    const deleted = await this.spaceImportedTransactionStore.deleteInSpace(
       spaceId,
       id,
       actorUserId,
@@ -405,7 +515,10 @@ function normalizeDescription(description: string): string {
 }
 
 function isNoOp(
-  currentTransaction: ManualTransactionRecord,
+  currentTransaction: Pick<
+    TransactionRecord,
+    'categoryId' | 'purchaseDate' | 'description' | 'amount'
+  >,
   changes: UpdateManualTransaction,
 ): boolean {
   return (

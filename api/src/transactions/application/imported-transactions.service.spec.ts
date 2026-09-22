@@ -10,7 +10,9 @@ import type {
   ImportedTransactionRecord,
   SpaceImportedTransactionStore,
   UpdateImportedTransactionCategory,
+  UpdateImportedTransactionInput,
 } from './imported-transaction-store';
+import { StaleEditError } from '../../errors/application-error';
 import { ImportedTransactionImmutableError } from './transaction-errors';
 import { TransactionsService } from './transactions.service';
 
@@ -84,6 +86,73 @@ describe('TransactionsService imported transactions', () => {
       }),
     ).rejects.toBeInstanceOf(ImportedTransactionImmutableError);
   });
+
+  it('allows an active Shared Space member to correct all supported imported fields', async () => {
+    const imported = new ImportedTransactionStoreFake(importedRecord());
+    const service = createService(imported, [categoryRecord({ id: '43' })]);
+
+    await expect(
+      service.updateSharedTransactionInSpace('member-2', 'space-7', '1', {
+        categoryId: '43',
+        purchaseDate: '2026-08-02',
+        description: 'Dinner',
+        amount: '12.99',
+        expectedUpdatedAt: '2026-08-29T00:00:00.000Z',
+      }),
+    ).resolves.toMatchObject({
+      id: '1',
+      addedByUserId: '7',
+      statementImportId: '100',
+      categoryId: '43',
+      purchaseDate: '2026-08-02',
+      description: 'Dinner',
+      amount: '12.99',
+      categoryMatchConfidence: null,
+    });
+
+    expect(imported.updatedInput).toEqual({
+      categoryId: '43',
+      purchaseDate: '2026-08-02',
+      description: 'Dinner',
+      amount: '12.99',
+      expectedUpdatedAt: '2026-08-29T00:00:00.000Z',
+    });
+    expect(imported.updatedActorUserId).toBe('member-2');
+  });
+
+  it('allows an active Shared Space member to delete an imported Transaction and rejects stale writes', async () => {
+    const imported = new ImportedTransactionStoreFake(importedRecord());
+    const service = createService(imported, []);
+
+    await expect(
+      service.deleteTransactionInSpace(
+        'member-2',
+        'space-7',
+        '1',
+        '2026-08-29T00:00:00.000Z',
+      ),
+    ).resolves.toBeUndefined();
+    expect(imported.deletedActorUserId).toBe('member-2');
+
+    const staleImported = new ImportedTransactionStoreFake(importedRecord());
+    const staleService = createService(staleImported, []);
+    await expect(
+      staleService.updateSharedTransactionInSpace('member-2', 'space-7', '1', {
+        description: 'Stale correction',
+        expectedUpdatedAt: '2026-08-30T00:00:00.000Z',
+      }),
+    ).rejects.toBeInstanceOf(StaleEditError);
+    await expect(
+      staleService.deleteTransactionInSpace(
+        'member-2',
+        'space-7',
+        '1',
+        '2026-08-30T00:00:00.000Z',
+      ),
+    ).rejects.toBeInstanceOf(StaleEditError);
+    expect(staleImported.updatedInput).toBeUndefined();
+    expect(staleImported.deletedActorUserId).toBeUndefined();
+  });
 });
 
 function createService(
@@ -98,8 +167,12 @@ function createService(
 }
 
 class ImportedTransactionStoreFake implements SpaceImportedTransactionStore {
-  updatedInput: UpdateImportedTransactionCategory | undefined;
+  updatedInput:
+    | UpdateImportedTransactionCategory
+    | UpdateImportedTransactionInput
+    | undefined;
   updatedActorUserId: string | undefined;
+  deletedActorUserId: string | undefined;
   constructor(private readonly transaction: ImportedTransactionRecord) {}
   create(): Promise<ImportedTransactionRecord> {
     return Promise.reject(new Error('not used'));
@@ -108,6 +181,13 @@ class ImportedTransactionStoreFake implements SpaceImportedTransactionStore {
     return Promise.resolve([]);
   }
   findByIdInSpace(spaceId: string, id: string) {
+    return Promise.resolve(
+      this.transaction.spaceId === spaceId && this.transaction.id === id
+        ? this.transaction
+        : null,
+    );
+  }
+  findByIdInHistoryInSpace(spaceId: string, id: string) {
     return Promise.resolve(
       this.transaction.spaceId === spaceId && this.transaction.id === id
         ? this.transaction
@@ -129,6 +209,30 @@ class ImportedTransactionStoreFake implements SpaceImportedTransactionStore {
       categoryId: input.categoryId,
       categoryMatchConfidence: null,
     });
+  }
+  updateInSpace(
+    spaceId: string,
+    id: string,
+    input: UpdateImportedTransactionInput,
+    actorUserId: string,
+  ) {
+    this.updatedInput = input;
+    this.updatedActorUserId = actorUserId;
+    if (this.transaction.spaceId !== spaceId || this.transaction.id !== id) {
+      return Promise.resolve(null);
+    }
+
+    return Promise.resolve({
+      ...this.transaction,
+      ...input,
+      categoryMatchConfidence: null,
+    });
+  }
+  deleteInSpace(spaceId: string, id: string, actorUserId: string) {
+    this.deletedActorUserId = actorUserId;
+    return Promise.resolve(
+      this.transaction.spaceId === spaceId && this.transaction.id === id,
+    );
   }
 }
 

@@ -3854,7 +3854,7 @@
         ]
       },
       "patch": {
-        "description": "Manual Transactions may be patched with any supplied fields. Imported Transactions may only change categoryId; their statement facts are immutable. The required updatedAt body field rejects stale edits.",
+        "description": "Manual Transactions may be patched in any writable Space. Imported Transactions in an active Shared Space may be patched with supported fields; writable Personal Spaces retain category-only imported compatibility. Imported Statement Import provenance and Added By attribution remain unchanged. The required updatedAt body field rejects stale edits.",
         "operationId": "SpaceTransactions_updateTransaction",
         "parameters": [
           {
@@ -3943,7 +3943,7 @@
             "$ref": "#/components/responses/InternalError"
           }
         },
-        "summary": "Update a manual Transaction or recategorize an imported Transaction in an authorized Space.",
+        "summary": "Update a Transaction in an authorized Space.",
         "tags": [
           "Transactions"
         ]
@@ -3985,7 +3985,7 @@
         ],
         "responses": {
           "204": {
-            "description": "Manual transaction deleted."
+            "description": "Transaction deleted."
           },
           "400": {
             "$ref": "#/components/responses/ValidationError"
@@ -4009,7 +4009,7 @@
             "$ref": "#/components/responses/InternalError"
           }
         },
-        "summary": "Delete a manual Transaction in an authorized Space.",
+        "summary": "Delete a Transaction in an authorized Space.",
         "tags": [
           "Transactions"
         ]

@@ -61,6 +61,124 @@ describe('TypeOrmImportedTransactionStore', () => {
       },
     });
   });
+
+  it('updates every supported imported field without changing provenance', async () => {
+    const entity = importedTransactionEntity();
+    const transactionRepository = {
+      findOne: jest.fn().mockResolvedValue(entity),
+      save: jest.fn().mockResolvedValue(entity),
+    };
+    const categoryQuery = {
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      setLock: jest.fn().mockReturnThis(),
+      getOne: jest.fn().mockResolvedValue({
+        id: '43',
+        spaceId: '7',
+        isActive: true,
+      }),
+    };
+    const activityRepository = {
+      create: jest.fn().mockReturnValue({}),
+      save: jest.fn().mockResolvedValue({}),
+    };
+    const store = new TypeOrmImportedTransactionStore(
+      transactionalEntityManager(
+        transactionRepository,
+        categoryQuery,
+        activityRepository,
+      ),
+    );
+
+    await expect(
+      store.updateInSpace(
+        '7',
+        '1',
+        {
+          categoryId: '43',
+          purchaseDate: '2026-08-02',
+          description: 'Dinner',
+          amount: '12.99',
+        },
+        '8',
+      ),
+    ).resolves.toMatchObject({
+      id: '1',
+      addedByUserId: '7',
+      statementImportId: '100',
+      purchaseDate: '2026-08-02',
+      description: 'Dinner',
+      amount: '12.99',
+      categoryId: '43',
+      categoryMatchConfidence: null,
+    });
+
+    expect(transactionRepository.save).toHaveBeenCalledWith(entity);
+    expect(activityRepository.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        transactionId: '1',
+        spaceId: '7',
+        actorUserId: '8',
+        type: 'edited',
+        beforeState: {
+          categoryId: '42',
+          purchaseDate: '2026-08-01',
+          description: 'Coffee',
+          amount: '4.50',
+        },
+        afterState: {
+          categoryId: '43',
+          purchaseDate: '2026-08-02',
+          description: 'Dinner',
+          amount: '12.99',
+        },
+      }),
+    );
+  });
+
+  it('soft-deletes an imported Transaction and records the deleting actor', async () => {
+    const updateQuery = {
+      update: jest.fn().mockReturnThis(),
+      set: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      execute: jest.fn().mockResolvedValue({ affected: 1 }),
+    };
+    const transactionRepository = {
+      createQueryBuilder: jest.fn().mockReturnValue(updateQuery),
+    };
+    const activityRepository = {
+      create: jest.fn().mockReturnValue({}),
+      save: jest.fn().mockResolvedValue({}),
+    };
+    const store = new TypeOrmImportedTransactionStore(
+      transactionalEntityManager(transactionRepository, {}, activityRepository),
+    );
+
+    await expect(
+      store.deleteInSpace('7', '1', '8', '2026-08-29T00:00:00.456Z'),
+    ).resolves.toBe(true);
+
+    expect(updateQuery.andWhere).toHaveBeenCalledWith(
+      'statement_import_id IS NOT NULL',
+    );
+    expect(updateQuery.andWhere).toHaveBeenCalledWith('space_id = :spaceId', {
+      spaceId: '7',
+    });
+    expect(updateQuery.andWhere).toHaveBeenCalledWith('deleted_at IS NULL');
+    expect(updateQuery.andWhere).toHaveBeenCalledWith(
+      'updated_at = :expectedUpdatedAt',
+      { expectedUpdatedAt: new Date('2026-08-29T00:00:00.456Z') },
+    );
+    expect(activityRepository.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        transactionId: '1',
+        spaceId: '7',
+        actorUserId: '8',
+        type: 'deleted',
+      }),
+    );
+  });
 });
 
 function transactionalEntityManager(

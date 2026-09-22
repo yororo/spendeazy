@@ -49,20 +49,9 @@ export class EnforceTransactionStatementImportSpace1880000000000 implements Migr
       CREATE INDEX ix_transactions_statement_import_space
         ON transactions (statement_import_id, space_id)
     `);
-
-    await queryRunner.query(`
-      ALTER TABLE transactions
-        ADD CONSTRAINT fk_transactions_statement_import_space
-        FOREIGN KEY (statement_import_id, space_id)
-        REFERENCES statement_imports (id, space_id)
-        ON DELETE RESTRICT
-    `);
   }
 
   async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(
-      'ALTER TABLE transactions DROP CONSTRAINT fk_transactions_statement_import_space',
-    );
     await queryRunner.query(
       'DROP INDEX ix_transactions_statement_import_space',
     );

@@ -93,7 +93,7 @@ describe('SpaceCategoriesController', () => {
       controller.updateCategory(
         authenticatedRequest('7'),
         { spaceId: '10', categoryId: '42' },
-        { name: 'Dining' } as UpdateCategoryDto,
+        { name: 'Dining' },
       ),
     ).rejects.toBeInstanceOf(RequestValidationError);
     expect(updateCategoryInSpace).not.toHaveBeenCalled();

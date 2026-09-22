@@ -200,6 +200,32 @@ describeDatabase(
           ],
         ),
       ).rejects.toMatchObject({ driverError: { code: '23503' } });
+      await expect(
+        database.query(
+          `INSERT INTO transactions
+             (space_id, added_by_user_id, statement_import_id, purchase_date, description, amount)
+           VALUES ($1, $2, $3, '2026-02-02', 'Cross-Space import provenance', '2.00')`,
+          [otherSaved.space_id, other.id, statementImport.id],
+        ),
+      ).rejects.toMatchObject({
+        driverError: {
+          code: '23503',
+          constraint: 'fk_transactions_statement_import_space',
+        },
+      });
+      const [manualTransaction] = await rows<{
+        id: string;
+        statement_import_id: string | null;
+      }>(
+        `INSERT INTO transactions
+           (space_id, added_by_user_id, purchase_date, description, amount)
+         VALUES ($1, $2, '2026-02-03', 'Manual transaction', '3.00')
+         RETURNING id, statement_import_id`,
+        [saved.space_id, owner.id],
+      );
+      expect(manualTransaction).toMatchObject({
+        statement_import_id: null,
+      });
 
       const [newUser] = await rows<{ id: string }>(
         "INSERT INTO users (clerk_user_id, name, email) VALUES ('migration-new', 'New User', 'migration-new@example.test') RETURNING id",

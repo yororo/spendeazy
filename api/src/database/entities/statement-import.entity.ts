@@ -4,9 +4,11 @@ import {
   Entity,
   Index,
   PrimaryGeneratedColumn,
+  Unique,
 } from 'typeorm';
 
 @Entity({ name: 'statement_imports' })
+@Unique('uq_statement_imports_id_space_id', ['id', 'spaceId'])
 @Index('ux_statement_imports_space_file_hash', ['spaceId', 'fileHash'], {
   unique: true,
 })

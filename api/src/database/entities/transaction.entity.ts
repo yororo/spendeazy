@@ -22,6 +22,10 @@ import {
 ])
 @Index('ix_transactions_added_by_user', ['addedByUserId'])
 @Index('ix_transactions_statement_import', ['statementImportId'])
+@Index('ix_transactions_statement_import_space', [
+  'statementImportId',
+  'spaceId',
+])
 @Index('ix_transactions_space_import_fingerprint', [
   'spaceId',
   'importFingerprint',
@@ -43,6 +47,11 @@ export class TransactionEntity {
   @Column({ type: 'bigint', nullable: true, name: 'category_id' })
   categoryId!: string | null;
 
+  /**
+   * Manual Transactions keep this provenance unset. When present, the
+   * database constrains it together with spaceId to a same-Space Statement
+   * Import.
+   */
   @Column({ type: 'bigint', nullable: true, name: 'statement_import_id' })
   statementImportId!: string | null;
 

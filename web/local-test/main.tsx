@@ -12,6 +12,7 @@ import { SyntheticSessionProvider } from "./synthetic-session-provider";
 
 const sessionToken = import.meta.env.VITE_LOCAL_TEST_SESSION_TOKEN;
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
+const initialScenario = readInitialScenario();
 if (!sessionToken) {
   throw new Error(
     "Missing VITE_LOCAL_TEST_SESSION_TOKEN. Start the app with the local test launcher.",
@@ -29,9 +30,22 @@ if (import.meta.hot) import.meta.hot.dispose(disposeAppearance);
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <BrowserRouter>
-      <SyntheticSessionProvider token={sessionToken} apiBaseUrl={apiBaseUrl}>
+      <SyntheticSessionProvider
+        token={sessionToken}
+        apiBaseUrl={apiBaseUrl}
+        initialScenario={initialScenario}
+      >
         {(signedOutPage) => <App signInElement={signedOutPage} />}
       </SyntheticSessionProvider>
     </BrowserRouter>
   </StrictMode>,
 );
+
+function readInitialScenario(): "secondary" | "new" | undefined {
+  const scenario = new URLSearchParams(window.location.search).get(
+    "localTestScenario",
+  );
+  return scenario === "secondary" || scenario === "new"
+    ? scenario
+    : undefined;
+}

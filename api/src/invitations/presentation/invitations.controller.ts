@@ -175,7 +175,7 @@ export class InvitationsController {
   @ApiOperation({
     summary: 'Accept an incoming invitation and create a Shared Space.',
     description:
-      'Acceptance requires the authenticated User to own the invited email in a verified identity-provider email address. The response is the newly authorized Shared Space; the public invitation token cannot be used for acceptance.',
+      "Acceptance requires the authenticated User to own the invited email in a verified identity-provider email address. The server rechecks invitation validity and both Users' Shared Space eligibility while holding their database locks. One active Shared Space with exactly those two equal members is created atomically; all other pending invitations involving either member are invalidated, and pending invitations never reserve membership. Repeating acceptance returns the same authorized Shared Space. The response is the authorized Shared Space; the public invitation token cannot be used for acceptance.",
   })
   @ApiParam({ name: 'invitationId', type: String, example: '42' })
   @ApiResponse({ status: HttpStatus.OK, type: SpaceResponseDto })

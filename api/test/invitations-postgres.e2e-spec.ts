@@ -336,6 +336,120 @@ describeDatabase('Invitation acceptance with PostgreSQL', () => {
     ).toHaveLength(1);
   });
 
+  it('serializes repeated concurrent accepts as one idempotent Shared Space', async () => {
+    const sender = await createUser('sender');
+    const recipient = await createUser('recipient');
+    const invitation = await createInvitation(sender, recipient.email);
+    const store = new TypeOrmInvitationAcceptanceStore(database.manager);
+    const input = {
+      invitationId: invitation.id,
+      recipientUserId: recipient.id,
+      verifiedRecipientEmails: [recipient.email],
+      now: new Date('2026-09-22T00:00:00.000Z'),
+    };
+
+    const results = await Promise.allSettled([
+      store.accept(input),
+      store.accept(input),
+    ]);
+
+    const accepted = results.flatMap((result) =>
+      result.status === 'fulfilled' ? [result.value] : [],
+    );
+    expect(accepted).toHaveLength(2);
+    expect(new Set(accepted.map((space) => space.id))).toEqual(
+      new Set([accepted[0]?.id]),
+    );
+    if (accepted[0]) createdSpaceIds.push(accepted[0].id);
+    await expect(
+      database.getRepository(SpaceEntity).find(),
+    ).resolves.toHaveLength(1);
+  });
+
+  it('invalidates every other pending invitation involving either accepted member', async () => {
+    const sender = await createUser('sender');
+    const recipient = await createUser('recipient');
+    const otherSender = await createUser('other-sender');
+    const anotherSender = await createUser('another-sender');
+    const selected = await createInvitation(sender, recipient.email);
+    const reciprocal = await createInvitation(recipient, sender.email);
+    const toSender = await createInvitation(otherSender, sender.email);
+    const toRecipient = await createInvitation(anotherSender, recipient.email);
+    const store = new TypeOrmInvitationAcceptanceStore(database.manager);
+
+    const accepted = await store.accept({
+      invitationId: selected.id,
+      recipientUserId: recipient.id,
+      verifiedRecipientEmails: [recipient.email],
+      now: new Date('2026-09-22T00:00:00.000Z'),
+    });
+    createdSpaceIds.push(accepted.id);
+
+    const persisted = await database.getRepository(InvitationEntity).findBy({
+      id: In([selected.id, reciprocal.id, toSender.id, toRecipient.id]),
+    });
+    expect(
+      new Map(
+        persisted.map((invitation) => [invitation.id, invitation.status]),
+      ),
+    ).toEqual(
+      new Map([
+        [selected.id, 'accepted'],
+        [reciprocal.id, 'canceled'],
+        [toSender.id, 'canceled'],
+        [toRecipient.id, 'canceled'],
+      ]),
+    );
+  });
+
+  it('serializes reciprocal accepts so only one invitation can create the pair Shared Space', async () => {
+    const firstMember = await createUser('first-member');
+    const secondMember = await createUser('second-member');
+    const firstInvitation = await createInvitation(
+      firstMember,
+      secondMember.email,
+    );
+    const reciprocalInvitation = await createInvitation(
+      secondMember,
+      firstMember.email,
+    );
+    const store = new TypeOrmInvitationAcceptanceStore(database.manager);
+
+    const results = await Promise.allSettled([
+      store.accept({
+        invitationId: firstInvitation.id,
+        recipientUserId: secondMember.id,
+        verifiedRecipientEmails: [secondMember.email],
+        now: new Date('2026-09-22T00:00:00.000Z'),
+      }),
+      store.accept({
+        invitationId: reciprocalInvitation.id,
+        recipientUserId: firstMember.id,
+        verifiedRecipientEmails: [firstMember.email],
+        now: new Date('2026-09-22T00:00:00.000Z'),
+      }),
+    ]);
+
+    const accepted = results.flatMap((result) =>
+      result.status === 'fulfilled' ? [result.value] : [],
+    );
+    expect(accepted).toHaveLength(1);
+    if (accepted[0]) createdSpaceIds.push(accepted[0].id);
+    expect(
+      results.filter((result) => result.status === 'rejected'),
+    ).toHaveLength(1);
+
+    const persisted = await database
+      .getRepository(InvitationEntity)
+      .findBy({ id: In([firstInvitation.id, reciprocalInvitation.id]) });
+    expect(
+      persisted.filter((invitation) => invitation.status === 'accepted'),
+    ).toHaveLength(1);
+    expect(
+      persisted.filter((invitation) => invitation.status === 'canceled'),
+    ).toHaveLength(1);
+  });
+
   async function createUser(label: string): Promise<UserEntity> {
     const unique = randomUUID();
     const user = await database.getRepository(UserEntity).save({

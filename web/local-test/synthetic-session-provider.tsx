@@ -1,6 +1,8 @@
 import {
   useCallback,
+  useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -20,6 +22,7 @@ import {
 interface SyntheticSessionProviderProps {
   token: string;
   apiBaseUrl: string;
+  initialScenario?: LocalTestScenario;
   children: (signedOutPage: ReactNode) => ReactNode;
 }
 
@@ -78,9 +81,11 @@ function isLocallySignedOut(): boolean {
 function SyntheticSessionProvider({
   token,
   apiBaseUrl,
+  initialScenario,
   children,
 }: SyntheticSessionProviderProps) {
   const navigate = useNavigate();
+  const initialScenarioAttempted = useRef(false);
   const [currentSession, setCurrentSession] = useState<
     ActiveSyntheticSession | null
   >(() => (isLocallySignedOut() ? null : createInitialSession(token)));
@@ -144,6 +149,20 @@ function SyntheticSessionProvider({
     },
     [apiBaseUrl, currentSession],
   );
+
+  useEffect(() => {
+    if (
+      initialScenario === undefined ||
+      initialScenario === "primary" ||
+      initialScenarioAttempted.current ||
+      currentSession?.scenario !== "primary"
+    ) {
+      return;
+    }
+
+    initialScenarioAttempted.current = true;
+    void selectScenario(initialScenario);
+  }, [currentSession?.scenario, initialScenario, selectScenario]);
 
   const expireSession = useCallback(async () => {
     if (!currentSession) return;

@@ -1,4 +1,4 @@
-import { expect, test, type APIRequestContext } from "@playwright/test";
+import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 
 const testClock =
   process.env.SPENDEAZY_E2E_TEST_CLOCK ?? "2026-09-19T12:00:00.000Z";
@@ -448,11 +448,409 @@ test("proves ownership isolation through authenticated API requests", async ({
   ).toBe(true);
 });
 
+test("completes the two-member Shared Space journey in independent browser contexts", async ({
+  page,
+  browser,
+  request,
+}) => {
+  const apiBaseUrl = requireEnvironment("SPENDEAZY_E2E_API_BASE_URL");
+  const primaryToken = requireEnvironment("VITE_LOCAL_TEST_SESSION_TOKEN");
+  const purchaseDate = requireEnvironment("SPENDEAZY_E2E_TEST_DATE");
+  const secondaryContext = await browser.newContext();
+  const secondaryPage = await secondaryContext.newPage();
+
+  try {
+    await page.goto("/sharing");
+    await expect(page.getByTestId("local-test-active-user")).toContainText(
+      "Local Test User",
+    );
+    await secondaryPage.clock.install({ time: testClock });
+    await secondaryPage.goto("/sharing?localTestScenario=secondary");
+    await expect(
+      secondaryPage.getByTestId("local-test-active-user"),
+    ).toContainText("Local Test Companion");
+
+    const secondarySession = await issueSession(
+      request,
+      apiBaseUrl,
+      primaryToken,
+      "secondary",
+    );
+    const invitation = await request.post(
+      `${apiBaseUrl}/api/v1/users/me/invitations`,
+      {
+        headers: {
+          ...authorizationHeaders(primaryToken),
+          "Content-Type": "application/json",
+        },
+        data: { email: "local-test-companion@example.invalid" },
+      },
+    );
+    expect(invitation.status()).toBe(201);
+    const invitationBody = (await invitation.json()) as { id?: unknown };
+    const invitationId = readStringId(invitationBody);
+
+    await secondaryPage.reload();
+    await expect(
+      secondaryPage.getByRole("button", { name: "Accept invitation" }),
+    ).toBeVisible();
+    await secondaryPage
+      .getByRole("button", { name: "Accept invitation" })
+      .click();
+    await expect(
+      secondaryPage.getByRole("button", { name: "Accept invitation" }),
+    ).toHaveCount(0);
+
+    const primarySpaces = await browserApi(
+      page,
+      apiBaseUrl,
+      primaryToken,
+      "/api/v1/users/me/spaces",
+    );
+    const secondarySpaces = await browserApi(
+      secondaryPage,
+      apiBaseUrl,
+      secondarySession.token,
+      "/api/v1/users/me/spaces",
+    );
+    expect(primarySpaces.status).toBe(200);
+    expect(secondarySpaces.status).toBe(200);
+    const primarySpaceList = readSpaceList(primarySpaces.body);
+    const secondarySpaceList = readSpaceList(secondarySpaces.body);
+    const sharedSpace = primarySpaceList.find(
+      (space) => space.kind === "shared",
+    );
+    const primaryPersonalSpace = primarySpaceList.find(
+      (space) => space.kind === "personal",
+    );
+    const secondaryPersonalSpace = secondarySpaceList.find(
+      (space) => space.kind === "personal",
+    );
+    expect(sharedSpace).toBeDefined();
+    expect(primaryPersonalSpace).toBeDefined();
+    expect(secondaryPersonalSpace).toBeDefined();
+    expect(
+      secondarySpaceList.some((space) => space.id === sharedSpace?.id),
+    ).toBe(true);
+    expect(sharedSpace?.members).toHaveLength(2);
+
+    const sharedSpaceId = sharedSpace!.id;
+    const primaryCategory = await browserApi(
+      page,
+      apiBaseUrl,
+      primaryToken,
+      `/api/v1/users/me/spaces/${sharedSpaceId}/categories`,
+      {
+        method: "POST",
+        body: { name: "Primary Journey Category" },
+      },
+    );
+    const secondaryCategory = await browserApi(
+      secondaryPage,
+      apiBaseUrl,
+      secondarySession.token,
+      `/api/v1/users/me/spaces/${sharedSpaceId}/categories`,
+      {
+        method: "POST",
+        body: { name: "Secondary Journey Category" },
+      },
+    );
+    expect(primaryCategory.status).toBe(201);
+    expect(secondaryCategory.status).toBe(201);
+    const primaryCategoryId = readStringId(primaryCategory.body);
+    const secondaryCategoryId = readStringId(secondaryCategory.body);
+
+    for (const [journeyPage, token] of [
+      [page, primaryToken],
+      [secondaryPage, secondarySession.token],
+    ] as const) {
+      const categories = await browserApi(
+        journeyPage,
+        apiBaseUrl,
+        token,
+        `/api/v1/users/me/spaces/${sharedSpaceId}/categories`,
+      );
+      expect(categories.status).toBe(200);
+      expect(JSON.stringify(categories.body)).toContain(
+        "Primary Journey Category",
+      );
+      expect(JSON.stringify(categories.body)).toContain(
+        "Secondary Journey Category",
+      );
+    }
+
+    const primaryBudget = await browserApi(
+      page,
+      apiBaseUrl,
+      primaryToken,
+      `/api/v1/users/me/spaces/${sharedSpaceId}/categories/${primaryCategoryId}/budget`,
+      { method: "PUT", body: { amount: "321.00", period: "monthly" } },
+    );
+    const secondaryBudget = await browserApi(
+      secondaryPage,
+      apiBaseUrl,
+      secondarySession.token,
+      `/api/v1/users/me/spaces/${sharedSpaceId}/categories/${secondaryCategoryId}/budget`,
+      { method: "PUT", body: { amount: "654.00", period: "monthly" } },
+    );
+    expect([200, 201]).toContain(primaryBudget.status);
+    expect([200, 201]).toContain(secondaryBudget.status);
+
+    const primaryRule = await browserApi(
+      page,
+      apiBaseUrl,
+      primaryToken,
+      `/api/v1/users/me/spaces/${sharedSpaceId}/category-rules`,
+      {
+        method: "POST",
+        body: {
+          categoryId: primaryCategoryId,
+          pattern: "PRIMARY JOURNEY",
+          matchType: "exact",
+        },
+      },
+    );
+    const secondaryRule = await browserApi(
+      secondaryPage,
+      apiBaseUrl,
+      secondarySession.token,
+      `/api/v1/users/me/spaces/${sharedSpaceId}/category-rules`,
+      {
+        method: "POST",
+        body: {
+          categoryId: secondaryCategoryId,
+          pattern: "SECONDARY JOURNEY",
+          matchType: "exact",
+        },
+      },
+    );
+    expect(primaryRule.status).toBe(201);
+    expect(secondaryRule.status).toBe(201);
+
+    const primaryTransaction = await browserApi(
+      page,
+      apiBaseUrl,
+      primaryToken,
+      `/api/v1/users/me/spaces/${sharedSpaceId}/transactions`,
+      {
+        method: "POST",
+        body: {
+          categoryId: primaryCategoryId,
+          purchaseDate,
+          description: "Primary shared transaction",
+          amount: "123.45",
+        },
+      },
+    );
+    const secondaryTransaction = await browserApi(
+      secondaryPage,
+      apiBaseUrl,
+      secondarySession.token,
+      `/api/v1/users/me/spaces/${sharedSpaceId}/transactions`,
+      {
+        method: "POST",
+        body: {
+          categoryId: secondaryCategoryId,
+          purchaseDate,
+          description: "Secondary shared transaction",
+          amount: "67.89",
+        },
+      },
+    );
+    expect(primaryTransaction.status).toBe(201);
+    expect(secondaryTransaction.status).toBe(201);
+    const deletedTransactionId = readStringId(primaryTransaction.body);
+    const deletedUpdatedAt = readStringField(
+      primaryTransaction.body,
+      "updatedAt",
+    );
+    const deleteResponse = await browserApi(
+      page,
+      apiBaseUrl,
+      primaryToken,
+      `/api/v1/users/me/spaces/${sharedSpaceId}/transactions/${deletedTransactionId}`,
+      {
+        method: "DELETE",
+        headers: { "If-Match": deletedUpdatedAt },
+      },
+    );
+    expect(deleteResponse.status).toBe(204);
+
+    for (const [journeyPage, token] of [
+      [page, primaryToken],
+      [secondaryPage, secondarySession.token],
+    ] as const) {
+      const retainedHistory = await browserApi(
+        journeyPage,
+        apiBaseUrl,
+        token,
+        `/api/v1/users/me/spaces/${sharedSpaceId}/transactions/history`,
+      );
+      expect(retainedHistory.status).toBe(200);
+      expect(JSON.stringify(retainedHistory.body)).toContain(
+        "Primary shared transaction",
+      );
+    }
+    const deletedActivity = await browserApi(
+      secondaryPage,
+      apiBaseUrl,
+      secondarySession.token,
+      `/api/v1/users/me/spaces/${sharedSpaceId}/transactions/${deletedTransactionId}/activity`,
+    );
+    expect(deletedActivity.status).toBe(200);
+    expect(JSON.stringify(deletedActivity.body)).toContain('"type":"created"');
+    expect(JSON.stringify(deletedActivity.body)).toContain('"type":"deleted"');
+
+    const imported = await browserApi(
+      secondaryPage,
+      apiBaseUrl,
+      secondarySession.token,
+      `/api/v1/users/me/spaces/${sharedSpaceId}/statement-imports`,
+      {
+        method: "POST",
+        body: {
+          fileName: "shared-browser-journey.pdf",
+          fileHash: "c".repeat(64),
+          statementDate: purchaseDate,
+          bank: "Browser Journey Bank",
+          cardType: "visa",
+          transactions: [
+            {
+              categoryId: secondaryCategoryId,
+              purchaseDate,
+              description: "Secondary imported transaction",
+              amount: "45.67",
+            },
+          ],
+        },
+      },
+    );
+    expect(imported.status).toBe(201);
+    const imports = await browserApi(
+      page,
+      apiBaseUrl,
+      primaryToken,
+      `/api/v1/users/me/spaces/${sharedSpaceId}/statement-imports`,
+    );
+    expect(imports.status).toBe(200);
+    expect(JSON.stringify(imports.body)).toContain(
+      "shared-browser-journey.pdf",
+    );
+    const sharedTransactions = await browserApi(
+      page,
+      apiBaseUrl,
+      primaryToken,
+      `/api/v1/users/me/spaces/${sharedSpaceId}/transactions`,
+    );
+    expect(sharedTransactions.status).toBe(200);
+    expect(JSON.stringify(sharedTransactions.body)).toContain(
+      "Secondary shared transaction",
+    );
+    expect(JSON.stringify(sharedTransactions.body)).toContain(
+      "Secondary imported transaction",
+    );
+    const importedTransactionId = readStringIdByDescription(
+      sharedTransactions.body,
+      "Secondary imported transaction",
+    );
+    for (const [journeyPage, token] of [
+      [page, primaryToken],
+      [secondaryPage, secondarySession.token],
+    ] as const) {
+      const importedActivity = await browserApi(
+        journeyPage,
+        apiBaseUrl,
+        token,
+        `/api/v1/users/me/spaces/${sharedSpaceId}/transactions/${importedTransactionId}/activity`,
+      );
+      expect(importedActivity.status).toBe(200);
+      expect(JSON.stringify(importedActivity.body)).toContain(
+        '"type":"created"',
+      );
+    }
+    expect(secondaryTransaction.status).toBe(201);
+
+    for (const [journeyPage, token] of [
+      [page, primaryToken],
+      [secondaryPage, secondarySession.token],
+    ] as const) {
+      const report = await browserApi(
+        journeyPage,
+        apiBaseUrl,
+        token,
+        `/api/v1/users/me/spaces/${sharedSpaceId}/category-summaries?period=monthly&year=2026&month=09`,
+      );
+      expect(report.status).toBe(200);
+      expect(JSON.stringify(report.body)).toContain('"period":"monthly"');
+    }
+
+    const thirdSession = await issueSession(
+      request,
+      apiBaseUrl,
+      primaryToken,
+      "new",
+    );
+    const thirdProvisioning = await browserApi(
+      page,
+      apiBaseUrl,
+      thirdSession.token,
+      "/api/v1/users/me",
+      { method: "PUT" },
+    );
+    expect([200, 201]).toContain(thirdProvisioning.status);
+    const thirdSpaces = await browserApi(
+      page,
+      apiBaseUrl,
+      thirdSession.token,
+      "/api/v1/users/me/spaces",
+    );
+    expect(thirdSpaces.status).toBe(200);
+    expect(readSpaceList(thirdSpaces.body)).toHaveLength(1);
+    const thirdSharedRead = await browserApi(
+      page,
+      apiBaseUrl,
+      thirdSession.token,
+      `/api/v1/users/me/spaces/${sharedSpaceId}/categories`,
+    );
+    expect(thirdSharedRead.status).toBe(404);
+
+    const secondaryPersonalRead = await browserApi(
+      secondaryPage,
+      apiBaseUrl,
+      secondarySession.token,
+      `/api/v1/users/me/spaces/${primaryPersonalSpace!.id}/categories`,
+    );
+    const primaryPersonalRead = await browserApi(
+      page,
+      apiBaseUrl,
+      primaryToken,
+      `/api/v1/users/me/spaces/${secondaryPersonalSpace!.id}/categories`,
+    );
+    expect(secondaryPersonalRead.status).toBe(404);
+    expect(primaryPersonalRead.status).toBe(404);
+
+    await page.goto(`/categories?spaceId=${sharedSpaceId}`);
+    await expect(
+      page.getByRole("heading", { name: "Budget overview" }),
+    ).toBeVisible();
+    await secondaryPage.goto(
+      `/transactions?spaceId=${sharedSpaceId}&localTestScenario=secondary`,
+    );
+    await expect(
+      secondaryPage.getByRole("heading", { name: "Your spending" }),
+    ).toBeVisible();
+
+    expect(invitationId).toMatch(/^\d+$/u);
+  } finally {
+    await secondaryContext.close();
+  }
+});
+
 async function issueSession(
   request: APIRequestContext,
   apiBaseUrl: string,
   token: string,
-  scenario: "secondary",
+  scenario: "secondary" | "new",
 ): Promise<{ token: string }> {
   const response = await request.post(
     `${apiBaseUrl}/api/v1/users/me/local-test/sessions`,
@@ -471,6 +869,116 @@ async function issueSession(
   }
 
   return { token: body.token };
+}
+
+interface BrowserApiResponse {
+  readonly status: number;
+  readonly body: unknown;
+}
+
+interface BrowserApiOptions {
+  readonly method?: string;
+  readonly body?: unknown;
+  readonly headers?: Record<string, string>;
+}
+
+interface BrowserSpace {
+  readonly id: string;
+  readonly kind: "personal" | "shared";
+  readonly status: "active" | "archived";
+  readonly members: readonly unknown[];
+}
+
+async function browserApi(
+  page: Page,
+  apiBaseUrl: string,
+  token: string,
+  path: string,
+  options: BrowserApiOptions = {},
+): Promise<BrowserApiResponse> {
+  return page.evaluate(
+    async ({ apiBaseUrl, token, path, method, body, headers }) => {
+      const requestHeaders = new Headers({
+        Accept: "application/json",
+        Authorization: `Bearer ${token}`,
+        ...headers,
+      });
+      if (body !== undefined) {
+        requestHeaders.set("Content-Type", "application/json");
+      }
+
+      const response = await fetch(
+        `${apiBaseUrl.replace(/\/+$/u, "")}${path}`,
+        {
+          method,
+          headers: requestHeaders,
+          body: body === undefined ? undefined : JSON.stringify(body),
+        },
+      );
+      const text = await response.text();
+      let parsedBody: unknown;
+      try {
+        parsedBody = text ? (JSON.parse(text) as unknown) : undefined;
+      } catch {
+        parsedBody = text;
+      }
+
+      return { status: response.status, body: parsedBody };
+    },
+    {
+      apiBaseUrl,
+      token,
+      path,
+      method: options.method ?? "GET",
+      body: options.body,
+      headers: options.headers,
+    },
+  );
+}
+
+function readSpaceList(value: unknown): BrowserSpace[] {
+  if (!Array.isArray(value)) {
+    throw new Error("Expected a Space list");
+  }
+
+  return value as BrowserSpace[];
+}
+
+function readStringId(value: unknown): string {
+  return readStringField(value, "id");
+}
+
+function readStringIdByDescription(value: unknown, description: string): string {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("Expected a transaction page");
+  }
+
+  const items = (value as { items?: unknown }).items;
+  if (!Array.isArray(items)) throw new Error("Expected a transaction page");
+
+  const item = items.find(
+    (candidate) =>
+      candidate !== null &&
+      typeof candidate === "object" &&
+      !Array.isArray(candidate) &&
+      (candidate as { description?: unknown }).description === description,
+  );
+  if (!item) throw new Error(`Missing transaction ${description}`);
+
+  return readStringId(item);
+}
+
+function readStringField(value: unknown, field: string): string {
+  if (
+    value === null ||
+    typeof value !== "object" ||
+    Array.isArray(value) ||
+    typeof (value as Record<string, unknown>)[field] !== "string"
+  ) {
+    throw new Error(`Expected a response with a string ${field}`);
+  }
+
+  return (value as Record<string, string>)[field];
 }
 
 async function createTransaction(

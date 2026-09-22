@@ -4,9 +4,15 @@ import { normalizeMatchingText } from '../src/normalization/matching-text';
 import { BudgetEntity } from '../src/database/entities/budget.entity';
 import { CategoryRuleEntity } from '../src/database/entities/category-rule.entity';
 import { CategoryEntity } from '../src/database/entities/category.entity';
+import { InvitationDeliveryAttemptEntity } from '../src/database/entities/invitation-delivery-attempt.entity';
+import { InvitationEntity } from '../src/database/entities/invitation.entity';
 import { StatementImportEntity } from '../src/database/entities/statement-import.entity';
 import { TransactionEntity } from '../src/database/entities/transaction.entity';
+import { TransactionActivityEntity } from '../src/database/entities/transaction-activity.entity';
 import { UserEntity } from '../src/database/entities/user.entity';
+import { SpaceEntity } from '../src/database/entities/space.entity';
+import { SpaceMembershipEntity } from '../src/database/entities/space-membership.entity';
+import { TypeOrmSpaceStore } from '../src/spaces/infrastructure/typeorm-space-store';
 import {
   LOCAL_TEST_PROFILE,
   LOCAL_TEST_SECONDARY_PROFILE,
@@ -295,6 +301,21 @@ export async function resetLocalTestFixtures(
     await manager
       .createQueryBuilder()
       .delete()
+      .from(InvitationDeliveryAttemptEntity)
+      .execute();
+    await manager
+      .createQueryBuilder()
+      .delete()
+      .from(InvitationEntity)
+      .execute();
+    await manager
+      .createQueryBuilder()
+      .delete()
+      .from(TransactionActivityEntity)
+      .execute();
+    await manager
+      .createQueryBuilder()
+      .delete()
       .from(TransactionEntity)
       .execute();
     await manager
@@ -309,6 +330,12 @@ export async function resetLocalTestFixtures(
       .from(StatementImportEntity)
       .execute();
     await manager.createQueryBuilder().delete().from(CategoryEntity).execute();
+    await manager
+      .createQueryBuilder()
+      .delete()
+      .from(SpaceMembershipEntity)
+      .execute();
+    await manager.createQueryBuilder().delete().from(SpaceEntity).execute();
     await manager.createQueryBuilder().delete().from(UserEntity).execute();
 
     return {
@@ -368,10 +395,13 @@ async function insertLocalTestFixture(
   fixture: LocalTestFixtureScenario,
 ): Promise<void> {
   const user = await manager.save(manager.create(UserEntity, fixture.user));
+  const spaceId = await new TypeOrmSpaceStore(manager).ensurePersonalSpace(
+    user.id,
+  );
   const categories = await manager.save(
     fixture.categories.map((category) =>
       manager.create(CategoryEntity, {
-        userId: user.id,
+        spaceId,
         name: category.name,
         description: category.description,
         isActive: true,
@@ -395,7 +425,7 @@ async function insertLocalTestFixture(
   await manager.save(
     fixture.categoryRules.map((rule) =>
       manager.create(CategoryRuleEntity, {
-        userId: user.id,
+        spaceId,
         categoryId: requireCategory(categoriesByName, rule.categoryName).id,
         pattern: rule.pattern,
         normalizedPattern: normalizeMatchingText(rule.pattern),
@@ -407,7 +437,8 @@ async function insertLocalTestFixture(
   await manager.save(
     fixture.transactions.map((transaction) =>
       manager.create(TransactionEntity, {
-        userId: user.id,
+        spaceId,
+        addedByUserId: user.id,
         categoryId:
           transaction.categoryName === null
             ? null

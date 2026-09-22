@@ -92,7 +92,6 @@ export class TypeOrmInvitationAcceptanceStore implements InvitationAcceptanceSto
     if (lockedUsers.length !== userIds.length) {
       throw new InvitationNotFoundError();
     }
-
     const invitation = await invitationRepository
       .createQueryBuilder('invitation')
       .where('invitation.id = :invitationId', {
@@ -101,6 +100,9 @@ export class TypeOrmInvitationAcceptanceStore implements InvitationAcceptanceSto
       .setLock('pessimistic_write')
       .getOne();
     if (!invitation) throw new InvitationNotFoundError();
+    if (!input.verifiedRecipientEmails.includes(invitation.recipientEmail)) {
+      throw new InvitationNotFoundError();
+    }
     if (invitation.status === 'accepted') {
       if (invitation.recipientUserId !== input.recipientUserId) {
         throw new InvitationNotFoundError();
@@ -117,6 +119,11 @@ export class TypeOrmInvitationAcceptanceStore implements InvitationAcceptanceSto
       invitation.recipientUserId !== input.recipientUserId
     ) {
       throw new InvitationNotFoundError();
+    }
+    if (lockedUsers.some((user) => user.activeSharedSpaceId !== null)) {
+      throw new InvitationIneligibleError(
+        'Both Users must be free of an active Shared Space before accepting this invitation',
+      );
     }
 
     const activeSharedMemberships = await this.findActiveSharedMemberships(
@@ -202,17 +209,29 @@ export class TypeOrmInvitationAcceptanceStore implements InvitationAcceptanceSto
     const space = await entityManager
       .getRepository(SpaceEntity)
       .findOne({ where: { id: spaceId } });
-    if (!space) throw new InvitationNotFoundError();
+    if (!space || space.kind !== 'shared' || space.status !== 'active') {
+      throw new InvitationNotFoundError();
+    }
 
     const memberships = await entityManager
       .getRepository(SpaceMembershipEntity)
       .find({ where: { spaceId }, order: { userId: 'ASC' } });
+    if (memberships.length !== 2) throw new InvitationNotFoundError();
+
     const members = await entityManager.getRepository(UserEntity).findBy({
       id: In(memberships.map((membership) => membership.userId)),
     });
-    if (!members.some((member) => member.id === userId)) {
+    if (
+      members.length !== memberships.length ||
+      !members.some((member) => member.id === userId)
+    ) {
       throw new InvitationNotFoundError();
     }
+
+    const membership = memberships.find(
+      (candidate) => candidate.userId === userId,
+    );
+    if (!membership) throw new InvitationNotFoundError();
 
     return toAccessibleSpaceRecord(
       space,
@@ -220,8 +239,7 @@ export class TypeOrmInvitationAcceptanceStore implements InvitationAcceptanceSto
       members
         .sort((first, second) => compareBigintStrings(first.id, second.id))
         .map(toSpaceMember),
-      memberships.find((membership) => membership.userId === userId)
-        ?.accessLevel ?? 'read',
+      membership.accessLevel,
     );
   }
 

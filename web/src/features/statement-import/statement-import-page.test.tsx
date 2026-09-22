@@ -709,6 +709,46 @@ describe("StatementImportPage Space destination", () => {
     ).toBeTruthy();
     expect(screen.queryByText(/Imported by/u)).toBeNull();
   });
+
+  it("rejects a Personal history item whose importer is not the Space member", async () => {
+    const fetchMock = createFetchMock({
+      accessibleSpaces: [
+        {
+          id: "1",
+          kind: "personal",
+          status: "active",
+          accessLevel: "write",
+          members: [{ id: "10", name: "Ada Lovelace" }],
+          createdAt: "2026-01-01T00:00:00.000Z",
+          updatedAt: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+      recentImports: [
+        {
+          id: "100",
+          fileName: "unknown-personal.pdf",
+          statementDate: "2026-08-30",
+          bank: "BDO",
+          cardType: "AMEX",
+          importedAt: "2026-08-31T00:00:00.000Z",
+          importedByUserId: "99",
+          transactionCount: "1",
+        },
+      ],
+    });
+
+    renderStatementImportPage(fetchMock, {
+      spaceId: "1",
+      onSpaceChange: vi.fn(),
+    });
+
+    expect(
+      await screen.findByText(
+        "The API returned an unknown Statement Import importer.",
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByText(/Imported by/u)).toBeNull();
+  });
 });
 
 describe("StatementImportPage GCash recipient flow", () => {

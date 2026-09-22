@@ -189,10 +189,7 @@ async function deleteIdentityInTransaction(
   for (const membership of memberships) {
     const space = spacesById.get(membership.spaceId);
     if (!space) continue;
-    if (
-      space.kind === 'personal' ||
-      (space.status === 'archived' && !activeSharedSpaceIds.includes(space.id))
-    ) {
+    if (shouldRemoveIdentityMembership(space)) {
       await membershipRepository.delete({
         spaceId: membership.spaceId,
         userId,
@@ -212,6 +209,12 @@ async function deleteIdentityInTransaction(
     .execute();
 
   return { deletedUserId: userId, archivedSpaces };
+}
+
+export function shouldRemoveIdentityMembership(
+  space: Pick<SpaceEntity, 'kind'>,
+): boolean {
+  return space.kind === 'personal';
 }
 
 async function loadIdentityMembershipState(

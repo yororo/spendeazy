@@ -185,7 +185,7 @@ function StatementImportPage({
   const categoryOptions = categoryOptionsForWorkflow;
   const categoryRules = categoryRulesQuery.data;
   const recentImports = recentImportsQuery.data;
-  if (getUnknownSharedImporter(recentImports, destinationSpace)) {
+  if (getUnknownImporter(recentImports, destinationSpace)) {
     return withNavigationGuard(
       <FeatureDataError
         message="The API returned an unknown Statement Import importer."
@@ -213,11 +213,11 @@ function StatementImportPage({
   }
 
   if (workflowState.commit.result) {
-    const importerName = getSharedImporterName(
+    const importerName = getImporterName(
       workflowState.commit.result.importedByUserId,
       destinationSpace,
     );
-    if (destinationSpace?.kind === "shared" && importerName === undefined) {
+    if (destinationSpace && importerName === undefined) {
       return withNavigationGuard(
         <FeatureDataError
           message="The API returned an unknown Statement Import importer."
@@ -232,7 +232,9 @@ function StatementImportPage({
       <ImportSuccess
         committedImport={workflowState.commit.result}
         destinationLabel={destinationLabel}
-        importerName={importerName}
+        importerName={
+          destinationSpace?.kind === "shared" ? importerName : undefined
+        }
         spaceId={destinationSpaceId}
         onImportAnother={resetImport}
         onViewTransactions={() => onViewTransactions(destinationSpaceId)}
@@ -395,7 +397,7 @@ function StatementImportPage({
                   {destinationSpace?.kind === "shared" && (
                     <p className="mt-1 font-mono text-xs text-muted-foreground">
                       Imported by{" "}
-                      {getSharedImporterName(
+                      {getImporterName(
                         item.importedByUserId,
                         destinationSpace,
                       )}
@@ -413,22 +415,22 @@ function StatementImportPage({
 
 export { StatementImportPage };
 
-function getUnknownSharedImporter(
+function getUnknownImporter(
   imports: readonly { readonly importedByUserId: string }[],
   space: AccessibleSpace | undefined,
 ): string | undefined {
-  if (space?.kind !== "shared") return undefined;
+  if (!space) return undefined;
 
   return imports.find(
-    (item) => getSharedImporterName(item.importedByUserId, space) === undefined,
+    (item) => getImporterName(item.importedByUserId, space) === undefined,
   )?.importedByUserId;
 }
 
-function getSharedImporterName(
+function getImporterName(
   importedByUserId: string,
   space: AccessibleSpace | undefined,
 ): string | undefined {
-  if (space?.kind !== "shared") return undefined;
+  if (!space) return undefined;
 
   return space.members.find((member) => member.id === importedByUserId)?.name;
 }

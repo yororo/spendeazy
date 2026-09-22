@@ -102,3 +102,59 @@ test("shows each Shared member as the importer in recent history", async ({
   await expect(page.getByText("Imported by Ada Lovelace")).toBeVisible();
   await expect(page.getByText("Imported by Grace Hopper")).toBeVisible();
 });
+
+test("keeps Personal recent history concise", async ({ page }) => {
+  await page.route("**/api/v1/users/me/spaces", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify([personalSpace]),
+    });
+  });
+  await page.route(
+    "**/api/v1/users/me/categories",
+    async (route) => {
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify([sharedCategory]),
+      });
+    },
+  );
+  await page.route(
+    "**/api/v1/users/me/category-rules",
+    async (route) => {
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify([]),
+      });
+    },
+  );
+  await page.route(
+    "**/api/v1/users/me/statement-imports**",
+    async (route) => {
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          items: [
+            {
+              id: "100",
+              fileName: "personal.pdf",
+              statementDate: "2026-08-30",
+              bank: "BDO",
+              cardType: "AMEX",
+              importedAt: "2026-08-31T00:00:00.000Z",
+              importedByUserId: "10",
+              transactionCount: "1",
+            },
+          ],
+          nextCursor: null,
+        }),
+      });
+    },
+  );
+
+  await page.goto("/imports");
+  await expect(
+    page.getByRole("heading", { name: "Upload your statement" }),
+  ).toBeVisible();
+  await expect(page.getByText("Imported by Ada Lovelace")).toHaveCount(0);
+});

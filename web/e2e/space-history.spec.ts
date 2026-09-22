@@ -29,7 +29,7 @@ const spaces = [
     accessLevel: "read",
     members: [
       { id: "10", name: "Ada Lovelace" },
-      { id: "12", name: "Katherine Johnson" },
+      { id: "12", name: "Deleted user" },
     ],
     createdAt: "2026-09-01T00:00:00.000Z",
     updatedAt: "2026-09-01T00:00:00.000Z",
@@ -83,7 +83,7 @@ test("shows archived Shared history separately and read-only", async ({
               id: "activity-701",
               transactionId: "701",
               type: "deleted",
-              actorUserId: "11",
+              actorUserId: "12",
               occurredAt: "2026-09-05T00:00:00.000Z",
             },
           ]),
@@ -120,7 +120,7 @@ test("shows archived Shared history separately and read-only", async ({
     page.getByRole("heading", { name: "Space history" }),
   ).toBeVisible();
   await expect(
-    page.getByText("Former members: Ada Lovelace and Katherine Johnson"),
+    page.getByText("Former members: Ada Lovelace and Deleted user"),
   ).toBeVisible();
   await expect(page.getByText("Read-only history").first()).toBeVisible();
 
@@ -134,13 +134,13 @@ test("shows archived Shared history separately and read-only", async ({
   ).toBeVisible();
   await expect(
     page.getByRole("menuitemradio", {
-      name: /Katherine Johnson/u,
+      name: /Deleted user/u,
     }),
   ).toHaveCount(0);
 
   await page
     .getByRole("link", {
-      name: /View history for Shared.*Katherine Johnson/u,
+      name: /View history for Shared.*Deleted user/u,
     })
     .click();
   await expect(page).toHaveURL(/\/history\?spaceId=77$/u);
@@ -151,6 +151,11 @@ test("shows archived Shared history separately and read-only", async ({
     page
       .getByRole("table", { name: "All transactions" })
       .getByText("Archived dinner", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page
+      .getByRole("table", { name: "All transactions" })
+      .getByText("Added by Deleted user"),
   ).toBeVisible();
   await expect(page.getByText("Read-only history").first()).toBeVisible();
   await expect(
@@ -176,5 +181,5 @@ test("shows archived Shared history separately and read-only", async ({
   await page
     .getByRole("button", { name: "View activity for Deleted dinner" })
     .click();
-  await expect(page.getByText("Deleted by User 11")).toBeVisible();
+  await expect(page.getByText("Deleted by Deleted user")).toBeVisible();
 });

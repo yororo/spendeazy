@@ -1,4 +1,5 @@
 import { ExceptionLogger } from '../../logging/exception-logger';
+import { CategoryNameConflictError } from './category-errors';
 import type {
   CategoryRecord,
   CategoryStore,
@@ -48,6 +49,23 @@ describe('DefaultCategoriesService', () => {
     expect(JSON.stringify(logger.errors)).not.toContain('email');
     expect(JSON.stringify(logger.errors)).not.toContain('clerk');
     expect(JSON.stringify(logger.errors)).not.toContain('Food & Drink');
+  });
+
+  it('treats a default-name conflict as an idempotent success', async () => {
+    const store = new RecordingCategoryStore({
+      failuresByName: new Map([['Car', new CategoryNameConflictError()]]),
+    });
+    const logger = new RecordingLogger();
+    const service = new DefaultCategoriesService(store, logger);
+
+    await expect(service.createForSpace('99')).resolves.toBeUndefined();
+
+    expect(store.createdCategories.map(({ name }) => name)).toEqual(
+      DEFAULT_CATEGORY_CATALOG.filter(({ name }) => name !== 'Car').map(
+        ({ name }) => name,
+      ),
+    );
+    expect(logger.errors).toEqual([]);
   });
 
   it('provisions Space defaults with the actor attribution and no copied custom data', async () => {

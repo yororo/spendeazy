@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { ExceptionReporter } from '../../logging/exception-logger';
 import { CATEGORY_STORE, type CategoryStore } from './category-store';
+import { CategoryNameConflictError } from './category-errors';
 import { DEFAULT_CATEGORY_CATALOG } from './default-category-catalog';
 
 export const DEFAULT_CATEGORIES_LOGGER = Symbol('DEFAULT_CATEGORIES_LOGGER');
@@ -36,6 +37,7 @@ export class DefaultCategoriesService implements DefaultCategoryProvisioner {
           ...category,
         });
       } catch (error: unknown) {
+        if (error instanceof CategoryNameConflictError) continue;
         this.logger.report('default_category_creation_failed', error);
       }
     }

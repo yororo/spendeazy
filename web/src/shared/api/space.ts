@@ -1,5 +1,5 @@
 import { ApiError, type ApiClient } from "./api-client";
-import { isRecord } from "./api-response";
+import { isRecord, isUtcDateTime } from "./api-response";
 
 interface SpaceMember {
   readonly id: string;
@@ -37,8 +37,8 @@ function isAccessibleSpace(value: unknown): value is AccessibleSpace {
     Array.isArray(value.members) &&
     value.members.length > 0 &&
     value.members.every(isSpaceMember) &&
-    typeof value.createdAt === "string" &&
-    typeof value.updatedAt === "string"
+    isUtcDateTime(value.createdAt) &&
+    isUtcDateTime(value.updatedAt)
   );
 }
 

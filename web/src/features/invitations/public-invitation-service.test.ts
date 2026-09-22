@@ -55,4 +55,22 @@ describe('public invitation service', () => {
       isPublicInvitation({ ...preview, status: 'declined', canDecline: false }),
     ).toBe(true);
   });
+
+  it.each([
+    ['a non-UTC expiry', '2026-09-28T00:00:00.000+00:00'],
+    ['an impossible expiry', '2026-02-30T00:00:00.000Z'],
+    ['a non-string expiry', 0],
+  ] as const)('rejects %s', async (_, expiresAt) => {
+    vi.stubEnv('VITE_API_BASE_URL', 'https://api.example.test');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ ...preview, expiresAt }), { status: 200 }),
+      ),
+    );
+
+    await expect(getPublicInvitation('token-value')).rejects.toThrow(
+      'invalid',
+    );
+  });
 });

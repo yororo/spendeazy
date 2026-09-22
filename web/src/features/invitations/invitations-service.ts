@@ -1,6 +1,7 @@
 import {
   isRecord,
   isAccessibleSpace,
+  isUtcDateTime,
   normalizeEmailDeliveryFailure,
   requireApiResponse,
   type ApiClient,
@@ -62,12 +63,12 @@ function isInvitation(value: unknown): value is Invitation {
     typeof value.id === 'string' &&
     typeof value.recipientEmail === 'string' &&
     isInvitationStatus(value.status) &&
-    typeof value.expiresAt === 'string' &&
-    (value.lastSentAt === null || typeof value.lastSentAt === 'string') &&
+    isUtcDateTime(value.expiresAt) &&
+    (value.lastSentAt === null || isUtcDateTime(value.lastSentAt)) &&
     isInvitationDeliveryStatus(value.deliveryStatus) &&
     (value.deliveryError === null || typeof value.deliveryError === 'string') &&
-    typeof value.createdAt === 'string' &&
-    typeof value.updatedAt === 'string' &&
+    isUtcDateTime(value.createdAt) &&
+    isUtcDateTime(value.updatedAt) &&
     (value.senderName === undefined || typeof value.senderName === 'string')
   );
 }

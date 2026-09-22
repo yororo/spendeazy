@@ -51,4 +51,26 @@ describe("getAccessibleSpaces", () => {
       getAccessibleSpaces({ get } as Pick<ApiClient, "get">),
     ).rejects.toMatchObject({ kind: "malformed-response" });
   });
+
+  it.each([
+    ["a non-UTC timestamp", "2026-09-01T00:00:00.000+00:00"],
+    ["an impossible timestamp", "2026-02-30T00:00:00.000Z"],
+    ["a non-string timestamp", 0],
+  ] as const)("rejects %s", (_, createdAt) => {
+    const get = vi.fn(async () => [
+      {
+        id: "10",
+        kind: "personal",
+        status: "active",
+        accessLevel: "write",
+        members: [{ id: "42", name: "Ada Lovelace" }],
+        createdAt,
+        updatedAt: "2026-09-01T00:00:00.000Z",
+      },
+    ]);
+
+    return expect(
+      getAccessibleSpaces({ get } as Pick<ApiClient, "get">),
+    ).rejects.toMatchObject({ kind: "malformed-response" });
+  });
 });

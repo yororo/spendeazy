@@ -1,5 +1,5 @@
 import { ApiError, type ApiClient } from "./api-client";
-import { isRecord } from "./api-response";
+import { isRecord, isUtcDateTime } from "./api-response";
 
 interface UserProfile {
   readonly id: string;
@@ -21,8 +21,6 @@ const USER_PROFILE_FIELDS = [
 ] as const;
 const USER_ID_PATTERN = /^[1-9]\d*$/u;
 const EMAIL_DOMAIN_LABEL_PATTERN = /^[^\s@.-](?:[^\s@]*[^\s@.-])?$/u;
-const UTC_DATE_TIME_PATTERN =
-  /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?Z$/u;
 
 function isExactUserProfileRecord(
   value: Record<string, unknown>,
@@ -36,26 +34,6 @@ function isExactUserProfileRecord(
         typeof field === "string" &&
         USER_PROFILE_FIELDS.includes(field as (typeof USER_PROFILE_FIELDS)[number]),
     )
-  );
-}
-
-function isUtcDateTime(value: unknown): value is string {
-  if (typeof value !== "string") return false;
-
-  const match = UTC_DATE_TIME_PATTERN.exec(value);
-  if (!match) return false;
-
-  const timestamp = Date.parse(value);
-  if (!Number.isFinite(timestamp)) return false;
-
-  const date = new Date(timestamp);
-  return (
-    date.getUTCFullYear() === Number(match[1]) &&
-    date.getUTCMonth() + 1 === Number(match[2]) &&
-    date.getUTCDate() === Number(match[3]) &&
-    date.getUTCHours() === Number(match[4]) &&
-    date.getUTCMinutes() === Number(match[5]) &&
-    date.getUTCSeconds() === Number(match[6])
   );
 }
 

@@ -1,4 +1,8 @@
-import { createPublicApiClient, readApiConfig } from '@/shared/api';
+import {
+  createPublicApiClient,
+  isUtcDateTime,
+  readApiConfig,
+} from '@/shared/api';
 
 import {
   isInvitationStatus,
@@ -47,7 +51,7 @@ function isPublicInvitation(value: unknown): value is PublicInvitation {
     'status' in value &&
     isInvitationStatus(value.status) &&
     'expiresAt' in value &&
-    typeof value.expiresAt === 'string' &&
+    isUtcDateTime(value.expiresAt) &&
     'canDecline' in value &&
     typeof value.canDecline === 'boolean' &&
     (value.status === 'pending' ? value.canDecline : !value.canDecline)

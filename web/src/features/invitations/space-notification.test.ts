@@ -39,4 +39,16 @@ describe('space notification service', () => {
       emailDeliveryError: 'Email delivery failed. Please retry.',
     });
   });
+
+  it.each([
+    ['a non-UTC creation timestamp', { createdAt: '2026-09-22T00:00:00.000+00:00' }],
+    ['an impossible read timestamp', { readAt: '2026-02-30T00:00:00.000Z' }],
+    ['a non-string read timestamp', { readAt: 0 }],
+  ] as const)('rejects %s', async (_, override) => {
+    const get = vi.fn().mockResolvedValue([{ ...notification, ...override }]);
+
+    await expect(getSpaceNotifications({ get })).rejects.toMatchObject({
+      kind: 'malformed-response',
+    });
+  });
 });

@@ -124,4 +124,33 @@ describe('invitations service', () => {
       getInvitations({ get } as unknown as InvitationsApiClient),
     ).rejects.toThrow('invalid invitation inbox');
   });
+
+  it.each([
+    ['a non-UTC expiry', { expiresAt: '2026-09-28T00:00:00.000+00:00' }],
+    ['an impossible creation timestamp', { createdAt: '2026-02-30T00:00:00.000Z' }],
+    ['a non-string delivery timestamp', { lastSentAt: 0 }],
+  ] as const)('rejects %s', async (_, override) => {
+    const get = vi.fn().mockResolvedValue({
+      outgoing: { ...invitation, ...override },
+      incoming: [],
+    });
+
+    await expect(
+      getInvitations({ get } as unknown as InvitationsApiClient),
+    ).rejects.toThrow('invalid invitation inbox');
+  });
+
+  it('preserves a null invitation delivery timestamp', async () => {
+    const get = vi.fn().mockResolvedValue({
+      outgoing: { ...invitation, lastSentAt: null },
+      incoming: [],
+    });
+
+    await expect(
+      getInvitations({ get } as unknown as InvitationsApiClient),
+    ).resolves.toEqual({
+      outgoing: { ...invitation, lastSentAt: null },
+      incoming: [],
+    });
+  });
 });

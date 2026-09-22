@@ -24,6 +24,7 @@ export {
 export {
   buildApiPath,
   isRecord,
+  isUtcDateTime,
   parseApiCount,
   parseApiMoney,
   requireApiResponse,

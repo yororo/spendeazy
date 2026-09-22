@@ -1,6 +1,7 @@
 import {
   ApiError,
   isRecord,
+  isUtcDateTime,
   normalizeEmailDeliveryFailure,
   type ApiClient,
 } from '@/shared/api';
@@ -32,13 +33,13 @@ function isSpaceNotification(value: unknown): value is SpaceNotification {
     value.type === 'shared_space_archived' &&
     typeof value.title === 'string' &&
     typeof value.message === 'string' &&
-    (value.readAt === null || typeof value.readAt === 'string') &&
+    (value.readAt === null || isUtcDateTime(value.readAt)) &&
     (value.emailDeliveryStatus === 'pending' ||
       value.emailDeliveryStatus === 'sent' ||
       value.emailDeliveryStatus === 'failed') &&
     (value.emailDeliveryError === null ||
       typeof value.emailDeliveryError === 'string') &&
-    typeof value.createdAt === 'string'
+    isUtcDateTime(value.createdAt)
   );
 }
 

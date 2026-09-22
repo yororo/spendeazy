@@ -23,7 +23,7 @@ interface StatementImportResponse {
   readonly bank: string;
   readonly cardType: string | null;
   readonly importedAt: string;
-  readonly importedByUserId?: string;
+  readonly importedByUserId: string;
 }
 
 interface StatementImportHistoryItemResponse extends StatementImportResponse {
@@ -35,7 +35,8 @@ interface StatementImportHistoryPageResponse {
   readonly nextCursor: string | null;
 }
 
-const CATEGORY_RULE_ID_PATTERN = /^[1-9]\d*$/u;
+const POSITIVE_INTEGER_ID_PATTERN = /^[1-9]\d*$/u;
+const CATEGORY_RULE_ID_PATTERN = POSITIVE_INTEGER_ID_PATTERN;
 const CATEGORY_RULE_PATTERN_LIMIT = 500;
 
 function isCategoryRuleResponse(value: unknown): value is CategoryRuleResponse {
@@ -103,9 +104,8 @@ function isStatementImportResponse(
     typeof value.bank === "string" &&
     (value.cardType === null || typeof value.cardType === "string") &&
     typeof value.importedAt === "string" &&
-    (value.importedByUserId === undefined ||
-      (typeof value.importedByUserId === "string" &&
-        CATEGORY_RULE_ID_PATTERN.test(value.importedByUserId)))
+    typeof value.importedByUserId === "string" &&
+    POSITIVE_INTEGER_ID_PATTERN.test(value.importedByUserId)
   );
 }
 

@@ -15,6 +15,7 @@ import type { CommittedStatementImport } from "./statement-import-service";
 interface ImportSuccessProps {
   committedImport: CommittedStatementImport;
   destinationLabel?: string;
+  importerName?: string;
   spaceId?: string;
   onImportAnother: () => void;
   onViewTransactions: () => void;
@@ -36,6 +37,7 @@ function formatAccount(committedImport: CommittedStatementImport) {
 function ImportSuccess({
   committedImport,
   destinationLabel,
+  importerName,
   spaceId,
   onImportAnother,
   onViewTransactions,
@@ -87,6 +89,16 @@ function ImportSuccess({
                   </dt>
                   <dd className="mt-1 font-mono text-sm font-semibold uppercase">
                     {destinationLabel}
+                  </dd>
+                </div>
+              )}
+              {importerName && (
+                <div>
+                  <dt className="text-label text-muted-foreground">
+                    Imported by
+                  </dt>
+                  <dd className="mt-1 font-mono text-sm font-semibold uppercase">
+                    {importerName}
                   </dd>
                 </div>
               )}

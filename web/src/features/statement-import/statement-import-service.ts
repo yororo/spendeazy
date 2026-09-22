@@ -74,7 +74,7 @@ interface RecentImport {
   readonly statementDate: string;
   readonly provider: string;
   readonly accountType: string | null;
-  readonly importedByUserId?: string;
+  readonly importedByUserId: string;
 }
 
 interface RememberCategoryRuleInput {
@@ -108,7 +108,7 @@ interface CommittedStatementImport {
   readonly accountType: string | null;
   readonly importedAt: string;
   readonly transactionCount: number;
-  readonly importedByUserId?: string;
+  readonly importedByUserId: string;
 }
 
 type StatementImportApiClient = Pick<ApiClient, "get" | "post">;
@@ -243,9 +243,7 @@ function projectRecentImport(
       .toLocaleUpperCase(),
     provider: item.bank,
     accountType: item.cardType,
-    ...(item.importedByUserId === undefined
-      ? {}
-      : { importedByUserId: item.importedByUserId }),
+    importedByUserId: item.importedByUserId,
   };
 }
 
@@ -606,9 +604,7 @@ async function commitStatementImport(
     accountType: response.cardType,
     importedAt: response.importedAt,
     transactionCount: payload.transactions.length,
-    ...(response.importedByUserId === undefined
-      ? {}
-      : { importedByUserId: response.importedByUserId }),
+    importedByUserId: response.importedByUserId,
   };
 }
 

@@ -1,9 +1,4 @@
-import {
-  ApiProperty,
-  ApiPropertyOptional,
-  ApiSchema,
-  getSchemaPath,
-} from '@nestjs/swagger';
+import { ApiProperty, ApiSchema, getSchemaPath } from '@nestjs/swagger';
 import {
   DOMAIN_DATE_PATTERN,
   POSITIVE_INTEGER_ID_PATTERN,
@@ -74,13 +69,13 @@ export class StatementImportResponseDto {
   })
   importedAt!: string;
 
-  @ApiPropertyOptional({
+  @ApiProperty({
     description:
       'Positive bigint User identifier for the contributor who imported the Statement, encoded as a string.',
     pattern: POSITIVE_INTEGER_ID_PATTERN.source,
     example: '7',
   })
-  importedByUserId?: string;
+  importedByUserId!: string;
 }
 
 @ApiSchema({
@@ -142,13 +137,13 @@ export class StatementImportHistoryResponseDto {
   })
   importedAt!: string;
 
-  @ApiPropertyOptional({
+  @ApiProperty({
     description:
       'Positive bigint User identifier for the contributor who imported the Statement, encoded as a string.',
     pattern: POSITIVE_INTEGER_ID_PATTERN.source,
     example: '7',
   })
-  importedByUserId?: string;
+  importedByUserId!: string;
 
   @ApiProperty({
     description:

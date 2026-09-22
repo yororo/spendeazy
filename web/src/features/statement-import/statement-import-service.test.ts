@@ -593,6 +593,7 @@ describe("Statement Import categorization", () => {
           bank: "BDO",
           cardType: "AMEX",
           importedAt: "2026-09-01T00:00:00.000Z",
+          importedByUserId: "7",
           transactionCount: "12",
         },
       ],
@@ -608,11 +609,39 @@ describe("Statement Import categorization", () => {
         statementDate: "AUG 31",
         provider: "BDO",
         accountType: "AMEX",
+        importedByUserId: "7",
       },
     ]);
     expect(get).toHaveBeenCalledWith("/statement-imports?pageSize=3", {
       signal: undefined,
     });
+  });
+
+  it.each([
+    {},
+    { importedByUserId: "0" },
+    { importedByUserId: "not-a-user" },
+    { importedByUserId: 7 },
+  ])("rejects malformed Statement Import importer attribution", async (attribution) => {
+    const get = vi.fn(async () => ({
+      items: [
+        {
+          id: "100",
+          fileName: "august.pdf",
+          statementDate: "2026-08-31",
+          bank: "BDO",
+          cardType: "AMEX",
+          importedAt: "2026-09-01T00:00:00.000Z",
+          transactionCount: "12",
+          ...attribution,
+        },
+      ],
+      nextCursor: null,
+    }));
+
+    await expect(
+      getRecentImports({ get } as unknown as StatementImportApiClient),
+    ).rejects.toMatchObject({ kind: "data" });
   });
 });
 
@@ -792,6 +821,7 @@ describe("Statement Import commit", () => {
         bank: "BDO",
         cardType: "AMEX",
         importedAt: "2026-09-01T00:00:00.000Z",
+        importedByUserId: "7",
       };
     });
     const apiClient = { post } as unknown as StatementImportApiClient;
@@ -832,6 +862,7 @@ describe("Statement Import commit", () => {
       bank: "BDO",
       cardType: "AMEX",
       importedAt: "2026-09-01T00:00:00.000Z",
+      importedByUserId: "7",
     }));
     const apiClient = { post } as unknown as StatementImportApiClient;
 

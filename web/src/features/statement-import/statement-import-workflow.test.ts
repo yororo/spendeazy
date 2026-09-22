@@ -60,6 +60,7 @@ const committedImport: CommittedStatementImport = {
   accountType: "AMEX",
   importedAt: "2026-09-01T00:00:00.000Z",
   transactionCount: 1,
+  importedByUserId: "10",
 };
 
 type CommitStatementImport = (

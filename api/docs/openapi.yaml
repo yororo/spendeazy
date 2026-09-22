@@ -4657,6 +4657,7 @@ components:
         - bank
         - cardType
         - importedAt
+        - importedByUserId
     StatementImportHistoryResponseDto:
       type: object
       properties:
@@ -4717,6 +4718,7 @@ components:
         - bank
         - cardType
         - importedAt
+        - importedByUserId
         - transactionCount
     StatementImportHistoryPageResponseDto:
       type: object

@@ -78,6 +78,7 @@ function createFetchMock(
     readonly categoriesResponse?: () => readonly Record<string, unknown>[];
     readonly categoryRules?: readonly Record<string, unknown>[];
     readonly categoryRulesResponse?: () => readonly Record<string, unknown>[];
+    readonly recentImports?: readonly Record<string, unknown>[];
     readonly failCategoryRules?: () => boolean;
     readonly createRuleResponse?: () => Promise<Response>;
     readonly commitResponse?: () => Response | Promise<Response>;
@@ -173,7 +174,10 @@ function createFetchMock(
         (path === "/statement-imports" ||
           /\/spaces\/\d+\/statement-imports$/u.test(path))
       ) {
-        return jsonResponse({ items: [], nextCursor: null });
+        return jsonResponse({
+          items: options.recentImports ?? [],
+          nextCursor: null,
+        });
       }
 
       if (
@@ -201,6 +205,7 @@ function createFetchMock(
             bank: "GCash",
             cardType: "E-Wallet",
             importedAt: "2026-09-01T00:00:00.000Z",
+            importedByUserId: "1",
           },
           201,
         );
@@ -565,6 +570,145 @@ describe("StatementImportPage Space destination", () => {
       expect.objectContaining({ method: "POST" }),
     );
   });
+
+  it("identifies both Shared members in recent Statement Import history", async () => {
+    const fetchMock = createFetchMock({
+      accessibleSpaces: [
+        {
+          id: "1",
+          kind: "personal",
+          status: "active",
+          accessLevel: "write",
+          members: [{ id: "1", name: "Ada Lovelace" }],
+          createdAt: "2026-01-01T00:00:00.000Z",
+          updatedAt: "2026-01-01T00:00:00.000Z",
+        },
+        {
+          id: "99",
+          kind: "shared",
+          status: "active",
+          accessLevel: "write",
+          members: [
+            { id: "10", name: "Ada Lovelace" },
+            { id: "11", name: "Grace Hopper" },
+          ],
+          createdAt: "2026-01-01T00:00:00.000Z",
+          updatedAt: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+      recentImports: [
+        {
+          id: "101",
+          fileName: "ada.pdf",
+          statementDate: "2026-08-31",
+          bank: "BDO",
+          cardType: "AMEX",
+          importedAt: "2026-09-01T00:00:00.000Z",
+          importedByUserId: "10",
+          transactionCount: "1",
+        },
+        {
+          id: "100",
+          fileName: "grace.pdf",
+          statementDate: "2026-08-30",
+          bank: "BDO",
+          cardType: "AMEX",
+          importedAt: "2026-08-31T00:00:00.000Z",
+          importedByUserId: "11",
+          transactionCount: "2",
+        },
+      ],
+    });
+
+    renderStatementImportPage(fetchMock, {
+      spaceId: "99",
+      onSpaceChange: vi.fn(),
+    });
+
+    await screen.findByRole("heading", { name: "Upload your statement" });
+    expect(screen.getByText("Imported by Ada Lovelace")).toBeTruthy();
+    expect(screen.getByText("Imported by Grace Hopper")).toBeTruthy();
+  });
+
+  it("retains Deleted user attribution in archived Shared history", async () => {
+    const fetchMock = createFetchMock({
+      accessibleSpaces: [
+        {
+          id: "77",
+          kind: "shared",
+          status: "archived",
+          accessLevel: "read",
+          members: [
+            { id: "10", name: "Ada Lovelace" },
+            { id: "12", name: "Deleted user" },
+          ],
+          createdAt: "2026-01-01T00:00:00.000Z",
+          updatedAt: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+      recentImports: [
+        {
+          id: "100",
+          fileName: "archived.pdf",
+          statementDate: "2026-08-30",
+          bank: "BDO",
+          cardType: "AMEX",
+          importedAt: "2026-08-31T00:00:00.000Z",
+          importedByUserId: "12",
+          transactionCount: "1",
+        },
+      ],
+    });
+
+    renderStatementImportPage(fetchMock, {
+      spaceId: "77",
+      onSpaceChange: vi.fn(),
+    });
+
+    await screen.findByRole("heading", { name: "Upload your statement" });
+    expect(screen.getByText("Imported by Deleted user")).toBeTruthy();
+    expect(screen.queryByText(/Katherine|Grace Hopper|@/u)).toBeNull();
+  });
+
+  it("rejects a Shared history item whose importer is not a Space member", async () => {
+    const fetchMock = createFetchMock({
+      accessibleSpaces: [
+        {
+          id: "99",
+          kind: "shared",
+          status: "active",
+          accessLevel: "write",
+          members: [{ id: "10", name: "Ada Lovelace" }],
+          createdAt: "2026-01-01T00:00:00.000Z",
+          updatedAt: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+      recentImports: [
+        {
+          id: "100",
+          fileName: "unknown.pdf",
+          statementDate: "2026-08-30",
+          bank: "BDO",
+          cardType: "AMEX",
+          importedAt: "2026-08-31T00:00:00.000Z",
+          importedByUserId: "99",
+          transactionCount: "1",
+        },
+      ],
+    });
+
+    renderStatementImportPage(fetchMock, {
+      spaceId: "99",
+      onSpaceChange: vi.fn(),
+    });
+
+    expect(
+      await screen.findByText(
+        "The API returned an unknown Statement Import importer.",
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByText(/Imported by/u)).toBeNull();
+  });
 });
 
 describe("StatementImportPage GCash recipient flow", () => {
@@ -770,6 +914,7 @@ describe("StatementImportPage confirmation lifecycle", () => {
                 bank: "BDO",
                 cardType: "AMEX",
                 importedAt: "2026-09-01T00:00:00.000Z",
+                importedByUserId: "1",
               },
               201,
             );
@@ -1054,6 +1199,7 @@ describe("StatementImportPage Categorize lifecycle", () => {
             bank: "BDO",
             cardType: "AMEX",
             importedAt: "2026-09-01T00:00:00.000Z",
+            importedByUserId: "1",
           },
           201,
         ),

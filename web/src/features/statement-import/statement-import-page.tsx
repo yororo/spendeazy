@@ -70,6 +70,9 @@ function StatementImportPage({
     destinationSpaceId,
     spacesQuery.data,
   );
+  const destinationSpace = spacesQuery.data?.find(
+    (space) => space.id === destinationSpaceId,
+  );
 
   const categoryCatalogForWorkflow = categoryOptionsQuery.data ?? [];
   const categoryOptionsForWorkflow = categoryCatalogForWorkflow
@@ -182,6 +185,17 @@ function StatementImportPage({
   const categoryOptions = categoryOptionsForWorkflow;
   const categoryRules = categoryRulesQuery.data;
   const recentImports = recentImportsQuery.data;
+  if (getUnknownSharedImporter(recentImports, destinationSpace)) {
+    return withNavigationGuard(
+      <FeatureDataError
+        message="The API returned an unknown Statement Import importer."
+        onRetry={() => {
+          void spacesQuery.refetch();
+          void recentImportsQuery.refetch();
+        }}
+      />,
+    );
+  }
   const activeCategoryIds = new Set(
     categoryOptions.map((option) => option.value),
   );
@@ -199,10 +213,26 @@ function StatementImportPage({
   }
 
   if (workflowState.commit.result) {
+    const importerName = getSharedImporterName(
+      workflowState.commit.result.importedByUserId,
+      destinationSpace,
+    );
+    if (destinationSpace?.kind === "shared" && importerName === undefined) {
+      return withNavigationGuard(
+        <FeatureDataError
+          message="The API returned an unknown Statement Import importer."
+          onRetry={() => {
+            void spacesQuery.refetch();
+          }}
+        />,
+      );
+    }
+
     return withNavigationGuard(
       <ImportSuccess
         committedImport={workflowState.commit.result}
         destinationLabel={destinationLabel}
+        importerName={importerName}
         spaceId={destinationSpaceId}
         onImportAnother={resetImport}
         onViewTransactions={() => onViewTransactions(destinationSpaceId)}
@@ -362,6 +392,15 @@ function StatementImportPage({
                       .join(" · ")}{" "}
                     · {item.statementDate}
                   </p>
+                  {destinationSpace?.kind === "shared" && (
+                    <p className="mt-1 font-mono text-xs text-muted-foreground">
+                      Imported by{" "}
+                      {getSharedImporterName(
+                        item.importedByUserId,
+                        destinationSpace,
+                      )}
+                    </p>
+                  )}
                 </li>
               ))}
             </ul>
@@ -373,6 +412,26 @@ function StatementImportPage({
 }
 
 export { StatementImportPage };
+
+function getUnknownSharedImporter(
+  imports: readonly { readonly importedByUserId: string }[],
+  space: AccessibleSpace | undefined,
+): string | undefined {
+  if (space?.kind !== "shared") return undefined;
+
+  return imports.find(
+    (item) => getSharedImporterName(item.importedByUserId, space) === undefined,
+  )?.importedByUserId;
+}
+
+function getSharedImporterName(
+  importedByUserId: string,
+  space: AccessibleSpace | undefined,
+): string | undefined {
+  if (space?.kind !== "shared") return undefined;
+
+  return space.members.find((member) => member.id === importedByUserId)?.name;
+}
 
 function getDestinationLabel(
   spaceId: string | undefined,

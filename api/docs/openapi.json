@@ -6580,7 +6580,8 @@
           "statementDate",
           "bank",
           "cardType",
-          "importedAt"
+          "importedAt",
+          "importedByUserId"
         ]
       },
       "StatementImportHistoryResponseDto": {
@@ -6652,6 +6653,7 @@
           "bank",
           "cardType",
           "importedAt",
+          "importedByUserId",
           "transactionCount"
         ]
       },

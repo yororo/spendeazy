@@ -204,9 +204,7 @@ export function toStatementImportResponse(
     bank: statementImport.bank,
     cardType: statementImport.cardType,
     importedAt: statementImport.importedAt.toISOString(),
-    ...(statementImport.importedByUserId === undefined
-      ? {}
-      : { importedByUserId: statementImport.importedByUserId }),
+    importedByUserId: statementImport.importedByUserId,
   };
 }
 

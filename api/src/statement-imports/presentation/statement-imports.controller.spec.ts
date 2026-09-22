@@ -12,7 +12,7 @@ describe('StatementImportsController', () => {
   it('returns statement-import metadata and preserves nullable fields', async () => {
     const statementImport = statementImportRecord({
       id: '108',
-      userId: '42',
+      importedByUserId: '42',
       cardType: null,
     });
     const statementImportsService = {
@@ -34,6 +34,7 @@ describe('StatementImportsController', () => {
       bank: 'Example Bank',
       cardType: null,
       importedAt: '2026-08-29T00:00:00.000Z',
+      importedByUserId: '42',
     });
 
     expect(
@@ -76,6 +77,7 @@ describe('StatementImportsController', () => {
       bank: 'Example Bank',
       cardType: 'visa',
       importedAt: '2026-08-29T00:00:00.000Z',
+      importedByUserId: '7',
     });
 
     expect(status).toHaveBeenCalledWith(201);
@@ -110,6 +112,7 @@ describe('StatementImportsController', () => {
           bank: 'Example Bank',
           cardType: 'visa',
           importedAt: '2026-08-29T00:00:00.000Z',
+          importedByUserId: '7',
           transactionCount: '2',
         },
       ],
@@ -126,7 +129,8 @@ function statementImportRecord(
 ): StatementImportRecord {
   return {
     id: '100',
-    userId: '7',
+    spaceId: '42',
+    importedByUserId: '7',
     fileName: 'august.pdf',
     fileHash: 'a'.repeat(64),
     statementDate: '2026-08-31',
@@ -151,7 +155,8 @@ function personalSpaceAccess(): SpaceAccessService {
 function statementImportHistoryRecord(): StatementImportHistoryRecord {
   return {
     id: '100',
-    userId: '7',
+    spaceId: '42',
+    importedByUserId: '7',
     fileName: 'august.pdf',
     statementDate: '2026-08-31',
     bank: 'Example Bank',

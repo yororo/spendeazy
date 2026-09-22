@@ -110,6 +110,7 @@ describe('Statement import OpenAPI contract', () => {
         'bank',
         'cardType',
         'importedAt',
+        'importedByUserId',
       ],
     });
     expect(
@@ -341,6 +342,7 @@ function expectResponseSchemas(document: OpenAPIObject): void {
       'bank',
       'cardType',
       'importedAt',
+      'importedByUserId',
     ],
     properties: {
       id: { type: 'string', pattern: '^[1-9]\\d*$', example: '100' },
@@ -363,6 +365,11 @@ function expectResponseSchemas(document: OpenAPIObject): void {
       },
       cardType: { type: 'string', nullable: true },
       importedAt: { type: 'string', format: 'date-time' },
+      importedByUserId: {
+        type: 'string',
+        pattern: '^[1-9]\\d*$',
+        example: '7',
+      },
     },
   });
   expect(responseSchema).not.toHaveProperty('properties.userId');
@@ -377,6 +384,7 @@ function expectResponseSchemas(document: OpenAPIObject): void {
       'bank',
       'cardType',
       'importedAt',
+      'importedByUserId',
       'transactionCount',
     ],
     properties: {

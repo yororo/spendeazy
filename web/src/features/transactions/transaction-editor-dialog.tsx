@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { ApiError } from "@/shared/api";
 import type { CategoryCatalogItem } from "@/shared/category";
+import { useUnsavedChangesNavigationGuard } from "@/shared/navigation";
 
 import {
   useCreateTransactionMutation,
@@ -65,11 +66,29 @@ function TransactionEditorDialog({
   onSaved,
   onReload,
 }: TransactionEditorDialogProps) {
+  const [initialDraft] = useState(() => createDraft(transaction));
   const [draft, setDraft] = useState(() => createDraft(transaction));
   const createMutation = useCreateTransactionMutation();
   const updateMutation = useUpdateTransactionMutation();
   const mutation = transaction === null ? createMutation : updateMutation;
+  const closeRequestedRef = useRef(false);
   const isImported = transaction?.source === "imported";
+  const hasUnsavedChanges =
+    draft.purchaseDate !== initialDraft.purchaseDate ||
+    draft.description !== initialDraft.description ||
+    draft.amount !== initialDraft.amount ||
+    draft.categoryId !== initialDraft.categoryId;
+  const { dialog: navigationGuardDialog, requestExit } =
+    useUnsavedChangesNavigationGuard({
+      enabled: open && hasUnsavedChanges,
+      focusScope: () =>
+        document
+          .getElementById("transaction-description")
+          ?.closest<HTMLElement>('[role="dialog"]') ?? null,
+      focusTarget: () => document.getElementById("transaction-description"),
+      label: "Transaction",
+      onDiscard: closeEditor,
+    });
   const categoryOptions = categories.filter(
     (category) =>
       category.isActive || category.id === (draft.categoryId || undefined),
@@ -77,6 +96,27 @@ function TransactionEditorDialog({
 
   function updateDraft(changes: Partial<TransactionDraft>) {
     setDraft((current) => ({ ...current, ...changes }));
+  }
+
+  useEffect(() => {
+    if (!open) closeRequestedRef.current = false;
+  }, [open]);
+
+  function closeEditor() {
+    if (closeRequestedRef.current) return;
+
+    closeRequestedRef.current = true;
+    onOpenChange(false);
+  }
+
+  function requestClose() {
+    if (mutation.isPending) return;
+
+    requestExit(closeEditor);
+  }
+
+  function guardDismiss(event: Event) {
+    if (mutation.isPending || hasUnsavedChanges) event.preventDefault();
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -122,13 +162,20 @@ function TransactionEditorDialog({
     mutation.error instanceof ApiError && mutation.error.code === "STALE_EDIT";
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(nextOpen) => {
-        if (!mutation.isPending) onOpenChange(nextOpen);
-      }}
-    >
-      <DialogContent closeButtonDisabled={mutation.isPending}>
+    <>
+      <Dialog
+        modal={false}
+        open={open}
+        onOpenChange={(nextOpen) => {
+          if (nextOpen) return;
+          requestClose();
+        }}
+      >
+        <DialogContent
+          closeButtonDisabled={mutation.isPending}
+          onInteractOutside={guardDismiss}
+          overlayClassName="pointer-events-none"
+        >
         <DialogHeader>
           <DialogTitle>
             {transaction === null
@@ -239,7 +286,7 @@ function TransactionEditorDialog({
             <Button
               type="button"
               variant="outline"
-              onClick={() => onOpenChange(false)}
+              onClick={requestClose}
               disabled={mutation.isPending}
             >
               Cancel
@@ -252,9 +299,11 @@ function TransactionEditorDialog({
                   : "Save changes"}
             </Button>
           </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+          </form>
+        </DialogContent>
+      </Dialog>
+      {navigationGuardDialog}
+    </>
   );
 }
 

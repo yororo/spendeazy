@@ -13,6 +13,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ApiClientProvider } from "@/shared/api";
 import type { CategoryCatalogItem, CategoryColor } from "@/shared/category";
+import {
+  NavigationGuardProvider,
+  useNavigationGuard,
+  type NavigationAction,
+} from "@/shared/navigation";
 import { ReportingPeriodProvider } from "@/shared/reporting-period";
 
 import { CategoriesPage } from "./categories-page";
@@ -79,6 +84,7 @@ interface CategoryRuleFixture {
 interface CategoriesPageRenderOptions {
   readonly spaceId?: string;
   readonly onSpaceChange?: (spaceId?: string) => void;
+  readonly onNavigate?: NavigationAction;
 }
 
 type FetchMock = (
@@ -523,22 +529,40 @@ function renderCategoriesPage(
   vi.stubGlobal("fetch", fetchMock);
 
   render(
-    <ApiClientProvider
-      config={apiConfig}
-      getToken={vi.fn(async () => "session-token")}
-    >
-      <QueryClientProvider client={queryClient}>
-        <ReportingPeriodProvider>
-          <CategoriesPage
-            spaceId={options.spaceId}
-            onSpaceChange={options.onSpaceChange}
-          />
-        </ReportingPeriodProvider>
-      </QueryClientProvider>
-    </ApiClientProvider>,
+    <NavigationGuardProvider>
+      <ApiClientProvider
+        config={apiConfig}
+        getToken={vi.fn(async () => "session-token")}
+      >
+        <QueryClientProvider client={queryClient}>
+          <ReportingPeriodProvider>
+            <CategoriesPage
+              spaceId={options.spaceId}
+              onSpaceChange={options.onSpaceChange}
+            />
+          </ReportingPeriodProvider>
+        </QueryClientProvider>
+      </ApiClientProvider>
+      {options.onNavigate && <NavigationProbe onNavigate={options.onNavigate} />}
+    </NavigationGuardProvider>,
   );
 
   return queryClient;
+}
+
+function NavigationProbe({ onNavigate }: { readonly onNavigate: () => void }) {
+  const { requestNavigation } = useNavigationGuard();
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        if (!requestNavigation(onNavigate)) onNavigate();
+      }}
+    >
+      Switch Space
+    </button>
+  );
 }
 
 function getRequestBody(
@@ -1496,6 +1520,87 @@ describe("CategoriesPage", () => {
 
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(document.activeElement).toBe(trigger);
+  });
+
+  it("protects a dirty new Category and Budget editor during a requested Space switch", async () => {
+    const { fetchMock } = createFetchMock();
+    const onNavigate = vi.fn();
+    renderCategoriesPage(fetchMock, { onNavigate });
+
+    await screen.findByRole("heading", { name: "Budget overview" });
+    fireEvent.click(screen.getByRole("button", { name: /New Category/ }));
+    const nameInput = screen.getByRole("textbox", { name: /^Category name/ });
+    fireEvent.change(nameInput, {
+      target: { value: "Unsaved Category" },
+    });
+    fireEvent.change(screen.getByLabelText(/Monthly Budget/), {
+      target: { value: "125.00" },
+    });
+    nameInput.focus();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Switch Space", hidden: true }),
+    );
+    expect(
+      screen.getByRole("dialog", { name: "Leave Category editor?" }),
+    ).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Stay in editor" }));
+    expect(screen.getByRole("textbox", { name: /^Category name/ })).toHaveProperty(
+      "value",
+      "Unsaved Category",
+    );
+    expect(screen.getByLabelText(/Monthly Budget/)).toHaveProperty(
+      "value",
+      "125.00",
+    );
+    expect(document.activeElement).toBe(nameInput);
+    expect(onNavigate).not.toHaveBeenCalled();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Switch Space", hidden: true }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
+
+    expect(onNavigate).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  });
+
+  it("protects a dirty Category and Budget row during a requested Space switch", async () => {
+    const { fetchMock } = createFetchMock();
+    const onNavigate = vi.fn();
+    renderCategoriesPage(fetchMock, { onNavigate });
+
+    await screen.findByRole("heading", { name: "Budget overview" });
+    fireEvent.click(getDesktopEditButton("Housing"));
+    const nameInput = await screen.findByRole("textbox", {
+      name: "Category name for Housing",
+    });
+    const budgetInput = await screen.findByRole("textbox", {
+      name: "Monthly Budget for Housing",
+    });
+    fireEvent.change(nameInput, { target: { value: "Unsaved Housing" } });
+    fireEvent.change(budgetInput, { target: { value: "175.00" } });
+    budgetInput.focus();
+
+    fireEvent.click(screen.getByRole("button", { name: "Switch Space" }));
+    expect(
+      screen.getByRole("dialog", { name: "Leave Category editor?" }),
+    ).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Stay in editor" }));
+    expect(nameInput).toHaveProperty("value", "Unsaved Housing");
+    expect(budgetInput).toHaveProperty("value", "175.00");
+    expect(document.activeElement).toBe(budgetInput);
+    expect(onNavigate).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Switch Space" }));
+    fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
+
+    expect(onNavigate).toHaveBeenCalledTimes(1);
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("textbox", { name: "Category name for Housing" }),
+      ).toBeNull(),
+    );
   });
 
   it("closes an unchanged form directly with Escape", async () => {
@@ -2669,6 +2774,54 @@ describe("CategoriesPage", () => {
       ).toBeTruthy();
     });
     fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  });
+
+  it("protects dirty Category Rules during a requested Space switch", async () => {
+    const { fetchMock } = createFetchMock({
+      categoryRules: [
+        {
+          id: "1",
+          categoryId: "42",
+          pattern: "Rent",
+          matchType: "exact",
+          createdAt: "2026-09-01T00:00:00.000Z",
+          updatedAt: "2026-09-01T00:00:00.000Z",
+        },
+      ],
+    });
+    const onNavigate = vi.fn();
+    renderCategoriesPage(fetchMock, { onNavigate });
+
+    await screen.findByRole("heading", { name: "Budget overview" });
+    fireEvent.click(
+      within(getDesktopTable()).getByRole("button", {
+        name: "Matching Rules for Housing",
+      }),
+    );
+    const exactPattern = await screen.findByRole("textbox", {
+      name: "Exact pattern 1",
+    });
+    fireEvent.change(exactPattern, { target: { value: "Unsaved Rent" } });
+    exactPattern.focus();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Switch Space", hidden: true }),
+    );
+    expect(
+      screen.getByRole("dialog", { name: "Leave Category Rule editor?" }),
+    ).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Stay in editor" }));
+    expect(exactPattern).toHaveProperty("value", "Unsaved Rent");
+    expect(document.activeElement).toBe(exactPattern);
+    expect(onNavigate).not.toHaveBeenCalled();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Switch Space", hidden: true }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
+
+    expect(onNavigate).toHaveBeenCalledTimes(1);
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   });
 

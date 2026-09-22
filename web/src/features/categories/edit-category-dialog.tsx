@@ -21,6 +21,11 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  isNavigationGuardDialogEvent,
+  isNavigationIntentEvent,
+  useUnsavedChangesNavigationGuard,
+} from "@/shared/navigation";
 
 import { useCategoryEditor } from "./category-editor";
 import { useCategoryBudgetQuery } from "./categories-queries";
@@ -219,8 +224,31 @@ function ReadyEditCategoryDialog({
     onSaved,
   });
   const formId = `mobile-edit-category-${category.id}`;
+  const { dialog: navigationGuardDialog } =
+    useUnsavedChangesNavigationGuard({
+      enabled: editor.hasUnsavedChanges,
+      focusScope: () =>
+        document
+          .getElementById(`edit-category-${category.id}-name`)
+          ?.closest<HTMLElement>('[role="dialog"]') ?? null,
+      focusTarget: () =>
+        document.getElementById(`edit-category-${category.id}-name`),
+      label: "Category",
+      onDiscard: editor.discardChanges,
+    });
 
   function guardDismiss(event: Event | MouseEvent<HTMLButtonElement>) {
+    const navigationEvent = "nativeEvent" in event ? event.nativeEvent : event;
+
+    if (isNavigationGuardDialogEvent(navigationEvent)) {
+      event.preventDefault();
+      return;
+    }
+    if (isNavigationIntentEvent(navigationEvent)) {
+      event.preventDefault();
+      return;
+    }
+
     if (editor.isSaving) {
       event.preventDefault();
       return;
@@ -237,6 +265,7 @@ function ReadyEditCategoryDialog({
       <DialogContent
         aria-busy={editor.isSaving}
         closeButtonDisabled={editor.isSaving}
+        overlayClassName="pointer-events-none"
         onEscapeKeyDown={guardDismiss}
         onFocusOutside={guardDismiss}
         onInteractOutside={guardDismiss}
@@ -268,6 +297,7 @@ function ReadyEditCategoryDialog({
         </form>
       </DialogContent>
       <CategoryEditorDiscardDialog editor={editor} layout="dialog" />
+      {navigationGuardDialog}
     </>
   );
 }
@@ -312,7 +342,7 @@ function EditCategoryDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog modal={false} open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button
           ref={triggerRef}

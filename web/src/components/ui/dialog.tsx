@@ -34,6 +34,7 @@ interface DialogContentProps
   extends React.ComponentProps<typeof DialogPrimitive.Content> {
   readonly closeButtonDisabled?: boolean;
   readonly onCloseButtonClick?: React.MouseEventHandler<HTMLButtonElement>;
+  readonly overlayClassName?: string;
 }
 
 function DialogContent({
@@ -41,11 +42,12 @@ function DialogContent({
   className,
   closeButtonDisabled = false,
   onCloseButtonClick,
+  overlayClassName,
   ...props
 }: DialogContentProps) {
   return (
     <DialogPortal>
-      <DialogOverlay />
+      <DialogOverlay className={overlayClassName} />
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(

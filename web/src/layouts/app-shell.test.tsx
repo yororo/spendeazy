@@ -16,6 +16,7 @@ import { AppShell } from "./app-shell";
 import { getSpaceStorageKey } from "@/components/app/space-selection";
 import {
   useNavigationGuard,
+  useUnsavedChangesNavigationGuard,
   type NavigationAction,
 } from "@/shared/navigation";
 import { AppSessionProvider, type AppSession } from "@/shared/session";
@@ -358,6 +359,29 @@ describe("AppShell", () => {
     expect(screen.getByText("/?spaceId=shared-1")).toBeTruthy();
   });
 
+  it("does not strip the selected Space when the current primary destination is clicked", () => {
+    function CurrentLocation() {
+      const location = useLocation();
+      return <p>{`${location.pathname}${location.search}`}</p>;
+    }
+
+    render(
+      <AppSessionProvider session={session}>
+        <MemoryRouter initialEntries={["/transactions?spaceId=shared-1"]}>
+          <Routes>
+            <Route element={<AppShell />}>
+              <Route path="/transactions" element={<CurrentLocation />} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      </AppSessionProvider>,
+    );
+
+    fireEvent.click(screen.getAllByRole("link", { name: "Transactions" })[0]!);
+
+    expect(screen.getByText("/transactions?spaceId=shared-1")).toBeTruthy();
+  });
+
   it("restores the device's last active Space in a new tab", async () => {
     function CurrentLocation() {
       const location = useLocation();
@@ -531,6 +555,107 @@ describe("AppShell", () => {
 
     expect(within(tabOne).getByText("one:/transactions?spaceId=shared-1")).toBeTruthy();
     expect(within(tabTwo).getByText("two:/transactions")).toBeTruthy();
+  });
+
+  it("guards the real Space switcher while an editor has unsaved changes", () => {
+    function DirtyEditorFixture() {
+      const [draft, setDraft] = useState("Unsaved Transaction");
+      const { dialog } = useUnsavedChangesNavigationGuard({
+        enabled: draft.length > 0,
+        focusScope: () =>
+          document
+            .querySelector<HTMLInputElement>('input[aria-label="Transaction draft"]')
+            ?.closest<HTMLElement>("label") ?? null,
+        focusTarget: () =>
+          document.querySelector<HTMLInputElement>(
+            'input[aria-label="Transaction draft"]',
+          ),
+        label: "Transaction",
+        onDiscard: () => setDraft(""),
+      });
+
+      return (
+        <>
+          <label>
+            Transaction draft
+            <input
+              aria-label="Transaction draft"
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+            />
+          </label>
+          {dialog}
+        </>
+      );
+    }
+
+    function CurrentLocation() {
+      const location = useLocation();
+      return (
+        <p data-testid="guarded-current-location">
+          {`${location.pathname}${location.search}`}
+        </p>
+      );
+    }
+
+    render(
+      <AppSessionProvider session={session}>
+        <MemoryRouter initialEntries={["/transactions?spaceId=personal-1"]}>
+          <Routes>
+            <Route element={<AppShell />}>
+              <Route
+                path="/transactions"
+                element={
+                  <>
+                    <DirtyEditorFixture />
+                    <CurrentLocation />
+                  </>
+                }
+              />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      </AppSessionProvider>,
+    );
+
+    const draft = screen.getByRole("textbox", { name: "Transaction draft" });
+    draft.focus();
+    fireEvent.click(
+      screen.getAllByRole("button", { name: /Active Space/u })[0]!,
+    );
+    fireEvent.click(
+      screen.getByRole("menuitemradio", {
+        name: /Shared.*Ada Lovelace.*Grace Hopper/u,
+      }),
+    );
+
+    expect(
+      screen.getByRole("dialog", { name: "Leave Transaction editor?" }),
+    ).toBeTruthy();
+    expect(screen.getByTestId("guarded-current-location").textContent).toBe(
+      "/transactions",
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Stay in editor" }));
+    expect(screen.getByRole("textbox", { name: "Transaction draft" })).toHaveProperty(
+      "value",
+      "Unsaved Transaction",
+    );
+    expect(document.activeElement).toBe(draft);
+
+    fireEvent.click(
+      screen.getAllByRole("button", { name: /Active Space/u })[0]!,
+    );
+    fireEvent.click(
+      screen.getByRole("menuitemradio", {
+        name: /Shared.*Ada Lovelace.*Grace Hopper/u,
+      }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
+
+    expect(screen.getByTestId("guarded-current-location").textContent).toBe(
+      "/transactions?spaceId=shared-1",
+    );
   });
 
   it("guards primary navigation while a Statement Import is being categorized", () => {

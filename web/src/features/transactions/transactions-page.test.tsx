@@ -12,6 +12,11 @@ import {
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ReportingPeriodProvider } from "@/shared/reporting-period";
+import {
+  NavigationGuardProvider,
+  useNavigationGuard,
+  type NavigationAction,
+} from "@/shared/navigation";
 
 import { TransactionsPage } from "./transactions-page";
 import type { Transaction, TransactionActivity } from "./transactions-service";
@@ -228,20 +233,37 @@ afterEach(() => {
   pageState.lastTransactionQueryArgs = undefined;
 });
 
-function renderPage() {
+function NavigationProbe({ onNavigate }: { readonly onNavigate: () => void }) {
+  const { requestNavigation } = useNavigationGuard();
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        if (!requestNavigation(onNavigate)) onNavigate();
+      }}
+    >
+      Switch Space
+    </button>
+  );
+}
+
+function renderPage(options: { readonly onNavigate?: NavigationAction } = {}) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
 
   return render(
-    <QueryClientProvider client={queryClient}>
-      <ReportingPeriodProvider>
-        <TransactionsPage
-          spaceId="99"
-          onSpaceChange={vi.fn()}
-        />
-      </ReportingPeriodProvider>
-    </QueryClientProvider>,
+    <NavigationGuardProvider>
+      <QueryClientProvider client={queryClient}>
+        <ReportingPeriodProvider>
+          <TransactionsPage spaceId="99" onSpaceChange={vi.fn()} />
+          {options.onNavigate && (
+            <NavigationProbe onNavigate={options.onNavigate} />
+          )}
+        </ReportingPeriodProvider>
+      </QueryClientProvider>
+    </NavigationGuardProvider>,
   );
 }
 
@@ -348,6 +370,46 @@ describe("TransactionsPage", () => {
       transactionId: "manual-1",
       updatedAt: "2026-08-31T00:00:00.000Z",
     });
+  });
+
+  it("protects a dirty Transaction editor during a requested Space switch", async () => {
+    const onNavigate = vi.fn();
+    renderPage({ onNavigate });
+
+    await screen.findByRole("heading", { name: "Your spending" });
+    fireEvent.click(screen.getByRole("button", { name: "Record Transaction" }));
+    const editor = screen.getByRole("dialog", { name: "Record Transaction" });
+    const description = within(editor).getByLabelText("Description");
+    fireEvent.change(description, {
+      target: { value: "Unsaved dinner" },
+    });
+    description.focus();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Switch Space", hidden: true }),
+    );
+    expect(
+      screen.getByRole("dialog", { name: "Leave Transaction editor?" }),
+    ).toBeTruthy();
+    expect(onNavigate).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Stay in editor" }));
+    expect(screen.getByRole("dialog", { name: "Record Transaction" })).toBeTruthy();
+    expect(
+      within(screen.getByRole("dialog", { name: "Record Transaction" })).getByLabelText(
+        "Description",
+      ),
+    ).toHaveProperty("value", "Unsaved dinner");
+    expect(document.activeElement).toBe(description);
+    expect(onNavigate).not.toHaveBeenCalled();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Switch Space", hidden: true }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
+
+    expect(onNavigate).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   });
 
   it("shows retained deleted Transactions and their deletion activity", async () => {

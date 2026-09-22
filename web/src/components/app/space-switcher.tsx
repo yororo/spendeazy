@@ -76,6 +76,7 @@ function SpaceSwitcher({ className, onNavigate }: SpaceSwitcherProps) {
           type="button"
           className="focus-ledger flex min-h-10 w-full min-w-0 items-center gap-2 border border-sidebar-border px-2 text-left text-sidebar-foreground hover:bg-sidebar-foreground/10"
           aria-label={`Active Space: ${activeLabel}`}
+          data-navigation-intent="space-switcher"
         >
           <SpaceAvatarStack members={activeSpace?.members ?? []} />
           <span className="min-w-0 flex-1 truncate text-sm font-semibold leading-tight">
@@ -86,6 +87,7 @@ function SpaceSwitcher({ className, onNavigate }: SpaceSwitcherProps) {
         <DropdownMenuContent
           align="start"
           className="left-0 right-0 min-w-0 border-sidebar-border bg-sidebar text-sidebar-foreground"
+          data-navigation-intent="space-switcher"
         >
           <p className="px-3 py-2 text-label text-sidebar-foreground/70">
             Switch Space

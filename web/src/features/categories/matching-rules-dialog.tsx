@@ -22,6 +22,11 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { ApiError } from "@/shared/api";
+import {
+  isNavigationGuardDialogEvent,
+  isNavigationIntentEvent,
+  useUnsavedChangesNavigationGuard,
+} from "@/shared/navigation";
 
 import {
   useCategoryRulesQuery,
@@ -190,6 +195,7 @@ function RuleSection({
         size="sm"
         className="w-fit justify-start px-0"
         onClick={onAdd}
+        data-category-rule-add={matchType}
       >
         <PlusIcon aria-hidden="true" />
         Add {title} Rule
@@ -251,6 +257,29 @@ function MatchingRulesDialog({
     resetDialogState();
     setOpen(false);
   }
+
+  const { dialog: navigationGuardDialog } =
+    useUnsavedChangesNavigationGuard({
+      enabled: open && hasUnsavedChanges,
+      focusScope: () => {
+        const input = document.querySelector<HTMLInputElement>(
+          'input[aria-label="Exact pattern 1"], input[aria-label="Contains pattern 1"]',
+        );
+        return (
+          input?.closest<HTMLElement>('[role="dialog"]') ??
+          document
+            .querySelector<HTMLElement>("[data-category-rule-add]")
+            ?.closest<HTMLElement>('[role="dialog"]') ??
+          null
+        );
+      },
+      focusTarget: () =>
+        document.querySelector<HTMLElement>(
+          'input[aria-label="Exact pattern 1"], input[aria-label="Contains pattern 1"], [data-category-rule-add]',
+        ),
+      label: "Category Rule",
+      onDiscard: closeDialog,
+    });
 
   function requestClose() {
     if (isSaving) return;
@@ -369,6 +398,15 @@ function MatchingRulesDialog({
   }
 
   function guardDismiss(event: Event) {
+    if (isNavigationGuardDialogEvent(event)) {
+      event.preventDefault();
+      return;
+    }
+    if (isNavigationIntentEvent(event)) {
+      event.preventDefault();
+      return;
+    }
+
     if (isSaving) {
       event.preventDefault();
       return;
@@ -395,28 +433,30 @@ function MatchingRulesDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        <Button
-          ref={triggerRef}
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          disabled={disabled}
-          aria-label={`Matching Rules for ${category.name}`}
+    <>
+      <Dialog modal={false} open={open} onOpenChange={handleOpenChange}>
+        <DialogTrigger asChild>
+          <Button
+            ref={triggerRef}
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            disabled={disabled}
+            aria-label={`Matching Rules for ${category.name}`}
+          >
+            <ListFilterIcon aria-hidden="true" />
+          </Button>
+        </DialogTrigger>
+        <DialogContent
+          className="max-w-2xl"
+          aria-busy={rulesQuery.isPending || isSaving}
+          overlayClassName={discardPrompt ? undefined : "pointer-events-none"}
+          onEscapeKeyDown={handleEscapeKeyDown}
+          onInteractOutside={handleInteractOutside}
+          onPointerDownOutside={handleInteractOutside}
+          onFocusOutside={handleInteractOutside}
+          onCloseAutoFocus={handleCloseAutoFocus}
         >
-          <ListFilterIcon aria-hidden="true" />
-        </Button>
-      </DialogTrigger>
-      <DialogContent
-        className="max-w-2xl"
-        aria-busy={rulesQuery.isPending || isSaving}
-        onEscapeKeyDown={handleEscapeKeyDown}
-        onInteractOutside={handleInteractOutside}
-        onPointerDownOutside={handleInteractOutside}
-        onFocusOutside={handleInteractOutside}
-        onCloseAutoFocus={handleCloseAutoFocus}
-      >
         {discardPrompt ? (
           <>
             <DialogHeader>
@@ -577,8 +617,10 @@ function MatchingRulesDialog({
             </DialogFooter>
           </form>
         )}
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+      {navigationGuardDialog}
+    </>
   );
 }
 

@@ -148,10 +148,7 @@ function AppShellContent() {
     }
 
     const destination = new URL(anchor.href, window.location.href);
-    if (
-      destination.origin !== window.location.origin ||
-      destination.pathname === location.pathname
-    ) {
+    if (destination.origin !== window.location.origin) {
       return;
     }
 
@@ -164,6 +161,12 @@ function AppShellContent() {
       destination.searchParams.set("spaceId", activeSpaceId);
     }
     const destinationPath = `${destination.pathname}${destination.search}${destination.hash}`;
+    const currentPath = `${location.pathname}${location.search}${location.hash}`;
+
+    if (destinationPath === currentPath) {
+      if (destinationPath !== anchorPath) event.preventDefault();
+      return;
+    }
 
     if (
       requestNavigation(() => navigate(destinationPath))

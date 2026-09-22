@@ -10,24 +10,26 @@ interface NavigationGuardProviderProps {
 }
 
 function NavigationGuardProvider({ children }: NavigationGuardProviderProps) {
-  const registrationRef = useRef<NavigationGuardRegistration | null>(null);
+  const registrationsRef = useRef<NavigationGuardRegistration[]>([]);
 
   const registerNavigationGuard = useCallback(
     (registration: NavigationGuardRegistration) => {
-      registrationRef.current = registration;
+      registrationsRef.current.push(registration);
 
       return () => {
-        if (registrationRef.current === registration) {
-          registrationRef.current = null;
-        }
+        registrationsRef.current = registrationsRef.current.filter(
+          (current) => current !== registration,
+        );
       };
     },
     [],
   );
 
   const requestNavigation = useCallback((action: () => void) => {
-    const registration = registrationRef.current;
-    if (!registration?.enabled) return false;
+    const registration = [...registrationsRef.current]
+      .reverse()
+      .find((current) => current.enabled);
+    if (!registration) return false;
 
     registration.onNavigationAttempt(action);
     return true;

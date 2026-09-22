@@ -4,6 +4,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { formatMoney } from "@/shared/money";
+import { useUnsavedChangesNavigationGuard } from "@/shared/navigation";
 
 import { useCategoryEditor } from "./category-editor";
 import { useCategoryBudgetQuery } from "./categories-queries";
@@ -104,6 +105,18 @@ function ReadyEditCategoryRow({
     onSaved,
   });
   const formId = `edit-category-${category.id}`;
+  const { dialog: navigationGuardDialog } =
+    useUnsavedChangesNavigationGuard({
+      enabled: editor.hasUnsavedChanges,
+      focusScope: () =>
+        document
+          .getElementById(`edit-category-${category.id}-name`)
+          ?.closest<HTMLElement>("tr") ?? null,
+      focusTarget: () =>
+        document.getElementById(`edit-category-${category.id}-name`),
+      label: "Category",
+      onDiscard: editor.discardChanges,
+    });
 
   return (
     <>
@@ -165,6 +178,7 @@ function ReadyEditCategoryRow({
         </TableRow>
       )}
       <CategoryEditorDiscardDialog editor={editor} layout="inline" />
+      {navigationGuardDialog}
     </>
   );
 }

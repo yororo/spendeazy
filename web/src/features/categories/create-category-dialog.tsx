@@ -16,6 +16,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { DEFAULT_CATEGORY_COLOR, type CategoryColor } from "@/shared/category";
+import {
+  isNavigationIntentEvent,
+  useUnsavedChangesNavigationGuard,
+} from "@/shared/navigation";
 
 import {
   useCreateCategoryBudgetMutation,
@@ -87,6 +91,18 @@ function CreateCategoryDialog({
     setOpen(false);
   }
 
+  const { dialog: navigationGuardDialog } =
+    useUnsavedChangesNavigationGuard({
+      enabled: open && hasUnsavedChanges,
+      focusScope: () =>
+        document
+          .getElementById("new-category-name")
+          ?.closest<HTMLElement>('[role="dialog"]') ?? null,
+      focusTarget: () => document.getElementById("new-category-name"),
+      label: "Category",
+      onDiscard: closeDialog,
+    });
+
   function requestClose() {
     if (isSaving) return;
     if (hasUnsavedChanges) {
@@ -95,6 +111,15 @@ function CreateCategoryDialog({
     }
 
     closeDialog();
+  }
+
+  function guardDismiss(event: Event) {
+    if (isNavigationIntentEvent(event)) {
+      event.preventDefault();
+      return;
+    }
+
+    if (isSaving || hasUnsavedChanges) event.preventDefault();
   }
 
   function handleOpenChange(nextOpen: boolean) {
@@ -194,19 +219,23 @@ function CreateCategoryDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        <Button
-          type="button"
-          variant="secondary"
-          className={className}
-          disabled={disabled}
+    <>
+      <Dialog modal={false} open={open} onOpenChange={handleOpenChange}>
+        <DialogTrigger asChild>
+          <Button
+            type="button"
+            variant="secondary"
+            className={className}
+            disabled={disabled}
+          >
+            <PlusIcon aria-hidden="true" />
+            New Category
+          </Button>
+        </DialogTrigger>
+        <DialogContent
+          onInteractOutside={guardDismiss}
+          overlayClassName={discardPrompt ? undefined : "pointer-events-none"}
         >
-          <PlusIcon aria-hidden="true" />
-          New Category
-        </Button>
-      </DialogTrigger>
-      <DialogContent>
         {discardPrompt ? (
           <>
             <DialogHeader>
@@ -391,8 +420,10 @@ function CreateCategoryDialog({
             </DialogFooter>
           </form>
         )}
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+      {navigationGuardDialog}
+    </>
   );
 }
 

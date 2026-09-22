@@ -26,6 +26,8 @@ Set `CLERK_JWT_KEY` to the PEM public key from Clerk, `CLERK_SECRET_KEY` to the 
 
 Invitation email delivery is an external boundary. Set `INVITATION_DELIVERY_URL` (and, when required, `INVITATION_DELIVERY_API_KEY`) to connect a provider; `INVITATION_WEB_BASE_URL` controls the links included in messages.
 
+Shared Space archive notifications use a separate email boundary. Set `SPACE_NOTIFICATION_DELIVERY_URL` (and, when required, `SPACE_NOTIFICATION_DELIVERY_API_KEY`) to connect its provider. If it is unset or unavailable, the in-app notification remains stored with a retryable failed email status.
+
 Optionally load deterministic development data with `npm run db:seed`. The seed commands are restricted to non-production environments and local databases.
 
 Start the API in watch mode:

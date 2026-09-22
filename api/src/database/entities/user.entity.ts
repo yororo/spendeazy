@@ -34,6 +34,14 @@ export class UserEntity {
   })
   activeSharedSpaceId!: string | null;
 
+  @Column({
+    type: 'timestamptz',
+    precision: 3,
+    nullable: true,
+    name: 'deleted_at',
+  })
+  deletedAt!: Date | null;
+
   @CreateDateColumn({ type: 'timestamptz', precision: 3, name: 'created_at' })
   createdAt!: Date;
 

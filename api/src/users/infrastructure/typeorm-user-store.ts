@@ -1,6 +1,11 @@
 import { InjectEntityManager } from '@nestjs/typeorm';
 import { Injectable } from '@nestjs/common';
-import { QueryFailedError, type EntityManager, type Repository } from 'typeorm';
+import {
+  IsNull,
+  QueryFailedError,
+  type EntityManager,
+  type Repository,
+} from 'typeorm';
 import { UserEntity } from '../../database/entities/user.entity';
 import { POSTGRES_UNIQUE_VIOLATION } from '../../database/database-error-codes';
 import { UserEmailConflictError } from '../application/user-errors';
@@ -29,7 +34,7 @@ export class TypeOrmUserStore implements UserStore {
   async findByClerkUserId(clerkUserId: string): Promise<UserRecord | null> {
     const entity = await this.entityManager
       .getRepository(UserEntity)
-      .findOne({ where: { clerkUserId } });
+      .findOne({ where: { clerkUserId, deletedAt: IsNull() } });
 
     return entity ? toUserRecord(entity) : null;
   }
@@ -37,7 +42,7 @@ export class TypeOrmUserStore implements UserStore {
   async findByEmail(email: string): Promise<UserRecord | null> {
     const entity = await this.entityManager
       .getRepository(UserEntity)
-      .findOne({ where: { email } });
+      .findOne({ where: { email, deletedAt: IsNull() } });
 
     return entity ? toUserRecord(entity) : null;
   }
@@ -48,6 +53,7 @@ export class TypeOrmUserStore implements UserStore {
       clerkUserId: input.clerkUserId,
       name: input.name,
       email: input.email,
+      deletedAt: null,
     });
 
     return saveUser(repository, entity);

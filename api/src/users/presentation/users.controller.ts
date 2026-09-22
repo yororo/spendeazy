@@ -1,7 +1,9 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
   HttpStatus,
   Put,
   Req,
@@ -97,6 +99,30 @@ export class UsersController {
   ): Promise<UserResponseDto> {
     return toUserResponse(
       await this.usersService.getUserById(requireAuthenticatedUserId(request)),
+    );
+  }
+
+  @Delete()
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary:
+      'Delete the local identity and archive any active Shared Space history.',
+    description:
+      'The local User is retained as a Deleted user tombstone so immutable financial attribution remains readable. Active Shared Spaces become permanent read-only history for the remaining member.',
+  })
+  @ApiResponse({
+    status: HttpStatus.NO_CONTENT,
+    description: 'Identity access removed.',
+  })
+  @ApiStandardErrorResponses(
+    'UnauthenticatedError',
+    'UserNotProvisionedError',
+    'NotFoundError',
+    'InternalError',
+  )
+  async deleteUser(@Req() request: AuthenticatedRequest): Promise<void> {
+    await this.usersService.deleteByClerkUserId(
+      requireAuthenticatedClerkUserId(request),
     );
   }
 }

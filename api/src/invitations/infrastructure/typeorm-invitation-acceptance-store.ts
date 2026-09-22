@@ -120,6 +120,11 @@ export class TypeOrmInvitationAcceptanceStore implements InvitationAcceptanceSto
     ) {
       throw new InvitationNotFoundError();
     }
+    if (lockedUsers.some((user) => user.deletedAt != null)) {
+      throw new InvitationIneligibleError(
+        'Both Users must have an active identity before accepting this invitation',
+      );
+    }
     if (lockedUsers.some((user) => user.activeSharedSpaceId !== null)) {
       throw new InvitationIneligibleError(
         'Both Users must be free of an active Shared Space before accepting this invitation',

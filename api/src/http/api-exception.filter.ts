@@ -39,6 +39,7 @@ import {
   USER_NOT_PROVISIONED_CODE,
   SPACE_NOT_FOUND_CODE,
   SPACE_NOT_WRITABLE_CODE,
+  SPACE_NOTIFICATION_NOT_FOUND_CODE,
   INVITATION_NOT_FOUND_CODE,
   INVITATION_ALREADY_PENDING_CODE,
   INVITATION_RATE_LIMITED_CODE,
@@ -62,6 +63,7 @@ import {
   POSTGRES_FOREIGN_KEY_VIOLATION,
   POSTGRES_INVALID_TEXT_REPRESENTATION,
   POSTGRES_NOT_NULL_VIOLATION,
+  POSTGRES_SPACE_NOT_WRITABLE,
   POSTGRES_UNIQUE_VIOLATION,
 } from '../database/database-error-codes';
 import { USER_EMAIL_ALREADY_EXISTS_CODE } from '../users/application/user-errors';
@@ -247,6 +249,12 @@ function mapDatabaseException(exception: { driverError: unknown }): {
         VALIDATION_FAILED_CODE,
         'The request contains invalid fields.',
       );
+    case POSTGRES_SPACE_NOT_WRITABLE:
+      return clientError(
+        HttpStatus.FORBIDDEN,
+        SPACE_NOT_WRITABLE_CODE,
+        'Space is not writable',
+      );
     default:
       return internalServerError();
   }
@@ -317,6 +325,8 @@ function applicationErrorStatus(code: string): number {
       return HttpStatus.NOT_FOUND;
     case SPACE_NOT_WRITABLE_CODE:
       return HttpStatus.FORBIDDEN;
+    case SPACE_NOTIFICATION_NOT_FOUND_CODE:
+      return HttpStatus.NOT_FOUND;
     case INVITATION_NOT_FOUND_CODE:
     case INVITATION_EXPIRED_CODE:
     case INVITATION_CANCELED_CODE:

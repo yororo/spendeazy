@@ -11,6 +11,6 @@ export default defineConfig({
     channel: "msedge",
     timezoneId: "UTC",
     trace: "on-first-retry",
-    ...devices["Desktop Chrome"],
+    ...devices["Desktop Edge"],
   },
 });

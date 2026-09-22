@@ -49,12 +49,40 @@ const pageState = vi.hoisted(() => ({
     isError: false,
     isPending: false,
   },
+  notificationsQuery: {
+    data: [],
+    error: null as Error | null,
+    isError: false,
+    isPending: false,
+  },
+  spacesQuery: {
+    data: [] as Array<{
+      id: string;
+      kind: 'personal' | 'shared';
+      status: 'active' | 'archived';
+      accessLevel: 'read' | 'write';
+    }>,
+  },
+  leaveMutation: {
+    error: null as Error | null,
+    isPending: false,
+    mutate: vi.fn(),
+    reset: vi.fn(),
+  },
 }));
 
 const openUserProfile = vi.hoisted(() => vi.fn());
 
 vi.mock('@/shared/session', () => ({
   useAppSession: () => ({ openUserProfile }),
+}));
+
+vi.mock('@/shared/api', () => ({
+  useAccessibleSpacesQuery: () => pageState.spacesQuery,
+  useMarkSpaceNotificationReadMutation: () => basicMutation(),
+  useRetrySpaceNotificationMutation: () => basicMutation(),
+  useSpaceNotificationsQuery: () => pageState.notificationsQuery,
+  useLeaveSharedSpaceMutation: () => pageState.leaveMutation,
 }));
 
 vi.mock('./invitation-queries', () => ({
@@ -81,6 +109,14 @@ afterEach(() => {
   pageState.invitationContextQuery.error = null;
   pageState.invitationContextQuery.isError = false;
   pageState.invitationContextQuery.isPending = false;
+  pageState.notificationsQuery.data = [];
+  pageState.notificationsQuery.error = null;
+  pageState.notificationsQuery.isError = false;
+  pageState.notificationsQuery.isPending = false;
+  pageState.leaveMutation.error = null;
+  pageState.leaveMutation.isPending = false;
+  pageState.leaveMutation.mutate.mockClear();
+  pageState.leaveMutation.reset.mockClear();
   openUserProfile.mockClear();
 });
 
@@ -135,6 +171,37 @@ describe('SharingPage', () => {
     );
     expect(openUserProfile).toHaveBeenCalledTimes(1);
   });
+
+  it('requires explicit confirmation before archiving the active Shared Space', () => {
+    pageState.spacesQuery.data = [
+      {
+        id: '99',
+        kind: 'shared',
+        status: 'active',
+        accessLevel: 'write',
+      },
+    ];
+
+    render(
+      <MemoryRouter initialEntries={['/sharing']}>
+        <SharingPage />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'End sharing' }));
+    expect(
+      screen.getByText(/Both members will lose editing access/u),
+    ).toBeTruthy();
+    expect(
+      screen.getByText(/cannot be reopened/u),
+    ).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm archive' }));
+    expect(pageState.leaveMutation.mutate).toHaveBeenCalledWith(
+      '99',
+      expect.any(Object),
+    );
+  });
 });
 
 function basicMutation() {
@@ -142,5 +209,6 @@ function basicMutation() {
     error: null,
     isPending: false,
     mutate: vi.fn(),
+    reset: vi.fn(),
   };
 }

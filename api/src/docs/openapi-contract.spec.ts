@@ -155,6 +155,17 @@ const OPERATION_EXPECTATIONS = [
     errorResponses: { ...PROTECTED_ERRORS, '404': 'NotFoundError' },
   },
   {
+    operationId: 'Users_deleteUser',
+    tag: 'Users',
+    bodyResponses: [{ status: '204' }],
+    errorResponses: {
+      '401': 'UnauthenticatedError',
+      '403': 'UserNotProvisionedError',
+      '404': 'NotFoundError',
+      '500': 'InternalError',
+    },
+  },
+  {
     operationId: 'Spaces_listSpaces',
     tag: 'Spaces',
     bodyResponses: [{ status: '200', arrayItemSchemaRef: 'SpaceResponseDto' }],
@@ -166,6 +177,57 @@ const OPERATION_EXPECTATIONS = [
     pathParameter: 'spaceId',
     bodyResponses: [{ status: '200', schemaRef: 'SpaceResponseDto' }],
     errorResponses: { ...PROTECTED_ERRORS, ...VALIDATED_PATH_ERRORS },
+  },
+  {
+    operationId: 'Spaces_leaveSpace',
+    tag: 'Spaces',
+    requestSchemaRef: 'ConfirmSpaceLeaveDto',
+    pathParameter: 'spaceId',
+    bodyResponses: [{ status: '204' }],
+    errorResponses: {
+      ...PROTECTED_ERRORS,
+      ...VALIDATED_PATH_ERRORS,
+    },
+  },
+  {
+    operationId: 'SpaceNotifications_listNotifications',
+    tag: 'Notifications',
+    bodyResponses: [
+      { status: '200', arrayItemSchemaRef: 'SpaceNotificationResponseDto' },
+    ],
+    errorResponses: {
+      '401': 'UnauthenticatedError',
+      '403': 'UserNotProvisionedError',
+      '500': 'InternalError',
+    },
+  },
+  {
+    operationId: 'SpaceNotifications_retryNotification',
+    tag: 'Notifications',
+    pathParameter: 'notificationId',
+    bodyResponses: [
+      { status: '200', schemaRef: 'SpaceNotificationResponseDto' },
+    ],
+    errorResponses: {
+      '401': 'UnauthenticatedError',
+      '403': 'UserNotProvisionedError',
+      '404': 'NotFoundError',
+      '500': 'InternalError',
+    },
+  },
+  {
+    operationId: 'SpaceNotifications_markNotificationRead',
+    tag: 'Notifications',
+    pathParameter: 'notificationId',
+    bodyResponses: [
+      { status: '200', schemaRef: 'SpaceNotificationResponseDto' },
+    ],
+    errorResponses: {
+      '401': 'UnauthenticatedError',
+      '403': 'UserNotProvisionedError',
+      '404': 'NotFoundError',
+      '500': 'InternalError',
+    },
   },
   {
     operationId: 'Invitations_accept',

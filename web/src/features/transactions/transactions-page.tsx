@@ -103,6 +103,10 @@ function TransactionsPage({
   const controlsDisabled = isScopeTransitioning;
   const editingTransaction =
     editorState?.mode === "edit" ? editorState.transaction : null;
+  const attributionMembers =
+    spaceId === undefined
+      ? undefined
+      : spacesQuery.data?.find((space) => space.id === spaceId)?.members;
 
   return (
     <div className="mx-auto w-full max-w-screen-2xl px-4 py-6 sm:px-6 lg:px-9 lg:py-7">
@@ -170,6 +174,7 @@ function TransactionsPage({
             onDelete={setTransactionToDelete}
             onViewActivity={setTransactionToViewActivity}
             showAttribution={spaceId !== undefined}
+            attributionMembers={attributionMembers}
           />
         </div>
         {transactionsQuery.hasNextPage && (
@@ -186,6 +191,7 @@ function TransactionsPage({
         transactions={deletedTransactions}
         onViewActivity={setTransactionToViewActivity}
         showAttribution={spaceId !== undefined}
+        attributionMembers={attributionMembers}
       />
       <TransactionEditorDialog
         key={editorRevision}
@@ -213,6 +219,7 @@ function TransactionsPage({
         open={transactionToViewActivity !== null}
         transaction={transactionToViewActivity}
         spaceId={effectiveSpaceId}
+        attributionMembers={attributionMembers}
         onOpenChange={(open) => {
           if (!open) setTransactionToViewActivity(null);
         }}

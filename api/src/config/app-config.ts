@@ -37,6 +37,8 @@ export interface AppConfig {
   invitationDeliveryUrl?: string;
   invitationDeliveryApiKey?: string;
   invitationWebBaseUrl?: string;
+  spaceNotificationDeliveryUrl?: string;
+  spaceNotificationDeliveryApiKey?: string;
 }
 
 export function loadAppConfig(
@@ -62,6 +64,13 @@ export function loadAppConfig(
   const invitationDeliveryApiKey = readOptionalSecret(
     processEnv.INVITATION_DELIVERY_API_KEY,
   );
+  const spaceNotificationDeliveryUrl = readOptionalHttpUrl(
+    processEnv.SPACE_NOTIFICATION_DELIVERY_URL,
+    'SPACE_NOTIFICATION_DELIVERY_URL',
+  );
+  const spaceNotificationDeliveryApiKey = readOptionalSecret(
+    processEnv.SPACE_NOTIFICATION_DELIVERY_API_KEY,
+  );
 
   if (currentEnvironment === PRODUCTION_ENVIRONMENT) {
     requireProductionValue('DATABASE_URL', databaseUrl);
@@ -85,6 +94,10 @@ export function loadAppConfig(
     ...(invitationDeliveryUrl ? { invitationDeliveryUrl } : {}),
     ...(invitationDeliveryApiKey ? { invitationDeliveryApiKey } : {}),
     ...(invitationWebBaseUrl ? { invitationWebBaseUrl } : {}),
+    ...(spaceNotificationDeliveryUrl ? { spaceNotificationDeliveryUrl } : {}),
+    ...(spaceNotificationDeliveryApiKey
+      ? { spaceNotificationDeliveryApiKey }
+      : {}),
   };
 }
 

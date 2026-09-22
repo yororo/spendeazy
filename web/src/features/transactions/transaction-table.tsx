@@ -13,6 +13,11 @@ import { formatMoney } from "@/shared/money";
 
 import type { Transaction } from "./transactions-service";
 
+interface AttributionMember {
+  readonly id: string;
+  readonly name: string;
+}
+
 interface TransactionTableProps {
   transactions: readonly Transaction[];
   emptyMessage: string;
@@ -20,6 +25,7 @@ interface TransactionTableProps {
   onDelete?: (transaction: Transaction) => void;
   onViewActivity?: (transaction: Transaction) => void;
   showAttribution?: boolean;
+  attributionMembers?: readonly AttributionMember[];
   ariaLabel?: string;
 }
 
@@ -30,6 +36,7 @@ function TransactionTable({
   onDelete,
   onViewActivity,
   showAttribution = false,
+  attributionMembers,
   ariaLabel = "All transactions",
 }: TransactionTableProps) {
   const hasActions =
@@ -77,7 +84,7 @@ function TransactionTable({
                 </div>
                 {showAttribution && transaction.addedByUserId !== undefined && (
                   <p className="text-xs text-muted-foreground">
-                    Added by User {transaction.addedByUserId}
+                    Added by {attributionLabel(transaction.addedByUserId, attributionMembers)}
                   </p>
                 )}
                 {hasActions && (
@@ -162,7 +169,7 @@ function TransactionTable({
                   )}
                   {showAttribution && transaction.addedByUserId !== undefined && (
                     <p className="mt-1 text-xs text-muted-foreground">
-                      Added by User {transaction.addedByUserId}
+                      Added by {attributionLabel(transaction.addedByUserId, attributionMembers)}
                     </p>
                   )}
                 </TableCell>
@@ -226,6 +233,13 @@ function TransactionTable({
       </div>
     </>
   );
+}
+
+function attributionLabel(
+  userId: string,
+  members: readonly AttributionMember[] | undefined,
+): string {
+  return members?.find((member) => member.id === userId)?.name ?? `User ${userId}`;
 }
 
 export { TransactionTable };

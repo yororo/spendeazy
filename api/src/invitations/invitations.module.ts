@@ -36,7 +36,7 @@ export class InvitationsModule {
         module: InvitationsModule,
         imports: [
           UsersModule.register(false, options),
-          SpacesModule.register(false, options),
+          SpacesModule.register(false, options, config),
         ],
         ...(shouldIncludeControllers ? { controllers } : {}),
         providers: shouldIncludeControllers
@@ -52,7 +52,7 @@ export class InvitationsModule {
       module: InvitationsModule,
       imports: [
         UsersModule.register(true, options),
-        SpacesModule.register(true, options),
+        SpacesModule.register(true, options, config),
       ],
       ...(shouldIncludeControllers ? { controllers } : {}),
       providers: [

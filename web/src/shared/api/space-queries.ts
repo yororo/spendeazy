@@ -1,4 +1,8 @@
-import { useQuery } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 
 import {
   queryPolicy,
@@ -6,6 +10,7 @@ import {
 } from "@/shared/query";
 
 import { getAccessibleSpaces } from "./space";
+import { leaveSharedSpace } from "./space";
 import { useApiClient } from "./use-api-client";
 
 function useAccessibleSpacesQuery(enabled: boolean) {
@@ -22,4 +27,18 @@ function useAccessibleSpacesQuery(enabled: boolean) {
   });
 }
 
-export { useAccessibleSpacesQuery };
+function useLeaveSharedSpaceMutation() {
+  const apiClient = useApiClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (spaceId: string) => leaveSharedSpace(apiClient, spaceId),
+    retry: 0,
+    onSuccess: () =>
+      void Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["spaces", "accessible"] }),
+        queryClient.invalidateQueries({ queryKey: ["space-notifications"] }),
+      ]),
+  });
+}
+
+export { useAccessibleSpacesQuery, useLeaveSharedSpaceMutation };

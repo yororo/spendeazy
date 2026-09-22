@@ -74,9 +74,21 @@ async function getAccessibleSpaces(
   return requireAccessibleSpaces(response);
 }
 
+async function leaveSharedSpace(
+  apiClient: Pick<ApiClient, "post">,
+  spaceId: string,
+): Promise<void> {
+  await apiClient.post(
+    `/spaces/${encodeURIComponent(spaceId)}/leave`,
+    { confirm: true },
+    { expectedStatuses: [204] },
+  );
+}
+
 export {
   getAccessibleSpaces,
   getArchivedSpaces,
+  leaveSharedSpace,
   isAccessibleSpace,
   requireAccessibleSpaces,
 };

@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import { isEmail } from 'class-validator';
 import { ClerkProfileUnavailableError } from '../../authentication/authentication-errors';
 import {
@@ -9,6 +9,10 @@ import {
   PERSONAL_SPACE_PROVISIONER,
   type PersonalSpaceProvisioner,
 } from '../../spaces/application/space-store';
+import {
+  SPACE_LIFECYCLE,
+  SpaceLifecycleService,
+} from '../../spaces/application/space-lifecycle.service';
 import type {
   ClerkProfileService,
   ClerkUserProfile,
@@ -47,6 +51,9 @@ export class UsersService {
     private readonly defaultCategoryProvisioner: DefaultCategoryProvisioner,
     @Inject(PERSONAL_SPACE_PROVISIONER)
     private readonly personalSpaceProvisioner: PersonalSpaceProvisioner,
+    @Optional()
+    @Inject(SPACE_LIFECYCLE)
+    private readonly spaceLifecycleService?: SpaceLifecycleService,
   ) {}
 
   async provisionUser(clerkUserId: string): Promise<UserProvisioningResult> {
@@ -91,6 +98,16 @@ export class UsersService {
     }
 
     return user;
+  }
+
+  async deleteByClerkUserId(clerkUserId: string): Promise<void> {
+    const user = await this.userStore.findByClerkUserId(clerkUserId);
+    if (!user) throw new UserNotFoundError();
+    if (!this.spaceLifecycleService) {
+      throw new Error('Space lifecycle is not configured');
+    }
+
+    await this.spaceLifecycleService.deleteIdentity(user.id);
   }
 
   private async fetchProfile(clerkUserId: string) {

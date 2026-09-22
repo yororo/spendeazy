@@ -184,6 +184,7 @@ function ArchivedSpaceHistoryPage() {
             emptyMessage="No Transactions were recorded for this Reporting Period."
             onViewActivity={setTransactionToViewActivity}
             showAttribution
+            attributionMembers={selectedSpace.members}
           />
         </div>
         {transactionsQuery.hasNextPage && (
@@ -200,11 +201,13 @@ function ArchivedSpaceHistoryPage() {
         transactions={deletedTransactions}
         onViewActivity={setTransactionToViewActivity}
         showAttribution
+        attributionMembers={selectedSpace.members}
       />
       <TransactionActivityDialog
         open={transactionToViewActivity !== null}
         transaction={transactionToViewActivity}
         spaceId={selectedSpace.id}
+        attributionMembers={selectedSpace.members}
         onOpenChange={(open) => {
           if (!open) setTransactionToViewActivity(null);
         }}

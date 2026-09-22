@@ -24,6 +24,7 @@ interface TransactionActivityDialogProps {
   readonly open: boolean;
   readonly transaction: Transaction | null;
   readonly spaceId?: string;
+  readonly attributionMembers?: readonly { readonly id: string; readonly name: string }[];
   readonly onOpenChange: (open: boolean) => void;
 }
 
@@ -37,6 +38,7 @@ function TransactionActivityDialog({
   open,
   transaction,
   spaceId,
+  attributionMembers,
   onOpenChange,
 }: TransactionActivityDialogProps) {
   const activityQuery = useTransactionActivityQuery(
@@ -89,7 +91,7 @@ function TransactionActivityDialog({
               </p>
               {transaction?.addedByUserId !== undefined && (
                 <p className="font-medium text-foreground">
-                  Added by User {transaction.addedByUserId}
+                  Added by {attributionLabel(transaction.addedByUserId, attributionMembers)}
                 </p>
               )}
             </div>
@@ -107,8 +109,8 @@ function TransactionActivityDialog({
                   </p>
                   <p className="mt-1 text-sm">
                     {activityLabel(activity.type)} by
-                    {" User "}
-                    {activity.actorUserId}
+                    {" "}
+                    {attributionLabel(activity.actorUserId, attributionMembers)}
                   </p>
                   <time
                     className="mt-1 block text-xs text-muted-foreground"
@@ -142,6 +144,13 @@ function TransactionActivityDialog({
       </DialogContent>
     </Dialog>
   );
+}
+
+function attributionLabel(
+  userId: string,
+  members: readonly { readonly id: string; readonly name: string }[] | undefined,
+): string {
+  return members?.find((member) => member.id === userId)?.name ?? `User ${userId}`;
 }
 
 function activityLabel(type: TransactionActivity["type"]): string {

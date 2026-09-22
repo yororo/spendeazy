@@ -67,4 +67,33 @@ describe("TransactionTable Category Colors", () => {
 
     expect(screen.getAllByText("Added by User 8")).toHaveLength(2);
   });
+
+  it("uses retained member names for shared creator attribution", () => {
+    const transaction: Transaction = {
+      id: "11",
+      categoryId: null,
+      purchaseDate: "2026-08-31",
+      date: "Aug 31",
+      description: "Archived lunch",
+      category: "other",
+      categoryLabel: "Uncategorized",
+      categoryColor: null,
+      account: "Cash",
+      amount: -10,
+      source: "manual",
+      statementImportId: null,
+      addedByUserId: "8",
+    };
+
+    render(
+      <TransactionTable
+        transactions={[transaction]}
+        emptyMessage="No Transactions"
+        showAttribution
+        attributionMembers={[{ id: "8", name: "Deleted user" }]}
+      />,
+    );
+
+    expect(screen.getAllByText("Added by Deleted user")).toHaveLength(2);
+  });
 });

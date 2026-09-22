@@ -16,6 +16,7 @@ interface DeletedTransactionsCardProps {
   readonly transactions: readonly Transaction[];
   readonly onViewActivity: (transaction: Transaction) => void;
   readonly showAttribution?: boolean;
+  readonly attributionMembers?: readonly { readonly id: string; readonly name: string }[];
 }
 
 function DeletedTransactionsCard({
@@ -23,6 +24,7 @@ function DeletedTransactionsCard({
   transactions,
   onViewActivity,
   showAttribution = false,
+  attributionMembers,
 }: DeletedTransactionsCardProps) {
   return (
     <Card
@@ -52,6 +54,7 @@ function DeletedTransactionsCard({
             emptyMessage="No Transactions have been deleted."
             onViewActivity={onViewActivity}
             showAttribution={showAttribution}
+            attributionMembers={attributionMembers}
             ariaLabel="Deleted transactions"
           />
           {query.hasNextPage && (

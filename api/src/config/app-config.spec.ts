@@ -84,11 +84,16 @@ describe('loadAppConfig', () => {
         INVITATION_DELIVERY_URL: ' https://mailer.example.test/send/ ',
         INVITATION_DELIVERY_API_KEY: ' delivery-secret ',
         INVITATION_WEB_BASE_URL: 'https://app.example.test/ ',
+        SPACE_NOTIFICATION_DELIVERY_URL:
+          ' https://mailer.example.test/space-archive/ ',
+        SPACE_NOTIFICATION_DELIVERY_API_KEY: ' space-delivery-secret ',
       }),
     ).toMatchObject({
       invitationDeliveryUrl: 'https://mailer.example.test/send',
       invitationDeliveryApiKey: 'delivery-secret',
       invitationWebBaseUrl: 'https://app.example.test',
+      spaceNotificationDeliveryUrl: 'https://mailer.example.test/space-archive',
+      spaceNotificationDeliveryApiKey: 'space-delivery-secret',
     });
 
     expect(() =>

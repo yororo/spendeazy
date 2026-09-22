@@ -212,7 +212,7 @@ describe("ArchivedSpaceHistoryPage", () => {
       screen.getByRole("button", { name: "View activity for Archived dinner" }),
     );
     expect(
-      within(screen.getByRole("dialog")).getByText("Created by User user-3"),
+      within(screen.getByRole("dialog")).getByText("Created by Katherine Johnson"),
     ).toBeTruthy();
     expect(pageState.lastTransactionQueryArgs?.slice(1)).toEqual([
       "archived-1",
@@ -247,7 +247,7 @@ describe("ArchivedSpaceHistoryPage", () => {
     });
     fireEvent.click(activityButtons.at(-1)!);
     expect(
-      within(screen.getByRole("dialog")).getByText("Deleted by User user-1"),
+      within(screen.getByRole("dialog")).getByText("Deleted by Ada Lovelace"),
     ).toBeTruthy();
   });
 

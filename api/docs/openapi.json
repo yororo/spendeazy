@@ -130,6 +130,32 @@
         "tags": [
           "Users"
         ]
+      },
+      "delete": {
+        "description": "The local User is retained as a Deleted user tombstone so immutable financial attribution remains readable. Active Shared Spaces become permanent read-only history for the remaining member.",
+        "operationId": "Users_deleteUser",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": "Identity access removed."
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthenticatedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/UserNotProvisionedError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Delete the local identity and archive any active Shared Space history.",
+        "tags": [
+          "Users"
+        ]
       }
     },
     "/api/v1/users/me/categories": {
@@ -1307,6 +1333,186 @@
         "summary": "Get an accessible Space.",
         "tags": [
           "Spaces"
+        ]
+      }
+    },
+    "/api/v1/users/me/spaces/{spaceId}/leave": {
+      "post": {
+        "description": "After explicit confirmation, the active Shared Space becomes permanent read-only history for both former members. Earlier completed financial writes remain; later writes are rejected. Archives cannot be reopened.",
+        "operationId": "Spaces_leaveSpace",
+        "parameters": [
+          {
+            "name": "spaceId",
+            "required": true,
+            "in": "path",
+            "description": "Positive bigint identifier encoded as a decimal string.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9]\\d*$",
+              "example": "42"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmSpaceLeaveDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Space archived."
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthenticatedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/UserNotProvisionedError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          },
+          "406": {
+            "$ref": "#/components/responses/NotAcceptableError"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "End sharing and permanently archive a Shared Space.",
+        "tags": [
+          "Spaces"
+        ]
+      }
+    },
+    "/api/v1/users/me/notifications": {
+      "get": {
+        "operationId": "SpaceNotifications_listNotifications",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SpaceNotificationResponseDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthenticatedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/UserNotProvisionedError"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "List in-app notifications for the User.",
+        "tags": [
+          "Notifications"
+        ]
+      }
+    },
+    "/api/v1/users/me/notifications/{notificationId}/retry": {
+      "post": {
+        "operationId": "SpaceNotifications_retryNotification",
+        "parameters": [
+          {
+            "name": "notificationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[1-9]\\d*$",
+              "example": "42",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpaceNotificationResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthenticatedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/UserNotProvisionedError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Retry a failed archive notification email.",
+        "tags": [
+          "Notifications"
+        ]
+      }
+    },
+    "/api/v1/users/me/notifications/{notificationId}/read": {
+      "post": {
+        "operationId": "SpaceNotifications_markNotificationRead",
+        "parameters": [
+          {
+            "name": "notificationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[1-9]\\d*$",
+              "example": "42",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpaceNotificationResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthenticatedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/UserNotProvisionedError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Mark an in-app notification as read.",
+        "tags": [
+          "Notifications"
         ]
       }
     },
@@ -4415,6 +4621,7 @@
           "USER_NOT_FOUND",
           "SPACE_NOT_FOUND",
           "SPACE_NOT_WRITABLE",
+          "SPACE_NOTIFICATION_NOT_FOUND",
           "INVITATION_NOT_FOUND",
           "INVITATION_ALREADY_PENDING",
           "INVITATION_RATE_LIMITED",
@@ -5089,6 +5296,80 @@
         },
         "required": [
           "spaceId"
+        ]
+      },
+      "ConfirmSpaceLeaveDto": {
+        "type": "object",
+        "properties": {
+          "confirm": {
+            "type": "boolean",
+            "description": "The member explicitly confirmed that both members lose editing access.",
+            "example": true
+          }
+        },
+        "required": [
+          "confirm"
+        ]
+      },
+      "SpaceNotificationResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[1-9]\\d*$",
+            "example": "42"
+          },
+          "spaceId": {
+            "type": "string",
+            "pattern": "^[1-9]\\d*$",
+            "example": "7"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "shared_space_archived"
+            ],
+            "example": "shared_space_archived"
+          },
+          "title": {
+            "type": "string",
+            "example": "Shared Space archived"
+          },
+          "message": {
+            "type": "string",
+            "example": "Ada ended sharing."
+          },
+          "readAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "emailDeliveryStatus": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "sent",
+              "failed"
+            ],
+            "example": "sent"
+          },
+          "emailDeliveryError": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "spaceId",
+          "type",
+          "title",
+          "message",
+          "emailDeliveryStatus",
+          "createdAt"
         ]
       },
       "InvitationResponseDto": {

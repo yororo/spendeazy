@@ -48,10 +48,32 @@ export {
   getAccessibleSpaces,
   getArchivedSpaces,
   isAccessibleSpace,
+  leaveSharedSpace,
   requireAccessibleSpaces,
 } from "./space";
 export type { AccessibleSpace, SpaceMember } from "./space";
-export { useAccessibleSpacesQuery } from "./space-queries";
+export {
+  useAccessibleSpacesQuery,
+  useLeaveSharedSpaceMutation,
+} from "./space-queries";
+export {
+  getSpaceNotifications,
+  isSpaceNotification,
+  markSpaceNotificationRead,
+  requireSpaceNotifications,
+  retrySpaceNotification,
+} from "./space-notification";
+export type {
+  SpaceNotification,
+  SpaceNotificationDeliveryStatus,
+  SpaceNotificationType,
+} from "./space-notification";
+export {
+  SPACE_NOTIFICATIONS_QUERY_KEY,
+  useMarkSpaceNotificationReadMutation,
+  useRetrySpaceNotificationMutation,
+  useSpaceNotificationsQuery,
+} from "./space-notification-queries";
 export type {
   ApiClient,
   ApiAuthenticationFailureHandler,

@@ -112,6 +112,10 @@ describeDatabase(
       const currentUserId = requireValue(userId, 'test User');
       const spaceId = requireValue(personalSpaceId, 'test Space');
       const currentCategoryId = requireValue(categoryId, 'test Category');
+      const currentCategory = await categories.getCategoryInSpace(
+        spaceId,
+        currentCategoryId,
+      );
       const gate = await installAdvisoryGate(database, 'categories', 'UPDATE');
       let retirement: Promise<unknown> | undefined;
       let confirmation: Promise<unknown> | undefined;
@@ -122,6 +126,7 @@ describeDatabase(
           currentCategoryId,
           {
             isActive: false,
+            expectedUpdatedAt: currentCategory.updatedAt.toISOString(),
           },
         );
         await waitForAdvisoryWaiter(database, gate.lockKey);
@@ -166,6 +171,10 @@ describeDatabase(
       const currentUserId = requireValue(userId, 'test User');
       const spaceId = requireValue(personalSpaceId, 'test Space');
       const currentCategoryId = requireValue(categoryId, 'test Category');
+      const currentCategory = await categories.getCategoryInSpace(
+        spaceId,
+        currentCategoryId,
+      );
       const gate = await installAdvisoryGate(
         database,
         'statement_imports',
@@ -187,6 +196,7 @@ describeDatabase(
           currentCategoryId,
           {
             isActive: false,
+            expectedUpdatedAt: currentCategory.updatedAt.toISOString(),
           },
         );
 

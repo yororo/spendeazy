@@ -27,7 +27,7 @@ export interface UpdateCategory {
   description?: string | null;
   color?: CategoryColor;
   isActive?: boolean;
-  expectedUpdatedAt?: string;
+  expectedUpdatedAt: string;
 }
 
 export interface CategoryStore {

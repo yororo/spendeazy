@@ -234,36 +234,24 @@ function useDeleteCategoryBudgetMutation() {
 
   return useMutation({
     retry: 0,
-    mutationFn: (
-      input:
-        | string
-        | {
-            readonly categoryId: string;
-            readonly spaceId?: string;
-            readonly updatedAt?: string;
-          },
-    ) =>
-      typeof input === "string"
-        ? deleteCategoryBudget(apiClient, input)
-        : deleteCategoryBudget(
-            apiClient,
-            input.categoryId,
-            input.spaceId,
-            input.updatedAt,
-        ),
-    onMutate: (input) =>
-      captureFinancialMutationScope(
-        identityId,
-        typeof input === "string" ? undefined : input.spaceId,
+    mutationFn: (input: {
+      readonly categoryId: string;
+      readonly spaceId?: string;
+      readonly updatedAt: string;
+    }) =>
+      deleteCategoryBudget(
+        apiClient,
+        input.categoryId,
+        input.spaceId,
+        input.updatedAt,
       ),
+    onMutate: (input) =>
+      captureFinancialMutationScope(identityId, input.spaceId),
     onSuccess: (_data, input, mutationScope) =>
       invalidateCategoryDependentQueries(
         queryClient,
         mutationScope ??
-          captureFinancialMutationScope(
-            identityId,
-            typeof input === "string" ? undefined : input.spaceId,
-          ),
+          captureFinancialMutationScope(identityId, input.spaceId),
       ),
   });
 }

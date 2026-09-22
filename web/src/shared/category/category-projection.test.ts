@@ -12,6 +12,7 @@ describe("Category catalog projection", () => {
         description: null,
         color: "teal",
         isActive: true,
+        updatedAt: "2026-09-01T00:00:00.000Z",
       },
       {
         id: "43",
@@ -19,6 +20,7 @@ describe("Category catalog projection", () => {
         description: null,
         color: null,
         isActive: false,
+        updatedAt: "2026-09-01T00:00:00.000Z",
       },
     ]);
 

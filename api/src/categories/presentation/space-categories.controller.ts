@@ -24,6 +24,7 @@ import {
   type AuthenticatedRequest,
 } from '../../authentication/authentication';
 import { ApiStandardErrorResponses } from '../../http/api-error.dto';
+import { requireOptimisticVersion } from '../../http/optimistic-version';
 import { POSITIVE_INTEGER_ID_PATTERN } from '../../http/validation-patterns';
 import { SpaceAccessService } from '../../spaces/application/space-access.service';
 import { CategoriesService } from '../application/categories.service';
@@ -220,7 +221,11 @@ function toCategoryUpdate(input: UpdateCategoryDto): UpdateCategory {
   const { updatedAt, ...changes } = input;
   return {
     ...changes,
-    ...(updatedAt === undefined ? {} : { expectedUpdatedAt: updatedAt }),
+    expectedUpdatedAt: requireOptimisticVersion(
+      updatedAt,
+      'Category',
+      '/updatedAt',
+    ),
   };
 }
 

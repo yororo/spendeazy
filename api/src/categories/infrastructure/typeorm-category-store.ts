@@ -22,6 +22,8 @@ import type {
   UpdateCategory,
 } from '../application/category-store';
 
+type CategoryChanges = Omit<UpdateCategory, 'expectedUpdatedAt'>;
+
 @Injectable()
 export class TypeOrmCategoryStore implements CategoryStore {
   constructor(
@@ -114,51 +116,41 @@ async function updateCategoryInManager(
   spaceId: string,
   id: string,
   input: UpdateCategory,
-  changes: UpdateCategory,
+  changes: CategoryChanges,
 ): Promise<CategoryRecord | null> {
   const repository = entityManager.getRepository(CategoryEntity);
 
-  if (input.expectedUpdatedAt !== undefined) {
-    let result: UpdateResult;
-    try {
-      result = await repository
-        .createQueryBuilder()
-        .update(CategoryEntity)
-        .set(changes)
-        .where('id = :id', { id })
-        .andWhere('space_id = :spaceId', { spaceId })
-        .andWhere('updated_at = :expectedUpdatedAt', {
-          expectedUpdatedAt: new Date(input.expectedUpdatedAt),
-        })
-        .execute();
-    } catch (error: unknown) {
-      if (isUniqueViolation(error)) {
-        throw new CategoryNameConflictError();
-      }
-
-      throw error;
+  let result: UpdateResult;
+  try {
+    result = await repository
+      .createQueryBuilder()
+      .update(CategoryEntity)
+      .set(changes)
+      .where('id = :id', { id })
+      .andWhere('space_id = :spaceId', { spaceId })
+      .andWhere('updated_at = :expectedUpdatedAt', {
+        expectedUpdatedAt: new Date(input.expectedUpdatedAt),
+      })
+      .execute();
+  } catch (error: unknown) {
+    if (isUniqueViolation(error)) {
+      throw new CategoryNameConflictError();
     }
 
-    if (result.affected !== 1) {
-      const current = await repository.findOne({ where: { id, spaceId } });
-      if (!current) {
-        return null;
-      }
+    throw error;
+  }
 
-      throw new StaleEditError();
+  if (result.affected !== 1) {
+    const current = await repository.findOne({ where: { id, spaceId } });
+    if (!current) {
+      return null;
     }
 
-    const updated = await repository.findOne({ where: { id, spaceId } });
-    return updated ? toCategoryRecord(updated) : null;
+    throw new StaleEditError();
   }
 
-  const entity = await repository.findOne({ where: { id, spaceId } });
-  if (!entity) {
-    return null;
-  }
-
-  applyCategoryChanges(entity, changes);
-  return saveCategory(repository, entity);
+  const updated = await repository.findOne({ where: { id, spaceId } });
+  return updated ? toCategoryRecord(updated) : null;
 }
 
 async function lockDestinationSpace(
@@ -177,19 +169,9 @@ async function lockDestinationSpace(
   }
 }
 
-function applyCategoryChanges(
-  entity: CategoryEntity,
-  input: UpdateCategory,
-): void {
-  if (input.name !== undefined) entity.name = input.name;
-  if (input.isActive !== undefined) entity.isActive = input.isActive;
-  if (input.description !== undefined) entity.description = input.description;
-  if (input.color !== undefined) entity.color = input.color;
-}
-
-function withoutExpectedUpdatedAt(input: UpdateCategory): UpdateCategory {
-  const changes = { ...input };
-  delete changes.expectedUpdatedAt;
+function withoutExpectedUpdatedAt(input: UpdateCategory): CategoryChanges {
+  const { expectedUpdatedAt: _expectedUpdatedAt, ...changes } = input;
+  void _expectedUpdatedAt;
   return changes;
 }
 

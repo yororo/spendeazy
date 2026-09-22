@@ -531,9 +531,9 @@
         "parameters": [
           {
             "name": "if-match",
-            "required": false,
+            "required": true,
             "in": "header",
-            "description": "Optional Budget updatedAt timestamp. The delete is rejected when it is stale.",
+            "description": "Budget updatedAt timestamp from the last read. The delete is rejected when it is stale.",
             "schema": {
               "type": "string"
             }
@@ -568,6 +568,9 @@
           },
           "406": {
             "$ref": "#/components/responses/NotAcceptableError"
+          },
+          "409": {
+            "$ref": "#/components/responses/ConflictError"
           },
           "500": {
             "$ref": "#/components/responses/InternalError"
@@ -1095,9 +1098,9 @@
         "parameters": [
           {
             "name": "if-match",
-            "required": false,
+            "required": true,
             "in": "header",
-            "description": "Optional Budget updatedAt timestamp. The delete is rejected when it is stale.",
+            "description": "Budget updatedAt timestamp from the last read. The delete is rejected when it is stale.",
             "schema": {
               "type": "string"
             }
@@ -5027,13 +5030,16 @@
           },
           "updatedAt": {
             "type": "string",
-            "description": "The UTC timestamp returned by the last read. Stale edits are rejected when another save changed the Category first.",
+            "description": "Required UTC timestamp returned by the last read. Reload and review your edits when the Category has changed elsewhere.",
             "format": "date-time",
             "example": "2026-08-29T00:00:00.000Z"
           }
         },
         "additionalProperties": false,
-        "minProperties": 1
+        "minProperties": 1,
+        "required": [
+          "updatedAt"
+        ]
       },
       "BudgetResponseDto": {
         "type": "object",

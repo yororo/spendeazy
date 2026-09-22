@@ -3,6 +3,7 @@ import type { AuthenticatedRequest } from '../../authentication/authentication';
 import type { SpaceAccessService } from '../../spaces/application/space-access.service';
 import type { BudgetRecord } from '../application/budget-store';
 import type { BudgetsService } from '../application/budgets.service';
+import { RequestValidationError } from '../../http/request-validation-error';
 import { SpaceBudgetsController } from './space-budgets.controller';
 
 describe('SpaceBudgetsController', () => {
@@ -75,6 +76,24 @@ describe('SpaceBudgetsController', () => {
       '42',
       '2026-09-20T00:00:00.000Z',
     );
+  });
+
+  it('rejects a scoped Budget deletion without If-Match before writing', async () => {
+    const deleteBudgetInSpace = jest.fn();
+    const controller = new SpaceBudgetsController(
+      { deleteBudgetInSpace } as unknown as BudgetsService,
+      {
+        requireWriteAccess: jest.fn().mockResolvedValue({ id: '10' }),
+      } as unknown as SpaceAccessService,
+    );
+
+    await expect(
+      controller.deleteBudget(authenticatedRequest('7'), {
+        spaceId: '10',
+        categoryId: '42',
+      }),
+    ).rejects.toBeInstanceOf(RequestValidationError);
+    expect(deleteBudgetInSpace).not.toHaveBeenCalled();
   });
 });
 

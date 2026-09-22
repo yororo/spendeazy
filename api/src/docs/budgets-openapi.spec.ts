@@ -53,9 +53,9 @@ describe('Budget OpenAPI contract', () => {
       {
         name: 'if-match',
         in: 'header',
-        required: false,
+        required: true,
         description:
-          'Optional Budget updatedAt timestamp. The delete is rejected when it is stale.',
+          'Budget updatedAt timestamp from the last read. The delete is rejected when it is stale.',
         schema: { type: 'string' },
       },
       categoryIdParameter,
@@ -139,6 +139,7 @@ describe('Budget OpenAPI contract', () => {
       '403',
       '404',
       '406',
+      '409',
       '500',
     ]);
 
@@ -167,6 +168,7 @@ describe('Budget OpenAPI contract', () => {
       '403': 'UserNotProvisionedError',
       '404': 'NotFoundError',
       '406': 'NotAcceptableError',
+      '409': 'ConflictError',
       '500': 'InternalError',
     });
 

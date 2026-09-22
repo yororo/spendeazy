@@ -6,7 +6,7 @@ interface BudgetResponse {
   readonly amount: string;
   readonly period: "monthly" | "yearly";
   readonly createdAt?: string;
-  readonly updatedAt?: string;
+  readonly updatedAt: string;
 }
 
 const ID_PATTERN = /^[1-9]\d*$/u;
@@ -23,7 +23,7 @@ function isBudgetResponse(value: unknown): value is BudgetResponse {
     MONEY_PATTERN.test(value.amount) &&
     (value.period === "monthly" || value.period === "yearly") &&
     (value.createdAt === undefined || typeof value.createdAt === "string") &&
-    (value.updatedAt === undefined || typeof value.updatedAt === "string")
+    typeof value.updatedAt === "string"
   );
 }
 

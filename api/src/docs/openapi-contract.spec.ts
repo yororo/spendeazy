@@ -322,8 +322,13 @@ const OPERATION_EXPECTATIONS = [
     tag: 'Budgets',
     pathParameter: 'categoryId',
     headerParameters: ['if-match'],
+    requiredHeaderParameters: ['if-match'],
     bodyResponses: [{ status: '204' }],
-    errorResponses: { ...PROTECTED_ERRORS, ...VALIDATED_PATH_ERRORS },
+    errorResponses: {
+      ...PROTECTED_ERRORS,
+      ...VALIDATED_PATH_ERRORS,
+      '409': 'ConflictError',
+    },
   },
   {
     operationId: 'CategorySummaries_getCategorySummary',
@@ -813,8 +818,8 @@ const REQUEST_SCHEMA_SHAPES = {
     nullable: ['description'],
   },
   UpdateCategoryDto: {
-    required: [],
-    optional: ['name', 'description', 'isActive', 'color', 'updatedAt'],
+    required: ['updatedAt'],
+    optional: ['name', 'description', 'isActive', 'color'],
     nullable: ['description'],
   },
   UpsertBudgetDto: {

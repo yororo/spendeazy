@@ -9,7 +9,7 @@ import {
   BUDGET_STORE,
   type BudgetRecord,
   type BudgetStore,
-  type UpdateBudget,
+  type PutBudgetInput,
 } from './budget-store';
 import { CATEGORY_STORE, type CategoryStore } from './category-store';
 
@@ -32,17 +32,17 @@ export class BudgetsService {
   async putBudgetInSpace(
     spaceId: string,
     categoryId: string,
-    input: UpdateBudget,
+    input: PutBudgetInput,
   ): Promise<PutBudgetResult> {
     const category = await this.getCategoryInSpace(spaceId, categoryId);
     const existingBudget = await this.budgetStore.findByCategoryId(category.id);
 
     if (existingBudget) {
-      assertCurrentVersion(
-        existingBudget.updatedAt,
-        input.expectedUpdatedAt,
-        true,
-      );
+      if (input.expectedUpdatedAt === undefined) {
+        throw new StaleEditError();
+      }
+
+      assertCurrentVersion(existingBudget.updatedAt, input.expectedUpdatedAt);
       if (
         existingBudget.amount === input.amount &&
         existingBudget.period === input.period
@@ -50,9 +50,13 @@ export class BudgetsService {
         return { budget: existingBudget, created: false };
       }
 
-      const replacedBudget = await this.budgetStore.update(category.id, input);
+      const replacedBudget = await this.budgetStore.update(category.id, {
+        amount: input.amount,
+        period: input.period,
+        expectedUpdatedAt: input.expectedUpdatedAt,
+      });
       if (!replacedBudget) {
-        throw new BudgetNotFoundError();
+        throw new StaleEditError();
       }
 
       return { budget: replacedBudget, created: false };
@@ -62,9 +66,21 @@ export class BudgetsService {
       throw new CategoryInactiveError();
     }
 
+    if (input.expectedUpdatedAt !== undefined) {
+      throw new StaleEditError();
+    }
+
     const budget = this.budgetStore.createIfAbsent
-      ? await this.budgetStore.createIfAbsent({ categoryId, ...input })
-      : await this.budgetStore.create({ categoryId, ...input });
+      ? await this.budgetStore.createIfAbsent({
+          categoryId,
+          amount: input.amount,
+          period: input.period,
+        })
+      : await this.budgetStore.create({
+          categoryId,
+          amount: input.amount,
+          period: input.period,
+        });
     if (!budget) {
       throw new StaleEditError();
     }
@@ -89,7 +105,7 @@ export class BudgetsService {
   async deleteBudgetInSpace(
     spaceId: string,
     categoryId: string,
-    expectedUpdatedAt?: string,
+    expectedUpdatedAt: string,
   ): Promise<void> {
     const category = await this.getCategoryInSpace(spaceId, categoryId);
     const budget = await this.budgetStore.findByCategoryId(category.id);
@@ -98,13 +114,12 @@ export class BudgetsService {
     }
 
     assertCurrentVersion(budget.updatedAt, expectedUpdatedAt);
-    const deleted =
-      expectedUpdatedAt !== undefined &&
-      this.budgetStore.deleteIfCurrent !== undefined
-        ? await this.budgetStore.deleteIfCurrent(category.id, expectedUpdatedAt)
-        : await this.budgetStore.delete(category.id);
+    const deleted = await this.budgetStore.deleteIfCurrent(
+      category.id,
+      expectedUpdatedAt,
+    );
     if (!deleted) {
-      throw new BudgetNotFoundError();
+      throw new StaleEditError();
     }
   }
 
@@ -125,14 +140,8 @@ export class BudgetsService {
 
 function assertCurrentVersion(
   updatedAt: Date,
-  expectedUpdatedAt: string | undefined,
-  required = false,
+  expectedUpdatedAt: string,
 ): void {
-  if (expectedUpdatedAt === undefined) {
-    if (required) throw new StaleEditError();
-    return;
-  }
-
   const expectedTime = Date.parse(expectedUpdatedAt);
   if (!Number.isFinite(expectedTime) || updatedAt.getTime() !== expectedTime) {
     throw new StaleEditError();

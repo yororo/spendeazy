@@ -9,6 +9,7 @@ function category(overrides: Record<string, unknown> = {}) {
     description: null,
     color: "teal",
     isActive: true,
+    updatedAt: "2026-09-01T00:00:00.000Z",
     ...overrides,
   };
 }
@@ -33,5 +34,11 @@ describe("Category catalog projection", () => {
     expect(isCategoryCatalogItem(category({ id: "0" }))).toBe(false);
     expect(isCategoryCatalogItem(category({ name: " " }))).toBe(false);
     expect(isCategoryCatalogItem(category({ description: 42 }))).toBe(false);
+  });
+
+  it("rejects a Category without its optimistic-concurrency version", () => {
+    expect(isCategoryCatalogItem(category({ updatedAt: undefined }))).toBe(
+      false,
+    );
   });
 });

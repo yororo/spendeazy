@@ -132,18 +132,21 @@ function createFetchMock(
               name: "Housing",
               description: null,
               isActive: true,
+              updatedAt: "2026-09-01T00:00:00.000Z",
             },
             {
               id: "43",
               name: "Groceries",
               description: null,
               isActive: true,
+              updatedAt: "2026-09-01T00:00:00.000Z",
             },
             {
               id: "88",
               name: "Archived",
               description: null,
               isActive: false,
+              updatedAt: "2026-09-01T00:00:00.000Z",
             },
           ],
         );
@@ -1325,6 +1328,7 @@ describe("StatementImportPage Categorize lifecycle", () => {
                 name: "Archived",
                 description: null,
                 isActive: false,
+                updatedAt: "2026-09-01T00:00:00.000Z",
               },
             ]
           : [
@@ -1333,12 +1337,14 @@ describe("StatementImportPage Categorize lifecycle", () => {
                 name: "Housing",
                 description: null,
                 isActive: true,
+                updatedAt: "2026-09-01T00:00:00.000Z",
               },
               {
                 id: "43",
                 name: "Groceries",
                 description: null,
                 isActive: true,
+                updatedAt: "2026-09-01T00:00:00.000Z",
               },
             ],
     });

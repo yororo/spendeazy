@@ -127,9 +127,7 @@ function normalizeUpdate(input: UpdateCategory): UpdateCategory {
       ? { description: normalizeCategoryDescription(input.description) }
       : {}),
     ...(input.color !== undefined ? { color: input.color } : {}),
-    ...(input.expectedUpdatedAt === undefined
-      ? {}
-      : { expectedUpdatedAt: input.expectedUpdatedAt }),
+    expectedUpdatedAt: input.expectedUpdatedAt,
   };
 }
 
@@ -152,10 +150,8 @@ function isNoOp(
 
 function assertCurrentVersion(
   updatedAt: Date,
-  expectedUpdatedAt: string | undefined,
+  expectedUpdatedAt: string,
 ): void {
-  if (expectedUpdatedAt === undefined) return;
-
   const expectedTime = Date.parse(expectedUpdatedAt);
   if (!Number.isFinite(expectedTime) || updatedAt.getTime() !== expectedTime) {
     throw new StaleEditError();

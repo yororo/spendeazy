@@ -54,8 +54,21 @@ describe('TypeOrmBudgetStore', () => {
 
   it('updates the existing entity in place so identity and creation time survive replacement', async () => {
     const entity = budgetEntity();
+    const updatedEntity = {
+      ...entity,
+      amount: '1200.00',
+      period: 'yearly' as const,
+    };
+    const queryBuilder = {
+      update: jest.fn().mockReturnThis(),
+      set: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      execute: jest.fn().mockResolvedValue({ affected: 1 }),
+    };
     const repository = {
-      findOne: jest.fn().mockResolvedValue(entity),
+      findOne: jest.fn().mockResolvedValue(updatedEntity),
+      createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
       save: jest.fn().mockResolvedValue(entity),
     };
     const entityManager = {
@@ -64,7 +77,11 @@ describe('TypeOrmBudgetStore', () => {
     const store = new TypeOrmBudgetStore(entityManager);
 
     await expect(
-      store.update('42', { amount: '1200.00', period: 'yearly' }),
+      store.update('42', {
+        amount: '1200.00',
+        period: 'yearly',
+        expectedUpdatedAt: entity.updatedAt.toISOString(),
+      }),
     ).resolves.toMatchObject({
       id: '100',
       categoryId: '42',
@@ -72,20 +89,38 @@ describe('TypeOrmBudgetStore', () => {
       period: 'yearly',
       createdAt: new Date('2026-08-29T00:00:00.123Z'),
     });
-    expect(repository.save).toHaveBeenCalledWith(entity);
+    expect(repository.findOne).toHaveBeenCalledWith({
+      where: { categoryId: '42' },
+    });
+    expect(queryBuilder.set).toHaveBeenCalledWith({
+      amount: '1200.00',
+      period: 'yearly',
+    });
   });
 
-  it('reports whether a budget row was removed', async () => {
+  it('deletes a budget row only when its version still matches', async () => {
+    const queryBuilder = {
+      delete: jest.fn().mockReturnThis(),
+      from: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      execute: jest.fn().mockResolvedValue({ affected: 1 }),
+    };
     const repository = {
-      delete: jest.fn().mockResolvedValue({ affected: 1 }),
+      createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
     };
     const entityManager = {
       getRepository: jest.fn().mockReturnValue(repository),
     } as unknown as EntityManager;
     const store = new TypeOrmBudgetStore(entityManager);
 
-    await expect(store.delete('42')).resolves.toBe(true);
-    expect(repository.delete).toHaveBeenCalledWith({ categoryId: '42' });
+    await expect(
+      store.deleteIfCurrent('42', '2026-08-29T00:00:00.456Z'),
+    ).resolves.toBe(true);
+    expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+      'updated_at = :expectedUpdatedAt',
+      { expectedUpdatedAt: new Date('2026-08-29T00:00:00.456Z') },
+    );
   });
 });
 

@@ -224,11 +224,13 @@ describe('Category OpenAPI contract', () => {
       type: 'object',
       additionalProperties: false,
       minProperties: 1,
+      required: ['updatedAt'],
       properties: {
         name: { type: 'string', minLength: 1, maxLength: 100, pattern: '\\S' },
         description: { type: 'string', nullable: true, maxLength: 500 },
         color: { type: 'string', enum: [...CATEGORY_COLORS] },
         isActive: { type: 'boolean' },
+        updatedAt: { type: 'string', format: 'date-time' },
       },
     });
   });

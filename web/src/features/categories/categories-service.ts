@@ -33,7 +33,7 @@ interface CategoryOverviewItem {
   readonly spent: number;
   readonly remaining: number | null;
   readonly usage: number | null;
-  readonly updatedAt?: string;
+  readonly updatedAt: string | null;
 }
 
 interface CategoriesOverview {
@@ -65,21 +65,21 @@ interface UpdateCategoryInput {
   readonly description: string | null;
   readonly color?: CategoryColor;
   readonly spaceId?: string;
-  readonly updatedAt?: string;
+  readonly updatedAt: string | null;
 }
 
 interface UpdateCategoryStatusInput {
   readonly categoryId: string;
   readonly isActive: boolean;
   readonly spaceId?: string;
-  readonly updatedAt?: string;
+  readonly updatedAt: string | null;
 }
 
 interface CategoryBudget {
   readonly amount: string;
   readonly period: "monthly" | "yearly";
   readonly createdAt?: string;
-  readonly updatedAt?: string;
+  readonly updatedAt: string;
 }
 
 type CategoriesApiClient = Pick<
@@ -164,7 +164,7 @@ function projectCategory(
       `Category ${summary.categoryId} remainingAmount`,
     ),
     usage: calculateUsage(spent ?? 0, budget),
-    updatedAt: category?.updatedAt,
+    updatedAt: category?.updatedAt ?? null,
   };
 }
 
@@ -373,7 +373,7 @@ async function updateCategory(
     buildCategoryPath(input.categoryId, input.spaceId),
     {
       ...normalizeCategoryInput(input),
-      ...(input.updatedAt === undefined ? {} : { updatedAt: input.updatedAt }),
+      updatedAt: requireCategoryVersion(input.updatedAt),
     },
     { expectedStatuses: [200] },
   );
@@ -394,7 +394,7 @@ async function updateCategoryStatus(
     buildCategoryPath(input.categoryId, input.spaceId),
     {
       isActive: input.isActive,
-      ...(input.updatedAt === undefined ? {} : { updatedAt: input.updatedAt }),
+      updatedAt: requireCategoryVersion(input.updatedAt),
     },
     { expectedStatuses: [200] },
   );
@@ -445,15 +445,27 @@ async function saveCategoryBudget(
 async function deleteCategoryBudget(
   apiClient: CategoriesApiClient,
   categoryId: string,
-  spaceId?: string,
-  updatedAt?: string,
+  spaceId: string | undefined,
+  updatedAt: string,
 ): Promise<void> {
   await apiClient.delete(buildCategoryBudgetPath(categoryId, spaceId), {
-    ...(updatedAt === undefined
-      ? {}
-      : { headers: { "If-Match": updatedAt } }),
+    headers: { "If-Match": requireCategoryVersion(updatedAt, "Budget") },
     expectedStatuses: [204],
   });
+}
+
+function requireCategoryVersion(
+  value: string | null | undefined,
+  resource = "Category",
+) {
+  const normalized = value?.trim();
+  if (!normalized) {
+    throw new CategoriesDataError(
+      `The current ${resource} version is unavailable. Reload and review your edits before saving.`,
+    );
+  }
+
+  return normalized;
 }
 
 export {

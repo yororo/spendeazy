@@ -62,8 +62,14 @@ describe('CategoriesService', () => {
       description: null,
     });
 
-    await service.updateCategoryInSpace('1', '1', { description: '   ' });
-    expect(store.updatedInput).toEqual({ description: null });
+    await service.updateCategoryInSpace('1', '1', {
+      description: '   ',
+      expectedUpdatedAt: original.updatedAt.toISOString(),
+    });
+    expect(store.updatedInput).toEqual({
+      description: null,
+      expectedUpdatedAt: original.updatedAt.toISOString(),
+    });
   });
 
   it('accepts omitted and null descriptions and trims description updates', async () => {
@@ -81,8 +87,12 @@ describe('CategoriesService', () => {
 
     await service.updateCategoryInSpace('1', '1', {
       description: '  Everyday food  ',
+      expectedUpdatedAt: original.updatedAt.toISOString(),
     });
-    expect(store.updatedInput).toEqual({ description: 'Everyday food' });
+    expect(store.updatedInput).toEqual({
+      description: 'Everyday food',
+      expectedUpdatedAt: original.updatedAt.toISOString(),
+    });
   });
 
   it('rejects a duplicate normalized name for the same user', async () => {
@@ -162,9 +172,15 @@ describe('CategoriesService', () => {
     const service = new CategoriesService(store);
 
     await expect(
-      service.updateCategoryInSpace('1', '1', { name: ' Restaurants ' }),
+      service.updateCategoryInSpace('1', '1', {
+        name: ' Restaurants ',
+        expectedUpdatedAt: original.updatedAt.toISOString(),
+      }),
     ).resolves.toEqual(updated);
-    expect(store.updatedInput).toEqual({ name: 'Restaurants' });
+    expect(store.updatedInput).toEqual({
+      name: 'Restaurants',
+      expectedUpdatedAt: original.updatedAt.toISOString(),
+    });
     expect(store.checkedName).toBe('restaurants');
   });
 
@@ -178,9 +194,15 @@ describe('CategoriesService', () => {
     const service = new CategoriesService(store);
 
     await expect(
-      service.updateCategoryInSpace('1', '1', { color: 'teal' }),
+      service.updateCategoryInSpace('1', '1', {
+        color: 'teal',
+        expectedUpdatedAt: original.updatedAt.toISOString(),
+      }),
     ).resolves.toEqual(updated);
-    expect(store.updatedInput).toEqual({ color: 'teal' });
+    expect(store.updatedInput).toEqual({
+      color: 'teal',
+      expectedUpdatedAt: original.updatedAt.toISOString(),
+    });
   });
 
   it('rejects a rename that would create a normalized duplicate', async () => {
@@ -193,7 +215,10 @@ describe('CategoriesService', () => {
     const service = new CategoriesService(store);
 
     await expect(
-      service.updateCategoryInSpace('1', '1', { name: ' GROCERIES ' }),
+      service.updateCategoryInSpace('1', '1', {
+        name: ' GROCERIES ',
+        expectedUpdatedAt: '2026-08-29T00:00:00.000Z',
+      }),
     ).rejects.toBeInstanceOf(CategoryNameConflictError);
     expect(store.updatedInput).toBeUndefined();
   });
@@ -211,6 +236,7 @@ describe('CategoriesService', () => {
       service.updateCategoryInSpace('1', '1', {
         name: ' Groceries ',
         isActive: false,
+        expectedUpdatedAt: original.updatedAt.toISOString(),
       }),
     ).resolves.toEqual(original);
     expect(store.updatedInput).toBeUndefined();
@@ -227,15 +253,24 @@ describe('CategoriesService', () => {
     const service = new CategoriesService(store);
 
     await expect(
-      service.updateCategoryInSpace('1', '1', { isActive: false }),
+      service.updateCategoryInSpace('1', '1', {
+        isActive: false,
+        expectedUpdatedAt: original.updatedAt.toISOString(),
+      }),
     ).resolves.toEqual(deactivated);
 
     store.categories[0] = deactivated;
     store.updatedCategory = reactivated;
     await expect(
-      service.updateCategoryInSpace('1', '1', { isActive: true }),
+      service.updateCategoryInSpace('1', '1', {
+        isActive: true,
+        expectedUpdatedAt: deactivated.updatedAt.toISOString(),
+      }),
     ).resolves.toEqual(reactivated);
-    expect(store.updatedInput).toEqual({ isActive: true });
+    expect(store.updatedInput).toEqual({
+      isActive: true,
+      expectedUpdatedAt: deactivated.updatedAt.toISOString(),
+    });
   });
 
   it('reads and writes Categories through the requested Space scope', async () => {
@@ -288,6 +323,20 @@ describe('CategoriesService', () => {
       service.updateCategoryInSpace('10', category.id, {
         name: category.name,
         expectedUpdatedAt: '2026-08-28T00:00:00.000Z',
+      }),
+    ).rejects.toBeInstanceOf(StaleEditError);
+    expect(store.updatedInput).toBeUndefined();
+  });
+
+  it('rejects a Category edit without the version returned by its last read', async () => {
+    const category = categoryRecord({ spaceId: '10' });
+    const store = new CategoryStoreFake({ categories: [category] });
+    const service = new CategoriesService(store);
+
+    await expect(
+      service.updateCategoryInSpace('10', category.id, {
+        name: 'Renamed',
+        expectedUpdatedAt: undefined as unknown as string,
       }),
     ).rejects.toBeInstanceOf(StaleEditError);
     expect(store.updatedInput).toBeUndefined();

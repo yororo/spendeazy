@@ -51,46 +51,27 @@ export class TypeOrmBudgetStore implements BudgetStore {
     input: UpdateBudget,
   ): Promise<BudgetRecord | null> {
     const repository = this.entityManager.getRepository(BudgetEntity);
-    if (input.expectedUpdatedAt !== undefined) {
-      const result = await repository
-        .createQueryBuilder()
-        .update(BudgetEntity)
-        .set({ amount: input.amount, period: input.period })
-        .where('category_id = :categoryId', { categoryId })
-        .andWhere('updated_at = :expectedUpdatedAt', {
-          expectedUpdatedAt: new Date(input.expectedUpdatedAt),
-        })
-        .execute();
+    const result = await repository
+      .createQueryBuilder()
+      .update(BudgetEntity)
+      .set({ amount: input.amount, period: input.period })
+      .where('category_id = :categoryId', { categoryId })
+      .andWhere('updated_at = :expectedUpdatedAt', {
+        expectedUpdatedAt: new Date(input.expectedUpdatedAt),
+      })
+      .execute();
 
-      if (result.affected !== 1) {
-        const current = await repository.findOne({ where: { categoryId } });
-        if (!current) {
-          return null;
-        }
-
-        throw new StaleEditError();
+    if (result.affected !== 1) {
+      const current = await repository.findOne({ where: { categoryId } });
+      if (!current) {
+        return null;
       }
 
-      const updated = await repository.findOne({ where: { categoryId } });
-      return updated ? toBudgetRecord(updated) : null;
+      throw new StaleEditError();
     }
 
-    const entity = await repository.findOne({ where: { categoryId } });
-    if (!entity) {
-      return null;
-    }
-
-    entity.amount = input.amount;
-    entity.period = input.period;
-    return saveBudget(repository, entity);
-  }
-
-  async delete(categoryId: string): Promise<boolean> {
-    const result = await this.entityManager
-      .getRepository(BudgetEntity)
-      .delete({ categoryId });
-
-    return result.affected === 1;
+    const updated = await repository.findOne({ where: { categoryId } });
+    return updated ? toBudgetRecord(updated) : null;
   }
 
   async deleteIfCurrent(

@@ -3,6 +3,7 @@ import { SpaceNotFoundError } from '../../spaces/application/space-errors';
 import type { SpaceAccessService } from '../../spaces/application/space-access.service';
 import type { CategoryRecord } from '../application/category-store';
 import type { CategoriesService } from '../application/categories.service';
+import { RequestValidationError } from '../../http/request-validation-error';
 import { SpaceCategoriesController } from './space-categories.controller';
 
 describe('SpaceCategoriesController', () => {
@@ -77,6 +78,25 @@ describe('SpaceCategoriesController', () => {
       '42',
       { name: 'Dining', expectedUpdatedAt: category.updatedAt.toISOString() },
     );
+  });
+
+  it('rejects a scoped Category edit without a version before writing', async () => {
+    const updateCategoryInSpace = jest.fn();
+    const controller = new SpaceCategoriesController(
+      { updateCategoryInSpace } as unknown as CategoriesService,
+      {
+        requireWriteAccess: jest.fn().mockResolvedValue({ id: '10' }),
+      } as unknown as SpaceAccessService,
+    );
+
+    await expect(
+      controller.updateCategory(
+        authenticatedRequest('7'),
+        { spaceId: '10', categoryId: '42' },
+        { name: 'Dining' } as UpdateCategoryDto,
+      ),
+    ).rejects.toBeInstanceOf(RequestValidationError);
+    expect(updateCategoryInSpace).not.toHaveBeenCalled();
   });
 });
 

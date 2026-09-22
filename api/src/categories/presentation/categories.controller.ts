@@ -24,6 +24,7 @@ import {
   type AuthenticatedRequest,
 } from '../../authentication/authentication';
 import { ApiStandardErrorResponses } from '../../http/api-error.dto';
+import { requireOptimisticVersion } from '../../http/optimistic-version';
 import { POSITIVE_INTEGER_ID_PATTERN } from '../../http/validation-patterns';
 import { CategoriesService } from '../application/categories.service';
 import type { CategoryRecord } from '../application/category-store';
@@ -218,7 +219,11 @@ function toCategoryUpdate(input: UpdateCategoryDto) {
   const { updatedAt, ...changes } = input;
   return {
     ...changes,
-    ...(updatedAt === undefined ? {} : { expectedUpdatedAt: updatedAt }),
+    expectedUpdatedAt: requireOptimisticVersion(
+      updatedAt,
+      'Category',
+      '/updatedAt',
+    ),
   };
 }
 

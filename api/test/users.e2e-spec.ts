@@ -188,8 +188,11 @@ describe('authenticated User routes', () => {
         invoke(budgetsService.putBudget, spaceId, id, input),
       getBudgetInSpace: (spaceId: string, id: string) =>
         invoke(budgetsService.getBudget, spaceId, id),
-      deleteBudgetInSpace: (spaceId: string, id: string) =>
-        invoke(budgetsService.deleteBudget, spaceId, id),
+      deleteBudgetInSpace: (
+        spaceId: string,
+        id: string,
+        expectedUpdatedAt?: string,
+      ) => invoke(budgetsService.deleteBudget, spaceId, id, expectedUpdatedAt),
     });
     Object.assign(categorySummariesService, {
       getCategorySummaryInSpace: (spaceId: string, query: unknown) =>
@@ -498,7 +501,10 @@ describe('authenticated User routes', () => {
     const edited = await request(testHttpServer())
       .patch('/api/v1/users/me/categories/101')
       .set(headers)
-      .send({ color: 'forest' });
+      .send({
+        color: 'forest',
+        updatedAt: selected.updatedAt.toISOString(),
+      });
     const reloaded = await request(testHttpServer())
       .get('/api/v1/users/me/categories/101')
       .set(headers);
@@ -516,7 +522,7 @@ describe('authenticated User routes', () => {
     expect(categoriesService.updateCategory).toHaveBeenCalledWith(
       userId,
       '101',
-      { color: 'forest' },
+      { color: 'forest', expectedUpdatedAt: selected.updatedAt.toISOString() },
     );
   });
 
@@ -579,7 +585,10 @@ describe('authenticated User routes', () => {
       request(testHttpServer())
         .patch('/api/v1/users/me/categories/100')
         .set(headers)
-        .send({ description: '  Food staples  ' }),
+        .send({
+          description: '  Food staples  ',
+          updatedAt: described.updatedAt.toISOString(),
+        }),
     ]);
 
     const createdBody = categoryBody(responses[0]);
@@ -603,7 +612,10 @@ describe('authenticated User routes', () => {
     expect(categoriesService.updateCategory).toHaveBeenCalledWith(
       expect.any(String),
       '100',
-      { description: 'Food staples' },
+      {
+        description: 'Food staples',
+        expectedUpdatedAt: described.updatedAt.toISOString(),
+      },
     );
   });
 
@@ -998,7 +1010,10 @@ describe('authenticated User routes', () => {
       .patch('/api/v1/users/me/categories/100')
       .set('Authorization', 'Bearer token-c')
       .set('Accept', 'application/json')
-      .send({ isActive: false });
+      .send({
+        isActive: false,
+        updatedAt: categoryRecord().updatedAt.toISOString(),
+      });
 
     expect(listResponse.status).toBe(200);
     expect(getResponse.status).toBe(200);
@@ -1010,6 +1025,7 @@ describe('authenticated User routes', () => {
       '100',
       {
         isActive: false,
+        expectedUpdatedAt: categoryRecord().updatedAt.toISOString(),
       },
     );
   });
@@ -1023,12 +1039,17 @@ describe('authenticated User routes', () => {
     const deleteResponse = await request(testHttpServer())
       .delete('/api/v1/users/me/categories/100/budget')
       .set('Authorization', 'Bearer token-c')
-      .set('Accept', 'application/json');
+      .set('Accept', 'application/json')
+      .set('If-Match', `W/"${budgetRecord('100').updatedAt.toISOString()}"`);
 
     expect(getResponse.status).toBe(200);
     expect(deleteResponse.status).toBe(204);
     expect(budgetsService.getBudget).toHaveBeenCalledWith(userId, '100');
-    expect(budgetsService.deleteBudget).toHaveBeenCalledWith(userId, '100');
+    expect(budgetsService.deleteBudget).toHaveBeenCalledWith(
+      userId,
+      '100',
+      budgetRecord('100').updatedAt.toISOString(),
+    );
   });
 
   it('rejects caller-supplied User IDs instead of treating them as ownership', async () => {
@@ -1072,7 +1093,8 @@ describe('authenticated User routes', () => {
       .delete('/api/v1/users/me/categories/100/budget')
       .query({ userId: '8' })
       .set('Authorization', 'Bearer token-c')
-      .set('Accept', 'application/json');
+      .set('Accept', 'application/json')
+      .set('If-Match', `W/"${budgetRecord('100').updatedAt.toISOString()}"`);
     const categoryRuleCreateWithUserId = await request(testHttpServer())
       .post('/api/v1/users/me/category-rules')
       .set('Authorization', 'Bearer token-c')
@@ -1118,7 +1140,11 @@ describe('authenticated User routes', () => {
       '100',
     );
     expect(budgetsService.getBudget).toHaveBeenLastCalledWith(userId, '100');
-    expect(budgetsService.deleteBudget).toHaveBeenLastCalledWith(userId, '100');
+    expect(budgetsService.deleteBudget).toHaveBeenLastCalledWith(
+      userId,
+      '100',
+      budgetRecord('100').updatedAt.toISOString(),
+    );
     expect(categoryRulesService.listCategoryRules).toHaveBeenLastCalledWith(
       userId,
     );
@@ -1313,12 +1339,18 @@ describe('authenticated User routes', () => {
         .patch('/api/v1/users/me/categories/404')
         .set('Authorization', 'Bearer token-c')
         .set('Accept', 'application/json')
-        .send({ isActive: false });
+        .send({
+          isActive: false,
+          updatedAt: categoryRecord().updatedAt.toISOString(),
+        });
       const crossUserCategoryUpdate = await request(testHttpServer())
         .patch('/api/v1/users/me/categories/8')
         .set('Authorization', 'Bearer token-c')
         .set('Accept', 'application/json')
-        .send({ isActive: false });
+        .send({
+          isActive: false,
+          updatedAt: categoryRecord().updatedAt.toISOString(),
+        });
       const absentBudget = await request(testHttpServer())
         .get('/api/v1/users/me/categories/404/budget')
         .set('Authorization', 'Bearer token-c')
@@ -1340,11 +1372,13 @@ describe('authenticated User routes', () => {
       const absentBudgetDelete = await request(testHttpServer())
         .delete('/api/v1/users/me/categories/404/budget')
         .set('Authorization', 'Bearer token-c')
-        .set('Accept', 'application/json');
+        .set('Accept', 'application/json')
+        .set('If-Match', `W/"${budgetRecord('404').updatedAt.toISOString()}"`);
       const crossUserBudgetDelete = await request(testHttpServer())
         .delete('/api/v1/users/me/categories/8/budget')
         .set('Authorization', 'Bearer token-c')
-        .set('Accept', 'application/json');
+        .set('Accept', 'application/json')
+        .set('If-Match', `W/"${budgetRecord('8').updatedAt.toISOString()}"`);
 
       expect(absentCategory.status).toBe(404);
       expect(crossUserCategory.status).toBe(404);

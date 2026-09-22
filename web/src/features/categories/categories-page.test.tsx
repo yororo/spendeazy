@@ -35,7 +35,10 @@ interface FetchOptions {
     readonly amount: string;
     readonly period: "monthly" | "yearly";
   } | null;
-  readonly additionalCategories?: readonly CategoryCatalogItem[];
+  readonly additionalCategories?: readonly Omit<
+    CategoryCatalogItem,
+    "updatedAt"
+  >[];
   readonly categorySpending?: Readonly<Record<string, string>>;
   readonly createdCategory?: {
     readonly id: string;
@@ -115,8 +118,12 @@ function createFetchMock(options: FetchOptions = {}) {
       description: "A place to live",
       color: "plum",
       isActive: true,
+      updatedAt: "2026-09-01T00:00:00.000Z",
     },
-    ...(options.additionalCategories ?? []),
+    ...(options.additionalCategories ?? []).map((category) => ({
+      ...category,
+      updatedAt: "2026-09-01T00:00:00.000Z",
+    })),
   ];
   const budgetAmounts = new Map<string, string>();
   if (initialBudget?.period === "monthly") {
@@ -459,6 +466,7 @@ function createFetchMock(options: FetchOptions = {}) {
       return jsonResponse({
         id: "7",
         categoryId,
+        updatedAt: "2026-09-01T00:00:00.000Z",
         ...budget,
       });
     }
@@ -487,6 +495,7 @@ function createFetchMock(options: FetchOptions = {}) {
           categoryId,
           amount: body.amount,
           period: "monthly",
+          updatedAt: "2026-09-01T00:00:00.000Z",
         },
         201,
       );
@@ -878,7 +887,10 @@ describe("CategoriesPage", () => {
       expect(screen.queryByRole("listitem", { name: "Housing" })).toBeNull(),
     );
     await waitFor(() => expect(document.activeElement).toBe(showInactive));
-    expect(getRequestBody(fetchMock, "PATCH")).toEqual({ isActive: false });
+    expect(getRequestBody(fetchMock, "PATCH")).toEqual({
+      isActive: false,
+      updatedAt: "2026-09-01T00:00:00.000Z",
+    });
   });
 
   it("reactivates an inactive Category directly from its mobile card", async () => {
@@ -935,7 +947,10 @@ describe("CategoriesPage", () => {
       }),
     ).toBeNull();
     await waitFor(() => expect(document.activeElement).toBe(showInactive));
-    expect(getRequestBody(fetchMock, "PATCH")).toEqual({ isActive: true });
+    expect(getRequestBody(fetchMock, "PATCH")).toEqual({
+      isActive: true,
+      updatedAt: "2026-09-01T00:00:00.000Z",
+    });
   });
 
   it("edits an active Category from its mobile card and restores focus after saving", async () => {
@@ -1016,6 +1031,7 @@ describe("CategoriesPage", () => {
       name: "Home",
       description: "Rent and mortgage",
       color: "plum",
+      updatedAt: "2026-09-01T00:00:00.000Z",
     });
   });
 
@@ -1083,6 +1099,7 @@ describe("CategoriesPage", () => {
       name: "Housing",
       description: "A place to live",
       color: "teal",
+      updatedAt: "2026-09-01T00:00:00.000Z",
     });
 
     cleanup();
@@ -1297,6 +1314,7 @@ describe("CategoriesPage", () => {
       name: "Home",
       description: "A place to live",
       color: "teal",
+      updatedAt: "2026-09-01T00:00:00.000Z",
     });
   });
 
@@ -1680,10 +1698,12 @@ describe("CategoriesPage", () => {
       name: "Home",
       description: "Rent and mortgage",
       color: "plum",
+      updatedAt: "2026-09-01T00:00:00.000Z",
     });
     expect(getRequestBody(fetchMock, "PUT")).toEqual({
       amount: "225.50",
       period: "monthly",
+      updatedAt: "2026-09-01T00:00:00.000Z",
     });
     expect(
       queryClient.getQueryState(["dashboard", null, null, "2026-09"])?.isInvalidated,
@@ -1737,6 +1757,7 @@ describe("CategoriesPage", () => {
       name: "Housing",
       description: null,
       color: "plum",
+      updatedAt: "2026-09-01T00:00:00.000Z",
     });
     expect(
       fetchMock.mock.calls.filter(
@@ -1824,6 +1845,7 @@ describe("CategoriesPage", () => {
       name: "Rent",
       description: "Monthly home costs",
       color: "teal",
+      updatedAt: "2026-09-01T00:00:00.000Z",
     });
     expect(
       fetchMock.mock.calls.filter(([, init]) => init?.method === "PUT"),
@@ -2020,6 +2042,7 @@ describe("CategoriesPage", () => {
       name: "Housing",
       description: "Annual housing costs",
       color: "plum",
+      updatedAt: "2026-09-01T00:00:00.000Z",
     });
     expect(
       fetchMock.mock.calls.filter(([, init]) =>
@@ -2210,7 +2233,10 @@ describe("CategoriesPage", () => {
     );
     expect(screen.getAllByText("₱100.00").length).toBeGreaterThanOrEqual(1);
     await waitFor(() => expect(document.activeElement).toBe(showInactive));
-    expect(getRequestBody(fetchMock, "PATCH")).toEqual({ isActive: false });
+    expect(getRequestBody(fetchMock, "PATCH")).toEqual({
+      isActive: false,
+      updatedAt: "2026-09-01T00:00:00.000Z",
+    });
     expect(within(getDesktopTable()).getByText("Inactive")).toBeTruthy();
     expect(
       queryClient.getQueryState(["dashboard", null, null, "2026-09"])?.isInvalidated,
@@ -2240,7 +2266,10 @@ describe("CategoriesPage", () => {
     expect(screen.getByRole("dialog")).toBeTruthy();
     expect(getDesktopEditButton("Housing", { hidden: true })).toBeTruthy();
     expect(screen.queryByText("Inactive")).toBeNull();
-    expect(getRequestBody(fetchMock, "PATCH")).toEqual({ isActive: false });
+    expect(getRequestBody(fetchMock, "PATCH")).toEqual({
+      isActive: false,
+      updatedAt: "2026-09-01T00:00:00.000Z",
+    });
   });
 
   it("reactivates an inactive Category immediately and exposes failure without changing its history", async () => {
@@ -2276,7 +2305,10 @@ describe("CategoriesPage", () => {
         name: "Reactivate Archived Dining",
       }),
     ).toBeTruthy();
-    expect(getRequestBody(fetchMock, "PATCH")).toEqual({ isActive: true });
+    expect(getRequestBody(fetchMock, "PATCH")).toEqual({
+      isActive: true,
+      updatedAt: "2026-09-01T00:00:00.000Z",
+    });
 
     fireEvent.click(
       within(getDesktopTable()).getByRole("button", {
@@ -2301,7 +2333,10 @@ describe("CategoriesPage", () => {
       fetchMock.mock.calls
         .filter(([, init]) => init?.method === "PATCH")
         .map(([, init]) => JSON.parse(String(init?.body))),
-    ).toEqual([{ isActive: true }, { isActive: true }]);
+    ).toEqual([
+      { isActive: true, updatedAt: "2026-09-01T00:00:00.000Z" },
+      { isActive: true, updatedAt: "2026-09-01T00:00:00.000Z" },
+    ]);
   });
 
   it("shows inactive Categories without any editing action", async () => {

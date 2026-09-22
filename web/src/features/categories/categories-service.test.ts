@@ -114,6 +114,7 @@ function createCategoryOverviewItem(
     spent: 100,
     remaining: 50,
     usage: 67,
+    updatedAt: "2026-08-29T00:00:00.000Z",
     ...overrides,
   };
 }
@@ -304,6 +305,7 @@ describe("Category creation", () => {
       description: "Restaurants and cafes",
       color: "teal",
       isActive: true,
+      updatedAt: "2026-01-01T00:00:00.000Z",
     }));
     await expect(
       createCategory(
@@ -337,6 +339,7 @@ describe("Category creation", () => {
       name: "Cash",
       description: null,
       isActive: true,
+      updatedAt: "2026-01-01T00:00:00.000Z",
     }));
 
     await createCategory(
@@ -359,6 +362,7 @@ describe("Category Budget creation", () => {
       categoryId: "99",
       amount: "125.50",
       period: "monthly",
+      updatedAt: "2026-01-02T00:00:00.000Z",
     }));
     await expect(
       saveCategoryBudget(
@@ -383,6 +387,7 @@ describe("Category Budget creation", () => {
       categoryId: "99",
       amount: "125.50",
       period: "yearly",
+      updatedAt: "2026-01-02T00:00:00.000Z",
     }));
 
     await expect(
@@ -431,6 +436,7 @@ describe("Category editing", () => {
       categoryId: "99",
       amount: "1200.00",
       period: "yearly" as const,
+      updatedAt: "2026-01-02T00:00:00.000Z",
     }));
 
     await expect(
@@ -438,6 +444,8 @@ describe("Category editing", () => {
     ).resolves.toEqual({
       amount: "1200.00",
       period: "yearly",
+      createdAt: undefined,
+      updatedAt: "2026-01-02T00:00:00.000Z",
     });
     expect(get).toHaveBeenCalledWith(
       "/categories/99/budget",
@@ -466,6 +474,7 @@ describe("Category editing", () => {
       description: "Restaurants and cafes",
       color: "teal",
       isActive: true,
+      updatedAt: "2026-01-02T00:00:00.000Z",
     }));
 
     await expect(
@@ -476,6 +485,7 @@ describe("Category editing", () => {
           name: "  Dining Out  ",
           description: "  Restaurants and cafes  ",
           color: "teal",
+          updatedAt: "2026-01-01T00:00:00.000Z",
         },
       ),
     ).resolves.toMatchObject({
@@ -489,6 +499,7 @@ describe("Category editing", () => {
         name: "Dining Out",
         description: "Restaurants and cafes",
         color: "teal",
+        updatedAt: "2026-01-01T00:00:00.000Z",
       },
       { expectedStatuses: [200] },
     );
@@ -500,12 +511,17 @@ describe("Category editing", () => {
       name: "Dining Out",
       description: "Restaurants and cafes",
       isActive: false,
+      updatedAt: "2026-01-02T00:00:00.000Z",
     }));
 
     await expect(
       updateCategoryStatus(
         { patch } as unknown as CategoriesApiClient,
-        { categoryId: "99", isActive: false },
+        {
+          categoryId: "99",
+          isActive: false,
+          updatedAt: "2026-01-01T00:00:00.000Z",
+        },
       ),
     ).resolves.toMatchObject({
       id: "99",
@@ -513,7 +529,7 @@ describe("Category editing", () => {
     });
     expect(patch).toHaveBeenCalledWith(
       "/categories/99",
-      { isActive: false },
+      { isActive: false, updatedAt: "2026-01-01T00:00:00.000Z" },
       { expectedStatuses: [200] },
     );
   });
@@ -524,12 +540,17 @@ describe("Category editing", () => {
       name: "Dining Out",
       description: "Restaurants and cafes",
       isActive: true,
+      updatedAt: "2026-01-02T00:00:00.000Z",
     }));
 
     await expect(
       updateCategoryStatus(
         { patch } as unknown as CategoriesApiClient,
-        { categoryId: "99", isActive: false },
+        {
+          categoryId: "99",
+          isActive: false,
+          updatedAt: "2026-01-01T00:00:00.000Z",
+        },
       ),
     ).rejects.toThrow("The API returned an updated Category with the wrong status.");
   });
@@ -541,11 +562,16 @@ describe("Category editing", () => {
       deleteCategoryBudget(
         { delete: del } as unknown as CategoriesApiClient,
         "99",
+        undefined,
+        "2026-01-01T00:00:00.000Z",
       ),
     ).resolves.toBeUndefined();
     expect(del).toHaveBeenCalledWith(
       "/categories/99/budget",
-      { expectedStatuses: [204] },
+      {
+        headers: { "If-Match": "2026-01-01T00:00:00.000Z" },
+        expectedStatuses: [204],
+      },
     );
   });
 

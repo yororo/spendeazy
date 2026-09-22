@@ -18,9 +18,18 @@ describe('TypeOrmCategoryStore', () => {
       updatedAt: new Date(),
     };
     const entity = { ...saved };
+    const updatedEntity = { ...entity, description: null, color: 'forest' };
+    const queryBuilder = {
+      update: jest.fn().mockReturnThis(),
+      set: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      execute: jest.fn().mockResolvedValue({ affected: 1 }),
+    };
     const repository = {
       create: jest.fn().mockReturnValue(entity),
-      findOne: jest.fn().mockResolvedValue(entity),
+      findOne: jest.fn().mockResolvedValue(updatedEntity),
+      createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
       save: jest
         .fn()
         .mockImplementation((value) => Promise.resolve({ ...saved, ...value })),
@@ -44,7 +53,11 @@ describe('TypeOrmCategoryStore', () => {
       color: 'teal',
     });
     await expect(
-      store.updateInSpace('1', '2', { description: null, color: 'forest' }),
+      store.updateInSpace('1', '2', {
+        description: null,
+        color: 'forest',
+        expectedUpdatedAt: saved.updatedAt.toISOString(),
+      }),
     ).resolves.toMatchObject({ description: null, color: 'forest' });
   });
 
@@ -99,8 +112,16 @@ describe('TypeOrmCategoryStore', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     };
+    const categoryQueryBuilder = {
+      update: jest.fn().mockReturnThis(),
+      set: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      execute: jest.fn().mockResolvedValue({ affected: 1 }),
+    };
     const categoryRepository = {
-      findOne: jest.fn().mockResolvedValue(category),
+      findOne: jest.fn().mockResolvedValue({ ...category, isActive: false }),
+      createQueryBuilder: jest.fn().mockReturnValue(categoryQueryBuilder),
       save: jest
         .fn()
         .mockImplementation((value) =>
@@ -130,7 +151,10 @@ describe('TypeOrmCategoryStore', () => {
     const store = new TypeOrmCategoryStore(entityManager);
 
     await expect(
-      store.updateInSpace('1', '2', { isActive: false }),
+      store.updateInSpace('1', '2', {
+        isActive: false,
+        expectedUpdatedAt: category.updatedAt.toISOString(),
+      }),
     ).resolves.toMatchObject({ isActive: false });
 
     expect(transaction).toHaveBeenCalledTimes(1);

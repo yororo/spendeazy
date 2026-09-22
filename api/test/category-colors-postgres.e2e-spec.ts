@@ -64,15 +64,19 @@ describeDatabase('category colors with PostgreSQL', () => {
       reloadedService.getCategoryInSpace(spaceId, created.id),
     ).resolves.toMatchObject({ color: 'teal' });
 
-    await reloadedService.updateCategoryInSpace(spaceId, created.id, {
+    let current = await reloadedService.getCategoryInSpace(spaceId, created.id);
+    current = await reloadedService.updateCategoryInSpace(spaceId, created.id, {
       color: 'forest',
+      expectedUpdatedAt: current.updatedAt.toISOString(),
     });
-    await reloadedService.updateCategoryInSpace(spaceId, created.id, {
+    current = await reloadedService.updateCategoryInSpace(spaceId, created.id, {
       name: 'Dining renamed',
       isActive: false,
+      expectedUpdatedAt: current.updatedAt.toISOString(),
     });
     await reloadedService.updateCategoryInSpace(spaceId, created.id, {
       isActive: true,
+      expectedUpdatedAt: current.updatedAt.toISOString(),
     });
 
     const persisted = await reloadedService.getCategoryInSpace(
@@ -95,6 +99,7 @@ describeDatabase('category colors with PostgreSQL', () => {
 
     await categories.updateCategoryInSpace(spaceId, legacy.id, {
       name: 'Legacy category renamed',
+      expectedUpdatedAt: legacy.updatedAt.toISOString(),
     });
 
     const reloaded = await categories.getCategoryInSpace(spaceId, legacy.id);

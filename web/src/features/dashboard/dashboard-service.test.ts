@@ -30,6 +30,7 @@ function createCategoryCatalog() {
       description: null,
       color: "teal",
       isActive: true,
+      updatedAt: "2026-09-01T00:00:00.000Z",
     },
     {
       id: "43",
@@ -37,6 +38,7 @@ function createCategoryCatalog() {
       description: null,
       color: "forest",
       isActive: true,
+      updatedAt: "2026-09-01T00:00:00.000Z",
     },
   ];
 }

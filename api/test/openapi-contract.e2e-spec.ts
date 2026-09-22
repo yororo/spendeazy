@@ -387,7 +387,7 @@ describe('runtime responses against the generated OpenAPI contract', () => {
         path: '/api/v1/users/me/categories/42',
         contractPath: '/api/v1/users/me/categories/{categoryId}',
         status: 200,
-        body: { name: 'Dining' },
+        body: { name: 'Dining', updatedAt: UPDATED_AT },
         expectedBody: categoryResponse(),
       },
       {
@@ -406,7 +406,11 @@ describe('runtime responses against the generated OpenAPI contract', () => {
         path: '/api/v1/users/me/categories/42/budget',
         contractPath: '/api/v1/users/me/categories/{categoryId}/budget',
         status: 200,
-        body: { amount: '250.00', period: 'monthly' },
+        body: {
+          amount: '250.00',
+          period: 'monthly',
+          updatedAt: UPDATED_AT,
+        },
         expectedBody: budgetResponse(),
       },
       {
@@ -423,6 +427,7 @@ describe('runtime responses against the generated OpenAPI contract', () => {
         path: '/api/v1/users/me/categories/42/budget',
         contractPath: '/api/v1/users/me/categories/{categoryId}/budget',
         status: 204,
+        headers: { 'If-Match': `W/"${UPDATED_AT}"` },
       },
       {
         name: 'monthly Category summary',
@@ -955,6 +960,9 @@ describe('runtime responses against the generated OpenAPI contract', () => {
 
   async function sendRequest(testCase: RuntimeSuccessCase) {
     let test = authenticatedRequest(testCase.method, testCase.path);
+    if (testCase.headers !== undefined) {
+      test = test.set(testCase.headers);
+    }
     if (testCase.query !== undefined) {
       test = test.query(testCase.query);
     }
@@ -1105,6 +1113,7 @@ interface RuntimeSuccessCase {
   contractPath: string;
   status: number;
   body?: Record<string, unknown> | string;
+  headers?: Record<string, string>;
   query?: Record<string, string | number>;
   expectedBody?: unknown;
   location?: string;

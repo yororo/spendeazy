@@ -141,15 +141,25 @@ export class UpdateCategoryDto {
   color?: CategoryColor;
 
   @ValidateIf((_, value) => value !== undefined)
-  @IsString()
-  @IsISO8601({ strict: true })
-  @ApiPropertyOptional({
+  @IsString({
+    message:
+      'Category version must be a valid timestamp. Reload and review your edits before saving.',
+  })
+  @IsISO8601(
+    { strict: true },
+    {
+      message:
+        'Category version must be a valid timestamp. Reload and review your edits before saving.',
+    },
+  )
+  @ApiProperty({
     description:
-      'The UTC timestamp returned by the last read. Stale edits are rejected when another save changed the Category first.',
+      'Required UTC timestamp returned by the last read. Reload and review your edits when the Category has changed elsewhere.',
     format: 'date-time',
+    required: true,
     example: '2026-08-29T00:00:00.000Z',
   })
-  updatedAt?: string;
+  updatedAt!: string;
 }
 
 function normalizeDescription({ value }: TransformFnParams): unknown {

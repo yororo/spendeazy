@@ -26,8 +26,12 @@ import {
   type AuthenticatedRequest,
 } from '../../authentication/authentication';
 import { ApiStandardErrorResponses } from '../../http/api-error.dto';
+import {
+  normalizeIfMatch,
+  requireOptimisticVersion,
+} from '../../http/optimistic-version';
 import { POSITIVE_INTEGER_ID_PATTERN } from '../../http/validation-patterns';
-import type { BudgetRecord } from '../application/budget-store';
+import type { BudgetRecord, PutBudgetInput } from '../application/budget-store';
 import { BudgetsService } from '../application/budgets.service';
 import { BudgetResponseDto } from './budget-response.dto';
 import { UpsertBudgetDto } from './budget.dto';
@@ -148,9 +152,9 @@ export class BudgetsController {
   })
   @ApiHeader({
     name: 'if-match',
-    required: false,
+    required: true,
     description:
-      'Optional Budget updatedAt timestamp. The delete is rejected when it is stale.',
+      'Budget updatedAt timestamp from the last read. The delete is rejected when it is stale.',
     schema: { type: 'string' },
   })
   @ApiStandardErrorResponses(
@@ -158,6 +162,7 @@ export class BudgetsController {
     'UserNotProvisionedError',
     'ValidationError',
     'NotFoundError',
+    'ConflictError',
     'NotAcceptableError',
     'InternalError',
   )
@@ -171,7 +176,11 @@ export class BudgetsController {
     await this.budgetsService.deleteBudgetInSpace(
       personalSpace.id,
       params.categoryId,
-      normalizeIfMatch(ifMatch),
+      requireOptimisticVersion(
+        normalizeIfMatch(ifMatch),
+        'Budget',
+        '/headers/if-match',
+      ),
     );
   }
 
@@ -184,7 +193,7 @@ export class BudgetsController {
   }
 }
 
-function toBudgetUpdate(input: UpsertBudgetDto) {
+function toBudgetUpdate(input: UpsertBudgetDto): PutBudgetInput {
   return {
     amount: input.amount,
     period: input.period,
@@ -192,12 +201,6 @@ function toBudgetUpdate(input: UpsertBudgetDto) {
       ? {}
       : { expectedUpdatedAt: input.updatedAt }),
   };
-}
-
-function normalizeIfMatch(value: string | undefined): string | undefined {
-  const normalized = value?.trim();
-  if (!normalized) return undefined;
-  return normalized.replace(/^W\//u, '').replace(/^"|"$/gu, '');
 }
 
 export function toBudgetResponse(budget: BudgetRecord): BudgetResponseDto {

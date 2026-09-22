@@ -192,7 +192,7 @@ describe('BudgetsService', () => {
     );
 
     await expect(
-      service.deleteBudgetInSpace('7', '42'),
+      service.deleteBudgetInSpace('7', '42', budget.updatedAt.toISOString()),
     ).resolves.toBeUndefined();
     expect(budgetStore.deletedCategoryId).toBe('42');
   });
@@ -203,9 +203,9 @@ describe('BudgetsService', () => {
       new BudgetStoreFake({ createdBudget: budgetRecord() }),
     );
 
-    await expect(service.deleteBudgetInSpace('7', '42')).rejects.toEqual(
-      expect.any(BudgetNotFoundError),
-    );
+    await expect(
+      service.deleteBudgetInSpace('7', '42', '2026-08-29T00:00:00.000Z'),
+    ).rejects.toEqual(expect.any(BudgetNotFoundError));
   });
 
   it('retrieves and removes an existing budget on an inactive category', async () => {
@@ -223,7 +223,7 @@ describe('BudgetsService', () => {
 
     await expect(service.getBudgetInSpace('7', '42')).resolves.toEqual(budget);
     await expect(
-      service.deleteBudgetInSpace('7', '42'),
+      service.deleteBudgetInSpace('7', '42', budget.updatedAt.toISOString()),
     ).resolves.toBeUndefined();
     expect(category.isActive).toBe(false);
   });
@@ -330,6 +330,45 @@ describe('BudgetsService', () => {
       }),
     ).rejects.toBeInstanceOf(StaleEditError);
   });
+
+  it('rejects a versioned Budget write when the Budget disappeared after the read', async () => {
+    const existingBudget = budgetRecord();
+    const budgetStore = new BudgetStoreFake({
+      createdBudget: existingBudget,
+      existingBudget,
+    });
+    const service = new BudgetsService(
+      new CategoryStoreFake(categoryRecord({ spaceId: '10' })),
+      budgetStore,
+    );
+
+    await expect(
+      service.putBudgetInSpace('10', '42', {
+        amount: '300.00',
+        period: 'monthly',
+        expectedUpdatedAt: '2026-08-29T00:00:00.000Z',
+      }),
+    ).rejects.toBeInstanceOf(StaleEditError);
+    expect(budgetStore.createdInput).toBeUndefined();
+  });
+
+  it('rejects a Budget delete without the version returned by its last read', async () => {
+    const budget = budgetRecord();
+    const budgetStore = new BudgetStoreFake({
+      createdBudget: budget,
+      existingBudget: budget,
+      deleteResult: true,
+    });
+    const service = new BudgetsService(
+      new CategoryStoreFake(categoryRecord()),
+      budgetStore,
+    );
+
+    await expect(
+      service.deleteBudgetInSpace('7', '42', undefined as unknown as string),
+    ).rejects.toBeInstanceOf(StaleEditError);
+    expect(budgetStore.deletedCategoryId).toBeUndefined();
+  });
 });
 
 class CategoryStoreFake implements CategoryStore {
@@ -402,7 +441,11 @@ class BudgetStoreFake implements BudgetStore {
     return Promise.resolve(this.options.updatedBudget ?? null);
   }
 
-  delete(categoryId: string): Promise<boolean> {
+  deleteIfCurrent(
+    categoryId: string,
+    _expectedUpdatedAt: string,
+  ): Promise<boolean> {
+    void _expectedUpdatedAt;
     this.deletedCategoryId = categoryId;
     return Promise.resolve(this.options.deleteResult ?? false);
   }

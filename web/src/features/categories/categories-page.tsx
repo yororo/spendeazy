@@ -244,15 +244,15 @@ function CategoriesPage({ spaceId, onSpaceChange }: CategoriesPageProps = {}) {
     if (statusMutation.isPending) return false;
 
     try {
+      const category =
+        statusDialog?.category.id === categoryId
+          ? statusDialog.category
+          : categories.find((candidate) => candidate.id === categoryId);
       await statusMutation.mutateAsync({
         categoryId,
         isActive,
         spaceId: effectiveSpaceId,
-        updatedAt:
-          statusDialog?.category.id === categoryId
-            ? statusDialog.category.updatedAt
-            : categories.find((category) => category.id === categoryId)
-                ?.updatedAt,
+        updatedAt: category?.updatedAt ?? null,
       });
       return true;
     } catch {
@@ -276,9 +276,10 @@ function CategoriesPage({ spaceId, onSpaceChange }: CategoriesPageProps = {}) {
     if (saved) focusVisibilityControl();
   }
 
+  const statusError = statusMutation.error;
   const statusFailureIsReactivation =
-    statusMutation.error !== null &&
-    statusMutation.variables?.isActive === true;
+    statusError !== null &&
+    (statusMutation.variables?.isActive === true || statusDialog === null);
 
   return (
     <div className="mx-auto w-full max-w-screen-2xl px-4 py-6 sm:px-6 lg:px-9 lg:py-7">
@@ -371,7 +372,7 @@ function CategoriesPage({ spaceId, onSpaceChange }: CategoriesPageProps = {}) {
         {statusFailureIsReactivation && (
           <CategoryStatusFailureAlert
             className="m-4 mb-0"
-            message={statusMutation.error.message}
+            message={statusError.message}
           />
         )}
         <section aria-label="Mobile Budget category list" className="md:hidden">
@@ -586,10 +587,10 @@ function CategoriesPage({ spaceId, onSpaceChange }: CategoriesPageProps = {}) {
                 future Category assignments.
               </DialogDescription>
             </DialogHeader>
-            {statusMutation.error && (
+            {statusError && (
               <CategoryStatusFailureAlert
                 className="m-5 mb-0"
-                message={statusMutation.error.message}
+                message={statusError.message}
               />
             )}
             <DialogFooter>

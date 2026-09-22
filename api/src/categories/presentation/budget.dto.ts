@@ -39,8 +39,17 @@ export class UpsertBudgetDto {
   period!: BudgetPeriod;
 
   @ValidateIf((_, value) => value !== undefined)
-  @IsString()
-  @IsISO8601({ strict: true })
+  @IsString({
+    message:
+      'Budget version must be a valid timestamp. Reload and review your edits before saving.',
+  })
+  @IsISO8601(
+    { strict: true },
+    {
+      message:
+        'Budget version must be a valid timestamp. Reload and review your edits before saving.',
+    },
+  )
   @ApiPropertyOptional({
     description:
       'The UTC timestamp returned by the last read. Stale edits are rejected when another save changed the Budget first.',

@@ -1,9 +1,12 @@
-import { ApiError, type ApiClient } from "./api-client";
-import { isRecord } from "./api-response";
-import { normalizeEmailDeliveryFailure } from "./delivery-failure";
+import {
+  ApiError,
+  isRecord,
+  normalizeEmailDeliveryFailure,
+  type ApiClient,
+} from '@/shared/api';
 
-type SpaceNotificationType = "shared_space_archived";
-type SpaceNotificationDeliveryStatus = "pending" | "sent" | "failed";
+type SpaceNotificationType = 'shared_space_archived';
+type SpaceNotificationDeliveryStatus = 'pending' | 'sent' | 'failed';
 
 interface SpaceNotification {
   readonly id: string;
@@ -17,31 +20,31 @@ interface SpaceNotification {
   readonly createdAt: string;
 }
 
-type NotificationClient = Pick<ApiClient, "get" | "post">;
+type NotificationClient = Pick<ApiClient, 'get' | 'post'>;
 
 function isSpaceNotification(value: unknown): value is SpaceNotification {
   return (
     isRecord(value) &&
-    typeof value.id === "string" &&
+    typeof value.id === 'string' &&
     /^[1-9]\d*$/u.test(value.id) &&
-    typeof value.spaceId === "string" &&
+    typeof value.spaceId === 'string' &&
     /^[1-9]\d*$/u.test(value.spaceId) &&
-    value.type === "shared_space_archived" &&
-    typeof value.title === "string" &&
-    typeof value.message === "string" &&
-    (value.readAt === null || typeof value.readAt === "string") &&
-    (value.emailDeliveryStatus === "pending" ||
-      value.emailDeliveryStatus === "sent" ||
-      value.emailDeliveryStatus === "failed") &&
+    value.type === 'shared_space_archived' &&
+    typeof value.title === 'string' &&
+    typeof value.message === 'string' &&
+    (value.readAt === null || typeof value.readAt === 'string') &&
+    (value.emailDeliveryStatus === 'pending' ||
+      value.emailDeliveryStatus === 'sent' ||
+      value.emailDeliveryStatus === 'failed') &&
     (value.emailDeliveryError === null ||
-      typeof value.emailDeliveryError === "string") &&
-    typeof value.createdAt === "string"
+      typeof value.emailDeliveryError === 'string') &&
+    typeof value.createdAt === 'string'
   );
 }
 
 function invalidNotificationsError(): ApiError {
-  return new ApiError("The API returned invalid Space notifications.", {
-    kind: "malformed-response",
+  return new ApiError('The API returned invalid Space notifications.', {
+    kind: 'malformed-response',
   });
 }
 
@@ -55,16 +58,16 @@ function requireSpaceNotifications(
 }
 
 async function getSpaceNotifications(
-  apiClient: Pick<NotificationClient, "get">,
+  apiClient: Pick<NotificationClient, 'get'>,
   signal?: AbortSignal,
 ): Promise<readonly SpaceNotification[]> {
   return requireSpaceNotifications(
-    await apiClient.get<unknown>("/notifications", { signal }),
+    await apiClient.get<unknown>('/notifications', { signal }),
   );
 }
 
 async function retrySpaceNotification(
-  apiClient: Pick<NotificationClient, "post">,
+  apiClient: Pick<NotificationClient, 'post'>,
   notificationId: string,
 ): Promise<SpaceNotification> {
   const response = await apiClient.post<unknown>(
@@ -93,7 +96,7 @@ function toSafeSpaceNotification(
 }
 
 async function markSpaceNotificationRead(
-  apiClient: Pick<NotificationClient, "post">,
+  apiClient: Pick<NotificationClient, 'post'>,
   notificationId: string,
 ): Promise<SpaceNotification> {
   const response = await apiClient.post<unknown>(

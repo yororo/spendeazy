@@ -4,9 +4,9 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import type { SpaceNotification } from '@/shared/api';
 import { SharingPage } from './sharing-page';
 import type { Invitation } from './invitations-service';
+import type { SpaceNotification } from './space-notification';
 
 const pageState = vi.hoisted(() => ({
   invitationsQuery: {
@@ -83,10 +83,13 @@ vi.mock('@/shared/api', () => ({
   normalizeEmailDeliveryFailure: (error: string | null) =>
     error === null ? null : 'Email delivery failed. Please retry.',
   useAccessibleSpacesQuery: () => pageState.spacesQuery,
+  useLeaveSharedSpaceMutation: () => pageState.leaveMutation,
+}));
+
+vi.mock('./space-notification-queries', () => ({
   useMarkSpaceNotificationReadMutation: () => basicMutation(),
   useRetrySpaceNotificationMutation: () => basicMutation(),
   useSpaceNotificationsQuery: () => pageState.notificationsQuery,
-  useLeaveSharedSpaceMutation: () => pageState.leaveMutation,
 }));
 
 vi.mock('./invitation-queries', () => ({

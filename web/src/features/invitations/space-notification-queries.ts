@@ -1,22 +1,22 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { queryPolicy } from "@/shared/query";
+import { useApiClient } from '@/shared/api';
+import { queryPolicy } from '@/shared/query';
 
 import {
   getSpaceNotifications,
   markSpaceNotificationRead,
   retrySpaceNotification,
-} from "./space-notification";
-import { useApiClient } from "./use-api-client";
+} from './space-notification';
 
-const SPACE_NOTIFICATIONS_QUERY_KEY = ["space-notifications"] as const;
+const SPACE_NOTIFICATIONS_QUERY_KEY = ['space-notifications'] as const;
 
 function useSpaceNotificationsQuery() {
   const apiClient = useApiClient();
   return useQuery({
     queryKey: SPACE_NOTIFICATIONS_QUERY_KEY,
     queryFn: ({ signal }) => getSpaceNotifications(apiClient, signal),
-    refetchOnMount: "always",
+    refetchOnMount: 'always',
     refetchOnWindowFocus: true,
     staleTime: queryPolicy.categoryCatalogStaleTime,
   });

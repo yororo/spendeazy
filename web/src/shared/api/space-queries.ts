@@ -34,10 +34,7 @@ function useLeaveSharedSpaceMutation() {
     mutationFn: (spaceId: string) => leaveSharedSpace(apiClient, spaceId),
     retry: 0,
     onSuccess: () =>
-      void Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["spaces", "accessible"] }),
-        queryClient.invalidateQueries({ queryKey: ["space-notifications"] }),
-      ]),
+      queryClient.invalidateQueries({ queryKey: ["spaces", "accessible"] }),
   });
 }
 

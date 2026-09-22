@@ -37,12 +37,8 @@ import {
 } from '@/components/ui/dialog';
 import {
   normalizeEmailDeliveryFailure,
-  useMarkSpaceNotificationReadMutation,
-  useRetrySpaceNotificationMutation,
-  useSpaceNotificationsQuery,
   useAccessibleSpacesQuery,
   useLeaveSharedSpaceMutation,
-  type SpaceNotification,
 } from '@/shared/api';
 import { useAppSession } from '@/shared/session';
 
@@ -57,6 +53,12 @@ import {
 } from './invitation-queries';
 import { usePublicInvitationQuery } from './public-invitation-queries';
 import type { Invitation, PublicInvitation } from './invitations-service';
+import type { SpaceNotification } from './space-notification';
+import {
+  useMarkSpaceNotificationReadMutation,
+  useRetrySpaceNotificationMutation,
+  useSpaceNotificationsQuery,
+} from './space-notification-queries';
 
 function SharingPage() {
   const [searchParams] = useSearchParams();

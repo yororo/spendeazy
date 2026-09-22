@@ -67,8 +67,10 @@ export class InvitationResponseDto {
   @ApiProperty({ format: 'email', example: 'partner@example.com' })
   recipientEmail!: string;
 
-  @ApiProperty({ enum: ['pending', 'canceled', 'declined', 'expired'] })
-  status!: 'pending' | 'canceled' | 'declined' | 'expired';
+  @ApiProperty({
+    enum: ['pending', 'accepted', 'canceled', 'declined', 'expired'],
+  })
+  status!: 'pending' | 'accepted' | 'canceled' | 'declined' | 'expired';
 
   @ApiProperty({ format: 'date-time' })
   expiresAt!: string;

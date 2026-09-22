@@ -22,6 +22,8 @@ import {
   type AuthenticatedRequest,
 } from '../../authentication/authentication';
 import { ApiStandardErrorResponses } from '../../http/api-error.dto';
+import { toSpaceResponse } from '../../http/space-response.mapper';
+import { SpaceResponseDto } from '../../http/space-response.dto';
 import { InvitationsService } from '../application/invitations.service';
 import {
   ConfirmInvitationDeclineDto,
@@ -43,6 +45,7 @@ export class InvitationsController {
   @ApiStandardErrorResponses(
     'UnauthenticatedError',
     'UserNotProvisionedError',
+    'ServiceUnavailableError',
     'InternalError',
   )
   list(
@@ -150,6 +153,7 @@ export class InvitationsController {
     'UnauthenticatedError',
     'UserNotProvisionedError',
     'ValidationError',
+    'ServiceUnavailableError',
     'NotFoundError',
     'ConflictError',
     'InternalError',
@@ -163,6 +167,35 @@ export class InvitationsController {
     await this.invitationsService.declineForUser(
       requireAuthenticatedUserId(request),
       params.invitationId,
+    );
+  }
+
+  @Post(':invitationId/accept')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Accept an incoming invitation and create a Shared Space.',
+    description:
+      'Acceptance requires the authenticated User to own the invited email in a verified identity-provider email address. The response is the newly authorized Shared Space; the public invitation token cannot be used for acceptance.',
+  })
+  @ApiParam({ name: 'invitationId', type: String, example: '42' })
+  @ApiResponse({ status: HttpStatus.OK, type: SpaceResponseDto })
+  @ApiStandardErrorResponses(
+    'UnauthenticatedError',
+    'UserNotProvisionedError',
+    'ServiceUnavailableError',
+    'NotFoundError',
+    'ConflictError',
+    'InternalError',
+  )
+  async accept(
+    @Req() request: AuthenticatedRequest,
+    @Param() params: InvitationParamsDto,
+  ): Promise<SpaceResponseDto> {
+    return toSpaceResponse(
+      await this.invitationsService.acceptForUser(
+        requireAuthenticatedUserId(request),
+        params.invitationId,
+      ),
     );
   }
 }

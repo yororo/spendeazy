@@ -10,6 +10,7 @@ export interface InvitationRecord {
   senderUserId: string;
   recipientEmail: string;
   recipientUserId: string | null;
+  acceptedSpaceId: string | null;
   tokenHash: string;
   status: InvitationStatus;
   expiresAt: Date;
@@ -33,6 +34,7 @@ export interface NewInvitation {
 
 export interface UpdateInvitation {
   recipientUserId?: string | null;
+  acceptedSpaceId?: string | null;
   tokenHash?: string;
   status?: InvitationStatus;
   expiresAt?: Date;
@@ -61,20 +63,20 @@ export interface InvitationStore {
     senderUserId: string,
     invitationId: string,
   ): Promise<InvitationRecord | null>;
-  listIncoming(
-    recipientUserId: string,
-    recipientEmail: string,
-  ): Promise<InvitationRecord[]>;
   findByTokenHash(tokenHash: string): Promise<InvitationRecord | null>;
   create(input: NewInvitation): Promise<InvitationRecord>;
   update(
     invitationId: string,
     input: UpdateInvitation,
   ): Promise<InvitationRecord | null>;
-  associateRecipientEmail(
+  associateRecipientEmails(
     recipientUserId: string,
-    recipientEmail: string,
+    recipientEmails: readonly string[],
   ): Promise<void>;
+  listIncomingForEmails(
+    recipientUserId: string,
+    recipientEmails: readonly string[],
+  ): Promise<InvitationRecord[]>;
   expirePending(before: Date): Promise<void>;
   reserveDeliveryAttempt(
     input: DeliveryReservationRequest,

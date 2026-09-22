@@ -80,6 +80,7 @@ describe('OpenAPI document factory', () => {
         `GET ${apiRoot}/users/me/invitations`,
         `POST ${apiRoot}/users/me/invitations`,
         `POST ${apiRoot}/users/me/invitations/{invitationId}/decline`,
+        `POST ${apiRoot}/users/me/invitations/{invitationId}/accept`,
         `POST ${apiRoot}/users/me/invitations/{invitationId}/resend`,
         `POST ${apiRoot}/users/me/invitations/{invitationId}/retry`,
         `GET ${apiRoot}/users/me/category-rules/{ruleId}`,

@@ -1,10 +1,17 @@
 import {
   isRecord,
+  isAccessibleSpace,
   requireApiResponse,
   type ApiClient,
+  type AccessibleSpace,
 } from '@/shared/api';
 
-export type InvitationStatus = 'pending' | 'canceled' | 'declined' | 'expired';
+export type InvitationStatus =
+  | 'pending'
+  | 'accepted'
+  | 'canceled'
+  | 'declined'
+  | 'expired';
 export type InvitationDeliveryStatus = 'pending' | 'sent' | 'failed';
 
 export interface Invitation {
@@ -161,9 +168,32 @@ async function declineInvitation(
   );
 }
 
+async function acceptInvitation(
+  apiClient: InvitationsApiClient,
+  invitationId: string,
+): Promise<AccessibleSpace> {
+  const response = await apiClient.post<unknown>(
+    `/invitations/${encodeURIComponent(invitationId)}/accept`,
+    {},
+    { expectedStatuses: [200] },
+  );
+  const value = requireApiResponse(
+    response,
+    'accepted invitation',
+    createInvitationsDataError,
+  );
+  if (!isAccessibleSpace(value)) {
+    throw createInvitationsDataError(
+      'The API returned an invalid accepted Shared Space.',
+    );
+  }
+  return value;
+}
+
 function isInvitationStatus(value: unknown): value is InvitationStatus {
   return (
     value === 'pending' ||
+    value === 'accepted' ||
     value === 'canceled' ||
     value === 'declined' ||
     value === 'expired'
@@ -177,6 +207,7 @@ function isInvitationDeliveryStatus(
 }
 
 export {
+  acceptInvitation,
   InvitationsDataError,
   cancelInvitation,
   createInvitation,

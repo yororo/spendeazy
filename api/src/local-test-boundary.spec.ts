@@ -107,10 +107,12 @@ describe('local synthetic authentication boundary', () => {
     ).resolves.toEqual({
       fullName: 'Local Test Companion',
       primaryVerifiedEmail: 'local-test-companion@example.invalid',
+      verifiedEmails: ['local-test-companion@example.invalid'],
     });
     await expect(profileService.getUserProfile(freshUserId)).resolves.toEqual({
       fullName: 'Fresh Local User abc123',
       primaryVerifiedEmail: `${freshUserId}@example.invalid`,
+      verifiedEmails: [`${freshUserId}@example.invalid`],
     });
   });
 

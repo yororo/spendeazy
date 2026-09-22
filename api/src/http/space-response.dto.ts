@@ -1,6 +1,6 @@
 import { ApiProperty, ApiSchema } from '@nestjs/swagger';
-import { POSITIVE_INTEGER_ID_PATTERN } from '../../http/validation-patterns';
-import type { AccessibleSpaceRecord } from '../application/space-store';
+import { POSITIVE_INTEGER_ID_PATTERN } from './validation-patterns';
+import type { AccessibleSpaceRecord } from '../spaces/application/space-store';
 
 @ApiSchema({
   additionalProperties: false,

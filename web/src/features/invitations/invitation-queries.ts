@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApiClient } from '@/shared/api';
 
 import {
+  acceptInvitation,
   cancelInvitation,
   createInvitation,
   declineInvitation,
@@ -68,7 +69,24 @@ function useDeclineInvitationMutation() {
   );
 }
 
+function useAcceptInvitationMutation() {
+  const apiClient = useApiClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (invitationId: string) =>
+      acceptInvitation(apiClient, invitationId),
+    retry: 0,
+    onSuccess: () => {
+      void Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['invitations'] }),
+        queryClient.invalidateQueries({ queryKey: ['spaces', 'accessible'] }),
+      ]);
+    },
+  });
+}
+
 export {
+  useAcceptInvitationMutation,
   useCancelInvitationMutation,
   useCreateInvitationMutation,
   useDeclineInvitationMutation,

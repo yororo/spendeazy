@@ -26,6 +26,7 @@ import { CreateInvitations1820000000000 } from './migrations/1820000000000-creat
 import { CreateTransactionActivity1830000000000 } from './migrations/1830000000000-create-transaction-activity';
 import { AddTransactionEditActivity1840000000000 } from './migrations/1840000000000-add-transaction-edit-activity';
 import { RetainDeletedTransactions1850000000000 } from './migrations/1850000000000-retain-deleted-transactions';
+import { RecordInvitationAcceptance1860000000000 } from './migrations/1860000000000-record-invitation-acceptance';
 
 export const DATABASE_MIGRATIONS = [
   CreateExpenseTrackerSchema1710000000000,
@@ -43,6 +44,7 @@ export const DATABASE_MIGRATIONS = [
   CreateTransactionActivity1830000000000,
   AddTransactionEditActivity1840000000000,
   RetainDeletedTransactions1850000000000,
+  RecordInvitationAcceptance1860000000000,
 ];
 
 export const DATABASE_ENTITIES = [

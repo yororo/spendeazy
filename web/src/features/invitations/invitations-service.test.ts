@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import {
+  acceptInvitation,
   cancelInvitation,
   createInvitation,
   declineInvitation,
@@ -18,6 +19,19 @@ const invitation = {
   lastSentAt: '2026-09-21T00:00:00.000Z',
   deliveryStatus: 'sent' as const,
   deliveryError: null,
+  createdAt: '2026-09-21T00:00:00.000Z',
+  updatedAt: '2026-09-21T00:00:00.000Z',
+};
+
+const acceptedSpace = {
+  id: '99',
+  kind: 'shared' as const,
+  status: 'active' as const,
+  accessLevel: 'write' as const,
+  members: [
+    { id: '1', name: 'Sender' },
+    { id: '2', name: 'Recipient' },
+  ],
   createdAt: '2026-09-21T00:00:00.000Z',
   updatedAt: '2026-09-21T00:00:00.000Z',
 };
@@ -50,13 +64,19 @@ describe('invitations service', () => {
 
   it('exposes lifecycle operations through their stable endpoint contracts', async () => {
     const del = vi.fn().mockResolvedValue(undefined);
-    const post = vi.fn().mockResolvedValue(invitation);
+    const post = vi
+      .fn()
+      .mockResolvedValueOnce(invitation)
+      .mockResolvedValueOnce(invitation)
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce(acceptedSpace);
     const client = { delete: del, post } as unknown as InvitationsApiClient;
 
     await cancelInvitation(client, '42');
     await resendInvitation(client, '42');
     await retryInvitation(client, '42');
     await declineInvitation(client, '42');
+    await expect(acceptInvitation(client, '42')).resolves.toEqual(acceptedSpace);
 
     expect(del).toHaveBeenCalledWith('/invitations/42', {
       expectedStatuses: [204],
@@ -65,6 +85,7 @@ describe('invitations service', () => {
       ['/invitations/42/resend', {}, { expectedStatuses: [200] }],
       ['/invitations/42/retry', {}, { expectedStatuses: [200] }],
       ['/invitations/42/decline', { confirm: true }, { expectedStatuses: [204] }],
+      ['/invitations/42/accept', {}, { expectedStatuses: [200] }],
     ]);
   });
 

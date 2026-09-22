@@ -51,11 +51,10 @@ export class InvitationSelfError extends ApplicationError {
 }
 
 export class InvitationIneligibleError extends ApplicationError {
-  constructor() {
-    super(
-      INVITATION_INELIGIBLE_CODE,
-      'You cannot send invitations while you belong to an active Shared Space',
-    );
+  constructor(
+    message = 'You cannot send invitations while you belong to an active Shared Space',
+  ) {
+    super(INVITATION_INELIGIBLE_CODE, message);
   }
 }
 

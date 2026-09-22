@@ -42,6 +42,37 @@ describe('InvitationsController', () => {
     );
     expect(service.declineForUser).toHaveBeenCalledWith('7', '42');
   });
+
+  it('passes the authenticated User to invitation acceptance', async () => {
+    const space = {
+      id: '99',
+      kind: 'shared',
+      status: 'active',
+      accessLevel: 'write',
+      members: [{ id: '7', name: 'Recipient' }],
+      createdAt: new Date('2026-09-22T00:00:00.000Z'),
+      updatedAt: new Date('2026-09-22T00:00:00.000Z'),
+    };
+    const service = {
+      acceptForUser: jest.fn().mockResolvedValue(space),
+    };
+    const controller = new InvitationsController(
+      service as unknown as InvitationsService,
+    );
+
+    await expect(
+      controller.accept(authenticatedRequest(), { invitationId: '42' }),
+    ).resolves.toEqual({
+      id: '99',
+      kind: 'shared',
+      status: 'active',
+      accessLevel: 'write',
+      members: [{ id: '7', name: 'Recipient' }],
+      createdAt: '2026-09-22T00:00:00.000Z',
+      updatedAt: '2026-09-22T00:00:00.000Z',
+    });
+    expect(service.acceptForUser).toHaveBeenCalledWith('7', '42');
+  });
 });
 
 function authenticatedRequest(): AuthenticatedRequest {

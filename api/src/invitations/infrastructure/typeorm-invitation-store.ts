@@ -1,10 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { InjectEntityManager } from '@nestjs/typeorm';
-import { QueryFailedError, type EntityManager } from 'typeorm';
+import { In, QueryFailedError, type EntityManager } from 'typeorm';
 
 import { POSTGRES_UNIQUE_VIOLATION } from '../../database/database-error-codes';
 import { InvitationDeliveryAttemptEntity } from '../../database/entities/invitation-delivery-attempt.entity';
 import { InvitationEntity } from '../../database/entities/invitation.entity';
+import { SpaceEntity } from '../../database/entities/space.entity';
+import { SpaceMembershipEntity } from '../../database/entities/space-membership.entity';
 import { UserEntity } from '../../database/entities/user.entity';
 import {
   InvitationAlreadyPendingError,
@@ -14,6 +16,7 @@ import {
   InvitationNotFoundError,
   InvitationRateLimitedError,
 } from '../application/invitation-errors';
+import { assertInvitationSenderEligible } from '../application/invitation-eligibility';
 import type {
   DeliveryReservation,
   DeliveryReservationRequest,
@@ -61,18 +64,27 @@ export class TypeOrmInvitationStore implements InvitationStore {
     return entity ? toInvitationRecord(entity) : null;
   }
 
-  async listIncoming(
+  async listIncomingForEmails(
     recipientUserId: string,
-    recipientEmail: string,
+    recipientEmails: readonly string[],
   ): Promise<InvitationRecord[]> {
-    const entities = await this.entityManager
+    const query = this.entityManager
       .getRepository(InvitationEntity)
       .createQueryBuilder('invitation')
-      .where('invitation.status = :status', { status: 'pending' })
-      .andWhere(
-        '(invitation.recipientUserId = :recipientUserId OR invitation.recipientEmail = :recipientEmail)',
-        { recipientUserId, recipientEmail },
-      )
+      .where('invitation.status = :status', { status: 'pending' });
+
+    if (recipientEmails.length === 0) {
+      query.andWhere('invitation.recipient_user_id = :recipientUserId', {
+        recipientUserId,
+      });
+    } else {
+      query.andWhere(
+        '(invitation.recipient_user_id = :recipientUserId OR (invitation.recipient_user_id IS NULL AND invitation.recipient_email IN (:...recipientEmails)))',
+        { recipientUserId, recipientEmails },
+      );
+    }
+
+    const entities = await query
       .orderBy('invitation.createdAt', 'DESC')
       .getMany();
     return entities.map(toInvitationRecord);
@@ -86,71 +98,107 @@ export class TypeOrmInvitationStore implements InvitationStore {
   }
 
   async create(input: NewInvitation): Promise<InvitationRecord> {
-    const repository = this.entityManager.getRepository(InvitationEntity);
-    const entity = repository.create({
-      senderUserId: input.senderUserId,
-      recipientEmail: input.recipientEmail,
-      recipientUserId: input.recipientUserId,
-      tokenHash: input.tokenHash,
-      status: 'pending',
-      expiresAt: input.expiresAt,
-      lastSentAt: input.lastSentAt,
-      deliveryStatus: input.deliveryStatus ?? 'pending',
-      deliveryError: input.deliveryError ?? null,
-    });
+    return this.entityManager.transaction(async (entityManager) => {
+      const sender = await entityManager
+        .getRepository(UserEntity)
+        .createQueryBuilder('sender')
+        .where('sender.id = :senderUserId', {
+          senderUserId: input.senderUserId,
+        })
+        .setLock('pessimistic_write')
+        .getOne();
+      if (!sender) throw new InvitationNotFoundError();
 
-    try {
-      return toInvitationRecord(await repository.save(entity));
-    } catch (error: unknown) {
-      if (isUniqueViolation(error)) {
-        throw new InvitationAlreadyPendingError();
+      await assertSenderEligible(entityManager, input.senderUserId);
+
+      const repository = entityManager.getRepository(InvitationEntity);
+      const entity = repository.create({
+        senderUserId: input.senderUserId,
+        recipientEmail: input.recipientEmail,
+        recipientUserId: input.recipientUserId,
+        acceptedSpaceId: null,
+        tokenHash: input.tokenHash,
+        status: 'pending',
+        expiresAt: input.expiresAt,
+        lastSentAt: input.lastSentAt,
+        deliveryStatus: input.deliveryStatus ?? 'pending',
+        deliveryError: input.deliveryError ?? null,
+      });
+
+      try {
+        return toInvitationRecord(await repository.save(entity));
+      } catch (error: unknown) {
+        if (isUniqueViolation(error)) {
+          throw new InvitationAlreadyPendingError();
+        }
+        throw error;
       }
-      throw error;
-    }
+    });
   }
 
   async update(
     invitationId: string,
     input: UpdateInvitation,
   ): Promise<InvitationRecord | null> {
-    const repository = this.entityManager.getRepository(InvitationEntity);
-    const entity = await repository.findOne({ where: { id: invitationId } });
-    if (!entity) return null;
+    return this.entityManager.transaction(async (entityManager) => {
+      const repository = entityManager.getRepository(InvitationEntity);
+      const entity = await repository
+        .createQueryBuilder('invitation')
+        .where('invitation.id = :invitationId', { invitationId })
+        .setLock('pessimistic_write')
+        .getOne();
+      if (!entity) return null;
 
-    if (input.recipientUserId !== undefined) {
-      entity.recipientUserId = input.recipientUserId;
-    }
-    if (input.tokenHash !== undefined) entity.tokenHash = input.tokenHash;
-    if (input.status !== undefined) entity.status = input.status;
-    if (input.expiresAt !== undefined) entity.expiresAt = input.expiresAt;
-    if (input.lastSentAt !== undefined) entity.lastSentAt = input.lastSentAt;
-    if (input.deliveryStatus !== undefined) {
-      entity.deliveryStatus = input.deliveryStatus;
-    }
-    if (input.deliveryError !== undefined) {
-      entity.deliveryError = input.deliveryError;
-    }
-
-    try {
-      return toInvitationRecord(await repository.save(entity));
-    } catch (error: unknown) {
-      if (isUniqueViolation(error)) {
-        throw new InvitationAlreadyPendingError();
+      const canReopenExpiredInvitation =
+        input.status === 'pending' && entity.status === 'expired';
+      if (
+        input.status !== undefined &&
+        entity.status !== 'pending' &&
+        !canReopenExpiredInvitation
+      ) {
+        return toInvitationRecord(entity);
       }
-      throw error;
-    }
+
+      if (input.recipientUserId !== undefined) {
+        entity.recipientUserId = input.recipientUserId;
+      }
+      if (input.acceptedSpaceId !== undefined) {
+        entity.acceptedSpaceId = input.acceptedSpaceId;
+      }
+      if (input.tokenHash !== undefined) entity.tokenHash = input.tokenHash;
+      if (input.status !== undefined) entity.status = input.status;
+      if (input.expiresAt !== undefined) entity.expiresAt = input.expiresAt;
+      if (input.lastSentAt !== undefined) entity.lastSentAt = input.lastSentAt;
+      if (input.deliveryStatus !== undefined) {
+        entity.deliveryStatus = input.deliveryStatus;
+      }
+      if (input.deliveryError !== undefined) {
+        entity.deliveryError = input.deliveryError;
+      }
+
+      try {
+        return toInvitationRecord(await repository.save(entity));
+      } catch (error: unknown) {
+        if (isUniqueViolation(error)) {
+          throw new InvitationAlreadyPendingError();
+        }
+        throw error;
+      }
+    });
   }
 
-  async associateRecipientEmail(
+  async associateRecipientEmails(
     recipientUserId: string,
-    recipientEmail: string,
+    recipientEmails: readonly string[],
   ): Promise<void> {
+    if (recipientEmails.length === 0) return;
+
     await this.entityManager
       .getRepository(InvitationEntity)
       .createQueryBuilder()
       .update(InvitationEntity)
       .set({ recipientUserId })
-      .where('recipient_email = :recipientEmail', { recipientEmail })
+      .where('recipient_email IN (:...recipientEmails)', { recipientEmails })
       .andWhere('status = :status', { status: 'pending' })
       .andWhere('recipient_user_id IS NULL')
       .execute();
@@ -199,6 +247,9 @@ export class TypeOrmInvitationStore implements InvitationStore {
       }
       if (invitation.status === 'declined') {
         throw new InvitationDeclinedError();
+      }
+      if (invitation.status === 'accepted') {
+        throw new InvitationNotFoundError();
       }
       if (
         invitation.lastSentAt &&
@@ -259,6 +310,7 @@ function toInvitationRecord(entity: InvitationEntity): InvitationRecord {
     senderUserId: entity.senderUserId,
     recipientEmail: entity.recipientEmail,
     recipientUserId: entity.recipientUserId,
+    acceptedSpaceId: entity.acceptedSpaceId,
     tokenHash: entity.tokenHash,
     status: entity.status,
     expiresAt: entity.expiresAt,
@@ -278,4 +330,19 @@ function isUniqueViolation(error: unknown): boolean {
     (error.driverError as { constraint?: unknown }).constraint ===
       'ux_invitations_sender_pending'
   );
+}
+
+async function assertSenderEligible(
+  entityManager: EntityManager,
+  userId: string,
+): Promise<void> {
+  const memberships = await entityManager
+    .getRepository(SpaceMembershipEntity)
+    .findBy({ userId });
+  if (memberships.length === 0) return;
+
+  const spaces = await entityManager.getRepository(SpaceEntity).findBy({
+    id: In([...new Set(memberships.map((membership) => membership.spaceId))]),
+  });
+  assertInvitationSenderEligible(spaces);
 }

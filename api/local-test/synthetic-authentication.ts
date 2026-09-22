@@ -18,10 +18,12 @@ export const LOCAL_TEST_SESSION_ID_PREFIX = 'local-test-session-';
 export const LOCAL_TEST_PROFILE: ClerkUserProfile = {
   fullName: 'Local Test User',
   primaryVerifiedEmail: 'local-test-user@example.invalid',
+  verifiedEmails: ['local-test-user@example.invalid'],
 };
 export const LOCAL_TEST_SECONDARY_PROFILE: ClerkUserProfile = {
   fullName: 'Local Test Companion',
   primaryVerifiedEmail: 'local-test-companion@example.invalid',
+  verifiedEmails: ['local-test-companion@example.invalid'],
 };
 
 export const LOCAL_TEST_SESSION_SCENARIOS = [
@@ -261,6 +263,7 @@ function getSyntheticProfile(clerkUserId: string): ClerkUserProfile | null {
   return {
     fullName: `Fresh Local User ${suffix}`,
     primaryVerifiedEmail: `${clerkUserId}@example.invalid`,
+    verifiedEmails: [`${clerkUserId}@example.invalid`],
   };
 }
 

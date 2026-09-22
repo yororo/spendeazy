@@ -1,9 +1,16 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import { isEmail } from 'class-validator';
 
+import { CLERK_PROFILE_SERVICE } from '../../authentication/clerk-profile-service';
+import type {
+  ClerkProfileService,
+  ClerkUserProfile,
+} from '../../authentication/clerk-profile-service';
+import { ClerkProfileUnavailableError } from '../../authentication/authentication-errors';
 import { ApplicationError } from '../../errors/application-error';
 import { VALIDATION_FAILED_CODE } from '../../errors/application-error-codes';
 import { SpaceAccessService } from '../../spaces/application/space-access.service';
+import type { AccessibleSpaceRecord } from '../../spaces/application/space-store';
 import { type UserRecord } from '../../users/application/user-store';
 import {
   INVITATION_CLOCK,
@@ -19,7 +26,6 @@ import {
   InvitationCanceledError,
   InvitationDeclinedError,
   InvitationExpiredError,
-  InvitationIneligibleError,
   InvitationNotFoundError,
   InvitationSelfError,
 } from './invitation-errors';
@@ -29,6 +35,11 @@ import {
   type InvitationRecord,
   type InvitationStore,
 } from './invitation-store';
+import {
+  INVITATION_ACCEPTANCE_STORE,
+  type InvitationAcceptanceStore,
+} from './invitation-acceptance-store';
+import { assertInvitationSenderEligible } from './invitation-eligibility';
 import {
   INVITATION_USER_READER,
   type InvitationUserReader,
@@ -80,13 +91,20 @@ export class InvitationsService {
     @Inject(INVITATION_CLOCK) private readonly clock: InvitationClock,
     @Inject('INVITATION_WEB_BASE_URL')
     private readonly webBaseUrl: string,
+    @Optional()
+    @Inject(CLERK_PROFILE_SERVICE)
+    private readonly clerkProfileService?: ClerkProfileService,
+    @Optional()
+    @Inject(INVITATION_ACCEPTANCE_STORE)
+    private readonly invitationAcceptanceStore?: InvitationAcceptanceStore,
   ) {}
 
   async listForUser(userId: string): Promise<InvitationInboxView> {
     const now = this.clock.now();
     await this.invitationStore.expirePending(now);
     const user = await this.requireUser(userId);
-    await this.invitationStore.associateRecipientEmail(userId, user.email);
+    const verifiedEmails = await this.verifiedInvitationEmails(user);
+    await this.invitationStore.associateRecipientEmails(userId, verifiedEmails);
     const activeSpaces =
       await this.spaceAccessService.listActiveAccessibleSpaces(userId);
     const canReceiveInvitations = !activeSpaces.some(
@@ -95,7 +113,7 @@ export class InvitationsService {
     const [outgoing, incoming] = await Promise.all([
       this.invitationStore.findLatestBySender(userId),
       canReceiveInvitations
-        ? this.invitationStore.listIncoming(userId, user.email)
+        ? this.invitationStore.listIncomingForEmails(userId, verifiedEmails)
         : Promise.resolve([]),
     ]);
     return {
@@ -106,6 +124,24 @@ export class InvitationsService {
           : null,
       incoming: await Promise.all(incoming.map((item) => this.toView(item))),
     };
+  }
+
+  async acceptForUser(
+    userId: string,
+    invitationId: string,
+  ): Promise<AccessibleSpaceRecord> {
+    const user = await this.requireUser(userId);
+    const verifiedEmails = await this.verifiedInvitationEmails(user);
+    if (!this.invitationAcceptanceStore) {
+      throw new Error('Invitation acceptance is not configured');
+    }
+
+    return this.invitationAcceptanceStore.accept({
+      invitationId,
+      recipientUserId: userId,
+      verifiedRecipientEmails: verifiedEmails,
+      now: this.clock.now(),
+    });
   }
 
   async create(
@@ -167,7 +203,14 @@ export class InvitationsService {
     if (invitation.status === 'canceled') return;
     if (invitation.status === 'declined') throw new InvitationDeclinedError();
     if (invitation.status === 'expired') throw new InvitationExpiredError();
-    await this.invitationStore.update(invitation.id, { status: 'canceled' });
+    if (invitation.status === 'accepted') throw new InvitationNotFoundError();
+    const canceled = await this.invitationStore.update(invitation.id, {
+      status: 'canceled',
+    });
+    if (canceled?.status === 'canceled') return;
+    if (canceled?.status === 'declined') throw new InvitationDeclinedError();
+    if (canceled?.status === 'expired') throw new InvitationExpiredError();
+    throw new InvitationNotFoundError();
   }
 
   async resend(
@@ -182,6 +225,7 @@ export class InvitationsService {
     );
     if (invitation.status === 'canceled') throw new InvitationCanceledError();
     if (invitation.status === 'declined') throw new InvitationDeclinedError();
+    if (invitation.status === 'accepted') throw new InvitationNotFoundError();
     const reservation = await this.invitationStore.reserveDeliveryAttempt({
       senderUserId,
       invitationId: invitation.id,
@@ -207,6 +251,14 @@ export class InvitationsService {
       );
       throw new InvitationNotFoundError();
     }
+    if (updated.status !== 'pending') {
+      await this.invitationStore.completeDeliveryAttempt(
+        reservation.id,
+        false,
+        'Invitation is no longer pending',
+      );
+      throw new InvitationNotFoundError();
+    }
     await this.deliver(updated, token, sender, reservation);
     const current =
       (await this.invitationStore.findBySender(senderUserId, invitation.id)) ??
@@ -216,9 +268,10 @@ export class InvitationsService {
 
   async declineForUser(userId: string, invitationId: string): Promise<void> {
     const user = await this.requireUser(userId);
-    await this.invitationStore.associateRecipientEmail(userId, user.email);
+    const verifiedEmails = await this.verifiedInvitationEmails(user);
+    await this.invitationStore.associateRecipientEmails(userId, verifiedEmails);
     const invitation = (
-      await this.invitationStore.listIncoming(userId, user.email)
+      await this.invitationStore.listIncomingForEmails(userId, verifiedEmails)
     ).find((item) => item.id === invitationId);
     if (!invitation) throw new InvitationNotFoundError();
     await this.declineRecord(invitation);
@@ -254,7 +307,7 @@ export class InvitationsService {
       throw new InvitationExpiredError();
     }
     if (invitation.status === 'expired') throw new InvitationExpiredError();
-    if (invitation.status === 'canceled' || invitation.status === 'declined') {
+    if (invitation.status !== 'pending') {
       throw new InvitationNotFoundError();
     }
     return invitation;
@@ -271,7 +324,15 @@ export class InvitationsService {
     if (invitation.status === 'expired') throw new InvitationExpiredError();
     if (invitation.status === 'canceled') throw new InvitationCanceledError();
     if (invitation.status === 'declined') return;
-    await this.invitationStore.update(invitation.id, { status: 'declined' });
+    const declined = await this.invitationStore.update(invitation.id, {
+      status: 'declined',
+    });
+    if (declined?.status === 'declined') return;
+    if (declined?.status === 'canceled') {
+      throw new InvitationCanceledError();
+    }
+    if (declined?.status === 'expired') throw new InvitationExpiredError();
+    throw new InvitationNotFoundError();
   }
 
   private async deliver(
@@ -309,9 +370,7 @@ export class InvitationsService {
   private async assertSenderEligible(senderUserId: string): Promise<void> {
     const spaces =
       await this.spaceAccessService.listActiveAccessibleSpaces(senderUserId);
-    if (spaces.some((space) => space.kind === 'shared')) {
-      throw new InvitationIneligibleError();
-    }
+    assertInvitationSenderEligible(spaces);
   }
 
   private async requireUser(userId: string): Promise<UserRecord> {
@@ -332,6 +391,31 @@ export class InvitationsService {
     return invitation;
   }
 
+  private async verifiedInvitationEmails(user: UserRecord): Promise<string[]> {
+    if (!this.clerkProfileService) return [user.email];
+
+    let profile: ClerkUserProfile | null;
+    try {
+      profile = await this.clerkProfileService.getUserProfile(user.clerkUserId);
+    } catch {
+      throw new ClerkProfileUnavailableError();
+    }
+    if (!profile) return [];
+
+    const candidates = [
+      profile.primaryVerifiedEmail,
+      ...(profile.verifiedEmails ?? []),
+    ];
+    return [
+      ...new Set(
+        candidates
+          .filter((email): email is string => typeof email === 'string')
+          .map(normalizeInvitationEmailSafely)
+          .filter((email): email is string => email !== null),
+      ),
+    ];
+  }
+
   private async toView(invitation: InvitationRecord): Promise<InvitationView> {
     const sender = await this.userStore.findById(invitation.senderUserId);
     return {
@@ -347,6 +431,11 @@ export class InvitationsService {
       ...(sender ? { senderName: sender.name } : {}),
     };
   }
+}
+
+function normalizeInvitationEmailSafely(value: string): string | null {
+  const normalized = value.trim().toLowerCase();
+  return isEmail(normalized) ? normalized : null;
 }
 
 export function normalizeInvitationEmail(value: string): string {

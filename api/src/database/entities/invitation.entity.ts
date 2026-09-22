@@ -7,7 +7,8 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
-export type InvitationStatus = 'pending' | 'canceled' | 'declined' | 'expired';
+export type InvitationStatus =
+  'pending' | 'accepted' | 'canceled' | 'declined' | 'expired';
 export type InvitationDeliveryStatus = 'pending' | 'sent' | 'failed';
 
 @Entity({ name: 'invitations' })
@@ -34,6 +35,13 @@ export class InvitationEntity {
     name: 'recipient_user_id',
   })
   recipientUserId!: string | null;
+
+  @Column({
+    type: 'bigint',
+    nullable: true,
+    name: 'accepted_space_id',
+  })
+  acceptedSpaceId!: string | null;
 
   @Column({ type: 'varchar', length: 128, name: 'token_hash' })
   tokenHash!: string;

@@ -12,7 +12,9 @@ import {
 import { INVITATION_STORE } from './application/invitation-store';
 import { INVITATION_USER_READER } from './application/invitation-user-reader';
 import { InvitationsService } from './application/invitations.service';
+import { INVITATION_ACCEPTANCE_STORE } from './application/invitation-acceptance-store';
 import { TypeOrmInvitationStore } from './infrastructure/typeorm-invitation-store';
+import { TypeOrmInvitationAcceptanceStore } from './infrastructure/typeorm-invitation-acceptance-store';
 import { HttpInvitationDelivery } from './infrastructure/http-invitation-delivery';
 import { InvitationsController } from './presentation/invitations.controller';
 import { PublicInvitationsController } from './presentation/public-invitations.controller';
@@ -38,7 +40,10 @@ export class InvitationsModule {
         ],
         ...(shouldIncludeControllers ? { controllers } : {}),
         providers: shouldIncludeControllers
-          ? [{ provide: InvitationsService, useValue: {} }]
+          ? [
+              { provide: InvitationsService, useValue: {} },
+              { provide: INVITATION_ACCEPTANCE_STORE, useValue: {} },
+            ]
           : [],
       };
     }
@@ -53,6 +58,11 @@ export class InvitationsModule {
       providers: [
         TypeOrmInvitationStore,
         { provide: INVITATION_STORE, useExisting: TypeOrmInvitationStore },
+        TypeOrmInvitationAcceptanceStore,
+        {
+          provide: INVITATION_ACCEPTANCE_STORE,
+          useExisting: TypeOrmInvitationAcceptanceStore,
+        },
         { provide: INVITATION_USER_READER, useExisting: USER_STORE },
         {
           provide: 'INVITATION_DELIVERY_CONFIG',

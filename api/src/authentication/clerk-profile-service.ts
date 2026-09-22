@@ -9,6 +9,8 @@ export const CLERK_PROFILE_SERVICE = Symbol('CLERK_PROFILE_SERVICE');
 export interface ClerkUserProfile {
   fullName: string | null;
   primaryVerifiedEmail: string | null;
+  /** All verified addresses currently attached to the identity. */
+  verifiedEmails?: readonly string[];
 }
 
 export interface ClerkProfileService {
@@ -33,13 +35,29 @@ export class OfficialClerkProfileService implements ClerkProfileService {
     try {
       const user = await this.clerkClient.users.getUser(clerkUserId);
       const primaryEmail = user.primaryEmailAddress;
+      const verifiedEmails = Array.isArray(user.emailAddresses)
+        ? user.emailAddresses.flatMap((emailAddress) =>
+            emailAddress.verification?.status === 'verified'
+              ? [emailAddress.emailAddress]
+              : [],
+          )
+        : [];
+      const primaryVerifiedEmail =
+        primaryEmail?.verification?.status === 'verified'
+          ? primaryEmail.emailAddress
+          : null;
+
+      if (
+        primaryVerifiedEmail !== null &&
+        !verifiedEmails.includes(primaryVerifiedEmail)
+      ) {
+        verifiedEmails.push(primaryVerifiedEmail);
+      }
 
       return {
         fullName: user.fullName,
-        primaryVerifiedEmail:
-          primaryEmail?.verification?.status === 'verified'
-            ? primaryEmail.emailAddress
-            : null,
+        primaryVerifiedEmail,
+        verifiedEmails,
       };
     } catch (error: unknown) {
       if (isProfileNotFoundError(error)) {

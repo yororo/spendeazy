@@ -14,13 +14,27 @@ describe('OfficialClerkProfileService', () => {
     createClerkClientMock.mockReset();
   });
 
-  it('returns only the full name and primary verified email from Clerk', async () => {
+  it('returns the full name and every verified email from Clerk', async () => {
     const getUser = jest.fn().mockResolvedValue({
       fullName: 'Ada Lovelace',
       primaryEmailAddress: {
         emailAddress: 'ada@example.com',
         verification: { status: 'verified' },
       },
+      emailAddresses: [
+        {
+          emailAddress: 'ada@example.com',
+          verification: { status: 'verified' },
+        },
+        {
+          emailAddress: 'ada.secondary@example.com',
+          verification: { status: 'verified' },
+        },
+        {
+          emailAddress: 'ada.unverified@example.com',
+          verification: { status: 'unverified' },
+        },
+      ],
     });
     createClerkClientMock.mockReturnValue({
       users: { getUser },
@@ -30,6 +44,7 @@ describe('OfficialClerkProfileService', () => {
     await expect(service.getUserProfile('user_42')).resolves.toEqual({
       fullName: 'Ada Lovelace',
       primaryVerifiedEmail: 'ada@example.com',
+      verifiedEmails: ['ada@example.com', 'ada.secondary@example.com'],
     });
     expect(createClerkClientMock).toHaveBeenCalledWith({
       secretKey: 'sk_test_secret',
@@ -46,6 +61,12 @@ describe('OfficialClerkProfileService', () => {
             emailAddress: 'ada@example.com',
             verification: { status: 'unverified' },
           },
+          emailAddresses: [
+            {
+              emailAddress: 'ada@example.com',
+              verification: { status: 'unverified' },
+            },
+          ],
         }),
       },
     } as unknown as ClerkClient);
@@ -54,6 +75,7 @@ describe('OfficialClerkProfileService', () => {
     await expect(service.getUserProfile('user_42')).resolves.toEqual({
       fullName: null,
       primaryVerifiedEmail: null,
+      verifiedEmails: [],
     });
   });
 

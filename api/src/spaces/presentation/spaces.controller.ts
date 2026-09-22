@@ -12,10 +12,13 @@ import {
   type AuthenticatedRequest,
 } from '../../authentication/authentication';
 import { ApiStandardErrorResponses } from '../../http/api-error.dto';
+import { toSpaceResponse } from '../../http/space-response.mapper';
+import {
+  SpaceMemberResponseDto,
+  SpaceResponseDto,
+} from '../../http/space-response.dto';
 import { SpaceAccessService } from '../application/space-access.service';
-import type { AccessibleSpaceRecord } from '../application/space-store';
 import { SpaceParamsDto } from './space.dto';
-import { SpaceMemberResponseDto, SpaceResponseDto } from './space-response.dto';
 
 @Controller('users/me/spaces')
 @ApiTags('Spaces')
@@ -91,21 +94,4 @@ export class SpacesController {
       ),
     );
   }
-}
-
-export function toSpaceResponse(
-  space: AccessibleSpaceRecord,
-): SpaceResponseDto {
-  return {
-    id: space.id,
-    kind: space.kind,
-    status: space.status,
-    accessLevel: space.accessLevel,
-    members: space.members.map((member) => ({
-      id: member.id,
-      name: member.name,
-    })),
-    createdAt: space.createdAt.toISOString(),
-    updatedAt: space.updatedAt.toISOString(),
-  };
 }

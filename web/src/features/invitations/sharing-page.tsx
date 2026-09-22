@@ -1,5 +1,11 @@
 import { useState } from 'react';
-import { MailPlusIcon, RefreshCwIcon, RotateCcwIcon, XIcon } from 'lucide-react';
+import {
+  CheckIcon,
+  MailPlusIcon,
+  RefreshCwIcon,
+  RotateCcwIcon,
+  XIcon,
+} from 'lucide-react';
 
 import {
   FeatureDataEmpty,
@@ -22,6 +28,7 @@ import { Label } from '@/components/ui/label';
 import {
   useCancelInvitationMutation,
   useCreateInvitationMutation,
+  useAcceptInvitationMutation,
   useDeclineInvitationMutation,
   useInvitationsQuery,
   useResendInvitationMutation,
@@ -32,6 +39,7 @@ import type { Invitation } from './invitations-service';
 function SharingPage() {
   const invitationsQuery = useInvitationsQuery();
   const createMutation = useCreateInvitationMutation();
+  const acceptMutation = useAcceptInvitationMutation();
   const cancelMutation = useCancelInvitationMutation();
   const resendMutation = useResendInvitationMutation();
   const retryMutation = useRetryInvitationMutation();
@@ -56,6 +64,7 @@ function SharingPage() {
     cancelMutation.isPending ||
     resendMutation.isPending ||
     retryMutation.isPending ||
+    acceptMutation.isPending ||
     declineMutation.isPending;
 
   function submitInvitation(event: React.FormEvent<HTMLFormElement>) {
@@ -156,7 +165,13 @@ function SharingPage() {
                 key={invitation.id}
                 invitation={invitation}
                 disabled={isMutating}
+                error={
+                  acceptMutation.variables === invitation.id
+                    ? acceptMutation.error
+                    : null
+                }
                 confirming={confirmingDeclineId === invitation.id}
+                onAccept={() => acceptMutation.mutate(invitation.id)}
                 onConfirm={() => declineMutation.mutate(invitation.id, {
                   onSuccess: () => setConfirmingDeclineId(null),
                 })}
@@ -239,7 +254,9 @@ function OutgoingInvitationCard({
 interface IncomingInvitationCardProps {
   readonly invitation: Invitation;
   readonly disabled: boolean;
+  readonly error: Error | null;
   readonly confirming: boolean;
+  readonly onAccept: () => void;
   readonly onConfirm: () => void;
   readonly onStartConfirm: () => void;
   readonly onCancelConfirm: () => void;
@@ -248,7 +265,9 @@ interface IncomingInvitationCardProps {
 function IncomingInvitationCard({
   invitation,
   disabled,
+  error,
   confirming,
+  onAccept,
   onConfirm,
   onStartConfirm,
   onCancelConfirm,
@@ -263,9 +282,14 @@ function IncomingInvitationCard({
         <p>
           This invitation is addressed to <span className="font-semibold">{invitation.recipientEmail}</span>.
         </p>
+        <p className="mt-2 text-muted-foreground">
+          Accepting creates a separate Shared Space with {invitation.senderName ?? 'the inviter'}.
+          Your Personal Space stays private, and the new Shared Space starts with Default Categories but no Transactions, Budgets, or learned Category Rules.
+        </p>
         <p className="mt-2 text-xs text-muted-foreground">
           Expires {new Date(invitation.expiresAt).toLocaleDateString()}
         </p>
+        {error && <p className="mt-2 text-sm text-destructive" role="alert">{error.message}</p>}
       </CardContent>
       <CardFooter className="flex-wrap gap-2">
         {confirming ? (
@@ -278,9 +302,14 @@ function IncomingInvitationCard({
             </Button>
           </>
         ) : (
-          <Button type="button" size="sm" variant="outline" onClick={onStartConfirm} disabled={disabled}>
-            Decline
-          </Button>
+          <>
+            <Button type="button" size="sm" onClick={onAccept} disabled={disabled}>
+              <CheckIcon aria-hidden="true" /> Accept invitation
+            </Button>
+            <Button type="button" size="sm" variant="outline" onClick={onStartConfirm} disabled={disabled}>
+              Decline
+            </Button>
+          </>
         )}
       </CardFooter>
     </Card>

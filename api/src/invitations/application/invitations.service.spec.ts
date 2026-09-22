@@ -1,4 +1,12 @@
 import type { AccessibleSpaceRecord } from '../../spaces/application/space-store';
+import type {
+  ClerkProfileService,
+  ClerkUserProfile,
+} from '../../authentication/clerk-profile-service';
+import type {
+  AcceptInvitationInput,
+  InvitationAcceptanceStore,
+} from './invitation-acceptance-store';
 import type { UserRecord, UserStore } from '../../users/application/user-store';
 import type {
   InvitationClock,
@@ -171,6 +179,61 @@ describe('InvitationsService', () => {
     );
     expect(store.records[0].status).toBe('pending');
   });
+
+  it('passes every verified identity email to the acceptance boundary', async () => {
+    const clock = new TestClock('2026-09-21T00:00:00.000Z');
+    const acceptanceStore = new FakeInvitationAcceptanceStore();
+    const service = createService(
+      new FakeInvitationStore(),
+      new TestDelivery(),
+      clock,
+      [],
+      new FakeProfileService({
+        fullName: 'Companion',
+        primaryVerifiedEmail: 'companion@example.test',
+        verifiedEmails: [
+          'COMPANION@example.test',
+          'companion.secondary@example.test',
+        ],
+      }),
+      acceptanceStore,
+    );
+
+    await expect(service.acceptForUser('2', '42')).resolves.toMatchObject({
+      kind: 'shared',
+      userId: '2',
+    });
+    expect(acceptanceStore.input).toMatchObject({
+      invitationId: '42',
+      recipientUserId: '2',
+      verifiedRecipientEmails: [
+        'companion@example.test',
+        'companion.secondary@example.test',
+      ],
+    });
+  });
+
+  it('does not authorize an invitation when its email is not verified', async () => {
+    const acceptanceStore = new FakeInvitationAcceptanceStore(
+      'companion.secondary@example.test',
+    );
+    const service = createService(
+      new FakeInvitationStore(),
+      new TestDelivery(),
+      new TestClock('2026-09-21T00:00:00.000Z'),
+      [],
+      new FakeProfileService({
+        fullName: 'Companion',
+        primaryVerifiedEmail: 'companion@example.test',
+        verifiedEmails: ['companion@example.test'],
+      }),
+      acceptanceStore,
+    );
+
+    await expect(service.acceptForUser('2', '42')).rejects.toBeInstanceOf(
+      InvitationNotFoundError,
+    );
+  });
 });
 
 function createService(
@@ -178,6 +241,8 @@ function createService(
   delivery: TestDelivery,
   clock: TestClock,
   activeSpaces: AccessibleSpaceRecord[] = [],
+  profileService?: ClerkProfileService,
+  acceptanceStore?: InvitationAcceptanceStore,
 ): InvitationsService {
   return new InvitationsService(
     store,
@@ -186,7 +251,48 @@ function createService(
     delivery,
     clock,
     'https://app.test',
+    profileService,
+    acceptanceStore,
   );
+}
+
+class FakeProfileService implements ClerkProfileService {
+  constructor(private readonly profile: ClerkUserProfile) {}
+
+  getUserProfile(): Promise<ClerkUserProfile> {
+    return Promise.resolve(this.profile);
+  }
+}
+
+class FakeInvitationAcceptanceStore implements InvitationAcceptanceStore {
+  input: AcceptInvitationInput | undefined;
+
+  constructor(
+    private readonly requiredEmail = 'companion.secondary@example.test',
+  ) {}
+
+  accept(input: AcceptInvitationInput): Promise<AccessibleSpaceRecord> {
+    this.input = input;
+    if (!input.verifiedRecipientEmails.includes(this.requiredEmail)) {
+      return Promise.reject(new InvitationNotFoundError());
+    }
+
+    const timestamp = new Date('2026-09-21T00:00:00.000Z');
+    return Promise.resolve({
+      id: '99',
+      kind: 'shared',
+      status: 'active',
+      personalOwnerUserId: null,
+      userId: input.recipientUserId,
+      accessLevel: 'write',
+      members: [
+        { id: '1', name: 'Sender' },
+        { id: input.recipientUserId, name: 'Companion' },
+      ],
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    });
+  }
 }
 
 class TestClock implements InvitationClock {
@@ -289,16 +395,17 @@ class FakeInvitationStore implements InvitationStore {
     );
   }
 
-  listIncoming(
+  listIncomingForEmails(
     recipientUserId: string,
-    recipientEmail: string,
+    recipientEmails: readonly string[],
   ): Promise<InvitationRecord[]> {
     return Promise.resolve(
       this.records.filter(
         (record) =>
           record.status === 'pending' &&
           (record.recipientUserId === recipientUserId ||
-            record.recipientEmail === recipientEmail),
+            (record.recipientUserId === null &&
+              recipientEmails.includes(record.recipientEmail))),
       ),
     );
   }
@@ -315,6 +422,7 @@ class FakeInvitationStore implements InvitationStore {
       ...input,
       id: String(this.nextId++),
       status: 'pending',
+      acceptedSpaceId: null,
       deliveryStatus: input.deliveryStatus ?? 'pending',
       deliveryError: input.deliveryError ?? null,
       createdAt: now,
@@ -336,13 +444,13 @@ class FakeInvitationStore implements InvitationStore {
     return Promise.resolve(record);
   }
 
-  associateRecipientEmail(
+  associateRecipientEmails(
     recipientUserId: string,
-    recipientEmail: string,
+    recipientEmails: readonly string[],
   ): Promise<void> {
     this.records.forEach((record) => {
       if (
-        record.recipientEmail === recipientEmail &&
+        recipientEmails.includes(record.recipientEmail) &&
         record.recipientUserId === null
       ) {
         record.recipientUserId = recipientUserId;

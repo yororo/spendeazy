@@ -1,6 +1,8 @@
 import { DynamicModule, Module } from '@nestjs/common';
 
 import type { AppConfig } from '../config/app-config';
+import { exceptionLogger } from '../logging/exception-logger';
+import { EMAIL_DELIVERY_LOGGER } from '../email-delivery/email-delivery-failure';
 import { SpacesModule } from '../spaces/spaces.module';
 import { USER_STORE } from '../users/application/user-store';
 import { UsersModule } from '../users/users.module';
@@ -73,6 +75,7 @@ export class InvitationsModule {
         },
         HttpInvitationDelivery,
         { provide: INVITATION_DELIVERY, useExisting: HttpInvitationDelivery },
+        { provide: EMAIL_DELIVERY_LOGGER, useValue: exceptionLogger },
         SystemInvitationClock,
         { provide: INVITATION_CLOCK, useExisting: SystemInvitationClock },
         {

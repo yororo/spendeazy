@@ -8,6 +8,7 @@ import { InvitationEntity } from '../../database/entities/invitation.entity';
 import { SpaceEntity } from '../../database/entities/space.entity';
 import { SpaceMembershipEntity } from '../../database/entities/space-membership.entity';
 import { UserEntity } from '../../database/entities/user.entity';
+import { normalizeEmailDeliveryFailure } from '../../email-delivery/email-delivery-failure';
 import {
   InvitationAlreadyPendingError,
   InvitationCanceledError,
@@ -122,7 +123,9 @@ export class TypeOrmInvitationStore implements InvitationStore {
         expiresAt: input.expiresAt,
         lastSentAt: input.lastSentAt,
         deliveryStatus: input.deliveryStatus ?? 'pending',
-        deliveryError: input.deliveryError ?? null,
+        deliveryError: normalizeEmailDeliveryFailure(
+          input.deliveryError ?? null,
+        ),
       });
 
       try {
@@ -173,7 +176,9 @@ export class TypeOrmInvitationStore implements InvitationStore {
         entity.deliveryStatus = input.deliveryStatus;
       }
       if (input.deliveryError !== undefined) {
-        entity.deliveryError = input.deliveryError;
+        entity.deliveryError = normalizeEmailDeliveryFailure(
+          input.deliveryError,
+        );
       }
 
       try {
@@ -299,7 +304,7 @@ export class TypeOrmInvitationStore implements InvitationStore {
     const attempt = await repository.findOne({ where: { id: attemptId } });
     if (!attempt) throw new InvitationNotFoundError();
     attempt.succeeded = succeeded;
-    attempt.error = error;
+    attempt.error = normalizeEmailDeliveryFailure(error);
     await repository.save(attempt);
   }
 }
@@ -316,7 +321,7 @@ function toInvitationRecord(entity: InvitationEntity): InvitationRecord {
     expiresAt: entity.expiresAt,
     lastSentAt: entity.lastSentAt,
     deliveryStatus: entity.deliveryStatus,
-    deliveryError: entity.deliveryError,
+    deliveryError: normalizeEmailDeliveryFailure(entity.deliveryError),
     createdAt: entity.createdAt,
     updatedAt: entity.updatedAt,
   };

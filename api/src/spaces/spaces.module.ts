@@ -1,5 +1,7 @@
 import { DynamicModule, Module } from '@nestjs/common';
 import type { AppConfig } from '../config/app-config';
+import { EMAIL_DELIVERY_LOGGER } from '../email-delivery/email-delivery-failure';
+import { exceptionLogger } from '../logging/exception-logger';
 import { SpaceAccessService } from './application/space-access.service';
 import {
   SPACE_LIFECYCLE,
@@ -101,6 +103,7 @@ export class SpacesModule {
           provide: SPACE_NOTIFICATION_DELIVERY,
           useExisting: HttpSpaceNotificationDelivery,
         },
+        { provide: EMAIL_DELIVERY_LOGGER, useValue: exceptionLogger },
         SpaceNotificationsService,
         SpaceLifecycleService,
         { provide: SPACE_LIFECYCLE, useExisting: SpaceLifecycleService },

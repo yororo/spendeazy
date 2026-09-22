@@ -9,6 +9,15 @@ import type {
 import { ClerkProfileUnavailableError } from '../../authentication/authentication-errors';
 import { ApplicationError } from '../../errors/application-error';
 import { VALIDATION_FAILED_CODE } from '../../errors/application-error-codes';
+import {
+  EMAIL_DELIVERY_LOGGER,
+  normalizeEmailDeliveryFailure,
+  recordEmailDeliveryFailure,
+} from '../../email-delivery/email-delivery-failure';
+import {
+  exceptionLogger,
+  type ExceptionReporter,
+} from '../../logging/exception-logger';
 import { SpaceAccessService } from '../../spaces/application/space-access.service';
 import type { AccessibleSpaceRecord } from '../../spaces/application/space-store';
 import { type UserRecord } from '../../users/application/user-store';
@@ -97,6 +106,9 @@ export class InvitationsService {
     @Optional()
     @Inject(INVITATION_ACCEPTANCE_STORE)
     private readonly invitationAcceptanceStore?: InvitationAcceptanceStore,
+    @Optional()
+    @Inject(EMAIL_DELIVERY_LOGGER)
+    private readonly emailDeliveryLogger: ExceptionReporter = exceptionLogger,
   ) {}
 
   async listForUser(userId: string): Promise<InvitationInboxView> {
@@ -362,9 +374,10 @@ export class InvitationsService {
     try {
       await this.invitationDelivery.send(email);
     } catch (error: unknown) {
-      const message =
-        error instanceof Error ? error.message : 'Delivery failed';
-      deliveryError = message.slice(0, 500);
+      deliveryError = recordEmailDeliveryFailure(
+        this.emailDeliveryLogger,
+        error,
+      );
     }
 
     await this.invitationStore.completeDeliveryAttempt(
@@ -436,7 +449,7 @@ export class InvitationsService {
       expiresAt: invitation.expiresAt.toISOString(),
       lastSentAt: invitation.lastSentAt?.toISOString() ?? null,
       deliveryStatus: invitation.deliveryStatus,
-      deliveryError: invitation.deliveryError,
+      deliveryError: normalizeEmailDeliveryFailure(invitation.deliveryError),
       createdAt: invitation.createdAt.toISOString(),
       updatedAt: invitation.updatedAt.toISOString(),
       ...(sender ? { senderName: sender.name } : {}),

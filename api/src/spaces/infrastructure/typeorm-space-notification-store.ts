@@ -3,6 +3,7 @@ import { InjectEntityManager } from '@nestjs/typeorm';
 import { type EntityManager } from 'typeorm';
 import { UserEntity } from '../../database/entities/user.entity';
 import { SpaceNotificationEntity } from '../../database/entities/space-notification.entity';
+import { normalizeEmailDeliveryFailure } from '../../email-delivery/email-delivery-failure';
 import type {
   NewSpaceNotification,
   SpaceNotificationRecord,
@@ -102,7 +103,7 @@ export class TypeOrmSpaceNotificationStore implements SpaceNotificationStore {
     const entity = await repository.findOne({ where: { id: notificationId } });
     if (!entity) return null;
     entity.emailDeliveryStatus = status;
-    entity.emailDeliveryError = error;
+    entity.emailDeliveryError = normalizeEmailDeliveryFailure(error);
     return toRecord(await repository.save(entity));
   }
 
@@ -134,7 +135,9 @@ function toRecord(entity: SpaceNotificationEntity): SpaceNotificationRecord {
     message: entity.message,
     readAt: entity.readAt,
     emailDeliveryStatus: entity.emailDeliveryStatus,
-    emailDeliveryError: entity.emailDeliveryError,
+    emailDeliveryError: normalizeEmailDeliveryFailure(
+      entity.emailDeliveryError,
+    ),
     createdAt: entity.createdAt,
   };
 }

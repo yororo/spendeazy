@@ -5404,7 +5404,8 @@
           },
           "emailDeliveryError": {
             "type": "string",
-            "nullable": true
+            "nullable": true,
+            "description": "Fixed user-safe guidance for a failed email delivery. Provider details are never returned."
           },
           "createdAt": {
             "type": "string",
@@ -5463,7 +5464,8 @@
           },
           "deliveryError": {
             "type": "string",
-            "nullable": true
+            "nullable": true,
+            "description": "Fixed user-safe guidance for a failed email delivery. Provider details are never returned."
           },
           "createdAt": {
             "type": "string",

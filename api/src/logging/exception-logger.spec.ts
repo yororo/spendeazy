@@ -61,6 +61,25 @@ describe('exception logging privacy', () => {
     ]);
   });
 
+  it('keeps email delivery failure details out of operational log records', () => {
+    const lines: string[] = [];
+    const logger = new ExceptionLogger((line) => lines.push(line));
+
+    logger.report(
+      'email_delivery_failed',
+      new Error(
+        'provider response https://mailer.example.test/send body=provider-secret',
+      ),
+    );
+
+    expect(parseRecord(lines[0] ?? '')).toMatchObject({
+      event: 'email_delivery_failed',
+      level: 'error',
+    });
+    expect(lines[0]).not.toContain('mailer.example.test');
+    expect(lines[0]).not.toContain('provider-secret');
+  });
+
   it('logs a propagated Error only once across framework and startup handling', () => {
     const write = jest.fn();
     const logger = new ExceptionLogger(write);

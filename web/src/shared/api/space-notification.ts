@@ -1,5 +1,6 @@
 import { ApiError, type ApiClient } from "./api-client";
 import { isRecord } from "./api-response";
+import { normalizeEmailDeliveryFailure } from "./delivery-failure";
 
 type SpaceNotificationType = "shared_space_archived";
 type SpaceNotificationDeliveryStatus = "pending" | "sent" | "failed";
@@ -50,7 +51,7 @@ function requireSpaceNotifications(
   if (!Array.isArray(value) || !value.every(isSpaceNotification)) {
     throw invalidNotificationsError();
   }
-  return value;
+  return value.map(toSafeSpaceNotification);
 }
 
 async function getSpaceNotifications(
@@ -72,7 +73,23 @@ async function retrySpaceNotification(
     { expectedStatuses: [200] },
   );
   if (!isSpaceNotification(response)) throw invalidNotificationsError();
-  return response;
+  return toSafeSpaceNotification(response);
+}
+
+function toSafeSpaceNotification(
+  notification: SpaceNotification,
+): SpaceNotification {
+  const emailDeliveryError = normalizeEmailDeliveryFailure(
+    notification.emailDeliveryError,
+  );
+  if (emailDeliveryError === notification.emailDeliveryError) {
+    return notification;
+  }
+
+  return {
+    ...notification,
+    emailDeliveryError,
+  };
 }
 
 async function markSpaceNotificationRead(

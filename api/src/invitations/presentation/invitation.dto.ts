@@ -81,7 +81,12 @@ export class InvitationResponseDto {
   @ApiProperty({ enum: ['pending', 'sent', 'failed'] })
   deliveryStatus!: 'pending' | 'sent' | 'failed';
 
-  @ApiPropertyOptional({ type: String, nullable: true })
+  @ApiPropertyOptional({
+    type: String,
+    nullable: true,
+    description:
+      'Fixed user-safe guidance for a failed email delivery. Provider details are never returned.',
+  })
   deliveryError!: string | null;
 
   @ApiProperty({ format: 'date-time' })

@@ -30,6 +30,7 @@ import { RetainDeletedTransactions1850000000000 } from './migrations/18500000000
 import { RecordInvitationAcceptance1860000000000 } from './migrations/1860000000000-record-invitation-acceptance';
 import { ArchiveSharedSpaces1870000000000 } from './migrations/1870000000000-archive-shared-spaces';
 import { EnforceTransactionStatementImportSpace1880000000000 } from './migrations/1880000000000-enforce-transaction-statement-import-space';
+import { SanitizeEmailDeliveryFailures1890000000000 } from './migrations/1890000000000-sanitize-email-delivery-failures';
 
 export const DATABASE_MIGRATIONS = [
   CreateExpenseTrackerSchema1710000000000,
@@ -50,6 +51,7 @@ export const DATABASE_MIGRATIONS = [
   RecordInvitationAcceptance1860000000000,
   ArchiveSharedSpaces1870000000000,
   EnforceTransactionStatementImportSpace1880000000000,
+  SanitizeEmailDeliveryFailures1890000000000,
 ];
 
 export const DATABASE_ENTITIES = [

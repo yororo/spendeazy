@@ -1,6 +1,15 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
+import {
+  EMAIL_DELIVERY_LOGGER,
+  normalizeEmailDeliveryFailure,
+  recordEmailDeliveryFailure,
+} from '../../email-delivery/email-delivery-failure';
 import { ApplicationError } from '../../errors/application-error';
 import { SPACE_NOTIFICATION_NOT_FOUND_CODE } from '../../errors/application-error-codes';
+import {
+  exceptionLogger,
+  type ExceptionReporter,
+} from '../../logging/exception-logger';
 import {
   SPACE_NOTIFICATION_DELIVERY,
   type SpaceNotificationDelivery,
@@ -20,10 +29,15 @@ export class SpaceNotificationsService {
     private readonly notificationStore: SpaceNotificationStore,
     @Inject(SPACE_NOTIFICATION_DELIVERY)
     private readonly notificationDelivery: SpaceNotificationDelivery,
+    @Optional()
+    @Inject(EMAIL_DELIVERY_LOGGER)
+    private readonly emailDeliveryLogger: ExceptionReporter = exceptionLogger,
   ) {}
 
   listForUser(userId: string): Promise<SpaceNotificationRecord[]> {
-    return this.notificationStore.listForUser(userId);
+    return this.notificationStore
+      .listForUser(userId)
+      .then((notifications) => notifications.map(toSafeNotification));
   }
 
   async notifySharedSpaceArchived(input: {
@@ -67,7 +81,7 @@ export class SpaceNotificationsService {
       readAt,
     );
     if (!notification) throw new SpaceNotificationNotFoundError();
-    return notification;
+    return toSafeNotification(notification);
   }
 
   private async deliver(
@@ -86,9 +100,10 @@ export class SpaceNotificationsService {
         message: notification.message,
       });
     } catch (error: unknown) {
-      deliveryError = (
-        error instanceof Error ? error.message : 'Delivery failed'
-      ).slice(0, 500);
+      deliveryError = recordEmailDeliveryFailure(
+        this.emailDeliveryLogger,
+        error,
+      );
     }
 
     const updated = await this.notificationStore.updateDelivery(
@@ -96,7 +111,7 @@ export class SpaceNotificationsService {
       deliveryError === null ? 'sent' : 'failed',
       deliveryError,
     );
-    return updated ?? notification;
+    return toSafeNotification(updated ?? notification);
   }
 }
 
@@ -119,5 +134,16 @@ function createArchivedNotification(input: {
     type: 'shared_space_archived',
     title: 'Shared Space archived',
     message: `${input.actorName} ended sharing. This Shared Space is now permanent read-only history for both former members.`,
+  };
+}
+
+function toSafeNotification(
+  notification: SpaceNotificationRecord,
+): SpaceNotificationRecord {
+  return {
+    ...notification,
+    emailDeliveryError: normalizeEmailDeliveryFailure(
+      notification.emailDeliveryError,
+    ),
   };
 }

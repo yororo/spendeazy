@@ -8,6 +8,7 @@ import type { Request, RequestHandler } from 'express';
 
 type ExceptionEvent =
   | 'request_failed'
+  | 'email_delivery_failed'
   | 'default_category_creation_failed'
   | 'database_readiness_failed'
   | 'framework_exception'

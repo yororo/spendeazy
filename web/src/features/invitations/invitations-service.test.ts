@@ -62,6 +62,34 @@ describe('invitations service', () => {
     );
   });
 
+  it('normalizes provider details in delivery failures before exposing invitations', async () => {
+    const unsafeInvitation = {
+      ...invitation,
+      deliveryStatus: 'failed' as const,
+      deliveryError:
+        'provider response https://mailer.example.test/send body=provider-secret',
+    };
+    const get = vi.fn().mockResolvedValue({
+      outgoing: unsafeInvitation,
+      incoming: [unsafeInvitation],
+    });
+
+    await expect(
+      getInvitations({ get } as unknown as InvitationsApiClient),
+    ).resolves.toEqual({
+      outgoing: {
+        ...unsafeInvitation,
+        deliveryError: 'Email delivery failed. Please retry.',
+      },
+      incoming: [
+        {
+          ...unsafeInvitation,
+          deliveryError: 'Email delivery failed. Please retry.',
+        },
+      ],
+    });
+  });
+
   it('exposes lifecycle operations through their stable endpoint contracts', async () => {
     const del = vi.fn().mockResolvedValue(undefined);
     const post = vi

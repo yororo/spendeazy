@@ -4,12 +4,14 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import type { SpaceNotification } from '@/shared/api';
 import { SharingPage } from './sharing-page';
+import type { Invitation } from './invitations-service';
 
 const pageState = vi.hoisted(() => ({
   invitationsQuery: {
     data: {
-      outgoing: null,
+      outgoing: null as Invitation | null,
       incoming: [
         {
           id: '42',
@@ -50,7 +52,7 @@ const pageState = vi.hoisted(() => ({
     isPending: false,
   },
   notificationsQuery: {
-    data: [],
+    data: [] as SpaceNotification[],
     error: null as Error | null,
     isError: false,
     isPending: false,
@@ -78,6 +80,8 @@ vi.mock('@/shared/session', () => ({
 }));
 
 vi.mock('@/shared/api', () => ({
+  normalizeEmailDeliveryFailure: (error: string | null) =>
+    error === null ? null : 'Email delivery failed. Please retry.',
   useAccessibleSpacesQuery: () => pageState.spacesQuery,
   useMarkSpaceNotificationReadMutation: () => basicMutation(),
   useRetrySpaceNotificationMutation: () => basicMutation(),
@@ -105,6 +109,7 @@ vi.mock('./public-invitation-queries', () => ({
 afterEach(() => {
   cleanup();
   pageState.acceptMutation.mutate.mockClear();
+  pageState.invitationsQuery.data.outgoing = null;
   pageState.invitationContextQuery.data = null;
   pageState.invitationContextQuery.error = null;
   pageState.invitationContextQuery.isError = false;
@@ -121,6 +126,48 @@ afterEach(() => {
 });
 
 describe('SharingPage', () => {
+  it('shows safe retry guidance for failed invitation and archive email delivery', () => {
+    pageState.invitationsQuery.data.outgoing = {
+      id: '44',
+      recipientEmail: 'recipient@example.com',
+      status: 'pending',
+      expiresAt: '2026-09-28T00:00:00.000Z',
+      lastSentAt: '2026-09-21T00:00:00.000Z',
+      deliveryStatus: 'failed',
+      deliveryError:
+        'provider response https://mailer.example.test/send body=provider-secret',
+      createdAt: '2026-09-21T00:00:00.000Z',
+      updatedAt: '2026-09-21T00:00:00.000Z',
+    };
+    pageState.notificationsQuery.data = [
+      {
+        id: '45',
+        spaceId: '99',
+        type: 'shared_space_archived',
+        title: 'Shared Space archived',
+        message: 'Ada ended sharing.',
+        readAt: null,
+        emailDeliveryStatus: 'failed',
+        emailDeliveryError:
+          'provider response https://mailer.example.test/archive body=provider-secret',
+        createdAt: '2026-09-21T00:00:00.000Z',
+      },
+    ];
+
+    render(
+      <MemoryRouter initialEntries={['/sharing']}>
+        <SharingPage />
+      </MemoryRouter>,
+    );
+
+    expect(
+      screen.getAllByText('Email delivery failed. Please retry.'),
+    ).toHaveLength(2);
+    expect(screen.queryByText(/provider-secret/u)).toBeNull();
+    expect(screen.getByRole('button', { name: 'Retry delivery' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Retry email' })).toBeTruthy();
+  });
+
   it('explains and submits acceptance for an incoming invitation', () => {
     render(
       <MemoryRouter initialEntries={['/sharing']}>

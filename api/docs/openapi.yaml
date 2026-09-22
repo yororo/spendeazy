@@ -3715,6 +3715,7 @@ components:
         emailDeliveryError:
           type: string
           nullable: true
+          description: Fixed user-safe guidance for a failed email delivery. Provider details are never returned.
         createdAt:
           type: string
           format: date-time
@@ -3761,6 +3762,7 @@ components:
         deliveryError:
           type: string
           nullable: true
+          description: Fixed user-safe guidance for a failed email delivery. Provider details are never returned.
         createdAt:
           type: string
           format: date-time

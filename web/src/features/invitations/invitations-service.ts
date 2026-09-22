@@ -1,6 +1,7 @@
 import {
   isRecord,
   isAccessibleSpace,
+  normalizeEmailDeliveryFailure,
   requireApiResponse,
   type ApiClient,
   type AccessibleSpace,
@@ -75,7 +76,7 @@ function requireInvitation(value: unknown, description: string): Invitation {
   if (!isInvitation(value)) {
     throw createInvitationsDataError(`The API returned an invalid ${description}.`);
   }
-  return value;
+  return toSafeInvitation(value);
 }
 
 function requireInvitationInbox(value: unknown): InvitationInbox {
@@ -88,8 +89,23 @@ function requireInvitationInbox(value: unknown): InvitationInbox {
     throw createInvitationsDataError('The API returned an invalid invitation inbox.');
   }
   return {
-    outgoing: value.outgoing as Invitation | null,
-    incoming: value.incoming,
+    outgoing:
+      value.outgoing === null
+        ? null
+        : toSafeInvitation(value.outgoing as Invitation),
+    incoming: (value.incoming as Invitation[]).map(toSafeInvitation),
+  };
+}
+
+function toSafeInvitation(invitation: Invitation): Invitation {
+  const deliveryError = normalizeEmailDeliveryFailure(
+    invitation.deliveryError,
+  );
+  if (deliveryError === invitation.deliveryError) return invitation;
+
+  return {
+    ...invitation,
+    deliveryError,
   };
 }
 

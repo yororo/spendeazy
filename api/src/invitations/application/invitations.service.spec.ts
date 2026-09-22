@@ -3,6 +3,7 @@ import type {
   ClerkProfileService,
   ClerkUserProfile,
 } from '../../authentication/clerk-profile-service';
+import type { ExceptionReporter } from '../../logging/exception-logger';
 import type {
   AcceptInvitationInput,
   InvitationAcceptanceStore,
@@ -135,18 +136,54 @@ describe('InvitationsService', () => {
   it('persists delivery failure and allows a rate-limited retry', async () => {
     const clock = new TestClock('2026-09-21T00:00:00.000Z');
     const delivery = new TestDelivery();
+    delivery.failureMessage =
+      'provider response https://mailer.example.test/send body=provider-secret';
     delivery.fail = true;
     const store = new FakeInvitationStore();
-    const service = createService(store, delivery, clock);
+    const logger = new TestExceptionReporter();
+    const service = createService(
+      store,
+      delivery,
+      clock,
+      [],
+      undefined,
+      undefined,
+      logger,
+    );
     const invitation = await service.create('1', 'unregistered@example.test');
     expect(invitation.deliveryStatus).toBe('failed');
-    expect(invitation.deliveryError).toBe('provider unavailable');
+    expect(invitation.deliveryError).toBe(
+      'Email delivery failed. Please retry.',
+    );
+    expect(invitation.deliveryError).not.toContain('provider-secret');
+    expect(invitation.deliveryError).not.toContain('mailer.example.test');
+    expect(logger.events).toHaveLength(1);
+    expect(logger.events[0]?.event).toBe('email_delivery_failed');
+    expect(logger.events[0]?.error).toBeInstanceOf(Error);
 
     delivery.fail = false;
     clock.advance(INVITATION_RESEND_COOLDOWN_MS);
     await expect(service.resend('1', invitation.id)).resolves.toMatchObject({
       deliveryStatus: 'sent',
       deliveryError: null,
+    });
+  });
+
+  it('normalizes an existing unsafe delivery failure before returning the inbox', async () => {
+    const clock = new TestClock('2026-09-21T00:00:00.000Z');
+    const delivery = new TestDelivery();
+    const store = new FakeInvitationStore();
+    const service = createService(store, delivery, clock);
+    await service.create('1', 'unregistered@example.test');
+    store.records[0].deliveryStatus = 'failed';
+    store.records[0].deliveryError =
+      'provider response https://mailer.example.test/send body=legacy-secret';
+
+    await expect(service.listForUser('1')).resolves.toMatchObject({
+      outgoing: {
+        deliveryStatus: 'failed',
+        deliveryError: 'Email delivery failed. Please retry.',
+      },
     });
   });
 
@@ -263,6 +300,7 @@ function createService(
   activeSpaces: AccessibleSpaceRecord[] = [],
   profileService?: ClerkProfileService,
   acceptanceStore?: InvitationAcceptanceStore,
+  logger: ExceptionReporter = new TestExceptionReporter(),
 ): InvitationsService {
   return new InvitationsService(
     store,
@@ -273,7 +311,16 @@ function createService(
     'https://app.test',
     profileService,
     acceptanceStore,
+    logger,
   );
+}
+
+class TestExceptionReporter implements ExceptionReporter {
+  readonly events: { event: string; error: unknown }[] = [];
+
+  report(event: string, error: unknown): void {
+    this.events.push({ event, error });
+  }
 }
 
 class FakeProfileService implements ClerkProfileService {
@@ -334,11 +381,12 @@ class TestClock implements InvitationClock {
 class TestDelivery implements InvitationDelivery {
   readonly messages: InvitationEmail[] = [];
   fail = false;
+  failureMessage = 'provider unavailable';
 
   send(input: InvitationEmail): Promise<void> {
     this.messages.push(input);
     return this.fail
-      ? Promise.reject(new Error('provider unavailable'))
+      ? Promise.reject(new Error(this.failureMessage))
       : Promise.resolve();
   }
 }

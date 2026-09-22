@@ -6,6 +6,10 @@ export {
 export type { ApiConfig, ApiEnvironment } from "./api-config";
 export { ApiError, createApiClient, createPublicApiClient } from "./api-client";
 export { ApiClientProvider } from "./api-client-provider";
+export {
+  normalizeEmailDeliveryFailure,
+  SAFE_EMAIL_DELIVERY_FAILURE,
+} from "./delivery-failure";
 export { useApiClient } from "./use-api-client";
 export {
   useApiUserProfileQuery,

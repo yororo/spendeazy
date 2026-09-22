@@ -36,6 +36,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import {
+  normalizeEmailDeliveryFailure,
   useMarkSpaceNotificationReadMutation,
   useRetrySpaceNotificationMutation,
   useSpaceNotificationsQuery,
@@ -302,6 +303,10 @@ function NotificationRow({
   readonly onRead: () => void;
   readonly disabled: boolean;
 }) {
+  const emailDeliveryError = normalizeEmailDeliveryFailure(
+    notification.emailDeliveryError,
+  );
+
   return (
     <div className="border border-border p-3 text-sm">
       <p className="font-semibold">{notification.title}</p>
@@ -310,6 +315,12 @@ function NotificationRow({
         <span className="text-xs text-muted-foreground">
           Email: {notification.emailDeliveryStatus}
         </span>
+        {emailDeliveryError && (
+          <Alert variant="destructive" className="basis-full mt-1">
+            <AlertTitle>Could not deliver this email</AlertTitle>
+            <AlertDescription>{emailDeliveryError}</AlertDescription>
+          </Alert>
+        )}
         {notification.emailDeliveryStatus === 'failed' && (
           <Button type="button" size="sm" variant="outline" onClick={onRetry} disabled={disabled}>
             <RotateCcwIcon aria-hidden="true" /> Retry email
@@ -518,6 +529,9 @@ function OutgoingInvitationCard({
   onResend,
   onRetry,
 }: OutgoingInvitationCardProps) {
+  const deliveryError = normalizeEmailDeliveryFailure(
+    invitation.deliveryError,
+  );
   const deliveryLabel =
     invitation.deliveryStatus === 'failed'
       ? 'Delivery failed'
@@ -537,10 +551,10 @@ function OutgoingInvitationCard({
         <p>
           <span className="font-semibold">Delivery:</span> {deliveryLabel}
         </p>
-        {invitation.deliveryError && (
+        {deliveryError && (
           <Alert variant="destructive" className="mt-3">
             <AlertTitle>Could not deliver this email</AlertTitle>
-            <AlertDescription>{invitation.deliveryError}</AlertDescription>
+            <AlertDescription>{deliveryError}</AlertDescription>
           </Alert>
         )}
         <p className="text-xs text-muted-foreground">

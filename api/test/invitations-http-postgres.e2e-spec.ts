@@ -26,6 +26,7 @@ import { InvitationDeliveryAttemptEntity } from '../src/database/entities/invita
 import { InvitationEntity } from '../src/database/entities/invitation.entity';
 import { SpaceEntity } from '../src/database/entities/space.entity';
 import { SpaceMembershipEntity } from '../src/database/entities/space-membership.entity';
+import { SpaceNotificationEntity } from '../src/database/entities/space-notification.entity';
 import { StatementImportEntity } from '../src/database/entities/statement-import.entity';
 import { TransactionActivityEntity } from '../src/database/entities/transaction-activity.entity';
 import { TransactionEntity } from '../src/database/entities/transaction.entity';
@@ -33,12 +34,15 @@ import { UserEntity } from '../src/database/entities/user.entity';
 
 const databaseUrl = process.env.TEST_INVITATIONS_DATABASE_URL;
 const describeDatabase = databaseUrl ? describe : describe.skip;
+const SENSITIVE_PROVIDER_ERROR =
+  'provider response https://mailer.example.test/send body=provider-secret credential=provider-key';
 
 describeDatabase('Shared Space invitation HTTP journey with PostgreSQL', () => {
   let application: INestApplication;
   let database: DataSource;
   let verifier: HttpTokenVerifier;
   let profileService: HttpProfileService;
+  let deliveryFetchSpy: jest.SpyInstance | undefined;
   const createdInvitationIds: string[] = [];
   const createdSpaceIds: string[] = [];
   const createdUserIds: string[] = [];
@@ -46,6 +50,9 @@ describeDatabase('Shared Space invitation HTTP journey with PostgreSQL', () => {
   beforeAll(async () => {
     verifier = new HttpTokenVerifier();
     profileService = new HttpProfileService();
+    deliveryFetchSpy = jest
+      .spyOn(globalThis, 'fetch')
+      .mockRejectedValue(new Error(SENSITIVE_PROVIDER_ERROR));
     application = await NestFactory.create(
       createAppModule(testConfig(databaseUrl), {
         authentication: {
@@ -117,6 +124,9 @@ describeDatabase('Shared Space invitation HTTP journey with PostgreSQL', () => {
         .getRepository(CategoryEntity)
         .delete({ spaceId: In(spaceIds) });
       await database
+        .getRepository(SpaceNotificationEntity)
+        .delete({ spaceId: In(spaceIds) });
+      await database
         .getRepository(SpaceMembershipEntity)
         .delete({ spaceId: In(spaceIds) });
       await database.getRepository(SpaceEntity).delete({ id: In(spaceIds) });
@@ -136,7 +146,88 @@ describeDatabase('Shared Space invitation HTTP journey with PostgreSQL', () => {
   });
 
   afterAll(async () => {
+    deliveryFetchSpy?.mockRestore();
     if (application) await application.close();
+  });
+
+  it('keeps provider details out of invitation and archive notification HTTP responses and records', async () => {
+    const sender = createIdentity('delivery-sender');
+    const recipient = createIdentity('delivery-recipient');
+    await provision(sender);
+    const recipientUserId = await provision(recipient);
+
+    const invitationResponse = await http()
+      .post('/api/v1/users/me/invitations')
+      .set(...authorization(sender))
+      .send({ email: recipient.email });
+    expect(invitationResponse.status).toBe(201);
+    expect(responseBody(invitationResponse)).toMatchObject({
+      deliveryStatus: 'failed',
+      deliveryError: 'Email delivery failed. Please retry.',
+    });
+    expect(JSON.stringify(invitationResponse.body)).not.toContain(
+      'provider-secret',
+    );
+    expect(JSON.stringify(invitationResponse.body)).not.toContain(
+      'mailer.example.test',
+    );
+    const invitationId = readId(invitationResponse.body);
+    createdInvitationIds.push(invitationId);
+
+    const persistedInvitation = await database
+      .getRepository(InvitationEntity)
+      .findOneBy({ id: invitationId });
+    const persistedAttempt = await database
+      .getRepository(InvitationDeliveryAttemptEntity)
+      .findOneBy({ invitationId });
+    expect(persistedInvitation?.deliveryError).toBe(
+      'Email delivery failed. Please retry.',
+    );
+    expect(persistedAttempt?.error).toBe(
+      'Email delivery failed. Please retry.',
+    );
+
+    const acceptanceResponse = await http()
+      .post(`/api/v1/users/me/invitations/${invitationId}/accept`)
+      .set(...authorization(recipient))
+      .send({});
+    expect(acceptanceResponse.status).toBe(200);
+    const sharedSpaceId = readId(acceptanceResponse.body);
+    createdSpaceIds.push(sharedSpaceId);
+
+    const leaveResponse = await http()
+      .post(`/api/v1/users/me/spaces/${sharedSpaceId}/leave`)
+      .set(...authorization(sender))
+      .send({ confirm: true });
+    expect(leaveResponse.status).toBe(204);
+
+    const notificationResponse = await http()
+      .get('/api/v1/users/me/notifications')
+      .set(...authorization(recipient));
+    expect(notificationResponse.status).toBe(200);
+    expect(notificationResponse.body).toEqual([
+      expect.objectContaining({
+        spaceId: sharedSpaceId,
+        emailDeliveryStatus: 'failed',
+        emailDeliveryError: 'Email delivery failed. Please retry.',
+      }),
+    ]);
+    expect(JSON.stringify(notificationResponse.body)).not.toContain(
+      'provider-secret',
+    );
+    expect(JSON.stringify(notificationResponse.body)).not.toContain(
+      'mailer.example.test',
+    );
+
+    const persistedNotification = await database
+      .getRepository(SpaceNotificationEntity)
+      .findOneBy({
+        spaceId: sharedSpaceId,
+        recipientUserId,
+      });
+    expect(persistedNotification?.emailDeliveryError).toBe(
+      'Email delivery failed. Please retry.',
+    );
   });
 
   it('accepts over HTTP and lets both equal members use only the resulting Shared Space', async () => {
@@ -933,6 +1024,8 @@ function testConfig(url: string | undefined): AppConfig {
     clerkJwtKey: undefined,
     clerkSecretKey: undefined,
     clerkAuthorizedParties: [],
+    invitationDeliveryUrl: 'https://mailer.example.test/send',
     invitationWebBaseUrl: 'http://127.0.0.1:4173',
+    spaceNotificationDeliveryUrl: 'https://mailer.example.test/archive',
   };
 }

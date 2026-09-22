@@ -147,7 +147,11 @@ test("shows archived Shared history separately and read-only", async ({
   await expect(
     page.getByRole("heading", { name: "Archived Space history" }),
   ).toBeVisible();
-  await expect(page.getByText("Archived dinner", { exact: true })).toBeVisible();
+  await expect(
+    page
+      .getByRole("table", { name: "All transactions" })
+      .getByText("Archived dinner", { exact: true }),
+  ).toBeVisible();
   await expect(page.getByText("Read-only history").first()).toBeVisible();
   await expect(
     page.getByRole("button", { name: /Edit Archived dinner/u }),
@@ -158,7 +162,11 @@ test("shows archived Shared history separately and read-only", async ({
   await expect(
     page.getByRole("heading", { name: "Deleted Transactions" }),
   ).toBeVisible();
-  await expect(page.getByText("Deleted dinner", { exact: true })).toBeVisible();
+  await expect(
+    page
+      .getByRole("table", { name: "Deleted transactions" })
+      .getByText("Deleted dinner", { exact: true }),
+  ).toBeVisible();
   await expect(
     page.getByRole("button", { name: /Edit Deleted dinner/u }),
   ).toHaveCount(0);

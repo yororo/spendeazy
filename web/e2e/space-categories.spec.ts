@@ -1,10 +1,23 @@
 import { expect, test } from "@playwright/test";
 
+const personalSpace = {
+  id: "1",
+  kind: "personal",
+  status: "active",
+  accessLevel: "write",
+  members: [{ id: "10", name: "Ada Lovelace" }],
+  createdAt: "2026-09-01T00:00:00.000Z",
+  updatedAt: "2026-09-01T00:00:00.000Z",
+};
 const sharedSpace = {
   id: "99",
   kind: "shared",
   status: "active",
   accessLevel: "write",
+  members: [
+    { id: "10", name: "Ada Lovelace" },
+    { id: "11", name: "Grace Hopper" },
+  ],
   createdAt: "2026-09-01T00:00:00.000Z",
   updatedAt: "2026-09-01T00:00:00.000Z",
 };
@@ -24,7 +37,7 @@ test("switches the Categories browser view to a seeded Shared Space", async ({
   await page.route("**/api/v1/users/me/spaces", async (route) => {
     await route.fulfill({
       contentType: "application/json",
-      body: JSON.stringify([sharedSpace]),
+      body: JSON.stringify([personalSpace, sharedSpace]),
     });
   });
   await page.route(
@@ -67,9 +80,11 @@ test("switches the Categories browser view to a seeded Shared Space", async ({
   await expect(
     page.getByRole("heading", { name: "Budget overview" }),
   ).toBeVisible();
+  await page.getByRole("button", { name: /Active Space/u }).click();
   await page
-    .getByRole("group", { name: "Active Space" })
-    .getByRole("button", { name: "Shared" })
+    .getByRole("menuitemradio", {
+      name: /Shared.*Ada Lovelace.*Grace Hopper/u,
+    })
     .click();
 
   await expect(page).toHaveURL(/\/categories\?spaceId=99$/u);

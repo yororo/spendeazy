@@ -1548,7 +1548,7 @@ function statementImportRecord(
 ): StatementImportRecord {
   return {
     id: '10',
-    userId: '42',
+    importedByUserId: '7',
     fileName: 'august.pdf',
     fileHash: 'a'.repeat(64),
     statementDate: '2026-08-31',
@@ -1572,6 +1572,7 @@ function statementImportHistoryRecord(
 function statementImportResponse(): Record<string, unknown> {
   return {
     id: '10',
+    importedByUserId: '7',
     fileName: 'august.pdf',
     statementDate: '2026-08-31',
     bank: 'Example Bank',

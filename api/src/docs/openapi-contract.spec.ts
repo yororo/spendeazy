@@ -190,6 +190,30 @@ const OPERATION_EXPECTATIONS = [
     },
   },
   {
+    operationId: 'Invitations_list',
+    tag: 'Invitations',
+    explicitBearerAuth: true,
+    bodyResponses: [{ status: '200', schemaRef: 'InvitationInboxResponseDto' }],
+    errorResponses: PROTECTED_ERRORS,
+  },
+  {
+    operationId: 'Invitations_create',
+    tag: 'Invitations',
+    explicitBearerAuth: true,
+    requestSchemaRef: 'CreateInvitationDto',
+    bodyResponses: [
+      {
+        status: '201',
+        schemaRef: 'OutgoingInvitationResponseDto',
+      },
+    ],
+    errorResponses: {
+      ...PROTECTED_ERRORS,
+      '409': 'ConflictError',
+      ...JSON_BODY_ERRORS,
+    },
+  },
+  {
     operationId: 'SpaceNotifications_listNotifications',
     tag: 'Notifications',
     bodyResponses: [

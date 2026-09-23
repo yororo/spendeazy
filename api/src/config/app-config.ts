@@ -34,6 +34,7 @@ export interface AppConfig {
   clerkJwtKey: string | undefined;
   clerkSecretKey: string | undefined;
   clerkAuthorizedParties: string[];
+  invitationCodeEncryptionKey?: string;
   spaceNotificationDeliveryUrl?: string;
   spaceNotificationDeliveryApiKey?: string;
 }
@@ -49,6 +50,9 @@ export function loadAppConfig(
   const clerkSecretKey = readClerkSecretKey(processEnv.CLERK_SECRET_KEY);
   const clerkAuthorizedParties = readClerkAuthorizedParties(
     processEnv.CLERK_AUTHORIZED_PARTIES,
+  );
+  const invitationCodeEncryptionKey = readInvitationCodeEncryptionKey(
+    processEnv.INVITATION_CODE_ENCRYPTION_KEY,
   );
   const spaceNotificationDeliveryUrl = readOptionalHttpUrl(
     processEnv.SPACE_NOTIFICATION_DELIVERY_URL,
@@ -67,6 +71,10 @@ export function loadAppConfig(
       'CLERK_AUTHORIZED_PARTIES',
       clerkAuthorizedParties.length > 0 ? 'configured' : undefined,
     );
+    requireProductionValue(
+      'INVITATION_CODE_ENCRYPTION_KEY',
+      invitationCodeEncryptionKey,
+    );
   }
 
   return {
@@ -77,6 +85,7 @@ export function loadAppConfig(
     clerkJwtKey,
     clerkSecretKey,
     clerkAuthorizedParties,
+    ...(invitationCodeEncryptionKey ? { invitationCodeEncryptionKey } : {}),
     ...(spaceNotificationDeliveryUrl ? { spaceNotificationDeliveryUrl } : {}),
     ...(spaceNotificationDeliveryApiKey
       ? { spaceNotificationDeliveryApiKey }
@@ -174,6 +183,20 @@ function readOptionalHttpUrl(
 function readOptionalSecret(value: string | undefined): string | undefined {
   const trimmed = value?.trim();
   return trimmed || undefined;
+}
+
+function readInvitationCodeEncryptionKey(
+  value: string | undefined,
+): string | undefined {
+  const key = value?.trim();
+  if (!key) return undefined;
+  if (!/^[0-9a-f]{64}$/iu.test(key)) {
+    throw new Error(
+      'INVITATION_CODE_ENCRYPTION_KEY must be a 32-byte hexadecimal key',
+    );
+  }
+
+  return key.toLowerCase();
 }
 
 function readClerkJwtKey(value: string | undefined): string | undefined {

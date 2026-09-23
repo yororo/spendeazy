@@ -1,0 +1,74 @@
+import { describe, expect, it, vi } from 'vitest';
+
+import { ApiError } from '@/shared/api';
+
+import {
+  createInvitation,
+  getInvitations,
+  requireInvitationInbox,
+} from './invitations-service';
+
+describe('invitations service', () => {
+  it('creates an Invite Code without sending a recipient address', async () => {
+    const apiClient = {
+      post: vi.fn().mockResolvedValue(outgoingInvitation()),
+    };
+
+    await expect(createInvitation(apiClient)).resolves.toEqual(
+      outgoingInvitation(),
+    );
+    expect(apiClient.post).toHaveBeenCalledWith(
+      '/invitations',
+      {},
+      { expectedStatuses: [201] },
+    );
+  });
+
+  it('loads the sender-owned outgoing code and does not require a public token', async () => {
+    const apiClient = {
+      get: vi.fn().mockResolvedValue({
+        outgoing: outgoingInvitation(),
+        incoming: [],
+      }),
+    };
+
+    await expect(getInvitations(apiClient)).resolves.toEqual({
+      outgoing: outgoingInvitation(),
+      incoming: [],
+    });
+    expect(apiClient.get).toHaveBeenCalledWith('/invitations', {
+      signal: undefined,
+    });
+  });
+
+  it('rejects a response that would expose a malformed or missing code', () => {
+    expect(() =>
+      requireInvitationInbox({
+        outgoing: { ...outgoingInvitation(), code: 'short' },
+        incoming: [],
+      }),
+    ).toThrow('invalid invitation inbox');
+  });
+
+  it('preserves API errors from code creation', async () => {
+    const error = new ApiError('You already have a pending Invite Code', {
+      kind: 'http',
+      status: 409,
+      code: 'INVITATION_ALREADY_PENDING',
+    });
+    const apiClient = { post: vi.fn().mockRejectedValue(error) };
+
+    await expect(createInvitation(apiClient)).rejects.toBe(error);
+  });
+});
+
+function outgoingInvitation() {
+  return {
+    id: '7',
+    code: '7K3M-2Q8R-5T6V-W9X2-C4D7-H8J3',
+    status: 'pending',
+    expiresAt: '2026-09-30T00:00:00.000Z',
+    createdAt: '2026-09-23T00:00:00.000Z',
+    updatedAt: '2026-09-23T00:00:00.000Z',
+  } as const;
+}

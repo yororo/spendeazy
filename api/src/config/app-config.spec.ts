@@ -19,6 +19,7 @@ describe('loadAppConfig', () => {
       CLERK_SECRET_KEY: 'sk_test_secret',
       CLERK_AUTHORIZED_PARTIES:
         'https://app.example.com/, https://admin.example.com',
+      INVITATION_CODE_ENCRYPTION_KEY: '0123456789abcdef'.repeat(4),
     });
 
     expect(config).toEqual({
@@ -33,6 +34,7 @@ describe('loadAppConfig', () => {
         'https://app.example.com',
         'https://admin.example.com',
       ],
+      invitationCodeEncryptionKey: '0123456789abcdef'.repeat(4),
     });
   });
 
@@ -75,6 +77,15 @@ describe('loadAppConfig', () => {
         CLERK_SECRET_KEY: 'not-a-clerk-secret',
       }),
     ).toThrow('CLERK_SECRET_KEY must be a valid Clerk secret key');
+
+    expect(() =>
+      loadAppConfig({
+        NODE_ENV: 'test',
+        INVITATION_CODE_ENCRYPTION_KEY: 'too-short',
+      }),
+    ).toThrow(
+      'INVITATION_CODE_ENCRYPTION_KEY must be a 32-byte hexadecimal key',
+    );
   });
 
   it('ignores retired invitation delivery configuration', () => {
@@ -126,6 +137,7 @@ describe('loadAppConfig', () => {
     'CLERK_JWT_KEY',
     'CLERK_SECRET_KEY',
     'CLERK_AUTHORIZED_PARTIES',
+    'INVITATION_CODE_ENCRYPTION_KEY',
   ])('rejects production startup when %s is missing', (missingVariable) => {
     const environment = {
       NODE_ENV: 'production',
@@ -135,6 +147,7 @@ describe('loadAppConfig', () => {
       CLERK_JWT_KEY: validJwtKey(),
       CLERK_SECRET_KEY: 'sk_test_secret',
       CLERK_AUTHORIZED_PARTIES: 'https://app.example.com',
+      INVITATION_CODE_ENCRYPTION_KEY: '0123456789abcdef'.repeat(4),
     };
     delete environment[missingVariable as keyof typeof environment];
 

@@ -41,6 +41,10 @@ import {
   SPACE_NOT_WRITABLE_CODE,
   SPACE_NOTIFICATION_NOT_FOUND_CODE,
 } from '../errors/application-error-codes';
+import {
+  INVITATION_ALREADY_PENDING_CODE,
+  INVITATION_INELIGIBLE_CODE,
+} from '../invitations/application/invitation-errors';
 import { TRANSACTION_NOT_FOUND_CODE } from '../transactions/application/transaction-errors';
 import { IMPORTED_TRANSACTION_IMMUTABLE_CODE } from '../transactions/application/transaction-errors';
 import {
@@ -318,6 +322,9 @@ function applicationErrorStatus(code: string): number {
       return HttpStatus.FORBIDDEN;
     case SPACE_NOTIFICATION_NOT_FOUND_CODE:
       return HttpStatus.NOT_FOUND;
+    case INVITATION_ALREADY_PENDING_CODE:
+    case INVITATION_INELIGIBLE_CODE:
+      return HttpStatus.CONFLICT;
     default:
       return HttpStatus.INTERNAL_SERVER_ERROR;
   }

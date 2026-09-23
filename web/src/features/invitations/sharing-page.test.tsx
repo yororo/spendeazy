@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { SharingPage } from './sharing-page';
 import type { SpaceNotification } from './space-notification';
+import type { InvitationInbox } from './invitations-service';
 
 const pageState = vi.hoisted(() => ({
   notificationsQuery: {
@@ -13,6 +14,19 @@ const pageState = vi.hoisted(() => ({
     error: null as Error | null,
     isError: false,
     isPending: false,
+  },
+  invitationsQuery: {
+    data: { outgoing: null, incoming: [] } as InvitationInbox,
+    error: null as Error | null,
+    isError: false,
+    isPending: false,
+    refetch: vi.fn(),
+  },
+  createMutation: {
+    error: null as Error | null,
+    isError: false,
+    isPending: false,
+    mutate: vi.fn(),
   },
   spacesQuery: {
     data: [] as Array<{
@@ -37,6 +51,11 @@ vi.mock('@/shared/api', () => ({
   useLeaveSharedSpaceMutation: () => pageState.leaveMutation,
 }));
 
+vi.mock('./invitation-queries', () => ({
+  useCreateInvitationMutation: () => pageState.createMutation,
+  useInvitationsQuery: () => pageState.invitationsQuery,
+}));
+
 vi.mock('./space-notification-queries', () => ({
   useMarkSpaceNotificationReadMutation: () => basicMutation(),
   useRetrySpaceNotificationMutation: () => basicMutation(),
@@ -49,6 +68,15 @@ afterEach(() => {
   pageState.notificationsQuery.error = null;
   pageState.notificationsQuery.isError = false;
   pageState.notificationsQuery.isPending = false;
+  pageState.invitationsQuery.data = { outgoing: null, incoming: [] };
+  pageState.invitationsQuery.error = null;
+  pageState.invitationsQuery.isError = false;
+  pageState.invitationsQuery.isPending = false;
+  pageState.invitationsQuery.refetch.mockClear();
+  pageState.createMutation.error = null;
+  pageState.createMutation.isError = false;
+  pageState.createMutation.isPending = false;
+  pageState.createMutation.mutate.mockClear();
   pageState.spacesQuery.data = [];
   pageState.leaveMutation.error = null;
   pageState.leaveMutation.isPending = false;
@@ -57,7 +85,7 @@ afterEach(() => {
 });
 
 describe('SharingPage', () => {
-  it('explains that new Shared Space creation is temporarily unavailable', () => {
+  it('creates a code without asking for a recipient email', () => {
     render(
       <MemoryRouter initialEntries={['/sharing']}>
         <SharingPage />
@@ -66,16 +94,66 @@ describe('SharingPage', () => {
 
     expect(
       screen.getByRole('heading', {
-        name: 'Shared Space creation is temporarily unavailable',
+        name: 'Create a Shared Space Invite Code',
       }),
     ).toBeTruthy();
-    expect(screen.getByText(/Invite Codes are being built/u)).toBeTruthy();
     expect(screen.queryByLabelText('Recipient email')).toBeNull();
     expect(
-      screen.queryByRole('button', { name: 'Send invitation' }),
-    ).toBeNull();
+      screen.getByRole('button', { name: 'Create Invite Code' }),
+    ).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create Invite Code' }));
+    expect(pageState.createMutation.mutate).toHaveBeenCalledWith(undefined);
+  });
+
+  it('shows the sender-owned code, expiry, and copy action on later visits', async () => {
+    pageState.invitationsQuery.data = {
+      outgoing: {
+        id: '7',
+        code: '7K3M-2Q8R-5T6V-W9X2-C4D7-H8J3',
+        status: 'pending',
+        expiresAt: '2026-09-30T00:00:00.000Z',
+        createdAt: '2026-09-23T00:00:00.000Z',
+        updatedAt: '2026-09-23T00:00:00.000Z',
+      },
+      incoming: [],
+    };
+    Object.assign(navigator, {
+      clipboard: { writeText: vi.fn().mockResolvedValue(undefined) },
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/sharing']}>
+        <SharingPage />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText('7K3M-2Q8R-5T6V-W9X2-C4D7-H8J3')).toBeTruthy();
+    expect(screen.getByText(/Expires/u)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Copy Invite Code' }));
+    await vi.waitFor(() =>
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
+        '7K3M-2Q8R-5T6V-W9X2-C4D7-H8J3',
+      ),
+    );
+  });
+
+  it('does not offer code creation to a User in an active Shared Space', () => {
+    pageState.spacesQuery.data = [
+      { id: '99', kind: 'shared', status: 'active', accessLevel: 'write' },
+    ];
+
+    render(
+      <MemoryRouter initialEntries={['/sharing']}>
+        <SharingPage />
+      </MemoryRouter>,
+    );
+
     expect(
-      screen.queryByText(/resend|retry delivery|accept invitation/iu),
+      screen.getByText(/already belong to an active Shared Space/u),
+    ).toBeTruthy();
+    expect(
+      screen.queryByRole('button', { name: 'Create Invite Code' }),
     ).toBeNull();
   });
 

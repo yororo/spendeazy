@@ -92,6 +92,7 @@ describe('OpenAPI document factory', () => {
         `POST ${apiRoot}/users/me/statement-imports`,
         `GET ${apiRoot}/users/me/statement-imports/{statementImportId}`,
         `GET ${apiRoot}/users/me/category-summaries`,
+        `GET ${apiRoot}/users/me/invitations`,
         `GET ${apiRoot}/users/me/spaces`,
         `GET ${apiRoot}/users/me/spaces/{spaceId}`,
         `POST ${apiRoot}/users/me/spaces/{spaceId}/leave`,
@@ -119,6 +120,7 @@ describe('OpenAPI document factory', () => {
         `POST ${apiRoot}/users/me/spaces/{spaceId}/transactions`,
         `POST ${apiRoot}/users/me/spaces/{spaceId}/statement-imports`,
         `DELETE ${apiRoot}/users/me/spaces/{spaceId}/transactions/{transactionId}`,
+        `POST ${apiRoot}/users/me/invitations`,
       ].sort(),
     );
 

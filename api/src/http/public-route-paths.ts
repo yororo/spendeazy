@@ -17,9 +17,9 @@ export type PublicRouteMethod = (typeof PUBLIC_ROUTE_METHODS)[number];
 export function isPublicRoute(request: Request): boolean {
   const normalizedPath = normalizeRequestPath(request.path);
   return (
-    (PUBLIC_ROUTE_METHODS.some((method) => method === request.method) &&
-      (PUBLIC_ROUTE_PATHS.some((path) => `/${path}` === normalizedPath) ||
-        isDocumentationAssetPath(normalizedPath)))
+    PUBLIC_ROUTE_METHODS.some((method) => method === request.method) &&
+    (PUBLIC_ROUTE_PATHS.some((path) => `/${path}` === normalizedPath) ||
+      isDocumentationAssetPath(normalizedPath))
   );
 }
 

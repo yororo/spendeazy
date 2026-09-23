@@ -170,9 +170,10 @@ describe('authenticated Invite Code routes', () => {
       .set('Authorization', 'Bearer token-a')
       .set('Accept', 'application/json')
       .send({ code: '7K3M-2Q8R-5T6V-W9X2-C4D7-H8J3' });
+    const body = responseBody<{ error: { code: string } }>(response);
 
     expect(response.status).toBe(429);
-    expect(response.body.error).toMatchObject({
+    expect(body.error).toMatchObject({
       code: 'INVITATION_CODE_RATE_LIMITED',
     });
   });

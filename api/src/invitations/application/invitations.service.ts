@@ -54,6 +54,7 @@ export class InvitationsService {
   constructor(
     @Inject(INVITATION_STORE)
     private readonly invitationStore: InvitationStore,
+    @Inject(SpaceAccessService)
     private readonly spaceAccessService: Pick<
       SpaceAccessService,
       'listActiveAccessibleSpaces'

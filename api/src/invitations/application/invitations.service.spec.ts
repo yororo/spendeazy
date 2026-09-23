@@ -9,12 +9,20 @@ import {
   type InvitationClaimRecord,
   type InvitationRecord,
   type InvitationStore,
+  INVITATION_STORE,
 } from './invitation-store';
-import { type InvitationCodeSecurity } from './invitation-code-security';
-import { type InvitationClock } from './invitation-clock';
-import { type InvitationAttemptLimiter } from './invitation-attempt-limiter';
+import {
+  INVITATION_CODE_SECURITY,
+  type InvitationCodeSecurity,
+} from './invitation-code-security';
+import { INVITATION_CLOCK, type InvitationClock } from './invitation-clock';
+import {
+  INVITATION_ATTEMPT_LIMITER,
+  type InvitationAttemptLimiter,
+} from './invitation-attempt-limiter';
 import { InvitationsService } from './invitations.service';
 import { SpaceAccessService } from '../../spaces/application/space-access.service';
+import { Test } from '@nestjs/testing';
 
 describe('InvitationsService', () => {
   const now = new Date('2026-09-23T00:00:00.000Z');
@@ -75,6 +83,21 @@ describe('InvitationsService', () => {
       clock,
       attemptLimiter,
     );
+  });
+
+  it('resolves its narrowed Space access dependency through its explicit token', async () => {
+    const module = await Test.createTestingModule({
+      providers: [
+        InvitationsService,
+        { provide: INVITATION_STORE, useValue: store },
+        { provide: SpaceAccessService, useValue: spaceAccessService },
+        { provide: INVITATION_CODE_SECURITY, useValue: codeSecurity },
+        { provide: INVITATION_CLOCK, useValue: clock },
+        { provide: INVITATION_ATTEMPT_LIMITER, useValue: attemptLimiter },
+      ],
+    }).compile();
+
+    expect(module.get(InvitationsService)).toBeInstanceOf(InvitationsService);
   });
 
   it('creates one sender-owned Invite Code that expires seven days later', async () => {

@@ -36,6 +36,9 @@ const ERROR_CODES = [
   'SPACE_NOT_FOUND',
   'SPACE_NOT_WRITABLE',
   'SPACE_NOTIFICATION_NOT_FOUND',
+  'INVITATION_CODE_UNAVAILABLE',
+  'INVITATION_CODE_RATE_LIMITED',
+  'INVITATION_CLAIM_NOT_FOUND',
   'EMAIL_ALREADY_EXISTS',
   'CATEGORY_NOT_FOUND',
   'CATEGORY_NAME_ALREADY_EXISTS',
@@ -273,6 +276,18 @@ export const API_ERROR_RESPONSE_COMPONENTS = {
             details: [],
           },
         },
+      },
+    },
+  },
+  RateLimitError: {
+    status: HttpStatus.TOO_MANY_REQUESTS,
+    description:
+      'Too many Invite Code attempts were made for the authenticated User or network source.',
+    example: {
+      error: {
+        code: 'INVITATION_CODE_RATE_LIMITED',
+        message: 'Too many Invite Code attempts. Try again later.',
+        details: [],
       },
     },
   },

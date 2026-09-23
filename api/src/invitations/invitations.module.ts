@@ -4,6 +4,10 @@ import type { AppConfig } from '../config/app-config';
 import { SpacesModule } from '../spaces/spaces.module';
 import { INVITATION_CODE_SECURITY } from './application/invitation-code-security';
 import {
+  INVITATION_ATTEMPT_LIMITER,
+  InMemoryInvitationAttemptLimiter,
+} from './application/invitation-attempt-limiter';
+import {
   INVITATION_CLOCK,
   SystemInvitationClock,
 } from './application/invitation-clock';
@@ -50,6 +54,11 @@ export class InvitationsModule {
         },
         SystemInvitationClock,
         { provide: INVITATION_CLOCK, useExisting: SystemInvitationClock },
+        InMemoryInvitationAttemptLimiter,
+        {
+          provide: INVITATION_ATTEMPT_LIMITER,
+          useExisting: InMemoryInvitationAttemptLimiter,
+        },
         InvitationsService,
       ],
     };

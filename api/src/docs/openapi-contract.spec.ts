@@ -214,6 +214,37 @@ const OPERATION_EXPECTATIONS = [
     },
   },
   {
+    operationId: 'Invitations_claim',
+    tag: 'Invitations',
+    explicitBearerAuth: true,
+    requestSchemaRef: 'ClaimInvitationDto',
+    bodyResponses: [
+      {
+        status: '201',
+        schemaRef: 'IncomingInvitationResponseDto',
+      },
+    ],
+    errorResponses: {
+      ...PROTECTED_ERRORS,
+      '400': 'ValidationError',
+      '404': 'NotFoundError',
+      '413': 'HttpError',
+      '415': 'UnsupportedMediaTypeError',
+      '429': 'RateLimitError',
+    },
+  },
+  {
+    operationId: 'Invitations_decline',
+    tag: 'Invitations',
+    explicitBearerAuth: true,
+    pathParameter: 'claimId',
+    bodyResponses: [{ status: '204' }],
+    errorResponses: {
+      ...PROTECTED_ERRORS,
+      ...VALIDATED_PATH_ERRORS,
+    },
+  },
+  {
     operationId: 'SpaceNotifications_listNotifications',
     tag: 'Notifications',
     bodyResponses: [

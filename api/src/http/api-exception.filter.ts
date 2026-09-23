@@ -43,6 +43,9 @@ import {
 } from '../errors/application-error-codes';
 import {
   INVITATION_ALREADY_PENDING_CODE,
+  INVITATION_CLAIM_NOT_FOUND_CODE,
+  INVITATION_CODE_RATE_LIMITED_CODE,
+  INVITATION_CODE_UNAVAILABLE_CODE,
   INVITATION_INELIGIBLE_CODE,
 } from '../invitations/application/invitation-errors';
 import { TRANSACTION_NOT_FOUND_CODE } from '../transactions/application/transaction-errors';
@@ -321,7 +324,11 @@ function applicationErrorStatus(code: string): number {
     case SPACE_NOT_WRITABLE_CODE:
       return HttpStatus.FORBIDDEN;
     case SPACE_NOTIFICATION_NOT_FOUND_CODE:
+    case INVITATION_CODE_UNAVAILABLE_CODE:
+    case INVITATION_CLAIM_NOT_FOUND_CODE:
       return HttpStatus.NOT_FOUND;
+    case INVITATION_CODE_RATE_LIMITED_CODE:
+      return HttpStatus.TOO_MANY_REQUESTS;
     case INVITATION_ALREADY_PENDING_CODE:
     case INVITATION_INELIGIBLE_CODE:
       return HttpStatus.CONFLICT;

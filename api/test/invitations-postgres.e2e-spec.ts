@@ -22,6 +22,7 @@ import { BudgetEntity } from '../src/database/entities/budget.entity';
 import { CategoryEntity } from '../src/database/entities/category.entity';
 import { CategoryRuleEntity } from '../src/database/entities/category-rule.entity';
 import { InvitationEntity } from '../src/database/entities/invitation.entity';
+import { InvitationClaimEntity } from '../src/database/entities/invitation-claim.entity';
 import { SpaceEntity } from '../src/database/entities/space.entity';
 import { SpaceMembershipEntity } from '../src/database/entities/space-membership.entity';
 import { SpaceNotificationEntity } from '../src/database/entities/space-notification.entity';
@@ -196,6 +197,136 @@ describeDatabase('Invite Codes with PostgreSQL', () => {
     expect(JSON.stringify(listedBody)).not.toContain(createdBody.code);
   });
 
+  it('saves multiple incoming claims, is idempotent, and lets each User decline independently', async () => {
+    const sender = createIdentity('claim-sender');
+    const firstRecipient = createIdentity('claim-first-recipient');
+    const secondRecipient = createIdentity('claim-second-recipient');
+    await provision(sender);
+    await provision(firstRecipient);
+    await provision(secondRecipient);
+
+    const created = await http()
+      .post('/api/v1/users/me/invitations')
+      .set(...authorization(sender))
+      .send({});
+    const code = responseBody<OutgoingInvitationBody>(created).code;
+    createdInvitationIds.push(responseBody<OutgoingInvitationBody>(created).id);
+
+    const firstClaim = await http()
+      .post('/api/v1/users/me/invitations/claims')
+      .set(...authorization(firstRecipient))
+      .send({ code: code.toLowerCase().replaceAll('-', '') });
+    const firstClaimBody = responseBody<IncomingInvitationBody>(firstClaim);
+    expect(firstClaim.status).toBe(201);
+    expect(firstClaimBody).toMatchObject({
+      senderName: sender.name,
+      status: 'pending',
+    });
+
+    const repeatedClaim = await http()
+      .post('/api/v1/users/me/invitations/claims')
+      .set(...authorization(firstRecipient))
+      .send({ code });
+    expect(repeatedClaim.status).toBe(201);
+    expect(responseBody<IncomingInvitationBody>(repeatedClaim).id).toBe(
+      firstClaimBody.id,
+    );
+
+    const secondClaim = await http()
+      .post('/api/v1/users/me/invitations/claims')
+      .set(...authorization(secondRecipient))
+      .send({ code });
+    const secondClaimBody = responseBody<IncomingInvitationBody>(secondClaim);
+    expect(secondClaim.status).toBe(201);
+    expect(secondClaimBody.id).not.toBe(firstClaimBody.id);
+
+    const firstListed = await http()
+      .get('/api/v1/users/me/invitations')
+      .set(...authorization(firstRecipient));
+    expect(responseBody<InvitationInboxBody>(firstListed).incoming).toEqual([
+      firstClaimBody,
+    ]);
+
+    const declined = await http()
+      .delete(`/api/v1/users/me/invitations/claims/${firstClaimBody.id}`)
+      .set(...authorization(firstRecipient));
+    expect(declined.status).toBe(204);
+
+    const firstAfterDecline = await http()
+      .get('/api/v1/users/me/invitations')
+      .set(...authorization(firstRecipient));
+    expect(
+      responseBody<InvitationInboxBody>(firstAfterDecline).incoming,
+    ).toEqual([]);
+
+    const secondAfterDecline = await http()
+      .get('/api/v1/users/me/invitations')
+      .set(...authorization(secondRecipient));
+    expect(
+      responseBody<InvitationInboxBody>(secondAfterDecline).incoming,
+    ).toEqual([secondClaimBody]);
+
+    const reclaimed = await http()
+      .post('/api/v1/users/me/invitations/claims')
+      .set(...authorization(firstRecipient))
+      .send({ code });
+    expect(reclaimed.status).toBe(201);
+    expect(responseBody<IncomingInvitationBody>(reclaimed).id).not.toBe(
+      firstClaimBody.id,
+    );
+
+    const persistedClaims = await database
+      .getRepository(InvitationClaimEntity)
+      .findBy({
+        invitationId: responseBody<OutgoingInvitationBody>(created).id,
+      });
+    expect(persistedClaims).toHaveLength(2);
+  });
+
+  it('does not allow self-claims or claims from an active Shared Space', async () => {
+    const sender = createIdentity('self-claim-sender');
+    const ineligible = createIdentity('ineligible-claim-user');
+    await provision(sender);
+    const ineligibleUserId = await provision(ineligible);
+
+    const created = await http()
+      .post('/api/v1/users/me/invitations')
+      .set(...authorization(sender))
+      .send({});
+    const createdBody = responseBody<OutgoingInvitationBody>(created);
+    createdInvitationIds.push(createdBody.id);
+
+    const selfClaim = await http()
+      .post('/api/v1/users/me/invitations/claims')
+      .set(...authorization(sender))
+      .send({ code: createdBody.code });
+    expect(selfClaim.status).toBe(404);
+    expect(responseBody<ErrorBody>(selfClaim).error.code).toBe(
+      'INVITATION_CODE_UNAVAILABLE',
+    );
+
+    const sharedSpace = await database.getRepository(SpaceEntity).save({
+      kind: 'shared',
+      status: 'active',
+      personalOwnerUserId: null,
+    });
+    createdSpaceIds.push(sharedSpace.id);
+    await database.getRepository(SpaceMembershipEntity).save({
+      spaceId: sharedSpace.id,
+      userId: ineligibleUserId,
+      accessLevel: 'write',
+    });
+
+    const ineligibleClaim = await http()
+      .post('/api/v1/users/me/invitations/claims')
+      .set(...authorization(ineligible))
+      .send({ code: createdBody.code });
+    expect(ineligibleClaim.status).toBe(404);
+    expect(responseBody<ErrorBody>(ineligibleClaim).error.code).toBe(
+      'INVITATION_CODE_UNAVAILABLE',
+    );
+  });
+
   it('lets the database uniqueness boundary reject concurrent creation', async () => {
     const sender = createIdentity('racing-sender');
     await provision(sender);
@@ -293,7 +424,15 @@ interface OutgoingInvitationBody {
 
 interface InvitationInboxBody {
   readonly outgoing: OutgoingInvitationBody | null;
-  readonly incoming: readonly unknown[];
+  readonly incoming: readonly IncomingInvitationBody[];
+}
+
+interface IncomingInvitationBody {
+  readonly id: string;
+  readonly senderName: string;
+  readonly status: string;
+  readonly expiresAt: string;
+  readonly createdAt: string;
 }
 
 interface ErrorBody {

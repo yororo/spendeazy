@@ -29,7 +29,7 @@ export interface InvitationInbox {
   readonly incoming: readonly IncomingInvitation[];
 }
 
-type InvitationsApiClient = Pick<ApiClient, 'get' | 'post'>;
+type InvitationsApiClient = Pick<ApiClient, 'delete' | 'get' | 'post'>;
 
 class InvitationsDataError extends Error {
   readonly kind = 'data' as const;
@@ -96,6 +96,14 @@ function requireOutgoingInvitation(
   return value;
 }
 
+function requireIncomingInvitation(value: unknown): IncomingInvitation {
+  if (!isIncomingInvitation(value)) {
+    throw invalidInvitationResponse('incoming invitation');
+  }
+
+  return value;
+}
+
 function requireInvitationInbox(value: unknown): InvitationInbox {
   if (
     !isRecord(value) ||
@@ -143,14 +151,44 @@ async function createInvitation(
   );
 }
 
+async function claimInvitation(
+  apiClient: Pick<InvitationsApiClient, 'post'>,
+  code: string,
+): Promise<IncomingInvitation> {
+  const response = await apiClient.post<unknown>(
+    '/invitations/claims',
+    { code },
+    { expectedStatuses: [201] },
+  );
+  return requireIncomingInvitation(
+    requireApiResponse(
+      response,
+      'saved incoming invitation',
+      invalidInvitationResponse,
+    ),
+  );
+}
+
+async function declineInvitation(
+  apiClient: Pick<InvitationsApiClient, 'delete'>,
+  claimId: string,
+): Promise<void> {
+  await apiClient.delete<unknown>(`/invitations/claims/${claimId}`, {
+    expectedStatuses: [204],
+  });
+}
+
 export {
+  claimInvitation,
   createInvitation,
+  declineInvitation,
   getInvitations,
   InvitationsDataError,
   isIncomingInvitation,
   isInvitationCode,
   isInvitationStatus,
   isOutgoingInvitation,
+  requireIncomingInvitation,
   requireInvitationInbox,
   requireOutgoingInvitation,
 };

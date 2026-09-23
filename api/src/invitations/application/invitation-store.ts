@@ -15,6 +15,17 @@ export interface InvitationRecord {
   updatedAt: Date;
 }
 
+export interface InvitationClaimRecord {
+  id: string;
+  invitationId: string;
+  userId: string;
+  senderUserId: string;
+  senderName: string;
+  status: InvitationStatus;
+  expiresAt: Date;
+  createdAt: Date;
+}
+
 export interface NewInvitation {
   senderUserId: string;
   codeHash: string;
@@ -22,8 +33,21 @@ export interface NewInvitation {
   expiresAt: Date;
 }
 
+export interface NewInvitationClaim {
+  invitationId: string;
+  userId: string;
+}
+
 export interface InvitationStore {
   findPendingBySender(senderUserId: string): Promise<InvitationRecord | null>;
+  findByCodeHash(codeHash: string): Promise<InvitationRecord | null>;
+  findClaimsForUser(userId: string): Promise<InvitationClaimRecord[]>;
+  findClaimForInvitationAndUser(
+    invitationId: string,
+    userId: string,
+  ): Promise<InvitationClaimRecord | null>;
   create(input: NewInvitation): Promise<InvitationRecord>;
+  createClaim(input: NewInvitationClaim): Promise<InvitationClaimRecord>;
+  deleteClaimForUser(userId: string, claimId: string): Promise<boolean>;
   expirePending(before: Date): Promise<void>;
 }

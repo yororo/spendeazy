@@ -2747,6 +2747,79 @@ paths:
       summary: Create one Shared Space Invite Code.
       tags:
         - Invitations
+  /api/v1/users/me/invitations/claims:
+    post:
+      description: Validates the entered Invite Code for the authenticated User and saves a personal incoming invitation claim. This operation never creates membership. Unavailable codes use one generic response.
+      operationId: Invitations_claim
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClaimInvitationDto'
+      responses:
+        '201':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IncomingInvitationResponseDto'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthenticatedError'
+        '403':
+          $ref: '#/components/responses/UserNotProvisionedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '406':
+          $ref: '#/components/responses/NotAcceptableError'
+        '413':
+          $ref: '#/components/responses/HttpError'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaTypeError'
+        '429':
+          $ref: '#/components/responses/RateLimitError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - bearerAuth: []
+      summary: Save a Shared Space invitation by Invite Code.
+      tags:
+        - Invitations
+  /api/v1/users/me/invitations/claims/{claimId}:
+    delete:
+      description: Removes only the authenticated User’s saved invitation claim. The sender’s Invite Code and other Users’ claims remain available.
+      operationId: Invitations_decline
+      parameters:
+        - name: claimId
+          required: true
+          in: path
+          schema:
+            pattern: ^[1-9]\d*$
+            example: '88'
+            type: string
+      responses:
+        '204':
+          description: ''
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthenticatedError'
+        '403':
+          $ref: '#/components/responses/UserNotProvisionedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '406':
+          $ref: '#/components/responses/NotAcceptableError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - bearerAuth: []
+      summary: Decline a saved Shared Space invitation.
+      tags:
+        - Invitations
 info:
   title: Expense Tracker REST API
   description: A user-scoped expense tracker API. Bigint identifiers and counts, decimal money, domain dates, and UTC timestamps use the encodings described by the schemas below.
@@ -2859,6 +2932,9 @@ components:
         - SPACE_NOT_FOUND
         - SPACE_NOT_WRITABLE
         - SPACE_NOTIFICATION_NOT_FOUND
+        - INVITATION_CODE_UNAVAILABLE
+        - INVITATION_CODE_RATE_LIMITED
+        - INVITATION_CLAIM_NOT_FOUND
         - EMAIL_ALREADY_EXISTS
         - CATEGORY_NOT_FOUND
         - CATEGORY_NAME_ALREADY_EXISTS
@@ -4510,6 +4586,16 @@ components:
     CreateInvitationDto:
       type: object
       properties: {}
+    ClaimInvitationDto:
+      type: object
+      properties:
+        code:
+          type: string
+          description: The Invite Code entered by the authenticated User. Case and grouping separators are normalized by the API.
+          example: 7K3M-2Q8R-5T6V-W9X2-C4D7-H8J3
+          maxLength: 64
+      required:
+        - code
   responses:
     UnauthenticatedError:
       description: The request does not include valid Clerk session credentials.
@@ -4712,5 +4798,16 @@ components:
                       transactionIndexes:
                         - 0
                         - 2
+    RateLimitError:
+      description: Too many Invite Code attempts were made for the authenticated User or network source.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelopeDto'
+          example:
+            error:
+              code: INVITATION_CODE_RATE_LIMITED
+              message: Too many Invite Code attempts. Try again later.
+              details: []
 security:
   - bearerAuth: []

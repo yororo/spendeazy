@@ -1,10 +1,31 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { IsString, Matches, MaxLength } from 'class-validator';
+import { POSITIVE_INTEGER_ID_PATTERN } from '../../http/validation-patterns';
 
 const INVITATION_ID_PATTERN = '^[1-9]\\d*$';
 const INVITATION_CODE_PATTERN =
   '^[0-9A-HJKMNP-TV-Z]{4}(?:-[0-9A-HJKMNP-TV-Z]{4}){5}$';
 
 export class CreateInvitationDto {}
+
+export class ClaimInvitationDto {
+  @ApiProperty({
+    description:
+      'The Invite Code entered by the authenticated User. Case and grouping separators are normalized by the API.',
+    example: '7K3M-2Q8R-5T6V-W9X2-C4D7-H8J3',
+    maxLength: 64,
+  })
+  @IsString()
+  @MaxLength(64)
+  code!: string;
+}
+
+export class InvitationClaimParamsDto {
+  @ApiProperty({ pattern: INVITATION_ID_PATTERN, example: '88' })
+  @IsString()
+  @Matches(POSITIVE_INTEGER_ID_PATTERN)
+  claimId!: string;
+}
 
 export class OutgoingInvitationResponseDto {
   @ApiProperty({ pattern: INVITATION_ID_PATTERN, example: '42' })

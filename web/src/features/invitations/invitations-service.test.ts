@@ -3,8 +3,11 @@ import { describe, expect, it, vi } from 'vitest';
 import { ApiError } from '@/shared/api';
 
 import {
+  claimInvitation,
   createInvitation,
+  declineInvitation,
   getInvitations,
+  requireIncomingInvitation,
   requireInvitationInbox,
 } from './invitations-service';
 
@@ -60,6 +63,43 @@ describe('invitations service', () => {
 
     await expect(createInvitation(apiClient)).rejects.toBe(error);
   });
+
+  it('saves an entered Invite Code and validates the incoming invitation', async () => {
+    const incoming = incomingInvitation();
+    const apiClient = {
+      post: vi.fn().mockResolvedValue(incoming),
+    };
+
+    await expect(claimInvitation(apiClient, '7k3m-2q8r-5t6v-w9x2-c4d7-h8j3')).resolves.toEqual(
+      incoming,
+    );
+    expect(apiClient.post).toHaveBeenCalledWith(
+      '/invitations/claims',
+      { code: '7k3m-2q8r-5t6v-w9x2-c4d7-h8j3' },
+      { expectedStatuses: [201] },
+    );
+  });
+
+  it('declines a saved invitation without expecting a response body', async () => {
+    const apiClient = {
+      delete: vi.fn().mockResolvedValue(undefined),
+    };
+
+    await expect(declineInvitation(apiClient, '88')).resolves.toBeUndefined();
+    expect(apiClient.delete).toHaveBeenCalledWith(
+      '/invitations/claims/88',
+      { expectedStatuses: [204] },
+    );
+  });
+
+  it('rejects malformed incoming invitation data', () => {
+    expect(() =>
+      requireIncomingInvitation({
+        ...incomingInvitation(),
+        senderName: 42,
+      }),
+    ).toThrow('invalid incoming invitation');
+  });
 });
 
 function outgoingInvitation() {
@@ -70,5 +110,15 @@ function outgoingInvitation() {
     expiresAt: '2026-09-30T00:00:00.000Z',
     createdAt: '2026-09-23T00:00:00.000Z',
     updatedAt: '2026-09-23T00:00:00.000Z',
+  } as const;
+}
+
+function incomingInvitation() {
+  return {
+    id: '88',
+    senderName: 'Invite sender',
+    status: 'pending',
+    expiresAt: '2026-09-30T00:00:00.000Z',
+    createdAt: '2026-09-23T01:00:00.000Z',
   } as const;
 }

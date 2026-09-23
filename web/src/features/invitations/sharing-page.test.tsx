@@ -28,6 +28,16 @@ const pageState = vi.hoisted(() => ({
     isPending: false,
     mutate: vi.fn(),
   },
+  claimMutation: {
+    error: null as Error | null,
+    isPending: false,
+    mutate: vi.fn(),
+  },
+  declineMutation: {
+    error: null as Error | null,
+    isPending: false,
+    mutate: vi.fn(),
+  },
   spacesQuery: {
     data: [] as Array<{
       id: string;
@@ -52,7 +62,9 @@ vi.mock('@/shared/api', () => ({
 }));
 
 vi.mock('./invitation-queries', () => ({
+  useClaimInvitationMutation: () => pageState.claimMutation,
   useCreateInvitationMutation: () => pageState.createMutation,
+  useDeclineInvitationMutation: () => pageState.declineMutation,
   useInvitationsQuery: () => pageState.invitationsQuery,
 }));
 
@@ -77,6 +89,12 @@ afterEach(() => {
   pageState.createMutation.isError = false;
   pageState.createMutation.isPending = false;
   pageState.createMutation.mutate.mockClear();
+  pageState.claimMutation.error = null;
+  pageState.claimMutation.isPending = false;
+  pageState.claimMutation.mutate.mockClear();
+  pageState.declineMutation.error = null;
+  pageState.declineMutation.isPending = false;
+  pageState.declineMutation.mutate.mockClear();
   pageState.spacesQuery.data = [];
   pageState.leaveMutation.error = null;
   pageState.leaveMutation.isPending = false;
@@ -150,11 +168,86 @@ describe('SharingPage', () => {
     );
 
     expect(
-      screen.getByText(/already belong to an active Shared Space/u),
-    ).toBeTruthy();
+      screen.getAllByText(/already belong to an active Shared Space/u),
+    ).toHaveLength(2);
     expect(
       screen.queryByRole('button', { name: 'Create Invite Code' }),
     ).toBeNull();
+  });
+
+  it('saves an Invite Code without joining a Shared Space', () => {
+    render(
+      <MemoryRouter initialEntries={['/sharing']}>
+        <SharingPage />
+      </MemoryRouter>,
+    );
+
+    fireEvent.change(screen.getByLabelText('Invite Code'), {
+      target: { value: '7k3m-2q8r-5t6v-w9x2-c4d7-h8j3' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save Invitation' }));
+
+    expect(pageState.claimMutation.mutate).toHaveBeenCalledWith(
+      '7k3m-2q8r-5t6v-w9x2-c4d7-h8j3',
+    );
+    expect(screen.queryByRole('button', { name: 'Join' })).toBeNull();
+  });
+
+  it('shows each saved incoming invitation with its sender and a scoped decline action', () => {
+    pageState.invitationsQuery.data = {
+      outgoing: null,
+      incoming: [
+        {
+          id: '88',
+          senderName: 'Invite sender',
+          status: 'pending',
+          expiresAt: '2026-09-30T00:00:00.000Z',
+          createdAt: '2026-09-23T01:00:00.000Z',
+        },
+        {
+          id: '89',
+          senderName: 'Another sender',
+          status: 'pending',
+          expiresAt: '2026-10-01T00:00:00.000Z',
+          createdAt: '2026-09-23T02:00:00.000Z',
+        },
+      ],
+    };
+
+    render(
+      <MemoryRouter initialEntries={['/sharing']}>
+        <SharingPage />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText('Invite sender')).toBeTruthy();
+    expect(screen.getByText('Another sender')).toBeTruthy();
+    expect(screen.getAllByRole('button', { name: 'Decline' })).toHaveLength(2);
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Decline' })[0]);
+    expect(pageState.declineMutation.mutate).toHaveBeenCalledWith('88');
+  });
+
+  it('shows generic code-entry errors without replacing the saved invitation list', () => {
+    pageState.claimMutation.error = new Error(
+      'Invite Code is unavailable. Ask the sender for a current code.',
+    );
+    pageState.invitationsQuery.data = {
+      outgoing: null,
+      incoming: [],
+    };
+
+    render(
+      <MemoryRouter initialEntries={['/sharing']}>
+        <SharingPage />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText('Invite Code could not be saved')).toBeTruthy();
+    expect(
+      screen.getByText(/Ask the sender for a current code/u),
+    ).toBeTruthy();
+    expect(screen.getByLabelText('Invite Code')).toBeTruthy();
   });
 
   it('keeps archive notification delivery and read controls available', () => {

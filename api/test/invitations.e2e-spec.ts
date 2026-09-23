@@ -13,6 +13,7 @@ import { ProvisionedUserGuard } from '../src/authentication/provisioned-user.gua
 import { configureApp } from '../src/bootstrap';
 import { APP_CONFIG, type AppConfig } from '../src/config/app-config';
 import { InvitationsService } from '../src/invitations/application/invitations.service';
+import { InvitationCodeUnavailableError } from '../src/invitations/application/invitation-errors';
 import { InvitationsController } from '../src/invitations/presentation/invitations.controller';
 import { USER_STORE } from '../src/users/application/user-store';
 
@@ -22,6 +23,8 @@ describe('authenticated Invite Code routes', () => {
   const invitationsService = {
     listForUser: jest.fn(),
     createForUser: jest.fn(),
+    claimForUser: jest.fn(),
+    declineForUser: jest.fn(),
   };
 
   beforeAll(async () => {
@@ -68,6 +71,14 @@ describe('authenticated Invite Code routes', () => {
       createdAt: '2026-09-23T00:00:00.000Z',
       updatedAt: '2026-09-23T00:00:00.000Z',
     });
+    invitationsService.claimForUser.mockReset().mockResolvedValue({
+      id: '88',
+      senderName: 'Invite sender',
+      status: 'pending',
+      expiresAt: '2026-09-30T00:00:00.000Z',
+      createdAt: '2026-09-23T01:00:00.000Z',
+    });
+    invitationsService.declineForUser.mockReset().mockResolvedValue(undefined);
     verifier.reset();
   });
 
@@ -102,6 +113,60 @@ describe('authenticated Invite Code routes', () => {
     });
     expect(invitationsService.createForUser).toHaveBeenCalledWith('42');
   });
+
+  it('saves a code without creating membership and passes the network source to the service', async () => {
+    const response = await request(application.getHttpServer() as Server)
+      .post('/api/v1/users/me/invitations/claims')
+      .set('Authorization', 'Bearer token-a')
+      .set('Accept', 'application/json')
+      .send({ code: '7k3m-2q8r-5t6v-w9x2-c4d7-h8j3' });
+    const body = responseBody<IncomingInvitationBody>(response);
+
+    expect(response.status).toBe(201);
+    expect(body).toMatchObject({
+      id: '88',
+      senderName: 'Invite sender',
+      status: 'pending',
+    });
+    expect(invitationsService.claimForUser).toHaveBeenCalledWith(
+      '42',
+      '7k3m-2q8r-5t6v-w9x2-c4d7-h8j3',
+      expect.any(String),
+    );
+  });
+
+  it('returns generic unavailable-code feedback for an invalid claim', async () => {
+    invitationsService.claimForUser.mockRejectedValueOnce(
+      new InvitationCodeUnavailableError(),
+    );
+
+    const response = await request(application.getHttpServer() as Server)
+      .post('/api/v1/users/me/invitations/claims')
+      .set('Authorization', 'Bearer token-a')
+      .set('Accept', 'application/json')
+      .send({ code: 'not-a-code' });
+
+    expect(response.status).toBe(404);
+    expect(response.body).toEqual({
+      error: {
+        code: 'INVITATION_CODE_UNAVAILABLE',
+        message:
+          'Invite Code is unavailable. Ask the sender for a current code.',
+        details: [],
+      },
+    });
+  });
+
+  it('declines only the authenticated User’s saved claim', async () => {
+    const response = await request(application.getHttpServer() as Server)
+      .delete('/api/v1/users/me/invitations/claims/88')
+      .set('Authorization', 'Bearer token-a')
+      .set('Accept', 'application/json');
+
+    expect(response.status).toBe(204);
+    expect(response.text).toBe('');
+    expect(invitationsService.declineForUser).toHaveBeenCalledWith('42', '88');
+  });
 });
 
 class FakeClerkTokenVerifier implements ClerkTokenVerifier {
@@ -135,6 +200,14 @@ interface OutgoingInvitationBody {
 
 interface InvitationInboxBody {
   readonly outgoing: OutgoingInvitationBody | null;
+}
+
+interface IncomingInvitationBody {
+  readonly id: string;
+  readonly senderName: string;
+  readonly status: string;
+  readonly expiresAt: string;
+  readonly createdAt: string;
 }
 
 function responseBody<T>(response: { readonly body: unknown }): T {

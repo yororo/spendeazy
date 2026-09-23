@@ -15,6 +15,8 @@ import {
 } from '@/components/app/feature-data-state';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Card,
   CardContent,
@@ -38,10 +40,15 @@ import {
 } from '@/shared/api';
 
 import {
+  useClaimInvitationMutation,
   useCreateInvitationMutation,
+  useDeclineInvitationMutation,
   useInvitationsQuery,
 } from './invitation-queries';
-import type { OutgoingInvitation } from './invitations-service';
+import type {
+  IncomingInvitation,
+  OutgoingInvitation,
+} from './invitations-service';
 import type { SpaceNotification } from './space-notification';
 import {
   useMarkSpaceNotificationReadMutation,
@@ -55,9 +62,12 @@ function SharingPage() {
   const selectedSpaceId = searchParams.get('spaceId');
   const invitationsQuery = useInvitationsQuery();
   const createMutation = useCreateInvitationMutation();
+  const claimMutation = useClaimInvitationMutation();
+  const declineMutation = useDeclineInvitationMutation();
   const spacesQuery = useAccessibleSpacesQuery(true);
   const notificationsQuery = useSpaceNotificationsQuery();
   const [copyState, setCopyState] = useState<CopyState>('idle');
+  const [claimCode, setClaimCode] = useState('');
   const selectedSpace = spacesQuery.data?.find(
     (space) => space.id === selectedSpaceId,
   );
@@ -117,6 +127,25 @@ function SharingPage() {
         </p>
       </header>
 
+      <ClaimInvitationCard
+        code={claimCode}
+        disabled={
+          claimMutation.isPending || activeSharedSpace !== undefined
+        }
+        error={claimMutation.error}
+        ineligible={activeSharedSpace !== undefined}
+        pending={claimMutation.isPending}
+        onCodeChange={setClaimCode}
+        onSubmit={() => claimMutation.mutate(claimCode.trim())}
+      />
+
+      <IncomingInvitationsCard
+        invitations={invitationsQuery.data.incoming}
+        disabled={declineMutation.isPending}
+        error={declineMutation.error}
+        onDecline={(claimId) => declineMutation.mutate(claimId)}
+      />
+
       <NotificationsPanel query={notificationsQuery} />
 
       {canEndSharing && (
@@ -140,6 +169,160 @@ function SharingPage() {
 }
 
 type CopyState = 'idle' | 'copying' | 'copied' | 'failed';
+
+function ClaimInvitationCard({
+  code,
+  disabled,
+  error,
+  ineligible,
+  pending,
+  onCodeChange,
+  onSubmit,
+}: {
+  readonly code: string;
+  readonly disabled: boolean;
+  readonly error: Error | null;
+  readonly ineligible: boolean;
+  readonly pending: boolean;
+  readonly onCodeChange: (code: string) => void;
+  readonly onSubmit: () => void;
+}) {
+  return (
+    <Card variant="strong" className="mb-5">
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <KeyRoundIcon aria-hidden="true" className="size-4" />
+          <CardTitle>Save an Invite Code</CardTitle>
+        </div>
+        <CardDescription>
+          Enter a code someone shared with you to save the invitation. Saving a
+          code never joins a Shared Space.
+        </CardDescription>
+      </CardHeader>
+      {ineligible && (
+        <Alert variant="warning" className="mx-4 mb-4">
+          <AlertTitle>You already belong to an active Shared Space</AlertTitle>
+          <AlertDescription>
+            Leave your current Shared Space before saving another invitation.
+          </AlertDescription>
+        </Alert>
+      )}
+      {error && (
+        <Alert variant="destructive" className="mx-4 mb-4">
+          <AlertTitle>Invite Code could not be saved</AlertTitle>
+          <AlertDescription>{error.message}</AlertDescription>
+        </Alert>
+      )}
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (code.trim().length > 0 && !disabled) onSubmit();
+        }}
+      >
+        <CardContent className="space-y-2">
+          <Label htmlFor="invite-code">Invite Code</Label>
+          <Input
+            id="invite-code"
+            value={code}
+            onChange={(event) => onCodeChange(event.target.value)}
+            placeholder="7K3M-2Q8R-5T6V-W9X2-C4D7-H8J3"
+            autoComplete="off"
+            spellCheck={false}
+            disabled={disabled}
+          />
+        </CardContent>
+        <CardFooter>
+          <Button type="submit" disabled={disabled || code.trim().length === 0}>
+            <KeyRoundIcon aria-hidden="true" />
+            {pending ? 'Saving…' : 'Save Invitation'}
+          </Button>
+        </CardFooter>
+      </form>
+    </Card>
+  );
+}
+
+function IncomingInvitationsCard({
+  invitations,
+  disabled,
+  error,
+  onDecline,
+}: {
+  readonly invitations: readonly IncomingInvitation[];
+  readonly disabled: boolean;
+  readonly error: Error | null;
+  readonly onDecline: (claimId: string) => void;
+}) {
+  if (invitations.length === 0 && !error) return null;
+
+  return (
+    <Card variant="muted" className="mb-5">
+      <CardHeader>
+        <CardTitle>Saved invitations</CardTitle>
+        <CardDescription>
+          Review who invited you before choosing what to do next.
+        </CardDescription>
+      </CardHeader>
+      {error && (
+        <Alert variant="destructive" className="mx-4 mb-4">
+          <AlertTitle>Invitation could not be declined</AlertTitle>
+          <AlertDescription>{error.message}</AlertDescription>
+        </Alert>
+      )}
+      {invitations.length > 0 && (
+        <CardContent className="space-y-3">
+          {invitations.map((invitation) => (
+            <IncomingInvitationRow
+              key={invitation.id}
+              invitation={invitation}
+              disabled={disabled}
+              onDecline={() => onDecline(invitation.id)}
+            />
+          ))}
+        </CardContent>
+      )}
+    </Card>
+  );
+}
+
+function IncomingInvitationRow({
+  invitation,
+  disabled,
+  onDecline,
+}: {
+  readonly invitation: IncomingInvitation;
+  readonly disabled: boolean;
+  readonly onDecline: () => void;
+}) {
+  return (
+    <div className="border border-border bg-background p-4">
+      <p className="font-semibold">{invitation.senderName}</p>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Shared Space invitation · {formatInvitationStatus(invitation.status)}
+      </p>
+      <p className="mt-2 text-sm text-muted-foreground">
+        Expires{' '}
+        <time dateTime={invitation.expiresAt}>
+          {formatInvitationExpiry(invitation.expiresAt)}
+        </time>
+      </p>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="mt-3"
+        onClick={onDecline}
+        disabled={disabled}
+      >
+        Decline
+      </Button>
+    </div>
+  );
+}
+
+function formatInvitationStatus(status: IncomingInvitation['status']): string {
+  return status.charAt(0).toUpperCase() + status.slice(1);
+}
 
 function InviteCodeCard({
   outgoing,

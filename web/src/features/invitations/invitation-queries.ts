@@ -3,7 +3,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApiClient } from '@/shared/api';
 import { queryPolicy } from '@/shared/query';
 
-import { createInvitation, getInvitations } from './invitations-service';
+import {
+  claimInvitation,
+  createInvitation,
+  declineInvitation,
+  getInvitations,
+} from './invitations-service';
 
 const INVITATIONS_QUERY_KEY = ['invitations'] as const;
 
@@ -29,8 +34,32 @@ function useCreateInvitationMutation() {
   });
 }
 
+function useClaimInvitationMutation() {
+  const apiClient = useApiClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (code: string) => claimInvitation(apiClient, code),
+    retry: 0,
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: INVITATIONS_QUERY_KEY }),
+  });
+}
+
+function useDeclineInvitationMutation() {
+  const apiClient = useApiClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (claimId: string) => declineInvitation(apiClient, claimId),
+    retry: 0,
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: INVITATIONS_QUERY_KEY }),
+  });
+}
+
 export {
   INVITATIONS_QUERY_KEY,
+  useClaimInvitationMutation,
   useCreateInvitationMutation,
+  useDeclineInvitationMutation,
   useInvitationsQuery,
 };

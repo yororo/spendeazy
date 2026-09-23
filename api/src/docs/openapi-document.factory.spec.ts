@@ -121,6 +121,8 @@ describe('OpenAPI document factory', () => {
         `POST ${apiRoot}/users/me/spaces/{spaceId}/statement-imports`,
         `DELETE ${apiRoot}/users/me/spaces/{spaceId}/transactions/{transactionId}`,
         `POST ${apiRoot}/users/me/invitations`,
+        `POST ${apiRoot}/users/me/invitations/claims`,
+        `DELETE ${apiRoot}/users/me/invitations/claims/{claimId}`,
       ].sort(),
     );
 

@@ -40,15 +40,6 @@ import {
   SPACE_NOT_FOUND_CODE,
   SPACE_NOT_WRITABLE_CODE,
   SPACE_NOTIFICATION_NOT_FOUND_CODE,
-  INVITATION_NOT_FOUND_CODE,
-  INVITATION_ALREADY_PENDING_CODE,
-  INVITATION_RATE_LIMITED_CODE,
-  INVITATION_DAILY_LIMIT_REACHED_CODE,
-  INVITATION_SELF_CODE,
-  INVITATION_INELIGIBLE_CODE,
-  INVITATION_EXPIRED_CODE,
-  INVITATION_CANCELED_CODE,
-  INVITATION_DECLINED_CODE,
 } from '../errors/application-error-codes';
 import { TRANSACTION_NOT_FOUND_CODE } from '../transactions/application/transaction-errors';
 import { IMPORTED_TRANSACTION_IMMUTABLE_CODE } from '../transactions/application/transaction-errors';
@@ -327,17 +318,6 @@ function applicationErrorStatus(code: string): number {
       return HttpStatus.FORBIDDEN;
     case SPACE_NOTIFICATION_NOT_FOUND_CODE:
       return HttpStatus.NOT_FOUND;
-    case INVITATION_NOT_FOUND_CODE:
-    case INVITATION_EXPIRED_CODE:
-    case INVITATION_CANCELED_CODE:
-    case INVITATION_DECLINED_CODE:
-      return HttpStatus.NOT_FOUND;
-    case INVITATION_ALREADY_PENDING_CODE:
-    case INVITATION_RATE_LIMITED_CODE:
-    case INVITATION_DAILY_LIMIT_REACHED_CODE:
-    case INVITATION_SELF_CODE:
-    case INVITATION_INELIGIBLE_CODE:
-      return HttpStatus.CONFLICT;
     default:
       return HttpStatus.INTERNAL_SERVER_ERROR;
   }

@@ -49,6 +49,12 @@ describe('public API documentation', () => {
   });
 
   it('publishes the same contract through the UI, JSON, YAML, and assets', async () => {
+    expect(
+      Object.keys(document.paths).filter((path) =>
+        path.includes('invitation'),
+      ),
+    ).toEqual([]);
+
     const [html, css, json, yaml] = await Promise.all([
       request(httpServer(app)).get('/docs').set('Accept', 'text/html'),
       request(httpServer(app))

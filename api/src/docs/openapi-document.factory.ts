@@ -7,7 +7,6 @@ import {
   type OperationIdFactory,
 } from '@nestjs/swagger';
 import { configureApiRouting } from '../http/api-routing';
-import { API_PREFIX } from '../config/app-config';
 import {
   DOCUMENTATION_PATH,
   JSON_DOCUMENT_PATH,
@@ -44,7 +43,6 @@ export function buildOpenApiDocument(app: INestApplication): OpenAPIObject {
 
   addApiErrorResponseComponents(document);
   markHealthOperationPublic(document);
-  markInvitationOperationsPublic(document);
   return document;
 }
 
@@ -73,7 +71,6 @@ function createDocumentConfig(): Omit<OpenAPIObject, 'paths'> {
     .addTag('Health', 'Operational readiness.')
     .addTag('Users', 'Expense-data owners.')
     .addTag('Spaces', 'Authorized Personal and Shared financial contexts.')
-    .addTag('Invitations', 'Shared Space invitation lifecycle and delivery.')
     .addTag('Categories', 'Active and historical categories.')
     .addTag('Budgets', 'Recurring category budgets.')
     .addTag('Category rules', 'Exact-description rules.')
@@ -112,20 +109,4 @@ function markHealthOperationPublic(document: OpenAPIObject): void {
   }
 
   healthOperation.security = [];
-}
-
-function markInvitationOperationsPublic(document: OpenAPIObject): void {
-  const apiRoot = `/${API_PREFIX}`;
-  const publicInvitationPaths = [
-    `${apiRoot}/invitations/{token}`,
-    `${apiRoot}/invitations/{token}/decline`,
-  ];
-  for (const path of publicInvitationPaths) {
-    const pathItem = document.paths[path];
-    if (!pathItem) throw new Error(`Missing invitation path ${path}`);
-    for (const method of ['get', 'post'] as const) {
-      const operation = pathItem[method];
-      if (operation) operation.security = [];
-    }
-  }
 }

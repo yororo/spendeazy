@@ -77,7 +77,7 @@ describe('loadAppConfig', () => {
     ).toThrow('CLERK_SECRET_KEY must be a valid Clerk secret key');
   });
 
-  it('validates invitation delivery URLs and preserves configured values', () => {
+  it('ignores retired invitation delivery configuration', () => {
     expect(
       loadAppConfig({
         NODE_ENV: 'test',
@@ -88,17 +88,17 @@ describe('loadAppConfig', () => {
           ' https://mailer.example.test/space-archive/ ',
         SPACE_NOTIFICATION_DELIVERY_API_KEY: ' space-delivery-secret ',
       }),
-    ).toMatchObject({
-      invitationDeliveryUrl: 'https://mailer.example.test/send',
-      invitationDeliveryApiKey: 'delivery-secret',
-      invitationWebBaseUrl: 'https://app.example.test',
+    ).toEqual({
+      environment: 'test',
+      port: 3000,
+      databaseUrl: undefined,
+      corsOrigins: [],
+      clerkJwtKey: undefined,
+      clerkSecretKey: undefined,
+      clerkAuthorizedParties: [],
       spaceNotificationDeliveryUrl: 'https://mailer.example.test/space-archive',
       spaceNotificationDeliveryApiKey: 'space-delivery-secret',
     });
-
-    expect(() =>
-      loadAppConfig({ INVITATION_DELIVERY_URL: 'ftp://mailer.example.test' }),
-    ).toThrow('INVITATION_DELIVERY_URL must be an HTTP(S) URL');
   });
 
   it('rejects Clerk public key formats unsupported by the verifier', () => {

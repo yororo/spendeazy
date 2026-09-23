@@ -1,11 +1,9 @@
-import type { DataSource, EntityManager } from 'typeorm';
+import { In, type DataSource, type EntityManager } from 'typeorm';
 
 import { normalizeMatchingText } from '../src/normalization/matching-text';
 import { BudgetEntity } from '../src/database/entities/budget.entity';
 import { CategoryRuleEntity } from '../src/database/entities/category-rule.entity';
 import { CategoryEntity } from '../src/database/entities/category.entity';
-import { InvitationDeliveryAttemptEntity } from '../src/database/entities/invitation-delivery-attempt.entity';
-import { InvitationEntity } from '../src/database/entities/invitation.entity';
 import { StatementImportEntity } from '../src/database/entities/statement-import.entity';
 import { TransactionEntity } from '../src/database/entities/transaction.entity';
 import { TransactionActivityEntity } from '../src/database/entities/transaction-activity.entity';
@@ -260,6 +258,11 @@ export async function ensureLocalTestFixtures(
     });
 
     if (existingPrimaryUser && existingSecondaryUser) {
+      await ensureLocalTestSharedSpace(
+        manager,
+        existingPrimaryUser.id,
+        existingSecondaryUser.id,
+      );
       return { seeded: false, counts: fixtureCounts(fixture) };
     }
 
@@ -278,6 +281,17 @@ export async function ensureLocalTestFixtures(
         categoryRules: fixture.secondaryCategoryRules,
         transactions: fixture.secondaryTransactions,
       });
+      const insertedSecondaryUser = await userRepository.findOneBy({
+        clerkUserId: fixture.secondaryUser.clerkUserId,
+      });
+      if (!insertedSecondaryUser) {
+        throw new Error('The local test secondary User could not be restored');
+      }
+      await ensureLocalTestSharedSpace(
+        manager,
+        existingPrimaryUser.id,
+        insertedSecondaryUser.id,
+      );
       return { seeded: true, counts: fixtureCounts(fixture) };
     }
 
@@ -298,16 +312,6 @@ export async function resetLocalTestFixtures(
   const fixture = createLocalTestFixtureDefinition(now);
 
   return dataSource.transaction(async (manager) => {
-    await manager
-      .createQueryBuilder()
-      .delete()
-      .from(InvitationDeliveryAttemptEntity)
-      .execute();
-    await manager
-      .createQueryBuilder()
-      .delete()
-      .from(InvitationEntity)
-      .execute();
     await manager
       .createQueryBuilder()
       .delete()
@@ -349,20 +353,21 @@ async function insertLocalTestFixtures(
   manager: EntityManager,
   fixture: LocalTestFixtureDefinition,
 ): Promise<LocalTestFixtureCounts> {
-  await insertLocalTestFixture(manager, {
+  const primary = await insertLocalTestFixture(manager, {
     user: fixture.user,
     categories: fixture.categories,
     budgets: fixture.budgets,
     categoryRules: fixture.categoryRules,
     transactions: fixture.transactions,
   });
-  await insertLocalTestFixture(manager, {
+  const secondary = await insertLocalTestFixture(manager, {
     user: fixture.secondaryUser,
     categories: fixture.secondaryCategories,
     budgets: fixture.secondaryBudgets,
     categoryRules: fixture.secondaryCategoryRules,
     transactions: fixture.secondaryTransactions,
   });
+  await ensureLocalTestSharedSpace(manager, primary.userId, secondary.userId);
 
   return fixtureCounts(fixture);
 }
@@ -393,7 +398,7 @@ interface LocalTestFixtureScenario {
 async function insertLocalTestFixture(
   manager: EntityManager,
   fixture: LocalTestFixtureScenario,
-): Promise<void> {
+): Promise<{ userId: string }> {
   const user = await manager.save(manager.create(UserEntity, fixture.user));
   const spaceId = await new TypeOrmSpaceStore(manager).ensurePersonalSpace(
     user.id,
@@ -452,6 +457,59 @@ async function insertLocalTestFixture(
       }),
     ),
   );
+
+  return { userId: user.id };
+}
+
+async function ensureLocalTestSharedSpace(
+  manager: EntityManager,
+  primaryUserId: string,
+  secondaryUserId: string,
+): Promise<void> {
+  const spaceRepository = manager.getRepository(SpaceEntity);
+  const membershipRepository = manager.getRepository(SpaceMembershipEntity);
+  const userRepository = manager.getRepository(UserEntity);
+  const sharedSpace =
+    (await spaceRepository.findOne({
+      where: { kind: 'shared', status: 'active' },
+    })) ??
+    (await spaceRepository.save(
+      spaceRepository.create({
+        kind: 'shared',
+        status: 'active',
+        personalOwnerUserId: null,
+      }),
+    ));
+
+  for (const userId of [primaryUserId, secondaryUserId]) {
+    const membership = await membershipRepository.findOne({
+      where: { spaceId: sharedSpace.id, userId },
+    });
+    if (membership) {
+      if (membership.accessLevel !== 'write') {
+        membership.accessLevel = 'write';
+        await membershipRepository.save(membership);
+      }
+    } else {
+      await membershipRepository.save(
+        membershipRepository.create({
+          spaceId: sharedSpace.id,
+          userId,
+          accessLevel: 'write',
+        }),
+      );
+    }
+  }
+
+  const users = await userRepository.findBy({
+    id: In([primaryUserId, secondaryUserId]),
+  });
+  for (const user of users) {
+    if (user.activeSharedSpaceId !== sharedSpace.id) {
+      user.activeSharedSpaceId = sharedSpace.id;
+      await userRepository.save(user);
+    }
+  }
 }
 
 function fixtureCounts(

@@ -15,9 +15,7 @@ if (import.meta.hot) import.meta.hot.dispose(disposeAppearance);
 
 const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
-// Public invitation previews are available before authentication and therefore
-// need a small application-level query cache outside the authenticated scope.
-const publicQueryClient = new QueryClient();
+const queryClient = new QueryClient();
 
 if (!publishableKey) {
   throw new Error(
@@ -27,7 +25,7 @@ if (!publishableKey) {
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <QueryClientProvider client={publicQueryClient}>
+    <QueryClientProvider client={queryClient}>
       <ClerkProvider publishableKey={publishableKey}>
         <ClerkSessionProvider>
           <BrowserRouter>

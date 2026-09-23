@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { InjectEntityManager } from '@nestjs/typeorm';
 import { In, type EntityManager } from 'typeorm';
 
-import { InvitationEntity } from '../../database/entities/invitation.entity';
 import { SpaceEntity } from '../../database/entities/space.entity';
 import { SpaceMembershipEntity } from '../../database/entities/space-membership.entity';
 import { UserEntity } from '../../database/entities/user.entity';
@@ -139,8 +138,6 @@ async function deleteIdentityInTransaction(
   deletedUser.email = `deleted-user-${deletedUser.id}@invalid.local`;
   deletedUser.clerkUserId = `deleted-user-${deletedUser.id}`;
 
-  // The User locks prevent invitation acceptance from adding a new active
-  // membership between the initial read and this fresh read.
   const currentState = await loadIdentityMembershipState(entityManager, userId);
   const { memberships, spacesById, activeSharedSpaceIds, allMemberships } =
     currentState;
@@ -196,17 +193,6 @@ async function deleteIdentityInTransaction(
       });
     }
   }
-
-  await entityManager
-    .getRepository(InvitationEntity)
-    .createQueryBuilder()
-    .update(InvitationEntity)
-    .set({ status: 'canceled' })
-    .where('status = :status', { status: 'pending' })
-    .andWhere('(sender_user_id = :userId OR recipient_user_id = :userId)', {
-      userId,
-    })
-    .execute();
 
   return { deletedUserId: userId, archivedSpaces };
 }

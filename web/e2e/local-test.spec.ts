@@ -130,12 +130,15 @@ test("provisions private Personal Spaces and denies cross-User Space reads", asy
     status?: unknown;
     accessLevel?: unknown;
   }[];
-  expect(primarySpaces).toHaveLength(1);
-  expect(primarySpaces[0]).toMatchObject({
+  const primaryPersonalSpace = primarySpaces.find(
+    (space) => space.kind === "personal",
+  );
+  expect(primaryPersonalSpace).toMatchObject({
     kind: "personal",
     status: "active",
     accessLevel: "write",
   });
+  expect(primarySpaces.some((space) => space.kind === "shared")).toBe(true);
 
   const secondarySession = await issueSession(
     request,
@@ -156,11 +159,15 @@ test("provisions private Personal Spaces and denies cross-User Space reads", asy
   const secondarySpaces = (await secondarySpacesResponse.json()) as {
     id?: unknown;
   }[];
-  expect(secondarySpaces).toHaveLength(1);
-  expect(secondarySpaces[0].id).not.toBe(primarySpaces[0].id);
+  const secondaryPersonalSpace = secondarySpaces.find(
+    (space) => space.kind === "personal",
+  );
+  expect(secondaryPersonalSpace).toBeDefined();
+  expect(secondaryPersonalSpace?.id).not.toBe(primaryPersonalSpace?.id);
+  expect(secondarySpaces.some((space) => space.kind === "shared")).toBe(true);
 
   const crossUserRead = await request.get(
-    `${apiBaseUrl}/api/v1/users/me/spaces/${String(primarySpaces[0].id)}`,
+    `${apiBaseUrl}/api/v1/users/me/spaces/${String(primaryPersonalSpace?.id)}`,
     { headers: authorizationHeaders(secondarySession.token) },
   );
   expect(crossUserRead.status()).toBe(404);
@@ -448,7 +455,7 @@ test("proves ownership isolation through authenticated API requests", async ({
   ).toBe(true);
 });
 
-test("completes the two-member Shared Space journey in independent browser contexts", async ({
+test("completes the two-member Shared Space financial journey from the local fixture", async ({
   page,
   browser,
   request,
@@ -476,31 +483,6 @@ test("completes the two-member Shared Space journey in independent browser conte
       primaryToken,
       "secondary",
     );
-    const invitation = await request.post(
-      `${apiBaseUrl}/api/v1/users/me/invitations`,
-      {
-        headers: {
-          ...authorizationHeaders(primaryToken),
-          "Content-Type": "application/json",
-        },
-        data: { email: "local-test-companion@example.invalid" },
-      },
-    );
-    expect(invitation.status()).toBe(201);
-    const invitationBody = (await invitation.json()) as { id?: unknown };
-    const invitationId = readStringId(invitationBody);
-
-    await secondaryPage.reload();
-    await expect(
-      secondaryPage.getByRole("button", { name: "Accept invitation" }),
-    ).toBeVisible();
-    await secondaryPage
-      .getByRole("button", { name: "Accept invitation" })
-      .click();
-    await expect(
-      secondaryPage.getByRole("button", { name: "Accept invitation" }),
-    ).toHaveCount(0);
-
     const primarySpaces = await browserApi(
       page,
       apiBaseUrl,
@@ -1031,11 +1013,23 @@ test("completes the two-member Shared Space journey in independent browser conte
       secondaryPage.getByRole("heading", { name: "Your spending" }),
     ).toBeVisible();
 
-    expect(invitationId).toMatch(/^\d+$/u);
   } finally {
     await secondaryContext.close();
   }
 });
+
+test(
+  "shows that new Shared Space creation is temporarily unavailable",
+  async ({ page }) => {
+    await page.goto("/sharing");
+    await expect(
+      page.getByRole("heading", {
+        name: "Shared Space creation is temporarily unavailable",
+      }),
+    ).toBeVisible();
+    await expect(page.getByLabel("Recipient email")).toHaveCount(0);
+  },
+);
 
 async function issueSession(
   request: APIRequestContext,

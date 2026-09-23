@@ -62,8 +62,6 @@ describe('OpenAPI document factory', () => {
     expect(routes).toEqual(
       [
         'GET /health',
-        `GET ${apiRoot}/invitations/{token}`,
-        `POST ${apiRoot}/invitations/{token}/decline`,
         `DELETE ${apiRoot}/users/me`,
         `GET ${apiRoot}/users/me`,
         `GET ${apiRoot}/users/me/notifications`,
@@ -80,13 +78,6 @@ describe('OpenAPI document factory', () => {
         `GET ${apiRoot}/users/me/category-rules`,
         `POST ${apiRoot}/users/me/category-rules`,
         `DELETE ${apiRoot}/users/me/category-rules/{ruleId}`,
-        `DELETE ${apiRoot}/users/me/invitations/{invitationId}`,
-        `GET ${apiRoot}/users/me/invitations`,
-        `POST ${apiRoot}/users/me/invitations`,
-        `POST ${apiRoot}/users/me/invitations/{invitationId}/decline`,
-        `POST ${apiRoot}/users/me/invitations/{invitationId}/accept`,
-        `POST ${apiRoot}/users/me/invitations/{invitationId}/resend`,
-        `POST ${apiRoot}/users/me/invitations/{invitationId}/retry`,
         `GET ${apiRoot}/users/me/category-rules/{ruleId}`,
         `PATCH ${apiRoot}/users/me/category-rules/{ruleId}`,
         `PUT ${apiRoot}/users/me/categories/{categoryId}/rules`,

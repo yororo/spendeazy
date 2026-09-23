@@ -590,6 +590,5 @@ function testConfig(url: string | undefined): AppConfig {
     clerkJwtKey: undefined,
     clerkSecretKey: undefined,
     clerkAuthorizedParties: [],
-    invitationWebBaseUrl: 'http://127.0.0.1:4173',
   };
 }

@@ -14,11 +14,9 @@ Read these files for exact columns, lengths, constraints, and transport validati
 
 | Table | Purpose and relationships |
 | --- | --- |
-| `users` | Local User linked to a unique Clerk identity; email uniqueness is case-insensitive. The optional active Shared Space reference is reserved for the shared-membership migration. |
-| `spaces` | Personal or Shared financial context with active/archived lifecycle. Personal Spaces have one User as their private owner; Shared Space creation remains behind later invitation work. |
+| `users` | Local User linked to a unique Clerk identity; email uniqueness is case-insensitive. The optional active Shared Space reference supports lifecycle cleanup for active Shared Spaces. |
+| `spaces` | Personal or Shared financial context with active/archived lifecycle. Personal Spaces have one User as their private owner; Shared Space creation and joining remain unavailable while Invite Codes replace email invitations. |
 | `space_memberships` | User access to a Space, with `read` or `write` access. The Personal Space migration creates one writable membership per User. |
-| `invitations` | Rotating, hashed-link invitations sent by a User, with pending lifecycle, seven-day expiry, recipient association, and delivery status. Pending invitations do not create memberships. |
-| `invitation_delivery_attempts` | Append-only sender-scoped email delivery attempts used to enforce resend cooldowns and the five-email daily quota. |
 | `categories` | Space-owned classifications with optional description and named color, plus active/inactive status. Names are unique per Space. |
 | `budgets` | At most one monthly or yearly Budget per Category; ownership derives through the Category. |
 | `statement_imports` | Space-owned Committed Statement Import provenance, including provider/account-type metadata and a file hash unique per Space. The `(id, space_id)` key is the target of the imported Transaction provenance constraint. `imported_by_user_id` preserves actor attribution. |
@@ -30,7 +28,7 @@ Migration `1750000000000-introduce-personal-spaces` creates a Personal Space and
 
 Migration `1850000000000-retain-deleted-transactions` adds nullable `transactions.deleted_at`, an index for retained-history pages, and the `deleted` Transaction activity type. Deleted rows remain available to authorized Space history and activity reads while active lists and spending aggregates exclude them.
 
-The reusable Space authorization boundary resolves accessible memberships from the authenticated local User; a client-supplied Space identifier is never an ownership grant. Read access and writable membership are represented separately so archived read-only history can be supported without exposing Shared Space creation yet.
+The reusable Space authorization boundary resolves accessible memberships from the authenticated local User; a client-supplied Space identifier is never an ownership grant. Read access and writable membership are represented separately so archived read-only history can be supported while Shared Space creation and joining are unavailable.
 
 Transaction creation, edit, and deletion activity are written in the same persistence transaction as the corresponding manual or imported Transaction mutation. Active lists and spending summaries filter `deleted_at IS NULL`; a retained-history read explicitly selects deleted rows. Activity reads are filtered by both Space and Transaction identifier. A missing activity row means the Transaction predates detailed history rollout; it does not change immutable `added_by_user_id` or imported provenance.
 
@@ -40,7 +38,7 @@ Account in the web is derived from import provider/account-type metadata, or Cas
 
 IDs use database-generated `BIGINT` identities and are represented as strings in application records. Monetary amounts use `NUMERIC(15,2)` and normalized decimal strings across the API. Expenses and Budgets are positive and single-currency. Purchase/statement dates are date-only; timestamps are UTC `timestamptz` values.
 
-Category deactivation preserves historical relationships and spending. Category Color is a nullable named palette identifier; the web resolves a stable fallback from Category ID for legacy/unselected colors. Renaming or deactivation retains the saved color. Default Categories are copied during Personal Space provisioning, not synchronized continuously from the catalog. Shared Space defaulting is reserved for the Shared Space acceptance migration.
+Category deactivation preserves historical relationships and spending. Category Color is a nullable named palette identifier; the web resolves a stable fallback from Category ID for legacy/unselected colors. Renaming or deactivation retains the saved color. Default Categories are copied during Personal Space provisioning, not synchronized continuously from the catalog. Shared Space defaulting is reserved for the future Invite Code membership flow.
 
 Actual foreign-key delete behavior is defined in migrations: User references restrict deletion; Category deletion cascades to Budgets and Rules and clears only a Transaction's `category_id`; imported Transactions restrict deletion of their provenance and require `(statement_import_id, space_id)` to match `(id, space_id)` on the Committed Statement Import. These database behaviors do not introduce a product workflow for physical Category or User deletion.
 

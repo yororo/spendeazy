@@ -23,15 +23,6 @@ type ApiErrorCode =
   | "USER_NOT_PROVISIONED"
   | "SPACE_NOT_FOUND"
   | "SPACE_NOT_WRITABLE"
-  | "INVITATION_NOT_FOUND"
-  | "INVITATION_ALREADY_PENDING"
-  | "INVITATION_RATE_LIMITED"
-  | "INVITATION_DAILY_LIMIT_REACHED"
-  | "INVITATION_SELF"
-  | "INVITATION_INELIGIBLE"
-  | "INVITATION_EXPIRED"
-  | "INVITATION_CANCELED"
-  | "INVITATION_DECLINED"
   | "CONFLICT"
   | "STALE_EDIT"
   | "RESOURCE_NOT_FOUND"
@@ -132,28 +123,6 @@ interface ApiClient {
   delete<T>(
     path: string,
     options?: ApiRequestOptionsWithoutBody,
-  ): Promise<T | undefined>;
-}
-
-type PublicApiRequestOptions = Omit<ApiRequestOptions, "replayAfterProvisioning">;
-type PublicApiRequestOptionsWithoutBody = Omit<
-  PublicApiRequestOptions,
-  "body" | "method"
->;
-
-interface PublicApiClient {
-  request<T>(
-    path: string,
-    options?: PublicApiRequestOptions,
-  ): Promise<T | undefined>;
-  get<T>(
-    path: string,
-    options?: PublicApiRequestOptionsWithoutBody,
-  ): Promise<T | undefined>;
-  post<T>(
-    path: string,
-    body: unknown,
-    options?: PublicApiRequestOptionsWithoutBody,
   ): Promise<T | undefined>;
 }
 
@@ -327,25 +296,6 @@ function buildUserScopedUrl(config: ApiConfig, path: string): string {
     `${SELF_SCOPED_API_PATH}${relativePath}`,
     config.baseUrl,
   ).toString();
-}
-
-function buildPublicApiUrl(config: ApiConfig, path: string): string {
-  const relativePath =
-    path === "" || path === "/" ? "" : path.startsWith("/") ? path : `/${path}`;
-  if (
-    path.startsWith("//") ||
-    ABSOLUTE_RESOURCE_PATH_PATTERN.test(path) ||
-    path.includes("\\")
-  ) {
-    throw requestPathError();
-  }
-
-  const pathname = relativePath.split(/[?#]/, 1)[0] ?? relativePath;
-  if (hasParentPathSegment(pathname)) {
-    throw requestPathError();
-  }
-
-  return new URL(relativePath, config.baseUrl).toString();
 }
 
 async function getSessionTokenValue(
@@ -776,97 +726,7 @@ function createApiClient(
   };
 }
 
-function createPublicApiClient(
-  config: ApiConfig,
-  fetchImplementation: FetchImplementation = globalThis.fetch,
-): PublicApiClient {
-  async function request<T>(
-    path: string,
-    options: PublicApiRequestOptions = {},
-  ): Promise<T | undefined> {
-    const {
-      body,
-      headers: requestHeaders,
-      expectedStatuses,
-      method: requestMethod = "GET",
-      ...fetchOptions
-    } = options;
-    fetchOptions.signal?.throwIfAborted();
-    const url = buildPublicApiUrl(config, path);
-    const serializedBody =
-      body === undefined ? undefined : JSON.stringify(body);
-    const headers = new Headers(requestHeaders);
-    headers.set("Accept", "application/json");
-    headers.delete("Authorization");
-    headers.delete("Content-Type");
-    if (serializedBody !== undefined) headers.set("Content-Type", "application/json");
-
-    let response: Response;
-    try {
-      response = await fetchImplementation(url, {
-        ...fetchOptions,
-        method: requestMethod,
-        headers,
-        body: serializedBody,
-      });
-    } catch (cause) {
-      if (isAbortError(cause)) throw cause;
-
-      throw new ApiError("The API request could not be completed.", {
-        kind: "network",
-        cause,
-      });
-    }
-
-    let decodedResponse: unknown;
-    try {
-      decodedResponse = await decodeJsonResponse(response);
-    } catch (cause) {
-      if (isAbortError(cause)) throw cause;
-      if (response.status === 503) throw createServiceUnavailableError(cause);
-      throw cause;
-    }
-
-    if (!response.ok) {
-      if (!isApiErrorEnvelope(decodedResponse)) {
-        if (response.status === 503) throw createServiceUnavailableError();
-
-        throw new ApiError("The API returned a malformed error response.", {
-          kind: "malformed-response",
-          status: response.status,
-        });
-      }
-
-      throw new ApiError(decodedResponse.error.message, {
-        kind: "http",
-        status: response.status,
-        code: decodedResponse.error.code,
-        details: decodedResponse.error.details,
-      });
-    }
-
-    if (
-      expectedStatuses &&
-      !expectedStatuses.includes(response.status)
-    ) {
-      throw new ApiError("The API returned an unexpected response status.", {
-        kind: "http",
-        status: response.status,
-      });
-    }
-
-    return decodedResponse as T | undefined;
-  }
-
-  return {
-    request,
-    get: (path, options) => request(path, { ...options, method: "GET" }),
-    post: (path, body, options) =>
-      request(path, { ...options, body, method: "POST" }),
-  };
-}
-
-export { ApiError, createApiClient, createPublicApiClient, isAbortError };
+export { ApiError, createApiClient, isAbortError };
 export type {
   ApiClient,
   ApiGetClient,
@@ -879,7 +739,4 @@ export type {
   ApiRequestOptionsWithoutBody,
   ApiTokenOptions,
   ApiTokenProvider,
-  PublicApiClient,
-  PublicApiRequestOptions,
-  PublicApiRequestOptionsWithoutBody,
 };

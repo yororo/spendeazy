@@ -8,8 +8,6 @@ import { TransactionEntity } from './entities/transaction.entity';
 import { UserEntity } from './entities/user.entity';
 import { SpaceEntity } from './entities/space.entity';
 import { SpaceMembershipEntity } from './entities/space-membership.entity';
-import { InvitationEntity } from './entities/invitation.entity';
-import { InvitationDeliveryAttemptEntity } from './entities/invitation-delivery-attempt.entity';
 import { TransactionActivityEntity } from './entities/transaction-activity.entity';
 import { SpaceNotificationEntity } from './entities/space-notification.entity';
 import { CreateExpenseTrackerSchema1710000000000 } from './migrations/1710000000000-create-expense-tracker-schema';
@@ -31,6 +29,7 @@ import { RecordInvitationAcceptance1860000000000 } from './migrations/1860000000
 import { ArchiveSharedSpaces1870000000000 } from './migrations/1870000000000-archive-shared-spaces';
 import { EnforceTransactionStatementImportSpace1880000000000 } from './migrations/1880000000000-enforce-transaction-statement-import-space';
 import { SanitizeEmailDeliveryFailures1890000000000 } from './migrations/1890000000000-sanitize-email-delivery-failures';
+import { RetireEmailInvitations1900000000000 } from './migrations/1900000000000-retire-email-invitations';
 
 export const DATABASE_MIGRATIONS = [
   CreateExpenseTrackerSchema1710000000000,
@@ -52,6 +51,7 @@ export const DATABASE_MIGRATIONS = [
   ArchiveSharedSpaces1870000000000,
   EnforceTransactionStatementImportSpace1880000000000,
   SanitizeEmailDeliveryFailures1890000000000,
+  RetireEmailInvitations1900000000000,
 ];
 
 export const DATABASE_ENTITIES = [
@@ -63,8 +63,6 @@ export const DATABASE_ENTITIES = [
   CategoryRuleEntity,
   SpaceEntity,
   SpaceMembershipEntity,
-  InvitationEntity,
-  InvitationDeliveryAttemptEntity,
   TransactionActivityEntity,
   SpaceNotificationEntity,
 ];

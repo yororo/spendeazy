@@ -24,13 +24,13 @@ describe('public documentation routes', () => {
     );
   });
 
-  it('recognizes invitation previews and confirmed declines without opening other API routes', () => {
+  it('does not make retired invitation links public', () => {
     const token = 'a'.repeat(43);
     expect(
       isPublicRoute(
         request({ method: 'GET', path: `/api/v1/invitations/${token}` }),
       ),
-    ).toBe(true);
+    ).toBe(false);
     expect(
       isPublicRoute(
         request({
@@ -38,7 +38,7 @@ describe('public documentation routes', () => {
           path: `/api/v1/invitations/${token}/decline`,
         }),
       ),
-    ).toBe(true);
+    ).toBe(false);
     expect(
       isPublicRoute(
         request({ method: 'POST', path: `/api/v1/invitations/${token}` }),

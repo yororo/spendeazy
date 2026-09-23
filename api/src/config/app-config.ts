@@ -34,9 +34,6 @@ export interface AppConfig {
   clerkJwtKey: string | undefined;
   clerkSecretKey: string | undefined;
   clerkAuthorizedParties: string[];
-  invitationDeliveryUrl?: string;
-  invitationDeliveryApiKey?: string;
-  invitationWebBaseUrl?: string;
   spaceNotificationDeliveryUrl?: string;
   spaceNotificationDeliveryApiKey?: string;
 }
@@ -52,17 +49,6 @@ export function loadAppConfig(
   const clerkSecretKey = readClerkSecretKey(processEnv.CLERK_SECRET_KEY);
   const clerkAuthorizedParties = readClerkAuthorizedParties(
     processEnv.CLERK_AUTHORIZED_PARTIES,
-  );
-  const invitationDeliveryUrl = readOptionalHttpUrl(
-    processEnv.INVITATION_DELIVERY_URL,
-    'INVITATION_DELIVERY_URL',
-  );
-  const invitationWebBaseUrl = readOptionalHttpUrl(
-    processEnv.INVITATION_WEB_BASE_URL,
-    'INVITATION_WEB_BASE_URL',
-  );
-  const invitationDeliveryApiKey = readOptionalSecret(
-    processEnv.INVITATION_DELIVERY_API_KEY,
   );
   const spaceNotificationDeliveryUrl = readOptionalHttpUrl(
     processEnv.SPACE_NOTIFICATION_DELIVERY_URL,
@@ -91,9 +77,6 @@ export function loadAppConfig(
     clerkJwtKey,
     clerkSecretKey,
     clerkAuthorizedParties,
-    ...(invitationDeliveryUrl ? { invitationDeliveryUrl } : {}),
-    ...(invitationDeliveryApiKey ? { invitationDeliveryApiKey } : {}),
-    ...(invitationWebBaseUrl ? { invitationWebBaseUrl } : {}),
     ...(spaceNotificationDeliveryUrl ? { spaceNotificationDeliveryUrl } : {}),
     ...(spaceNotificationDeliveryApiKey
       ? { spaceNotificationDeliveryApiKey }

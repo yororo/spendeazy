@@ -230,21 +230,6 @@ const OPERATION_EXPECTATIONS = [
     },
   },
   {
-    operationId: 'Invitations_accept',
-    tag: 'Invitations',
-    pathParameter: 'invitationId',
-    bodyResponses: [{ status: '200', schemaRef: 'SpaceResponseDto' }],
-    errorResponses: {
-      '401': 'UnauthenticatedError',
-      '403': 'UserNotProvisionedError',
-      '500': 'InternalError',
-      '404': 'NotFoundError',
-      '409': 'ConflictError',
-      '503': 'ServiceUnavailableError',
-    },
-    explicitBearerAuth: true,
-  },
-  {
     operationId: 'Categories_createCategory',
     tag: 'Categories',
     requestSchemaRef: 'CreateCategoryDto',
@@ -1146,28 +1131,6 @@ describe('complete generated OpenAPI contract', () => {
         });
       }
     }
-  });
-
-  it('documents Shared Space acceptance atomicity and resulting boundaries', () => {
-    const operation = getOperation(document, {
-      operationId: 'Invitations_accept',
-      tag: 'Invitations',
-      pathParameter: 'invitationId',
-      bodyResponses: [],
-      errorResponses: {},
-    });
-
-    expect(operation.description).toContain('database locks');
-    expect(operation.description).toContain('exactly those two equal members');
-    expect(operation.description).toContain(
-      'all other pending invitations involving either member',
-    );
-    expect(operation.description).toContain(
-      'pending invitations never reserve membership',
-    );
-    expect(operation.description).toContain(
-      'Repeating acceptance returns the same authorized Shared Space',
-    );
   });
 
   it('keeps request and public response schemas explicit, closed, and free of internal fields', () => {

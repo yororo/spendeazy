@@ -13,7 +13,10 @@ import { ProvisionedUserGuard } from '../src/authentication/provisioned-user.gua
 import { configureApp } from '../src/bootstrap';
 import { APP_CONFIG, type AppConfig } from '../src/config/app-config';
 import { InvitationsService } from '../src/invitations/application/invitations.service';
-import { InvitationCodeUnavailableError } from '../src/invitations/application/invitation-errors';
+import {
+  InvitationCodeRateLimitedError,
+  InvitationCodeUnavailableError,
+} from '../src/invitations/application/invitation-errors';
 import { InvitationsController } from '../src/invitations/presentation/invitations.controller';
 import { USER_STORE } from '../src/users/application/user-store';
 
@@ -154,6 +157,23 @@ describe('authenticated Invite Code routes', () => {
           'Invite Code is unavailable. Ask the sender for a current code.',
         details: [],
       },
+    });
+  });
+
+  it('returns a rate-limit response without looking up the submitted code', async () => {
+    invitationsService.claimForUser.mockRejectedValueOnce(
+      new InvitationCodeRateLimitedError(),
+    );
+
+    const response = await request(application.getHttpServer() as Server)
+      .post('/api/v1/users/me/invitations/claims')
+      .set('Authorization', 'Bearer token-a')
+      .set('Accept', 'application/json')
+      .send({ code: '7K3M-2Q8R-5T6V-W9X2-C4D7-H8J3' });
+
+    expect(response.status).toBe(429);
+    expect(response.body.error).toMatchObject({
+      code: 'INVITATION_CODE_RATE_LIMITED',
     });
   });
 

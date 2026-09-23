@@ -184,6 +184,7 @@ describe('InvitationsService', () => {
     ['an unknown code', null, false],
     ['an expired code', invitationRecord({ expiresAt: new Date(now) }), true],
     ['a revoked code', invitationRecord({ status: 'revoked' }), false],
+    ['a consumed code', invitationRecord({ status: 'accepted' }), false],
   ])(
     'returns the same unavailable response for %s',
     async (_description, invitation, shouldUseExpiry) => {

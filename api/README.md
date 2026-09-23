@@ -24,7 +24,7 @@ npm run migration:run
 
 Set `CLERK_JWT_KEY` to the PEM public key from Clerk, `CLERK_SECRET_KEY` to the Clerk backend secret, and `CLERK_AUTHORIZED_PARTIES` to the comma-separated frontend origins that may issue session tokens. Production startup also requires `CORS_ORIGINS` and the Clerk settings.
 
-Set `INVITATION_CODE_ENCRYPTION_KEY` to a 32-byte hexadecimal secret in every production API environment. It protects the reversible sender-only Invite Code display value while the database stores a separate HMAC lookup value. Generate one with `node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"` and keep it outside source control.
+Set `INVITATION_CODE_ENCRYPTION_KEY` to a 32-byte hexadecimal secret in every database-backed API environment. It protects the reversible sender-only Invite Code display value while the database stores a separate HMAC lookup value. Generate one with `node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"` and keep it outside source control.
 
 Shared Space archive notifications use a separate email boundary. Set `SPACE_NOTIFICATION_DELIVERY_URL` (and, when required, `SPACE_NOTIFICATION_DELIVERY_API_KEY`) to connect its provider. If it is unset or unavailable, the in-app notification remains stored with a retryable failed email status.
 

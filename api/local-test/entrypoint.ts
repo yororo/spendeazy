@@ -5,7 +5,6 @@ import { CLERK_TOKEN_VERIFIER } from '../src/authentication/authentication';
 import { CLERK_PROFILE_SERVICE } from '../src/authentication/clerk-profile-service';
 import { configureApp } from '../src/bootstrap';
 import { createAppModule } from '../src/app.module';
-import { loadAppConfig } from '../src/config/app-config';
 import { setupOpenApi } from '../src/docs/openapi-document.factory';
 import { OpenApiDocumentService } from '../src/docs/openapi-document.service';
 import {
@@ -19,6 +18,7 @@ import {
 } from './synthetic-authentication';
 import { validateLocalTestDatabaseTarget } from './database-target';
 import { createLocalTestClock } from './clock';
+import { loadLocalTestAppConfig } from './app-config';
 import { LocalTestSessionModule } from './session-control';
 
 @Module({})
@@ -32,7 +32,7 @@ async function bootstrap(): Promise<void> {
     throw new Error('The local test session secret is required');
   }
 
-  const config = loadAppConfig();
+  const config = loadLocalTestAppConfig();
   if (config.environment !== 'test') {
     throw new Error('The local test API requires NODE_ENV=test');
   }

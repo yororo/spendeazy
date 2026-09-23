@@ -77,6 +77,12 @@ export function loadAppConfig(
     );
   }
 
+  if (databaseUrl && !invitationCodeEncryptionKey) {
+    throw new Error(
+      'Missing required configuration for database-backed features: INVITATION_CODE_ENCRYPTION_KEY',
+    );
+  }
+
   return {
     environment: currentEnvironment,
     port,

@@ -156,6 +156,17 @@ describe('loadAppConfig', () => {
     );
   });
 
+  it('requires Invite Code protection whenever database-backed features are enabled', () => {
+    expect(() =>
+      loadAppConfig({
+        NODE_ENV: 'development',
+        DATABASE_URL: 'postgresql://localhost/expenses',
+      }),
+    ).toThrow(
+      'Missing required configuration for database-backed features: INVITATION_CODE_ENCRYPTION_KEY',
+    );
+  });
+
   it('uses safe local defaults outside production', () => {
     expect(loadAppConfig({ NODE_ENV: 'test' })).toEqual({
       environment: 'test',

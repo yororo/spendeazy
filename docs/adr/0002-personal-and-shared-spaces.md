@@ -1,5 +1,7 @@
 # Separate financial ownership into Personal and Shared Spaces
 
+The email invitation and archival email notification decisions in this ADR are superseded by [Invite Codes for Shared Space Invitations](0003-invite-codes-for-shared-space-invitations.md). The remaining Space ownership and lifecycle decisions still apply.
+
 Accepted design, implemented through the financial ownership migration completed on 2026-09-21. The shared glossary records the agreed vocabulary.
 
 The implementation specification, including confirmed testing boundaries, is tracked in [GitHub issue #14](https://github.com/yororo/spendeazy/issues/14).

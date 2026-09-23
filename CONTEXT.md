@@ -25,8 +25,12 @@ A former Shared Space preserved as read-only history for both members after eith
 _Avoid_: Deleted Space, abandoned account
 
 **Shared Space Invitation**:
-An invitation sent to an email address to form a Shared Space, including when its recipient has not yet registered with Spendeazy. Acceptance requires registration and a signed-in User with the invited email verified.
+A pending offer from one User to form a Shared Space with another eligible User. A User must enter its Invite Code and explicitly accept to form the Shared Space.
 _Avoid_: Account invitation, membership link
+
+**Invite Code**:
+A shareable code that identifies a Shared Space Invitation. A signed-in User who has the code can review the invitation and choose whether to join.
+_Avoid_: Email invitation link, invitation token
 
 **Added By**:
 The User who originally recorded a Transaction manually or confirmed it through Statement Import; this attribution remains unchanged by later edits and does not identify who paid.

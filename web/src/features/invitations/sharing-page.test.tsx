@@ -71,8 +71,6 @@ const pageState = vi.hoisted(() => ({
 }));
 
 vi.mock('@/shared/api', () => ({
-  normalizeEmailDeliveryFailure: (error: string | null) =>
-    error === null ? null : 'Email delivery failed. Please retry.',
   useAccessibleSpacesQuery: () => pageState.spacesQuery,
   useLeaveSharedSpaceMutation: () => pageState.leaveMutation,
 }));
@@ -89,7 +87,6 @@ vi.mock('./invitation-queries', () => ({
 
 vi.mock('./space-notification-queries', () => ({
   useMarkSpaceNotificationReadMutation: () => basicMutation(),
-  useRetrySpaceNotificationMutation: () => basicMutation(),
   useSpaceNotificationsQuery: () => pageState.notificationsQuery,
 }));
 
@@ -389,7 +386,7 @@ describe('SharingPage', () => {
     expect(screen.getByLabelText('Invite Code')).toBeTruthy();
   });
 
-  it('keeps archive notification delivery and read controls available', () => {
+  it('shows archive notifications with read controls and no email controls', () => {
     pageState.notificationsQuery.data = [
       {
         id: '45',
@@ -398,9 +395,6 @@ describe('SharingPage', () => {
         title: 'Shared Space archived',
         message: 'Ada ended sharing.',
         readAt: null,
-        emailDeliveryStatus: 'failed',
-        emailDeliveryError:
-          'provider response https://mailer.example.test/archive body=provider-secret',
         createdAt: '2026-09-21T00:00:00.000Z',
       },
     ];
@@ -411,11 +405,9 @@ describe('SharingPage', () => {
       </MemoryRouter>,
     );
 
-    expect(
-      screen.getByText('Email delivery failed. Please retry.'),
-    ).toBeTruthy();
-    expect(screen.queryByText(/provider-secret/u)).toBeNull();
-    expect(screen.getByRole('button', { name: 'Retry email' })).toBeTruthy();
+    expect(screen.getByText('Ada ended sharing.')).toBeTruthy();
+    expect(screen.queryByText(/Email/u)).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Retry email' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Mark read' })).toBeTruthy();
   });
 

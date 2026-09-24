@@ -6,7 +6,6 @@ import { queryPolicy } from '@/shared/query';
 import {
   getSpaceNotifications,
   markSpaceNotificationRead,
-  retrySpaceNotification,
 } from './space-notification';
 
 const SPACE_NOTIFICATIONS_QUERY_KEY = ['space-notifications'] as const;
@@ -36,13 +35,6 @@ function useSpaceNotificationMutation(
   });
 }
 
-function useRetrySpaceNotificationMutation() {
-  const apiClient = useApiClient();
-  return useSpaceNotificationMutation((notificationId) =>
-    retrySpaceNotification(apiClient, notificationId),
-  );
-}
-
 function useMarkSpaceNotificationReadMutation() {
   const apiClient = useApiClient();
   return useSpaceNotificationMutation((notificationId) =>
@@ -53,6 +45,5 @@ function useMarkSpaceNotificationReadMutation() {
 export {
   SPACE_NOTIFICATIONS_QUERY_KEY,
   useMarkSpaceNotificationReadMutation,
-  useRetrySpaceNotificationMutation,
   useSpaceNotificationsQuery,
 };

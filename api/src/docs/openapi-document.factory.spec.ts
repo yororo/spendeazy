@@ -67,7 +67,6 @@ describe('OpenAPI document factory', () => {
         `GET ${apiRoot}/users/me/notifications`,
         `PUT ${apiRoot}/users/me`,
         `POST ${apiRoot}/users/me/notifications/{notificationId}/read`,
-        `POST ${apiRoot}/users/me/notifications/{notificationId}/retry`,
         `GET ${apiRoot}/users/me/categories`,
         `POST ${apiRoot}/users/me/categories`,
         `GET ${apiRoot}/users/me/categories/{categoryId}`,

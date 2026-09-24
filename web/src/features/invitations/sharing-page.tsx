@@ -34,7 +34,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import {
-  normalizeEmailDeliveryFailure,
   useAccessibleSpacesQuery,
   useLeaveSharedSpaceMutation,
 } from '@/shared/api';
@@ -55,7 +54,6 @@ import type {
 import type { SpaceNotification } from './space-notification';
 import {
   useMarkSpaceNotificationReadMutation,
-  useRetrySpaceNotificationMutation,
   useSpaceNotificationsQuery,
 } from './space-notification-queries';
 
@@ -550,7 +548,6 @@ function NotificationsPanel({
 }: {
   readonly query: ReturnType<typeof useSpaceNotificationsQuery>;
 }) {
-  const retryMutation = useRetrySpaceNotificationMutation();
   const readMutation = useMarkSpaceNotificationReadMutation();
 
   if (query.isPending) return null;
@@ -580,9 +577,8 @@ function NotificationsPanel({
           <NotificationRow
             key={notification.id}
             notification={notification}
-            onRetry={() => retryMutation.mutate(notification.id)}
             onRead={() => readMutation.mutate(notification.id)}
-            disabled={retryMutation.isPending || readMutation.isPending}
+            disabled={readMutation.isPending}
           />
         ))}
       </CardContent>
@@ -592,44 +588,18 @@ function NotificationsPanel({
 
 function NotificationRow({
   notification,
-  onRetry,
   onRead,
   disabled,
 }: {
   readonly notification: SpaceNotification;
-  readonly onRetry: () => void;
   readonly onRead: () => void;
   readonly disabled: boolean;
 }) {
-  const emailDeliveryError = normalizeEmailDeliveryFailure(
-    notification.emailDeliveryError,
-  );
-
   return (
     <div className="border border-border p-3 text-sm">
       <p className="font-semibold">{notification.title}</p>
       <p className="mt-1 text-muted-foreground">{notification.message}</p>
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <span className="text-xs text-muted-foreground">
-          Email: {notification.emailDeliveryStatus}
-        </span>
-        {emailDeliveryError && (
-          <Alert variant="destructive" className="basis-full mt-1">
-            <AlertTitle>Could not deliver this email</AlertTitle>
-            <AlertDescription>{emailDeliveryError}</AlertDescription>
-          </Alert>
-        )}
-        {notification.emailDeliveryStatus === 'failed' && (
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={onRetry}
-            disabled={disabled}
-          >
-            <RotateCcwIcon aria-hidden="true" /> Retry email
-          </Button>
-        )}
         {!notification.readAt && (
           <Button
             type="button"

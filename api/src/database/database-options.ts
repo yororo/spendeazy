@@ -35,6 +35,7 @@ import { RetireEmailInvitations1900000000000 } from './migrations/1900000000000-
 import { CreateInviteCodeInvitations1910000000000 } from './migrations/1910000000000-create-invite-code-invitations';
 import { CreateInvitationClaims1920000000000 } from './migrations/1920000000000-create-invitation-claims';
 import { RecordInviteCodeAcceptance1930000000000 } from './migrations/1930000000000-record-invite-code-acceptance';
+import { RemoveSpaceNotificationEmailDelivery1940000000000 } from './migrations/1940000000000-remove-space-notification-email-delivery';
 
 export const DATABASE_MIGRATIONS = [
   CreateExpenseTrackerSchema1710000000000,
@@ -60,6 +61,7 @@ export const DATABASE_MIGRATIONS = [
   CreateInviteCodeInvitations1910000000000,
   CreateInvitationClaims1920000000000,
   RecordInviteCodeAcceptance1930000000000,
+  RemoveSpaceNotificationEmailDelivery1940000000000,
 ];
 
 export const DATABASE_ENTITIES = [

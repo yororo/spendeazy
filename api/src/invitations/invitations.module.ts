@@ -34,7 +34,7 @@ export class InvitationsModule {
     if (!databaseIsConfigured) {
       return {
         module: InvitationsModule,
-        imports: [SpacesModule.register(false, options, config)],
+        imports: [SpacesModule.register(false, options)],
         ...(shouldIncludeControllers ? { controllers } : {}),
         providers: shouldIncludeControllers
           ? [{ provide: InvitationsService, useValue: {} }]
@@ -44,7 +44,7 @@ export class InvitationsModule {
 
     return {
       module: InvitationsModule,
-      imports: [SpacesModule.register(true, options, config)],
+      imports: [SpacesModule.register(true, options)],
       ...(shouldIncludeControllers ? { controllers } : {}),
       providers: [
         TypeOrmInvitationStore,

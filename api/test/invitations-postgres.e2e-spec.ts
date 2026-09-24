@@ -622,6 +622,71 @@ describeDatabase('Invite Codes with PostgreSQL', () => {
     });
   });
 
+  it('keeps Shared Space archive notifications in-app with durable read state', async () => {
+    const archiver = createIdentity('archive-archiver');
+    const recipient = createIdentity('archive-recipient');
+    const archiverUserId = await provision(archiver);
+    const recipientUserId = await provision(recipient);
+    const sharedSpace = await database.getRepository(SpaceEntity).save({
+      kind: 'shared',
+      status: 'active',
+      personalOwnerUserId: null,
+    });
+    createdSpaceIds.push(sharedSpace.id);
+    await database.getRepository(SpaceMembershipEntity).save([
+      {
+        spaceId: sharedSpace.id,
+        userId: archiverUserId,
+        accessLevel: 'write',
+      },
+      {
+        spaceId: sharedSpace.id,
+        userId: recipientUserId,
+        accessLevel: 'write',
+      },
+    ]);
+
+    const archived = await http()
+      .post(`/api/v1/users/me/spaces/${sharedSpace.id}/leave`)
+      .set(...authorization(archiver))
+      .send({ confirm: true });
+    expect(archived.status).toBe(204);
+
+    const listed = await http()
+      .get('/api/v1/users/me/notifications')
+      .set(...authorization(recipient));
+    const notifications =
+      responseBody<readonly SpaceNotificationBody[]>(listed);
+    expect(listed.status).toBe(200);
+    expect(notifications).toHaveLength(1);
+    expect(notifications[0]).toMatchObject({
+      spaceId: sharedSpace.id,
+      type: 'shared_space_archived',
+      title: 'Shared Space archived',
+      readAt: null,
+    });
+    expect(notifications[0]?.message).toContain(archiver.name);
+    expect(notifications[0]).not.toHaveProperty('emailDeliveryStatus');
+    expect(notifications[0]).not.toHaveProperty('emailDeliveryError');
+
+    const notificationId = notifications[0]!.id;
+    expect(notificationId).toMatch(/^[1-9]\d*$/u);
+    const markedRead = await http()
+      .post(`/api/v1/users/me/notifications/${notificationId}/read`)
+      .set(...authorization(recipient))
+      .send({});
+    expect(markedRead.status).toBe(200);
+    expect(responseBody<SpaceNotificationBody>(markedRead).readAt).toEqual(
+      expect.any(String),
+    );
+
+    const persisted = await database
+      .getRepository(SpaceNotificationEntity)
+      .findOneBy({ id: notificationId });
+    expect(persisted?.recipientUserId).toBe(recipientUserId);
+    expect(persisted?.readAt).toBeInstanceOf(Date);
+  });
+
   it('joins from a saved claim, initializes only the new Shared Space, and consumes the code', async () => {
     const sender = createIdentity('join-sender');
     const recipient = createIdentity('join-recipient');
@@ -878,6 +943,16 @@ interface SharedSpaceBody {
   readonly status: string;
   readonly accessLevel: string;
   readonly members: readonly { readonly id: string; readonly name: string }[];
+}
+
+interface SpaceNotificationBody {
+  readonly id: string;
+  readonly spaceId: string;
+  readonly type: string;
+  readonly title: string;
+  readonly message: string;
+  readonly readAt: string | null;
+  readonly createdAt: string;
 }
 
 interface ErrorBody {

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   getSpaceNotifications,
-  retrySpaceNotification,
+  markSpaceNotificationRead,
   type SpaceNotification,
 } from './space-notification';
 
@@ -13,31 +13,33 @@ const notification: SpaceNotification = {
   title: 'Shared Space archived',
   message: 'Ada ended sharing.',
   readAt: null,
-  emailDeliveryStatus: 'failed',
-  emailDeliveryError:
-    'provider response https://mailer.example.test/archive body=provider-secret',
   createdAt: '2026-09-22T00:00:00.000Z',
 };
 
 describe('space notification service', () => {
-  it('normalizes provider details in listed delivery failures', async () => {
+  it('accepts the in-app archive notification contract without email fields', async () => {
     const get = vi.fn().mockResolvedValue([notification]);
 
     await expect(getSpaceNotifications({ get })).resolves.toEqual([
-      {
-        ...notification,
-        emailDeliveryError: 'Email delivery failed. Please retry.',
-      },
+      notification,
     ]);
   });
 
-  it('normalizes provider details in retried delivery failures', async () => {
-    const post = vi.fn().mockResolvedValue(notification);
-
-    await expect(retrySpaceNotification({ post }, '30')).resolves.toEqual({
+  it('marks a persisted archive notification as read', async () => {
+    const markedRead = {
       ...notification,
-      emailDeliveryError: 'Email delivery failed. Please retry.',
-    });
+      readAt: '2026-09-22T00:01:00.000Z',
+    };
+    const post = vi.fn().mockResolvedValue(markedRead);
+
+    await expect(markSpaceNotificationRead({ post }, '30')).resolves.toEqual(
+      markedRead,
+    );
+    expect(post).toHaveBeenCalledWith(
+      '/notifications/30/read',
+      {},
+      { expectedStatuses: [200] },
+    );
   });
 
   it.each([

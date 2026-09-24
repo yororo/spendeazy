@@ -88,7 +88,7 @@ describe('loadAppConfig', () => {
     );
   });
 
-  it('ignores retired invitation delivery configuration', () => {
+  it('ignores retired email delivery configuration', () => {
     expect(
       loadAppConfig({
         NODE_ENV: 'test',
@@ -107,8 +107,6 @@ describe('loadAppConfig', () => {
       clerkJwtKey: undefined,
       clerkSecretKey: undefined,
       clerkAuthorizedParties: [],
-      spaceNotificationDeliveryUrl: 'https://mailer.example.test/space-archive',
-      spaceNotificationDeliveryApiKey: 'space-delivery-secret',
     });
   });
 

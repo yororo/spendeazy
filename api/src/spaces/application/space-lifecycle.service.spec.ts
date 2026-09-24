@@ -34,7 +34,7 @@ describe('SpaceLifecycleService', () => {
       spaceId: '20',
       actorUserId: '1',
       actorName: 'Ada Lovelace',
-      recipient: { id: '2', name: 'Grace Hopper', email: 'grace@example.test' },
+      recipient: { id: '2', name: 'Grace Hopper' },
     });
   });
 
@@ -68,7 +68,6 @@ describe('SpaceLifecycleService', () => {
         recipient: {
           id: '2',
           name: 'Grace Hopper',
-          email: 'grace@example.test',
         },
       }),
     );
@@ -81,8 +80,8 @@ function archivedSpace(): ArchivedSpaceRecord {
     actorUserId: '1',
     archivedAt: new Date('2026-09-22T00:00:00.000Z'),
     members: [
-      { id: '1', name: 'Ada Lovelace', email: 'ada@example.test' },
-      { id: '2', name: 'Grace Hopper', email: 'grace@example.test' },
+      { id: '1', name: 'Ada Lovelace' },
+      { id: '2', name: 'Grace Hopper' },
     ],
   };
 }
@@ -101,8 +100,6 @@ function notificationRecord() {
     title: 'Shared Space archived',
     message: 'The Shared Space is now read-only history.',
     readAt: null,
-    emailDeliveryStatus: 'sent' as const,
-    emailDeliveryError: null,
     createdAt: new Date('2026-09-22T00:00:00.000Z'),
   };
 }

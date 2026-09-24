@@ -2,12 +2,10 @@ import {
   ApiError,
   isRecord,
   isUtcDateTime,
-  normalizeEmailDeliveryFailure,
   type ApiClient,
 } from '@/shared/api';
 
 type SpaceNotificationType = 'shared_space_archived';
-type SpaceNotificationDeliveryStatus = 'pending' | 'sent' | 'failed';
 
 interface SpaceNotification {
   readonly id: string;
@@ -16,8 +14,6 @@ interface SpaceNotification {
   readonly title: string;
   readonly message: string;
   readonly readAt: string | null;
-  readonly emailDeliveryStatus: SpaceNotificationDeliveryStatus;
-  readonly emailDeliveryError: string | null;
   readonly createdAt: string;
 }
 
@@ -34,11 +30,6 @@ function isSpaceNotification(value: unknown): value is SpaceNotification {
     typeof value.title === 'string' &&
     typeof value.message === 'string' &&
     (value.readAt === null || isUtcDateTime(value.readAt)) &&
-    (value.emailDeliveryStatus === 'pending' ||
-      value.emailDeliveryStatus === 'sent' ||
-      value.emailDeliveryStatus === 'failed') &&
-    (value.emailDeliveryError === null ||
-      typeof value.emailDeliveryError === 'string') &&
     isUtcDateTime(value.createdAt)
   );
 }
@@ -55,7 +46,7 @@ function requireSpaceNotifications(
   if (!Array.isArray(value) || !value.every(isSpaceNotification)) {
     throw invalidNotificationsError();
   }
-  return value.map(toSafeSpaceNotification);
+  return value;
 }
 
 async function getSpaceNotifications(
@@ -65,35 +56,6 @@ async function getSpaceNotifications(
   return requireSpaceNotifications(
     await apiClient.get<unknown>('/notifications', { signal }),
   );
-}
-
-async function retrySpaceNotification(
-  apiClient: Pick<NotificationClient, 'post'>,
-  notificationId: string,
-): Promise<SpaceNotification> {
-  const response = await apiClient.post<unknown>(
-    `/notifications/${encodeURIComponent(notificationId)}/retry`,
-    {},
-    { expectedStatuses: [200] },
-  );
-  if (!isSpaceNotification(response)) throw invalidNotificationsError();
-  return toSafeSpaceNotification(response);
-}
-
-function toSafeSpaceNotification(
-  notification: SpaceNotification,
-): SpaceNotification {
-  const emailDeliveryError = normalizeEmailDeliveryFailure(
-    notification.emailDeliveryError,
-  );
-  if (emailDeliveryError === notification.emailDeliveryError) {
-    return notification;
-  }
-
-  return {
-    ...notification,
-    emailDeliveryError,
-  };
 }
 
 async function markSpaceNotificationRead(
@@ -114,10 +76,8 @@ export {
   isSpaceNotification,
   markSpaceNotificationRead,
   requireSpaceNotifications,
-  retrySpaceNotification,
 };
 export type {
   SpaceNotification,
-  SpaceNotificationDeliveryStatus,
   SpaceNotificationType,
 };

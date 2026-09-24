@@ -12,9 +12,9 @@ import {
 import type {
   ArchivedSpaceRecord,
   IdentityDeletionResult,
-  SpaceArchiveMemberRecord,
   SpaceLifecycleStore,
 } from '../application/space-lifecycle-store';
+import type { SpaceMemberRecord } from '../application/space-store';
 
 @Injectable()
 export class TypeOrmSpaceLifecycleStore implements SpaceLifecycleStore {
@@ -290,8 +290,8 @@ async function lockSpaces(
     .getMany();
 }
 
-function toArchiveMember(user: UserEntity): SpaceArchiveMemberRecord {
-  return { id: user.id, name: user.name, email: user.email };
+function toArchiveMember(user: UserEntity): SpaceMemberRecord {
+  return { id: user.id, name: user.name };
 }
 
 function compareUsers(first: UserEntity, second: UserEntity): number {

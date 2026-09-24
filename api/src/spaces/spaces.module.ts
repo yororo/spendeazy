@@ -1,7 +1,4 @@
 import { DynamicModule, Module } from '@nestjs/common';
-import type { AppConfig } from '../config/app-config';
-import { EMAIL_DELIVERY_LOGGER } from '../email-delivery/email-delivery-failure';
-import { exceptionLogger } from '../logging/exception-logger';
 import { SpaceAccessService } from './application/space-access.service';
 import {
   SPACE_LIFECYCLE,
@@ -13,13 +10,11 @@ import {
   SPACE_STORE,
 } from './application/space-store';
 import { SPACE_LIFECYCLE_STORE } from './application/space-lifecycle-store';
-import { SPACE_NOTIFICATION_DELIVERY } from './application/space-notification-delivery';
 import { SPACE_NOTIFICATION_STORE } from './application/space-notification';
 import { SpaceNotFoundError } from './application/space-errors';
 import { TypeOrmSpaceStore } from './infrastructure/typeorm-space-store';
 import { TypeOrmSpaceLifecycleStore } from './infrastructure/typeorm-space-lifecycle-store';
 import { TypeOrmSpaceNotificationStore } from './infrastructure/typeorm-space-notification-store';
-import { HttpSpaceNotificationDelivery } from './infrastructure/http-space-notification-delivery';
 import { SpacesController } from './presentation/spaces.controller';
 import { SpaceNotificationsController } from './presentation/space-notifications.controller';
 
@@ -30,7 +25,6 @@ export class SpacesModule {
   static register(
     databaseIsConfigured: boolean,
     options: { includeControllers?: boolean } = {},
-    config?: AppConfig,
   ): DynamicModule {
     const shouldIncludeControllers =
       databaseIsConfigured || options.includeControllers === true;
@@ -91,19 +85,6 @@ export class SpacesModule {
           provide: SPACE_NOTIFICATION_STORE,
           useExisting: TypeOrmSpaceNotificationStore,
         },
-        {
-          provide: 'SPACE_NOTIFICATION_DELIVERY_CONFIG',
-          useValue: {
-            url: config?.spaceNotificationDeliveryUrl,
-            apiKey: config?.spaceNotificationDeliveryApiKey,
-          },
-        },
-        HttpSpaceNotificationDelivery,
-        {
-          provide: SPACE_NOTIFICATION_DELIVERY,
-          useExisting: HttpSpaceNotificationDelivery,
-        },
-        { provide: EMAIL_DELIVERY_LOGGER, useValue: exceptionLogger },
         SpaceNotificationsService,
         SpaceLifecycleService,
         { provide: SPACE_LIFECYCLE, useExisting: SpaceLifecycleService },
@@ -146,7 +127,6 @@ const unconfiguredSpaceLifecycleService = {
 
 const unconfiguredSpaceNotificationsService = {
   listForUser: (): Promise<never[]> => Promise.resolve([]),
-  retryForUser: (): Promise<never> => Promise.reject(new SpaceNotFoundError()),
   markRead: (): Promise<never> => Promise.reject(new SpaceNotFoundError()),
   notifySharedSpaceArchived: (): Promise<never> =>
     Promise.resolve(undefined as never),

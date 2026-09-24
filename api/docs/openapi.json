@@ -1429,51 +1429,6 @@
         ]
       }
     },
-    "/api/v1/users/me/notifications/{notificationId}/retry": {
-      "post": {
-        "operationId": "SpaceNotifications_retryNotification",
-        "parameters": [
-          {
-            "name": "notificationId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "pattern": "^[1-9]\\d*$",
-              "example": "42",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SpaceNotificationResponseDto"
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/UnauthenticatedError"
-          },
-          "403": {
-            "$ref": "#/components/responses/UserNotProvisionedError"
-          },
-          "404": {
-            "$ref": "#/components/responses/NotFoundError"
-          },
-          "500": {
-            "$ref": "#/components/responses/InternalError"
-          }
-        },
-        "summary": "Retry a failed archive notification email.",
-        "tags": [
-          "Notifications"
-        ]
-      }
-    },
     "/api/v1/users/me/notifications/{notificationId}/read": {
       "post": {
         "operationId": "SpaceNotifications_markNotificationRead",
@@ -5277,20 +5232,6 @@
             "nullable": true,
             "format": "date-time"
           },
-          "emailDeliveryStatus": {
-            "type": "string",
-            "enum": [
-              "pending",
-              "sent",
-              "failed"
-            ],
-            "example": "sent"
-          },
-          "emailDeliveryError": {
-            "type": "string",
-            "nullable": true,
-            "description": "Fixed user-safe guidance for a failed email delivery. Provider details are never returned."
-          },
           "createdAt": {
             "type": "string",
             "format": "date-time"
@@ -5302,7 +5243,6 @@
           "type",
           "title",
           "message",
-          "emailDeliveryStatus",
           "createdAt"
         ]
       },

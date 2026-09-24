@@ -7,7 +7,6 @@ import {
 } from 'typeorm';
 
 export type SpaceNotificationType = 'shared_space_archived';
-export type SpaceNotificationDeliveryStatus = 'pending' | 'sent' | 'failed';
 
 @Entity({ name: 'space_notifications' })
 @Index('ix_space_notifications_recipient_created', [
@@ -52,21 +51,6 @@ export class SpaceNotificationEntity {
     name: 'read_at',
   })
   readAt!: Date | null;
-
-  @Column({
-    type: 'varchar',
-    length: 20,
-    name: 'email_delivery_status',
-  })
-  emailDeliveryStatus!: SpaceNotificationDeliveryStatus;
-
-  @Column({
-    type: 'varchar',
-    length: 500,
-    nullable: true,
-    name: 'email_delivery_error',
-  })
-  emailDeliveryError!: string | null;
 
   @CreateDateColumn({ type: 'timestamptz', precision: 3, name: 'created_at' })
   createdAt!: Date;

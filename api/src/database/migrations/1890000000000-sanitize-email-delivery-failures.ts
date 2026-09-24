@@ -1,6 +1,6 @@
 import type { MigrationInterface, QueryRunner } from 'typeorm';
 
-import { SAFE_EMAIL_DELIVERY_FAILURE } from '../../email-delivery/email-delivery-failure';
+const SAFE_EMAIL_DELIVERY_FAILURE = 'Email delivery failed. Please retry.';
 
 export class SanitizeEmailDeliveryFailures1890000000000 implements MigrationInterface {
   name = 'SanitizeEmailDeliveryFailures1890000000000';

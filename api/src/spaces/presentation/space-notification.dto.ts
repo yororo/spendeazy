@@ -43,17 +43,6 @@ export class SpaceNotificationResponseDto {
   @ApiPropertyOptional({ type: String, nullable: true, format: 'date-time' })
   readAt!: string | null;
 
-  @ApiProperty({ enum: ['pending', 'sent', 'failed'], example: 'sent' })
-  emailDeliveryStatus!: SpaceNotificationRecord['emailDeliveryStatus'];
-
-  @ApiPropertyOptional({
-    type: String,
-    nullable: true,
-    description:
-      'Fixed user-safe guidance for a failed email delivery. Provider details are never returned.',
-  })
-  emailDeliveryError!: string | null;
-
   @ApiProperty({ format: 'date-time' })
   createdAt!: string;
 }

@@ -41,28 +41,6 @@ export class SpaceNotificationsController {
     return notifications.map(toSpaceNotificationResponse);
   }
 
-  @Post(':notificationId/retry')
-  @ApiOperation({ summary: 'Retry a failed archive notification email.' })
-  @ApiParam({ name: 'notificationId', type: String, example: '42' })
-  @ApiResponse({ status: HttpStatus.OK, type: SpaceNotificationResponseDto })
-  @ApiStandardErrorResponses(
-    'UnauthenticatedError',
-    'UserNotProvisionedError',
-    'NotFoundError',
-    'InternalError',
-  )
-  async retryNotification(
-    @Req() request: AuthenticatedRequest,
-    @Param() params: SpaceNotificationParamsDto,
-  ): Promise<SpaceNotificationResponseDto> {
-    return toSpaceNotificationResponse(
-      await this.spaceNotificationsService.retryForUser(
-        requireAuthenticatedUserId(request),
-        params.notificationId,
-      ),
-    );
-  }
-
   @Post(':notificationId/read')
   @ApiOperation({ summary: 'Mark an in-app notification as read.' })
   @ApiParam({ name: 'notificationId', type: String, example: '42' })
@@ -97,8 +75,6 @@ function toSpaceNotificationResponse(
     title: notification.title,
     message: notification.message,
     readAt: notification.readAt?.toISOString() ?? null,
-    emailDeliveryStatus: notification.emailDeliveryStatus,
-    emailDeliveryError: notification.emailDeliveryError,
     createdAt: notification.createdAt.toISOString(),
   };
 }

@@ -35,8 +35,6 @@ export interface AppConfig {
   clerkSecretKey: string | undefined;
   clerkAuthorizedParties: string[];
   invitationCodeEncryptionKey?: string;
-  spaceNotificationDeliveryUrl?: string;
-  spaceNotificationDeliveryApiKey?: string;
 }
 
 export function loadAppConfig(
@@ -53,13 +51,6 @@ export function loadAppConfig(
   );
   const invitationCodeEncryptionKey = readInvitationCodeEncryptionKey(
     processEnv.INVITATION_CODE_ENCRYPTION_KEY,
-  );
-  const spaceNotificationDeliveryUrl = readOptionalHttpUrl(
-    processEnv.SPACE_NOTIFICATION_DELIVERY_URL,
-    'SPACE_NOTIFICATION_DELIVERY_URL',
-  );
-  const spaceNotificationDeliveryApiKey = readOptionalSecret(
-    processEnv.SPACE_NOTIFICATION_DELIVERY_API_KEY,
   );
 
   if (currentEnvironment === PRODUCTION_ENVIRONMENT) {
@@ -92,10 +83,6 @@ export function loadAppConfig(
     clerkSecretKey,
     clerkAuthorizedParties,
     ...(invitationCodeEncryptionKey ? { invitationCodeEncryptionKey } : {}),
-    ...(spaceNotificationDeliveryUrl ? { spaceNotificationDeliveryUrl } : {}),
-    ...(spaceNotificationDeliveryApiKey
-      ? { spaceNotificationDeliveryApiKey }
-      : {}),
   };
 }
 
@@ -161,34 +148,6 @@ function readExplicitHttpOrigins(
   }
 
   return origins as string[];
-}
-
-function readOptionalHttpUrl(
-  value: string | undefined,
-  variableName: string,
-): string | undefined {
-  const trimmed = value?.trim();
-  if (!trimmed) return undefined;
-
-  try {
-    const parsed = new URL(trimmed);
-    if (
-      !['http:', 'https:'].includes(parsed.protocol) ||
-      !parsed.hostname ||
-      parsed.username ||
-      parsed.password
-    ) {
-      throw new Error('invalid URL');
-    }
-    return parsed.toString().replace(/\/$/u, '');
-  } catch {
-    throw new Error(`${variableName} must be an HTTP(S) URL`);
-  }
-}
-
-function readOptionalSecret(value: string | undefined): string | undefined {
-  const trimmed = value?.trim();
-  return trimmed || undefined;
 }
 
 function readInvitationCodeEncryptionKey(

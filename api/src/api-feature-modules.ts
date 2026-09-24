@@ -17,7 +17,7 @@ export function createApiFeatureModules(
   config?: AppConfig,
 ): DynamicModule[] {
   return [
-    UsersModule.register(databaseIsConfigured, options, config),
+    UsersModule.register(databaseIsConfigured, options),
     CategoriesModule.register(databaseIsConfigured, options),
     CategoryRulesModule.register(databaseIsConfigured, options),
     TransactionsModule.register(databaseIsConfigured, options),

@@ -2,14 +2,10 @@ import type { SpaceMemberRecord } from './space-store';
 
 export const SPACE_LIFECYCLE_STORE = Symbol('SPACE_LIFECYCLE_STORE');
 
-export interface SpaceArchiveMemberRecord extends SpaceMemberRecord {
-  email: string;
-}
-
 export interface ArchivedSpaceRecord {
   spaceId: string;
   actorUserId: string;
-  members: readonly SpaceArchiveMemberRecord[];
+  members: readonly SpaceMemberRecord[];
   archivedAt: Date;
 }
 

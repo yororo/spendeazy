@@ -5,7 +5,6 @@ import { UsersService } from './application/users.service';
 import { USER_STORE } from './application/user-store';
 import { TypeOrmUserStore } from './infrastructure/typeorm-user-store';
 import { UsersController } from './presentation/users.controller';
-import type { AppConfig } from '../config/app-config';
 
 const controllers = [UsersController];
 
@@ -14,7 +13,6 @@ export class UsersModule {
   static register(
     databaseIsConfigured: boolean,
     options: { includeControllers?: boolean } = {},
-    config?: AppConfig,
   ): DynamicModule {
     if (!databaseIsConfigured) {
       if (!options.includeControllers) {
@@ -28,7 +26,7 @@ export class UsersModule {
         module: UsersModule,
         imports: [
           CategoriesModule.register(false, options),
-          SpacesModule.register(false, options, config),
+          SpacesModule.register(false, options),
         ],
         controllers,
         providers: [{ provide: UsersService, useValue: {} }],
@@ -39,7 +37,7 @@ export class UsersModule {
       module: UsersModule,
       imports: [
         CategoriesModule.register(true, options),
-        SpacesModule.register(true, options, config),
+        SpacesModule.register(true, options),
       ],
       controllers,
       providers: [

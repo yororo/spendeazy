@@ -26,7 +26,7 @@ Set `CLERK_JWT_KEY` to the PEM public key from Clerk, `CLERK_SECRET_KEY` to the 
 
 Set `INVITATION_CODE_ENCRYPTION_KEY` to a 32-byte hexadecimal secret in every database-backed API environment. It protects the reversible sender-only Invite Code display value while the database stores a separate HMAC lookup value. Generate one with `node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"` and keep it outside source control.
 
-Shared Space archive notifications use a separate email boundary. Set `SPACE_NOTIFICATION_DELIVERY_URL` (and, when required, `SPACE_NOTIFICATION_DELIVERY_API_KEY`) to connect its provider. If it is unset or unavailable, the in-app notification remains stored with a retryable failed email status.
+Shared Space archive notifications are stored and shown in-app. No email provider configuration is required.
 
 Optionally load deterministic development data with `npm run db:seed`. The seed commands are restricted to non-production environments and local databases.
 

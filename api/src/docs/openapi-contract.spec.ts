@@ -283,20 +283,6 @@ const OPERATION_EXPECTATIONS = [
     },
   },
   {
-    operationId: 'SpaceNotifications_retryNotification',
-    tag: 'Notifications',
-    pathParameter: 'notificationId',
-    bodyResponses: [
-      { status: '200', schemaRef: 'SpaceNotificationResponseDto' },
-    ],
-    errorResponses: {
-      '401': 'UnauthenticatedError',
-      '403': 'UserNotProvisionedError',
-      '404': 'NotFoundError',
-      '500': 'InternalError',
-    },
-  },
-  {
     operationId: 'SpaceNotifications_markNotificationRead',
     tag: 'Notifications',
     pathParameter: 'notificationId',

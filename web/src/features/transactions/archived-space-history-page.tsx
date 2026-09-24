@@ -28,7 +28,7 @@ import {
 import {
   getSpaceIdentityLabel,
   MetricCard,
-  SpaceAvatarStack,
+  SpaceIdentityIcon,
 } from "@/shared/ui";
 
 import { TransactionTable } from "./transaction-table";
@@ -131,7 +131,7 @@ function ArchivedSpaceHistoryPage() {
             </Link>
           </Button>
           <div className="flex flex-wrap items-center gap-3">
-            <SpaceAvatarStack members={selectedSpace.members} />
+            <SpaceIdentityIcon kind={selectedSpace.kind} />
             <Badge variant="outline">
               <ArchiveIcon aria-hidden="true" />
               Read-only history
@@ -254,7 +254,7 @@ function ArchivedSpaceList({
                 <Card variant="strong" className="h-full">
                   <CardContent className="flex h-full flex-col gap-4 p-5">
                     <div className="flex items-start gap-3">
-                      <SpaceAvatarStack members={space.members} />
+                      <SpaceIdentityIcon kind={space.kind} />
                       <div className="min-w-0 flex-1">
                         <h3 className="font-mono text-base font-bold">
                           {identity}

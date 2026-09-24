@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 import { useAccessibleSpacesQuery } from "@/shared/api";
 import { useNavigationGuard } from "@/shared/navigation";
 import { useAppSession } from "@/shared/session";
-import { getSpaceIdentityLabel, SpaceAvatarStack } from "@/shared/ui";
+import { getSpaceIdentityLabel, SpaceIdentityIcon } from "@/shared/ui";
 import {
   buildCanonicalSpaceSearch,
   getActiveSpaces,
@@ -78,7 +78,7 @@ function SpaceSwitcher({ className, onNavigate }: SpaceSwitcherProps) {
           aria-label={`Active Space: ${activeLabel}`}
           data-navigation-intent="space-switcher"
         >
-          <SpaceAvatarStack members={activeSpace?.members ?? []} />
+          <SpaceIdentityIcon kind={activeSpace?.kind} />
           <span className="min-w-0 flex-1 truncate text-sm font-semibold leading-tight">
             {activeLabel}
           </span>
@@ -119,7 +119,7 @@ function SpaceSwitcher({ className, onNavigate }: SpaceSwitcherProps) {
                 onSelect={() => switchSpace(space.id)}
                 className="min-h-12 gap-3 text-sm normal-case tracking-normal"
               >
-                <SpaceAvatarStack members={space.members} />
+                <SpaceIdentityIcon kind={space.kind} />
                 <span className="min-w-0 flex-1 truncate">
                   {getSpaceIdentityLabel(space)}
                 </span>

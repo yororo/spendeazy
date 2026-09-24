@@ -12,6 +12,8 @@ const composeFile = resolve(rootDirectory, "local-test", "docker-compose.yml");
 
 const tokenPrefix = "spendeazy-local-test.v1";
 const testUserId = "local-test-populated-user";
+const localTestInvitationCodeEncryptionKey =
+  "0123456789abcdef".repeat(4);
 const fixedE2eClock =
   process.env.SPENDEAZY_E2E_TEST_CLOCK?.trim() ?? "2026-09-19T12:00:00.000Z";
 
@@ -67,6 +69,7 @@ async function main() {
       PORT: String(configuration.apiPort),
       DATABASE_URL: databaseUrl,
       CORS_ORIGINS: `http://127.0.0.1:${configuration.webPort}`,
+      INVITATION_CODE_ENCRYPTION_KEY: localTestInvitationCodeEncryptionKey,
       SPENDEAZY_LOCAL_TEST: "1",
       SPENDEAZY_LOCAL_TEST_SEED_FIXTURES: isE2e ? "0" : "1",
       SPENDEAZY_TEST_DB_PORT: String(configuration.databasePort),

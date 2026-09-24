@@ -61,18 +61,18 @@ async function acceptInTransaction(
     throw new InvitationClaimNotFoundError();
   }
 
-  const claim = await lockClaim(entityManager, input);
-  if (!claim) throw new InvitationClaimNotFoundError();
-
   const lockedInvitations = await lockRelevantInvitations(
     entityManager,
-    claim.invitationId,
+    initialClaim.invitationId,
     userIds,
   );
   const invitation = lockedInvitations.find(
-    (item) => item.id === claim.invitationId,
+    (item) => item.id === initialClaim.invitationId,
   );
   if (!invitation) throw new InvitationClaimNotFoundError();
+
+  const claim = await lockClaim(entityManager, input);
+  if (!claim) throw new InvitationClaimNotFoundError();
 
   if (invitation.status === 'accepted') {
     return loadAcceptedSpace(

@@ -118,13 +118,16 @@ export class InvitationsService {
       throw new InvitationCodeUnavailableError();
     }
 
-    return this.toIncomingView(
-      await this.invitationStore.createClaim({
-        invitationId: invitation.id,
-        userId,
-        now,
-      }),
-    );
+    const claim = await this.invitationStore.createClaim({
+      invitationId: invitation.id,
+      userId,
+      now,
+    });
+    if (!claim) {
+      throw new InvitationCodeUnavailableError();
+    }
+
+    return this.toIncomingView(claim);
   }
 
   acceptForUser(

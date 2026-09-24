@@ -5,11 +5,10 @@ import { QueryFailedError, type EntityManager } from 'typeorm';
 import { POSTGRES_UNIQUE_VIOLATION } from '../../database/database-error-codes';
 import { InvitationClaimEntity } from '../../database/entities/invitation-claim.entity';
 import { InvitationEntity } from '../../database/entities/invitation.entity';
+import { SpaceEntity } from '../../database/entities/space.entity';
+import { SpaceMembershipEntity } from '../../database/entities/space-membership.entity';
 import { UserEntity } from '../../database/entities/user.entity';
-import {
-  InvitationAlreadyPendingError,
-  InvitationCodeUnavailableError,
-} from '../application/invitation-errors';
+import { InvitationAlreadyPendingError } from '../application/invitation-errors';
 import type {
   InvitationClaimRecord,
   InvitationRecord,
@@ -87,15 +86,28 @@ export class TypeOrmInvitationStore implements InvitationStore {
     );
   }
 
-  async createClaim(input: NewInvitationClaim): Promise<InvitationClaimRecord> {
+  async createClaim(
+    input: NewInvitationClaim,
+  ): Promise<InvitationClaimRecord | null> {
     return this.entityManager.transaction(async (entityManager) => {
+      const recipient = await lockRecipient(entityManager, input.userId);
+      if (!recipient) return null;
+
+      const activeSharedMembershipCount = await entityManager
+        .getRepository(SpaceMembershipEntity)
+        .createQueryBuilder('membership')
+        .innerJoin(SpaceEntity, 'space', 'space.id = membership.space_id')
+        .where('membership.user_id = :userId', { userId: input.userId })
+        .andWhere('space.kind = :kind', { kind: 'shared' })
+        .andWhere('space.status = :status', { status: 'active' })
+        .getCount();
+      if (activeSharedMembershipCount > 0) return null;
+
       const invitation = await lockInvitation(
         entityManager,
         input.invitationId,
       );
-      if (!invitation || invitation.senderUserId === input.userId) {
-        throw new InvitationCodeUnavailableError();
-      }
+      if (!invitation || invitation.senderUserId === input.userId) return null;
       if (
         invitation.status !== 'pending' ||
         invitation.expiresAt.getTime() <= input.now.getTime()
@@ -106,7 +118,7 @@ export class TypeOrmInvitationStore implements InvitationStore {
         ) {
           await expireInvitation(entityManager, invitation);
         }
-        throw new InvitationCodeUnavailableError();
+        return null;
       }
 
       await entityManager
@@ -148,6 +160,19 @@ export class TypeOrmInvitationStore implements InvitationStore {
       expirePendingInTransaction(entityManager, before),
     );
   }
+}
+
+async function lockRecipient(
+  entityManager: EntityManager,
+  userId: string,
+): Promise<UserEntity | null> {
+  return entityManager
+    .getRepository(UserEntity)
+    .createQueryBuilder('user')
+    .where('user.id = :userId', { userId })
+    .andWhere('user.deleted_at IS NULL')
+    .setLock('pessimistic_write')
+    .getOne();
 }
 
 async function rotatePendingInTransaction(

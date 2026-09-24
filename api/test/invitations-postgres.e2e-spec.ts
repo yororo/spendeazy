@@ -253,8 +253,10 @@ describeDatabase('Invite Codes with PostgreSQL', () => {
   it('revokes all claims and allows a replacement code without two pending invitations', async () => {
     const sender = createIdentity('revoke-sender');
     const recipient = createIdentity('revoke-recipient');
+    const raceRecipient = createIdentity('revoke-race-recipient');
     const senderId = await provision(sender);
     await provision(recipient);
+    await provision(raceRecipient);
 
     const created = await http()
       .post('/api/v1/users/me/invitations')
@@ -268,10 +270,17 @@ describeDatabase('Invite Codes with PostgreSQL', () => {
       .send({ code: oldInvitation.code });
     expect(claim.status).toBe(201);
 
-    const revoked = await http()
-      .delete('/api/v1/users/me/invitations')
-      .set(...authorization(sender));
+    const [revoked, raceClaim] = await Promise.all([
+      http()
+        .delete('/api/v1/users/me/invitations')
+        .set(...authorization(sender)),
+      http()
+        .post('/api/v1/users/me/invitations/claims')
+        .set(...authorization(raceRecipient))
+        .send({ code: oldInvitation.code }),
+    ]);
     expect(revoked.status).toBe(204);
+    expect([201, 404]).toContain(raceClaim.status);
 
     const listed = await http()
       .get('/api/v1/users/me/invitations')

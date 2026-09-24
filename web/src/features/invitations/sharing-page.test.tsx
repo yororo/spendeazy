@@ -198,7 +198,7 @@ describe('SharingPage', () => {
       incoming: [],
     };
 
-    render(
+    const view = render(
       <MemoryRouter initialEntries={['/sharing']}>
         <SharingPage />
       </MemoryRouter>,
@@ -209,6 +209,25 @@ describe('SharingPage', () => {
 
     expect(pageState.rotateMutation.mutate).toHaveBeenCalledWith(undefined);
     expect(pageState.revokeMutation.mutate).toHaveBeenCalledWith(undefined);
+
+    pageState.invitationsQuery.data = {
+      outgoing: {
+        id: '8',
+        code: '9N4P-6R8T-2V5X-7Z3B-C8D4-H6J9',
+        status: 'pending',
+        expiresAt: '2026-10-01T00:00:00.000Z',
+        createdAt: '2026-09-24T00:00:00.000Z',
+        updatedAt: '2026-09-24T00:00:00.000Z',
+      },
+      incoming: [],
+    };
+    view.rerender(
+      <MemoryRouter initialEntries={['/sharing']}>
+        <SharingPage />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText('9N4P-6R8T-2V5X-7Z3B-C8D4-H6J9')).toBeTruthy();
+    expect(screen.getByText(/Expires/u)).toBeTruthy();
   });
 
   it('shows rotation and revocation failures while keeping the active code visible', () => {

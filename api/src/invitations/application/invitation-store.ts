@@ -51,7 +51,7 @@ export interface InvitationStore {
     now: Date,
   ): Promise<InvitationRecord | null>;
   revokePending(senderUserId: string, now: Date): Promise<boolean>;
-  createClaim(input: NewInvitationClaim): Promise<InvitationClaimRecord>;
+  createClaim(input: NewInvitationClaim): Promise<InvitationClaimRecord | null>;
   deleteClaimForUser(userId: string, claimId: string): Promise<boolean>;
   expirePending(before: Date): Promise<void>;
 }

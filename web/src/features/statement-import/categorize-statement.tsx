@@ -16,6 +16,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { DateInput } from "@/components/ui/date-input";
 import {
   Dialog,
   DialogContent,
@@ -409,9 +410,8 @@ function CategorizeStatement({
                 <div className="grid gap-4 p-5">
                   <div>
                     <Label htmlFor="mobile-transaction-date-from">From</Label>
-                    <Input
+                    <DateInput
                       id="mobile-transaction-date-from"
-                      type="date"
                       value={dateFrom}
                       onChange={(event) => setDateFrom(event.target.value)}
                       className="mt-1.5 font-mono text-xs"
@@ -419,9 +419,8 @@ function CategorizeStatement({
                   </div>
                   <div>
                     <Label htmlFor="mobile-transaction-date-to">To</Label>
-                    <Input
+                    <DateInput
                       id="mobile-transaction-date-to"
-                      type="date"
                       value={dateTo}
                       onChange={(event) => setDateTo(event.target.value)}
                       className="mt-1.5 font-mono text-xs"
@@ -490,9 +489,8 @@ function CategorizeStatement({
             </div>
             <div>
               <Label htmlFor="transaction-date-from">From</Label>
-              <Input
+              <DateInput
                 id="transaction-date-from"
-                type="date"
                 value={dateFrom}
                 onChange={(event) => setDateFrom(event.target.value)}
                 className="mt-1.5 font-mono text-xs"
@@ -500,9 +498,8 @@ function CategorizeStatement({
             </div>
             <div>
               <Label htmlFor="transaction-date-to">To</Label>
-              <Input
+              <DateInput
                 id="transaction-date-to"
-                type="date"
                 value={dateTo}
                 onChange={(event) => setDateTo(event.target.value)}
                 className="mt-1.5 font-mono text-xs"
@@ -1041,9 +1038,8 @@ function TransactionDraftFields({
       : "manual"
     : "unmapped";
   const dateInput = (
-    <Input
+    <DateInput
       id={idPrefix ? `${idPrefix}-date` : undefined}
-      type="date"
       value={draft.date}
       disabled={isSaving}
       onChange={(event) =>

@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DateInput } from "@/components/ui/date-input";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -229,9 +230,8 @@ function TransactionEditorDialog({
 
             <div className="grid gap-2">
               <Label htmlFor="transaction-purchase-date">Purchase date</Label>
-              <Input
+              <DateInput
                 id="transaction-purchase-date"
-                type="date"
                 value={draft.purchaseDate}
                 onChange={(event) =>
                   updateDraft({ purchaseDate: event.target.value })

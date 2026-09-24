@@ -187,6 +187,20 @@
 }
 
 @layer components {
+  .date-input-mobile-icon {
+    display: none;
+  }
+
+  @media (pointer: coarse) {
+    .date-input-mobile-icon {
+      display: block;
+    }
+
+    .date-input-control::-webkit-calendar-picker-indicator {
+      opacity: 0;
+    }
+  }
+
   .compact-app-header {
     height: calc(4rem + env(safe-area-inset-top, 0px));
     padding-top: env(safe-area-inset-top, 0px);

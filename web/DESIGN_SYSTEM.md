@@ -157,6 +157,7 @@ Category identity does not belong in Badge variants. Use the application-level `
 ### Forms and feedback
 
 - Input
+- DateInput — a native date input wrapper that keeps the control contained and adds a visible picker affordance on coarse-pointer devices.
 - Textarea
 - Label
 - Select

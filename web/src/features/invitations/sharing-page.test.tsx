@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { SharingPage } from './sharing-page';
@@ -27,6 +27,12 @@ const pageState = vi.hoisted(() => ({
     isError: false,
     isPending: false,
     mutate: vi.fn(),
+  },
+  acceptMutation: {
+    error: null as Error | null,
+    isPending: false,
+    mutate: vi.fn(),
+    variables: undefined as string | undefined,
   },
   claimMutation: {
     error: null as Error | null,
@@ -62,6 +68,7 @@ vi.mock('@/shared/api', () => ({
 }));
 
 vi.mock('./invitation-queries', () => ({
+  useAcceptInvitationMutation: () => pageState.acceptMutation,
   useClaimInvitationMutation: () => pageState.claimMutation,
   useCreateInvitationMutation: () => pageState.createMutation,
   useDeclineInvitationMutation: () => pageState.declineMutation,
@@ -89,6 +96,10 @@ afterEach(() => {
   pageState.createMutation.isError = false;
   pageState.createMutation.isPending = false;
   pageState.createMutation.mutate.mockClear();
+  pageState.acceptMutation.error = null;
+  pageState.acceptMutation.isPending = false;
+  pageState.acceptMutation.mutate.mockClear();
+  pageState.acceptMutation.variables = undefined;
   pageState.claimMutation.error = null;
   pageState.claimMutation.isPending = false;
   pageState.claimMutation.mutate.mockClear();
@@ -223,9 +234,48 @@ describe('SharingPage', () => {
     expect(screen.getByText('Invite sender')).toBeTruthy();
     expect(screen.getByText('Another sender')).toBeTruthy();
     expect(screen.getAllByRole('button', { name: 'Decline' })).toHaveLength(2);
+    expect(
+      screen.getAllByRole('button', { name: 'Join Shared Space' }),
+    ).toHaveLength(2);
+    expect(
+      screen.getAllByText(/Your Personal Space stays private/u),
+    ).toHaveLength(2);
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Decline' })[0]);
     expect(pageState.declineMutation.mutate).toHaveBeenCalledWith('88');
+  });
+
+  it('requires an explicit Join action and navigates to the new Shared Space', () => {
+    pageState.invitationsQuery.data = {
+      outgoing: null,
+      incoming: [
+        {
+          id: '88',
+          senderName: 'Invite sender',
+          status: 'pending',
+          expiresAt: '2026-09-30T00:00:00.000Z',
+          createdAt: '2026-09-23T01:00:00.000Z',
+        },
+      ],
+    };
+    pageState.acceptMutation.mutate.mockImplementation((claimId, options) => {
+      expect(claimId).toBe('88');
+      options?.onSuccess?.({ id: '20' });
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/sharing']}>
+        <SharingPage />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Join Shared Space' }));
+    expect(pageState.acceptMutation.mutate).toHaveBeenCalledWith(
+      '88',
+      expect.objectContaining({ onSuccess: expect.any(Function) }),
+    );
+    expect(screen.getByTestId('location').textContent).toBe('/?spaceId=20');
   });
 
   it('shows generic code-entry errors without replacing the saved invitation list', () => {
@@ -317,4 +367,14 @@ function basicMutation() {
     mutate: vi.fn(),
     reset: vi.fn(),
   };
+}
+
+function LocationProbe() {
+  const location = useLocation();
+  return (
+    <output data-testid="location">
+      {location.pathname}
+      {location.search}
+    </output>
+  );
 }

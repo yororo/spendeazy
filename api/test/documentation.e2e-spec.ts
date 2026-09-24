@@ -51,7 +51,12 @@ describe('public API documentation', () => {
   it('publishes the same contract through the UI, JSON, YAML, and assets', async () => {
     expect(
       Object.keys(document.paths).filter((path) => path.includes('invitation')),
-    ).toEqual([]);
+    ).toEqual([
+      '/api/v1/users/me/invitations',
+      '/api/v1/users/me/invitations/claims',
+      '/api/v1/users/me/invitations/claims/{claimId}',
+      '/api/v1/users/me/invitations/claims/{claimId}/accept',
+    ]);
 
     const [html, css, json, yaml] = await Promise.all([
       request(httpServer(app)).get('/docs').set('Accept', 'text/html'),

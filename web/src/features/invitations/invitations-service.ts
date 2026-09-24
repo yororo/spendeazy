@@ -1,7 +1,9 @@
 import {
+  isAccessibleSpace,
   isRecord,
   isUtcDateTime,
   requireApiResponse,
+  type AccessibleSpace,
   type ApiClient,
 } from '@/shared/api';
 
@@ -178,7 +180,29 @@ async function declineInvitation(
   });
 }
 
+async function acceptInvitation(
+  apiClient: Pick<InvitationsApiClient, 'post'>,
+  claimId: string,
+): Promise<AccessibleSpace> {
+  const response = await apiClient.post<unknown>(
+    `/invitations/claims/${encodeURIComponent(claimId)}/accept`,
+    {},
+    { expectedStatuses: [200] },
+  );
+  const value = requireApiResponse(
+    response,
+    'accepted Shared Space',
+    invalidInvitationResponse,
+  );
+  if (!isAccessibleSpace(value)) {
+    throw invalidInvitationResponse('accepted Shared Space');
+  }
+
+  return value;
+}
+
 export {
+  acceptInvitation,
   claimInvitation,
   createInvitation,
   declineInvitation,

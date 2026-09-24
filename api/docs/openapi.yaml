@@ -2820,6 +2820,43 @@ paths:
       summary: Decline a saved Shared Space invitation.
       tags:
         - Invitations
+  /api/v1/users/me/invitations/claims/{claimId}/accept:
+    post:
+      description: The authenticated User explicitly accepts their saved invitation. The API rechecks both Users’ eligibility, creates one active Shared Space with equal write membership and default Categories, consumes the Invite Code, and invalidates competing invitations.
+      operationId: Invitations_accept
+      parameters:
+        - name: claimId
+          required: true
+          in: path
+          description: Saved invitation claim identifier.
+          schema:
+            type: string
+            pattern: ^[1-9]\d*$
+            example: '88'
+      responses:
+        '200':
+          description: The newly joined Shared Space.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpaceResponseDto'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthenticatedError'
+        '403':
+          $ref: '#/components/responses/UserNotProvisionedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - bearerAuth: []
+      summary: Join a Shared Space from a saved invitation.
+      tags:
+        - Invitations
 info:
   title: Expense Tracker REST API
   description: A user-scoped expense tracker API. Bigint identifiers and counts, decimal money, domain dates, and UTC timestamps use the encodings described by the schemas below.
@@ -2932,6 +2969,8 @@ components:
         - SPACE_NOT_FOUND
         - SPACE_NOT_WRITABLE
         - SPACE_NOTIFICATION_NOT_FOUND
+        - INVITATION_ALREADY_PENDING
+        - INVITATION_INELIGIBLE
         - INVITATION_CODE_UNAVAILABLE
         - INVITATION_CODE_RATE_LIMITED
         - INVITATION_CLAIM_NOT_FOUND

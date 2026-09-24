@@ -34,6 +34,7 @@ import { SanitizeEmailDeliveryFailures1890000000000 } from './migrations/1890000
 import { RetireEmailInvitations1900000000000 } from './migrations/1900000000000-retire-email-invitations';
 import { CreateInviteCodeInvitations1910000000000 } from './migrations/1910000000000-create-invite-code-invitations';
 import { CreateInvitationClaims1920000000000 } from './migrations/1920000000000-create-invitation-claims';
+import { RecordInviteCodeAcceptance1930000000000 } from './migrations/1930000000000-record-invite-code-acceptance';
 
 export const DATABASE_MIGRATIONS = [
   CreateExpenseTrackerSchema1710000000000,
@@ -58,6 +59,7 @@ export const DATABASE_MIGRATIONS = [
   RetireEmailInvitations1900000000000,
   CreateInviteCodeInvitations1910000000000,
   CreateInvitationClaims1920000000000,
+  RecordInviteCodeAcceptance1930000000000,
 ];
 
 export const DATABASE_ENTITIES = [

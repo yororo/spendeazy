@@ -1,6 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common';
 
 import { SpaceAccessService } from '../../spaces/application/space-access.service';
+import type { AccessibleSpaceRecord } from '../../spaces/application/space-store';
+import {
+  INVITATION_ACCEPTANCE_STORE,
+  type InvitationAcceptanceStore,
+} from './invitation-acceptance-store';
 import {
   INVITATION_CODE_SECURITY,
   type InvitationCodeSecurity,
@@ -64,6 +69,8 @@ export class InvitationsService {
     @Inject(INVITATION_CLOCK) private readonly clock: InvitationClock,
     @Inject(INVITATION_ATTEMPT_LIMITER)
     private readonly attemptLimiter: InvitationAttemptLimiter,
+    @Inject(INVITATION_ACCEPTANCE_STORE)
+    private readonly invitationAcceptanceStore: InvitationAcceptanceStore,
   ) {}
 
   async listForUser(userId: string): Promise<InvitationInboxView> {
@@ -130,6 +137,17 @@ export class InvitationsService {
         userId,
       }),
     );
+  }
+
+  acceptForUser(
+    userId: string,
+    claimId: string,
+  ): Promise<AccessibleSpaceRecord> {
+    return this.invitationAcceptanceStore.accept({
+      claimId,
+      recipientUserId: userId,
+      now: this.clock.now(),
+    });
   }
 
   async declineForUser(userId: string, claimId: string): Promise<void> {

@@ -6,6 +6,10 @@ import {
   InvitationIneligibleError,
 } from './invitation-errors';
 import {
+  INVITATION_ACCEPTANCE_STORE,
+  type InvitationAcceptanceStore,
+} from './invitation-acceptance-store';
+import {
   type InvitationClaimRecord,
   type InvitationRecord,
   type InvitationStore,
@@ -38,6 +42,7 @@ describe('InvitationsService', () => {
   let revealCodeMock: jest.MockedFunction<InvitationCodeSecurity['reveal']>;
   let clock: jest.Mocked<InvitationClock>;
   let attemptLimiter: jest.Mocked<InvitationAttemptLimiter>;
+  let acceptanceStore: jest.Mocked<InvitationAcceptanceStore>;
   let service: InvitationsService;
 
   beforeEach(() => {
@@ -76,12 +81,16 @@ describe('InvitationsService', () => {
     attemptLimiter = {
       consume: jest.fn().mockReturnValue(true),
     };
+    acceptanceStore = {
+      accept: jest.fn(),
+    };
     service = new InvitationsService(
       store,
       spaceAccessService,
       codeSecurity,
       clock,
       attemptLimiter,
+      acceptanceStore,
     );
   });
 
@@ -94,6 +103,10 @@ describe('InvitationsService', () => {
         { provide: INVITATION_CODE_SECURITY, useValue: codeSecurity },
         { provide: INVITATION_CLOCK, useValue: clock },
         { provide: INVITATION_ATTEMPT_LIMITER, useValue: attemptLimiter },
+        {
+          provide: INVITATION_ACCEPTANCE_STORE,
+          useValue: acceptanceStore,
+        },
       ],
     }).compile();
 
@@ -277,6 +290,35 @@ describe('InvitationsService', () => {
       InvitationClaimNotFoundError,
     );
   });
+
+  it('joins from the authenticated User’s saved claim through the acceptance seam', async () => {
+    const sharedSpace = {
+      id: '20',
+      kind: 'shared' as const,
+      status: 'active' as const,
+      personalOwnerUserId: null,
+      userId: '99',
+      accessLevel: 'write' as const,
+      members: [
+        { id: '42', name: 'Invite sender' },
+        { id: '99', name: 'Invite recipient' },
+      ],
+      createdAt: now,
+      updatedAt: now,
+    };
+    acceptanceStore.accept.mockResolvedValue(sharedSpace);
+
+    await expect(service.acceptForUser('99', '88')).resolves.toBe(sharedSpace);
+    expect(acceptanceStore.accept.mock.calls).toEqual([
+      [
+        {
+          claimId: '88',
+          recipientUserId: '99',
+          now,
+        },
+      ],
+    ]);
+  });
 });
 
 function invitationRecord(
@@ -285,6 +327,7 @@ function invitationRecord(
   return {
     id: '7',
     senderUserId: '42',
+    acceptedSpaceId: null,
     codeHash: 'hash-for-code',
     codeCiphertext: 'ciphertext-for-code',
     status: 'pending',

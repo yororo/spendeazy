@@ -28,6 +28,7 @@ describe('authenticated Invite Code routes', () => {
     createForUser: jest.fn(),
     claimForUser: jest.fn(),
     declineForUser: jest.fn(),
+    acceptForUser: jest.fn(),
   };
 
   beforeAll(async () => {
@@ -82,6 +83,18 @@ describe('authenticated Invite Code routes', () => {
       createdAt: '2026-09-23T01:00:00.000Z',
     });
     invitationsService.declineForUser.mockReset().mockResolvedValue(undefined);
+    invitationsService.acceptForUser.mockReset().mockResolvedValue({
+      id: '20',
+      kind: 'shared',
+      status: 'active',
+      accessLevel: 'write',
+      members: [
+        { id: '42', name: 'Invite sender' },
+        { id: '99', name: 'Invite recipient' },
+      ],
+      createdAt: new Date('2026-09-23T02:00:00.000Z'),
+      updatedAt: new Date('2026-09-23T02:00:00.000Z'),
+    });
     verifier.reset();
   });
 
@@ -187,6 +200,27 @@ describe('authenticated Invite Code routes', () => {
     expect(response.status).toBe(204);
     expect(response.text).toBe('');
     expect(invitationsService.declineForUser).toHaveBeenCalledWith('42', '88');
+  });
+
+  it('joins only through an explicit saved-claim action', async () => {
+    const response = await request(application.getHttpServer() as Server)
+      .post('/api/v1/users/me/invitations/claims/88/accept')
+      .set('Authorization', 'Bearer token-a')
+      .set('Accept', 'application/json')
+      .send({});
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({
+      id: '20',
+      kind: 'shared',
+      status: 'active',
+      accessLevel: 'write',
+      members: [
+        { id: '42', name: 'Invite sender' },
+        { id: '99', name: 'Invite recipient' },
+      ],
+    });
+    expect(invitationsService.acceptForUser).toHaveBeenCalledWith('42', '88');
   });
 });
 

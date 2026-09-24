@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { ApiError } from '@/shared/api';
 
 import {
+  acceptInvitation,
   claimInvitation,
   createInvitation,
   declineInvitation,
@@ -92,6 +93,21 @@ describe('invitations service', () => {
     );
   });
 
+  it('joins a Shared Space from a saved claim and validates the returned Space', async () => {
+    const apiClient = {
+      post: vi.fn().mockResolvedValue(sharedSpace()),
+    };
+
+    await expect(acceptInvitation(apiClient, '88')).resolves.toEqual(
+      sharedSpace(),
+    );
+    expect(apiClient.post).toHaveBeenCalledWith(
+      '/invitations/claims/88/accept',
+      {},
+      { expectedStatuses: [200] },
+    );
+  });
+
   it('rejects malformed incoming invitation data', () => {
     expect(() =>
       requireIncomingInvitation({
@@ -120,5 +136,20 @@ function incomingInvitation() {
     status: 'pending',
     expiresAt: '2026-09-30T00:00:00.000Z',
     createdAt: '2026-09-23T01:00:00.000Z',
+  } as const;
+}
+
+function sharedSpace() {
+  return {
+    id: '20',
+    kind: 'shared',
+    status: 'active',
+    accessLevel: 'write',
+    members: [
+      { id: '42', name: 'Invite sender' },
+      { id: '99', name: 'Invite recipient' },
+    ],
+    createdAt: '2026-09-23T02:00:00.000Z',
+    updatedAt: '2026-09-23T02:00:00.000Z',
   } as const;
 }

@@ -7,6 +7,7 @@ export type { InvitationStatus };
 export interface InvitationRecord {
   id: string;
   senderUserId: string;
+  acceptedSpaceId: string | null;
   codeHash: string;
   codeCiphertext: string;
   status: InvitationStatus;

@@ -20,6 +20,7 @@ import { createAppModule } from '../src/app.module';
 import type { AppConfig } from '../src/config/app-config';
 import { BudgetEntity } from '../src/database/entities/budget.entity';
 import { CategoryEntity } from '../src/database/entities/category.entity';
+import { DEFAULT_CATEGORY_CATALOG } from '../src/categories/application/default-category-catalog';
 import { CategoryRuleEntity } from '../src/database/entities/category-rule.entity';
 import { InvitationEntity } from '../src/database/entities/invitation.entity';
 import { InvitationClaimEntity } from '../src/database/entities/invitation-claim.entity';
@@ -388,6 +389,209 @@ describeDatabase('Invite Codes with PostgreSQL', () => {
     });
   });
 
+  it('joins from a saved claim, initializes only the new Shared Space, and consumes the code', async () => {
+    const sender = createIdentity('join-sender');
+    const recipient = createIdentity('join-recipient');
+    const thirdUser = createIdentity('join-third-user');
+    const senderId = await provision(sender);
+    const recipientId = await provision(recipient);
+    await provision(thirdUser);
+
+    const created = await http()
+      .post('/api/v1/users/me/invitations')
+      .set(...authorization(sender))
+      .send({});
+    const createdBody = responseBody<OutgoingInvitationBody>(created);
+    createdInvitationIds.push(createdBody.id);
+
+    const recipientClaim = await http()
+      .post('/api/v1/users/me/invitations/claims')
+      .set(...authorization(recipient))
+      .send({ code: createdBody.code });
+    const recipientClaimBody =
+      responseBody<IncomingInvitationBody>(recipientClaim);
+
+    const thirdClaim = await http()
+      .post('/api/v1/users/me/invitations/claims')
+      .set(...authorization(thirdUser))
+      .send({ code: createdBody.code });
+    const thirdClaimBody = responseBody<IncomingInvitationBody>(thirdClaim);
+
+    const joined = await http()
+      .post(
+        `/api/v1/users/me/invitations/claims/${recipientClaimBody.id}/accept`,
+      )
+      .set(...authorization(recipient))
+      .send({});
+    const joinedBody = responseBody<SharedSpaceBody>(joined);
+    expect(joined.status).toBe(200);
+    expect(joinedBody).toMatchObject({
+      kind: 'shared',
+      status: 'active',
+      accessLevel: 'write',
+      members: [
+        { id: senderId, name: sender.name },
+        { id: recipientId, name: recipient.name },
+      ],
+    });
+    createdSpaceIds.push(joinedBody.id);
+
+    const repeated = await http()
+      .post(
+        `/api/v1/users/me/invitations/claims/${recipientClaimBody.id}/accept`,
+      )
+      .set(...authorization(recipient))
+      .send({});
+    expect(repeated.status).toBe(200);
+    expect(responseBody<SharedSpaceBody>(repeated).id).toBe(joinedBody.id);
+
+    const invitation = await database
+      .getRepository(InvitationEntity)
+      .findOneBy({ id: createdBody.id });
+    expect(invitation).toMatchObject({
+      status: 'accepted',
+      acceptedSpaceId: joinedBody.id,
+    });
+
+    const memberships = await database
+      .getRepository(SpaceMembershipEntity)
+      .find({ where: { spaceId: joinedBody.id }, order: { userId: 'ASC' } });
+    expect(memberships).toEqual([
+      expect.objectContaining({
+        userId: senderId,
+        accessLevel: 'write',
+      }),
+      expect.objectContaining({
+        userId: recipientId,
+        accessLevel: 'write',
+      }),
+    ]);
+    expect(
+      await database.getRepository(CategoryEntity).countBy({
+        spaceId: joinedBody.id,
+      }),
+    ).toBe(DEFAULT_CATEGORY_CATALOG.length);
+    expect(
+      await database.getRepository(BudgetEntity).countBy({
+        categoryId: In(
+          (
+            await database.getRepository(CategoryEntity).findBy({
+              spaceId: joinedBody.id,
+            })
+          ).map((category) => category.id),
+        ),
+      }),
+    ).toBe(0);
+    expect(
+      await database.getRepository(TransactionEntity).countBy({
+        spaceId: joinedBody.id,
+      }),
+    ).toBe(0);
+    expect(
+      await database.getRepository(CategoryRuleEntity).countBy({
+        spaceId: joinedBody.id,
+      }),
+    ).toBe(0);
+
+    const thirdJoin = await http()
+      .post(`/api/v1/users/me/invitations/claims/${thirdClaimBody.id}/accept`)
+      .set(...authorization(thirdUser))
+      .send({});
+    expect(thirdJoin.status).toBe(404);
+
+    const recipientInbox = await http()
+      .get('/api/v1/users/me/invitations')
+      .set(...authorization(recipient));
+    expect(responseBody<InvitationInboxBody>(recipientInbox).incoming).toEqual(
+      [],
+    );
+  });
+
+  it('serializes competing joins so only one Shared Space is committed', async () => {
+    const firstSender = createIdentity('competing-first-sender');
+    const secondSender = createIdentity('competing-second-sender');
+    const recipient = createIdentity('competing-recipient');
+    await provision(firstSender);
+    await provision(secondSender);
+    await provision(recipient);
+
+    const firstInvitation = await http()
+      .post('/api/v1/users/me/invitations')
+      .set(...authorization(firstSender))
+      .send({});
+    const firstInvitationBody =
+      responseBody<OutgoingInvitationBody>(firstInvitation);
+    createdInvitationIds.push(firstInvitationBody.id);
+    const secondInvitation = await http()
+      .post('/api/v1/users/me/invitations')
+      .set(...authorization(secondSender))
+      .send({});
+    const secondInvitationBody =
+      responseBody<OutgoingInvitationBody>(secondInvitation);
+    createdInvitationIds.push(secondInvitationBody.id);
+
+    const [firstClaim, secondClaim] = await Promise.all([
+      http()
+        .post('/api/v1/users/me/invitations/claims')
+        .set(...authorization(recipient))
+        .send({ code: firstInvitationBody.code }),
+      http()
+        .post('/api/v1/users/me/invitations/claims')
+        .set(...authorization(recipient))
+        .send({ code: secondInvitationBody.code }),
+    ]);
+    const firstClaimBody = responseBody<IncomingInvitationBody>(firstClaim);
+    const secondClaimBody = responseBody<IncomingInvitationBody>(secondClaim);
+
+    const results = await Promise.all([
+      http()
+        .post(`/api/v1/users/me/invitations/claims/${firstClaimBody.id}/accept`)
+        .set(...authorization(recipient))
+        .send({}),
+      http()
+        .post(
+          `/api/v1/users/me/invitations/claims/${secondClaimBody.id}/accept`,
+        )
+        .set(...authorization(recipient))
+        .send({}),
+    ]);
+
+    expect(results.filter((response) => response.status === 200)).toHaveLength(
+      1,
+    );
+    expect(results.filter((response) => response.status !== 200)).toHaveLength(
+      1,
+    );
+
+    const sharedSpaces = await database.getRepository(SpaceEntity).findBy({
+      kind: 'shared',
+      status: 'active',
+    });
+    expect(sharedSpaces).toHaveLength(1);
+    createdSpaceIds.push(sharedSpaces[0].id);
+
+    const persistedInvitations = await database
+      .getRepository(InvitationEntity)
+      .findBy({ id: In([firstInvitationBody.id, secondInvitationBody.id]) });
+    expect(
+      persistedInvitations.filter(
+        (invitation) => invitation.status === 'accepted',
+      ),
+    ).toHaveLength(1);
+    expect(
+      persistedInvitations.filter(
+        (invitation) => invitation.status === 'revoked',
+      ),
+    ).toHaveLength(1);
+    expect(
+      await database.getRepository(InvitationClaimEntity).countBy({
+        invitationId: persistedInvitations.find(
+          (invitation) => invitation.status === 'revoked',
+        )!.id,
+      }),
+    ).toBe(0);
+  });
+
   async function provision(identity: TestIdentity): Promise<string> {
     verifier.register(identity);
     profileService.register(identity);
@@ -433,6 +637,14 @@ interface IncomingInvitationBody {
   readonly status: string;
   readonly expiresAt: string;
   readonly createdAt: string;
+}
+
+interface SharedSpaceBody {
+  readonly id: string;
+  readonly kind: string;
+  readonly status: string;
+  readonly accessLevel: string;
+  readonly members: readonly { readonly id: string; readonly name: string }[];
 }
 
 interface ErrorBody {

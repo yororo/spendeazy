@@ -42,6 +42,7 @@ export class TypeOrmInvitationStore implements InvitationStore {
   async findClaimsForUser(userId: string): Promise<InvitationClaimRecord[]> {
     const rows = await this.claimQuery()
       .where('claim.user_id = :userId', { userId })
+      .andWhere('invitation.status = :status', { status: 'pending' })
       .orderBy('claim.created_at', 'DESC')
       .addOrderBy('claim.id', 'DESC')
       .getRawMany<RawInvitationClaim>();
@@ -146,6 +147,7 @@ function toInvitationRecord(entity: InvitationEntity): InvitationRecord {
   return {
     id: entity.id,
     senderUserId: entity.senderUserId,
+    acceptedSpaceId: entity.acceptedSpaceId,
     codeHash: entity.codeHash,
     codeCiphertext: entity.codeCiphertext,
     status: entity.status,

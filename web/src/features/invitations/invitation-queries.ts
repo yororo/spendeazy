@@ -4,6 +4,7 @@ import { useApiClient } from '@/shared/api';
 import { queryPolicy } from '@/shared/query';
 
 import {
+  acceptInvitation,
   claimInvitation,
   createInvitation,
   declineInvitation,
@@ -56,8 +57,24 @@ function useDeclineInvitationMutation() {
   });
 }
 
+function useAcceptInvitationMutation() {
+  const apiClient = useApiClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (claimId: string) => acceptInvitation(apiClient, claimId),
+    retry: 0,
+    onSuccess: () => {
+      void Promise.all([
+        queryClient.invalidateQueries({ queryKey: INVITATIONS_QUERY_KEY }),
+        queryClient.invalidateQueries({ queryKey: ['spaces', 'accessible'] }),
+      ]);
+    },
+  });
+}
+
 export {
   INVITATIONS_QUERY_KEY,
+  useAcceptInvitationMutation,
   useClaimInvitationMutation,
   useCreateInvitationMutation,
   useDeclineInvitationMutation,

@@ -13,6 +13,7 @@ import {
   ApiBearerAuth,
   ApiBody,
   ApiOperation,
+  ApiParam,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
@@ -22,6 +23,8 @@ import {
   type AuthenticatedRequest,
 } from '../../authentication/authentication';
 import { ApiStandardErrorResponses } from '../../http/api-error.dto';
+import { toSpaceResponse } from '../../http/space-response.mapper';
+import { SpaceResponseDto } from '../../http/space-response.dto';
 import { InvitationsService } from '../application/invitations.service';
 import {
   CreateInvitationDto,
@@ -144,6 +147,43 @@ export class InvitationsController {
     await this.invitationsService.declineForUser(
       requireAuthenticatedUserId(request),
       params.claimId,
+    );
+  }
+
+  @Post('claims/:claimId/accept')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Join a Shared Space from a saved invitation.',
+    description:
+      'The authenticated User explicitly accepts their saved invitation. The API rechecks both Users’ eligibility, creates one active Shared Space with equal write membership and default Categories, consumes the Invite Code, and invalidates competing invitations.',
+  })
+  @ApiParam({
+    name: 'claimId',
+    description: 'Saved invitation claim identifier.',
+    schema: { type: 'string', pattern: '^[1-9]\\d*$', example: '88' },
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'The newly joined Shared Space.',
+    type: SpaceResponseDto,
+  })
+  @ApiStandardErrorResponses(
+    'UnauthenticatedError',
+    'UserNotProvisionedError',
+    'ValidationError',
+    'NotFoundError',
+    'ConflictError',
+    'InternalError',
+  )
+  async accept(
+    @Req() request: AuthenticatedRequest,
+    @Param() params: InvitationClaimParamsDto,
+  ): Promise<SpaceResponseDto> {
+    return toSpaceResponse(
+      await this.invitationsService.acceptForUser(
+        requireAuthenticatedUserId(request),
+        params.claimId,
+      ),
     );
   }
 }

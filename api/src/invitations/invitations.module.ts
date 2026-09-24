@@ -2,6 +2,7 @@ import { DynamicModule, Module } from '@nestjs/common';
 
 import type { AppConfig } from '../config/app-config';
 import { SpacesModule } from '../spaces/spaces.module';
+import { INVITATION_ACCEPTANCE_STORE } from './application/invitation-acceptance-store';
 import { INVITATION_CODE_SECURITY } from './application/invitation-code-security';
 import {
   INVITATION_ATTEMPT_LIMITER,
@@ -14,6 +15,7 @@ import {
 import { INVITATION_STORE } from './application/invitation-store';
 import { InvitationsService } from './application/invitations.service';
 import { NodeInvitationCodeSecurity } from './infrastructure/node-invitation-code-security';
+import { TypeOrmInvitationAcceptanceStore } from './infrastructure/typeorm-invitation-acceptance-store';
 import { TypeOrmInvitationStore } from './infrastructure/typeorm-invitation-store';
 import { InvitationsController } from './presentation/invitations.controller';
 
@@ -47,6 +49,11 @@ export class InvitationsModule {
       providers: [
         TypeOrmInvitationStore,
         { provide: INVITATION_STORE, useExisting: TypeOrmInvitationStore },
+        TypeOrmInvitationAcceptanceStore,
+        {
+          provide: INVITATION_ACCEPTANCE_STORE,
+          useExisting: TypeOrmInvitationAcceptanceStore,
+        },
         {
           provide: INVITATION_CODE_SECURITY,
           useFactory: () =>

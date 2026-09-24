@@ -40,6 +40,7 @@ import {
 } from '@/shared/api';
 
 import {
+  useAcceptInvitationMutation,
   useClaimInvitationMutation,
   useCreateInvitationMutation,
   useDeclineInvitationMutation,
@@ -62,6 +63,7 @@ function SharingPage() {
   const selectedSpaceId = searchParams.get('spaceId');
   const invitationsQuery = useInvitationsQuery();
   const createMutation = useCreateInvitationMutation();
+  const acceptMutation = useAcceptInvitationMutation();
   const claimMutation = useClaimInvitationMutation();
   const declineMutation = useDeclineInvitationMutation();
   const spacesQuery = useAccessibleSpacesQuery(true);
@@ -100,6 +102,14 @@ function SharingPage() {
   }
 
   const outgoing = invitationsQuery.data.outgoing;
+
+  function joinSharedSpace(claimId: string): void {
+    acceptMutation.mutate(claimId, {
+      onSuccess: (space) => {
+        navigate(`/?spaceId=${encodeURIComponent(space.id)}`);
+      },
+    });
+  }
 
   async function copyInviteCode(code: string): Promise<void> {
     setCopyState('copying');
@@ -141,8 +151,11 @@ function SharingPage() {
 
       <IncomingInvitationsCard
         invitations={invitationsQuery.data.incoming}
-        disabled={declineMutation.isPending}
+        disabled={declineMutation.isPending || acceptMutation.isPending}
         error={declineMutation.error}
+        acceptError={acceptMutation.error}
+        acceptingClaimId={acceptMutation.variables}
+        onJoin={joinSharedSpace}
         onDecline={(claimId) => declineMutation.mutate(claimId)}
       />
 
@@ -246,11 +259,17 @@ function IncomingInvitationsCard({
   invitations,
   disabled,
   error,
+  acceptError,
+  acceptingClaimId,
+  onJoin,
   onDecline,
 }: {
   readonly invitations: readonly IncomingInvitation[];
   readonly disabled: boolean;
   readonly error: Error | null;
+  readonly acceptError: Error | null;
+  readonly acceptingClaimId: string | undefined;
+  readonly onJoin: (claimId: string) => void;
   readonly onDecline: (claimId: string) => void;
 }) {
   if (invitations.length === 0 && !error) return null;
@@ -276,6 +295,11 @@ function IncomingInvitationsCard({
               key={invitation.id}
               invitation={invitation}
               disabled={disabled}
+              joining={acceptingClaimId === invitation.id}
+              joinError={
+                acceptingClaimId === invitation.id ? acceptError : null
+              }
+              onJoin={() => onJoin(invitation.id)}
               onDecline={() => onDecline(invitation.id)}
             />
           ))}
@@ -288,10 +312,16 @@ function IncomingInvitationsCard({
 function IncomingInvitationRow({
   invitation,
   disabled,
+  joining,
+  joinError,
+  onJoin,
   onDecline,
 }: {
   readonly invitation: IncomingInvitation;
   readonly disabled: boolean;
+  readonly joining: boolean;
+  readonly joinError: Error | null;
+  readonly onJoin: () => void;
   readonly onDecline: () => void;
 }) {
   return (
@@ -301,21 +331,38 @@ function IncomingInvitationRow({
         Shared Space invitation · {formatInvitationStatus(invitation.status)}
       </p>
       <p className="mt-2 text-sm text-muted-foreground">
+        Joining creates a separate Shared Space with {invitation.senderName}.
+        Your Personal Space stays private, and the new Shared Space starts with
+        Default Categories but no Transactions, Budgets, or learned Category
+        Rules.
+      </p>
+      <p className="mt-2 text-sm text-muted-foreground">
         Expires{' '}
         <time dateTime={invitation.expiresAt}>
           {formatInvitationExpiry(invitation.expiresAt)}
         </time>
       </p>
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        className="mt-3"
-        onClick={onDecline}
-        disabled={disabled}
-      >
-        Decline
-      </Button>
+      {joinError && (
+        <Alert variant="destructive" className="mt-3">
+          <AlertTitle>Could not join this Shared Space</AlertTitle>
+          <AlertDescription>{joinError.message}</AlertDescription>
+        </Alert>
+      )}
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Button type="button" size="sm" onClick={onJoin} disabled={disabled}>
+          <KeyRoundIcon aria-hidden="true" />
+          {joining ? 'Joining…' : 'Join Shared Space'}
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={onDecline}
+          disabled={disabled}
+        >
+          Decline
+        </Button>
+      </div>
     </div>
   );
 }

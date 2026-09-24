@@ -123,6 +123,7 @@ describe('OpenAPI document factory', () => {
         `POST ${apiRoot}/users/me/invitations`,
         `POST ${apiRoot}/users/me/invitations/claims`,
         `DELETE ${apiRoot}/users/me/invitations/claims/{claimId}`,
+        `POST ${apiRoot}/users/me/invitations/claims/{claimId}/accept`,
       ].sort(),
     );
 

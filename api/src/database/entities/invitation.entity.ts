@@ -23,6 +23,13 @@ export class InvitationEntity {
   @Column({ type: 'bigint', name: 'sender_user_id' })
   senderUserId!: string;
 
+  @Column({
+    type: 'bigint',
+    nullable: true,
+    name: 'accepted_space_id',
+  })
+  acceptedSpaceId!: string | null;
+
   @Column({ type: 'varchar', length: 64, name: 'code_hash' })
   codeHash!: string;
 

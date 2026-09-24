@@ -214,6 +214,32 @@ const OPERATION_EXPECTATIONS = [
     },
   },
   {
+    operationId: 'Invitations_rotate',
+    tag: 'Invitations',
+    explicitBearerAuth: true,
+    bodyResponses: [
+      {
+        status: '200',
+        schemaRef: 'OutgoingInvitationResponseDto',
+      },
+    ],
+    errorResponses: {
+      ...PROTECTED_ERRORS,
+      '404': 'NotFoundError',
+      '409': 'ConflictError',
+    },
+  },
+  {
+    operationId: 'Invitations_revoke',
+    tag: 'Invitations',
+    explicitBearerAuth: true,
+    bodyResponses: [{ status: '204' }],
+    errorResponses: {
+      ...PROTECTED_ERRORS,
+      '404': 'NotFoundError',
+    },
+  },
+  {
     operationId: 'Invitations_claim',
     tag: 'Invitations',
     explicitBearerAuth: true,

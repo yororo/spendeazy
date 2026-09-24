@@ -8,6 +8,8 @@ import {
   createInvitation,
   declineInvitation,
   getInvitations,
+  revokeInvitation,
+  rotateInvitation,
   requireIncomingInvitation,
   requireInvitationInbox,
 } from './invitations-service';
@@ -63,6 +65,35 @@ describe('invitations service', () => {
     const apiClient = { post: vi.fn().mockRejectedValue(error) };
 
     await expect(createInvitation(apiClient)).rejects.toBe(error);
+  });
+
+  it('rotates the sender-owned Invite Code and validates the replacement', async () => {
+    const replacement = {
+      ...outgoingInvitation(),
+      id: '8',
+      code: '9N4P-6R8T-2V5X-7Z3B-C8D4-H6J9',
+    } as const;
+    const apiClient = {
+      post: vi.fn().mockResolvedValue(replacement),
+    };
+
+    await expect(rotateInvitation(apiClient)).resolves.toEqual(replacement);
+    expect(apiClient.post).toHaveBeenCalledWith(
+      '/invitations/rotate',
+      {},
+      { expectedStatuses: [200] },
+    );
+  });
+
+  it('revokes the sender-owned Invite Code without expecting a body', async () => {
+    const apiClient = {
+      delete: vi.fn().mockResolvedValue(undefined),
+    };
+
+    await expect(revokeInvitation(apiClient)).resolves.toBeUndefined();
+    expect(apiClient.delete).toHaveBeenCalledWith('/invitations', {
+      expectedStatuses: [204],
+    });
   });
 
   it('saves an entered Invite Code and validates the incoming invitation', async () => {

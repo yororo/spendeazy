@@ -4105,6 +4105,86 @@
         "tags": [
           "Invitations"
         ]
+      },
+      "delete": {
+        "description": "Revokes the sender’s active Invite Code and removes every saved invitation claim made through it. Only the authenticated sender can perform this operation.",
+        "operationId": "Invitations_revoke",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthenticatedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/UserNotProvisionedError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          },
+          "406": {
+            "$ref": "#/components/responses/NotAcceptableError"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Revoke the authenticated sender’s Shared Space Invite Code.",
+        "tags": [
+          "Invitations"
+        ]
+      }
+    },
+    "/api/v1/users/me/invitations/rotate": {
+      "post": {
+        "description": "Replaces the sender’s active seven-day Invite Code, immediately invalidates the previous code, and removes every saved invitation claim made through it. Only the authenticated sender can perform this operation.",
+        "operationId": "Invitations_rotate",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutgoingInvitationResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthenticatedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/UserNotProvisionedError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          },
+          "406": {
+            "$ref": "#/components/responses/NotAcceptableError"
+          },
+          "409": {
+            "$ref": "#/components/responses/ConflictError"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Rotate the authenticated sender’s Shared Space Invite Code.",
+        "tags": [
+          "Invitations"
+        ]
       }
     },
     "/api/v1/users/me/invitations/claims": {

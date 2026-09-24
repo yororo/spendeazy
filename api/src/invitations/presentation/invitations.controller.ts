@@ -91,6 +91,51 @@ export class InvitationsController {
     );
   }
 
+  @Post('rotate')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Rotate the authenticated sender’s Shared Space Invite Code.',
+    description:
+      'Replaces the sender’s active seven-day Invite Code, immediately invalidates the previous code, and removes every saved invitation claim made through it. Only the authenticated sender can perform this operation.',
+  })
+  @ApiResponse({ status: HttpStatus.OK, type: OutgoingInvitationResponseDto })
+  @ApiStandardErrorResponses(
+    'UnauthenticatedError',
+    'UserNotProvisionedError',
+    'NotAcceptableError',
+    'NotFoundError',
+    'ConflictError',
+    'InternalError',
+  )
+  rotate(
+    @Req() request: AuthenticatedRequest,
+  ): Promise<OutgoingInvitationResponseDto> {
+    return this.invitationsService.rotateForUser(
+      requireAuthenticatedUserId(request),
+    );
+  }
+
+  @Delete()
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary: 'Revoke the authenticated sender’s Shared Space Invite Code.',
+    description:
+      'Revokes the sender’s active Invite Code and removes every saved invitation claim made through it. Only the authenticated sender can perform this operation.',
+  })
+  @ApiResponse({ status: HttpStatus.NO_CONTENT })
+  @ApiStandardErrorResponses(
+    'UnauthenticatedError',
+    'UserNotProvisionedError',
+    'NotAcceptableError',
+    'NotFoundError',
+    'InternalError',
+  )
+  async revoke(@Req() request: AuthenticatedRequest): Promise<void> {
+    await this.invitationsService.revokeForUser(
+      requireAuthenticatedUserId(request),
+    );
+  }
+
   @Post('claims')
   @ApiOperation({
     summary: 'Save a Shared Space invitation by Invite Code.',

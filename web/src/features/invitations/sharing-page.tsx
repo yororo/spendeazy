@@ -45,6 +45,8 @@ import {
   useCreateInvitationMutation,
   useDeclineInvitationMutation,
   useInvitationsQuery,
+  useRevokeInvitationMutation,
+  useRotateInvitationMutation,
 } from './invitation-queries';
 import type {
   IncomingInvitation,
@@ -63,6 +65,8 @@ function SharingPage() {
   const selectedSpaceId = searchParams.get('spaceId');
   const invitationsQuery = useInvitationsQuery();
   const createMutation = useCreateInvitationMutation();
+  const rotateMutation = useRotateInvitationMutation();
+  const revokeMutation = useRevokeInvitationMutation();
   const acceptMutation = useAcceptInvitationMutation();
   const claimMutation = useClaimInvitationMutation();
   const declineMutation = useDeclineInvitationMutation();
@@ -171,11 +175,19 @@ function SharingPage() {
       <InviteCodeCard
         outgoing={outgoing}
         ineligible={activeSharedSpace !== undefined}
-        disabled={createMutation.isPending}
-        error={createMutation.error}
+        disabled={
+          createMutation.isPending ||
+          rotateMutation.isPending ||
+          revokeMutation.isPending
+        }
+        createError={createMutation.error}
+        rotateError={rotateMutation.error}
+        revokeError={revokeMutation.error}
         copyState={copyState}
         onCreate={() => createMutation.mutate(undefined)}
         onCopy={copyInviteCode}
+        onRotate={() => rotateMutation.mutate(undefined)}
+        onRevoke={() => revokeMutation.mutate(undefined)}
       />
     </div>
   );
@@ -375,18 +387,26 @@ function InviteCodeCard({
   outgoing,
   ineligible,
   disabled,
-  error,
+  createError,
+  rotateError,
+  revokeError,
   copyState,
   onCreate,
   onCopy,
+  onRotate,
+  onRevoke,
 }: {
   readonly outgoing: OutgoingInvitation | null;
   readonly ineligible: boolean;
   readonly disabled: boolean;
-  readonly error: Error | null;
+  readonly createError: Error | null;
+  readonly rotateError: Error | null;
+  readonly revokeError: Error | null;
   readonly copyState: CopyState;
   readonly onCreate: () => void;
   readonly onCopy: (code: string) => Promise<void>;
+  readonly onRotate: () => void;
+  readonly onRevoke: () => void;
 }) {
   if (ineligible && !outgoing) {
     return (
@@ -418,10 +438,10 @@ function InviteCodeCard({
             after seven days and does not reveal any financial data.
           </CardDescription>
         </CardHeader>
-        {error && (
+        {createError && (
           <Alert variant="destructive" className="m-4">
             <AlertTitle>Invite Code could not be created</AlertTitle>
-            <AlertDescription>{error.message}</AlertDescription>
+            <AlertDescription>{createError.message}</AlertDescription>
           </Alert>
         )}
         <CardFooter>
@@ -446,6 +466,22 @@ function InviteCodeCard({
           choose whether to save the invitation.
         </CardDescription>
       </CardHeader>
+      {(rotateError || revokeError) && (
+        <div className="space-y-3 px-4">
+          {rotateError && (
+            <Alert variant="destructive">
+              <AlertTitle>Invite Code could not be rotated</AlertTitle>
+              <AlertDescription>{rotateError.message}</AlertDescription>
+            </Alert>
+          )}
+          {revokeError && (
+            <Alert variant="destructive">
+              <AlertTitle>Invite Code could not be revoked</AlertTitle>
+              <AlertDescription>{revokeError.message}</AlertDescription>
+            </Alert>
+          )}
+        </div>
+      )}
       <CardContent className="space-y-4">
         <div>
           <p className="text-label text-muted-foreground">Active code</p>
@@ -477,6 +513,25 @@ function InviteCodeCard({
             This browser could not access the clipboard. Copy the code manually.
           </p>
         )}
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onRotate}
+            disabled={disabled}
+          >
+            <RotateCcwIcon aria-hidden="true" />
+            {disabled ? 'Updating…' : 'Rotate Invite Code'}
+          </Button>
+          <Button
+            type="button"
+            variant="destructive"
+            onClick={onRevoke}
+            disabled={disabled}
+          >
+            {disabled ? 'Updating…' : 'Revoke Invite Code'}
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );

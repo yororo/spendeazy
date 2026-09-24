@@ -37,17 +37,20 @@ export interface NewInvitation {
 export interface NewInvitationClaim {
   invitationId: string;
   userId: string;
+  now: Date;
 }
 
 export interface InvitationStore {
   findPendingBySender(senderUserId: string): Promise<InvitationRecord | null>;
   findByCodeHash(codeHash: string): Promise<InvitationRecord | null>;
   findClaimsForUser(userId: string): Promise<InvitationClaimRecord[]>;
-  findClaimForInvitationAndUser(
-    invitationId: string,
-    userId: string,
-  ): Promise<InvitationClaimRecord | null>;
   create(input: NewInvitation): Promise<InvitationRecord>;
+  rotatePending(
+    senderUserId: string,
+    replacement: NewInvitation,
+    now: Date,
+  ): Promise<InvitationRecord | null>;
+  revokePending(senderUserId: string, now: Date): Promise<boolean>;
   createClaim(input: NewInvitationClaim): Promise<InvitationClaimRecord>;
   deleteClaimForUser(userId: string, claimId: string): Promise<boolean>;
   expirePending(before: Date): Promise<void>;

@@ -153,6 +153,32 @@ async function createInvitation(
   );
 }
 
+async function rotateInvitation(
+  apiClient: Pick<InvitationsApiClient, 'post'>,
+): Promise<OutgoingInvitation> {
+  const response = await apiClient.post<unknown>(
+    '/invitations/rotate',
+    {},
+    { expectedStatuses: [200] },
+  );
+  return requireOutgoingInvitation(
+    requireApiResponse(
+      response,
+      'rotated invitation',
+      invalidInvitationResponse,
+    ),
+    'rotated invitation',
+  );
+}
+
+async function revokeInvitation(
+  apiClient: Pick<InvitationsApiClient, 'delete'>,
+): Promise<void> {
+  await apiClient.delete<unknown>('/invitations', {
+    expectedStatuses: [204],
+  });
+}
+
 async function claimInvitation(
   apiClient: Pick<InvitationsApiClient, 'post'>,
   code: string,
@@ -215,5 +241,7 @@ export {
   requireIncomingInvitation,
   requireInvitationInbox,
   requireOutgoingInvitation,
+  revokeInvitation,
+  rotateInvitation,
 };
 export type { InvitationsApiClient };

@@ -28,6 +28,16 @@ const pageState = vi.hoisted(() => ({
     isPending: false,
     mutate: vi.fn(),
   },
+  rotateMutation: {
+    error: null as Error | null,
+    isPending: false,
+    mutate: vi.fn(),
+  },
+  revokeMutation: {
+    error: null as Error | null,
+    isPending: false,
+    mutate: vi.fn(),
+  },
   acceptMutation: {
     error: null as Error | null,
     isPending: false,
@@ -73,6 +83,8 @@ vi.mock('./invitation-queries', () => ({
   useCreateInvitationMutation: () => pageState.createMutation,
   useDeclineInvitationMutation: () => pageState.declineMutation,
   useInvitationsQuery: () => pageState.invitationsQuery,
+  useRevokeInvitationMutation: () => pageState.revokeMutation,
+  useRotateInvitationMutation: () => pageState.rotateMutation,
 }));
 
 vi.mock('./space-notification-queries', () => ({
@@ -96,6 +108,12 @@ afterEach(() => {
   pageState.createMutation.isError = false;
   pageState.createMutation.isPending = false;
   pageState.createMutation.mutate.mockClear();
+  pageState.rotateMutation.error = null;
+  pageState.rotateMutation.isPending = false;
+  pageState.rotateMutation.mutate.mockClear();
+  pageState.revokeMutation.error = null;
+  pageState.revokeMutation.isPending = false;
+  pageState.revokeMutation.mutate.mockClear();
   pageState.acceptMutation.error = null;
   pageState.acceptMutation.isPending = false;
   pageState.acceptMutation.mutate.mockClear();
@@ -165,6 +183,58 @@ describe('SharingPage', () => {
         '7K3M-2Q8R-5T6V-W9X2-C4D7-H8J3',
       ),
     );
+  });
+
+  it('lets the sender rotate or revoke the active code', () => {
+    pageState.invitationsQuery.data = {
+      outgoing: {
+        id: '7',
+        code: '7K3M-2Q8R-5T6V-W9X2-C4D7-H8J3',
+        status: 'pending',
+        expiresAt: '2026-09-30T00:00:00.000Z',
+        createdAt: '2026-09-23T00:00:00.000Z',
+        updatedAt: '2026-09-23T00:00:00.000Z',
+      },
+      incoming: [],
+    };
+
+    render(
+      <MemoryRouter initialEntries={['/sharing']}>
+        <SharingPage />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Rotate Invite Code' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Revoke Invite Code' }));
+
+    expect(pageState.rotateMutation.mutate).toHaveBeenCalledWith(undefined);
+    expect(pageState.revokeMutation.mutate).toHaveBeenCalledWith(undefined);
+  });
+
+  it('shows rotation and revocation failures while keeping the active code visible', () => {
+    pageState.invitationsQuery.data = {
+      outgoing: {
+        id: '7',
+        code: '7K3M-2Q8R-5T6V-W9X2-C4D7-H8J3',
+        status: 'pending',
+        expiresAt: '2026-09-30T00:00:00.000Z',
+        createdAt: '2026-09-23T00:00:00.000Z',
+        updatedAt: '2026-09-23T00:00:00.000Z',
+      },
+      incoming: [],
+    };
+    pageState.rotateMutation.error = new Error('rotation failed');
+    pageState.revokeMutation.error = new Error('revocation failed');
+
+    render(
+      <MemoryRouter initialEntries={['/sharing']}>
+        <SharingPage />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText('Invite Code could not be rotated')).toBeTruthy();
+    expect(screen.getByText('Invite Code could not be revoked')).toBeTruthy();
+    expect(screen.getByText('7K3M-2Q8R-5T6V-W9X2-C4D7-H8J3')).toBeTruthy();
   });
 
   it('does not offer code creation to a User in an active Shared Space', () => {

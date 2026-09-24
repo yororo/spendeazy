@@ -9,6 +9,8 @@ import {
   createInvitation,
   declineInvitation,
   getInvitations,
+  revokeInvitation,
+  rotateInvitation,
 } from './invitations-service';
 
 const INVITATIONS_QUERY_KEY = ['invitations'] as const;
@@ -40,6 +42,28 @@ function useClaimInvitationMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (code: string) => claimInvitation(apiClient, code),
+    retry: 0,
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: INVITATIONS_QUERY_KEY }),
+  });
+}
+
+function useRotateInvitationMutation() {
+  const apiClient = useApiClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => rotateInvitation(apiClient),
+    retry: 0,
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: INVITATIONS_QUERY_KEY }),
+  });
+}
+
+function useRevokeInvitationMutation() {
+  const apiClient = useApiClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => revokeInvitation(apiClient),
     retry: 0,
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: INVITATIONS_QUERY_KEY }),
@@ -79,4 +103,6 @@ export {
   useCreateInvitationMutation,
   useDeclineInvitationMutation,
   useInvitationsQuery,
+  useRevokeInvitationMutation,
+  useRotateInvitationMutation,
 };

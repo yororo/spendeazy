@@ -33,6 +33,12 @@ describe('InvitationsService', () => {
   const code = '7K3M-2Q8R-5T6V-W9X2-C4D7-H8J3';
   let store: jest.Mocked<InvitationStore>;
   let createInvitationMock: jest.MockedFunction<InvitationStore['create']>;
+  let rotateInvitationMock: jest.MockedFunction<
+    InvitationStore['rotatePending']
+  >;
+  let revokeInvitationMock: jest.MockedFunction<
+    InvitationStore['revokePending']
+  >;
   let spaceAccessService: jest.Mocked<
     Pick<SpaceAccessService, 'listActiveAccessibleSpaces'>
   >;
@@ -47,13 +53,16 @@ describe('InvitationsService', () => {
 
   beforeEach(() => {
     createInvitationMock = jest.fn();
+    rotateInvitationMock = jest.fn();
+    revokeInvitationMock = jest.fn();
     store = {
       findPendingBySender: jest.fn().mockResolvedValue(null),
       findByCodeHash: jest.fn().mockResolvedValue(null),
       findClaimsForUser: jest.fn().mockResolvedValue([]),
-      findClaimForInvitationAndUser: jest.fn().mockResolvedValue(null),
       deleteClaimForUser: jest.fn().mockResolvedValue(true),
       create: createInvitationMock,
+      rotatePending: rotateInvitationMock,
+      revokePending: revokeInvitationMock,
       createClaim: jest.fn(),
       expirePending: jest.fn().mockResolvedValue(undefined),
     };
@@ -176,6 +185,68 @@ describe('InvitationsService', () => {
     expect(generateCodeMock).not.toHaveBeenCalled();
   });
 
+  it('rotates the sender-owned code with a fresh seven-day expiry', async () => {
+    store.findPendingBySender.mockResolvedValue(invitationRecord());
+    const rotated = invitationRecord({
+      id: '8',
+      codeHash: 'hash-for-rotated-code',
+      codeCiphertext: 'ciphertext-for-rotated-code',
+      expiresAt: new Date('2026-09-30T00:00:00.000Z'),
+      createdAt: now,
+      updatedAt: now,
+    });
+    generateCodeMock.mockReturnValue({
+      code: '9N4P-6R8T-2V5X-7Z3B-C8D4-H6J9',
+      codeHash: 'hash-for-rotated-code',
+      codeCiphertext: 'ciphertext-for-rotated-code',
+    });
+    revealCodeMock.mockReturnValueOnce('9N4P-6R8T-2V5X-7Z3B-C8D4-H6J9');
+    rotateInvitationMock.mockResolvedValue(rotated);
+
+    await expect(service.rotateForUser('42')).resolves.toEqual({
+      id: '8',
+      code: '9N4P-6R8T-2V5X-7Z3B-C8D4-H6J9',
+      status: 'pending',
+      expiresAt: '2026-09-30T00:00:00.000Z',
+      createdAt: '2026-09-23T00:00:00.000Z',
+      updatedAt: '2026-09-23T00:00:00.000Z',
+    });
+
+    expect(rotateInvitationMock).toHaveBeenCalledWith(
+      '42',
+      {
+        senderUserId: '42',
+        codeHash: 'hash-for-rotated-code',
+        codeCiphertext: 'ciphertext-for-rotated-code',
+        expiresAt: new Date('2026-09-30T00:00:00.000Z'),
+      },
+      now,
+    );
+  });
+
+  it('does not rotate when the sender has no active code', async () => {
+    await expect(service.rotateForUser('42')).rejects.toBeInstanceOf(
+      InvitationCodeUnavailableError,
+    );
+    expect(generateCodeMock).not.toHaveBeenCalled();
+    expect(rotateInvitationMock).not.toHaveBeenCalled();
+  });
+
+  it('revokes the sender-owned code through the persistence seam', async () => {
+    store.findPendingBySender.mockResolvedValue(invitationRecord());
+    revokeInvitationMock.mockResolvedValue(true);
+
+    await expect(service.revokeForUser('42')).resolves.toBeUndefined();
+    expect(revokeInvitationMock).toHaveBeenCalledWith('42', now);
+  });
+
+  it('does not revoke when the sender has no active code', async () => {
+    await expect(service.revokeForUser('42')).rejects.toBeInstanceOf(
+      InvitationCodeUnavailableError,
+    );
+    expect(revokeInvitationMock).not.toHaveBeenCalled();
+  });
+
   it('preserves the database conflict when concurrent creation wins elsewhere', async () => {
     createInvitationMock.mockRejectedValue(new InvitationAlreadyPendingError());
 
@@ -197,7 +268,7 @@ describe('InvitationsService', () => {
       '7k3m-2q8r-5t6v-w9x2-c4d7-h8j3',
     ]);
     expect(store.createClaim.mock.calls).toContainEqual([
-      { invitationId: '7', userId: '99' },
+      { invitationId: '7', userId: '99', now },
     ]);
     expect(spaceAccessService.listActiveAccessibleSpaces).toHaveBeenCalledWith(
       '99',
@@ -207,13 +278,15 @@ describe('InvitationsService', () => {
   it('makes repeated claims idempotent for the same User and code', async () => {
     store.findByCodeHash.mockResolvedValue(invitationRecord());
     const claim = invitationClaimRecord();
-    store.findClaimForInvitationAndUser.mockResolvedValue(claim);
+    store.createClaim.mockResolvedValue(claim);
 
     await expect(
       service.claimForUser('99', code, '127.0.0.1'),
     ).resolves.toEqual(incomingView(claim));
 
-    expect(store.createClaim.mock.calls).toHaveLength(0);
+    expect(store.createClaim.mock.calls).toContainEqual([
+      { invitationId: '7', userId: '99', now },
+    ]);
   });
 
   it.each([

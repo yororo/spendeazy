@@ -94,6 +94,7 @@ export class InvitationsService {
     if (!this.attemptLimiter.consume(userId, networkSource, now)) {
       throw new InvitationCodeRateLimitedError();
     }
+    await this.invitationStore.expirePending(now);
 
     let invitation: InvitationRecord | null;
     try {
@@ -113,28 +114,15 @@ export class InvitationsService {
       throw new InvitationCodeUnavailableError();
     }
 
-    const activeSpaces =
-      await this.spaceAccessService.listActiveAccessibleSpaces(userId);
-    if (
-      activeSpaces.some(
-        (space) => space.kind === 'shared' && space.status === 'active',
-      )
-    ) {
+    if (!(await this.isEligibleForInvitation(userId))) {
       throw new InvitationCodeUnavailableError();
-    }
-
-    const existing = await this.invitationStore.findClaimForInvitationAndUser(
-      invitation.id,
-      userId,
-    );
-    if (existing) {
-      return this.toIncomingView(existing);
     }
 
     return this.toIncomingView(
       await this.invitationStore.createClaim({
         invitationId: invitation.id,
         userId,
+        now,
       }),
     );
   }
@@ -161,13 +149,7 @@ export class InvitationsService {
   }
 
   async createForUser(userId: string): Promise<OutgoingInvitationView> {
-    const activeSpaces =
-      await this.spaceAccessService.listActiveAccessibleSpaces(userId);
-    if (
-      activeSpaces.some(
-        (space) => space.kind === 'shared' && space.status === 'active',
-      )
-    ) {
+    if (!(await this.isEligibleForInvitation(userId))) {
       throw new InvitationIneligibleError();
     }
 
@@ -187,6 +169,58 @@ export class InvitationsService {
     });
 
     return this.toOutgoingView(invitation);
+  }
+
+  async rotateForUser(userId: string): Promise<OutgoingInvitationView> {
+    if (!(await this.isEligibleForInvitation(userId))) {
+      throw new InvitationIneligibleError();
+    }
+
+    const now = this.clock.now();
+    await this.invitationStore.expirePending(now);
+    const existing = await this.invitationStore.findPendingBySender(userId);
+    if (!existing) {
+      throw new InvitationCodeUnavailableError();
+    }
+
+    const generated = this.codeSecurity.generate();
+    const invitation = await this.invitationStore.rotatePending(
+      userId,
+      {
+        senderUserId: userId,
+        codeHash: generated.codeHash,
+        codeCiphertext: generated.codeCiphertext,
+        expiresAt: new Date(now.getTime() + INVITATION_EXPIRY_MS),
+      },
+      now,
+    );
+    if (!invitation) {
+      throw new InvitationCodeUnavailableError();
+    }
+
+    return this.toOutgoingView(invitation);
+  }
+
+  async revokeForUser(userId: string): Promise<void> {
+    const now = this.clock.now();
+    await this.invitationStore.expirePending(now);
+    const existing = await this.invitationStore.findPendingBySender(userId);
+    if (!existing) {
+      throw new InvitationCodeUnavailableError();
+    }
+
+    const revoked = await this.invitationStore.revokePending(userId, now);
+    if (!revoked) {
+      throw new InvitationCodeUnavailableError();
+    }
+  }
+
+  private async isEligibleForInvitation(userId: string): Promise<boolean> {
+    const activeSpaces =
+      await this.spaceAccessService.listActiveAccessibleSpaces(userId);
+    return !activeSpaces.some(
+      (space) => space.kind === 'shared' && space.status === 'active',
+    );
   }
 
   private toOutgoingView(invitation: InvitationRecord): OutgoingInvitationView {

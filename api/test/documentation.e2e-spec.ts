@@ -53,6 +53,7 @@ describe('public API documentation', () => {
       Object.keys(document.paths).filter((path) => path.includes('invitation')),
     ).toEqual([
       '/api/v1/users/me/invitations',
+      '/api/v1/users/me/invitations/rotate',
       '/api/v1/users/me/invitations/claims',
       '/api/v1/users/me/invitations/claims/{claimId}',
       '/api/v1/users/me/invitations/claims/{claimId}/accept',

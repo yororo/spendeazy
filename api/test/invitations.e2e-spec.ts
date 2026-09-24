@@ -26,6 +26,8 @@ describe('authenticated Invite Code routes', () => {
   const invitationsService = {
     listForUser: jest.fn(),
     createForUser: jest.fn(),
+    rotateForUser: jest.fn(),
+    revokeForUser: jest.fn(),
     claimForUser: jest.fn(),
     declineForUser: jest.fn(),
     acceptForUser: jest.fn(),
@@ -75,6 +77,15 @@ describe('authenticated Invite Code routes', () => {
       createdAt: '2026-09-23T00:00:00.000Z',
       updatedAt: '2026-09-23T00:00:00.000Z',
     });
+    invitationsService.rotateForUser.mockReset().mockResolvedValue({
+      id: '8',
+      code: '9N4P-6R8T-2V5X-7Z3B-C8D4-H6J9',
+      status: 'pending',
+      expiresAt: '2026-09-30T00:00:00.000Z',
+      createdAt: '2026-09-23T00:00:00.000Z',
+      updatedAt: '2026-09-23T00:00:00.000Z',
+    });
+    invitationsService.revokeForUser.mockReset().mockResolvedValue(undefined);
     invitationsService.claimForUser.mockReset().mockResolvedValue({
       id: '88',
       senderName: 'Invite sender',
@@ -128,6 +139,33 @@ describe('authenticated Invite Code routes', () => {
       status: 'pending',
     });
     expect(invitationsService.createForUser).toHaveBeenCalledWith('42');
+  });
+
+  it('rotates the sender-owned code through Sharing', async () => {
+    const response = await request(application.getHttpServer() as Server)
+      .post('/api/v1/users/me/invitations/rotate')
+      .set('Authorization', 'Bearer token-a')
+      .set('Accept', 'application/json')
+      .send({});
+    const body = responseBody<OutgoingInvitationBody>(response);
+
+    expect(response.status).toBe(200);
+    expect(body).toMatchObject({
+      code: '9N4P-6R8T-2V5X-7Z3B-C8D4-H6J9',
+      status: 'pending',
+    });
+    expect(invitationsService.rotateForUser).toHaveBeenCalledWith('42');
+  });
+
+  it('revokes the sender-owned code through Sharing', async () => {
+    const response = await request(application.getHttpServer() as Server)
+      .delete('/api/v1/users/me/invitations')
+      .set('Authorization', 'Bearer token-a')
+      .set('Accept', 'application/json');
+
+    expect(response.status).toBe(204);
+    expect(response.text).toBe('');
+    expect(invitationsService.revokeForUser).toHaveBeenCalledWith('42');
   });
 
   it('saves a code without creating membership and passes the network source to the service', async () => {

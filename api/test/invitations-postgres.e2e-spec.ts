@@ -175,6 +175,230 @@ describeDatabase('Invite Codes with PostgreSQL', () => {
     expect(persisted?.codeCiphertext).not.toContain(createdBody.code);
   });
 
+  it('rotates only for the sender, removes old claims, and invalidates the old code', async () => {
+    const sender = createIdentity('rotate-sender');
+    const firstRecipient = createIdentity('rotate-first-recipient');
+    const secondRecipient = createIdentity('rotate-second-recipient');
+    await provision(sender);
+    await provision(firstRecipient);
+    await provision(secondRecipient);
+
+    const created = await http()
+      .post('/api/v1/users/me/invitations')
+      .set(...authorization(sender))
+      .send({});
+    const oldInvitation = responseBody<OutgoingInvitationBody>(created);
+    createdInvitationIds.push(oldInvitation.id);
+
+    const firstClaim = await http()
+      .post('/api/v1/users/me/invitations/claims')
+      .set(...authorization(firstRecipient))
+      .send({ code: oldInvitation.code });
+    const firstClaimBody = responseBody<IncomingInvitationBody>(firstClaim);
+    const secondClaim = await http()
+      .post('/api/v1/users/me/invitations/claims')
+      .set(...authorization(secondRecipient))
+      .send({ code: oldInvitation.code });
+    expect(secondClaim.status).toBe(201);
+
+    const unauthorizedRotation = await http()
+      .post('/api/v1/users/me/invitations/rotate')
+      .set(...authorization(firstRecipient))
+      .send({});
+    expect(unauthorizedRotation.status).toBe(404);
+
+    const rotated = await http()
+      .post('/api/v1/users/me/invitations/rotate')
+      .set(...authorization(sender))
+      .send({});
+    const newInvitation = responseBody<OutgoingInvitationBody>(rotated);
+    createdInvitationIds.push(newInvitation.id);
+    expect(rotated.status).toBe(200);
+    expect(newInvitation).toMatchObject({ status: 'pending' });
+    expect(newInvitation.code).not.toBe(oldInvitation.code);
+    expect(
+      Date.parse(newInvitation.expiresAt) - Date.parse(newInvitation.createdAt),
+    ).toBe(7 * 24 * 60 * 60 * 1000);
+
+    expect(
+      await database.getRepository(InvitationClaimEntity).countBy({
+        invitationId: oldInvitation.id,
+      }),
+    ).toBe(0);
+    const recipientInbox = await http()
+      .get('/api/v1/users/me/invitations')
+      .set(...authorization(firstRecipient));
+    expect(responseBody<InvitationInboxBody>(recipientInbox).incoming).toEqual(
+      [],
+    );
+
+    const staleClaimJoin = await http()
+      .post(`/api/v1/users/me/invitations/claims/${firstClaimBody.id}/accept`)
+      .set(...authorization(firstRecipient))
+      .send({});
+    expect(staleClaimJoin.status).toBe(404);
+
+    const staleCode = await http()
+      .post('/api/v1/users/me/invitations/claims')
+      .set(...authorization(secondRecipient))
+      .send({ code: oldInvitation.code });
+    expect(staleCode.status).toBe(404);
+
+    const persistedOldInvitation = await database
+      .getRepository(InvitationEntity)
+      .findOneBy({ id: oldInvitation.id });
+    expect(persistedOldInvitation?.status).toBe('revoked');
+  });
+
+  it('revokes all claims and allows a replacement code without two pending invitations', async () => {
+    const sender = createIdentity('revoke-sender');
+    const recipient = createIdentity('revoke-recipient');
+    const senderId = await provision(sender);
+    await provision(recipient);
+
+    const created = await http()
+      .post('/api/v1/users/me/invitations')
+      .set(...authorization(sender))
+      .send({});
+    const oldInvitation = responseBody<OutgoingInvitationBody>(created);
+    createdInvitationIds.push(oldInvitation.id);
+    const claim = await http()
+      .post('/api/v1/users/me/invitations/claims')
+      .set(...authorization(recipient))
+      .send({ code: oldInvitation.code });
+    expect(claim.status).toBe(201);
+
+    const revoked = await http()
+      .delete('/api/v1/users/me/invitations')
+      .set(...authorization(sender));
+    expect(revoked.status).toBe(204);
+
+    const listed = await http()
+      .get('/api/v1/users/me/invitations')
+      .set(...authorization(sender));
+    expect(responseBody<InvitationInboxBody>(listed).outgoing).toBeNull();
+    expect(
+      await database.getRepository(InvitationClaimEntity).countBy({
+        invitationId: oldInvitation.id,
+      }),
+    ).toBe(0);
+    expect(
+      await database.getRepository(InvitationEntity).countBy({
+        senderUserId: senderId,
+        status: 'pending',
+      }),
+    ).toBe(0);
+
+    const replacement = await http()
+      .post('/api/v1/users/me/invitations')
+      .set(...authorization(sender))
+      .send({});
+    const replacementBody = responseBody<OutgoingInvitationBody>(replacement);
+    createdInvitationIds.push(replacementBody.id);
+    expect(replacement.status).toBe(201);
+    expect(
+      await database.getRepository(InvitationEntity).countBy({
+        senderUserId: senderId,
+        status: 'pending',
+      }),
+    ).toBe(1);
+  });
+
+  it('expires pending codes and removes their claims at the expiry boundary', async () => {
+    const sender = createIdentity('expiry-sender');
+    const recipient = createIdentity('expiry-recipient');
+    const senderId = await provision(sender);
+    await provision(recipient);
+
+    const created = await http()
+      .post('/api/v1/users/me/invitations')
+      .set(...authorization(sender))
+      .send({});
+    const expiredInvitation = responseBody<OutgoingInvitationBody>(created);
+    createdInvitationIds.push(expiredInvitation.id);
+    const claim = await http()
+      .post('/api/v1/users/me/invitations/claims')
+      .set(...authorization(recipient))
+      .send({ code: expiredInvitation.code });
+    expect(claim.status).toBe(201);
+
+    await database
+      .getRepository(InvitationEntity)
+      .update(expiredInvitation.id, {
+        expiresAt: new Date(Date.now() - 1000),
+      });
+
+    const listed = await http()
+      .get('/api/v1/users/me/invitations')
+      .set(...authorization(sender));
+    expect(responseBody<InvitationInboxBody>(listed).outgoing).toBeNull();
+    expect(
+      await database.getRepository(InvitationClaimEntity).countBy({
+        invitationId: expiredInvitation.id,
+      }),
+    ).toBe(0);
+
+    const replacement = await http()
+      .post('/api/v1/users/me/invitations')
+      .set(...authorization(sender))
+      .send({});
+    expect(replacement.status).toBe(201);
+    createdInvitationIds.push(
+      responseBody<OutgoingInvitationBody>(replacement).id,
+    );
+    expect(
+      await database.getRepository(InvitationEntity).countBy({
+        senderUserId: senderId,
+        status: 'pending',
+      }),
+    ).toBe(1);
+  });
+
+  it('serializes rotation and joining so a stale code cannot create membership', async () => {
+    const sender = createIdentity('rotate-join-sender');
+    const recipient = createIdentity('rotate-join-recipient');
+    await provision(sender);
+    await provision(recipient);
+
+    const created = await http()
+      .post('/api/v1/users/me/invitations')
+      .set(...authorization(sender))
+      .send({});
+    const invitation = responseBody<OutgoingInvitationBody>(created);
+    createdInvitationIds.push(invitation.id);
+    const claim = await http()
+      .post('/api/v1/users/me/invitations/claims')
+      .set(...authorization(recipient))
+      .send({ code: invitation.code });
+    const claimBody = responseBody<IncomingInvitationBody>(claim);
+
+    const [rotation, join] = await Promise.all([
+      http()
+        .post('/api/v1/users/me/invitations/rotate')
+        .set(...authorization(sender))
+        .send({}),
+      http()
+        .post(`/api/v1/users/me/invitations/claims/${claimBody.id}/accept`)
+        .set(...authorization(recipient))
+        .send({}),
+    ]);
+
+    expect([rotation.status, join.status].sort()).toEqual([200, 404]);
+    if (rotation.status === 200) {
+      createdInvitationIds.push(
+        responseBody<OutgoingInvitationBody>(rotation).id,
+      );
+      const staleJoin = await http()
+        .post(`/api/v1/users/me/invitations/claims/${claimBody.id}/accept`)
+        .set(...authorization(recipient))
+        .send({});
+      expect(staleJoin.status).toBe(404);
+    } else {
+      const joinedBody = responseBody<SharedSpaceBody>(join);
+      createdSpaceIds.push(joinedBody.id);
+    }
+  });
+
   it("does not disclose another User's outgoing code", async () => {
     const sender = createIdentity('sender');
     const other = createIdentity('other');

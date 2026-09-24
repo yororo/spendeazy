@@ -669,7 +669,7 @@ describeDatabase('Invite Codes with PostgreSQL', () => {
     expect(notifications[0]).not.toHaveProperty('emailDeliveryStatus');
     expect(notifications[0]).not.toHaveProperty('emailDeliveryError');
 
-    const notificationId = notifications[0]!.id;
+    const notificationId = notifications[0].id;
     expect(notificationId).toMatch(/^[1-9]\d*$/u);
     const markedRead = await http()
       .post(`/api/v1/users/me/notifications/${notificationId}/read`)

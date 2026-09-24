@@ -88,16 +88,11 @@ describe('loadAppConfig', () => {
     );
   });
 
-  it('ignores retired email delivery configuration', () => {
+  it('ignores unrelated environment configuration', () => {
     expect(
       loadAppConfig({
         NODE_ENV: 'test',
-        INVITATION_DELIVERY_URL: ' https://mailer.example.test/send/ ',
-        INVITATION_DELIVERY_API_KEY: ' delivery-secret ',
-        INVITATION_WEB_BASE_URL: 'https://app.example.test/ ',
-        SPACE_NOTIFICATION_DELIVERY_URL:
-          ' https://mailer.example.test/space-archive/ ',
-        SPACE_NOTIFICATION_DELIVERY_API_KEY: ' space-delivery-secret ',
+        UNRELATED_CONFIGURATION: 'ignored',
       }),
     ).toEqual({
       environment: 'test',

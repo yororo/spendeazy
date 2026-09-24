@@ -1018,6 +1018,117 @@ test("completes the two-member Shared Space financial journey from the local fix
   }
 });
 
+test("completes the Invite Code journey between two fresh signed-in Users", async ({
+  page,
+  browser,
+}) => {
+  const apiBaseUrl = requireEnvironment("SPENDEAZY_E2E_API_BASE_URL");
+  const recipientContext = await browser.newContext();
+  const recipientPage = await recipientContext.newPage();
+
+  try {
+    await page.goto("/sharing");
+    const senderToken = await switchToNewUser(page);
+    const senderName = (
+      await page.getByTestId("local-test-active-user").textContent()
+    )?.trim();
+    if (!senderName) throw new Error("The sender name was not rendered.");
+    await expect(
+      page.getByRole("heading", {
+        name: "Create a Shared Space Invite Code",
+      }),
+    ).toBeVisible();
+
+    await page.getByRole("button", { name: "Create Invite Code" }).click();
+    const codeElement = page.locator("code");
+    await expect(codeElement).toHaveText(
+      /^[0-9A-HJKMNP-TV-Z]{4}(?:-[0-9A-HJKMNP-TV-Z]{4}){5}$/u,
+    );
+    const code = (await codeElement.textContent())?.trim();
+    if (!code) throw new Error("The sender Invite Code was not rendered.");
+
+    await page.context().grantPermissions(
+      ["clipboard-read", "clipboard-write"],
+      { origin: new URL(page.url()).origin },
+    );
+    await page.getByRole("button", { name: "Copy Invite Code" }).click();
+    await expect(page.getByRole("button", { name: "Copied" })).toBeVisible();
+
+    await recipientPage.clock.install({ time: testClock });
+    await recipientPage.goto("/sharing");
+    const recipientToken = await switchToNewUser(recipientPage);
+    await expect(
+      recipientPage.getByTestId("local-test-active-user"),
+    ).toContainText("Fresh Local User");
+    await recipientPage.getByLabel("Invite Code").fill(code);
+    await recipientPage
+      .getByRole("button", { name: "Save Invitation" })
+      .click();
+    await expect(
+      recipientPage.getByText(senderName, { exact: true }),
+    ).toBeVisible();
+    await expect(
+      recipientPage.getByRole("button", { name: "Join Shared Space" }),
+    ).toBeVisible();
+
+    const recipientSpacesBeforeJoin = await browserApi(
+      recipientPage,
+      apiBaseUrl,
+      recipientToken,
+      "/api/v1/users/me/spaces",
+    );
+    expect(recipientSpacesBeforeJoin.status).toBe(200);
+    expect(
+      readSpaceList(recipientSpacesBeforeJoin.body).filter(
+        (space) => space.kind === "shared" && space.status === "active",
+      ),
+    ).toHaveLength(0);
+
+    const savedInbox = await browserApi(
+      recipientPage,
+      apiBaseUrl,
+      recipientToken,
+      "/api/v1/users/me/invitations",
+    );
+    expect(savedInbox.status).toBe(200);
+    expect(savedInbox.body).toMatchObject({
+      incoming: [expect.objectContaining({ senderName, status: "pending" })],
+    });
+
+    await recipientPage
+      .getByRole("button", { name: "Join Shared Space" })
+      .click();
+    await expect(recipientPage).toHaveURL(/\/\?spaceId=[1-9]\d*$/u);
+
+    const senderSpaces = await browserApi(
+      page,
+      apiBaseUrl,
+      senderToken,
+      "/api/v1/users/me/spaces",
+    );
+    const recipientSpaces = await browserApi(
+      recipientPage,
+      apiBaseUrl,
+      recipientToken,
+      "/api/v1/users/me/spaces",
+    );
+    expect(senderSpaces.status).toBe(200);
+    expect(recipientSpaces.status).toBe(200);
+    const senderSharedSpaces = readSpaceList(senderSpaces.body).filter(
+      (space) => space.kind === "shared" && space.status === "active",
+    );
+    const recipientSharedSpaces = readSpaceList(recipientSpaces.body).filter(
+      (space) => space.kind === "shared" && space.status === "active",
+    );
+    expect(senderSharedSpaces).toHaveLength(1);
+    expect(recipientSharedSpaces).toHaveLength(1);
+    expect(recipientSharedSpaces[0]?.id).toBe(senderSharedSpaces[0]?.id);
+    expect(senderSharedSpaces[0]?.members).toHaveLength(2);
+  } finally {
+    await recipientContext.close();
+  }
+});
+
 test(
   "shows that new Shared Space creation is temporarily unavailable",
   async ({ page }) => {
@@ -1054,6 +1165,21 @@ async function issueSession(
   }
 
   return { token: body.token };
+}
+
+async function switchToNewUser(page: Page): Promise<string> {
+  const sessionResponse = page.waitForResponse(
+    (response) =>
+      response.url().endsWith("/api/v1/users/me/local-test/sessions") &&
+      response.request().method() === "POST" &&
+      response.status() === 201,
+  );
+  await page
+    .getByTestId("local-test-panel")
+    .getByRole("button", { name: "New User" })
+    .click();
+
+  return readSessionToken(await (await sessionResponse).json());
 }
 
 interface BrowserApiResponse {

@@ -271,7 +271,7 @@ describe("Statement Import workflow", () => {
       });
       const unmappedTransaction = withTransaction({
         id: "transaction-5",
-        description: "Cafe lunch",
+        description: "Lunch",
       });
       acceptStatement(workflow, [
         transaction,
@@ -342,6 +342,55 @@ describe("Statement Import workflow", () => {
       expect(workflow.enterReview()).toBe(false);
     },
   );
+
+  it("reapplies a remembered Contains Rule to the remaining Unmapped Transactions", async () => {
+    const rememberCategoryRule = vi.fn(
+      async (input: RememberCategoryRuleInput) => ({
+        status: "created" as const,
+        rule: {
+          id: "2",
+          categoryId: input.categoryId,
+          pattern: input.pattern,
+          matchType: input.matchType,
+        },
+      }),
+    );
+    const workflow = createWorkflow(rememberCategoryRule);
+    const firstTransaction = withTransaction({
+      id: "transaction-1",
+      description: "ABC XYZ",
+    });
+    const remainingTransaction = withTransaction({
+      id: "transaction-2",
+      description: "ABC FOO",
+    });
+    acceptStatement(workflow, [firstTransaction, remainingTransaction]);
+
+    expect(workflow.beginEdit(firstTransaction.id)).toBe(true);
+    workflow.changeDraft({
+      date: "2026-08-29",
+      description: firstTransaction.description,
+      amount: "-25.50",
+      category: "42",
+    });
+    workflow.changeRememberRule(true);
+    workflow.changeRememberedPattern("ABC");
+
+    await expect(workflow.saveEdit()).resolves.toBe("saved");
+
+    expect(workflow.getSnapshot().statement?.transactions).toEqual([
+      expect.objectContaining({
+        id: firstTransaction.id,
+        categoryId: "42",
+        assignment: "manual",
+      }),
+      expect.objectContaining({
+        id: remainingTransaction.id,
+        categoryId: "42",
+        assignment: "rule",
+      }),
+    ]);
+  });
 
   it("retains the full draft after failure and allows a retry", async () => {
     let attempt = 0;

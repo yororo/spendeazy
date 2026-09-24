@@ -4,6 +4,7 @@ import type {
 } from "./statement-categorizer";
 import { ApiError } from "@/shared/api";
 import {
+  categorizeTransactions,
   type CategoryCatalogOption,
   type CategoryColorOption,
   type CategoryRule,
@@ -709,6 +710,7 @@ class StatementImportWorkflow {
       editingId,
       updatedFields,
       selectedCategory,
+      shouldRememberRule ? nextCategoryRules : undefined,
     );
 
     this.invalidateEdit();
@@ -792,6 +794,7 @@ class StatementImportWorkflow {
       readonly amount: number;
     },
     categoryId: string,
+    categoryRules?: readonly CategoryRule[],
   ) {
     const manuallyUpdatedTransactions = applyManualTransactionEdit(
       transactions,
@@ -802,10 +805,42 @@ class StatementImportWorkflow {
       },
     );
 
+    const activeCategoryIds = categoryRules
+      ? new Set(
+          this.dependencies
+            .getCategoryOptions()
+            .map((category) => category.value),
+        )
+      : undefined;
+
     return manuallyUpdatedTransactions.map((transaction) => {
-      return transaction.id === transactionId
-        ? { ...transaction, matchedCategoryIds: [] }
-        : transaction;
+      if (transaction.id === transactionId) {
+        return { ...transaction, matchedCategoryIds: [] };
+      }
+
+      if (
+        !categoryRules ||
+        transaction.isExcluded ||
+        transaction.assignment !== "unmapped"
+      ) {
+        return transaction;
+      }
+
+      const categorization = categorizeTransactions(
+        [transaction],
+        categoryRules,
+        activeCategoryIds,
+      )[0];
+      if (!categorization || categorization.assignment === "unmapped") {
+        return transaction;
+      }
+
+      return {
+        ...transaction,
+        categoryId: categorization.categoryId,
+        assignment: categorization.assignment,
+        matchedCategoryIds: categorization.matchedCategoryIds ?? [],
+      };
     });
   }
 

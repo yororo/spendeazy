@@ -7,6 +7,7 @@ The local test launcher starts the real Spendeazy web app and API against a dedi
 - Node.js 24 and npm
 - Docker Desktop with Docker Compose available as `docker compose`
 - Dependencies installed in both projects (`npm ci` from `api/` and `web/`)
+- Microsoft Edge installed for Playwright (`npm --prefix web exec playwright install msedge` from the repository root)
 
 ## Start the manual environment
 
@@ -78,6 +79,12 @@ provisioning should assert the Personal Space and Default Categories, while a
 Shared Space journey should assert the completed invitation lifecycle before
 using its Space ID. This keeps the browser suite deterministic when it runs
 locally and in CI.
+
+The suite uses one worker because its tests share a database and the named
+synthetic Users. A test that creates lasting data for a named User must either
+clean up that data or use a fresh User when later assertions require an empty
+Personal Space or no active Shared Space. Run the full launcher after changing
+tests: running one spec alone cannot expose interactions with other specs.
 
 To run Playwright against an already-running dedicated environment, run
 `npm run test:e2e` from `web/` with `SPENDEAZY_E2E_BASE_URL`,

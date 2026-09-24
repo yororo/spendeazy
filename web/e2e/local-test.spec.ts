@@ -1134,12 +1134,13 @@ test("completes the Invite Code journey between two fresh signed-in Users", asyn
 });
 
 test(
-  "shows that new Shared Space creation is temporarily unavailable",
+  "offers an Invite Code to a User without an active Shared Space",
   async ({ page }) => {
     await page.goto("/sharing");
+    await switchToNewUser(page);
     await expect(
       page.getByRole("heading", {
-        name: "Shared Space creation is temporarily unavailable",
+        name: "Create a Shared Space Invite Code",
       }),
     ).toBeVisible();
     await expect(page.getByLabel("Recipient email")).toHaveCount(0);

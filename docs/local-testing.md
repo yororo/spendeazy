@@ -63,6 +63,22 @@ automated database starts empty, so provisioning and Default Category creation
 remain real first-time checks; test-created data is deterministic fictional
 data owned by that run.
 
+### E2E scenario contract
+
+Treat every `--e2e` invocation as a clean installation. It has no populated
+User, fixture Transaction, or pre-existing Shared Space. A User provisioned by
+the test has exactly one active Personal Space until two eligible Users complete
+the Invite Code flow: create a code, save a claim with the code, then explicitly
+accept the claim. Tests that need a Shared Space must establish it within the
+test (or a clearly named setup helper) and must not rely on manual-mode
+fixtures, another test's data, or Playwright worker order.
+
+Keep the assertion focused on the behavior being tested: Personal Space
+provisioning should assert the Personal Space and Default Categories, while a
+Shared Space journey should assert the completed invitation lifecycle before
+using its Space ID. This keeps the browser suite deterministic when it runs
+locally and in CI.
+
 To run Playwright against an already-running dedicated environment, run
 `npm run test:e2e` from `web/` with `SPENDEAZY_E2E_BASE_URL`,
 `SPENDEAZY_E2E_API_BASE_URL`, `SPENDEAZY_E2E_TEST_DATE`,

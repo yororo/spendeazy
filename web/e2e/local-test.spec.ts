@@ -138,7 +138,6 @@ test("provisions private Personal Spaces and denies cross-User Space reads", asy
     status: "active",
     accessLevel: "write",
   });
-  expect(primarySpaces.some((space) => space.kind === "shared")).toBe(true);
 
   const secondarySession = await issueSession(
     request,
@@ -164,7 +163,6 @@ test("provisions private Personal Spaces and denies cross-User Space reads", asy
   );
   expect(secondaryPersonalSpace).toBeDefined();
   expect(secondaryPersonalSpace?.id).not.toBe(primaryPersonalSpace?.id);
-  expect(secondarySpaces.some((space) => space.kind === "shared")).toBe(true);
 
   const crossUserRead = await request.get(
     `${apiBaseUrl}/api/v1/users/me/spaces/${String(primaryPersonalSpace?.id)}`,
@@ -455,7 +453,7 @@ test("proves ownership isolation through authenticated API requests", async ({
   ).toBe(true);
 });
 
-test("completes the two-member Shared Space financial journey from the local fixture", async ({
+test("completes the two-member Shared Space financial journey through an Invite Code", async ({
   page,
   browser,
   request,
@@ -483,6 +481,13 @@ test("completes the two-member Shared Space financial journey from the local fix
       primaryToken,
       "secondary",
     );
+    const sharedSpaceId = await createSharedSpace(
+      page,
+      secondaryPage,
+      apiBaseUrl,
+      primaryToken,
+      secondarySession.token,
+    );
     const primarySpaces = await browserApi(
       page,
       apiBaseUrl,
@@ -509,14 +514,13 @@ test("completes the two-member Shared Space financial journey from the local fix
       (space) => space.kind === "personal",
     );
     expect(sharedSpace).toBeDefined();
+    expect(sharedSpace?.id).toBe(sharedSpaceId);
     expect(primaryPersonalSpace).toBeDefined();
     expect(secondaryPersonalSpace).toBeDefined();
     expect(
       secondarySpaceList.some((space) => space.id === sharedSpace?.id),
     ).toBe(true);
     expect(sharedSpace?.members).toHaveLength(2);
-
-    const sharedSpaceId = sharedSpace!.id;
     const primaryCategory = await browserApi(
       page,
       apiBaseUrl,
@@ -1165,6 +1169,44 @@ async function issueSession(
   }
 
   return { token: body.token };
+}
+
+async function createSharedSpace(
+  senderPage: Page,
+  recipientPage: Page,
+  apiBaseUrl: string,
+  senderToken: string,
+  recipientToken: string,
+): Promise<string> {
+  const invitation = await browserApi(
+    senderPage,
+    apiBaseUrl,
+    senderToken,
+    "/api/v1/users/me/invitations",
+    { method: "POST", body: {} },
+  );
+  expect(invitation.status).toBe(201);
+  const code = readStringField(invitation.body, "code");
+
+  const claim = await browserApi(
+    recipientPage,
+    apiBaseUrl,
+    recipientToken,
+    "/api/v1/users/me/invitations/claims",
+    { method: "POST", body: { code } },
+  );
+  expect(claim.status).toBe(201);
+  const claimId = readStringId(claim.body);
+
+  const acceptance = await browserApi(
+    recipientPage,
+    apiBaseUrl,
+    recipientToken,
+    `/api/v1/users/me/invitations/claims/${claimId}/accept`,
+    { method: "POST", body: {} },
+  );
+  expect(acceptance.status).toBe(200);
+  return readStringId(acceptance.body);
 }
 
 async function switchToNewUser(page: Page): Promise<string> {

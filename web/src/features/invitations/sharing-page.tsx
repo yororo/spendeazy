@@ -223,12 +223,16 @@ function ClaimInvitationCard({
         </CardDescription>
       </CardHeader>
       {ineligible && (
-        <Alert variant="warning" className="mx-4 mb-4">
-          <AlertTitle>You already belong to an active Shared Space</AlertTitle>
-          <AlertDescription>
-            Leave your current Shared Space before saving another invitation.
-          </AlertDescription>
-        </Alert>
+        <div className="mb-4 px-4">
+          <Alert variant="warning">
+            <AlertTitle>
+              You already belong to an active Shared Space
+            </AlertTitle>
+            <AlertDescription>
+              Leave your current Shared Space before saving another invitation.
+            </AlertDescription>
+          </Alert>
+        </div>
       )}
       {error && (
         <Alert variant="destructive" className="mx-4 mb-4">

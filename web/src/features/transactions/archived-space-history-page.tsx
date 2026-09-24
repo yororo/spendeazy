@@ -6,7 +6,7 @@ import {
   FeatureDataEmpty,
   FeatureDataError,
   FeatureDataLoading,
-} from "@/components/app/feature-data-state";
+} from "@/shared/ui/feature-data-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {

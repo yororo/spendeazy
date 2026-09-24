@@ -1,7 +1,7 @@
 import {
   FeatureDataError,
   FeatureDataLoading,
-} from "@/components/app/feature-data-state";
+} from "@/shared/ui/feature-data-state";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 import { TransactionTable } from "./transaction-table";

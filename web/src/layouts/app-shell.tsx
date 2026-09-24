@@ -5,8 +5,8 @@ import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   FeatureDataError,
   FeatureDataLoading,
-} from "@/components/app/feature-data-state";
-import { LedgerMark } from "@/components/app/ledger-mark";
+} from "@/shared/ui/feature-data-state";
+import { LedgerMark } from "@/shared/ui/ledger-mark";
 import { MobileTabBar } from "@/components/app/mobile-tab-bar";
 import { PrimarySidebar } from "@/components/app/primary-sidebar";
 import { SpaceSwitcher } from "@/components/app/space-switcher";

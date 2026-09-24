@@ -1,6 +1,6 @@
 import { AuthenticateWithRedirectCallback } from "@clerk/react";
 
-import { AuthLoading } from "@/components/app/auth-loading";
+import { AuthLoading } from "@/shared/ui/auth-loading";
 
 function SsoCallbackPage() {
   return (

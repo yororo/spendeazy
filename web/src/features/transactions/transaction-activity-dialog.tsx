@@ -1,7 +1,7 @@
 import { AlertCircleIcon } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { FeatureDataLoading } from "@/components/app/feature-data-state";
+import { FeatureDataLoading } from "@/shared/ui/feature-data-state";
 import { Button } from "@/components/ui/button";
 import { formatExactMoney } from "@/shared/money";
 import {

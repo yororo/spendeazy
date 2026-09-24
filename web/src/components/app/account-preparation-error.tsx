@@ -1,6 +1,6 @@
 import { AlertCircleIcon } from "lucide-react";
 
-import { LedgerMark } from "@/components/app/ledger-mark";
+import { LedgerMark } from "@/shared/ui/ledger-mark";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 

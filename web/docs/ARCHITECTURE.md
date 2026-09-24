@@ -12,7 +12,7 @@ src/App.tsx and application composition
   -> src/components/ui/*
 ```
 
-Dependencies point down this diagram. A feature never imports another feature. Application composition connects features through their public root interfaces.
+Dependencies point down this diagram. A feature never imports another feature. Application composition connects features through their public root interfaces. Features and shared modules do not import application composition (`components/app`, `layouts`, `pages`, `App.tsx`, or `main.tsx`); reusable presentation belongs in `shared/ui`.
 
 ## Placement
 
@@ -21,7 +21,7 @@ Dependencies point down this diagram. A feature never imports another feature. A
 | `src/features/<feature>` | Everything specific to one user capability, including its endpoint adapter, query keys, read models, behavior, and presentation. |
 | `src/shared`             | Domain or infrastructure code with concrete leverage across multiple features.                                                   |
 | `src/components/ui`      | Generic design-system primitives.                                                                                                |
-| `src/components/app`     | Application-wide composition UI such as authentication boundaries, navigation, and route data states.                            |
+| `src/components/app`     | Application-wide composition UI such as authentication boundaries, navigation, and route loading.                               |
 | `src/layouts`            | Application page structure.                                                                                                      |
 | `src/pages`              | Route-level pages that are not business capabilities, such as Not Found.                                                         |
 | `src/App.tsx`            | Composition root: routing, layouts, providers, and feature assembly.                                                             |
@@ -54,9 +54,9 @@ The important shared seams are:
 - `shared/money`: currency formatting and exact cents arithmetic. It is not a currency-bearing Money value object; introduce one only when multi-currency behavior requires it.
 - `shared/reporting-period`: one browser-local calendar-month selection and inclusive bounds shared by reporting features.
 - `shared/query`: common cache, freshness, and retry policy.
-- `shared/ui`: composed UI with proven cross-feature behavior. Generic primitives remain in `components/ui`.
+- `shared/ui`: composed UI with proven cross-feature behavior, including feature loading/error/empty states, authentication loading presentation, and branding. Authentication lifecycle stays in application composition; generic primitives remain in `components/ui`.
 
-The authenticated composition boundary owns the TanStack Query client and remounts it for each Clerk user so cached financial data cannot cross an account switch. Route queries load on demand.
+The authenticated composition boundary owns the TanStack Query client and remounts it for each session identity so cached financial data cannot cross a session switch. Route queries load on demand.
 
 ## Decision rules
 
@@ -79,13 +79,17 @@ For feature creation or structural refactoring:
 5. Update `eslint.config.js` when a new architectural seam needs executable enforcement.
 6. Run `npm run lint`, `npm run build`, and `npm test`. For authenticated financial flows, also record the relevant live API or browser validation.
 
-The change is complete when the new behavior respects feature-root imports, no feature or shared module depends on a feature, transport records stop at service adapters, and the required automated and live checks pass.
+The change is complete when external callers respect feature-root imports, features use relative imports for their own implementation, features and shared modules respect dependency direction, transport records stop at service adapters, and the required automated and live checks pass.
 
 ## Enforcement
 
-`eslint.config.js` is the executable source of truth for import boundaries. It enforces that:
+`eslint.config.js` enables the dependency rule in `eslint/architecture.js`. It checks static imports, re-exports, literal dynamic imports, and TypeScript import types, resolving aliases and relative paths before enforcing that:
 
 - imports from outside a feature use `@/features/<feature>` rather than a feature-internal path;
-- code in `src/features` and `src/shared` does not import a feature module.
+- a feature uses relative imports for its own implementation and cannot import another feature;
+- shared modules cannot import features;
+- features and shared modules cannot import application composition.
+
+Colocated tests follow the same rules and can exercise their feature's private implementation. Computed dynamic import paths cannot be resolved by this rule; use literal paths for application modules so the dependency remains checkable. The fixture matrix in `eslint/architecture.test.js` tests the configured rule through ESLint.
 
 Update the lint rules and this document together when dependency boundaries change.

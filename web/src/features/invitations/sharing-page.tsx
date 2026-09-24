@@ -12,7 +12,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   FeatureDataError,
   FeatureDataLoading,
-} from '@/components/app/feature-data-state';
+} from '@/shared/ui/feature-data-state';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

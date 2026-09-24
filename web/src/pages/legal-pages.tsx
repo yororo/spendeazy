@@ -2,7 +2,7 @@ import { useEffect, type ReactNode } from "react";
 import { ArrowLeftIcon, ExternalLinkIcon } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import { LedgerMark } from "@/components/app/ledger-mark";
+import { LedgerMark } from "@/shared/ui/ledger-mark";
 import { cn } from "@/lib/utils";
 
 const operatorName = "Spendeazy";

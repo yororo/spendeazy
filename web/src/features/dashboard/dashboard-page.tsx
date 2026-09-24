@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import {
   FeatureDataError,
   FeatureDataLoading,
-} from "@/components/app/feature-data-state";
+} from "@/shared/ui/feature-data-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAccessibleSpacesQuery } from "@/shared/api";

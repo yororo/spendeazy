@@ -1,4 +1,4 @@
-import { LedgerMark } from "@/components/app/ledger-mark";
+import { LedgerMark } from "./ledger-mark";
 
 interface AuthLoadingProps {
   message?: string;

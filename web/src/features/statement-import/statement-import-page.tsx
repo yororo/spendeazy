@@ -5,7 +5,7 @@ import {
   FeatureDataEmpty,
   FeatureDataError,
   FeatureDataLoading,
-} from "@/components/app/feature-data-state";
+} from "@/shared/ui/feature-data-state";
 import { useAccessibleSpacesQuery, type AccessibleSpace } from "@/shared/api";
 import { ActiveSpaceLabel, getSpaceIdentityLabel } from "@/shared/ui";
 import { ImportProgress } from "./import-progress";

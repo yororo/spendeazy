@@ -4,6 +4,7 @@ import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 import { defineConfig, globalIgnores } from "eslint/config";
+import architecture from "./eslint/architecture.js";
 
 export default defineConfig([
   globalIgnores(["dist", ".agents"]),
@@ -18,36 +19,12 @@ export default defineConfig([
     languageOptions: {
       globals: globals.browser,
     },
-    rules: {
-      "no-restricted-imports": [
-        "error",
-        {
-          patterns: [
-            {
-              group: ["@/features/*/*"],
-              message:
-                "Import feature modules through their root public interface.",
-            },
-          ],
-        },
-      ],
-    },
   },
   {
-    files: ["src/{features,shared}/**/*.{ts,tsx}"],
+    files: ["**/*.{ts,tsx}"],
+    plugins: { architecture: { rules: { dependencies: architecture } } },
     rules: {
-      "no-restricted-imports": [
-        "error",
-        {
-          patterns: [
-            {
-              group: ["@/features/*", "@/features/*/*"],
-              message:
-                "Feature and shared implementation must not depend on another feature module.",
-            },
-          ],
-        },
-      ],
+      "architecture/dependencies": "error",
     },
   },
 ]);

@@ -3,8 +3,8 @@ import { useAuth, useSignIn } from "@clerk/react";
 import { ArrowRightIcon, ShieldCheckIcon } from "lucide-react";
 import { Link, Navigate, useLocation } from "react-router-dom";
 
-import { AuthLoading } from "@/components/app/auth-loading";
-import { LedgerMark } from "@/components/app/ledger-mark";
+import { AuthLoading } from "@/shared/ui/auth-loading";
+import { LedgerMark } from "@/shared/ui/ledger-mark";
 import { Button } from "@/components/ui/button";
 
 interface SignInLocationState {

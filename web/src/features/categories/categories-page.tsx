@@ -11,7 +11,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   FeatureDataError,
   FeatureDataLoading,
-} from "@/components/app/feature-data-state";
+} from "@/shared/ui/feature-data-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";

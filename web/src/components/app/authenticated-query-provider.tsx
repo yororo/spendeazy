@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { AccountPreparationError } from "@/components/app/account-preparation-error";
-import { AuthLoading } from "@/components/app/auth-loading";
+import { AuthLoading } from "@/shared/ui/auth-loading";
 import {
   ApiClientProvider,
   type ApiAuthenticationFailureHandler,

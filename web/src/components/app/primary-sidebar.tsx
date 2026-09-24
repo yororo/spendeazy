@@ -1,7 +1,7 @@
 import { HistoryIcon, LogOutIcon } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 
-import { LedgerMark } from "@/components/app/ledger-mark";
+import { LedgerMark } from "@/shared/ui/ledger-mark";
 import { AppearanceSelector } from "@/components/app/appearance-selector";
 import { primaryNavigation } from "@/components/app/primary-navigation";
 import { SpaceSwitcher } from "@/components/app/space-switcher";

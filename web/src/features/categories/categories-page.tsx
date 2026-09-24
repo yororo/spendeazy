@@ -52,7 +52,7 @@ import {
 } from "./categories-queries";
 import { CreateCategoryDialog } from "./create-category-dialog";
 import { EditCategoryRow } from "./edit-category-row";
-import { MatchingRulesDialog } from "./matching-rules-dialog";
+import { CategoryRulesDialog } from "./category-rules-dialog";
 import { MobileCategoryCard } from "./mobile-category-card";
 import type { CategoryOverviewItem } from "./categories-service";
 
@@ -511,7 +511,7 @@ function CategoriesPage({ spaceId, onSpaceChange }: CategoriesPageProps = {}) {
                           >
                             <PencilIcon aria-hidden="true" />
                           </Button>
-                          <MatchingRulesDialog
+                          <CategoryRulesDialog
                             allCategories={categories}
                             category={category}
                             spaceId={effectiveSpaceId}

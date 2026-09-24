@@ -41,7 +41,7 @@ import {
 } from "./matching-rules-form";
 import type { CategoryOverviewItem } from "./categories-service";
 
-interface MatchingRulesDialogProps {
+interface CategoryRulesDialogProps {
   readonly allCategories: readonly CategoryOverviewItem[];
   readonly category: CategoryOverviewItem;
   readonly disabled?: boolean;
@@ -204,12 +204,12 @@ function RuleSection({
   );
 }
 
-function MatchingRulesDialog({
+function CategoryRulesDialog({
   allCategories,
   category,
   disabled = false,
   spaceId,
-}: MatchingRulesDialogProps) {
+}: CategoryRulesDialogProps) {
   const [open, setOpen] = useState(false);
   const [discardPrompt, setDiscardPrompt] = useState(false);
   const [draftRulesOverride, setDraftRulesOverride] = useState<
@@ -442,7 +442,7 @@ function MatchingRulesDialog({
             variant="ghost"
             size="icon-sm"
             disabled={disabled}
-            aria-label={`Matching Rules for ${category.name}`}
+            aria-label={`Category Rules for ${category.name}`}
           >
             <ListFilterIcon aria-hidden="true" />
           </Button>
@@ -460,7 +460,7 @@ function MatchingRulesDialog({
         {discardPrompt ? (
           <>
             <DialogHeader>
-              <DialogTitle>Discard Matching Rules changes?</DialogTitle>
+              <DialogTitle>Discard Category Rules changes?</DialogTitle>
               <DialogDescription>
                 Your changed rules will be cleared. Saved Category Rules will
                 remain unchanged.
@@ -503,14 +503,14 @@ function MatchingRulesDialog({
                     className="size-5 animate-spin"
                     aria-hidden="true"
                   />
-                  <span className="text-label">Loading Matching Rules</span>
+                  <span className="text-label">Loading Category Rules</span>
                 </div>
               )}
 
               {rulesQuery.isError && (
                 <Alert variant="destructive">
                   <AlertCircleIcon aria-hidden="true" />
-                  <AlertTitle>Matching Rules could not be loaded</AlertTitle>
+                  <AlertTitle>Category Rules could not be loaded</AlertTitle>
                   <AlertDescription>
                     <p>{rulesQuery.error.message}</p>
                     <Button
@@ -530,8 +530,8 @@ function MatchingRulesDialog({
                   <AlertCircleIcon aria-hidden="true" />
                   <AlertTitle>
                     {isStaleEditError(replaceMutation.error)
-                      ? "Matching Rules changed elsewhere"
-                      : "Matching Rules could not be saved"}
+                      ? "Category Rules changed elsewhere"
+                      : "Category Rules could not be saved"}
                   </AlertTitle>
                   <AlertDescription>
                     <p>{getSaveErrorMessage(replaceMutation.error)}</p>
@@ -552,7 +552,7 @@ function MatchingRulesDialog({
               {saved && (
                 <Alert className="border-success bg-success-surface text-success">
                   <CheckCircle2Icon aria-hidden="true" />
-                  <AlertTitle>Matching Rules saved</AlertTitle>
+                  <AlertTitle>Category Rules saved</AlertTitle>
                   <AlertDescription>
                     Future Statement Imports will use the saved rules.
                   </AlertDescription>
@@ -624,4 +624,4 @@ function MatchingRulesDialog({
   );
 }
 
-export { MatchingRulesDialog };
+export { CategoryRulesDialog };

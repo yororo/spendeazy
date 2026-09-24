@@ -14,7 +14,7 @@ import { ReviewStatement } from "./review-statement";
 import { importFeatures } from "./statement-import-data";
 import {
   useCommitStatementImportMutation,
-  useRecentImportsQuery,
+  useRecentCommittedStatementImportsQuery,
   useStatementImportCategoriesQuery,
   useStatementImportRulesQuery,
   useRememberCategoryRuleMutation,
@@ -60,10 +60,8 @@ function StatementImportPage({
     destinationSpaceId,
     scopeReady,
   );
-  const recentImportsQuery = useRecentImportsQuery(
-    destinationSpaceId,
-    scopeReady,
-  );
+  const recentCommittedStatementImportsQuery =
+    useRecentCommittedStatementImportsQuery(destinationSpaceId, scopeReady);
   const commitMutation = useCommitStatementImportMutation();
   const rememberCategoryRuleMutation = useRememberCategoryRuleMutation();
   const destinationLabel = getDestinationLabel(
@@ -138,7 +136,7 @@ function StatementImportPage({
     (shouldResolvePersonalSpace && spacesQuery.isPending) ||
     categoryOptionsQuery.isPending ||
     categoryRulesQuery.isPending ||
-    recentImportsQuery.isPending;
+    recentCommittedStatementImportsQuery.isPending;
   if (shouldResolvePersonalSpace && spacesQuery.isError) {
     return withNavigationGuard(
       <FeatureDataError
@@ -163,19 +161,19 @@ function StatementImportPage({
   if (
     categoryOptionsQuery.isError ||
     categoryRulesQuery.isError ||
-    recentImportsQuery.isError
+    recentCommittedStatementImportsQuery.isError
   ) {
     const error =
       categoryOptionsQuery.error ??
       categoryRulesQuery.error ??
-      recentImportsQuery.error;
+      recentCommittedStatementImportsQuery.error;
     return withNavigationGuard(
       <FeatureDataError
         message={error?.message}
         onRetry={() => {
           void categoryOptionsQuery.refetch();
           void categoryRulesQuery.refetch();
-          void recentImportsQuery.refetch();
+          void recentCommittedStatementImportsQuery.refetch();
         }}
       />,
     );
@@ -184,14 +182,15 @@ function StatementImportPage({
   const categoryCatalog = categoryCatalogForWorkflow;
   const categoryOptions = categoryOptionsForWorkflow;
   const categoryRules = categoryRulesQuery.data;
-  const recentImports = recentImportsQuery.data;
-  if (getUnknownImporter(recentImports, destinationSpace)) {
+  const recentCommittedStatementImports =
+    recentCommittedStatementImportsQuery.data;
+  if (getUnknownImporter(recentCommittedStatementImports, destinationSpace)) {
     return withNavigationGuard(
       <FeatureDataError
         message="The API returned an unknown Statement Import importer."
         onRetry={() => {
           void spacesQuery.refetch();
-          void recentImportsQuery.refetch();
+          void recentCommittedStatementImportsQuery.refetch();
         }}
       />,
     );
@@ -369,23 +368,23 @@ function StatementImportPage({
 
           <section
             className="flex min-h-0 flex-1 flex-col border border-foreground"
-            aria-labelledby="recent-imports-heading"
+            aria-labelledby="recent-committed-statement-imports-heading"
           >
             <div className="flex min-h-12 items-center border-b px-3.5">
               <h2
-                id="recent-imports-heading"
+                id="recent-committed-statement-imports-heading"
                 className="font-mono text-xs font-bold tracking-wide uppercase"
               >
-                Recent imports
+                Recent Committed Statement Imports
               </h2>
             </div>
             <ul className="grid flex-1 sm:grid-cols-3 lg:grid-cols-1">
-              {recentImports.length === 0 && (
+              {recentCommittedStatementImports.length === 0 && (
                 <li className="flex min-h-20 items-center px-3.5 py-3 text-sm text-muted-foreground">
-                  No recent Statement Imports.
+                  No recent Committed Statement Imports.
                 </li>
               )}
-              {recentImports.map((item) => (
+              {recentCommittedStatementImports.map((item) => (
                 <li
                   key={item.id}
                   className="flex min-h-20 flex-col justify-center border-b px-3.5 py-3 last:border-b-0 sm:border-r sm:last:border-r-0 lg:border-r-0"

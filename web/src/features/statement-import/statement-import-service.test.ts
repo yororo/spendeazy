@@ -11,7 +11,7 @@ import {
   getCategoryOptions,
   getCategoryRules,
   getIncludedTransactions,
-  getRecentImports,
+  getRecentCommittedStatementImports,
   hashStatementFile,
   rememberCategoryRule,
   type CategoryRule,
@@ -379,7 +379,7 @@ describe("Statement Import categorization", () => {
     await expect(getCategoryOptions(apiClient, undefined, "10")).resolves.toEqual([
       { value: "42", label: "Housing", color: "teal" },
     ]);
-    await expect(getRecentImports(apiClient, undefined, "10")).resolves.toEqual(
+    await expect(getRecentCommittedStatementImports(apiClient, undefined, "10")).resolves.toEqual(
       [],
     );
     expect(get).toHaveBeenNthCalledWith(1, "/spaces/10/categories", {
@@ -604,7 +604,7 @@ describe("Statement Import categorization", () => {
     }));
     const apiClient = { get } as unknown as StatementImportApiClient;
 
-    await expect(getRecentImports(apiClient)).resolves.toEqual([
+    await expect(getRecentCommittedStatementImports(apiClient)).resolves.toEqual([
       {
         id: "100",
         fileName: "august.pdf",
@@ -643,7 +643,7 @@ describe("Statement Import categorization", () => {
     }));
 
     await expect(
-      getRecentImports({ get } as unknown as StatementImportApiClient),
+      getRecentCommittedStatementImports({ get } as unknown as StatementImportApiClient),
     ).rejects.toMatchObject({ kind: "data" });
   });
 });

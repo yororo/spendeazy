@@ -67,7 +67,7 @@ interface CategorizationResult {
   readonly matchedCategoryIds?: readonly string[];
 }
 
-interface RecentImport {
+interface CommittedStatementImportSummary {
   readonly id: string;
   readonly fileName: string;
   readonly transactionCount: number;
@@ -227,9 +227,9 @@ async function getCategoryRules(
   return rules.map(projectCategoryRule);
 }
 
-function projectRecentImport(
+function projectCommittedStatementImportSummary(
   item: StatementImportHistoryItemResponse,
-): RecentImport {
+): CommittedStatementImportSummary {
   return {
     id: item.id,
     fileName: item.fileName,
@@ -247,11 +247,11 @@ function projectRecentImport(
   };
 }
 
-async function getRecentImports(
+async function getRecentCommittedStatementImports(
   apiClient: StatementImportApiClient,
   signal?: AbortSignal,
   spaceId?: string,
-): Promise<readonly RecentImport[]> {
+): Promise<readonly CommittedStatementImportSummary[]> {
   const collectionPath =
     spaceId === undefined
       ? "/statement-imports"
@@ -268,7 +268,7 @@ async function getRecentImports(
     createStatementImportDataError,
   );
 
-  return response.items.map(projectRecentImport);
+  return response.items.map(projectCommittedStatementImportSummary);
 }
 
 function categorizeTransactions(
@@ -618,7 +618,7 @@ export {
   getCategoryOptions,
   getCategoryRules,
   getIncludedTransactions,
-  getRecentImports,
+  getRecentCommittedStatementImports,
   hashStatementFile,
   rememberCategoryRule,
 };
@@ -632,7 +632,7 @@ export type {
   CategorizationResult,
   CommittedStatementImport,
   CommitStatementImportOptions,
-  RecentImport,
+  CommittedStatementImportSummary,
   RememberCategoryRuleInput,
   RememberCategoryRuleResult,
   StatementImportApiClient,

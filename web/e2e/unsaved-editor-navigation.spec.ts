@@ -188,7 +188,7 @@ test("guards Category, Budget, and Category Rule editors during Space switching"
   await page.goto("/categories?spaceId=1");
   await switchToPersonalSpace(page);
   await page
-    .getByRole("button", { name: "Matching Rules for Housing" })
+    .getByRole("button", { name: "Category Rules for Housing" })
     .click();
   const exactPattern = page.getByRole("textbox", {
     name: "Exact pattern 1",

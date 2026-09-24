@@ -234,7 +234,7 @@ function createFetchMock(options: FetchOptions = {}) {
       const responseType = categoryRulesLoadResponses.shift() ?? "success";
       if (responseType === "failed") {
         return apiErrorResponse(
-          "The Matching Rules could not be loaded.",
+          "The Category Rules could not be loaded.",
           500,
           "INTERNAL_ERROR",
         );
@@ -257,7 +257,7 @@ function createFetchMock(options: FetchOptions = {}) {
         categoryRulesReplacementResponses.shift() ?? "success";
       if (responseType === "failed") {
         return apiErrorResponse(
-          "The Matching Rules could not be saved.",
+          "The Category Rules could not be saved.",
           500,
           "INTERNAL_ERROR",
         );
@@ -284,14 +284,14 @@ function createFetchMock(options: FetchOptions = {}) {
       }
       if (responseType === "stale") {
         return apiErrorResponse(
-          "These Matching Rules changed elsewhere. Reload and review your edits.",
+          "These Category Rules changed elsewhere. Reload and review your edits.",
           409,
           "STALE_EDIT",
         );
       }
       if (responseType === "unsupported") {
         return apiErrorResponse(
-          "The Matching Rules endpoint is not available.",
+          "The Category Rules endpoint is not available.",
           404,
           "ROUTE_NOT_FOUND",
         );
@@ -773,14 +773,14 @@ describe("CategoriesPage", () => {
     expect(within(mobileList).getAllByRole("listitem")).toHaveLength(3);
   });
 
-  it("exposes Matching Rules and an accessible mobile overflow menu", async () => {
+  it("exposes Category Rules and an accessible mobile overflow menu", async () => {
     const { fetchMock } = createFetchMock();
     renderCategoriesPage(fetchMock);
 
     await screen.findByRole("heading", { name: "Budget overview" });
     const housingCard = getMobileCard("Housing");
     const matchingRulesButton = within(housingCard).getByRole("button", {
-      name: "Matching Rules for Housing",
+      name: "Category Rules for Housing",
     });
     expect(matchingRulesButton).toBeTruthy();
 
@@ -937,7 +937,7 @@ describe("CategoriesPage", () => {
     await waitFor(() =>
       expect(
         within(getMobileCard("Archived Dining")).getByRole("button", {
-          name: "Matching Rules for Archived Dining",
+          name: "Category Rules for Archived Dining",
         }),
       ).toBeTruthy(),
     );
@@ -2400,7 +2400,7 @@ describe("CategoriesPage", () => {
     await screen.findByRole("heading", { name: "Budget overview" });
     fireEvent.click(
       within(getDesktopTable()).getByRole("button", {
-        name: "Matching Rules for Housing",
+        name: "Category Rules for Housing",
       }),
     );
 
@@ -2428,7 +2428,7 @@ describe("CategoriesPage", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Save Rules" }));
 
-    await screen.findByText("Matching Rules saved");
+    await screen.findByText("Category Rules saved");
     const replacementRequests = fetchMock.mock.calls.filter(
       ([input, init]) =>
         init?.method === "PUT" &&
@@ -2452,7 +2452,7 @@ describe("CategoriesPage", () => {
     ).toHaveLength(2);
   });
 
-  it("offers Matching Rules only for active Categories and filters the collection to the selected Category", async () => {
+  it("offers Category Rules only for active Categories and filters the collection to the selected Category", async () => {
     const { fetchMock } = createFetchMock({
       additionalCategories: [
         {
@@ -2503,13 +2503,13 @@ describe("CategoriesPage", () => {
     );
     expect(
       within(getDesktopTable()).queryByRole("button", {
-        name: "Matching Rules for Archived",
+        name: "Category Rules for Archived",
       }),
     ).toBeNull();
 
     fireEvent.click(
       within(getDesktopTable()).getByRole("button", {
-        name: "Matching Rules for Housing",
+        name: "Category Rules for Housing",
       }),
     );
     await screen.findByRole("textbox", { name: "Exact pattern 1" });
@@ -2535,7 +2535,7 @@ describe("CategoriesPage", () => {
     await screen.findByRole("heading", { name: "Budget overview" });
     fireEvent.click(
       within(getDesktopTable()).getByRole("button", {
-        name: "Matching Rules for Housing",
+        name: "Category Rules for Housing",
       }),
     );
     const exactPattern = await screen.findByRole("textbox", {
@@ -2544,7 +2544,7 @@ describe("CategoriesPage", () => {
     fireEvent.change(exactPattern, { target: { value: "Rent payment" } });
     fireEvent.click(screen.getByRole("button", { name: "Save Rules" }));
 
-    expect(await screen.findByText("Matching Rules saved")).toBeTruthy();
+    expect(await screen.findByText("Category Rules saved")).toBeTruthy();
     const getRequests = fetchMock.mock.calls.filter(
       ([input, init]) =>
         (init?.method ?? "GET") === "GET" &&
@@ -2599,7 +2599,7 @@ describe("CategoriesPage", () => {
     await screen.findByRole("heading", { name: "Budget overview" });
     fireEvent.click(
       within(getDesktopTable()).getByRole("button", {
-        name: "Matching Rules for Housing",
+        name: "Category Rules for Housing",
       }),
     );
     await screen.findByRole("textbox", { name: "Exact pattern 1" });
@@ -2669,7 +2669,7 @@ describe("CategoriesPage", () => {
     await screen.findByRole("heading", { name: "Budget overview" });
     fireEvent.click(
       within(getDesktopTable()).getByRole("button", {
-        name: "Matching Rules for Housing",
+        name: "Category Rules for Housing",
       }),
     );
     await screen.findByText("No Exact rules yet.");
@@ -2710,10 +2710,10 @@ describe("CategoriesPage", () => {
     await screen.findByRole("heading", { name: "Budget overview" });
     fireEvent.click(
       within(getDesktopTable()).getByRole("button", {
-        name: "Matching Rules for Housing",
+        name: "Category Rules for Housing",
       }),
     );
-    await screen.findByText("Matching Rules could not be loaded");
+    await screen.findByText("Category Rules could not be loaded");
     fireEvent.click(screen.getByRole("button", { name: "Retry" }));
     const exactPattern = await screen.findByRole("textbox", {
       name: "Exact pattern 1",
@@ -2721,12 +2721,12 @@ describe("CategoriesPage", () => {
     fireEvent.change(exactPattern, { target: { value: "Updated rent" } });
     fireEvent.click(screen.getByRole("button", { name: "Save Rules" }));
 
-    await screen.findByText("Matching Rules could not be saved");
+    await screen.findByText("Category Rules could not be saved");
     expect(exactPattern).toHaveProperty("value", "Updated rent");
     expect(getCategoryRuleReplacementRequests(fetchMock)).toHaveLength(1);
 
     fireEvent.click(screen.getByRole("button", { name: "Retry Save Rules" }));
-    expect(await screen.findByText("Matching Rules saved")).toBeTruthy();
+    expect(await screen.findByText("Category Rules saved")).toBeTruthy();
     expect(getCategoryRuleReplacementRequests(fetchMock)).toHaveLength(2);
   });
 
@@ -2755,7 +2755,7 @@ describe("CategoriesPage", () => {
 
     await screen.findByRole("heading", { name: "Budget overview" });
     const trigger = within(getDesktopTable()).getByRole("button", {
-      name: "Matching Rules for Housing",
+      name: "Category Rules for Housing",
     });
     fireEvent.click(trigger);
     await screen.findByRole("textbox", { name: "Exact pattern 1" });
@@ -2769,7 +2769,7 @@ describe("CategoriesPage", () => {
     expect(screen.getByText("No Contains rules yet.")).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Save Rules" }));
-    expect(await screen.findByText("Matching Rules saved")).toBeTruthy();
+    expect(await screen.findByText("Category Rules saved")).toBeTruthy();
     expect(
       JSON.parse(
         String(getCategoryRuleReplacementRequests(fetchMock)[0]?.[1]?.body),
@@ -2786,12 +2786,12 @@ describe("CategoriesPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Add Exact Rule" }));
     fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
     expect(
-      screen.getByRole("heading", { name: "Discard Matching Rules changes?" }),
+      screen.getByRole("heading", { name: "Discard Category Rules changes?" }),
     ).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
     fireEvent.click(screen.getByRole("button", { name: "Close dialog" }));
     expect(
-      screen.getByRole("heading", { name: "Discard Matching Rules changes?" }),
+      screen.getByRole("heading", { name: "Discard Category Rules changes?" }),
     ).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
@@ -2804,7 +2804,7 @@ describe("CategoriesPage", () => {
       fireEvent.click(document.body);
       expect(
         screen.getByRole("heading", {
-          name: "Discard Matching Rules changes?",
+          name: "Discard Category Rules changes?",
         }),
       ).toBeTruthy();
     });
@@ -2831,7 +2831,7 @@ describe("CategoriesPage", () => {
     await screen.findByRole("heading", { name: "Budget overview" });
     fireEvent.click(
       within(getDesktopTable()).getByRole("button", {
-        name: "Matching Rules for Housing",
+        name: "Category Rules for Housing",
       }),
     );
     const exactPattern = await screen.findByRole("textbox", {
@@ -2879,7 +2879,7 @@ describe("CategoriesPage", () => {
     await screen.findByRole("heading", { name: "Budget overview" });
     fireEvent.click(
       within(getDesktopTable()).getByRole("button", {
-        name: "Matching Rules for Housing",
+        name: "Category Rules for Housing",
       }),
     );
     const exactPattern = await screen.findByRole("textbox", {
@@ -2888,7 +2888,7 @@ describe("CategoriesPage", () => {
     fireEvent.change(exactPattern, { target: { value: "Groceries" } });
     fireEvent.click(screen.getByRole("button", { name: "Save Rules" }));
 
-    await screen.findByText("Matching Rules could not be saved");
+    await screen.findByText("Category Rules could not be saved");
     expect(screen.getByText(/Groceries/)).toBeTruthy();
     expect(exactPattern).toHaveProperty("value", "Groceries");
     expect(getCategoryRuleReplacementRequests(fetchMock)).toHaveLength(1);
@@ -2913,7 +2913,7 @@ describe("CategoriesPage", () => {
     await screen.findByRole("heading", { name: "Budget overview" });
     fireEvent.click(
       within(getDesktopTable()).getByRole("button", {
-        name: "Matching Rules for Housing",
+        name: "Category Rules for Housing",
       }),
     );
     const exactPattern = await screen.findByRole("textbox", {
@@ -2922,7 +2922,7 @@ describe("CategoriesPage", () => {
     fireEvent.change(exactPattern, { target: { value: "New rent" } });
     fireEvent.click(screen.getByRole("button", { name: "Save Rules" }));
 
-    await screen.findByText("Matching Rules changed elsewhere");
+    await screen.findByText("Category Rules changed elsewhere");
     expect(
       screen.getByRole("textbox", { name: "Exact pattern 1" }),
     ).toHaveProperty("value", "New rent");
@@ -2959,7 +2959,7 @@ describe("CategoriesPage", () => {
       await screen.findByRole("heading", { name: "Budget overview" });
       fireEvent.click(
         within(getDesktopTable()).getByRole("button", {
-          name: "Matching Rules for Housing",
+          name: "Category Rules for Housing",
         }),
       );
       const exactPattern = await screen.findByRole("textbox", {
@@ -2968,7 +2968,7 @@ describe("CategoriesPage", () => {
       fireEvent.change(exactPattern, { target: { value: "Retry this draft" } });
       fireEvent.click(screen.getByRole("button", { name: "Save Rules" }));
 
-      await screen.findByText("Matching Rules could not be saved");
+      await screen.findByText("Category Rules could not be saved");
       expect(exactPattern).toHaveProperty("value", "Retry this draft");
       expect(getCategoryRuleReplacementRequests(fetchMock)).toHaveLength(1);
     },

@@ -16,7 +16,7 @@ import { formatMoney } from "@/shared/money";
 
 import type { CategoryOverviewItem } from "./categories-service";
 import { EditCategoryDialog } from "./edit-category-dialog";
-import { MatchingRulesDialog } from "./matching-rules-dialog";
+import { CategoryRulesDialog } from "./category-rules-dialog";
 
 interface MobileCategoryCardProps {
   readonly allCategories: readonly CategoryOverviewItem[];
@@ -87,7 +87,7 @@ function MobileCategoryCard({
                     disabled={disabled}
                     onEditingChange={onEditingChange}
                   />
-                  <MatchingRulesDialog
+                  <CategoryRulesDialog
                     allCategories={allCategories}
                     category={category}
                     spaceId={spaceId}

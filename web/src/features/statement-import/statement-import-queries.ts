@@ -17,7 +17,7 @@ import {
   commitStatementImport,
   getCategoryCatalogOptions,
   getCategoryRules,
-  getRecentImports,
+  getRecentCommittedStatementImports,
   rememberCategoryRule,
   type CategoryRule,
   type CommitStatementImportOptions,
@@ -67,14 +67,18 @@ function useStatementImportRulesQuery(spaceId?: string, enabled = true) {
   });
 }
 
-function useRecentImportsQuery(spaceId?: string, enabled = true) {
+function useRecentCommittedStatementImportsQuery(
+  spaceId?: string,
+  enabled = true,
+) {
   const apiClient = useApiClient();
   const scope = useFinancialQueryScope(spaceId);
 
   return useQuery({
     ...financialQueryOptions,
     queryKey: buildFinancialQueryKey(scope, ["statement-import", "recent"]),
-    queryFn: ({ signal }) => getRecentImports(apiClient, signal, spaceId),
+    queryFn: ({ signal }) =>
+      getRecentCommittedStatementImports(apiClient, signal, spaceId),
     enabled,
     staleTime: queryPolicy.activityStaleTime,
   });
@@ -129,7 +133,7 @@ function useCommitStatementImportMutation() {
 
 export {
   useCommitStatementImportMutation,
-  useRecentImportsQuery,
+  useRecentCommittedStatementImportsQuery,
   useStatementImportCategoriesQuery,
   useStatementImportRulesQuery,
   useRememberCategoryRuleMutation,

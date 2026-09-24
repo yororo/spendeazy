@@ -22,7 +22,7 @@ import {
 } from "@/shared/navigation";
 
 import {
-  useCreateCategoryBudgetMutation,
+  useSaveCategoryBudgetMutation,
   useCreateCategoryMutation,
 } from "./categories-queries";
 import { CategoryColorPicker } from "./category-color-picker";
@@ -63,7 +63,7 @@ function CreateCategoryDialog({
   const [form, setForm] = useState<CategoryFormValues>(EMPTY_FORM);
   const [errors, setErrors] = useState<CategoryFormErrors>({});
   const createCategoryMutation = useCreateCategoryMutation();
-  const createBudgetMutation = useCreateCategoryBudgetMutation();
+  const saveBudgetMutation = useSaveCategoryBudgetMutation();
   const savedCategory = createCategoryMutation.data ?? null;
 
   const hasUnsavedChanges =
@@ -72,7 +72,7 @@ function CreateCategoryDialog({
     form.budget.length > 0 ||
     form.color !== DEFAULT_CATEGORY_COLOR;
   const isSaving =
-    createCategoryMutation.isPending || createBudgetMutation.isPending;
+    createCategoryMutation.isPending || saveBudgetMutation.isPending;
   const categoryNameConflictMessage = getCategoryNameConflictMessage(
     createCategoryMutation.error,
   );
@@ -83,7 +83,7 @@ function CreateCategoryDialog({
     setErrors({});
     setDiscardPrompt(false);
     createCategoryMutation.reset();
-    createBudgetMutation.reset();
+    saveBudgetMutation.reset();
   }
 
   function closeDialog() {
@@ -152,12 +152,12 @@ function CreateCategoryDialog({
     ) {
       createCategoryMutation.reset();
     }
-    if (field === "budget") createBudgetMutation.reset();
+    if (field === "budget") saveBudgetMutation.reset();
   }
 
   async function saveBudget(categoryId: string, amount: string) {
     try {
-      await createBudgetMutation.mutateAsync({ categoryId, amount, spaceId });
+      await saveBudgetMutation.mutateAsync({ categoryId, amount, spaceId });
     } catch {
       return false;
     }
@@ -283,7 +283,7 @@ function CreateCategoryDialog({
                 </Alert>
               )}
 
-              {savedCategory && createBudgetMutation.error && (
+              {savedCategory && saveBudgetMutation.error && (
                 <Alert variant="warning">
                   <CheckCircle2Icon aria-hidden="true" />
                   <AlertTitle>Category saved; Budget not saved</AlertTitle>
@@ -293,7 +293,7 @@ function CreateCategoryDialog({
                       monthly Budget without creating the Category again.
                     </p>
                     <p className="mt-2">
-                      {createBudgetMutation.error.message}
+                      {saveBudgetMutation.error.message}
                     </p>
                   </AlertDescription>
                 </Alert>

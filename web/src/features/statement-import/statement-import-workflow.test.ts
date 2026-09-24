@@ -236,84 +236,112 @@ describe("Statement Import workflow", () => {
     expect(workflow.getSnapshot().stage).toBe("review");
   });
 
-  it("remembers a rule without rewriting other reviewed Transactions", async () => {
-    const rememberCategoryRule = vi.fn(
-      async (input: RememberCategoryRuleInput) => ({
-        status: "created" as const,
-        rule: {
-          id: "2",
-          categoryId: input.categoryId,
-          pattern: input.pattern,
-          matchType: input.matchType,
-        },
-      }),
-    );
-    const workflow = createWorkflow(rememberCategoryRule);
-    const manualTransaction = withTransaction({
-      id: "transaction-3",
-      description: "Cafe manual choice",
-      categoryId: "43",
-      assignment: "manual",
-      matchedCategoryIds: [],
-    });
-    const excludedTransaction = withTransaction({
-      id: "transaction-4",
-      description: "Cafe refund",
-      amount: 5,
-      categoryId: "43",
-      assignment: "manual",
-      matchedCategoryIds: [],
-      isExcluded: true,
-    });
-    acceptStatement(workflow, [
-      transaction,
-      withTransaction({
+  it.each(["contains", "exact"] as const)(
+    "remembers a %s Rule without rewriting repeated, manual, or excluded Transactions",
+    async (matchType) => {
+      const rememberCategoryRule = vi.fn(
+        async (input: RememberCategoryRuleInput) => ({
+          status: "created" as const,
+          rule: {
+            id: "2",
+            categoryId: input.categoryId,
+            pattern: input.pattern,
+            matchType: input.matchType,
+          },
+        }),
+      );
+      const workflow = createWorkflow(rememberCategoryRule);
+      const priorTransaction = withTransaction({
+        id: "transaction-3",
+        description: "Cafe manual choice",
+      });
+      const repeatedTransaction = withTransaction({
         id: "transaction-2",
-        description: "Green Cafe",
-      }),
-      manualTransaction,
-      excludedTransaction,
-    ]);
+        description: " green   market   cafe ",
+        assignment: "ambiguous",
+        matchedCategoryIds: ["42", "43"],
+      });
+      const excludedTransaction = withTransaction({
+        id: "transaction-4",
+        description: "Green Market Cafe",
+        amount: 5,
+        assignment: "ambiguous",
+        matchedCategoryIds: ["42", "43"],
+        isExcluded: true,
+      });
+      const unmappedTransaction = withTransaction({
+        id: "transaction-5",
+        description: "Cafe lunch",
+      });
+      acceptStatement(workflow, [
+        transaction,
+        repeatedTransaction,
+        priorTransaction,
+        excludedTransaction,
+        unmappedTransaction,
+      ]);
 
-    expect(workflow.beginEdit("transaction-1")).toBe(true);
-    workflow.changeDraft({
-      date: "2026-08-29",
-      description: "Green Market Cafe",
-      amount: "25.50",
-      category: "42",
-    });
-    workflow.changeRememberRule(true);
-    workflow.changeRememberedPattern("  Cafe  ");
-
-    await expect(workflow.saveEdit()).resolves.toBe("saved");
-
-    expect(rememberCategoryRule).toHaveBeenCalledWith(
-      { pattern: "CAFE", categoryId: "42", matchType: "contains" },
-      categoryRules,
-    );
-    expect(workflow.getSnapshot().categoryRules).toContainEqual({
-      id: "2",
-      categoryId: "42",
-      pattern: "CAFE",
-      matchType: "contains",
-    });
-    expect(workflow.getSnapshot().statement?.transactions).toEqual([
-      expect.objectContaining({
-        id: "transaction-1",
+      // Establish the prior assignment through the same interface as the next save.
+      expect(workflow.beginEdit(priorTransaction.id)).toBe(true);
+      workflow.changeDraft({
+        date: "2026-08-29",
+        description: priorTransaction.description,
+        amount: "-25.50",
+        category: "43",
+      });
+      await expect(workflow.saveEdit()).resolves.toBe("saved");
+      const manualTransaction = {
+        ...priorTransaction,
+        categoryId: "43",
         assignment: "manual",
+      };
+      expect(workflow.getSnapshot().statement?.transactions[2]).toEqual(
+        manualTransaction,
+      );
+      expect(rememberCategoryRule).not.toHaveBeenCalled();
+
+      expect(workflow.beginEdit("transaction-1")).toBe(true);
+      workflow.changeDraft({
+        date: "2026-08-29",
+        description: "Green Market Cafe",
+        amount: "-25.50",
+        category: "42",
+      });
+      workflow.changeRememberRule(true);
+      workflow.changeRememberedMatchType(matchType);
+      if (matchType === "contains") workflow.changeRememberedPattern("  Cafe  ");
+      const pattern = matchType === "exact" ? "GREEN MARKET CAFE" : "CAFE";
+
+      await expect(workflow.saveEdit()).resolves.toBe("saved");
+
+      expect(rememberCategoryRule).toHaveBeenCalledWith(
+        { pattern, categoryId: "42", matchType },
+        categoryRules,
+      );
+      expect(workflow.getSnapshot().categoryRules).toContainEqual({
+        id: "2",
         categoryId: "42",
-        matchedCategoryIds: [],
-      }),
-      expect.objectContaining({
-        id: "transaction-2",
-        assignment: "unmapped",
-        categoryId: null,
-        matchedCategoryIds: [],
-      }),
-      manualTransaction,
-      excludedTransaction,
-    ]);
-  });
+        pattern,
+        matchType,
+      });
+      expect(workflow.getSnapshot().statement?.transactions).toEqual([
+        expect.objectContaining({
+          id: "transaction-1",
+          assignment: "manual",
+          categoryId: "42",
+          matchedCategoryIds: [],
+          isExcluded: false,
+        }),
+        repeatedTransaction,
+        manualTransaction,
+        excludedTransaction,
+        unmappedTransaction,
+      ]);
+      expect(rememberCategoryRule).toHaveBeenCalledOnce();
+      expect(workflow.getSnapshot().canEnterReview).toBe(false);
+      expect(workflow.enterReview()).toBe(false);
+    },
+  );
 
   it("retains the full draft after failure and allows a retry", async () => {
     let attempt = 0;

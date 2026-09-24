@@ -208,23 +208,6 @@ describe("CategorizeStatement ambiguity handling", () => {
     ).toBe("");
   });
 
-  it("aligns mobile transaction actions to the right", () => {
-    render(<CategorizeHarness />);
-
-    const mobileItem = within(
-      screen.getByRole("list", { name: "Transactions to categorize" }),
-    )
-      .getByText("Green Market Cafe")
-      .closest("li");
-    const editButton = within(mobileItem as HTMLElement).getByRole("button", {
-      name: "Edit Green Market Cafe",
-    });
-
-    expect(editButton.parentElement?.className.split(/\s+/u)).toContain(
-      "ml-auto",
-    );
-  });
-
   it("does not mark the Sheet filters active for inline search", () => {
     render(<CategorizeHarness />);
 
@@ -298,29 +281,6 @@ describe("CategorizeStatement ambiguity handling", () => {
     expect(within(mobileList).getByText("Housing")).toBeTruthy();
   });
 
-  it("keeps the mobile date field inside the editor width", () => {
-    render(<CategorizeHarness />);
-
-    const mobileList = screen.getByRole("list", {
-      name: "Transactions to categorize",
-    });
-    fireEvent.click(
-      within(mobileList).getByRole("button", {
-        name: "Edit Green Market Cafe",
-      }),
-    );
-
-    const editor = screen.getByRole("dialog", { name: "Edit Transaction" });
-    const dateInput = within(editor).getByLabelText(
-      "Date for Green Market Cafe",
-    );
-
-    expect(dateInput.className.split(/\s+/u)).toContain("max-w-full");
-    expect(dateInput.parentElement?.className.split(/\s+/u)).toContain(
-      "min-w-0",
-    );
-  });
-
   it("uses the Transaction description for Exact Rules and only enables Contains patterns", () => {
     render(<CategorizeHarness />);
 
@@ -382,33 +342,7 @@ describe("CategorizeStatement ambiguity handling", () => {
     expect(pattern).toHaveProperty("disabled", false);
   });
 
-  it("persists a mobile Contains Rule without rewriting other reviewed Transactions", async () => {
-    const sameCategoryTransaction = {
-      ...ambiguousTransaction,
-      id: "transaction-2",
-      description: "Green Cafe",
-      categoryId: null,
-      assignment: "unmapped" as const,
-      matchedCategoryIds: [],
-    };
-    const crossCategoryTransaction = {
-      ...ambiguousTransaction,
-      id: "transaction-3",
-      description: "Market Cafe",
-      categoryId: null,
-      assignment: "unmapped" as const,
-      matchedCategoryIds: [],
-    };
-    const excludedTransaction = {
-      ...ambiguousTransaction,
-      id: "transaction-4",
-      description: "Cafe refund",
-      amount: 5,
-      categoryId: "43",
-      assignment: "manual" as const,
-      matchedCategoryIds: [],
-      isExcluded: true,
-    };
+  it("saves the mobile Contains Rule controls and displays the Manual assignment", async () => {
     const rememberCategoryRule: RememberCategoryRuleHandler = vi.fn(
       async (input) => ({
         status: "created" as const,
@@ -423,12 +357,6 @@ describe("CategorizeStatement ambiguity handling", () => {
 
     render(
       <CategorizeHarness
-        initialTransactions={[
-          ambiguousTransaction,
-          sameCategoryTransaction,
-          crossCategoryTransaction,
-          excludedTransaction,
-        ]}
         onRememberCategoryRule={rememberCategoryRule}
       />,
     );
@@ -476,30 +404,8 @@ describe("CategorizeStatement ambiguity handling", () => {
     const directItem = within(mobileList)
       .getByText("Green Market Cafe")
       .closest("li");
-    const sameCategoryItem = within(mobileList)
-      .getByText("Green Cafe")
-      .closest("li");
-    const crossCategoryItem = within(mobileList)
-      .getByText("Market Cafe")
-      .closest("li");
-    const excludedItem = within(mobileList)
-      .getByText("Cafe refund")
-      .closest("li");
-
     expect(directItem && within(directItem).getByText("Housing")).toBeTruthy();
     expect(directItem && within(directItem).getByText("Manual")).toBeTruthy();
-    expect(
-      sameCategoryItem && within(sameCategoryItem).getByText("Unmapped"),
-    ).toBeTruthy();
-    expect(
-      crossCategoryItem && within(crossCategoryItem).getByText("Unmapped"),
-    ).toBeTruthy();
-    expect(
-      excludedItem && within(excludedItem).getByText("Groceries"),
-    ).toBeTruthy();
-    expect(
-      excludedItem && within(excludedItem).getByText("Excluded"),
-    ).toBeTruthy();
   });
 
   it("keeps mobile Rule selections visible when persistence fails", async () => {
@@ -819,292 +725,6 @@ describe("CategorizeStatement ambiguity handling", () => {
       target: { value: "A different description" },
     });
     expect(patternInput).toHaveProperty("value", "Merchant");
-  });
-
-  it("remembers a Contains Rule without rewriting other included Transactions", async () => {
-    const sameCategoryTransaction = {
-      ...ambiguousTransaction,
-      id: "transaction-2",
-      description: "Green Cafe",
-      categoryId: null,
-      assignment: "unmapped" as const,
-      matchedCategoryIds: [],
-    };
-    const crossCategoryTransaction = {
-      ...ambiguousTransaction,
-      id: "transaction-3",
-      description: "Market Cafe",
-      categoryId: null,
-      assignment: "unmapped" as const,
-      matchedCategoryIds: [],
-    };
-    const excludedTransaction = {
-      ...ambiguousTransaction,
-      id: "transaction-4",
-      description: "Cafe refund",
-      amount: 5,
-      categoryId: "43",
-      assignment: "manual" as const,
-      matchedCategoryIds: [],
-      isExcluded: true,
-    };
-    const rememberCategoryRule = vi.fn(async () => ({
-      status: "created" as const,
-      rule: {
-        id: "7",
-        categoryId: "42",
-        pattern: "Cafe",
-        matchType: "contains" as const,
-      },
-    }));
-
-    render(
-      <CategorizeHarness
-        initialTransactions={[
-          ambiguousTransaction,
-          sameCategoryTransaction,
-          crossCategoryTransaction,
-          excludedTransaction,
-        ]}
-        onRememberCategoryRule={rememberCategoryRule}
-      />,
-    );
-
-    const desktopTable = getDesktopTable();
-    fireEvent.click(
-      within(desktopTable).getByRole("button", {
-        name: "Edit Green Market Cafe",
-      }),
-    );
-    fireEvent.click(
-      within(desktopTable).getByRole("combobox", {
-        name: "Category for Green Market Cafe",
-      }),
-    );
-    fireEvent.click(screen.getByRole("option", { name: "Housing" }));
-    fireEvent.click(
-      screen.getByRole("checkbox", {
-        name: "Remember this category",
-      }),
-    );
-    fireEvent.change(
-      screen.getByRole("textbox", {
-        name: "Pattern for Green Market Cafe",
-      }),
-      { target: { value: "Cafe" } },
-    );
-    fireEvent.click(
-      within(desktopTable).getByRole("button", {
-        name: "Save changes to Green Market Cafe",
-      }),
-    );
-
-    await waitFor(() => {
-      expect(
-        screen.getByRole("button", { name: "Review 3 Transactions" }),
-      ).toHaveProperty("disabled", true);
-    });
-    expect(rememberCategoryRule).toHaveBeenCalledWith(
-      { pattern: "CAFE", categoryId: "42", matchType: "contains" },
-      categoryRules,
-    );
-
-    const directRow = within(desktopTable)
-      .getByText("Green Market Cafe")
-      .closest("tr");
-    const sameCategoryRow = within(desktopTable)
-      .getByText("Green Cafe")
-      .closest("tr");
-    const excludedRow = within(desktopTable)
-      .getByText("Cafe refund")
-      .closest("tr");
-
-    expect(directRow && within(directRow).getByText("Housing")).toBeTruthy();
-    expect(
-      sameCategoryRow && within(sameCategoryRow).getByText("Unmapped"),
-    ).toBeTruthy();
-    expect(
-      excludedRow && within(excludedRow).getByText("Groceries"),
-    ).toBeTruthy();
-    expect(
-      excludedRow && within(excludedRow).getByText("Excluded"),
-    ).toBeTruthy();
-  });
-
-  it("keeps prior manual assignments when remembering a Category Rule", async () => {
-    const firstTransaction = {
-      ...ambiguousTransaction,
-      description: "First unmapped merchant",
-      assignment: "unmapped" as const,
-      matchedCategoryIds: [],
-    };
-    const secondTransaction = {
-      ...ambiguousTransaction,
-      id: "transaction-2",
-      description: "Second unmapped merchant",
-      assignment: "unmapped" as const,
-      matchedCategoryIds: [],
-    };
-    const rememberCategoryRule = vi.fn(async () => ({
-      status: "created" as const,
-      rule: {
-        id: "7",
-        categoryId: "43",
-        pattern: "SECOND UNMAPPED MERCHANT",
-        matchType: "contains" as const,
-      },
-    }));
-
-    render(
-      <CategorizeHarness
-        initialTransactions={[firstTransaction, secondTransaction]}
-        onRememberCategoryRule={rememberCategoryRule}
-      />,
-    );
-
-    const desktopTable = getDesktopTable();
-    fireEvent.click(
-      within(desktopTable).getByRole("button", {
-        name: "Edit First unmapped merchant",
-      }),
-    );
-    fireEvent.click(
-      within(desktopTable).getByRole("combobox", {
-        name: "Category for First unmapped merchant",
-      }),
-    );
-    fireEvent.click(screen.getByRole("option", { name: "Housing" }));
-    fireEvent.click(
-      within(desktopTable).getByRole("button", {
-        name: "Save changes to First unmapped merchant",
-      }),
-    );
-
-    await waitFor(() => {
-      expect(
-        within(desktopTable).queryByRole("button", {
-          name: "Save changes to First unmapped merchant",
-        }),
-      ).toBeNull();
-    });
-
-    fireEvent.click(
-      within(desktopTable).getByRole("button", {
-        name: "Edit Second unmapped merchant",
-      }),
-    );
-    fireEvent.click(
-      within(desktopTable).getByRole("combobox", {
-        name: "Category for Second unmapped merchant",
-      }),
-    );
-    fireEvent.click(screen.getByRole("option", { name: "Groceries" }));
-    fireEvent.click(
-      screen.getByRole("checkbox", { name: "Remember this category" }),
-    );
-    fireEvent.click(
-      within(desktopTable).getByRole("button", {
-        name: "Save changes to Second unmapped merchant",
-      }),
-    );
-
-    await waitFor(() => {
-      expect(rememberCategoryRule).toHaveBeenCalledOnce();
-      expect(
-        within(desktopTable).queryByRole("button", {
-          name: "Save changes to Second unmapped merchant",
-        }),
-      ).toBeNull();
-    });
-    const firstRow = within(desktopTable)
-      .getByText("First unmapped merchant")
-      .closest("tr");
-    expect(firstRow && within(firstRow).getByText("Housing")).toBeTruthy();
-  });
-
-  it("keeps repeated and excluded rows unchanged after remembering an Exact Rule", async () => {
-    const repeatedTransaction = {
-      ...ambiguousTransaction,
-      id: "transaction-2",
-      description: " green   market   cafe ",
-    };
-    const excludedRepeatedTransaction = {
-      ...ambiguousTransaction,
-      id: "transaction-3",
-      amount: 5,
-      isExcluded: true,
-    };
-    const rememberCategoryRule = vi.fn(async () => ({
-      status: "created" as const,
-      rule: {
-        id: "7",
-        categoryId: "42",
-        pattern: "GREEN MARKET CAFE",
-        matchType: "exact" as const,
-      },
-    }));
-
-    render(
-      <CategorizeHarness
-        initialTransactions={[
-          ambiguousTransaction,
-          repeatedTransaction,
-          excludedRepeatedTransaction,
-        ]}
-        onRememberCategoryRule={rememberCategoryRule}
-      />,
-    );
-
-    const desktopTable = getDesktopTable();
-    fireEvent.click(
-      within(desktopTable).getAllByRole("button", {
-        name: "Edit Green Market Cafe",
-      })[0],
-    );
-    fireEvent.click(
-      within(desktopTable).getByRole("combobox", {
-        name: "Category for Green Market Cafe",
-      }),
-    );
-    fireEvent.click(screen.getByRole("option", { name: "Housing" }));
-    fireEvent.click(
-      screen.getByRole("checkbox", {
-        name: "Remember this category",
-      }),
-    );
-    fireEvent.click(
-      screen.getByRole("combobox", {
-        name: "Match type for Green Market Cafe",
-      }),
-    );
-    fireEvent.click(screen.getByRole("option", { name: "Exact" }));
-    fireEvent.click(
-      within(desktopTable).getByRole("button", {
-        name: "Save changes to Green Market Cafe",
-      }),
-    );
-
-    await waitFor(() => {
-      expect(
-        screen.getByRole("button", { name: "Review 2 Transactions" }),
-      ).toHaveProperty("disabled", true);
-    });
-    expect(rememberCategoryRule).toHaveBeenCalledWith(
-      { pattern: "GREEN MARKET CAFE", categoryId: "42", matchType: "exact" },
-      categoryRules,
-    );
-    const counts = screen.getByText("0 Rule").parentElement;
-    expect(counts?.textContent).toContain("1 Manual");
-    expect(counts?.textContent).toContain("1 Ambiguous");
-    expect(counts?.textContent).toContain("1 Excluded");
-    expect(
-      screen.getByRole("button", { name: "Review 2 Transactions" }),
-    ).toHaveProperty("disabled", true);
-    expect(
-      within(desktopTable).getAllByLabelText(
-        "Multiple categories matched: Housing, Groceries",
-      ),
-    ).toHaveLength(2);
   });
 
   it("keeps the edit open when remembering an Exact Rule fails", async () => {

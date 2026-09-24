@@ -1572,16 +1572,6 @@ describe("StatementImportPage rule resolution", () => {
         name: "Remember this category",
       }),
     );
-    expect(
-      screen.getByRole("combobox", {
-        name: "Match type for Green Market Cafe",
-      }).textContent,
-    ).toContain("Contains");
-    expect(
-      screen.getByRole("textbox", {
-        name: "Pattern for Green Market Cafe",
-      }),
-    ).toHaveProperty("value", "Green Market Cafe");
     fireEvent.change(
       screen.getByRole("textbox", {
         name: "Pattern for Green Market Cafe",

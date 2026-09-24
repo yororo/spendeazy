@@ -5,7 +5,7 @@ import { resolveCategoryColor, type CategoryColor } from "@/shared/category";
 
 import {
   useDeleteCategoryBudgetMutation,
-  useUpdateCategoryBudgetMutation,
+  useSaveCategoryBudgetMutation,
   useUpdateCategoryMutation,
 } from "./categories-queries";
 import { isCategoryNameConflict } from "./category-errors";
@@ -99,7 +99,7 @@ function useCategoryEditor({
   const [errors, setErrors] = useState<CategoryFormErrors>({});
   const [discardPrompt, setDiscardPrompt] = useState(false);
   const updateCategoryMutation = useUpdateCategoryMutation();
-  const updateBudgetMutation = useUpdateCategoryBudgetMutation();
+  const saveBudgetMutation = useSaveCategoryBudgetMutation();
   const deleteBudgetMutation = useDeleteCategoryBudgetMutation();
 
   const budgetIsYearly = authoritativeBudget?.period === "yearly";
@@ -108,7 +108,7 @@ function useCategoryEditor({
     categoryError && !isCategoryNameConflict(categoryError)
       ? categoryError
       : null;
-  const budgetError = updateBudgetMutation.error ?? deleteBudgetMutation.error;
+  const budgetError = saveBudgetMutation.error ?? deleteBudgetMutation.error;
   const categoryNameError =
     errors.name ??
     getApiFieldError(categoryError, "name") ??
@@ -117,7 +117,7 @@ function useCategoryEditor({
       : undefined);
   const isSaving =
     updateCategoryMutation.isPending ||
-    updateBudgetMutation.isPending ||
+    saveBudgetMutation.isPending ||
     deleteBudgetMutation.isPending;
   const hasUnsavedChanges =
     draft.name !== confirmedDetails.name ||
@@ -145,7 +145,7 @@ function useCategoryEditor({
       updateCategoryMutation.reset();
     }
     if (field === "budget") {
-      updateBudgetMutation.reset();
+      saveBudgetMutation.reset();
       deleteBudgetMutation.reset();
     }
   }
@@ -169,7 +169,7 @@ function useCategoryEditor({
     }
 
     try {
-      await updateBudgetMutation.mutateAsync({
+      await saveBudgetMutation.mutateAsync({
         categoryId: category.id,
         amount,
         spaceId,

@@ -118,7 +118,7 @@ function useCreateCategoryMutation() {
   });
 }
 
-function useCreateCategoryBudgetMutation() {
+function useSaveCategoryBudgetMutation() {
   const apiClient = useApiClient();
   const queryClient = useQueryClient();
   const identityId = useAuthenticatedIdentityId();
@@ -202,31 +202,6 @@ function useUpdateCategoryStatusMutation() {
   });
 }
 
-function useUpdateCategoryBudgetMutation() {
-  const apiClient = useApiClient();
-  const queryClient = useQueryClient();
-  const identityId = useAuthenticatedIdentityId();
-
-  return useMutation({
-    retry: 0,
-    mutationFn: (input: SaveCategoryBudgetInput) =>
-      saveCategoryBudget(
-        apiClient,
-        input.categoryId,
-        input.amount,
-        input.spaceId,
-        input.updatedAt,
-      ),
-    onMutate: (input) =>
-      captureFinancialMutationScope(identityId, input.spaceId),
-    onSuccess: (_data, input, mutationScope) =>
-      invalidateCategoryDependentQueries(
-        queryClient,
-        mutationScope ?? captureFinancialMutationScope(identityId, input.spaceId),
-      ),
-  });
-}
-
 function useDeleteCategoryBudgetMutation() {
   const apiClient = useApiClient();
   const queryClient = useQueryClient();
@@ -260,10 +235,9 @@ export {
   useCategoryBudgetQuery,
   useCategoryRulesQuery,
   useCategoriesOverviewQuery,
-  useCreateCategoryBudgetMutation,
+  useSaveCategoryBudgetMutation,
   useCreateCategoryMutation,
   useDeleteCategoryBudgetMutation,
-  useUpdateCategoryBudgetMutation,
   useUpdateCategoryMutation,
   useUpdateCategoryStatusMutation,
   useReplaceCategoryRulesMutation,

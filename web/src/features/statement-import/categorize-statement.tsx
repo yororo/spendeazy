@@ -145,6 +145,7 @@ function CategorizeStatement({
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
+  const [sort, setSort] = useState("date-desc");
   const [mobileEditorOpen, setMobileEditorOpen] = useState(false);
   const {
     draft,
@@ -217,8 +218,13 @@ function CategorizeStatement({
           : transaction.categoryId === categoryFilter);
 
       return matchesSearch && matchesStart && matchesEnd && matchesCategory;
+    }).sort((a, b) => {
+      const difference = sort.startsWith("amount")
+        ? Math.abs(a.amount) - Math.abs(b.amount)
+        : toDateInputValue(a.transactionDate).localeCompare(toDateInputValue(b.transactionDate));
+      return (sort.endsWith("asc") ? difference : -difference) || a.id.localeCompare(b.id);
     });
-  }, [categoryFilter, dateFrom, dateTo, search, transactions]);
+  }, [categoryFilter, dateFrom, dateTo, search, sort, transactions]);
   const editingTransactionIsVisible = visibleTransactions.some(
     (transaction) => transaction.id === editingId,
   );
@@ -457,6 +463,18 @@ function CategorizeStatement({
                       </SelectContent>
                     </Select>
                   </div>
+                  <div>
+                    <Label htmlFor="mobile-transaction-sort">Sort by</Label>
+                    <Select value={sort} onValueChange={setSort}>
+                      <SelectTrigger id="mobile-transaction-sort" className="mt-1.5"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="date-desc">Date: newest first</SelectItem>
+                        <SelectItem value="date-asc">Date: oldest first</SelectItem>
+                        <SelectItem value="amount-desc">Amount: highest first</SelectItem>
+                        <SelectItem value="amount-asc">Amount: lowest first</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <Button
                     type="button"
                     variant="outline"
@@ -470,7 +488,7 @@ function CategorizeStatement({
             </Sheet>
           </div>
 
-          <div className="hidden gap-3 border-b p-3 md:grid lg:grid-cols-[minmax(14rem,1fr)_10.5rem_10.5rem_12rem_auto] lg:items-end">
+          <div className="hidden gap-3 border-b p-3 md:grid md:grid-cols-2 lg:grid-cols-[minmax(14rem,1fr)_10.5rem_10.5rem_12rem_12rem_auto] lg:items-end">
             <div>
               <Label htmlFor="transaction-search">Search descriptions</Label>
               <div className="relative mt-1.5">
@@ -531,6 +549,18 @@ function CategorizeStatement({
                       </span>
                     </SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="transaction-sort">Sort by</Label>
+              <Select value={sort} onValueChange={setSort}>
+                <SelectTrigger id="transaction-sort" className="mt-1.5"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="date-desc">Date: newest first</SelectItem>
+                  <SelectItem value="date-asc">Date: oldest first</SelectItem>
+                  <SelectItem value="amount-desc">Amount: highest first</SelectItem>
+                  <SelectItem value="amount-asc">Amount: lowest first</SelectItem>
                 </SelectContent>
               </Select>
             </div>

@@ -196,6 +196,15 @@
       display: block;
     }
 
+    .date-input-control {
+      box-sizing: border-box;
+      width: 100%;
+      min-width: 0;
+      max-width: 100%;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+
     .date-input-control::-webkit-calendar-picker-indicator {
       opacity: 0;
     }

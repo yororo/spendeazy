@@ -61,6 +61,9 @@ async function expectMobileDateField(
   const wrapper = field.locator("xpath=..");
   const icon = wrapper.locator('[data-slot="date-input-icon"]');
   await expect(icon).toBeVisible();
+  await expect
+    .poll(() => field.evaluate((element) => getComputedStyle(element).appearance))
+    .toBe("none");
 
   await expect
     .poll(async () => {
@@ -68,8 +71,11 @@ async function expectMobileDateField(
         field.boundingBox(),
         container.boundingBox(),
       ]);
-      if (!fieldBox || !containerBox) return false;
+      const wrapperBox = await wrapper.boundingBox();
+      if (!fieldBox || !wrapperBox || !containerBox) return false;
       return (
+        fieldBox.x >= wrapperBox.x &&
+        fieldBox.x + fieldBox.width <= wrapperBox.x + wrapperBox.width + 1 &&
         fieldBox.x >= containerBox.x &&
         fieldBox.x + fieldBox.width <= containerBox.x + containerBox.width + 1
       );

@@ -153,7 +153,7 @@ describe("AppShell", () => {
     );
     fireEvent.click(
       screen.getByRole("menuitemradio", {
-        name: /Personal.*Ada Lovelace/u,
+        name: "Personal",
       }),
     );
     expect(screen.getByText("/")).toBeTruthy();
@@ -231,7 +231,7 @@ describe("AppShell", () => {
       screen.getAllByRole("button", { name: /Active Space/u })[0]!,
     );
     fireEvent.click(
-      screen.getByRole("menuitemradio", { name: /Personal.*Ada Lovelace/u }),
+      screen.getByRole("menuitemradio", { name: "Personal" }),
     );
     expect(screen.getByText("/transactions?month=2026-09")).toBeTruthy();
 
@@ -250,7 +250,7 @@ describe("AppShell", () => {
     expect(screen.getByText("/transactions?month=2026-09&spaceId=shared-1")).toBeTruthy();
   });
 
-  it("shows the identity-rich Space switcher directly in the mobile header", () => {
+  it("shows concise Personal and identity-rich Shared labels in the mobile header", () => {
     function CurrentLocation() {
       const location = useLocation();
       return <p>{`${location.pathname}${location.search}`}</p>;
@@ -269,10 +269,13 @@ describe("AppShell", () => {
     );
 
     const header = screen.getByRole("banner");
-    expect(within(header).getByText(/Personal.*Ada Lovelace/u)).toBeTruthy();
+    expect(within(header).getByText("Personal")).toBeTruthy();
     fireEvent.click(
       within(header).getByRole("button", { name: /Active Space/u }),
     );
+    expect(
+      screen.getByRole("menuitemradio", { name: "Personal" }),
+    ).toBeTruthy();
     expect(
       screen.getByRole("menuitemradio", {
         name: /Shared.*Ada Lovelace.*Grace Hopper/u,
@@ -311,7 +314,7 @@ describe("AppShell", () => {
     fireEvent.keyDown(trigger, { key: "ArrowDown" });
     const personalOption = await waitFor(() =>
       screen.getByRole("menuitemradio", {
-        name: /Personal.*Ada Lovelace/u,
+        name: "Personal",
       }),
     );
     expect(document.activeElement).toBe(personalOption);

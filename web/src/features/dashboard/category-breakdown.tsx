@@ -14,7 +14,11 @@ interface CategoryBreakdownProps {
 
 function CategoryBreakdown({ categories }: CategoryBreakdownProps) {
   return (
-    <Card variant="strong" id="categories" className="h-full">
+    <Card
+      variant="strong"
+      id="categories"
+      className="flex h-full max-h-[min(32rem,70vh)] flex-col overflow-hidden"
+    >
       <CardHeader className="flex-row items-center justify-between gap-4">
         <div>
           <CardTitle>By category</CardTitle>
@@ -26,7 +30,7 @@ function CategoryBreakdown({ categories }: CategoryBreakdownProps) {
           <Link to="/categories" aria-label="View all categories">View all</Link>
         </Button>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="min-h-0 flex-1 space-y-4 overflow-y-auto">
         {categories.length === 0 && (
           <p className="text-sm text-muted-foreground">
             No categorized spending was recorded for this period.

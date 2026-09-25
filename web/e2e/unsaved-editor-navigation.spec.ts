@@ -126,7 +126,7 @@ async function switchToSharedSpace(page: Page) {
 async function switchToPersonalSpace(page: Page) {
   await page.getByRole("button", { name: /Active Space/u }).click();
   await page
-    .getByRole("menuitemradio", { name: /Personal.*Ada Lovelace/u })
+    .getByRole("menuitemradio", { name: "Personal" })
     .click();
 }
 

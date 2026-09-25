@@ -11,7 +11,11 @@ import { cn } from "@/lib/utils";
 import { useAccessibleSpacesQuery } from "@/shared/api";
 import { useNavigationGuard } from "@/shared/navigation";
 import { useAppSession } from "@/shared/session";
-import { getSpaceIdentityLabel, SpaceIdentityIcon } from "@/shared/ui";
+import {
+  getSpaceIdentityLabel,
+  SpaceIdentityIcon,
+  type SpaceIdentitySource,
+} from "@/shared/ui";
 import {
   buildCanonicalSpaceSearch,
   getActiveSpaces,
@@ -22,6 +26,10 @@ import {
 interface SpaceSwitcherProps {
   readonly className?: string;
   readonly onNavigate?: () => void;
+}
+
+function getSpaceSwitcherLabel(space: SpaceIdentitySource): string {
+  return space.kind === "personal" ? "Personal" : getSpaceIdentityLabel(space);
 }
 
 function SpaceSwitcher({ className, onNavigate }: SpaceSwitcherProps) {
@@ -39,7 +47,7 @@ function SpaceSwitcher({ className, onNavigate }: SpaceSwitcherProps) {
   let activeLabel =
     currentSpaceId === null ? "Spaces unavailable" : "Space unavailable";
   if (activeSpace) {
-    activeLabel = getSpaceIdentityLabel(activeSpace);
+    activeLabel = getSpaceSwitcherLabel(activeSpace);
   } else if (spacesQuery.isPending) {
     activeLabel = "Loading Spaces…";
   } else if (spacesQuery.isSuccess && activeSpaces.length === 0) {
@@ -115,13 +123,13 @@ function SpaceSwitcher({ className, onNavigate }: SpaceSwitcherProps) {
                 key={space.id}
                 role="menuitemradio"
                 aria-checked={isActive}
-                aria-label={getSpaceIdentityLabel(space)}
+                aria-label={getSpaceSwitcherLabel(space)}
                 onSelect={() => switchSpace(space.id)}
                 className="min-h-12 gap-3 text-sm normal-case tracking-normal"
               >
                 <SpaceIdentityIcon kind={space.kind} />
                 <span className="min-w-0 flex-1 truncate">
-                  {getSpaceIdentityLabel(space)}
+                  {getSpaceSwitcherLabel(space)}
                 </span>
                 {isActive && (
                   <span className="shrink-0 text-xs" aria-label="Current Space">

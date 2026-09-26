@@ -32,6 +32,15 @@ function DailySpendingChart({ report }: DailySpendingChartProps) {
   );
   const visibleBudgetPace = showBudgetPace && isBudgetPaceAvailable;
   const budgetPaceLabel = `${formatMoney(centsToMoney(report.dailyBudgetPaceCents))} per day`;
+  const dailyReports = report.days.map((day) => ({
+    day,
+    amountsByCategory: new Map<string | null, number>(
+      day.categories.map(({ categoryId, amountCents }) => [
+        categoryId,
+        amountCents,
+      ]),
+    ),
+  }));
 
   return (
     <Card variant="strong" className="flex flex-col">
@@ -101,18 +110,12 @@ function DailySpendingChart({ report }: DailySpendingChartProps) {
                     style={{ top: `${position}%` }}
                   />
                 ))}
-                <div className="relative z-10 flex h-full items-end gap-px">
-                  {report.days.map((day) => {
-                    const dailyCategories = new Map(
-                      day.categories.map(({ categoryId, amountCents }) => [
-                        categoryId,
-                        amountCents,
-                      ]),
-                    );
+                <div className="relative z-10 flex h-full items-end gap-0.5">
+                  {dailyReports.map(({ day, amountsByCategory }) => {
                     let stackedCents = 0;
 
                     const segments = report.categories.map((category) => {
-                      const amountCents = dailyCategories.get(category.id) ?? 0;
+                      const amountCents = amountsByCategory.get(category.id) ?? 0;
                       const bottom = stackedCents;
                       stackedCents += amountCents;
 
@@ -160,8 +163,8 @@ function DailySpendingChart({ report }: DailySpendingChartProps) {
                   />
                 ) : null}
               </div>
-              <div className="flex h-6 shrink-0 gap-px pt-1 font-mono text-xs tabular-nums text-muted-foreground">
-                {report.days.map((day) => (
+              <div className="flex h-6 shrink-0 gap-0.5 pt-1 font-mono text-xs tabular-nums text-muted-foreground">
+                {dailyReports.map(({ day }) => (
                   <span
                     key={day.date}
                     className={cn(
@@ -223,14 +226,7 @@ function DailySpendingChart({ report }: DailySpendingChartProps) {
                 </tr>
               </thead>
               <tbody>
-                {report.days.map((day) => {
-                  const amountByCategory = new Map(
-                    day.categories.map(({ categoryId, amountCents }) => [
-                      categoryId,
-                      amountCents,
-                    ]),
-                  );
-
+                {dailyReports.map(({ day, amountsByCategory }) => {
                   return (
                     <tr key={day.date}>
                       <th scope="row">{day.day}</th>
@@ -241,7 +237,7 @@ function DailySpendingChart({ report }: DailySpendingChartProps) {
                       {report.categories.map((category) => (
                         <td key={category.id ?? "uncategorized"}>
                           {formatMoney(
-                            centsToMoney(amountByCategory.get(category.id) ?? 0),
+                            centsToMoney(amountsByCategory.get(category.id) ?? 0),
                           )}
                         </td>
                       ))}

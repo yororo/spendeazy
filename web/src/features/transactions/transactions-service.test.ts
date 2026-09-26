@@ -188,6 +188,7 @@ describe("listTransactions", () => {
         },
       ],
       nextCursor: "cursor-2",
+      totalCount: 2,
       summary: {
         period: "Aug 2026",
         transactionCount: 4,
@@ -252,6 +253,21 @@ describe("listTransactions", () => {
       "/spaces/space%2F7/statement-imports/100",
       { signal: undefined },
     );
+  });
+
+  it("sends description, Category, date, and Account filters to the full-period API query", async () => {
+    const filteredPath = "/transactions?fromDate=2026-08-10&toDate=2026-08-20&description=Coffee&categoryId=42&accountBank=BDO&accountCardType=AMEX&pageSize=20";
+    const { apiClient, get } = createApiClient(new Map<string, unknown>([
+      [categoriesPath, createCategories()],
+      [summaryPath, createSummary()],
+      [filteredPath, { items: [], nextCursor: null, totalCount: "0" }],
+    ]));
+    const page = await listTransactions(apiClient, {
+      period, pageSize: 20, description: "Coffee", fromDate: "2026-08-10",
+      toDate: "2026-08-20", categoryId: "42", accountBank: "BDO", accountCardType: "AMEX",
+    });
+    expect(page.totalCount).toBe(0);
+    expect(get).toHaveBeenCalledWith(filteredPath, { signal: undefined });
   });
 
   it("composes a subsequent cursor request without using numbered pages", async () => {

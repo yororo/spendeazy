@@ -64,6 +64,19 @@ interface DashboardSummary {
   averagePerDay: number;
   budgetUsed: number;
   budgetRemaining: number;
+  budgetLimit: number;
+  budgetedSpend: number;
+  unbudgetedSpend: number;
+}
+
+interface BudgetAlert {
+  readonly categoryId: string;
+  readonly label: string;
+  readonly spent: number;
+  readonly budget: number | null;
+  readonly remaining: number | null;
+  readonly usage: number | null;
+  readonly status: "over" | "near" | "unbudgeted";
 }
 
 interface DashboardData {
@@ -71,6 +84,7 @@ interface DashboardData {
   spendingPoints: readonly SpendingPoint[];
   categorySpending: readonly CategorySpend[];
   recentTransactions: readonly Transaction[];
+  budgetAlerts: readonly BudgetAlert[];
 }
 
 type DashboardApiClient = ApiGetClient;
@@ -347,6 +361,11 @@ function createBudgetProjection(categories: readonly CategorySummaryItem[]) {
           );
     return total + moneyToCents(remaining);
   }, 0);
+  const budgetedSpendCents = budgetCategories.reduce(
+    (total, category) =>
+      total + moneyToCents(parseApiMoney(category.totalAmount, `Category ${category.categoryId}`, createDashboardDataError)),
+    0,
+  );
 
   return {
     budgetUsed:
@@ -357,7 +376,40 @@ function createBudgetProjection(categories: readonly CategorySummaryItem[]) {
           ) / 10
         : 0,
     budgetRemaining: centsToMoney(budgetRemainingCents),
+    budgetLimit: centsToMoney(totalBudgetCents),
+    budgetedSpend: centsToMoney(budgetedSpendCents),
   };
+}
+
+function createBudgetAlerts(
+  categories: readonly CategorySummaryItem[],
+  categoryById: ReadonlyMap<string, CategoryProjection>,
+): BudgetAlert[] {
+  const alerts = categories.map((category): BudgetAlert | null => {
+    const spent = parseApiMoney(category.totalAmount, `Category ${category.categoryId}`, createDashboardDataError);
+    if (spent <= 0) return null;
+    const label = categoryById.get(category.categoryId)?.label ?? category.name;
+    if (category.budgetAmount === null) {
+      return { categoryId: category.categoryId, label, spent, budget: null, remaining: null, usage: null, status: "unbudgeted" };
+    }
+    const budget = parseApiMoney(category.budgetAmount, `Budget ${category.categoryId}`, createDashboardDataError);
+    const usage = budget > 0 ? Math.round((spent / budget) * 100) : 0;
+    if (usage < 80) return null;
+    return {
+      categoryId: category.categoryId,
+      label,
+      spent,
+      budget,
+      remaining: centsToMoney(moneyToCents(budget) - moneyToCents(spent)),
+      usage,
+      status: usage >= 100 ? "over" : "near",
+    };
+  }).filter((alert): alert is BudgetAlert => alert !== null);
+  const priority = { over: 0, near: 1, unbudgeted: 2 };
+  return [
+    ...alerts.filter((alert) => alert.status !== "unbudgeted"),
+    ...alerts.filter((alert) => alert.status === "unbudgeted").sort((a, b) => b.spent - a.spent).slice(0, 3),
+  ].sort((a, b) => priority[a.status] - priority[b.status] || b.spent - a.spent);
 }
 
 function createDashboardSummary(
@@ -385,6 +437,11 @@ function createDashboardSummary(
     averagePerDay: roundMoney(categorySummaryTotals.totalAmount / daysInPeriod),
     budgetUsed: budget.budgetUsed,
     budgetRemaining: budget.budgetRemaining,
+    budgetLimit: budget.budgetLimit,
+    budgetedSpend: budget.budgetedSpend,
+    unbudgetedSpend: centsToMoney(
+      moneyToCents(categorySummaryTotals.totalAmount) - moneyToCents(budget.budgetedSpend),
+    ),
   };
 }
 
@@ -431,6 +488,7 @@ async function getDashboard(
       categoryById,
       resources.statementImports,
     ),
+    budgetAlerts: createBudgetAlerts(resources.categorySummary.categories, categoryById),
   };
 }
 
@@ -449,6 +507,7 @@ function buildTransactionCollectionPath(spaceId?: string): string {
 export { DashboardDataError, getDashboard };
 export type {
   CategorySpend,
+  BudgetAlert,
   DashboardApiClient,
   DashboardData,
   DashboardSummary,

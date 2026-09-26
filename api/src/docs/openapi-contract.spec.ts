@@ -106,6 +106,9 @@ const PAGINATION_QUERY_SCHEMAS = {
 const TRANSACTION_QUERY_SCHEMAS = {
   fromDate: DATE_QUERY_SCHEMA,
   toDate: DATE_QUERY_SCHEMA,
+  description: { type: 'string', minLength: 1, maxLength: 500 },
+  accountBank: { type: 'string' },
+  accountCardType: { type: 'string' },
   categoryId: { type: 'string', pattern: '^[1-9]\\d*$' },
   categoryState: {
     type: 'string',
@@ -559,6 +562,9 @@ const OPERATION_EXPECTATIONS = [
     queryParameters: [
       'fromDate',
       'toDate',
+      'description',
+      'accountBank',
+      'accountCardType',
       'categoryId',
       'categoryState',
       'statementImportId',
@@ -578,6 +584,9 @@ const OPERATION_EXPECTATIONS = [
     queryParameters: [
       'fromDate',
       'toDate',
+      'description',
+      'accountBank',
+      'accountCardType',
       'categoryId',
       'categoryState',
       'statementImportId',
@@ -668,6 +677,9 @@ const OPERATION_EXPECTATIONS = [
     queryParameters: [
       'fromDate',
       'toDate',
+      'description',
+      'accountBank',
+      'accountCardType',
       'categoryId',
       'categoryState',
       'statementImportId',
@@ -691,6 +703,9 @@ const OPERATION_EXPECTATIONS = [
     queryParameters: [
       'fromDate',
       'toDate',
+      'description',
+      'accountBank',
+      'accountCardType',
       'categoryId',
       'categoryState',
       'statementImportId',

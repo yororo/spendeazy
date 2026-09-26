@@ -301,6 +301,9 @@ describe("getDashboard", () => {
       averagePerDay: 4.52,
       budgetUsed: 66.7,
       budgetRemaining: 50,
+      budgetLimit: 150,
+      budgetedSpend: 100,
+      unbudgetedSpend: 40,
     });
     expect(dashboard.categorySpending).toEqual([
       {
@@ -318,6 +321,17 @@ describe("getDashboard", () => {
         color: "forest",
         amount: 30,
         share: 21.4,
+      },
+    ]);
+    expect(dashboard.budgetAlerts).toEqual([
+      {
+        categoryId: "43",
+        label: "Groceries",
+        spent: 30,
+        budget: null,
+        remaining: null,
+        usage: null,
+        status: "unbudgeted",
       },
     ]);
     expect(dashboard.spendingPoints[1]).toEqual({ label: "2", amount: 60 });
@@ -494,6 +508,9 @@ describe("getDashboard", () => {
       averagePerDay: 0,
       budgetUsed: 0,
       budgetRemaining: 0,
+      budgetLimit: 0,
+      budgetedSpend: 0,
+      unbudgetedSpend: 0,
     });
     expect(dashboard.categorySpending).toEqual([]);
     expect(dashboard.recentTransactions).toEqual([]);

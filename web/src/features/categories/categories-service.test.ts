@@ -180,6 +180,8 @@ describe("getCategoriesOverview", () => {
     expect(overview).toEqual({
       period,
       periodLabel: "Aug 2026",
+      budgetedSpent: 160,
+      unbudgetedSpent: 18.5,
       categories: [
         {
           id: "42",

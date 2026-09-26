@@ -476,6 +476,15 @@ export class TransactionActivityResponseDto {
 export class TransactionHistoryPageResponseDto {
   @ApiProperty({
     description:
+      'Total number of Transactions matching the filters across all pages.',
+    type: String,
+    pattern: '^\\d+$',
+    example: '43',
+  })
+  totalCount!: string;
+
+  @ApiProperty({
+    description:
       'Transactions ordered by purchaseDate descending, then Transaction ID descending. The source discriminator selects manual or imported history relationships.',
     type: 'array',
     items: {

@@ -13,6 +13,7 @@ describe('SpaceTransactionsController', () => {
       listTransactionsInSpace: jest.fn().mockResolvedValue({
         items: [transaction],
         nextCursor: null,
+        totalCount: '1',
       }),
     };
     const spaceAccessService = {
@@ -39,6 +40,7 @@ describe('SpaceTransactionsController', () => {
         }),
       ],
       nextCursor: null,
+      totalCount: '1',
     });
 
     expect(spaceAccessService.requireReadAccess).toHaveBeenCalledWith(
@@ -57,6 +59,7 @@ describe('SpaceTransactionsController', () => {
       listDeletedTransactionsInSpace: jest.fn().mockResolvedValue({
         items: [{ ...transactionRecord(), deletedAt }],
         nextCursor: null,
+        totalCount: '1',
       }),
     };
     const spaceAccessService = {
@@ -76,6 +79,7 @@ describe('SpaceTransactionsController', () => {
     ).resolves.toEqual({
       items: [expect.objectContaining({ deletedAt: deletedAt.toISOString() })],
       nextCursor: null,
+      totalCount: '1',
     });
     expect(spaceAccessService.requireReadAccess).toHaveBeenCalledWith(
       '7',

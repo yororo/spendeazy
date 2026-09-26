@@ -34,11 +34,27 @@ interface TransactionSummary {
   totalExpense: number;
 }
 
+interface TransactionListFilters {
+  readonly search: string;
+  readonly fromDate: string;
+  readonly toDate: string;
+  readonly categoryId: string;
+  readonly accountKey: string;
+}
+
 interface ListTransactionsParams {
   period: ReportingPeriod;
   pageSize: number;
   cursor?: string | null;
   spaceId?: string;
+  description?: string;
+  fromDate?: string;
+  toDate?: string;
+  categoryId?: string;
+  categoryState?: "uncategorized";
+  accountBank?: string;
+  accountCardType?: string;
+  source?: "manual";
 }
 
 interface TransactionPage {
@@ -46,6 +62,7 @@ interface TransactionPage {
   nextCursor: string | null;
   summary: TransactionSummary;
   categories: readonly CategoryCatalogItem[];
+  totalCount: number;
 }
 
 interface CreateTransactionInput {
@@ -232,8 +249,14 @@ async function listTransactions(
       ),
         apiClient.get<TransactionHistoryPage>(
         buildApiPath(buildTransactionCollectionPath(params.spaceId), {
-          fromDate,
-          toDate,
+          fromDate: params.fromDate && params.fromDate > fromDate ? params.fromDate : fromDate,
+          toDate: params.toDate && params.toDate < toDate ? params.toDate : toDate,
+          description: params.description || undefined,
+          categoryId: params.categoryId,
+          categoryState: params.categoryState,
+          accountBank: params.accountBank,
+          accountCardType: params.accountCardType,
+          source: params.source,
           pageSize: String(pageSize),
           cursor: params.cursor ?? undefined,
         }),
@@ -277,6 +300,7 @@ async function listTransactions(
       ),
     ),
     nextCursor: transactionPage.nextCursor,
+    totalCount: Number(transactionPage.totalCount ?? transactionPage.items.length),
     summary: createTransactionSummary(categorySummary, params.period),
     categories,
   };
@@ -482,6 +506,7 @@ export type {
   TransactionActivity,
   TransactionActivitySnapshot,
   TransactionPage,
+  TransactionListFilters,
   TransactionSummary,
   TransactionProjection as Transaction,
   TransactionsApiClient,

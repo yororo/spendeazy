@@ -27,6 +27,7 @@ interface TransactionResponse {
 interface TransactionHistoryPage {
   readonly items: readonly TransactionHistoryItem[];
   readonly nextCursor: string | null;
+  readonly totalCount?: string;
 }
 
 function isTransactionHistoryItem(
@@ -73,7 +74,9 @@ function requireTransactionHistoryPage(
     !Array.isArray(response.items) ||
     !response.items.every(isTransactionHistoryItem) ||
     !("nextCursor" in response) ||
-    (response.nextCursor !== null && typeof response.nextCursor !== "string")
+    (response.nextCursor !== null && typeof response.nextCursor !== "string") ||
+    (response.totalCount !== undefined &&
+      (typeof response.totalCount !== "string" || !/^\d+$/.test(response.totalCount)))
   ) {
     throw createError("The API returned an invalid Transaction history page.");
   }

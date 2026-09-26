@@ -8,7 +8,7 @@ import type {
   TransactionFilters,
 } from './transaction-store';
 
-const CURSOR_VERSION = 1;
+const CURSOR_VERSION = 2;
 const CURSOR_ORDERING = 'purchaseDate:desc,id:desc' as const;
 const CURSOR_FILTER_KEYS = [
   'fromDate',
@@ -17,6 +17,9 @@ const CURSOR_FILTER_KEYS = [
   'categoryState',
   'statementImportId',
   'source',
+  'description',
+  'accountBank',
+  'accountCardType',
 ] as const;
 
 export interface NormalizedTransactionFilters {
@@ -26,6 +29,9 @@ export interface NormalizedTransactionFilters {
   categoryState: TransactionFilters['categoryState'] | null;
   statementImportId: string | null;
   source: TransactionFilters['source'] | null;
+  description: string | null;
+  accountBank: string | null;
+  accountCardType: string | null;
 }
 
 export interface DecodedTransactionCursor {
@@ -48,6 +54,9 @@ export function normalizeTransactionFilters(
     categoryState: filters.categoryState ?? null,
     statementImportId: filters.statementImportId ?? null,
     source: filters.source ?? null,
+    description: filters.description ?? null,
+    accountBank: filters.accountBank ?? null,
+    accountCardType: filters.accountCardType ?? null,
   };
 }
 
@@ -168,7 +177,10 @@ function isNormalizedFilters(
     isNullablePositiveId(value.categoryId) &&
     isNullableCategoryState(value.categoryState) &&
     isNullablePositiveId(value.statementImportId) &&
-    isNullableSource(value.source)
+    isNullableSource(value.source) &&
+    isNullableText(value.description) &&
+    isNullableText(value.accountBank) &&
+    isNullableText(value.accountCardType)
   );
 }
 
@@ -192,6 +204,10 @@ function isNullableSource(
   value: unknown,
 ): value is NormalizedTransactionFilters['source'] {
   return value === null || value === 'manual' || value === 'imported';
+}
+
+function isNullableText(value: unknown): value is string | null {
+  return value === null || typeof value === 'string';
 }
 
 function sameFilters(

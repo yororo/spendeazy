@@ -6,7 +6,7 @@ import {
   FeatureDataLoading,
 } from "@/shared/ui/feature-data-state";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAccessibleSpacesQuery } from "@/shared/api";
 import { formatMoney } from "@/shared/money";
 import {
@@ -70,7 +70,9 @@ function DashboardPage({ spaceId, onSpaceChange }: DashboardPageProps = {}) {
     categorySpending,
     recentTransactions,
     spendingPoints,
+    budgetAlerts,
   } = dashboardQuery.data;
+  const visibleBudgetAlerts = dashboardQuery.isPlaceholderData ? [] : budgetAlerts;
 
   return (
     <div
@@ -111,7 +113,7 @@ function DashboardPage({ spaceId, onSpaceChange }: DashboardPageProps = {}) {
         <h2 id="summary-heading" className="sr-only">
           Monthly summary
         </h2>
-        <div className="grid grid-cols-2 gap-3 xl:grid-cols-5">
+        <div className="grid grid-cols-2 gap-3 xl:grid-cols-6">
           <MetricCard
             label="Total spend"
             value={formatMoney(dashboardSummary.totalSpend)}
@@ -138,13 +140,55 @@ function DashboardPage({ spaceId, onSpaceChange }: DashboardPageProps = {}) {
             detail="Across all categories"
           />
           <MetricCard
-            label="Budget used"
+            label="Budgeted Categories used"
             className="min-w-0 [&_.text-metric]:text-xl md:[&_.text-metric]:text-2xl"
-            value={`${dashboardSummary.budgetUsed}%`}
-            detail={`${formatMoney(dashboardSummary.budgetRemaining)} remaining`}
-            progress={dashboardSummary.budgetUsed}
+            value={dashboardSummary.budgetLimit > 0 ? `${dashboardSummary.budgetUsed}%` : "No Budgets"}
+            detail={dashboardSummary.budgetLimit > 0
+              ? `${formatMoney(dashboardSummary.budgetedSpend)} of ${formatMoney(dashboardSummary.budgetLimit)} · ${formatMoney(dashboardSummary.budgetRemaining)} remaining`
+              : "Add a monthly Budget to track progress"}
+            progress={dashboardSummary.budgetLimit > 0 ? dashboardSummary.budgetUsed : undefined}
+          />
+          <MetricCard
+            label="Unbudgeted spending"
+            className="min-w-0 [&_.text-metric]:text-xl md:[&_.text-metric]:text-2xl"
+            value={formatMoney(dashboardSummary.unbudgetedSpend)}
+            detail="Includes Uncategorized"
           />
         </div>
+      </section>
+
+      <section className="mt-5" aria-labelledby="budget-attention-heading">
+        <Card variant="strong">
+          <CardHeader>
+            <CardTitle id="budget-attention-heading">Budget attention</CardTitle>
+            <p className="text-sm text-muted-foreground">Categories at 80% of their monthly Budget, plus the three highest unbudgeted Categories.</p>
+          </CardHeader>
+          <CardContent className="border-t p-0">
+            {visibleBudgetAlerts.length === 0 ? (
+              <p className="p-4 text-sm text-muted-foreground">{dashboardQuery.isPlaceholderData ? "Updating Budget attention…" : "No Categories need attention in this Reporting Period."}</p>
+            ) : (
+              <ul className="divide-y">
+                {visibleBudgetAlerts.map((alert) => (
+                  <li key={alert.categoryId}>
+                    <Link
+                      to={`/transactions?categoryId=${encodeURIComponent(alert.categoryId)}`}
+                      className="focus-ledger flex min-h-14 items-center justify-between gap-3 px-4 py-3 hover:bg-muted"
+                    >
+                      <span className="min-w-0 font-medium">{alert.label}</span>
+                      <span className="text-right font-mono text-sm tabular-nums">
+                        {alert.status === "over"
+                          ? `${formatMoney(Math.abs(alert.remaining ?? 0))} over Budget`
+                          : alert.status === "near"
+                            ? `${alert.usage}% used · ${formatMoney(alert.remaining ?? 0)} left`
+                            : `${formatMoney(alert.spent)} · No Budget`}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
       </section>
 
       <section

@@ -16,8 +16,9 @@ import { Button } from "@/components/ui/button";
 import { FilterIcon, HistoryIcon, PencilIcon, SearchIcon, Trash2Icon } from "lucide-react";
 import { CategoryBadge } from "@/shared/category";
 import { formatMoney } from "@/shared/money";
+import type { AccountOption } from "@/shared/account";
 
-import type { Transaction } from "./transactions-service";
+import type { Transaction, TransactionListFilters } from "./transactions-service";
 
 interface AttributionMember {
   readonly id: string;
@@ -34,6 +35,11 @@ interface TransactionTableProps {
   showAttribution?: boolean;
   attributionMembers?: readonly AttributionMember[];
   ariaLabel?: string;
+  serverFilters?: TransactionListFilters;
+  onServerFiltersChange?: (filters: TransactionListFilters) => void;
+  categoryOptions?: readonly { id: string; label: string }[];
+  accountOptions?: readonly AccountOption[];
+  totalCount?: number;
 }
 
 function TransactionTable({
@@ -46,44 +52,64 @@ function TransactionTable({
   showAttribution = false,
   attributionMembers,
   ariaLabel = "All transactions",
+  serverFilters,
+  onServerFiltersChange,
+  categoryOptions,
+  accountOptions = [],
+  totalCount,
 }: TransactionTableProps) {
   const controlId = useId();
-  const [search, setSearch] = useState("");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [localSearch, setLocalSearch] = useState("");
+  const [localDateFrom, setLocalDateFrom] = useState("");
+  const [localDateTo, setLocalDateTo] = useState("");
+  const [localCategoryFilter, setLocalCategoryFilter] = useState("all");
   const [sort, setSort] = useState("date-desc");
-  const categories = Array.from(
+  const search = serverFilters?.search ?? localSearch;
+  const dateFrom = serverFilters?.fromDate ?? localDateFrom;
+  const dateTo = serverFilters?.toDate ?? localDateTo;
+  const categoryFilter = serverFilters?.categoryId ?? localCategoryFilter;
+  const accountFilter = serverFilters?.accountKey ?? "all";
+  const updateFilter = (key: keyof TransactionListFilters, value: string) => {
+    if (serverFilters && onServerFiltersChange) onServerFiltersChange({ ...serverFilters, [key]: value });
+  };
+  const setSearch = (value: string) => serverFilters ? updateFilter("search", value) : setLocalSearch(value);
+  const setDateFrom = (value: string) => serverFilters ? updateFilter("fromDate", value) : setLocalDateFrom(value);
+  const setDateTo = (value: string) => serverFilters ? updateFilter("toDate", value) : setLocalDateTo(value);
+  const setCategoryFilter = (value: string) => serverFilters ? updateFilter("categoryId", value) : setLocalCategoryFilter(value);
+  const setAccountFilter = (value: string) => updateFilter("accountKey", value);
+  const categories = categoryOptions?.map((category) => [category.id, category.label] as const) ?? Array.from(
     new Map(transactions.filter((transaction) => transaction.categoryId !== null)
       .map((transaction) => [transaction.categoryId, transaction.categoryLabel])).entries(),
   ).sort((a, b) => a[1].localeCompare(b[1]));
-  const visibleTransactions = transactions.filter((transaction) =>
+  const visibleTransactions = transactions.filter((transaction) => serverFilters || (
     transaction.description.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()) &&
     (!dateFrom || transaction.purchaseDate >= dateFrom) &&
     (!dateTo || transaction.purchaseDate <= dateTo) &&
     (categoryFilter === "all" ||
-      (categoryFilter === "uncategorized" ? transaction.categoryId === null : transaction.categoryId === categoryFilter)),
+      (categoryFilter === "uncategorized" ? transaction.categoryId === null : transaction.categoryId === categoryFilter))),
   ).sort((a, b) => {
     const difference = sort.startsWith("amount")
       ? Math.abs(a.amount) - Math.abs(b.amount)
       : a.purchaseDate.localeCompare(b.purchaseDate);
     return (sort.endsWith("asc") ? difference : -difference) || a.id.localeCompare(b.id);
   });
-  const hasFilters = Boolean(search.trim() || dateFrom || dateTo || categoryFilter !== "all");
-  const hasSheetFilters = Boolean(dateFrom || dateTo || categoryFilter !== "all" || sort !== "date-desc");
+  const hasFilters = Boolean(search.trim() || dateFrom || dateTo || categoryFilter !== "all" || accountFilter !== "all");
+  const hasSheetFilters = Boolean(dateFrom || dateTo || categoryFilter !== "all" || accountFilter !== "all" || sort !== "date-desc");
   function clearFilters() {
     setSearch("");
     setDateFrom("");
     setDateTo("");
     setCategoryFilter("all");
+    setAccountFilter("all");
   }
   function filterFields(prefix: string) {
     return (
       <>
-        <div><Label htmlFor={`${prefix}-date-from`}>From</Label><DateInput id={`${prefix}-date-from`} className="mt-1.5 font-mono text-xs" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} /></div>
-        <div><Label htmlFor={`${prefix}-date-to`}>To</Label><DateInput id={`${prefix}-date-to`} className="mt-1.5 font-mono text-xs" value={dateTo} onChange={(event) => setDateTo(event.target.value)} /></div>
+        <div><Label htmlFor={`${prefix}-date-from`}>From</Label><DateInput id={`${prefix}-date-from`} className="mt-1.5 font-mono text-xs" max={dateTo || undefined} value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} /></div>
+        <div><Label htmlFor={`${prefix}-date-to`}>To</Label><DateInput id={`${prefix}-date-to`} className="mt-1.5 font-mono text-xs" min={dateFrom || undefined} value={dateTo} onChange={(event) => setDateTo(event.target.value)} /></div>
         <div><Label htmlFor={`${prefix}-category`}>Category</Label><Select value={categoryFilter} onValueChange={setCategoryFilter}><SelectTrigger id={`${prefix}-category`} className="mt-1.5"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All Categories</SelectItem><SelectItem value="uncategorized">Uncategorized</SelectItem>{categories.map(([id, label]) => <SelectItem key={id} value={id!}>{label}</SelectItem>)}</SelectContent></Select></div>
-        <div><Label htmlFor={`${prefix}-sort`}>Sort by</Label><Select value={sort} onValueChange={setSort}><SelectTrigger id={`${prefix}-sort`} className="mt-1.5"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="date-desc">Date: newest first</SelectItem><SelectItem value="date-asc">Date: oldest first</SelectItem><SelectItem value="amount-desc">Amount: highest first</SelectItem><SelectItem value="amount-asc">Amount: lowest first</SelectItem></SelectContent></Select></div>
+        {serverFilters && <div><Label htmlFor={`${prefix}-account`}>Account</Label><Select value={accountFilter} onValueChange={setAccountFilter}><SelectTrigger id={`${prefix}-account`} className="mt-1.5"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All Accounts</SelectItem>{accountOptions.map((account) => <SelectItem key={account.key} value={account.key}>{account.label}</SelectItem>)}</SelectContent></Select></div>}
+        <div><Label htmlFor={`${prefix}-sort`}>Sort loaded rows by</Label><Select value={sort} onValueChange={setSort}><SelectTrigger id={`${prefix}-sort`} className="mt-1.5"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="date-desc">Date: newest first</SelectItem><SelectItem value="date-asc">Date: oldest first</SelectItem><SelectItem value="amount-desc">Amount: highest first</SelectItem><SelectItem value="amount-asc">Amount: lowest first</SelectItem></SelectContent></Select></div>
       </>
     );
   }
@@ -115,17 +141,17 @@ function TransactionTable({
             <SheetHeader className="border-b p-5 pr-14"><SheetTitle>Filter Transactions</SheetTitle><SheetDescription>Results update immediately as filters change.</SheetDescription></SheetHeader>
             <div className="grid gap-4 p-5">
               {filterFields(`${controlId}-mobile`)}
-              <Button type="button" variant="outline" disabled={!hasSheetFilters} onClick={() => { setDateFrom(""); setDateTo(""); setCategoryFilter("all"); setSort("date-desc"); }}>Clear filters</Button>
+              <Button type="button" variant="outline" disabled={!hasSheetFilters} onClick={() => { setDateFrom(""); setDateTo(""); setCategoryFilter("all"); setAccountFilter("all"); setSort("date-desc"); }}>Clear filters</Button>
             </div>
           </SheetContent>
         </Sheet>
       </div>
-      <div className="hidden gap-3 border-b p-3 md:grid md:grid-cols-2 lg:grid-cols-[minmax(12rem,1fr)_10rem_10rem_12rem_12rem_auto] lg:items-end">
+      <div className="hidden gap-3 border-b p-3 md:grid md:grid-cols-2 xl:grid-cols-[minmax(12rem,1fr)_10rem_10rem_12rem_12rem_12rem_auto] xl:items-end">
         <div><Label htmlFor={`${controlId}-search`}>Search descriptions</Label><Input id={`${controlId}-search`} className="mt-1.5" placeholder="Search description" value={search} onChange={(event) => setSearch(event.target.value)} /></div>
         {filterFields(controlId)}
         <Button type="button" variant="outline" disabled={!hasFilters} onClick={clearFilters}>Clear filters</Button>
       </div>
-      <p className="border-b px-3 py-2 text-xs text-muted-foreground" role="status">Showing {visibleTransactions.length} of {transactions.length} loaded Transactions</p>
+      <p className="border-b px-3 py-2 text-xs text-muted-foreground" role="status">{serverFilters ? `Showing ${visibleTransactions.length} of ${totalCount ?? transactions.length} matching Transactions in the selected Reporting Period` : `Showing ${visibleTransactions.length} of ${transactions.length} loaded Transactions`}</p>
       <div className="md:hidden">
         {visibleTransactions.length === 0 ? (
           <p className="px-4 py-10 text-center text-muted-foreground">

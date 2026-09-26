@@ -152,6 +152,7 @@ export class TransactionsController {
     return {
       items: page.items.map(toTransactionHistoryResponse),
       nextCursor: page.nextCursor,
+      totalCount: page.totalCount,
     };
   }
 
@@ -183,6 +184,7 @@ export class TransactionsController {
     return {
       items: page.items.map(toTransactionHistoryResponse),
       nextCursor: page.nextCursor,
+      totalCount: page.totalCount,
     };
   }
 

@@ -152,6 +152,41 @@ export class TransactionCollectionQueryDto {
   source?: TransactionSource;
 
   @ValidateIf((_, value) => value !== undefined)
+  @IsString()
+  @Length(1, TRANSACTION_DESCRIPTION_MAX_LENGTH)
+  @Transform(trimDescription)
+  @ApiPropertyOptional({
+    description:
+      'Case-insensitive text contained in the Transaction description.',
+    minLength: 1,
+    maxLength: TRANSACTION_DESCRIPTION_MAX_LENGTH,
+    example: 'groceries',
+  })
+  description?: string;
+
+  @ValidateIf((_, value) => value !== undefined)
+  @IsString()
+  @Length(1, 100)
+  @Transform(trimDescription)
+  @ApiPropertyOptional({
+    description:
+      'Imported Account bank name. Pair with accountCardType; use source=manual for Cash.',
+    example: 'BDO',
+  })
+  accountBank?: string;
+
+  @ValidateIf((_, value) => value !== undefined)
+  @IsString()
+  @Length(0, 100)
+  @Transform(trimDescription)
+  @ApiPropertyOptional({
+    description:
+      'Imported Account card or wallet type; empty for Accounts without one.',
+    example: 'AMEX',
+  })
+  accountCardType?: string;
+
+  @ValidateIf((_, value) => value !== undefined)
   @Transform(parsePageSize)
   @IsInt()
   @Min(1)

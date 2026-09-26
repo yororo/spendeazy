@@ -14,6 +14,9 @@ describe('transaction cursors', () => {
       categoryState: 'categorized',
       statementImportId: '9',
       source: 'imported',
+      description: 'coffee',
+      accountBank: 'BDO',
+      accountCardType: 'AMEX',
     };
 
     const cursor = encodeTransactionCursor(
@@ -80,6 +83,20 @@ describe('transaction cursors', () => {
       expect(error.details[0].field).toBe('/cursor');
       expect(error.details[0].code).toBe('incompatible');
     }
+  });
+
+  it('rejects a cursor when the description or Account changes', () => {
+    const cursor = encodeTransactionCursor(
+      { purchaseDate: '2026-08-15', transactionId: '100' },
+      { description: 'coffee', accountBank: 'BDO', accountCardType: 'AMEX' },
+    );
+    expect(() =>
+      decodeTransactionCursor(cursor, {
+        description: 'tea',
+        accountBank: 'BDO',
+        accountCardType: 'AMEX',
+      }),
+    ).toThrow(ApplicationError);
   });
 });
 

@@ -24,6 +24,9 @@ const dashboardState = vi.hoisted(() => ({
         averagePerDay: 3.23,
         budgetUsed: 0,
         budgetRemaining: 0,
+        budgetLimit: 0,
+        budgetedSpend: 0,
+        unbudgetedSpend: 100,
       },
       categorySpending: [
         {
@@ -37,6 +40,7 @@ const dashboardState = vi.hoisted(() => ({
       ],
       recentTransactions: [],
       spendingPoints: [{ label: "1", amount: 100 }],
+      budgetAlerts: [{ categoryId: "category-housing", label: "Housing", spent: 100, budget: 80, remaining: -20, usage: 125, status: "over" }],
     },
     error: new Error("Dashboard query failed"),
     isError: false,
@@ -82,6 +86,7 @@ function renderDashboard() {
 describe("DashboardPage", () => {
   it("removes categories from the previous Reporting Period while the next period loads", () => {
     const view = renderDashboard();
+    expect(screen.getByRole("link", { name: /Housing.*over Budget/ }).getAttribute("href")).toBe("/transactions?categoryId=category-housing");
     expect(
       screen.getByRole("img", { name: "Housing: 100% of monthly spending" }),
     ).toBeTruthy();

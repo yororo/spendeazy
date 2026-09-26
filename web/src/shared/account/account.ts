@@ -18,6 +18,11 @@ interface TransactionAccount {
   readonly label: string;
 }
 
+interface AccountOption extends TransactionAccount {
+  readonly bank: string | null;
+  readonly cardType: string | null;
+}
+
 class AccountResolutionError extends Error {
   readonly kind = "data" as const;
 
@@ -192,14 +197,56 @@ function countDistinctAccounts(
   ).size;
 }
 
+async function loadAvailableAccounts(
+  apiClient: ApiGetClient,
+  signal?: AbortSignal,
+  spaceId?: string,
+): Promise<readonly AccountOption[]> {
+  const collectionPath = spaceId === undefined
+    ? "/statement-imports"
+    : `/spaces/${encodeURIComponent(spaceId)}/statement-imports`;
+  const accounts = new Map<string, AccountOption>();
+  const seenCursors = new Set<string>();
+  let cursor: string | null = null;
+  do {
+    const url = new URLSearchParams({ pageSize: "100" });
+    if (cursor) url.set("cursor", cursor);
+    const response = await apiClient.get<unknown>(`${collectionPath}?${url}`, { signal });
+    if (!isRecord(response) || !Array.isArray(response.items) ||
+        (response.nextCursor !== null && typeof response.nextCursor !== "string")) {
+      throw new AccountResolutionError("Unable to list Accounts.");
+    }
+    for (const item of response.items) {
+      if (!isRecord(item) || typeof item.bank !== "string" ||
+          (item.cardType !== null && typeof item.cardType !== "string")) {
+        throw new AccountResolutionError("Unable to list Accounts.");
+      }
+      const account = { id: "", bank: item.bank, cardType: item.cardType };
+      const key = `${encodeURIComponent(normalizeAccountPart(account.bank))}:${encodeURIComponent(normalizeAccountPart(account.cardType))}`;
+      accounts.set(key, { key, label: formatAccount(account), bank: account.bank, cardType: account.cardType });
+    }
+    cursor = response.nextCursor;
+    if (cursor !== null) {
+      if (seenCursors.has(cursor)) throw new AccountResolutionError("Account list repeated a page.");
+      seenCursors.add(cursor);
+    }
+  } while (cursor !== null);
+  return [
+    { key: CASH_ACCOUNT_KEY, label: "Cash", bank: null, cardType: null },
+    ...[...accounts.values()].sort((a, b) => a.label.localeCompare(b.label)),
+  ];
+}
+
 export {
   AccountResolutionError,
   countDistinctAccounts,
   loadStatementImports,
+  loadAvailableAccounts,
   resolveTransactionAccount,
 };
 export type {
   AccountTransactionReference,
   StatementImportAccount,
   TransactionAccount,
+  AccountOption,
 };

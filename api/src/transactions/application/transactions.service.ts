@@ -47,6 +47,7 @@ const EMPTY_SPACE_TRANSACTION_STORE: SpaceTransactionStore = {
   findByIdInHistoryInSpace: () =>
     Promise.reject(new Error(SPACE_STORE_NOT_CONFIGURED)),
   findPageInSpace: () => Promise.reject(new Error(SPACE_STORE_NOT_CONFIGURED)),
+  countInSpace: () => Promise.reject(new Error(SPACE_STORE_NOT_CONFIGURED)),
   createInSpace: () => Promise.reject(new Error(SPACE_STORE_NOT_CONFIGURED)),
   updateInSpace: () => Promise.reject(new Error(SPACE_STORE_NOT_CONFIGURED)),
   deleteInSpace: () => Promise.reject(new Error(SPACE_STORE_NOT_CONFIGURED)),
@@ -79,6 +80,7 @@ export interface ListTransactionsInput extends TransactionFilters {
 export interface TransactionPage {
   items: TransactionRecord[];
   nextCursor: string | null;
+  totalCount: string;
 }
 
 export interface CreateManualTransactionInput extends Omit<
@@ -463,11 +465,14 @@ export class TransactionsService {
       pageSize,
       ...(deletedOnly ? { deletedOnly: true } : {}),
     };
-    return toTransactionPage(
-      await this.spaceTransactionStore.findPageInSpace(query),
-      pageSize,
-      filters,
-    );
+    const [records, totalCount] = await Promise.all([
+      this.spaceTransactionStore.findPageInSpace(query),
+      this.spaceTransactionStore.countInSpace({ ...query, after: null }),
+    ]);
+    return {
+      ...toTransactionPage(records, pageSize, filters),
+      totalCount: String(totalCount),
+    };
   }
 
   private async findTransactionInHistoryInSpace(
@@ -537,7 +542,7 @@ function toTransactionPage(
   records: TransactionRecord[],
   pageSize: number,
   filters: TransactionFilters,
-): TransactionPage {
+): Omit<TransactionPage, 'totalCount'> {
   const items = records.slice(0, pageSize);
   const hasNextPage = records.length > pageSize;
   const lastItem = items.at(-1);

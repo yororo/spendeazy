@@ -42,6 +42,8 @@ interface CategoriesOverview {
   readonly categories: readonly CategoryOverviewItem[];
   readonly totalBudget: number;
   readonly totalSpent: number;
+  readonly budgetedSpent: number;
+  readonly unbudgetedSpent: number;
   readonly totalRemaining: number;
 }
 
@@ -247,12 +249,25 @@ async function getCategoriesOverview(
     categories.push(projectCategory(undefined, summary));
   });
 
+  const uncategorizedCents = moneyToCents(
+    parseApiMoney(
+      categorySummary.uncategorizedTotal,
+      "uncategorizedTotal",
+      createCategoriesError,
+    ),
+  );
+  const budgetedCategories = categories.filter((category) => category.budget !== null);
+  const budgetedSpent = sumCategoryMoney(budgetedCategories, "spent");
+  const totalSpent = centsToMoney(moneyToCents(sumCategoryMoney(categories, "spent")) + uncategorizedCents);
+
   return {
     period,
     periodLabel: formatReportingPeriod(period),
     categories,
     totalBudget: sumCategoryMoney(categories, "budget"),
-    totalSpent: sumCategoryMoney(categories, "spent"),
+    totalSpent,
+    budgetedSpent,
+    unbudgetedSpent: centsToMoney(moneyToCents(totalSpent) - moneyToCents(budgetedSpent)),
     totalRemaining: sumCategoryMoney(categories, "remaining"),
   };
 }

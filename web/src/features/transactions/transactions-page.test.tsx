@@ -10,6 +10,7 @@ import {
   within,
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { MemoryRouter } from "react-router-dom";
 
 import { ReportingPeriodProvider } from "@/shared/reporting-period";
 import {
@@ -193,6 +194,7 @@ vi.mock("@/shared/api", async (importOriginal) => {
 });
 
 vi.mock("./transactions-queries", () => ({
+  useAccountOptionsQuery: () => ({ data: [{ key: "manual:cash", label: "Cash", bank: null, cardType: null }], isError: false }),
   useTransactionsQuery: (
     period: string,
     spaceId: string | undefined,
@@ -254,7 +256,7 @@ function renderPage(options: { readonly onNavigate?: NavigationAction } = {}) {
   });
 
   return render(
-    <NavigationGuardProvider>
+    <MemoryRouter><NavigationGuardProvider>
       <QueryClientProvider client={queryClient}>
         <ReportingPeriodProvider>
           <TransactionsPage spaceId="99" onSpaceChange={vi.fn()} />
@@ -263,7 +265,7 @@ function renderPage(options: { readonly onNavigate?: NavigationAction } = {}) {
           )}
         </ReportingPeriodProvider>
       </QueryClientProvider>
-    </NavigationGuardProvider>,
+    </NavigationGuardProvider></MemoryRouter>,
   );
 }
 

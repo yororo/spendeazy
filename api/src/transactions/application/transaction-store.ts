@@ -11,6 +11,9 @@ export interface TransactionFilters {
   categoryState?: TransactionCategoryState;
   statementImportId?: string;
   source?: TransactionSource;
+  description?: string;
+  accountBank?: string;
+  accountCardType?: string;
 }
 
 export interface TransactionCursorPosition {
@@ -77,6 +80,7 @@ export interface SpaceTransactionStore {
   findPageInSpace(
     query: SpaceTransactionPageQuery,
   ): Promise<TransactionRecord[]>;
+  countInSpace(query: SpaceTransactionPageQuery): Promise<number>;
   createInSpace(input: NewManualTransaction): Promise<ManualTransactionRecord>;
   updateInSpace(
     spaceId: string,

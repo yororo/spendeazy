@@ -116,6 +116,14 @@ _Avoid_: Multiple matches, guessed Category
 The single recurring spending limit associated with a Category, over either a monthly or yearly period.
 _Avoid_: Allowance, Budget Category
 
+**Budgeted Spending**:
+Spending in Categories with a monthly Budget for the selected Reporting Period. It is the spending compared with the sum of those monthly Budgets.
+_Avoid_: Total Spending, Covered Spending
+
+**Unbudgeted Spending**:
+Spending in Categories without a monthly Budget, including Uncategorized Transactions, for the selected Reporting Period.
+_Avoid_: Remaining Spending, Untracked Spending
+
 **Reporting Period**:
 The calendar month and year used to scope Dashboard, Transaction, and Category figures.
 _Avoid_: Active Period, Date Filter

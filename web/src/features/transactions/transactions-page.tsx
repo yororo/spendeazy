@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { PlusIcon } from "lucide-react";
 
 import {
@@ -23,9 +24,10 @@ import { TransactionLoadMoreButton } from "./transaction-load-more-button";
 import { TransactionTable } from "./transaction-table";
 import {
   useDeletedTransactionsQuery,
+  useAccountOptionsQuery,
   useTransactionsQuery,
 } from "./transactions-queries";
-import type { Transaction } from "./transactions-service";
+import type { Transaction, TransactionListFilters } from "./transactions-service";
 
 interface TransactionsPageProps {
   readonly spaceId?: string;
@@ -41,6 +43,12 @@ function TransactionsPage({
   onSpaceChange,
 }: TransactionsPageProps = {}) {
   const { period } = useReportingPeriod();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const linkedCategoryId = searchParams.get("categoryId") ?? "all";
+  const [localFilters, setLocalFilters] = useState<Omit<TransactionListFilters, "categoryId">>({
+    search: "", fromDate: "", toDate: "", accountKey: "all",
+  });
+  const filters: TransactionListFilters = { ...localFilters, categoryId: linkedCategoryId };
   const [editorState, setEditorState] =
     useState<TransactionEditorState | null>(null);
   const [editorRevision, setEditorRevision] = useState(0);
@@ -52,10 +60,16 @@ function TransactionsPage({
   const spacesQuery = useAccessibleSpacesQuery(shouldResolvePersonalSpace);
   const effectiveSpaceId =
     spaceId ?? spacesQuery.data?.find((space) => space.kind === "personal")?.id;
+  const accountOptionsQuery = useAccountOptionsQuery(
+    effectiveSpaceId,
+    !shouldResolvePersonalSpace || spacesQuery.isSuccess,
+  );
   const transactionsQuery = useTransactionsQuery(
     period,
     effectiveSpaceId,
     !shouldResolvePersonalSpace || spacesQuery.isSuccess,
+    filters,
+    accountOptionsQuery.data,
   );
   const deletedTransactionsQuery = useDeletedTransactionsQuery(
     effectiveSpaceId,
@@ -115,6 +129,16 @@ function TransactionsPage({
       ? undefined
       : spacesQuery.data?.find((space) => space.id === spaceId)?.members;
 
+  function updateFilters(next: TransactionListFilters) {
+    setLocalFilters({ search: next.search, fromDate: next.fromDate, toDate: next.toDate, accountKey: next.accountKey });
+    if (next.categoryId !== linkedCategoryId) {
+      const params = new URLSearchParams(searchParams);
+      if (next.categoryId === "all") params.delete("categoryId");
+      else params.set("categoryId", next.categoryId);
+      setSearchParams(params, { replace: true });
+    }
+  }
+
   return (
     <div className="mx-auto w-full max-w-screen-2xl px-4 py-6 sm:px-6 lg:px-9 lg:py-7">
       <header className="mb-6 flex flex-col gap-5 border-b border-foreground pb-5 md:flex-row md:items-end md:justify-between">
@@ -173,6 +197,11 @@ function TransactionsPage({
         <div aria-busy={transactionsQuery.isFetching}>
           <TransactionTable
             transactions={transactions}
+            serverFilters={filters}
+            onServerFiltersChange={updateFilters}
+            categoryOptions={firstPage.categories.map((category) => ({ id: category.id, label: category.name }))}
+            accountOptions={accountOptionsQuery.data}
+            totalCount={firstPage.totalCount}
             emptyMessage="No Transactions were recorded for this Reporting Period."
             onEdit={(transaction) => {
               setEditorRevision((revision) => revision + 1);
@@ -185,6 +214,16 @@ function TransactionsPage({
             attributionMembers={attributionMembers}
           />
         </div>
+        {accountOptionsQuery.isError && (
+          <p className="px-4 py-2 text-sm text-destructive" role="alert">
+            Accounts could not be loaded. <button type="button" className="underline" onClick={() => void accountOptionsQuery.refetch()}>Retry</button>
+          </p>
+        )}
+        {transactionsQuery.isError && (
+          <p className="px-4 py-2 text-sm text-destructive" role="alert">
+            Transactions could not be refreshed for these filters. Check the date range or <button type="button" className="underline" onClick={() => void transactionsQuery.refetch()}>retry</button>.
+          </p>
+        )}
         {transactionsQuery.hasNextPage && (
           <CardContent className="flex justify-center border-t p-4 md:py-3">
             <TransactionLoadMoreButton

@@ -74,10 +74,43 @@ export class TypeOrmTransactionStore implements SpaceTransactionStore {
     return this.applyPageQuery(transactionQuery, query);
   }
 
+  async countInSpace(query: SpaceTransactionPageQuery): Promise<number> {
+    const transactionQuery = this.entityManager
+      .getRepository(TransactionEntity)
+      .createQueryBuilder('transaction')
+      .where('transaction.spaceId = :spaceId', { spaceId: query.spaceId });
+    this.applyFilters(transactionQuery, query);
+    return transactionQuery.getCount();
+  }
+
   private async applyPageQuery(
     transactionQuery: SelectQueryBuilder<TransactionEntity>,
     query: SpaceTransactionPageQuery,
   ): Promise<TransactionRecord[]> {
+    this.applyFilters(transactionQuery, query);
+    if (query.after) {
+      transactionQuery.andWhere(
+        '(transaction.purchaseDate < :cursorDate OR (transaction.purchaseDate = :cursorDate AND transaction.id < :cursorId))',
+        {
+          cursorDate: query.after.purchaseDate,
+          cursorId: query.after.transactionId,
+        },
+      );
+    }
+
+    const entities = await transactionQuery
+      .orderBy('transaction.purchaseDate', 'DESC')
+      .addOrderBy('transaction.id', 'DESC')
+      .take(query.pageSize + 1)
+      .getMany();
+
+    return entities.map(toTransactionRecord);
+  }
+
+  private applyFilters(
+    transactionQuery: SelectQueryBuilder<TransactionEntity>,
+    query: SpaceTransactionPageQuery,
+  ): void {
     transactionQuery.andWhere(
       query.deletedOnly
         ? 'transaction.deletedAt IS NOT NULL'
@@ -117,23 +150,23 @@ export class TypeOrmTransactionStore implements SpaceTransactionStore {
     if (query.filters.source === 'imported') {
       transactionQuery.andWhere('transaction.statementImportId IS NOT NULL');
     }
-    if (query.after) {
+    if (query.filters.description !== undefined) {
+      const escaped = query.filters.description.replace(/[\\%_]/gu, '\\$&');
       transactionQuery.andWhere(
-        '(transaction.purchaseDate < :cursorDate OR (transaction.purchaseDate = :cursorDate AND transaction.id < :cursorId))',
+        "transaction.description ILIKE :description ESCAPE '\\'",
+        { description: `%${escaped}%` },
+      );
+    }
+    if (query.filters.accountBank !== undefined) {
+      transactionQuery.andWhere(
+        "transaction.statementImportId IN (SELECT account_import.id FROM statement_imports account_import WHERE account_import.space_id = :spaceId AND LOWER(account_import.bank) = LOWER(:accountBank) AND COALESCE(LOWER(account_import.card_type), '') = LOWER(:accountCardType))",
         {
-          cursorDate: query.after.purchaseDate,
-          cursorId: query.after.transactionId,
+          spaceId: query.spaceId,
+          accountBank: query.filters.accountBank,
+          accountCardType: query.filters.accountCardType ?? '',
         },
       );
     }
-
-    const entities = await transactionQuery
-      .orderBy('transaction.purchaseDate', 'DESC')
-      .addOrderBy('transaction.id', 'DESC')
-      .take(query.pageSize + 1)
-      .getMany();
-
-    return entities.map(toTransactionRecord);
   }
 
   async createInSpace(

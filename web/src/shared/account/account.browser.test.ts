@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 
 import { describe, expect, it, vi } from "vitest";
+import type { ApiGetClient } from "@/shared/api";
 
-import { loadStatementImports } from "./account";
+import { loadAvailableAccounts, loadStatementImports } from "./account";
 
 describe("loadStatementImports in a browser realm", () => {
   it("preserves an API DOMException cancellation", async () => {
@@ -23,5 +24,16 @@ describe("loadStatementImports in a browser realm", () => {
     ]);
 
     await expect(request).rejects.toBe(abortError);
+  });
+});
+
+describe("loadAvailableAccounts", () => {
+  it("deduplicates Accounts across Statement Imports and includes Cash", async () => {
+    const get = vi.fn(async (path: string) => path.endsWith("cursor=next")
+      ? { items: [{ bank: "GCash", cardType: "E-Wallet" }], nextCursor: null }
+      : { items: [{ bank: "BDO", cardType: "AMEX" }, { bank: "BDO", cardType: "AMEX" }], nextCursor: "next" });
+    const accounts = await loadAvailableAccounts({ get } as unknown as ApiGetClient);
+    expect(accounts.map((account) => account.label)).toEqual(["Cash", "BDO · AMEX", "GCash · E-Wallet"]);
+    expect(get).toHaveBeenCalledTimes(2);
   });
 });

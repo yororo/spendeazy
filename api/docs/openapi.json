@@ -2396,6 +2396,38 @@
             }
           },
           {
+            "name": "description",
+            "required": false,
+            "in": "query",
+            "description": "Case-insensitive text contained in the Transaction description.",
+            "schema": {
+              "minLength": 1,
+              "maxLength": 500,
+              "example": "groceries",
+              "type": "string"
+            }
+          },
+          {
+            "name": "accountBank",
+            "required": false,
+            "in": "query",
+            "description": "Imported Account bank name. Pair with accountCardType; use source=manual for Cash.",
+            "schema": {
+              "example": "BDO",
+              "type": "string"
+            }
+          },
+          {
+            "name": "accountCardType",
+            "required": false,
+            "in": "query",
+            "description": "Imported Account card or wallet type; empty for Accounts without one.",
+            "schema": {
+              "example": "AMEX",
+              "type": "string"
+            }
+          },
+          {
             "name": "pageSize",
             "required": false,
             "in": "query",
@@ -2530,6 +2562,38 @@
                 "manual",
                 "imported"
               ]
+            }
+          },
+          {
+            "name": "description",
+            "required": false,
+            "in": "query",
+            "description": "Case-insensitive text contained in the Transaction description.",
+            "schema": {
+              "minLength": 1,
+              "maxLength": 500,
+              "example": "groceries",
+              "type": "string"
+            }
+          },
+          {
+            "name": "accountBank",
+            "required": false,
+            "in": "query",
+            "description": "Imported Account bank name. Pair with accountCardType; use source=manual for Cash.",
+            "schema": {
+              "example": "BDO",
+              "type": "string"
+            }
+          },
+          {
+            "name": "accountCardType",
+            "required": false,
+            "in": "query",
+            "description": "Imported Account card or wallet type; empty for Accounts without one.",
+            "schema": {
+              "example": "AMEX",
+              "type": "string"
             }
           },
           {
@@ -3007,6 +3071,38 @@
             }
           },
           {
+            "name": "description",
+            "required": false,
+            "in": "query",
+            "description": "Case-insensitive text contained in the Transaction description.",
+            "schema": {
+              "minLength": 1,
+              "maxLength": 500,
+              "example": "groceries",
+              "type": "string"
+            }
+          },
+          {
+            "name": "accountBank",
+            "required": false,
+            "in": "query",
+            "description": "Imported Account bank name. Pair with accountCardType; use source=manual for Cash.",
+            "schema": {
+              "example": "BDO",
+              "type": "string"
+            }
+          },
+          {
+            "name": "accountCardType",
+            "required": false,
+            "in": "query",
+            "description": "Imported Account card or wallet type; empty for Accounts without one.",
+            "schema": {
+              "example": "AMEX",
+              "type": "string"
+            }
+          },
+          {
             "name": "pageSize",
             "required": false,
             "in": "query",
@@ -3155,6 +3251,38 @@
                 "manual",
                 "imported"
               ]
+            }
+          },
+          {
+            "name": "description",
+            "required": false,
+            "in": "query",
+            "description": "Case-insensitive text contained in the Transaction description.",
+            "schema": {
+              "minLength": 1,
+              "maxLength": 500,
+              "example": "groceries",
+              "type": "string"
+            }
+          },
+          {
+            "name": "accountBank",
+            "required": false,
+            "in": "query",
+            "description": "Imported Account bank name. Pair with accountCardType; use source=manual for Cash.",
+            "schema": {
+              "example": "BDO",
+              "type": "string"
+            }
+          },
+          {
+            "name": "accountCardType",
+            "required": false,
+            "in": "query",
+            "description": "Imported Account card or wallet type; empty for Accounts without one.",
+            "schema": {
+              "example": "AMEX",
+              "type": "string"
             }
           },
           {
@@ -5883,6 +6011,12 @@
       "TransactionHistoryPageResponseDto": {
         "type": "object",
         "properties": {
+          "totalCount": {
+            "type": "string",
+            "description": "Total number of Transactions matching the filters across all pages.",
+            "pattern": "^\\d+$",
+            "example": "43"
+          },
           "items": {
             "type": "array",
             "description": "Transactions ordered by purchaseDate descending, then Transaction ID descending. The source discriminator selects manual or imported history relationships.",
@@ -5916,6 +6050,7 @@
         "description": "A keyset-paginated Transaction history page. Results are ordered by purchaseDate descending, then Transaction ID descending. Active pages omit deleted Transactions; retained-history pages contain only deleted Transactions.",
         "additionalProperties": false,
         "required": [
+          "totalCount",
           "items",
           "nextCursor"
         ]

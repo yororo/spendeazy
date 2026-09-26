@@ -156,6 +156,7 @@ describe('TransactionsService', () => {
     ).resolves.toEqual({
       items: transactionStore.pageResults,
       nextCursor: null,
+      totalCount: '1',
     });
     expect(transactionStore.spacePageQuery).toEqual({
       spaceId: 'space-7',
@@ -213,6 +214,7 @@ describe('TransactionsService', () => {
     ).resolves.toEqual({
       items: [toPageRecord(transactionStore.transactions[1])],
       nextCursor: null,
+      totalCount: '1',
     });
     expect(transactionStore.spacePageQuery).toMatchObject({
       spaceId: 'space-7',
@@ -262,6 +264,11 @@ class TransactionStoreFake implements SpaceTransactionStore {
             : transaction.deletedAt === null),
       ),
     );
+  }
+
+  async countInSpace(query: SpaceTransactionPageQuery): Promise<number> {
+    const page = await this.findPageInSpace(query);
+    return page.length;
   }
 
   findByIdInSpace(

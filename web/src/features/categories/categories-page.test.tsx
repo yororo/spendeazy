@@ -670,8 +670,8 @@ describe("CategoriesPage", () => {
     await screen.findByRole("heading", { name: "Budget overview" });
 
     const summary = screen.getByRole("region", { name: "Budget summary" });
-    expect(summary.textContent?.indexOf("Total monthly Budget")).toBeLessThan(
-      summary.textContent?.indexOf("Spent") ?? -1,
+    expect(summary.textContent?.indexOf("Monthly Budget limit")).toBeLessThan(
+      summary.textContent?.indexOf("All spending") ?? -1,
     );
     expect(summary.textContent).toContain("Remaining");
     expect(summary.textContent).toContain("Categories");

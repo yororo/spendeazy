@@ -65,6 +65,7 @@ describe('TransactionsController', () => {
       listTransactionsInSpace: jest.fn().mockResolvedValue({
         items: [transaction],
         nextCursor: 'next-page',
+        totalCount: '1',
       }),
     };
     const controller = new TransactionsController(
@@ -89,6 +90,7 @@ describe('TransactionsController', () => {
         },
       ],
       nextCursor: 'next-page',
+      totalCount: '1',
     });
 
     expect(transactionsService.listTransactionsInSpace).toHaveBeenCalledWith(
@@ -104,6 +106,7 @@ describe('TransactionsController', () => {
       listDeletedTransactionsInSpace: jest.fn().mockResolvedValue({
         items: [{ ...transaction, deletedAt }],
         nextCursor: null,
+        totalCount: '1',
       }),
     };
     const controller = new TransactionsController(
@@ -122,6 +125,7 @@ describe('TransactionsController', () => {
         }),
       ],
       nextCursor: null,
+      totalCount: '1',
     });
 
     expect(
@@ -136,6 +140,7 @@ describe('TransactionsController', () => {
       listTransactionsInSpace: jest.fn().mockResolvedValue({
         items: [transaction],
         nextCursor: null,
+        totalCount: '1',
       }),
     };
     const controller = new TransactionsController(
@@ -160,6 +165,7 @@ describe('TransactionsController', () => {
         },
       ],
       nextCursor: null,
+      totalCount: '1',
     });
   });
 

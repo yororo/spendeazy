@@ -278,6 +278,9 @@ describe('TypeOrmTransactionStore', () => {
           categoryState: 'categorized',
           statementImportId: '9',
           source: 'imported',
+          description: '100%_ coffee',
+          accountBank: 'BDO',
+          accountCardType: 'AMEX',
         },
         after: { purchaseDate: '2026-08-15', transactionId: '100' },
         pageSize: 2,
@@ -316,6 +319,14 @@ describe('TypeOrmTransactionStore', () => {
       'transaction.statementImportId IS NOT NULL',
     );
     expect(query.andWhere).toHaveBeenCalledWith(
+      "transaction.description ILIKE :description ESCAPE '\\'",
+      { description: '%100\\%\\_ coffee%' },
+    );
+    expect(query.andWhere).toHaveBeenCalledWith(
+      expect.stringContaining('account_import.space_id = :spaceId'),
+      { spaceId: '7', accountBank: 'BDO', accountCardType: 'AMEX' },
+    );
+    expect(query.andWhere).toHaveBeenCalledWith(
       '(transaction.purchaseDate < :cursorDate OR (transaction.purchaseDate = :cursorDate AND transaction.id < :cursorId))',
       { cursorDate: '2026-08-15', cursorId: '100' },
     );
@@ -325,6 +336,31 @@ describe('TypeOrmTransactionStore', () => {
     );
     expect(query.addOrderBy).toHaveBeenCalledWith('transaction.id', 'DESC');
     expect(query.take).toHaveBeenCalledWith(3);
+  });
+
+  it('counts all filtered Transactions without the page cursor', async () => {
+    const query = transactionPageQuery([]);
+    query.getCount = jest.fn().mockResolvedValue(43);
+    const store = new TypeOrmTransactionStore(pagedEntityManager(query));
+    await expect(
+      store.countInSpace({
+        spaceId: '7',
+        filters: { description: 'coffee', source: 'manual' },
+        after: null,
+        pageSize: 20,
+      }),
+    ).resolves.toBe(43);
+    expect(query.andWhere).toHaveBeenCalledWith(
+      'transaction.statementImportId IS NULL',
+    );
+    expect(query.andWhere).toHaveBeenCalledWith(
+      "transaction.description ILIKE :description ESCAPE '\\'",
+      { description: '%coffee%' },
+    );
+    expect(query.andWhere).not.toHaveBeenCalledWith(
+      expect.stringContaining('cursorDate'),
+      expect.anything(),
+    );
   });
 });
 

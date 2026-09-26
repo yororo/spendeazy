@@ -160,7 +160,7 @@ function CategoriesPage({ spaceId, onSpaceChange }: CategoriesPageProps = {}) {
 
   if (!categoriesQuery.data) return null;
 
-  const { categories, periodLabel, totalBudget, totalSpent, totalRemaining } =
+  const { categories, periodLabel, totalBudget, totalSpent, budgetedSpent, unbudgetedSpent, totalRemaining } =
     categoriesQuery.data;
   const matchingCategories = filterCategoriesByName(categories, search);
   const visibleCategories = matchingCategories.filter(
@@ -305,25 +305,37 @@ function CategoriesPage({ spaceId, onSpaceChange }: CategoriesPageProps = {}) {
       </header>
 
       <section
-        className="grid grid-cols-2 gap-3 xl:grid-cols-4"
+        className="grid grid-cols-2 gap-3 xl:grid-cols-3"
         aria-label="Budget summary"
         aria-busy={categoriesQuery.isFetching}
       >
         <MetricCard
-          label="Total monthly Budget"
+          label="Monthly Budget limit"
           value={formatMoney(totalBudget)}
           detail={periodLabel}
           className="col-span-2 min-w-0 md:col-span-1"
         />
         <MetricCard
-          label="Spent"
+          label="All spending"
           value={formatMoney(totalSpent)}
           detail={periodLabel}
           emphasized
           className="min-w-0"
         />
         <MetricCard
-          label="Remaining"
+          label="Budgeted spending"
+          value={formatMoney(budgetedSpent)}
+          detail={`${budgetedCategoryCount} monthly Budgets`}
+          className="min-w-0"
+        />
+        <MetricCard
+          label="Unbudgeted spending"
+          value={formatMoney(unbudgetedSpent)}
+          detail="Includes Uncategorized"
+          className="min-w-0"
+        />
+        <MetricCard
+          label="Remaining in Budgets"
           value={formatMoney(totalRemaining)}
           detail={`${budgetedCategoryCount} monthly Budgets`}
           className="min-w-0"

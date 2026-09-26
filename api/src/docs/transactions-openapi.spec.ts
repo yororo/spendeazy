@@ -206,8 +206,8 @@ describe('Transaction OpenAPI contract', () => {
     }
     expectPathParameter(activityOperation, 'transactionId');
 
-    expectTransactionQueryParameters(listOperation);
-    expectTransactionQueryParameters(historyOperation);
+    expectTransactionQueryParameters(listOperation, true);
+    expectTransactionQueryParameters(historyOperation, true);
     expectResponseStatuses(createOperation, [
       '201',
       '400',
@@ -444,7 +444,7 @@ describe('Transaction OpenAPI contract', () => {
     expect(pageSchema).toMatchObject({
       type: 'object',
       additionalProperties: false,
-      required: ['items', 'nextCursor'],
+      required: ['totalCount', 'items', 'nextCursor'],
       properties: {
         items: {
           type: 'array',
@@ -560,13 +560,33 @@ describe('Transaction OpenAPI contract', () => {
   });
 });
 
-function expectTransactionQueryParameters(operation: OperationObject): void {
+function expectTransactionQueryParameters(
+  operation: OperationObject,
+  hasSearchFilters = false,
+): void {
   const parameters = documentParameters(operation);
   const byName = new Map(
     parameters.map((parameter) => [parameter.name, parameter]),
   );
 
-  expect(parameters).toHaveLength(8);
+  expect(parameters).toHaveLength(hasSearchFilters ? 11 : 8);
+  if (hasSearchFilters) {
+    expect(byName.get('description')).toMatchObject({
+      in: 'query',
+      required: false,
+      schema: { type: 'string', minLength: 1, maxLength: 500 },
+    });
+    expect(byName.get('accountBank')).toMatchObject({
+      in: 'query',
+      required: false,
+      schema: { type: 'string' },
+    });
+    expect(byName.get('accountCardType')).toMatchObject({
+      in: 'query',
+      required: false,
+      schema: { type: 'string' },
+    });
+  }
   expect(byName.get('fromDate')).toMatchObject({
     in: 'query',
     required: false,

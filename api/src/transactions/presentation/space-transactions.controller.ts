@@ -171,6 +171,7 @@ export class SpaceTransactionsController {
     return {
       items: page.items.map(toTransactionHistoryResponse),
       nextCursor: page.nextCursor,
+      totalCount: page.totalCount,
     };
   }
 
@@ -203,6 +204,7 @@ export class SpaceTransactionsController {
     return {
       items: page.items.map(toTransactionHistoryResponse),
       nextCursor: page.nextCursor,
+      totalCount: page.totalCount,
     };
   }
 

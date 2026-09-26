@@ -1,5 +1,10 @@
 {
+  "scripts": {
+    "sandcastle": "npx tsx .sandcastle/main.mts",
+    "install:spendeazy": "npm install --prefix web && npm install --prefix api"
+  },
   "devDependencies": {
-    "@ai-hero/sandcastle": "^0.12.0"
+    "@ai-hero/sandcastle": "^0.12.0",
+    "tsx": "^4.23.15"
   }
 }

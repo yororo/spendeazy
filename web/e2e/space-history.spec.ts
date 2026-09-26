@@ -129,7 +129,7 @@ test("shows archived Shared history separately and read-only", async ({
     .click();
   await expect(
     page.getByRole("menuitemradio", {
-      name: /Shared.*Ada Lovelace.*Grace Hopper/u,
+      name: "Shared",
     }),
   ).toBeVisible();
   await expect(

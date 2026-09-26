@@ -223,7 +223,7 @@ describe("AppShell", () => {
     );
     fireEvent.click(
       screen.getByRole("menuitemradio", {
-        name: /Shared.*Ada Lovelace.*Grace Hopper/u,
+        name: "Shared",
       }),
     );
     expect(screen.getByText("/transactions?month=2026-09&spaceId=shared-1")).toBeTruthy();
@@ -244,13 +244,13 @@ describe("AppShell", () => {
     );
     fireEvent.click(
       screen.getByRole("menuitemradio", {
-        name: /Shared.*Ada Lovelace.*Grace Hopper/u,
+        name: "Shared",
       }),
     );
     expect(screen.getByText("/transactions?month=2026-09&spaceId=shared-1")).toBeTruthy();
   });
 
-  it("shows concise Personal and identity-rich Shared labels in the mobile header", () => {
+  it("shows concise Personal and Shared labels in the mobile header", () => {
     function CurrentLocation() {
       const location = useLocation();
       return <p>{`${location.pathname}${location.search}`}</p>;
@@ -278,15 +278,18 @@ describe("AppShell", () => {
     ).toBeTruthy();
     expect(
       screen.getByRole("menuitemradio", {
-        name: /Shared.*Ada Lovelace.*Grace Hopper/u,
+        name: "Shared",
       }),
     ).toBeTruthy();
     fireEvent.click(
       screen.getByRole("menuitemradio", {
-        name: /Shared.*Ada Lovelace.*Grace Hopper/u,
+        name: "Shared",
       }),
     );
     expect(screen.getByText("/?spaceId=shared-1")).toBeTruthy();
+    expect(
+      within(header).getByRole("button", { name: "Active Space: Shared" }),
+    ).toBeTruthy();
   });
 
   it("supports keyboard Space switching from the desktop control", async () => {
@@ -321,7 +324,7 @@ describe("AppShell", () => {
 
     const sharedOption = await waitFor(() =>
       screen.getByRole("menuitemradio", {
-        name: /Shared.*Ada Lovelace.*Grace Hopper/u,
+        name: "Shared",
       }),
     );
     fireEvent.keyDown(personalOption, { key: "ArrowDown" });
@@ -408,7 +411,7 @@ describe("AppShell", () => {
     );
     fireEvent.click(
       screen.getByRole("menuitemradio", {
-        name: /Shared.*Ada Lovelace.*Grace Hopper/u,
+        name: "Shared",
       }),
     );
     expect(screen.getByText("/transactions?spaceId=shared-1")).toBeTruthy();
@@ -479,7 +482,7 @@ describe("AppShell", () => {
     );
     fireEvent.click(
       screen.getByRole("menuitemradio", {
-        name: /Shared.*Ada Lovelace.*Grace Hopper/u,
+        name: "Shared",
       }),
     );
     expect(screen.getByText("/transactions?spaceId=shared-1")).toBeTruthy();
@@ -552,7 +555,7 @@ describe("AppShell", () => {
     );
     fireEvent.click(
       screen.getByRole("menuitemradio", {
-        name: /Shared.*Ada Lovelace.*Grace Hopper/u,
+        name: "Shared",
       }),
     );
 
@@ -628,7 +631,7 @@ describe("AppShell", () => {
     );
     fireEvent.click(
       screen.getByRole("menuitemradio", {
-        name: /Shared.*Ada Lovelace.*Grace Hopper/u,
+        name: "Shared",
       }),
     );
 
@@ -651,7 +654,7 @@ describe("AppShell", () => {
     );
     fireEvent.click(
       screen.getByRole("menuitemradio", {
-        name: /Shared.*Ada Lovelace.*Grace Hopper/u,
+        name: "Shared",
       }),
     );
     fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));

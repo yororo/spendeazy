@@ -202,7 +202,7 @@ Place these components by ownership, following architecture: navigation and prod
 
 `AppShell` lives in `src/layouts` because it controls page structure and responsive navigation.
 
-`SpaceSwitcher` persistently appears above primary navigation in `PrimarySidebar` and directly in the compact mobile header. It lists every authorized active Space with a concise "Personal" label or a "Shared" label with member names, plus semantic single-person or multiple-person icons; it preserves the current page and other URL parameters while changing the active Space, and navigation guards still apply. The same switcher appears in the narrow-screen navigation Sheet. Each Dashboard, Transactions, Categories, and Statement Import stage places a compact, non-interactive Personal or Shared label above its title.
+`SpaceSwitcher` persistently appears above primary navigation in `PrimarySidebar` and directly in the compact mobile header. It lists every authorized active Space with only a "Personal" or "Shared" label, plus semantic single-person or multiple-person icons; it preserves the current page and other URL parameters while changing the active Space, and navigation guards still apply. The same switcher appears in the narrow-screen navigation Sheet. Each Dashboard, Transactions, Categories, and Statement Import stage places a compact, non-interactive Personal or Shared label above its title.
 
 ### SpendingChart interface
 

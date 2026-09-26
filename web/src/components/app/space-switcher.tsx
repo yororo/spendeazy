@@ -12,7 +12,6 @@ import { useAccessibleSpacesQuery } from "@/shared/api";
 import { useNavigationGuard } from "@/shared/navigation";
 import { useAppSession } from "@/shared/session";
 import {
-  getSpaceIdentityLabel,
   SpaceIdentityIcon,
   type SpaceIdentitySource,
 } from "@/shared/ui";
@@ -29,7 +28,7 @@ interface SpaceSwitcherProps {
 }
 
 function getSpaceSwitcherLabel(space: SpaceIdentitySource): string {
-  return space.kind === "personal" ? "Personal" : getSpaceIdentityLabel(space);
+  return space.kind === "personal" ? "Personal" : "Shared";
 }
 
 function SpaceSwitcher({ className, onNavigate }: SpaceSwitcherProps) {

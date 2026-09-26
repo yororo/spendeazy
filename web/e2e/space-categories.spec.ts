@@ -83,7 +83,7 @@ test("switches the Categories browser view to a seeded Shared Space", async ({
   await page.getByRole("button", { name: /Active Space/u }).click();
   await page
     .getByRole("menuitemradio", {
-      name: /Shared.*Ada Lovelace.*Grace Hopper/u,
+      name: "Shared",
     })
     .click();
 

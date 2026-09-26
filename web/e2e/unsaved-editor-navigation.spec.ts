@@ -118,7 +118,7 @@ async function switchToSharedSpace(page: Page) {
   await page.getByRole("button", { name: /Active Space/u }).click();
   await page
     .getByRole("menuitemradio", {
-      name: /Shared.*Ada Lovelace.*Grace Hopper/u,
+      name: "Shared",
     })
     .click();
 }

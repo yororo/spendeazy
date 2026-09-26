@@ -35,6 +35,11 @@ const CategoriesPage = lazy(() =>
     default: CategoriesPage,
   })),
 );
+const InsightsPage = lazy(() =>
+  import("@/features/insights").then(({ InsightsPage }) => ({
+    default: InsightsPage,
+  })),
+);
 const DashboardPage = lazy(() =>
   import("@/features/dashboard").then(({ DashboardPage }) => ({
     default: DashboardPage,
@@ -116,6 +121,26 @@ function CategoriesRoute() {
   );
 }
 
+function InsightsRoute() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const spaceId = searchParams.get("spaceId") ?? undefined;
+
+  return (
+    <InsightsPage
+      spaceId={spaceId}
+      onSpaceChange={(nextSpaceId) => {
+        const nextParams = new URLSearchParams(searchParams);
+        if (nextSpaceId === undefined) {
+          nextParams.delete("spaceId");
+        } else {
+          nextParams.set("spaceId", nextSpaceId);
+        }
+        setSearchParams(nextParams);
+      }}
+    />
+  );
+}
+
 function DashboardRoute() {
   const [searchParams, setSearchParams] = useSearchParams();
   const spaceId = searchParams.get("spaceId") ?? undefined;
@@ -177,6 +202,7 @@ function App({ signInElement }: AppProps = {}) {
             element={lazyRoute(<TransactionsRoute />)}
           />
           <Route path="categories" element={lazyRoute(<CategoriesRoute />)} />
+          <Route path="insights" element={lazyRoute(<InsightsRoute />)} />
           <Route
             path="history"
             element={lazyRoute(<ArchivedSpaceHistoryPage />)}

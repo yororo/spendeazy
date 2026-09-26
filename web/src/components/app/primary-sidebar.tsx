@@ -1,9 +1,12 @@
 import { HistoryIcon, LogOutIcon } from "lucide-react";
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink, useNavigate, useSearchParams } from "react-router-dom";
 
 import { LedgerMark } from "@/shared/ui/ledger-mark";
 import { AppearanceSelector } from "@/components/app/appearance-selector";
-import { primaryNavigation } from "@/components/app/primary-navigation";
+import {
+  getNavigationTarget,
+  primaryNavigation,
+} from "@/components/app/primary-navigation";
 import { SpaceSwitcher } from "@/components/app/space-switcher";
 import { cn } from "@/lib/utils";
 import { useNavigationGuard } from "@/shared/navigation";
@@ -45,8 +48,10 @@ function PrimarySidebar({
 }: PrimarySidebarProps) {
   const { signOut, user } = useAppSession();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { requestNavigation } = useNavigationGuard();
   const displayName = getDisplayName(user);
+  const selectedSpaceId = searchParams.get("spaceId") ?? undefined;
 
   const completeSignOut = async () => {
     onNavigate?.();
@@ -79,7 +84,7 @@ function PrimarySidebar({
             return (
               <li key={item.label}>
                 <NavLink
-                  to={item.href}
+                  to={getNavigationTarget(item.href, selectedSpaceId)}
                   end={item.href === "/"}
                   onClick={onNavigate}
                   className={({ isActive }) => getNavigationLinkClassName(isActive)}

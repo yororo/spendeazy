@@ -1,16 +1,22 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useSearchParams } from "react-router-dom";
 
-import { mobileNavigation } from "@/components/app/primary-navigation";
+import {
+  getNavigationTarget,
+  mobileNavigation,
+} from "@/components/app/primary-navigation";
 import { cn } from "@/lib/utils";
 
 function MobileTabBar() {
+  const [searchParams] = useSearchParams();
+  const selectedSpaceId = searchParams.get("spaceId") ?? undefined;
+
   return (
     <nav aria-label="Mobile navigation" className="mobile-tab-bar">
       <ul className="grid h-[var(--mobile-tab-bar-height)] grid-cols-4">
         {mobileNavigation.map(({ label, href, icon: Icon }) => (
           <li key={href} className="min-w-0">
             <NavLink
-              to={href}
+              to={getNavigationTarget(href, selectedSpaceId)}
               end={href === "/"}
               className={({ isActive }) =>
                 cn(

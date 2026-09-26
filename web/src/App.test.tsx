@@ -1,8 +1,7 @@
 // @vitest-environment jsdom
 
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
-import { Outlet } from "react-router-dom";
+import { MemoryRouter, Outlet, useSearchParams } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import App from "./App";
@@ -30,6 +29,28 @@ vi.mock("@/features/categories", () => ({
       </button>
     </>
   ),
+}));
+
+vi.mock("@/features/insights", () => ({
+  InsightsPage: ({
+    spaceId,
+    onSpaceChange,
+  }: {
+    readonly spaceId?: string;
+    readonly onSpaceChange?: (spaceId?: string) => void;
+  }) => {
+    const [searchParams] = useSearchParams();
+
+    return (
+      <>
+        <p>Insights Space: {spaceId ?? "personal"}</p>
+        <p>Insights query: {searchParams.toString()}</p>
+        <button type="button" onClick={() => onSpaceChange?.("99")}>
+          Select Insights Shared Space
+        </button>
+      </>
+    );
+  },
 }));
 
 afterEach(cleanup);
@@ -64,5 +85,25 @@ describe("Categories route Space selection", () => {
     fireEvent.click(screen.getByRole("button", { name: "Select Shared Space" }));
 
     expect(await screen.findByText("Active Space: 99")).toBeTruthy();
+  });
+});
+
+describe("Insights route Space selection", () => {
+  it("reads and updates the selected Space while retaining other URL parameters", async () => {
+    render(
+      <MemoryRouter initialEntries={["/insights?spaceId=10&view=monthly"]}>
+        <App />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText("Insights Space: 10")).toBeTruthy();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Select Insights Shared Space" }),
+    );
+
+    expect(await screen.findByText("Insights Space: 99")).toBeTruthy();
+    expect(
+      screen.getByText("Insights query: spaceId=99&view=monthly"),
+    ).toBeTruthy();
   });
 });

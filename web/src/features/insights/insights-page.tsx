@@ -1,0 +1,147 @@
+import {
+  FeatureDataError,
+  FeatureDataLoading,
+} from "@/shared/ui/feature-data-state";
+import { Card, CardContent } from "@/components/ui/card";
+import { ActiveSpaceLabel, MetricCard } from "@/shared/ui";
+import { useAccessibleSpacesQuery } from "@/shared/api";
+import { formatMoney, centsToMoney } from "@/shared/money";
+import {
+  ReportingPeriodFilter,
+  useReportingPeriod,
+} from "@/shared/reporting-period";
+
+import { DailySpendingChart } from "./daily-spending-chart";
+import { useInsightsQuery } from "./insights-queries";
+
+interface InsightsPageProps {
+  readonly spaceId?: string;
+  readonly onSpaceChange?: (spaceId?: string) => void;
+}
+
+function InsightsPage({ spaceId, onSpaceChange }: InsightsPageProps = {}) {
+  const { period } = useReportingPeriod();
+  const shouldResolvePersonalSpace = onSpaceChange !== undefined;
+  const spacesQuery = useAccessibleSpacesQuery(shouldResolvePersonalSpace);
+  const effectiveSpaceId =
+    spaceId ?? spacesQuery.data?.find((space) => space.kind === "personal")?.id;
+  const insightsQuery = useInsightsQuery(
+    period,
+    effectiveSpaceId,
+    !shouldResolvePersonalSpace || spacesQuery.isSuccess,
+  );
+
+  if (spacesQuery.isError) {
+    return (
+      <FeatureDataError
+        message={spacesQuery.error.message}
+        onRetry={() => void spacesQuery.refetch()}
+      />
+    );
+  }
+
+  if (spacesQuery.isSuccess && !effectiveSpaceId) {
+    return (
+      <FeatureDataError
+        message="Personal Space is unavailable."
+        onRetry={() => void spacesQuery.refetch()}
+      />
+    );
+  }
+
+  if (insightsQuery.isPending) {
+    return <FeatureDataLoading label="Loading Insights" />;
+  }
+
+  if (insightsQuery.isError && !insightsQuery.data) {
+    return (
+      <FeatureDataError
+        message={insightsQuery.error.message}
+        onRetry={() => void insightsQuery.refetch()}
+      />
+    );
+  }
+
+  if (!insightsQuery.data) return null;
+
+  const report = insightsQuery.data;
+
+  return (
+    <div className="mx-auto w-full max-w-screen-2xl px-4 py-6 sm:px-6 lg:px-9 lg:py-7">
+      <header className="mb-6 flex flex-col gap-5 border-b border-foreground pb-5 md:flex-row md:items-end md:justify-between">
+        <div>
+          <ActiveSpaceLabel spaceId={spaceId} />
+          <p className="text-label text-muted-foreground">Spending insights</p>
+          <h1 className="mt-2 font-mono text-2xl font-bold tracking-tight md:text-3xl">
+            Insights
+          </h1>
+          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+            See how spending changes across the selected month.
+          </p>
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="min-w-0 flex-1">
+            <ReportingPeriodFilter id="insights-reporting-period" />
+          </div>
+          <div
+            role="group"
+            aria-label="Insights view"
+            className="flex h-10 shrink-0 items-center gap-1 border border-foreground p-1 font-mono text-xs font-semibold tracking-wide"
+          >
+            <button
+              type="button"
+              disabled
+              className="h-8 px-3 text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60"
+              aria-label="Yearly view"
+            >
+              Yearly
+            </button>
+            <button
+              type="button"
+              aria-pressed="true"
+              className="h-8 bg-primary px-3 text-primary-foreground"
+            >
+              Monthly
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <section
+        aria-label="Monthly spending summary"
+        aria-busy={insightsQuery.isFetching}
+        className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2"
+      >
+        <MetricCard
+          label="Total spending"
+          value={formatMoney(centsToMoney(report.totalSpendingCents))}
+          detail="All Transactions, including Uncategorized spending"
+          emphasized
+        />
+        <MetricCard
+          label="Budgeted Spending"
+          value={formatMoney(centsToMoney(report.budgetedSpendingCents))}
+          detail="Transactions in Categories with a current monthly Budget"
+        />
+      </section>
+
+      <Card className="mb-5 border-border bg-muted">
+        <CardContent className="flex flex-col gap-1 p-4 text-sm">
+          <p className="font-semibold">
+            Current monthly Budgets: {formatMoney(centsToMoney(report.monthlyBudgetCents))}
+          </p>
+          <p className="text-muted-foreground">
+            Budget comparisons use current monthly Budgets. Daily Budget pace is
+            an average for the selected month, not a daily limit.
+          </p>
+        </CardContent>
+      </Card>
+
+      <section aria-label="Monthly daily spending" aria-busy={insightsQuery.isFetching}>
+        <DailySpendingChart report={report} />
+      </section>
+    </div>
+  );
+}
+
+export { InsightsPage };

@@ -281,7 +281,7 @@ describe("InsightsPage", () => {
     });
     expect(within(breachList).getByText("Groceries")).toBeTruthy();
     expect(
-      within(breachList).getByLabelText("1 of 12 months over Budget"),
+      within(breachList).getByText("1 of 12 months over Budget"),
     ).toBeTruthy();
     expect(
       screen.getByText(/Historical comparisons use current monthly Budgets/i),

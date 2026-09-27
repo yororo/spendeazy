@@ -70,11 +70,11 @@ function MonthlyCategoryRankings({ report }: MonthlyCategoryRankingsProps) {
                       Current monthly Budget {formatMoney(centsToMoney(category.monthlyBudgetCents))}
                     </span>
                   </span>
-                  <span
-                    aria-label={`${category.breachCount} of 12 months over Budget`}
-                    className="shrink-0 font-mono text-sm font-bold tabular-nums"
-                  >
-                    {category.breachCount} / 12
+                  <span className="shrink-0 font-mono text-sm font-bold tabular-nums">
+                    <span aria-hidden="true">{category.breachCount} / 12</span>
+                    <span className="sr-only">
+                      {category.breachCount} of 12 months over Budget
+                    </span>
                   </span>
                 </li>
               ))}

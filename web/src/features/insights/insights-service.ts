@@ -43,6 +43,7 @@ interface InsightsDay {
 }
 
 interface InsightsReport {
+  readonly view: "monthly";
   readonly period: ReportingPeriod;
   readonly totalSpendingCents: number;
   readonly budgetedSpendingCents: number;
@@ -51,6 +52,26 @@ interface InsightsReport {
   readonly categories: readonly InsightsCategory[];
   readonly days: readonly InsightsDay[];
 }
+
+interface InsightsMonth {
+  readonly period: ReportingPeriod;
+  readonly totalSpendingCents: number;
+  readonly budgetedSpendingCents: number;
+  readonly isOverBudget: boolean;
+  readonly categories: readonly InsightsCategoryAmount[];
+}
+
+interface InsightsYearlyReport {
+  readonly view: "yearly";
+  readonly period: ReportingPeriod;
+  readonly totalSpendingCents: number;
+  readonly budgetedSpendingCents: number;
+  readonly monthlyBudgetCents: number;
+  readonly categories: readonly InsightsCategory[];
+  readonly months: readonly InsightsMonth[];
+}
+
+type InsightsReportResult = InsightsReport | InsightsYearlyReport;
 
 type InsightsApiClient = Pick<ApiClient, "get">;
 
@@ -107,6 +128,48 @@ async function getInsights(
   return createInsightsReport(period, bounds.daysInPeriod, catalog, summary, transactions);
 }
 
+async function getYearlyInsights(
+  apiClient: InsightsApiClient,
+  period: ReportingPeriod,
+  signal?: AbortSignal,
+  spaceId?: string,
+): Promise<InsightsYearlyReport> {
+  const periods = getRollingPeriods(period);
+  const firstPeriod = periods[0]!;
+  const { toDate } = getReportingPeriodBounds(period);
+  const [categoryResponse, summaryResponse, transactions] = await Promise.all([
+    apiClient.get<readonly CategoryCatalogItem[]>(
+      buildCategoryCollectionPath(spaceId),
+      { signal },
+    ),
+    apiClient.get<CategorySummaryResponse>(
+      buildMonthlyCategorySummaryPath(period, spaceId),
+      { signal },
+    ),
+    loadAllTransactions(
+      apiClient,
+      `${firstPeriod}-01`,
+      toDate,
+      signal,
+      spaceId,
+    ),
+  ]);
+
+  const catalog = requireCategoryCatalog(
+    requireApiResponse(categoryResponse, "Category catalog", createInsightsDataError),
+  );
+  const summary = requireMonthlyCategorySummary(
+    requireApiResponse(
+      summaryResponse,
+      "monthly Category Summary",
+      createInsightsDataError,
+    ),
+    createInsightsDataError,
+  );
+
+  return createYearlyInsightsReport(period, periods, catalog, summary, transactions);
+}
+
 async function loadAllTransactions(
   apiClient: InsightsApiClient,
   fromDate: string,
@@ -158,37 +221,8 @@ function createInsightsReport(
   summary: CategorySummaryResponse,
   transactions: readonly TransactionHistoryItem[],
 ): InsightsReport {
-  const categoryById = new Map<string, CategoryIdentity>(
-    catalog.map((category) => [
-      category.id,
-      {
-        label: category.name,
-        color: resolveCategoryColor(category.id, category.color),
-      },
-    ]),
-  );
-  const budgetedCategoryIds = new Set<string>();
-  let monthlyBudgetCents = 0;
-
-  summary.categories.forEach((category) => {
-    if (!categoryById.has(category.categoryId)) {
-      categoryById.set(category.categoryId, {
-        label: category.name,
-        color: resolveCategoryColor(category.categoryId, undefined),
-      });
-    }
-
-    if (category.budgetAmount === null) return;
-
-    budgetedCategoryIds.add(category.categoryId);
-    monthlyBudgetCents += moneyToCents(
-      parseApiMoney(
-        category.budgetAmount,
-        `Budget ${category.categoryId}`,
-        createInsightsDataError,
-      ),
-    );
-  });
+  const { categoryById, budgetedCategoryIds, monthlyBudgetCents } =
+    createCategoryContext(catalog, summary);
 
   const dailyCategoryTotals = Array.from(
     { length: daysInPeriod },
@@ -239,16 +273,7 @@ function createInsightsReport(
     });
   });
 
-  const categories = [...spendingByCategory.entries()]
-    .map(([id, spendingCents]): InsightsCategory => ({
-      id,
-      label: id === null ? "Uncategorized" : categoryById.get(id)!.label,
-      color: id === null ? null : categoryById.get(id)!.color,
-      spendingCents,
-    }))
-    .sort((left, right) =>
-      left.label.localeCompare(right.label) || (left.id ?? "").localeCompare(right.id ?? ""),
-    );
+  const categories = createCategoryReports(spendingByCategory, categoryById);
 
   const days = dailyCategoryTotals.map((categoryTotals, index): InsightsDay => ({
     date: `${period}-${String(index + 1).padStart(2, "0")}`,
@@ -270,6 +295,7 @@ function createInsightsReport(
   );
 
   return {
+    view: "monthly",
     period,
     totalSpendingCents,
     budgetedSpendingCents,
@@ -278,6 +304,174 @@ function createInsightsReport(
     categories,
     days,
   };
+}
+
+function createYearlyInsightsReport(
+  period: ReportingPeriod,
+  periods: readonly ReportingPeriod[],
+  catalog: readonly CategoryCatalogItem[],
+  summary: CategorySummaryResponse,
+  transactions: readonly TransactionHistoryItem[],
+): InsightsYearlyReport {
+  const { categoryById, budgetedCategoryIds, monthlyBudgetCents } =
+    createCategoryContext(catalog, summary);
+  const amountsByMonth = periods.map(() => new Map<string | null, number>());
+  const totalByMonth = periods.map(() => 0);
+  const budgetedByMonth = periods.map(() => 0);
+  const indexByPeriod = new Map(periods.map((month, index) => [month, index]));
+
+  transactions.forEach((transaction) => {
+    const transactionPeriod = getTransactionPeriod(transaction.purchaseDate);
+    const monthIndex = indexByPeriod.get(transactionPeriod);
+    if (monthIndex === undefined) {
+      throw new InsightsDataError(
+        "The API returned a Transaction outside the selected 12-month Reporting Period.",
+      );
+    }
+
+    const amountCents = moneyToCents(
+      parseApiMoney(
+        transaction.amount,
+        `Transaction ${transaction.id} amount`,
+        createInsightsDataError,
+      ),
+    );
+    const categoryId = transaction.categoryId;
+
+    if (categoryId !== null && !categoryById.has(categoryId)) {
+      throw new InsightsDataError(
+        `Transaction ${transaction.id} references missing Category ${categoryId}.`,
+      );
+    }
+
+    const monthAmounts = amountsByMonth[monthIndex]!;
+    monthAmounts.set(
+      categoryId,
+      (monthAmounts.get(categoryId) ?? 0) + amountCents,
+    );
+    totalByMonth[monthIndex]! += amountCents;
+
+    if (categoryId !== null && budgetedCategoryIds.has(categoryId)) {
+      budgetedByMonth[monthIndex]! += amountCents;
+    }
+  });
+
+  const spendingByCategory = new Map<string | null, number>();
+  amountsByMonth.forEach((monthAmounts) => {
+    monthAmounts.forEach((amountCents, categoryId) => {
+      spendingByCategory.set(
+        categoryId,
+        (spendingByCategory.get(categoryId) ?? 0) + amountCents,
+      );
+    });
+  });
+
+  const months = periods.map((monthPeriod, index): InsightsMonth => ({
+    period: monthPeriod,
+    totalSpendingCents: totalByMonth[index]!,
+    budgetedSpendingCents: budgetedByMonth[index]!,
+    isOverBudget: budgetedByMonth[index]! > monthlyBudgetCents,
+    categories: [...amountsByMonth[index]!.entries()].map(
+      ([categoryId, amountCents]) => ({ categoryId, amountCents }),
+    ),
+  }));
+
+  return {
+    view: "yearly",
+    period,
+    totalSpendingCents: totalByMonth.reduce((total, cents) => total + cents, 0),
+    budgetedSpendingCents: budgetedByMonth.reduce(
+      (total, cents) => total + cents,
+      0,
+    ),
+    monthlyBudgetCents,
+    categories: createCategoryReports(spendingByCategory, categoryById),
+    months,
+  };
+}
+
+function createCategoryContext(
+  catalog: readonly CategoryCatalogItem[],
+  summary: CategorySummaryResponse,
+) {
+  const categoryById = new Map<string, CategoryIdentity>(
+    catalog.map((category) => [
+      category.id,
+      {
+        label: category.name,
+        color: resolveCategoryColor(category.id, category.color),
+      },
+    ]),
+  );
+  const budgetedCategoryIds = new Set<string>();
+  let monthlyBudgetCents = 0;
+
+  summary.categories.forEach((category) => {
+    if (!categoryById.has(category.categoryId)) {
+      categoryById.set(category.categoryId, {
+        label: category.name,
+        color: resolveCategoryColor(category.categoryId, undefined),
+      });
+    }
+
+    if (category.budgetAmount === null) return;
+
+    budgetedCategoryIds.add(category.categoryId);
+    monthlyBudgetCents += moneyToCents(
+      parseApiMoney(
+        category.budgetAmount,
+        `Budget ${category.categoryId}`,
+        createInsightsDataError,
+      ),
+    );
+  });
+
+  return { categoryById, budgetedCategoryIds, monthlyBudgetCents };
+}
+
+function createCategoryReports(
+  spendingByCategory: ReadonlyMap<string | null, number>,
+  categoryById: ReadonlyMap<string, CategoryIdentity>,
+): InsightsCategory[] {
+  return [...spendingByCategory.entries()]
+    .map(([id, spendingCents]): InsightsCategory => ({
+      id,
+      label: id === null ? "Uncategorized" : categoryById.get(id)!.label,
+      color: id === null ? null : categoryById.get(id)!.color,
+      spendingCents,
+    }))
+    .sort((left, right) =>
+      left.label.localeCompare(right.label) ||
+      (left.id ?? "").localeCompare(right.id ?? ""),
+    );
+}
+
+function getRollingPeriods(period: ReportingPeriod): ReportingPeriod[] {
+  const [year, month] = period.split("-").map(Number);
+
+  return Array.from({ length: 12 }, (_, index) => {
+    const date = new Date(Date.UTC(year!, month! - 1 - 11 + index, 1));
+    return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}` as ReportingPeriod;
+  });
+}
+
+function getTransactionPeriod(purchaseDate: string): ReportingPeriod {
+  const dateMatch = /^(\d{4})-(0[1-9]|1[0-2])-(\d{2})$/u.exec(purchaseDate);
+  if (!dateMatch) {
+    throw new InsightsDataError(
+      "The API returned an invalid Transaction purchase date.",
+    );
+  }
+
+  const period = `${dateMatch[1]}-${dateMatch[2]}` as ReportingPeriod;
+  const day = Number(dateMatch[3]);
+  if (day < 1 || day > getReportingPeriodBounds(period).daysInPeriod) {
+    throw new InsightsDataError(
+      "The API returned an invalid Transaction purchase date.",
+    );
+  }
+
+  return period;
 }
 
 function getDayOfMonth(
@@ -322,11 +516,14 @@ function buildTransactionCollectionPath(spaceId?: string): string {
     : `/spaces/${encodeURIComponent(spaceId)}/transactions`;
 }
 
-export { getInsights, InsightsDataError };
+export { getInsights, getYearlyInsights, InsightsDataError };
 export type {
   InsightsApiClient,
   InsightsCategory,
   InsightsCategoryAmount,
   InsightsDay,
+  InsightsMonth,
   InsightsReport,
+  InsightsReportResult,
+  InsightsYearlyReport,
 };

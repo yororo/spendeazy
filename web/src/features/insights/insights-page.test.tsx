@@ -7,8 +7,10 @@ import { MemoryRouter } from "react-router-dom";
 
 import { ApiClientProvider } from "@/shared/api";
 import {
+  formatReportingPeriod,
   getCurrentReportingPeriod,
   ReportingPeriodProvider,
+  type ReportingPeriod,
 } from "@/shared/reporting-period";
 import { formatMoney } from "@/shared/money";
 
@@ -26,6 +28,12 @@ function nextMonth(period: string): string {
   const [year, month] = period.split("-").map(Number);
   const date = new Date(Date.UTC(year!, month!, 1));
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+function rollingStart(period: string): string {
+  const [year, month] = period.split("-").map(Number);
+  const date = new Date(Date.UTC(year!, month! - 12, 1));
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-01`;
 }
 
 function apiResponse(data: unknown, status = 200) {
@@ -50,6 +58,14 @@ function createSuccessfulFetch(initialPeriod: string) {
           isActive: true,
           updatedAt: "2026-09-01T00:00:00.000Z",
         },
+        {
+          id: "44",
+          name: "Transit",
+          description: null,
+          color: "forest",
+          isActive: true,
+          updatedAt: "2026-09-01T00:00:00.000Z",
+        },
       ]);
     }
 
@@ -62,7 +78,7 @@ function createSuccessfulFetch(initialPeriod: string) {
         period: "monthly",
         year: url.searchParams.get("year"),
         month: url.searchParams.get("month"),
-        categories: [
+          categories: [
           {
             categoryId: "42",
             name: "Groceries",
@@ -70,16 +86,83 @@ function createSuccessfulFetch(initialPeriod: string) {
             totalAmount: amount,
             transactionCount: "1",
             budgetAmount: "100.00",
-            remainingAmount: "94.75",
-          },
-        ],
+              remainingAmount: "94.75",
+            },
+            {
+              categoryId: "44",
+              name: "Transit",
+              isActive: true,
+              totalAmount: "0.00",
+              transactionCount: "0",
+              budgetAmount: null,
+              remainingAmount: null,
+            },
+          ],
         uncategorizedTotal: "2.50",
         uncategorizedCount: "1",
       });
     }
 
     if (path === "/spaces/7/transactions") {
-      const period = url.searchParams.get("fromDate")!.slice(0, 7);
+      const fromDate = url.searchParams.get("fromDate")!;
+      const toDate = url.searchParams.get("toDate")!;
+      if (fromDate.slice(0, 7) !== toDate.slice(0, 7)) {
+        const firstPeriod = fromDate.slice(0, 7);
+        const secondPeriod = nextMonth(firstPeriod);
+        const selectedPeriod = toDate.slice(0, 7);
+        return apiResponse({
+          items: [
+            {
+              id: `at-budget-${firstPeriod}`,
+              categoryId: "42",
+              purchaseDate: `${firstPeriod}-10`,
+              description: "At the current Budget",
+              amount: "100.00",
+              source: "manual",
+              statementImportId: null,
+            },
+            {
+              id: `over-budget-${secondPeriod}`,
+              categoryId: "42",
+              purchaseDate: `${secondPeriod}-10`,
+              description: "Over the current Budget",
+              amount: "100.01",
+              source: "manual",
+              statementImportId: null,
+            },
+            {
+              id: `unbudgeted-${secondPeriod}`,
+              categoryId: "44",
+              purchaseDate: `${secondPeriod}-11`,
+              description: "Unbudgeted transit",
+              amount: "25.00",
+              source: "manual",
+              statementImportId: null,
+            },
+            {
+              id: `uncategorized-${secondPeriod}`,
+              categoryId: null,
+              purchaseDate: `${secondPeriod}-12`,
+              description: "Uncategorized purchase",
+              amount: "0.05",
+              source: "manual",
+              statementImportId: null,
+            },
+            {
+              id: `within-budget-${selectedPeriod}`,
+              categoryId: "42",
+              purchaseDate: `${selectedPeriod}-10`,
+              description: "Within the current Budget",
+              amount: "99.99",
+              source: "manual",
+              statementImportId: null,
+            },
+          ],
+          nextCursor: null,
+        });
+      }
+
+      const period = fromDate.slice(0, 7);
       const isInitialPeriod = period === initialPeriod;
       const day = isInitialPeriod ? "01" : "02";
       const categoryAmount = isInitialPeriod ? "5.25" : "3.10";
@@ -258,5 +341,70 @@ describe("InsightsPage", () => {
     renderInsights();
 
     expect(screen.getByRole("status").textContent).toContain("Loading Insights");
+  });
+
+  it("switches to a rolling Yearly report with accessible periods and Budget breach status", async () => {
+    const period = getCurrentReportingPeriod();
+    const fetch = createSuccessfulFetch(period);
+    vi.stubGlobal("fetch", fetch);
+    renderInsights();
+
+    expect(await screen.findByRole("heading", { name: "Insights" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Yearly view" }));
+
+    const yearlyTable = await screen.findByRole("table", {
+      name: /monthly spending values/i,
+    });
+    const expectedStart = rollingStart(period);
+    expect(within(yearlyTable).getAllByRole("row")).toHaveLength(13);
+    expect(
+      within(yearlyTable).getByRole("rowheader", {
+        name: formatReportingPeriod(expectedStart.slice(0, 7) as ReportingPeriod),
+      }),
+    ).toBeTruthy();
+    expect(within(yearlyTable).getAllByText("Over Budget")).toHaveLength(1);
+    expect(within(yearlyTable).getAllByText("Within Budget").length).toBeGreaterThan(0);
+    expect(within(yearlyTable).getByText(/uncategorized transactions/i)).toBeTruthy();
+    expect(
+      screen.getAllByText(/historical comparisons use current monthly Budgets/i)
+        .length,
+    ).toBeGreaterThan(0);
+    expect(screen.getByRole("region", { name: "Yearly spending" })).toBeTruthy();
+
+    const monthlyBudgetToggle = screen.getByRole("checkbox", {
+      name: "Monthly Budget",
+    });
+    expect(monthlyBudgetToggle.getAttribute("aria-checked")).toBe("true");
+    fireEvent.click(monthlyBudgetToggle);
+    expect(monthlyBudgetToggle.getAttribute("aria-checked")).toBe("false");
+    expect(
+      screen.getByText(/monthly Budget comparison is hidden/i),
+    ).toBeTruthy();
+    fireEvent.click(monthlyBudgetToggle);
+
+    await waitFor(() =>
+      expect(
+        fetch.mock.calls.some(([input]) =>
+          String(input).includes(`fromDate=${expectedStart}`),
+        ),
+      ).toBe(true),
+    );
+
+    fireEvent.change(screen.getByLabelText("Reporting period"), {
+      target: { value: nextMonth(period) },
+    });
+    const nextStart = rollingStart(nextMonth(period));
+    await waitFor(() =>
+      expect(
+        fetch.mock.calls.some(([input]) =>
+          String(input).includes(`fromDate=${nextStart}`),
+        ),
+      ).toBe(true),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Monthly view" }));
+    expect(
+      await screen.findByRole("table", { name: /daily spending values/i }),
+    ).toBeTruthy();
   });
 });

@@ -266,7 +266,10 @@ function CategorySpendingChart({ report }: CategorySpendingChartProps) {
                     </svg>
                   </div>
                 </div>
-                <div className="absolute inset-x-18 bottom-0 flex h-6 font-mono text-xs tabular-nums text-muted-foreground">
+                <div
+                  data-testid="insights-category-trend-month-labels"
+                  className="absolute bottom-0 left-18 right-0 flex h-6 font-mono text-xs tabular-nums text-muted-foreground"
+                >
                   {points.map((point) => (
                     <span
                       key={point.key}
@@ -275,7 +278,18 @@ function CategorySpendingChart({ report }: CategorySpendingChartProps) {
                         !point.axisLabelVisible && "invisible",
                       )}
                     >
-                      {point.axisLabel}
+                      {report.view === "yearly" ? (
+                        <>
+                          <span className="hidden sm:inline">
+                            {point.axisLabel}
+                          </span>
+                          <span className="sm:hidden">
+                            {point.axisLabel.slice(0, 1)}
+                          </span>
+                        </>
+                      ) : (
+                        point.axisLabel
+                      )}
                     </span>
                   ))}
                 </div>

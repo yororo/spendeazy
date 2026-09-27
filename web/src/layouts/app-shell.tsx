@@ -39,6 +39,7 @@ const pageTitles: Record<string, string> = {
   "/imports": "Statement Import · Spendeazy",
   "/transactions": "Transactions · Spendeazy",
   "/categories": "Budget overview · Spendeazy",
+  "/insights": "Insights · Spendeazy",
   "/history": "Space history · Spendeazy",
   "/sharing": "Sharing · Spendeazy",
 };

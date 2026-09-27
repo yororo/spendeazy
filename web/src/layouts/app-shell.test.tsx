@@ -98,6 +98,33 @@ afterEach(() => {
 });
 
 describe("AppShell", () => {
+  it("sets the Insights browser tab title when navigating there", async () => {
+    document.title = "Initial title";
+
+    render(
+      <AppSessionProvider session={session}>
+        <MemoryRouter initialEntries={["/transactions"]}>
+          <Routes>
+            <Route element={<AppShell />}>
+              <Route path="/transactions" element={<p>Transactions page</p>} />
+              <Route path="/insights" element={<p>Insights page</p>} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      </AppSessionProvider>,
+    );
+
+    await waitFor(() =>
+      expect(document.title).toBe(`Transactions \u00b7 Spendeazy`),
+    );
+    fireEvent.click(screen.getAllByRole("link", { name: "Insights" })[0]!);
+
+    expect(await screen.findByText("Insights page")).toBeTruthy();
+    await waitFor(() =>
+      expect(document.title).toBe(`Insights \u00b7 Spendeazy`),
+    );
+  });
+
   it("adds a separate History destination to desktop and mobile navigation when archives exist", () => {
     render(
       <AppSessionProvider session={session}>

@@ -240,7 +240,7 @@ function AppShellContent() {
               </Button>
             </SheetTrigger>
             <SheetContent
-              side="left"
+              side="right"
               onEscapeKeyDown={(event) => {
                 // Let an open nested menu consume Escape before closing the Sheet.
                 if (event.target instanceof Element && event.target.closest('[role="menu"]')) {

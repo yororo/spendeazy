@@ -90,6 +90,10 @@ interface InsightsYearlyReport {
   readonly totalSpendingCents: number;
   readonly budgetedSpendingCents: number;
   readonly monthlyBudgetCents: number;
+  readonly frequentlyOverBudget: readonly InsightsBudgetBreach[];
+  readonly lowestSpending: readonly InsightsLowSpendingCategory[];
+  readonly monthlyBudgetedCategoryCount: number;
+  readonly activeMonthlyBudgetedCategoryCount: number;
   readonly categories: readonly InsightsCategory[];
   readonly selectableCategories: readonly InsightsCategory[];
   readonly months: readonly InsightsMonth[];
@@ -515,6 +519,7 @@ function createYearlyInsightsReport(
   const totalByMonth = periods.map(() => 0);
   const budgetedByMonth = periods.map(() => 0);
   const indexByPeriod = new Map(periods.map((month, index) => [month, index]));
+  const selectedMonthIndex = indexByPeriod.get(period)!;
 
   transactions.forEach((transaction) => {
     const transactionPeriod = getTransactionPeriod(transaction.purchaseDate);
@@ -571,6 +576,11 @@ function createYearlyInsightsReport(
       ([categoryId, amountCents]) => ({ categoryId, amountCents }),
     ),
   }));
+  const { frequentlyOverBudget, lowestSpending } = createMonthlyRankings(
+    amountsByMonth,
+    selectedMonthIndex,
+    categoryById,
+  );
 
   return {
     view: "yearly",
@@ -581,6 +591,12 @@ function createYearlyInsightsReport(
       0,
     ),
     monthlyBudgetCents,
+    frequentlyOverBudget,
+    lowestSpending,
+    monthlyBudgetedCategoryCount: budgetedCategoryIds.size,
+    activeMonthlyBudgetedCategoryCount: [...budgetedCategoryIds].filter(
+      (categoryId) => categoryById.get(categoryId)?.isActive === true,
+    ).length,
     categories: createCategoryReports(spendingByCategory, categoryById),
     selectableCategories: createSelectableCategoryReports(
       spendingByCategory,

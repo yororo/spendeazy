@@ -245,6 +245,10 @@
   }
 
   @media (width >= 64rem) {
+    html:has(.mobile-navigation-content) {
+      overflow-y: hidden;
+    }
+
     .mobile-navigation-content {
       padding-top: 0;
     }

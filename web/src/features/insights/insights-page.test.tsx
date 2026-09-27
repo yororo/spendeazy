@@ -261,7 +261,7 @@ function renderInsights(spaceId = "7") {
 }
 
 describe("InsightsPage", () => {
-  it("shows daily totals, a labelled Budget pace, and updates when the month changes", async () => {
+  it("shows daily totals without monthly rankings and updates when the month changes", async () => {
     const period = getCurrentReportingPeriod();
     const fetch = createSuccessfulFetch(period);
     vi.stubGlobal("fetch", fetch);
@@ -276,26 +276,12 @@ describe("InsightsPage", () => {
     expect(within(summary).getByText(formatMoney(7.75))).toBeTruthy();
     expect(within(summary).getByText(formatMoney(5.25))).toBeTruthy();
 
-    const breachList = screen.getByRole("list", {
-      name: "Categories with the most monthly Budget breaches",
-    });
-    expect(within(breachList).getByText("Groceries")).toBeTruthy();
     expect(
-      within(breachList).getByText("1 of 12 months over Budget"),
-    ).toBeTruthy();
+      screen.queryByRole("heading", { name: "Frequently over Budget" }),
+    ).toBeNull();
     expect(
-      screen.getByText(/Historical comparisons use current monthly Budgets/i),
-    ).toBeTruthy();
-    const lowSpendingList = screen.getByRole("list", {
-      name: "Active monthly-budgeted Categories with the lowest spending",
-    });
-    expect(within(lowSpendingList).getByText("Groceries")).toBeTruthy();
-    expect(
-      within(lowSpendingList).getByText(`${formatMoney(5.25)} spent`),
-    ).toBeTruthy();
-    expect(
-      within(lowSpendingList).getByText(`${formatMoney(100)} Budget`),
-    ).toBeTruthy();
+      screen.queryByRole("heading", { name: "Lowest spending" }),
+    ).toBeNull();
 
     const chartTable = screen.getByRole("table", {
       name: /daily spending values/i,
@@ -345,10 +331,8 @@ describe("InsightsPage", () => {
       ).toBe(true),
     );
     expect(
-      await screen.findByText(
-        `Months over Budget in the 12-month window ending ${formatReportingPeriod(nextMonth(period) as ReportingPeriod)}.`,
-      ),
-    ).toBeTruthy();
+      screen.queryByRole("heading", { name: "Frequently over Budget" }),
+    ).toBeNull();
     const nextSummary = screen.getByRole("region", {
       name: "Monthly spending summary",
     });
@@ -465,10 +449,9 @@ describe("InsightsPage", () => {
         name: "Groceries spending",
       }),
     ).toBeTruthy();
-    const firstLowSpendingList = screen.getByRole("list", {
-      name: "Active monthly-budgeted Categories with the lowest spending",
-    });
-    expect(within(firstLowSpendingList).getByText("Groceries")).toBeTruthy();
+    expect(
+      screen.queryByRole("heading", { name: "Lowest spending" }),
+    ).toBeNull();
 
     view.rerenderSpace("8");
 
@@ -491,7 +474,8 @@ describe("InsightsPage", () => {
         name: "Groceries spending",
       }),
     ).toBeNull();
-    const housingRanking = screen.getByRole("list", {
+    fireEvent.click(screen.getByRole("button", { name: "Monthly view" }));
+    const housingRanking = await screen.findByRole("list", {
       name: "Active monthly-budgeted Categories with the lowest spending",
     });
     expect(within(housingRanking).getByText("Housing")).toBeTruthy();
@@ -531,13 +515,9 @@ describe("InsightsPage", () => {
       await screen.findByText("No spending was recorded for this month."),
     ).toBeTruthy();
     expect(
-      screen.getByText(
-        "No monthly-budgeted Categories are available for comparison.",
-      ),
-    ).toBeTruthy();
-    expect(
-      screen.getByText("No active Categories have a current monthly Budget."),
-    ).toBeTruthy();
+      screen.queryByRole("heading", { name: "Frequently over Budget" }),
+    ).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Lowest spending" })).toBeNull();
     const chartTable = screen.getByRole("table", {
       name: /daily spending values/i,
     });
@@ -549,6 +529,16 @@ describe("InsightsPage", () => {
     ).getUTCDate();
     expect(within(chartTable).getAllByRole("row")).toHaveLength(dayCount + 1);
     expect(within(summary).getAllByText(formatMoney(0))).toHaveLength(2);
+
+    fireEvent.click(screen.getByRole("button", { name: "Monthly view" }));
+    expect(
+      await screen.findByText(
+        "No monthly-budgeted Categories are available for comparison.",
+      ),
+    ).toBeTruthy();
+    expect(
+      screen.getByText("No active Categories have a current monthly Budget."),
+    ).toBeTruthy();
   });
 
   it("explains when eligible Categories have no Budget breaches and includes zero spending", async () => {
@@ -598,6 +588,8 @@ describe("InsightsPage", () => {
     vi.stubGlobal("fetch", fetch);
     renderInsights();
 
+    expect(await screen.findByRole("heading", { name: "Insights" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Monthly view" }));
     expect(
       await screen.findByText(
         `No Categories exceeded their current Budget in the 12-month window ending ${formatReportingPeriod(period)}.`,
@@ -665,9 +657,17 @@ describe("InsightsPage", () => {
     const yearlyTable = await screen.findByRole("table", {
       name: /monthly spending values/i,
     });
+    const breachRanking = screen.getByRole("list", {
+      name: "Categories with the most monthly Budget breaches",
+    });
+    expect(within(breachRanking).getByText("Groceries")).toBeTruthy();
+    const lowSpendingRanking = screen.getByRole("list", {
+      name: "Active monthly-budgeted Categories with the lowest spending",
+    });
+    expect(within(lowSpendingRanking).getByText("Groceries")).toBeTruthy();
     expect(
-      screen.queryByRole("heading", { name: "Frequently over Budget" }),
-    ).toBeNull();
+      within(lowSpendingRanking).getByText(`${formatMoney(5.25)} spent`),
+    ).toBeTruthy();
     const expectedStart = rollingStart(period);
     expect(within(yearlyTable).getAllByRole("row")).toHaveLength(13);
     expect(
@@ -758,5 +758,9 @@ describe("InsightsPage", () => {
     expect(
       await screen.findByRole("table", { name: /daily spending values/i }),
     ).toBeTruthy();
+    expect(
+      screen.queryByRole("heading", { name: "Frequently over Budget" }),
+    ).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Lowest spending" })).toBeNull();
   });
 });

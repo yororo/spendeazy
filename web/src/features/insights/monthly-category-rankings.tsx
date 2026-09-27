@@ -9,10 +9,13 @@ import { getCategoryColorClass } from "@/shared/category";
 import { centsToMoney, formatMoney } from "@/shared/money";
 import { formatReportingPeriod } from "@/shared/reporting-period";
 
-import type { InsightsReport } from "./insights-service";
+import type {
+  InsightsReport,
+  InsightsYearlyReport,
+} from "./insights-service";
 
 interface MonthlyCategoryRankingsProps {
-  readonly report: InsightsReport;
+  readonly report: InsightsReport | InsightsYearlyReport;
 }
 
 function MonthlyCategoryRankings({ report }: MonthlyCategoryRankingsProps) {

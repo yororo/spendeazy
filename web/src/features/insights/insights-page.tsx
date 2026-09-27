@@ -207,7 +207,7 @@ function InsightsPage({ spaceId, onSpaceChange }: InsightsPageProps = {}) {
           />
         </section>
       </div>
-      {report.view === "monthly" ? (
+      {report.view === "yearly" ? (
         <MonthlyCategoryRankings report={report} />
       ) : null}
     </div>

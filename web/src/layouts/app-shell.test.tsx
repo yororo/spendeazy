@@ -759,6 +759,8 @@ describe("AppShell", () => {
     const navigation = screen.getByRole("dialog", {
       name: "Primary navigation",
     });
+    expect(navigation.classList.contains("right-0")).toBe(true);
+    expect(navigation.classList.contains("left-0")).toBe(false);
     expect(within(navigation).getByText("Ada Lovelace")).toBeTruthy();
     fireEvent.click(within(navigation).getByRole("button", { name: "Appearance: System" }));
     expect(within(navigation).getByRole("menu", { name: "Appearance" })).toBeTruthy();

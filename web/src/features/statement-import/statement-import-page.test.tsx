@@ -19,6 +19,8 @@ import {
 } from "@/shared/navigation";
 
 import type { Statement } from "./statement-parser/transformer";
+import gcashFixture from "../../../docs/pdf-parser/gcash-sample-extracted-text.txt?raw";
+import { gcashEwalletTransformer } from "./statement-parser/gcash-ewallet-transformer";
 import { transformStatement } from "./statement-parser/transformer";
 import { StatementImportPage } from "./statement-import-page";
 
@@ -44,9 +46,12 @@ vi.mock("./statement-parser/pdf-extractor", async (importOriginal) => {
 vi.mock("./statement-parser/transformer", () => ({
   transformStatement: vi.fn(() => ({
     summary: {
+      statementType: "credit_card",
       statementDate: new Date("2026-08-31T00:00:00.000Z"),
       provider: "BDO",
       accountType: "AMEX",
+      transactionHistoryStartDate: null,
+      totalDebit: null,
       totalTransactions: 1,
       totalAmountDue: 25.5,
       totalExtractedAmount: 25.5,
@@ -178,7 +183,12 @@ function createFetchMock(
           /\/spaces\/\d+\/statement-imports$/u.test(path))
       ) {
         return jsonResponse({
-          items: options.recentImports ?? [],
+          items: (options.recentImports ?? []).map((item) => ({
+            statementType: "credit_card",
+            transactionHistoryStartDate: null,
+            totalDebit: null,
+            ...item,
+          })),
           nextCursor: null,
         });
       }
@@ -207,6 +217,9 @@ function createFetchMock(
             statementDate: "2026-08-31",
             bank: "GCash",
             cardType: "E-Wallet",
+            statementType: "e_wallet",
+            transactionHistoryStartDate: "2026-08-09",
+            totalDebit: "26696.92",
             importedAt: "2026-09-01T00:00:00.000Z",
             importedByUserId: "1",
           },
@@ -397,9 +410,12 @@ async function reenterCategorizeWithPendingSave(
 function setStatementTransactions(transactions: Statement["transactions"]) {
   vi.mocked(transformStatement).mockReturnValue({
     summary: {
+      statementType: "credit_card",
       statementDate: new Date("2026-08-31T00:00:00.000Z"),
       provider: "BDO",
       accountType: "AMEX",
+      transactionHistoryStartDate: null,
+      totalDebit: null,
       totalTransactions: transactions.length,
       totalAmountDue: 25.5,
       totalExtractedAmount: 25.5,
@@ -756,42 +772,27 @@ describe("StatementImportPage Space destination", () => {
 
 describe("StatementImportPage GCash recipient flow", () => {
   it("keeps matching Debits visible and out of Review totals and confirmation", async () => {
-    const recipient = "09999999999";
-    const firstTransfer =
-      "Transfer from 09111111111 to 09999999999 [Ref. #: 5043775892919]";
-    const secondTransfer =
-      "Transfer from 09222222222 to 09999999999 [Ref. #: 5044211321443]";
-    const parsedPhoneDescription =
-      "Buy Load Transaction for 09999999999 [Ref. #: 5000073058896]";
+    const recipient = "09676769174";
+    const firstTransfer = "Transfer from 09112334455 to 09676769174";
+    const firstTransferReference = "5043775892919";
+    const secondTransfer = "Transfer from 09222222222 to 09676769174";
+    const secondTransferReference = "5044211321443";
+    const parsedPhoneDescription = "Buy Load Transaction for 09676769174";
+    const parsedPhoneReference = "5000073058896";
+    const fixtureStatement = gcashEwalletTransformer.transform(
+      gcashFixture.replace(
+        /Transfer from 09112334455 to 09676769174\s+5044211321443/u,
+        `${secondTransfer}\t5044211321443`,
+      ),
+    );
     const parsedStatement: Statement = {
-      summary: {
-        statementDate: new Date("2026-08-31T00:00:00.000Z"),
-        provider: "GCash",
-        accountType: "E-Wallet",
-        totalTransactions: 3,
-        totalAmountDue: 65,
-        totalExtractedAmount: 65,
-      },
-      transactions: [
-        {
-          transactionDate: new Date("2026-08-29T00:00:00.000Z"),
-          postingDate: new Date("2026-08-29T00:00:00.000Z"),
-          description: firstTransfer,
-          amount: 40,
-        },
-        {
-          transactionDate: new Date("2026-08-30T00:00:00.000Z"),
-          postingDate: new Date("2026-08-30T00:00:00.000Z"),
-          description: secondTransfer,
-          amount: 15,
-        },
-        {
-          transactionDate: new Date("2026-08-31T00:00:00.000Z"),
-          postingDate: new Date("2026-08-31T00:00:00.000Z"),
-          description: parsedPhoneDescription,
-          amount: 10,
-        },
-      ],
+      summary: fixtureStatement.summary,
+      transactions: fixtureStatement.transactions.filter(
+        (transaction) =>
+          transaction.reference === firstTransferReference ||
+          transaction.reference === secondTransferReference ||
+          transaction.reference === parsedPhoneReference,
+      ),
     };
     vi.mocked(transformStatement).mockReturnValueOnce(parsedStatement);
 
@@ -851,8 +852,8 @@ describe("StatementImportPage GCash recipient flow", () => {
       "Transactions included",
     ).parentElement;
     expect(includedMetric?.textContent).toContain("1");
-    const totalDebitsMetric = screen.getByText("Total debits").parentElement;
-    expect(totalDebitsMetric?.textContent).toContain("₱10.00");
+    const totalDebitsMetric = screen.getByText("Included debits").parentElement;
+    expect(totalDebitsMetric?.textContent).toContain("₱151.00");
     expect(
       screen.getByRole("button", { name: "Import 1 Transactions" }),
     ).toBeTruthy();
@@ -876,12 +877,18 @@ describe("StatementImportPage GCash recipient flow", () => {
         new URL(input.toString()).pathname.endsWith("/statement-imports"),
     );
     const payload = JSON.parse(String(commitRequest?.[1]?.body)) as {
-      readonly transactions: readonly { readonly description: string }[];
+      readonly transactions: readonly {
+        readonly description: string;
+        readonly reference?: string;
+      }[];
       readonly [key: string]: unknown;
     };
     expect(payload).not.toHaveProperty("gcashMobileNumber");
     expect(payload.transactions).toEqual([
-      expect.objectContaining({ description: parsedPhoneDescription }),
+      expect.objectContaining({
+        description: parsedPhoneDescription,
+        reference: parsedPhoneReference,
+      }),
     ]);
     expect(
       payload.transactions.some(({ description }) =>
@@ -956,6 +963,9 @@ describe("StatementImportPage confirmation lifecycle", () => {
                 statementDate: "2026-08-31",
                 bank: "BDO",
                 cardType: "AMEX",
+                statementType: "credit_card",
+                transactionHistoryStartDate: null,
+                totalDebit: null,
                 importedAt: "2026-09-01T00:00:00.000Z",
                 importedByUserId: "1",
               },

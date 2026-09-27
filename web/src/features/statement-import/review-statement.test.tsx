@@ -26,9 +26,12 @@ const transaction: CategorizedTransaction = {
 };
 
 const statementSummary = {
+  statementType: "credit_card" as const,
   statementDate: new Date("2026-08-31T00:00:00.000Z"),
   provider: "BDO",
   accountType: "AMEX",
+  transactionHistoryStartDate: null,
+  totalDebit: null,
   totalTransactions: 3,
   totalAmountDue: 65.5,
   totalExtractedAmount: 65.5,
@@ -136,9 +139,12 @@ describe("ReviewStatement ambiguity handling", () => {
         ]}
         fileName="statement.pdf"
         statementSummary={{
-          statementDate: new Date("2026-08-31T00:00:00.000Z"),
-          provider: "BDO",
-          accountType: "AMEX",
+        statementDate: new Date("2026-08-31T00:00:00.000Z"),
+        provider: "BDO",
+        accountType: "AMEX",
+        statementType: "credit_card",
+        transactionHistoryStartDate: null,
+        totalDebit: null,
           totalTransactions: 1,
           totalAmountDue: 25.5,
           totalExtractedAmount: 25.5,
@@ -205,7 +211,7 @@ describe("ReviewStatement phone composition", () => {
 
     expect(within(phoneSummary).getByText("BDO")).toBeTruthy();
     expect(within(phoneSummary).getByText(/AMEX/)).toBeTruthy();
-    expect(within(phoneSummary).getByText(/AMEX.*\*{4}/)).toBeTruthy();
+    expect(within(phoneSummary).getByText(/\*{4}/)).toBeTruthy();
     expect(within(phoneSummary).getByText(/statement\.pdf/)).toBeTruthy();
     expect(within(phoneSummary).getByText("Aug 31, 2026")).toBeTruthy();
     expect(within(phoneSummary).getByText("₱65.50")).toBeTruthy();

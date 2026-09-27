@@ -1,6 +1,7 @@
 import { ArrowRightIcon, CheckCircle2Icon, LandmarkIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { formatMoney } from "@/shared/money";
 import { ActiveSpaceLabel } from "@/shared/ui";
 import {
   Card,
@@ -11,6 +12,7 @@ import {
 } from "@/components/ui/card";
 
 import type { CommittedStatementImport } from "./statement-import-service";
+import { formatStatementType } from "./statement-type";
 
 interface ImportSuccessProps {
   committedImport: CommittedStatementImport;
@@ -32,6 +34,18 @@ function formatAccount(committedImport: CommittedStatementImport) {
   return [committedImport.provider, committedImport.accountType]
     .filter(Boolean)
     .join(" · ");
+}
+
+function formatHistoryPeriod(committedImport: CommittedStatementImport) {
+  const endDate = dateFormatter.format(
+    new Date(`${committedImport.statementDate}T00:00:00Z`),
+  );
+  if (!committedImport.transactionHistoryStartDate) return endDate;
+
+  const startDate = dateFormatter.format(
+    new Date(`${committedImport.transactionHistoryStartDate}T00:00:00Z`),
+  );
+  return `${startDate} – ${endDate}`;
 }
 
 function ImportSuccess({
@@ -82,6 +96,14 @@ function ImportSuccess({
                   {formatAccount(committedImport)}
                 </dd>
               </div>
+              <div>
+                <dt className="text-label text-muted-foreground">
+                  Statement Type
+                </dt>
+                <dd className="mt-1 font-mono text-sm font-semibold uppercase">
+                  {formatStatementType(committedImport.statementType)}
+                </dd>
+              </div>
               {destinationLabel && (
                 <div>
                   <dt className="text-label text-muted-foreground">
@@ -104,14 +126,28 @@ function ImportSuccess({
               )}
               <div>
                 <dt className="text-label text-muted-foreground">
-                  Statement date
+                  {committedImport.statementType === "e_wallet"
+                    ? "Transaction History Period"
+                    : "Statement date"}
                 </dt>
                 <dd className="mt-1 font-mono text-sm font-semibold uppercase">
-                  {dateFormatter.format(
-                    new Date(`${committedImport.statementDate}T00:00:00Z`),
-                  )}
+                  {committedImport.statementType === "e_wallet"
+                    ? formatHistoryPeriod(committedImport)
+                    : dateFormatter.format(
+                        new Date(`${committedImport.statementDate}T00:00:00Z`),
+                      )}
                 </dd>
               </div>
+              {committedImport.statementType === "e_wallet" && (
+                <div>
+                  <dt className="text-label text-muted-foreground">
+                    Total Debit
+                  </dt>
+                  <dd className="mt-1 font-mono text-sm font-semibold tabular-nums">
+                    {formatMoney(committedImport.totalDebit ?? 0)}
+                  </dd>
+                </div>
+              )}
               <div>
                 <dt className="text-label text-muted-foreground">
                   Transactions saved

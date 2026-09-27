@@ -57,6 +57,8 @@ const EMPTY_SPACE_IMPORTED_TRANSACTION_STORE: SpaceImportedTransactionStore = {
   create: () => Promise.reject(new Error(SPACE_STORE_NOT_CONFIGURED)),
   findByFingerprintInSpace: () =>
     Promise.reject(new Error(SPACE_STORE_NOT_CONFIGURED)),
+  findByReferenceHashInSpace: () =>
+    Promise.reject(new Error(SPACE_STORE_NOT_CONFIGURED)),
   findByIdInSpace: () => Promise.reject(new Error(SPACE_STORE_NOT_CONFIGURED)),
   findByIdInHistoryInSpace: () =>
     Promise.reject(new Error(SPACE_STORE_NOT_CONFIGURED)),

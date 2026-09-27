@@ -195,8 +195,8 @@ describe("StatementDropZone GCash recipient prompt", () => {
     expect(onStatementCategorized.mock.calls[0]?.[1].transactions).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          description:
-            "Transfer from 09112334455 to 09676769174 [Ref. #: 5043775892919]",
+          description: "Transfer from 09112334455 to 09676769174",
+          reference: "5043775892919",
           amount: -4000,
           isExcluded: false,
         }),
@@ -230,24 +230,27 @@ describe("StatementDropZone GCash recipient prompt", () => {
     });
 
     const recipientTransfers = statement.transactions.filter((transaction) =>
-      /Transfer from .+ to 09999999999 \[Ref\./iu.test(transaction.description),
+      /Transfer from .+ to 09999999999$/iu.test(transaction.description),
     );
     expect(recipientTransfers).toEqual([
       expect.objectContaining({
         description:
-          "tRaNsFeR FrOm 09112334455 tO 09999999999 [Ref. #: 5043775892919]",
+          "tRaNsFeR FrOm 09112334455 tO 09999999999",
+        reference: "5043775892919",
         amount: 4000,
         isExcluded: true,
       }),
       expect.objectContaining({
         description:
-          "Transfer from 09222222222 to 09999999999 [Ref. #: 5043898447762]",
+          "Transfer from 09222222222 to 09999999999",
+        reference: "5043898447762",
         amount: 297,
         isExcluded: true,
       }),
       expect.objectContaining({
         description:
-          "Transfer from 09112334455 to 09999999999 [Ref. #: 5044211321443]",
+          "Transfer from 09112334455 to 09999999999",
+        reference: "5044211321443",
         amount: 1000,
         isExcluded: true,
       }),
@@ -257,19 +260,22 @@ describe("StatementDropZone GCash recipient prompt", () => {
       expect.arrayContaining([
         expect.objectContaining({
           description:
-            "Transfer from 09999999999 to 09112334455 [Ref. #: 3044589005853]",
+            "Transfer from 09999999999 to 09112334455",
+          reference: "3044589005853",
           amount: -2000,
           isExcluded: false,
         }),
         expect.objectContaining({
           description:
-            "Buy Load Transaction for 09999999999 [Ref. #: 5000073058896]",
+            "Buy Load Transaction for 09999999999",
+          reference: "5000073058896",
           amount: -151,
           isExcluded: false,
         }),
         expect.objectContaining({
           description:
-            "Transfer from 09112334455 to 099999999990 [Ref. #: 5044264821034]",
+            "Transfer from 09112334455 to 099999999990",
+          reference: "5044264821034",
           amount: -2000,
           isExcluded: false,
         }),
@@ -303,8 +309,8 @@ describe("StatementDropZone GCash recipient prompt", () => {
     expect(statement.transactions).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          description:
-            "Transfer from 09112334455 to 09676769174 [Ref. #: 5043775892919]",
+          description: "Transfer from 09112334455 to 09676769174",
+          reference: "5043775892919",
           amount: -4000,
           isExcluded: false,
         }),

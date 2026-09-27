@@ -7,6 +7,7 @@ import {
   FeatureDataLoading,
 } from "@/shared/ui/feature-data-state";
 import { useAccessibleSpacesQuery, type AccessibleSpace } from "@/shared/api";
+import { formatMoney } from "@/shared/money";
 import { ActiveSpaceLabel, getSpaceIdentityLabel } from "@/shared/ui";
 import { ImportProgress } from "./import-progress";
 import { ImportSuccess } from "./import-success";
@@ -28,6 +29,7 @@ import {
 } from "./statement-import-workflow-adapter";
 import { useStatementImportNavigationGuard } from "./statement-import-navigation-guard";
 import { useStatementImportWorkflow } from "./use-statement-import-workflow";
+import { formatStatementType } from "./statement-type";
 
 interface StatementImportPageProps {
   onViewTransactions: (spaceId?: string) => void;
@@ -397,7 +399,16 @@ function StatementImportPage({
                     {[item.provider, item.accountType]
                       .filter(Boolean)
                       .join(" · ")}{" "}
-                    · {item.statementDate}
+                    · {formatStatementType(item.statementType)} ·{" "}
+                    {item.statementType === "e_wallet" ? (
+                      <>
+                        {item.transactionHistoryStartDate
+                          ? `Transaction History ${item.transactionHistoryStartDate} – ${item.statementDate} · Total Debit ${formatMoney(item.totalDebit ?? 0)}`
+                          : item.statementDate}
+                      </>
+                    ) : (
+                      <>{item.statementDate}</>
+                    )}
                   </p>
                   {destinationSpace?.kind === "shared" && (
                     <p className="mt-1 font-mono text-xs text-muted-foreground">

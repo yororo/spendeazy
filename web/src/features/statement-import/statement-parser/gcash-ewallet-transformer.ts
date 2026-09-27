@@ -201,15 +201,13 @@ function parseTransaction(
   if (!baseDescription) {
     return validationError(`transaction on line ${lineNumber} has no description.`);
   }
-  const description = `${baseDescription} [Ref. #: ${referenceNumber}]`;
-
   const amountMagnitudeCents = parseAmount(
     amountText,
     `transaction on line ${lineNumber}`,
   );
   parseAmount(balanceText, `running Balance on line ${lineNumber}`);
 
-  const providerAmountCents = isIncomingDescription(description)
+  const providerAmountCents = isIncomingDescription(baseDescription)
     ? -amountMagnitudeCents
     : amountMagnitudeCents;
 
@@ -217,8 +215,9 @@ function parseTransaction(
     transaction: {
       transactionDate,
       postingDate: transactionDate,
-      description,
+      description: baseDescription,
       amount: centsToMoney(providerAmountCents),
+      reference: referenceNumber,
     },
     amountMagnitudeCents,
   };
@@ -310,9 +309,12 @@ const gcashEwalletTransformer: StatementTransformer = {
 
     return {
       summary: {
+        statementType: "e_wallet",
         statementDate: controls.statementDate,
         provider: "GCash",
         accountType: "E-Wallet",
+        transactionHistoryStartDate: controls.startDate,
+        totalDebit: centsToMoney(controls.totalDebitCents),
         totalTransactions: activity.transactions.length,
         totalAmountDue: centsToMoney(controls.totalDebitCents),
         totalExtractedAmount: centsToMoney(activity.totalExtractedCents),

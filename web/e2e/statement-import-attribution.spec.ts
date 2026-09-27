@@ -74,6 +74,9 @@ test("shows each Shared member as the importer in recent history", async ({
               statementDate: "2026-08-31",
               bank: "BDO",
               cardType: "AMEX",
+              statementType: "credit_card",
+              transactionHistoryStartDate: null,
+              totalDebit: null,
               importedAt: "2026-09-01T00:00:00.000Z",
               importedByUserId: "10",
               transactionCount: "1",
@@ -84,6 +87,9 @@ test("shows each Shared member as the importer in recent history", async ({
               statementDate: "2026-08-30",
               bank: "BDO",
               cardType: "AMEX",
+              statementType: "credit_card",
+              transactionHistoryStartDate: null,
+              totalDebit: null,
               importedAt: "2026-08-31T00:00:00.000Z",
               importedByUserId: "11",
               transactionCount: "2",
@@ -129,7 +135,7 @@ test("keeps Personal recent history concise", async ({ page }) => {
     },
   );
   await page.route(
-    "**/api/v1/users/me/statement-imports**",
+    "**/api/v1/users/me/spaces/1/statement-imports**",
     async (route) => {
       await route.fulfill({
         contentType: "application/json",
@@ -141,6 +147,9 @@ test("keeps Personal recent history concise", async ({ page }) => {
               statementDate: "2026-08-30",
               bank: "BDO",
               cardType: "AMEX",
+              statementType: "credit_card",
+              transactionHistoryStartDate: null,
+              totalDebit: null,
               importedAt: "2026-08-31T00:00:00.000Z",
               importedByUserId: "10",
               transactionCount: "1",

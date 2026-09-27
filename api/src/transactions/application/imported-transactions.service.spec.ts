@@ -180,6 +180,9 @@ class ImportedTransactionStoreFake implements SpaceImportedTransactionStore {
   findByFingerprintInSpace(): Promise<ImportedTransactionRecord[]> {
     return Promise.resolve([]);
   }
+  findByReferenceHashInSpace(): Promise<ImportedTransactionRecord[]> {
+    return Promise.resolve([]);
+  }
   findByIdInSpace(spaceId: string, id: string) {
     return Promise.resolve(
       this.transaction.spaceId === spaceId && this.transaction.id === id

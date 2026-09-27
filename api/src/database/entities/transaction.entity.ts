@@ -30,6 +30,7 @@ import {
   'spaceId',
   'importFingerprint',
 ])
+@Index('ix_transactions_space_reference_hash', ['spaceId', 'referenceHash'])
 export class TransactionEntity {
   @PrimaryGeneratedColumn('identity', {
     type: 'bigint',
@@ -80,6 +81,14 @@ export class TransactionEntity {
     name: 'import_fingerprint',
   })
   importFingerprint!: string | null;
+
+  @Column({
+    type: 'char',
+    length: 64,
+    nullable: true,
+    name: 'reference_hash',
+  })
+  referenceHash!: string | null;
 
   @CreateDateColumn({ type: 'timestamptz', precision: 3, name: 'created_at' })
   createdAt!: Date;

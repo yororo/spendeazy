@@ -1563,6 +1563,9 @@ function statementImportRecord(
     statementDate: '2026-08-31',
     bank: 'Example Bank',
     cardType: null,
+    statementType: 'credit_card',
+    transactionHistoryStartDate: null,
+    totalDebit: null,
     importedAt: new Date(UPDATED_AT),
     ...overrides,
   };
@@ -1586,6 +1589,9 @@ function statementImportResponse(): Record<string, unknown> {
     statementDate: '2026-08-31',
     bank: 'Example Bank',
     cardType: null,
+    statementType: 'credit_card',
+    transactionHistoryStartDate: null,
+    totalDebit: null,
     importedAt: UPDATED_AT,
   };
 }
@@ -1607,6 +1613,7 @@ function statementImportRequest(): Record<string, unknown> {
     fileName: 'august.pdf',
     fileHash: 'a'.repeat(64),
     statementDate: '2026-08-31',
+    statementType: 'credit_card',
     bank: 'Example Bank',
     transactions: [
       {

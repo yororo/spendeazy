@@ -29,6 +29,7 @@ import {
   type StatementImportHistoryItemResponse,
   type StatementImportResponse,
 } from "./statement-import-api";
+import { parseApiMoney } from "@/shared/api";
 import {
   cleanDescription,
   isIncludedStatementTransaction,
@@ -38,6 +39,7 @@ import type {
   StatementSummary,
   Transaction,
 } from "./statement-parser/transformer";
+import type { StatementType } from "./statement-type";
 
 type AssignmentProvenance = "rule" | "manual" | "ambiguous" | "unmapped";
 
@@ -74,6 +76,9 @@ interface CommittedStatementImportSummary {
   readonly statementDate: string;
   readonly provider: string;
   readonly accountType: string | null;
+  readonly statementType: StatementType;
+  readonly transactionHistoryStartDate: string | null;
+  readonly totalDebit: number | null;
   readonly importedByUserId: string;
 }
 
@@ -106,6 +111,9 @@ interface CommittedStatementImport {
   readonly statementDate: string;
   readonly provider: string;
   readonly accountType: string | null;
+  readonly statementType: StatementType;
+  readonly transactionHistoryStartDate: string | null;
+  readonly totalDebit: number | null;
   readonly importedAt: string;
   readonly transactionCount: number;
   readonly importedByUserId: string;
@@ -243,6 +251,21 @@ function projectCommittedStatementImportSummary(
       .toLocaleUpperCase(),
     provider: item.bank,
     accountType: item.cardType,
+    statementType: item.statementType,
+    transactionHistoryStartDate:
+      item.transactionHistoryStartDate === null
+        ? null
+        : statementDateFormatter
+            .format(new Date(`${item.transactionHistoryStartDate}T00:00:00Z`))
+            .toLocaleUpperCase(),
+    totalDebit:
+      item.totalDebit === null
+        ? null
+        : parseApiMoney(
+            item.totalDebit,
+            `Statement Import ${item.id} totalDebit`,
+            createStatementImportDataError,
+          ),
     importedByUserId: item.importedByUserId,
   };
 }
@@ -498,6 +521,29 @@ function formatPositiveAmountForApi(value: number, description: string) {
   return centsToMoney(cents).toFixed(2);
 }
 
+function formatNonNegativeAmountForApi(value: number, description: string) {
+  const scaledCents = value * 100;
+  const cents = moneyToCents(value);
+  const precisionTolerance = Number.EPSILON * Math.max(1, scaledCents) * 10;
+  if (
+    !Number.isFinite(value) ||
+    value < 0 ||
+    Math.abs(scaledCents - cents) > precisionTolerance
+  ) {
+    throw new StatementImportValidationError(
+      `${description} must be a non-negative amount with no more than two decimal places.`,
+    );
+  }
+
+  if (!Number.isSafeInteger(cents)) {
+    throw new StatementImportValidationError(
+      `${description} is outside the supported monetary range.`,
+    );
+  }
+
+  return centsToMoney(cents).toFixed(2);
+}
+
 function getIncludedTransactions(
   transactions: readonly CategorizedTransaction[],
 ) {
@@ -529,12 +575,29 @@ function buildCommitPayload(
   }
 
   const summary: StatementSummary = statement.summary;
+  const isEWallet = summary.statementType === "e_wallet";
+  const transactionHistoryStartDate = isEWallet
+    ? formatDateForApi(
+        summary.transactionHistoryStartDate ?? new Date(Number.NaN),
+        "Transaction History Period start",
+      )
+    : null;
+  const totalDebit = isEWallet
+    ? formatNonNegativeAmountForApi(
+        summary.totalDebit ?? Number.NaN,
+        "Total Debit",
+      )
+    : null;
+
   return {
     fileName: cleanDescription(fileName),
     fileHash,
     statementDate: formatDateForApi(summary.statementDate, "statement date"),
     bank: cleanDescription(summary.provider),
     cardType: cleanDescription(summary.accountType) || null,
+    statementType: summary.statementType,
+    transactionHistoryStartDate,
+    totalDebit,
     transactions: includedTransactions.map((transaction) => ({
       categoryId: transaction.categoryId,
       purchaseDate: formatDateForApi(
@@ -546,6 +609,9 @@ function buildCommitPayload(
         transaction.amount,
         `Transaction ${transaction.id}`,
       ),
+      ...(transaction.reference === undefined
+        ? {}
+        : { reference: cleanDescription(transaction.reference) }),
     })),
     acknowledgeProbableDuplicates,
   };
@@ -602,6 +668,16 @@ async function commitStatementImport(
     statementDate: response.statementDate,
     provider: response.bank,
     accountType: response.cardType,
+    statementType: response.statementType,
+    transactionHistoryStartDate: response.transactionHistoryStartDate,
+    totalDebit:
+      response.totalDebit === null
+        ? null
+        : parseApiMoney(
+            response.totalDebit,
+            `Statement Import ${response.id} totalDebit`,
+            createStatementImportDataError,
+          ),
     importedAt: response.importedAt,
     transactionCount: payload.transactions.length,
     importedByUserId: response.importedByUserId,

@@ -38,6 +38,15 @@ import type {
 } from './statement-import-store';
 import type { ErrorDetail } from '../../errors/application-error';
 import { UserNotFoundError } from '../../users/application/user-errors';
+import {
+  GCASH_REFERENCE_HASHER,
+  type GCashReferenceHasher,
+} from './gcash-reference-hasher';
+import {
+  isEWalletProvider,
+  isStatementType,
+  type StatementType,
+} from './statement-type';
 
 export const DEFAULT_STATEMENT_IMPORT_PAGE_SIZE = 20;
 export const MAX_STATEMENT_IMPORT_PAGE_SIZE = 100;
@@ -48,14 +57,18 @@ export interface ReviewedStatementTransactionInput {
   description: string;
   amount: string;
   categoryMatchConfidence?: string | null;
+  reference?: string | null;
 }
 
 export interface CommitReviewedStatementImportInput {
   fileName: string;
   fileHash: string;
   statementDate: string;
+  statementType: StatementType;
   bank: string;
   cardType?: string | null;
+  transactionHistoryStartDate?: string | null;
+  totalDebit?: string | null;
   transactions: ReviewedStatementTransactionInput[];
   acknowledgeProbableDuplicates?: boolean;
 }
@@ -80,6 +93,9 @@ export class StatementImportsService {
     @Optional()
     @Inject(STATEMENT_IMPORT_CONFIRMATION_UNIT_OF_WORK)
     private readonly unitOfWork?: StatementImportConfirmationUnitOfWork,
+    @Optional()
+    @Inject(GCASH_REFERENCE_HASHER)
+    private readonly gcashReferenceHasher?: GCashReferenceHasher,
   ) {}
 
   commitReviewedStatementImportInSpace(
@@ -180,14 +196,24 @@ export class StatementImportsService {
     }
 
     await ensureCategoriesAreActive(context, spaceId, input.transactions);
-    const preparedTransactions = input.transactions.map((transaction) => ({
-      categoryId: transaction.categoryId ?? null,
-      purchaseDate: transaction.purchaseDate,
-      description: transaction.description.trim(),
-      amount: normalizeAmount(transaction.amount),
-      categoryMatchConfidence: transaction.categoryMatchConfidence ?? null,
-      importFingerprint: computeImportFingerprint(input, transaction),
-    }));
+    const preparedTransactions = input.transactions.map((transaction) => {
+      const referenceHash =
+        transaction.reference == null
+          ? null
+          : this.hashGcashReference(spaceId, input.bank, transaction.reference);
+      const importFingerprint = computeImportFingerprint(input, transaction);
+
+      return {
+        categoryId: transaction.categoryId ?? null,
+        purchaseDate: transaction.purchaseDate,
+        description: transaction.description.trim(),
+        amount: normalizeAmount(transaction.amount),
+        categoryMatchConfidence: transaction.categoryMatchConfidence ?? null,
+        importFingerprint,
+        referenceHash,
+        duplicateKey: referenceHash ?? importFingerprint,
+      };
+    });
 
     const probableDuplicateGroups = await findProbableDuplicates(
       context,
@@ -209,6 +235,10 @@ export class StatementImportsService {
       statementDate: input.statementDate,
       bank: input.bank,
       cardType: input.cardType ?? null,
+      statementType: input.statementType,
+      transactionHistoryStartDate: input.transactionHistoryStartDate ?? null,
+      totalDebit:
+        input.totalDebit == null ? null : normalizeAmount(input.totalDebit),
       importedAt: new Date(),
     });
 
@@ -223,6 +253,7 @@ export class StatementImportsService {
         amount: transaction.amount,
         categoryMatchConfidence: transaction.categoryMatchConfidence,
         importFingerprint: transaction.importFingerprint,
+        referenceHash: transaction.referenceHash,
       });
       await context.transactionActivities.create({
         transactionId: createdTransaction.id,
@@ -235,6 +266,18 @@ export class StatementImportsService {
 
     return statementImport;
   }
+
+  private hashGcashReference(
+    spaceId: string,
+    provider: string,
+    reference: string,
+  ): string {
+    if (!this.gcashReferenceHasher) {
+      throw new Error('GCASH_REFERENCE_HASH_KEY is required for GCash imports');
+    }
+
+    return this.gcashReferenceHasher.hash({ spaceId, provider, reference });
+  }
 }
 
 async function findProbableDuplicates(
@@ -242,30 +285,39 @@ async function findProbableDuplicates(
   spaceId: string,
   preparedTransactions: readonly {
     importFingerprint: string;
+    referenceHash: string | null;
+    duplicateKey: string;
   }[],
 ) {
-  const fingerprints = [
+  const duplicateKeys = [
     ...new Set(
-      preparedTransactions.map((transaction) => transaction.importFingerprint),
+      preparedTransactions.map((transaction) => transaction.duplicateKey),
     ),
   ];
-  const committedMatchesByFingerprint = new Map<string, { id: string }[]>();
+  const committedMatchesByDuplicateKey = new Map<string, { id: string }[]>();
 
-  for (const fingerprint of fingerprints) {
-    const committedMatches =
-      await context.importedTransactions.findByFingerprintInSpace(
-        spaceId,
-        fingerprint,
-      );
-    committedMatchesByFingerprint.set(fingerprint, committedMatches);
+  for (const duplicateKey of duplicateKeys) {
+    const transaction = preparedTransactions.find(
+      (candidate) => candidate.duplicateKey === duplicateKey,
+    );
+    const committedMatches = transaction?.referenceHash
+      ? await context.importedTransactions.findByReferenceHashInSpace(
+          spaceId,
+          transaction.referenceHash,
+        )
+      : await context.importedTransactions.findByFingerprintInSpace(
+          spaceId,
+          duplicateKey,
+        );
+    committedMatchesByDuplicateKey.set(duplicateKey, committedMatches);
   }
 
   return findProbableDuplicateGroups(
     preparedTransactions.map((transaction, transactionIndex) => ({
       transactionIndex,
-      fingerprint: transaction.importFingerprint,
+      fingerprint: transaction.duplicateKey,
     })),
-    committedMatchesByFingerprint,
+    committedMatchesByDuplicateKey,
   );
 }
 
@@ -319,9 +371,63 @@ function validateReviewedStatementInput(
   const details: ErrorDetail[] = [];
   addStringDetail(details, '/fileName', input.fileName, 255);
   addDateDetail(details, '/statementDate', input.statementDate);
+  if (!isStatementType(input.statementType)) {
+    details.push({
+      field: '/statementType',
+      code: 'invalid_format',
+      message: 'Statement type must be credit_card or e_wallet',
+    });
+  }
   addStringDetail(details, '/bank', input.bank, 100);
   if (input.cardType != null) {
     addStringDetail(details, '/cardType', input.cardType, 100);
+  }
+  const isEWallet = input.statementType === 'e_wallet';
+  if (isEWallet) {
+    addDateDetail(
+      details,
+      '/transactionHistoryStartDate',
+      input.transactionHistoryStartDate,
+    );
+    if (
+      typeof input.transactionHistoryStartDate === 'string' &&
+      isValidDomainDate(input.statementDate) &&
+      isValidDomainDate(input.transactionHistoryStartDate) &&
+      input.transactionHistoryStartDate > input.statementDate
+    ) {
+      details.push({
+        field: '/transactionHistoryStartDate',
+        code: 'invalid_bounds',
+        message:
+          'Transaction History Period start must be on or before its end',
+      });
+    }
+    if (
+      typeof input.totalDebit !== 'string' ||
+      !/^\d{1,13}\.\d{2}$/u.test(input.totalDebit)
+    ) {
+      details.push({
+        field: '/totalDebit',
+        code: 'invalid_format',
+        message: 'Total Debit must be a non-negative two-decimal string',
+      });
+    }
+  } else {
+    if (input.transactionHistoryStartDate != null) {
+      details.push({
+        field: '/transactionHistoryStartDate',
+        code: 'not_allowed',
+        message:
+          'Transaction History Period is only valid for E-Wallet imports',
+      });
+    }
+    if (input.totalDebit != null) {
+      details.push({
+        field: '/totalDebit',
+        code: 'not_allowed',
+        message: 'Total Debit is only valid for E-Wallet imports',
+      });
+    }
   }
   if (
     input.acknowledgeProbableDuplicates !== undefined &&
@@ -395,6 +501,22 @@ function validateReviewedStatementInput(
           code: 'invalid_format',
           message: 'Category match confidence must be between 0 and 1',
         });
+      }
+      if (transaction.reference != null) {
+        if (
+          !isEWallet ||
+          !isEWalletProvider(input.bank) ||
+          typeof transaction.reference !== 'string' ||
+          transaction.reference.trim().length === 0 ||
+          Array.from(transaction.reference).length > 100
+        ) {
+          details.push({
+            field: `${fieldPrefix}/reference`,
+            code: 'invalid_format',
+            message:
+              'Reference is only supported as a non-empty GCash E-Wallet reference within its length limit',
+          });
+        }
       }
     });
   }

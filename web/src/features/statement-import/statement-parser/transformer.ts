@@ -14,19 +14,25 @@ interface Statement {
 }
 
 interface StatementSummary {
+  statementType: StatementType;
   statementDate: Date;
   provider: string;
   accountType: string;
+  transactionHistoryStartDate: Date | null;
+  totalDebit: number | null;
   totalTransactions: number;
   totalAmountDue: number;
   totalExtractedAmount: number;
 }
+
+type StatementType = "credit_card" | "e_wallet";
 
 interface Transaction {
   transactionDate: Date;
   postingDate: Date;
   description: string;
   amount: number;
+  reference?: string;
 }
 
 interface StatementTransformer {
@@ -83,5 +89,6 @@ export type {
   StatementSummary,
   StatementTransformer,
   Transaction,
+  StatementType,
   StatementTransformationErrorCode,
 };

@@ -36,6 +36,7 @@ import {
 } from "lucide-react";
 
 import { ImportProgress } from "./import-progress";
+import { formatStatementType } from "./statement-type";
 import type { CategoryColorOption } from "./statement-import-service";
 import type {
   CategoryEligibilityConflict,
@@ -87,6 +88,14 @@ function formatDate(value: Date) {
 
 function formatShortDate(value: Date) {
   return shortDateFormatter.format(value).toLocaleUpperCase();
+}
+
+function formatStatementHistoryPeriod(
+  startDate: Date | null,
+  endDate: Date,
+) {
+  if (!startDate) return formatDate(endDate);
+  return `${formatDate(startDate)} – ${formatDate(endDate)}`;
 }
 
 function formatPeriod(
@@ -220,6 +229,11 @@ function ReviewStatement({
   );
   const largestCategoryAmount = categoryBreakdown[0]?.amount ?? 0;
   const hasUnmappedTransactions = unmappedTransactions.length > 0;
+  const isEWallet = statementSummary.statementType === "e_wallet";
+  const statementHistoryPeriod = formatStatementHistoryPeriod(
+    statementSummary.transactionHistoryStartDate,
+    statementSummary.statementDate,
+  );
   return (
     <div className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-screen-2xl flex-col gap-6 px-4 py-6 sm:px-6 lg:min-h-screen lg:px-9 lg:py-7">
       <header className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
@@ -255,18 +269,32 @@ function ReviewStatement({
               {statementSummary.provider}
             </p>
             <p className="mt-1 font-mono text-xs font-semibold uppercase wrap-anywhere">
-              {statementSummary.accountType} / ****
+              {isEWallet && `${formatStatementType(statementSummary.statementType)} · `}
+              {statementSummary.accountType}
+              {!isEWallet && " / ****"}
             </p>
             <p className="mt-1 font-mono text-xs font-semibold uppercase wrap-anywhere">
               File: {fileName}
             </p>
           </div>
           <div className="grid grid-cols-2 border-t border-foreground">
-            <MobileSummaryMetric label="Date" className="border-r border-b">
-              {formatDate(statementSummary.statementDate)}
+            <MobileSummaryMetric
+              label={isEWallet ? "Transaction History Period" : "Date"}
+              className="border-r border-b"
+            >
+              {isEWallet
+                ? statementHistoryPeriod
+                : formatDate(statementSummary.statementDate)}
             </MobileSummaryMetric>
-            <MobileSummaryMetric label="Amount" className="border-b">
-              {formatMoney(statementSummary.totalAmountDue)}
+            <MobileSummaryMetric
+              label={isEWallet ? "Total Debit" : "Amount"}
+              className="border-b"
+            >
+              {formatMoney(
+                isEWallet
+                  ? (statementSummary.totalDebit ?? 0)
+                  : statementSummary.totalAmountDue,
+              )}
             </MobileSummaryMetric>
             <MobileSummaryMetric
               label="Transactions included"
@@ -299,16 +327,25 @@ function ReviewStatement({
                 {statementSummary.provider}
               </p>
               <p className="truncate font-mono text-xs font-semibold uppercase">
+                {isEWallet && `${formatStatementType(statementSummary.statementType)} · `}
                 {statementSummary.accountType} · {fileName}
               </p>
             </div>
           </div>
 
-          <ReviewMetric label="Statement date">
-            {formatDate(statementSummary.statementDate)}
+          <ReviewMetric
+            label={isEWallet ? "Transaction History Period" : "Statement date"}
+          >
+            {isEWallet
+              ? statementHistoryPeriod
+              : formatDate(statementSummary.statementDate)}
           </ReviewMetric>
-          <ReviewMetric label="Statement Amount" emphasized>
-            {formatMoney(statementSummary.totalAmountDue)}
+          <ReviewMetric label={isEWallet ? "Total Debit" : "Statement Amount"} emphasized>
+            {formatMoney(
+              isEWallet
+                ? (statementSummary.totalDebit ?? 0)
+                : statementSummary.totalAmountDue,
+            )}
           </ReviewMetric>
           <ReviewMetric label="Transactions included">
             {includedTransactions.length}
@@ -383,7 +420,7 @@ function ReviewStatement({
 
             <div className="grid border-b sm:grid-cols-2 lg:grid-cols-4">
               <CompactMetric
-                label="Total debits"
+                label={isEWallet ? "Included debits" : "Total debits"}
                 value={formatMoney(debitTotal)}
               />
               <CompactMetric
@@ -399,8 +436,12 @@ function ReviewStatement({
                 }
               />
               <CompactMetric
-                label="Period"
-                value={formatPeriod(includedTransactions)}
+                label={isEWallet ? "Transaction History Period" : "Period"}
+                value={
+                  isEWallet
+                    ? statementHistoryPeriod
+                    : formatPeriod(includedTransactions)
+                }
               />
             </div>
 

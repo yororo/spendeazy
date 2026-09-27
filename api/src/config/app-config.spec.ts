@@ -20,6 +20,7 @@ describe('loadAppConfig', () => {
       CLERK_AUTHORIZED_PARTIES:
         'https://app.example.com/, https://admin.example.com',
       INVITATION_CODE_ENCRYPTION_KEY: '0123456789abcdef'.repeat(4),
+      GCASH_REFERENCE_HASH_KEY: 'abcdef0123456789'.repeat(4),
     });
 
     expect(config).toEqual({
@@ -35,6 +36,7 @@ describe('loadAppConfig', () => {
         'https://admin.example.com',
       ],
       invitationCodeEncryptionKey: '0123456789abcdef'.repeat(4),
+      gcashReferenceHashKey: 'abcdef0123456789'.repeat(4),
     });
   });
 
@@ -131,6 +133,7 @@ describe('loadAppConfig', () => {
     'CLERK_SECRET_KEY',
     'CLERK_AUTHORIZED_PARTIES',
     'INVITATION_CODE_ENCRYPTION_KEY',
+    'GCASH_REFERENCE_HASH_KEY',
   ])('rejects production startup when %s is missing', (missingVariable) => {
     const environment = {
       NODE_ENV: 'production',
@@ -141,6 +144,7 @@ describe('loadAppConfig', () => {
       CLERK_SECRET_KEY: 'sk_test_secret',
       CLERK_AUTHORIZED_PARTIES: 'https://app.example.com',
       INVITATION_CODE_ENCRYPTION_KEY: '0123456789abcdef'.repeat(4),
+      GCASH_REFERENCE_HASH_KEY: 'abcdef0123456789'.repeat(4),
     };
     delete environment[missingVariable as keyof typeof environment];
 

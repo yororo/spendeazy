@@ -59,6 +59,7 @@ import {
 import { formatMoney } from "@/shared/money";
 
 import { ImportProgress } from "./import-progress";
+import { formatStatementType } from "./statement-type";
 import {
   type CategoryCatalogOption,
   type CategoryColorOption,
@@ -116,6 +117,14 @@ const dateFormatter = new Intl.DateTimeFormat("en-US", {
 
 function formatDate(value: Date) {
   return dateFormatter.format(value);
+}
+
+function formatStatementHistoryPeriod(
+  startDate: Date | null,
+  endDate: Date,
+) {
+  if (!startDate) return formatDate(endDate);
+  return `${formatDate(startDate)} – ${formatDate(endDate)}`;
 }
 
 function CategorizeStatement({
@@ -198,6 +207,11 @@ function CategorizeStatement({
     (transaction) => transaction.assignment === "ambiguous",
   ).length;
   const excludedCount = transactions.length - includedTransactions.length;
+  const isEWallet = statementSummary.statementType === "e_wallet";
+  const statementHistoryPeriod = formatStatementHistoryPeriod(
+    statementSummary.transactionHistoryStartDate,
+    statementSummary.statementDate,
+  );
 
   const visibleTransactions = useMemo(() => {
     const normalizedSearch = normalizeDescription(search);
@@ -312,15 +326,24 @@ function CategorizeStatement({
               {statementSummary.provider}
             </p>
             <p className="mt-1 font-mono text-xs font-semibold uppercase wrap-anywhere">
+              {isEWallet && `${formatStatementType(statementSummary.statementType)} · `}
               {statementSummary.accountType} · {fileName}
             </p>
           </div>
           <div className="grid grid-cols-3 border-t border-foreground">
-            <MobileSummaryMetric label="Date">
-              {formatDate(statementSummary.statementDate)}
+            <MobileSummaryMetric
+              label={isEWallet ? "Transaction History Period" : "Date"}
+            >
+              {isEWallet
+                ? statementHistoryPeriod
+                : formatDate(statementSummary.statementDate)}
             </MobileSummaryMetric>
-            <MobileSummaryMetric label="Amount">
-              {formatMoney(statementSummary.totalAmountDue)}
+            <MobileSummaryMetric label={isEWallet ? "Total Debit" : "Amount"}>
+              {formatMoney(
+                isEWallet
+                  ? (statementSummary.totalDebit ?? 0)
+                  : statementSummary.totalAmountDue,
+              )}
             </MobileSummaryMetric>
             <MobileSummaryMetric label="Rows">
               {transactions.length}
@@ -341,17 +364,26 @@ function CategorizeStatement({
               <p className="mt-1 truncate text-base font-bold">
                 {statementSummary.provider}
               </p>
-              <p className="truncate font-mono text-xs font-semibold uppercase">
-                {statementSummary.accountType} · {fileName}
-              </p>
+            <p className="truncate font-mono text-xs font-semibold uppercase">
+              {isEWallet && `${formatStatementType(statementSummary.statementType)} · `}
+              {statementSummary.accountType} · {fileName}
+            </p>
             </div>
           </div>
 
-          <SummaryMetric label="Statement date">
-            {formatDate(statementSummary.statementDate)}
+          <SummaryMetric
+            label={isEWallet ? "Transaction History Period" : "Statement date"}
+          >
+            {isEWallet
+              ? statementHistoryPeriod
+              : formatDate(statementSummary.statementDate)}
           </SummaryMetric>
-          <SummaryMetric label="Statement Amount" emphasized>
-            {formatMoney(statementSummary.totalAmountDue)}
+          <SummaryMetric label={isEWallet ? "Total Debit" : "Statement Amount"} emphasized>
+            {formatMoney(
+              isEWallet
+                ? (statementSummary.totalDebit ?? 0)
+                : statementSummary.totalAmountDue,
+            )}
           </SummaryMetric>
           <SummaryMetric label="Transactions parsed">
             {transactions.length}

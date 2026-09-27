@@ -35,6 +35,7 @@ export interface AppConfig {
   clerkSecretKey: string | undefined;
   clerkAuthorizedParties: string[];
   invitationCodeEncryptionKey?: string;
+  gcashReferenceHashKey?: string;
 }
 
 export function loadAppConfig(
@@ -52,6 +53,9 @@ export function loadAppConfig(
   const invitationCodeEncryptionKey = readInvitationCodeEncryptionKey(
     processEnv.INVITATION_CODE_ENCRYPTION_KEY,
   );
+  const gcashReferenceHashKey = readGcashReferenceHashKey(
+    processEnv.GCASH_REFERENCE_HASH_KEY,
+  );
 
   if (currentEnvironment === PRODUCTION_ENVIRONMENT) {
     requireProductionValue('DATABASE_URL', databaseUrl);
@@ -66,11 +70,18 @@ export function loadAppConfig(
       'INVITATION_CODE_ENCRYPTION_KEY',
       invitationCodeEncryptionKey,
     );
+    requireProductionValue('GCASH_REFERENCE_HASH_KEY', gcashReferenceHashKey);
   }
 
   if (databaseUrl && !invitationCodeEncryptionKey) {
     throw new Error(
       'Missing required configuration for database-backed features: INVITATION_CODE_ENCRYPTION_KEY',
+    );
+  }
+
+  if (databaseUrl && !gcashReferenceHashKey) {
+    throw new Error(
+      'Missing required configuration for database-backed features: GCASH_REFERENCE_HASH_KEY',
     );
   }
 
@@ -83,6 +94,7 @@ export function loadAppConfig(
     clerkSecretKey,
     clerkAuthorizedParties,
     ...(invitationCodeEncryptionKey ? { invitationCodeEncryptionKey } : {}),
+    ...(gcashReferenceHashKey ? { gcashReferenceHashKey } : {}),
   };
 }
 
@@ -158,6 +170,20 @@ function readInvitationCodeEncryptionKey(
   if (!/^[0-9a-f]{64}$/iu.test(key)) {
     throw new Error(
       'INVITATION_CODE_ENCRYPTION_KEY must be a 32-byte hexadecimal key',
+    );
+  }
+
+  return key.toLowerCase();
+}
+
+function readGcashReferenceHashKey(
+  value: string | undefined,
+): string | undefined {
+  const key = value?.trim();
+  if (!key) return undefined;
+  if (!/^[0-9a-f]{64}$/iu.test(key)) {
+    throw new Error(
+      'GCASH_REFERENCE_HASH_KEY must be a 32-byte hexadecimal key',
     );
   }
 

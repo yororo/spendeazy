@@ -136,6 +136,9 @@ export class TypeOrmStatementImportStore implements StatementImportStore {
         statementDate: input.statementDate,
         bank: input.bank,
         cardType: input.cardType,
+        statementType: input.statementType,
+        transactionHistoryStartDate: input.transactionHistoryStartDate,
+        totalDebit: input.totalDebit,
         importedAt: input.importedAt,
       });
 
@@ -165,6 +168,9 @@ function toRecord(entity: StatementImportEntity): StatementImportRecord {
     statementDate: entity.statementDate,
     bank: entity.bank,
     cardType: entity.cardType,
+    statementType: entity.statementType,
+    transactionHistoryStartDate: entity.transactionHistoryStartDate,
+    totalDebit: entity.totalDebit,
     importedAt: entity.importedAt,
   };
 }
@@ -181,6 +187,9 @@ function toHistoryRecord(
     statementDate: entity.statementDate,
     bank: entity.bank,
     cardType: entity.cardType,
+    statementType: entity.statementType,
+    transactionHistoryStartDate: entity.transactionHistoryStartDate,
+    totalDebit: entity.totalDebit,
     importedAt: entity.importedAt,
     transactionCount: serializeTransactionCount(transactionCount),
   };

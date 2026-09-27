@@ -46,6 +46,25 @@ export class StatementImportEntity {
   @Column({ type: 'varchar', length: 100, nullable: true, name: 'card_type' })
   cardType!: string | null;
 
+  @Column({ type: 'varchar', length: 30, name: 'statement_type' })
+  statementType!: 'credit_card' | 'e_wallet';
+
+  @Column({
+    type: 'date',
+    nullable: true,
+    name: 'transaction_history_start_date',
+  })
+  transactionHistoryStartDate!: string | null;
+
+  @Column({
+    type: 'numeric',
+    precision: 15,
+    scale: 2,
+    nullable: true,
+    name: 'total_debit',
+  })
+  totalDebit!: string | null;
+
   @CreateDateColumn({ type: 'timestamptz', precision: 3, name: 'imported_at' })
   importedAt!: Date;
 }

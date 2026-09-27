@@ -121,6 +121,168 @@ describe('StatementImportsService', () => {
     ).toBe(true);
   });
 
+  it('commits E-Wallet controls and hashes GCash references without persisting raw values', async () => {
+    const statementImports = new StatementImportStoreFake();
+    const importedTransactions = new ImportedTransactionStoreFake();
+    const unitOfWork = new UnitOfWorkFake({
+      users: userStore(),
+      statementImports,
+      importedTransactions,
+      categories: new TransactionCategoryStoreFake([
+        categoryRecord({ id: '42' }),
+      ]),
+      transactionActivities: new TransactionActivityStoreFake(),
+    });
+    const referenceHasher = {
+      hash: jest.fn(
+        ({
+          spaceId,
+          provider,
+          reference,
+        }: {
+          spaceId: string;
+          provider: string;
+          reference: string;
+        }) => `digest:${spaceId}:${provider}:${reference}`,
+      ),
+    };
+    const service = new StatementImportsService(
+      statementImports,
+      unitOfWork,
+      referenceHasher,
+    );
+
+    await service.commitReviewedStatementImportInSpace('7', '7', {
+      ...statementInput(),
+      statementType: 'e_wallet',
+      bank: 'GCash',
+      cardType: 'E-Wallet',
+      transactionHistoryStartDate: '2026-08-09',
+      totalDebit: '26696.92',
+      transactions: [
+        { ...statementInput().transactions[0], reference: '123456789' },
+      ],
+    });
+
+    expect(statementImports.createdInput).toMatchObject({
+      statementType: 'e_wallet',
+      transactionHistoryStartDate: '2026-08-09',
+      totalDebit: '26696.92',
+    });
+    expect(importedTransactions.createdInputs[0]).toMatchObject({
+      referenceHash: 'digest:7:GCash:123456789',
+    });
+    expect(importedTransactions.createdInputs[0]).not.toHaveProperty(
+      'reference',
+    );
+    expect(referenceHasher.hash).toHaveBeenCalledWith({
+      spaceId: '7',
+      provider: 'GCash',
+      reference: '123456789',
+    });
+  });
+
+  it('uses the Space-scoped GCash reference hash for duplicate review', async () => {
+    const duplicateReferenceHash = 'digest:7:GCash:123456789';
+    const statementImports = new StatementImportStoreFake();
+    const importedTransactions = new ImportedTransactionStoreFake(
+      new Map(),
+      new Map([
+        [
+          duplicateReferenceHash,
+          [
+            importedTransactionRecord({
+              id: '99',
+              spaceId: '7',
+              referenceHash: duplicateReferenceHash,
+              description: 'Different visible description',
+              amount: '999.99',
+            }),
+          ],
+        ],
+      ]),
+    );
+    const unitOfWork = new UnitOfWorkFake({
+      users: userStore(),
+      statementImports,
+      importedTransactions,
+      categories: new TransactionCategoryStoreFake([
+        categoryRecord({ id: '42' }),
+      ]),
+      transactionActivities: new TransactionActivityStoreFake(),
+    });
+    const service = new StatementImportsService(statementImports, unitOfWork, {
+      hash: () => duplicateReferenceHash,
+    });
+
+    await expect(
+      service.commitReviewedStatementImportInSpace('7', '7', {
+        ...statementInput(),
+        statementType: 'e_wallet',
+        bank: 'GCash',
+        cardType: 'E-Wallet',
+        transactionHistoryStartDate: '2026-08-09',
+        totalDebit: '1.00',
+        transactions: [
+          {
+            ...statementInput().transactions[0],
+            description: 'Visible values differ',
+            amount: '1.00',
+            reference: '123456789',
+          },
+        ],
+      }),
+    ).rejects.toMatchObject({
+      code: STATEMENT_IMPORT_PROBABLE_DUPLICATES_CODE,
+      details: [
+        expect.objectContaining({
+          transactionIndexes: [0],
+          committedTransactionIds: ['99'],
+        }),
+      ],
+    });
+
+    expect(importedTransactions.spaceReferenceQueries).toEqual([
+      { spaceId: '7', referenceHash: duplicateReferenceHash },
+    ]);
+    expect(importedTransactions.createdInputs).toEqual([]);
+  });
+
+  it('does not treat distinct GCash references as duplicates when visible values match', async () => {
+    const statementImports = new StatementImportStoreFake();
+    const importedTransactions = new ImportedTransactionStoreFake();
+    const unitOfWork = new UnitOfWorkFake({
+      users: userStore(),
+      statementImports,
+      importedTransactions,
+      categories: new TransactionCategoryStoreFake([
+        categoryRecord({ id: '42' }),
+      ]),
+      transactionActivities: new TransactionActivityStoreFake(),
+    });
+    const service = new StatementImportsService(statementImports, unitOfWork, {
+      hash: ({ reference }: { reference: string }) => `digest:${reference}`,
+    });
+    const visibleTransaction = statementInput().transactions[0];
+
+    await expect(
+      service.commitReviewedStatementImportInSpace('7', '7', {
+        ...statementInput(),
+        statementType: 'e_wallet',
+        bank: 'GCash',
+        cardType: 'E-Wallet',
+        transactionHistoryStartDate: '2026-08-09',
+        totalDebit: '9.00',
+        transactions: [
+          { ...visibleTransaction, reference: 'reference-a' },
+          { ...visibleTransaction, reference: 'reference-b' },
+        ],
+      }),
+    ).resolves.toBeDefined();
+
+    expect(importedTransactions.createdInputs).toHaveLength(2);
+  });
+
   it('commits a reviewed import into the destination Space with importer attribution', async () => {
     const statementImports = new StatementImportStoreFake();
     const importedTransactions = new ImportedTransactionStoreFake();
@@ -623,6 +785,9 @@ class StatementImportStoreFake implements StatementImportStore {
       statementDate: input.statementDate,
       bank: input.bank,
       cardType: input.cardType,
+      statementType: input.statementType,
+      transactionHistoryStartDate: input.transactionHistoryStartDate,
+      totalDebit: input.totalDebit,
       importedAt: input.importedAt,
     });
     return Promise.resolve(this.createdImport);
@@ -644,10 +809,18 @@ class ImportedTransactionStoreFake implements SpaceImportedTransactionStore {
   readonly createdInputs: NewImportedTransaction[] = [];
   readonly spaceFingerprintQueries: { spaceId: string; fingerprint: string }[] =
     [];
+  readonly spaceReferenceQueries: {
+    spaceId: string;
+    referenceHash: string;
+  }[] = [];
   failOnCreateNumber: number | undefined;
 
   constructor(
     private readonly matchesByFingerprint: ReadonlyMap<
+      string,
+      ImportedTransactionRecord[]
+    > = new Map(),
+    private readonly matchesByReference: ReadonlyMap<
       string,
       ImportedTransactionRecord[]
     > = new Map(),
@@ -663,6 +836,18 @@ class ImportedTransactionStoreFake implements SpaceImportedTransactionStore {
   ): Promise<ImportedTransactionRecord[]> {
     this.spaceFingerprintQueries.push({ spaceId, fingerprint });
     return Promise.resolve(this.matchesByFingerprint.get(fingerprint) ?? []);
+  }
+
+  findByReferenceHashInSpace(
+    spaceId: string,
+    referenceHash: string,
+  ): Promise<ImportedTransactionRecord[]> {
+    this.spaceReferenceQueries.push({ spaceId, referenceHash });
+    return Promise.resolve(
+      (this.matchesByReference.get(referenceHash) ?? []).filter(
+        (transaction) => transaction.spaceId === spaceId,
+      ),
+    );
   }
 
   create(input: NewImportedTransaction): Promise<ImportedTransactionRecord> {
@@ -725,6 +910,7 @@ function statementInput() {
     fileName: 'august.pdf',
     fileHash: validFileHash(),
     statementDate: '2026-08-31',
+    statementType: 'credit_card',
     bank: 'Example Bank',
     cardType: 'visa',
     transactions: [
@@ -814,6 +1000,9 @@ function statementRecord(
     statementDate: '2026-08-31',
     bank: 'Example Bank',
     cardType: 'visa',
+    statementType: 'credit_card',
+    transactionHistoryStartDate: null,
+    totalDebit: null,
     importedAt: new Date('2026-08-29T00:00:00.000Z'),
     ...overrides,
   };
@@ -830,6 +1019,9 @@ function statementImportHistoryRecord(
     statementDate: '2026-08-01',
     bank: 'Example Bank',
     cardType: 'visa',
+    statementType: 'credit_card',
+    transactionHistoryStartDate: null,
+    totalDebit: null,
     importedAt: new Date('2026-08-29T00:00:00.000Z'),
     transactionCount: '2',
     ...overrides,

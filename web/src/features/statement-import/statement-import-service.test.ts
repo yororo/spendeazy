@@ -51,9 +51,12 @@ function createRule(overrides: Partial<CategoryRule> = {}): CategoryRule {
 
 function createSummary(): StatementSummary {
   return {
+    statementType: "credit_card",
     statementDate: new Date("2026-08-31T00:00:00.000Z"),
     provider: "BDO",
     accountType: "AMEX",
+    transactionHistoryStartDate: null,
+    totalDebit: null,
     totalTransactions: 3,
     totalAmountDue: 100,
     totalExtractedAmount: 90,
@@ -595,6 +598,9 @@ describe("Statement Import categorization", () => {
           statementDate: "2026-08-31",
           bank: "BDO",
           cardType: "AMEX",
+          statementType: "credit_card",
+          transactionHistoryStartDate: null,
+          totalDebit: null,
           importedAt: "2026-09-01T00:00:00.000Z",
           importedByUserId: "7",
           transactionCount: "12",
@@ -612,6 +618,9 @@ describe("Statement Import categorization", () => {
         statementDate: "AUG 31",
         provider: "BDO",
         accountType: "AMEX",
+        statementType: "credit_card",
+        transactionHistoryStartDate: null,
+        totalDebit: null,
         importedByUserId: "7",
       },
     ]);
@@ -644,6 +653,40 @@ describe("Statement Import categorization", () => {
 
     await expect(
       getRecentCommittedStatementImports({ get } as unknown as StatementImportApiClient),
+    ).rejects.toMatchObject({ kind: "data" });
+  });
+
+  it.each([
+    { statementDate: "2026-02-30" },
+    { transactionHistoryStartDate: "2026-02-30" },
+    { totalDebit: "12345678901234.00" },
+    { totalDebit: "1.2" },
+    { importedAt: "2026-09-01" },
+  ])("rejects malformed Statement Import control fields", async (override) => {
+    const get = vi.fn(async () => ({
+      items: [
+        {
+          id: "100",
+          fileName: "august.pdf",
+          statementDate: "2026-08-31",
+          bank: "GCash",
+          cardType: "E-Wallet",
+          statementType: "e_wallet",
+          transactionHistoryStartDate: "2026-08-01",
+          totalDebit: "26696.92",
+          importedAt: "2026-09-01T00:00:00.000Z",
+          importedByUserId: "7",
+          transactionCount: "12",
+          ...override,
+        },
+      ],
+      nextCursor: null,
+    }));
+
+    await expect(
+      getRecentCommittedStatementImports(
+        { get } as unknown as StatementImportApiClient,
+      ),
     ).rejects.toMatchObject({ kind: "data" });
   });
 });
@@ -702,6 +745,9 @@ describe("Statement Import commit", () => {
       statementDate: "2026-08-31",
       bank: "BDO",
       cardType: "AMEX",
+      statementType: "credit_card",
+      transactionHistoryStartDate: null,
+      totalDebit: null,
       transactions: [
         {
           categoryId: "42",
@@ -721,6 +767,9 @@ describe("Statement Import commit", () => {
           statementDate: new Date("2026-08-31T00:00:00.000Z"),
           provider: "GCash",
           accountType: "E-Wallet",
+          statementType: "e_wallet",
+          transactionHistoryStartDate: new Date("2026-08-01T00:00:00.000Z"),
+          totalDebit: 4025,
           totalTransactions: 2,
           totalAmountDue: 4025,
           totalExtractedAmount: -4025,
@@ -823,6 +872,9 @@ describe("Statement Import commit", () => {
         statementDate: "2026-08-31",
         bank: "BDO",
         cardType: "AMEX",
+        statementType: "credit_card",
+        transactionHistoryStartDate: null,
+        totalDebit: null,
         importedAt: "2026-09-01T00:00:00.000Z",
         importedByUserId: "7",
       };
@@ -864,6 +916,9 @@ describe("Statement Import commit", () => {
       statementDate: "2026-08-31",
       bank: "BDO",
       cardType: "AMEX",
+      statementType: "credit_card",
+      transactionHistoryStartDate: null,
+      totalDebit: null,
       importedAt: "2026-09-01T00:00:00.000Z",
       importedByUserId: "7",
     }));

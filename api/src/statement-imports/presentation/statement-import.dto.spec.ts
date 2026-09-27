@@ -31,6 +31,7 @@ describe('statement import DTOs', () => {
       fileName: '  august.pdf  ',
       fileHash: 'a'.repeat(64),
       statementDate: '2026-08-31',
+      statementType: 'credit_card',
       bank: '  Example Bank  ',
       cardType: '  visa  ',
       transactions: [
@@ -60,6 +61,7 @@ describe('statement import DTOs', () => {
         fileName: 'august.pdf',
         fileHash: 'a'.repeat(64),
         statementDate: '2026-08-31',
+        statementType: 'credit_card',
         bank: 'Example Bank',
         transactions: [
           {
@@ -80,6 +82,7 @@ describe('statement import DTOs', () => {
       fileName: 'august.pdf',
       fileHash: 'a'.repeat(64),
       statementDate: '2026-08-31',
+      statementType: 'credit_card',
       bank: 'Example Bank',
       transactions: [],
       acknowledgeProbableDuplicates: true,
@@ -92,12 +95,37 @@ describe('statement import DTOs', () => {
       fileName: 'august.pdf',
       fileHash: 'a'.repeat(64),
       statementDate: '2026-08-31',
+      statementType: 'credit_card',
       bank: 'Example Bank',
       transactions: [],
       acknowledgeProbableDuplicates: 'true',
     });
 
     await expect(validate(invalidInput)).resolves.not.toEqual([]);
+  });
+
+  it('accepts E-Wallet controls and a source reference', async () => {
+    const input = plainToInstance(CommitReviewedStatementImportDto, {
+      fileName: 'wallet-export.pdf',
+      fileHash: 'a'.repeat(64),
+      statementDate: '2026-08-31',
+      statementType: 'e_wallet',
+      bank: 'GCash',
+      cardType: 'E-Wallet',
+      transactionHistoryStartDate: '2026-08-09',
+      totalDebit: '26696.92',
+      transactions: [
+        {
+          purchaseDate: '2026-08-09',
+          description: 'Payment to Cafe',
+          amount: '10.00',
+          reference: ' 123456789 ',
+        },
+      ],
+    });
+
+    await expect(validate(input)).resolves.toEqual([]);
+    expect(input.transactions[0].reference).toBe('123456789');
   });
 
   it('accepts bounded statement-import history filters and transforms page size', async () => {

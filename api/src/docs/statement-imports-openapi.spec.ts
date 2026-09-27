@@ -109,6 +109,9 @@ describe('Statement import OpenAPI contract', () => {
         'statementDate',
         'bank',
         'cardType',
+        'statementType',
+        'transactionHistoryStartDate',
+        'totalDebit',
         'importedAt',
         'importedByUserId',
       ],
@@ -253,7 +256,14 @@ function expectCommitRequestSchema(document: OpenAPIObject): void {
   expect(commitSchema).toMatchObject({
     type: 'object',
     additionalProperties: false,
-    required: ['fileName', 'fileHash', 'statementDate', 'bank', 'transactions'],
+    required: [
+      'fileName',
+      'fileHash',
+      'statementDate',
+      'statementType',
+      'bank',
+      'transactions',
+    ],
     properties: {
       fileName: {
         type: 'string',
@@ -270,6 +280,10 @@ function expectCommitRequestSchema(document: OpenAPIObject): void {
         format: 'date',
         pattern: '^\\d{4}-\\d{2}-\\d{2}$',
       },
+      statementType: {
+        type: 'string',
+        enum: ['credit_card', 'e_wallet'],
+      },
       bank: {
         type: 'string',
         minLength: 1,
@@ -281,6 +295,17 @@ function expectCommitRequestSchema(document: OpenAPIObject): void {
         minLength: 1,
         maxLength: 100,
         pattern: '\\S',
+        nullable: true,
+      },
+      transactionHistoryStartDate: {
+        type: 'string',
+        format: 'date',
+        pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+        nullable: true,
+      },
+      totalDebit: {
+        type: 'string',
+        pattern: '^\\d{1,13}\\.\\d{2}$',
         nullable: true,
       },
       transactions: {
@@ -327,6 +352,13 @@ function expectCommitRequestSchema(document: OpenAPIObject): void {
         pattern: '^(?:0(?:\\.\\d{1,4})?|1(?:\\.0{1,4})?)$',
         nullable: true,
       },
+      reference: {
+        type: 'string',
+        minLength: 1,
+        maxLength: 100,
+        pattern: '\\S',
+        nullable: true,
+      },
     },
   });
 }
@@ -342,6 +374,9 @@ function expectResponseSchemas(document: OpenAPIObject): void {
       'statementDate',
       'bank',
       'cardType',
+      'statementType',
+      'transactionHistoryStartDate',
+      'totalDebit',
       'importedAt',
       'importedByUserId',
     ],
@@ -365,6 +400,18 @@ function expectResponseSchemas(document: OpenAPIObject): void {
         pattern: '\\S',
       },
       cardType: { type: 'string', nullable: true },
+      statementType: { type: 'string', enum: ['credit_card', 'e_wallet'] },
+      transactionHistoryStartDate: {
+        type: 'string',
+        format: 'date',
+        pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+        nullable: true,
+      },
+      totalDebit: {
+        type: 'string',
+        pattern: '^\\d{1,13}\\.\\d{2}$',
+        nullable: true,
+      },
       importedAt: { type: 'string', format: 'date-time' },
       importedByUserId: {
         type: 'string',
@@ -384,6 +431,9 @@ function expectResponseSchemas(document: OpenAPIObject): void {
       'statementDate',
       'bank',
       'cardType',
+      'statementType',
+      'transactionHistoryStartDate',
+      'totalDebit',
       'importedAt',
       'importedByUserId',
       'transactionCount',

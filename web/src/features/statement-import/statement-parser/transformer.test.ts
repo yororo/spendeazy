@@ -17,9 +17,12 @@ import {
 
 const transformedStatement: Statement = {
   summary: {
+    statementType: "credit_card",
     statementDate: new Date("2026-06-18T00:00:00.000Z"),
     provider: "Test Provider",
     accountType: "Test Account",
+    transactionHistoryStartDate: null,
+    totalDebit: null,
     totalTransactions: 1,
     totalAmountDue: 1,
     totalExtractedAmount: 1,

@@ -942,13 +942,25 @@ const REQUEST_SCHEMA_SHAPES = {
   },
   ReviewedStatementTransactionDto: {
     required: ['purchaseDate', 'description', 'amount'],
-    optional: ['categoryId', 'categoryMatchConfidence'],
-    nullable: ['categoryId', 'categoryMatchConfidence'],
+    optional: ['categoryId', 'categoryMatchConfidence', 'reference'],
+    nullable: ['categoryId', 'categoryMatchConfidence', 'reference'],
   },
   CommitReviewedStatementImportDto: {
-    required: ['fileName', 'fileHash', 'statementDate', 'bank', 'transactions'],
-    optional: ['cardType', 'acknowledgeProbableDuplicates'],
-    nullable: ['cardType'],
+    required: [
+      'fileName',
+      'fileHash',
+      'statementDate',
+      'statementType',
+      'bank',
+      'transactions',
+    ],
+    optional: [
+      'cardType',
+      'transactionHistoryStartDate',
+      'totalDebit',
+      'acknowledgeProbableDuplicates',
+    ],
+    nullable: ['cardType', 'transactionHistoryStartDate', 'totalDebit'],
   },
 } as const;
 
@@ -1086,6 +1098,13 @@ const REQUEST_PROPERTY_ASSERTIONS: Readonly<
       pattern: '^(?:0(?:\\.\\d{1,4})?|1(?:\\.0{1,4})?)$',
       nullable: true,
     },
+    reference: {
+      type: 'string',
+      minLength: 1,
+      maxLength: 100,
+      pattern: '\\S',
+      nullable: true,
+    },
   },
   CommitReviewedStatementImportDto: {
     fileName: { type: 'string', minLength: 1, maxLength: 255, pattern: '\\S' },
@@ -1095,12 +1114,24 @@ const REQUEST_PROPERTY_ASSERTIONS: Readonly<
       format: 'date',
       pattern: '^\\d{4}-\\d{2}-\\d{2}$',
     },
+    statementType: { type: 'string', enum: ['credit_card', 'e_wallet'] },
     bank: { type: 'string', minLength: 1, maxLength: 100, pattern: '\\S' },
     cardType: {
       type: 'string',
       minLength: 1,
       maxLength: 100,
       pattern: '\\S',
+      nullable: true,
+    },
+    transactionHistoryStartDate: {
+      type: 'string',
+      format: 'date',
+      pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+      nullable: true,
+    },
+    totalDebit: {
+      type: 'string',
+      pattern: '^\\d{1,13}\\.\\d{2}$',
       nullable: true,
     },
     transactions: {

@@ -26,9 +26,12 @@ import type {
 } from "./statement-categorizer";
 
 const summary: CategorizedStatement["summary"] = {
+  statementType: "credit_card",
   statementDate: new Date("2026-08-31T00:00:00.000Z"),
   provider: "BDO",
   accountType: "AMEX",
+  transactionHistoryStartDate: null,
+  totalDebit: null,
   totalTransactions: 1,
   totalAmountDue: 25.5,
   totalExtractedAmount: -25.5,
@@ -89,6 +92,9 @@ function CategorizeHarness({
       statementDate: "2026-08-31",
       provider: "BDO",
       accountType: "AMEX",
+      statementType: "credit_card",
+      transactionHistoryStartDate: null,
+      totalDebit: null,
       importedAt: "2026-09-01T00:00:00.000Z",
       transactionCount: 1,
       importedByUserId: "10",

@@ -22,7 +22,7 @@ export type StatementImportConfirmationStore = Pick<
 
 export type StatementImportConfirmationTransactionStore = Pick<
   SpaceImportedTransactionStore,
-  'findByFingerprintInSpace' | 'create'
+  'findByFingerprintInSpace' | 'findByReferenceHashInSpace' | 'create'
 >;
 
 export type StatementImportConfirmationActivityStore = Pick<

@@ -135,6 +135,9 @@ describe('authenticated statement-import routes', () => {
       statementDate: '2026-08-31',
       bank: 'Example Bank',
       cardType: 'visa',
+      statementType: 'credit_card',
+      transactionHistoryStartDate: null,
+      totalDebit: null,
       importedAt: '2026-08-29T00:00:00.000Z',
     });
     expect(JSON.stringify(commitResponse.body)).not.toContain(
@@ -928,6 +931,19 @@ class HttpImportedTransactionStore implements SpaceImportedTransactionStore {
     );
   }
 
+  findByReferenceHashInSpace(
+    spaceId: string,
+    referenceHash: string,
+  ): Promise<ImportedTransactionRecord[]> {
+    return Promise.resolve(
+      this.transactions.filter(
+        (transaction) =>
+          transaction.spaceId === spaceId &&
+          transaction.referenceHash === referenceHash,
+      ),
+    );
+  }
+
   create(input: NewImportedTransaction): Promise<ImportedTransactionRecord> {
     this.createdInputs.push(input);
     const record = importedTransactionRecord({
@@ -1016,6 +1032,7 @@ function statementImportInput() {
     fileName: 'august.pdf',
     fileHash: 'a'.repeat(64),
     statementDate: '2026-08-31',
+    statementType: 'credit_card',
     bank: 'Example Bank',
     cardType: 'visa',
     transactions: [
@@ -1042,6 +1059,9 @@ function statementImportRecord(
     statementDate: '2026-08-31',
     bank: 'Example Bank',
     cardType: 'visa',
+    statementType: 'credit_card',
+    transactionHistoryStartDate: null,
+    totalDebit: null,
     importedAt: new Date('2026-08-29T00:00:00.000Z'),
     ...overrides,
   };
@@ -1058,6 +1078,9 @@ function statementImportHistoryRecord(
     statementDate: '2026-08-31',
     bank: 'Example Bank',
     cardType: 'visa',
+    statementType: 'credit_card',
+    transactionHistoryStartDate: null,
+    totalDebit: null,
     importedAt: new Date('2026-08-29T00:00:00.000Z'),
     transactionCount: '1',
     ...overrides,
@@ -1096,6 +1119,9 @@ function toHistoryRecord(
     statementDate: statementImport.statementDate,
     bank: statementImport.bank,
     cardType: statementImport.cardType,
+    statementType: statementImport.statementType,
+    transactionHistoryStartDate: statementImport.transactionHistoryStartDate,
+    totalDebit: statementImport.totalDebit,
     importedAt: statementImport.importedAt,
     transactionCount: '0',
   };

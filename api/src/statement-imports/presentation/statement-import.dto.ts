@@ -9,6 +9,7 @@ import {
   IsArray,
   IsBoolean,
   IsInt,
+  IsIn,
   IsNotEmpty,
   IsString,
   Length,
@@ -32,6 +33,10 @@ import {
   DEFAULT_STATEMENT_IMPORT_PAGE_SIZE,
   MAX_STATEMENT_IMPORT_PAGE_SIZE,
 } from '../application/statement-imports.service';
+import {
+  STATEMENT_TYPES,
+  type StatementType,
+} from '../application/statement-type';
 
 type ApiSchemaOptionsWithAdditionalProperties = {
   name?: string;
@@ -204,6 +209,23 @@ export class ReviewedStatementTransactionDto {
     example: '0.9000',
   })
   categoryMatchConfidence?: string | null;
+
+  @ValidateIf((_, value) => value !== undefined && value !== null)
+  @IsString()
+  @IsNotEmpty()
+  @Length(1, 100)
+  @Transform(trimValue)
+  @ApiPropertyOptional({
+    description:
+      'Optional source reference used for GCash duplicate review. It is hashed before persistence and is never returned.',
+    type: String,
+    minLength: 1,
+    maxLength: 100,
+    pattern: '\\S',
+    nullable: true,
+    example: '123456789',
+  })
+  reference?: string | null;
 }
 
 @ApiSchema({
@@ -244,6 +266,15 @@ export class CommitReviewedStatementImportDto {
   statementDate!: string;
 
   @IsString()
+  @IsIn(STATEMENT_TYPES)
+  @ApiProperty({
+    description: 'Automatically classified Statement type.',
+    enum: STATEMENT_TYPES,
+    example: 'credit_card',
+  })
+  statementType!: StatementType;
+
+  @IsString()
   @IsNotEmpty()
   @Length(1, 100)
   @Transform(trimValue)
@@ -271,6 +302,33 @@ export class CommitReviewedStatementImportDto {
     example: 'visa',
   })
   cardType?: string | null;
+
+  @ValidateIf((_, value) => value !== undefined && value !== null)
+  @IsString()
+  @Validate(IsStatementImportDateConstraint)
+  @ApiPropertyOptional({
+    description:
+      'Inclusive Transaction History Period start for E-Wallet imports. The statementDate field remains the period end for ordering and filtering.',
+    type: String,
+    format: 'date',
+    pattern: DOMAIN_DATE_PATTERN.source,
+    nullable: true,
+    example: '2026-08-09',
+  })
+  transactionHistoryStartDate?: string | null;
+
+  @ValidateIf((_, value) => value !== undefined && value !== null)
+  @IsString()
+  @Matches(/^\d{1,13}\.\d{2}$/u)
+  @ApiPropertyOptional({
+    description:
+      'Original non-negative Total Debit control for E-Wallet imports, encoded as an exact two-decimal string.',
+    type: String,
+    pattern: '^\\d{1,13}\\.\\d{2}$',
+    nullable: true,
+    example: '26696.92',
+  })
+  totalDebit?: string | null;
 
   @IsArray()
   @ValidateNested({ each: true })

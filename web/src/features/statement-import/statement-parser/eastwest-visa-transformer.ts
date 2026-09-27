@@ -327,9 +327,12 @@ const eastwestVisaTransformer: StatementTransformer = {
 
     return {
       summary: {
+        statementType: "credit_card",
         statementDate: controls.statementDate,
         provider: "EastWest",
         accountType: "Visa",
+        transactionHistoryStartDate: null,
+        totalDebit: null,
         totalTransactions: activity.transactions.length,
         totalAmountDue: centsToMoney(controls.totalStatementBalanceCents),
         totalExtractedAmount: centsToMoney(activity.totalExtractedCents),

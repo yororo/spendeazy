@@ -1,3 +1,5 @@
+import type { StatementType } from './statement-type';
+
 export const STATEMENT_IMPORT_STORE = Symbol('STATEMENT_IMPORT_STORE');
 
 export interface StatementImportHistoryFilters {
@@ -26,6 +28,9 @@ export interface StatementImportRecord {
   statementDate: string;
   bank: string;
   cardType: string | null;
+  statementType: StatementType;
+  transactionHistoryStartDate: string | null;
+  totalDebit: string | null;
   importedAt: Date;
 }
 
@@ -44,6 +49,9 @@ export interface NewStatementImport {
   statementDate: string;
   bank: string;
   cardType: string | null;
+  statementType: StatementType;
+  transactionHistoryStartDate: string | null;
+  totalDebit: string | null;
   importedAt: Date;
 }
 

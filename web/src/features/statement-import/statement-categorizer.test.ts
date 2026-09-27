@@ -411,9 +411,12 @@ Total Statement Balance 200.00`;
     );
 
     expect(statement.summary).toMatchObject({
+      statementType: "e_wallet",
       statementDate: new Date("2026-09-07T00:00:00.000Z"),
       provider: "GCash",
       accountType: "E-Wallet",
+      transactionHistoryStartDate: new Date("2026-08-09T00:00:00.000Z"),
+      totalDebit: 26696.92,
       totalTransactions: 55,
       totalAmountDue: 26696.92,
       totalExtractedAmount: -25291.92,
@@ -437,7 +440,7 @@ Total Statement Balance 200.00`;
 
     expect(
       statement.transactions.every(({ description }) =>
-        / \[Ref\. #:\s+\d+\]$/u.test(description),
+        !/\[Ref\. #:/u.test(description),
       ),
     ).toBe(true);
     expect(statement.transactions).toEqual(
@@ -446,15 +449,17 @@ Total Statement Balance 200.00`;
           transactionDate: new Date("2026-08-15T00:00:00.000Z"),
           postingDate: new Date("2026-08-15T00:00:00.000Z"),
           description:
-            "Received GCash from GrabPay with account ending in 0272 and invno:20260815GPNEPHM2XXXB0000000516038 [Ref. #: 5043976930170]",
+            "Received GCash from GrabPay with account ending in 0272 and invno:20260815GPNEPHM2XXXB0000000516038",
           amount: 1020,
+          reference: "5043976930170",
           isExcluded: true,
         }),
         expect.objectContaining({
           transactionDate: new Date("2026-08-09T00:00:00.000Z"),
           postingDate: new Date("2026-08-09T00:00:00.000Z"),
-          description: "Transfer from 09112334455 to 09676769174 [Ref. #: 5043775892919]",
+          description: "Transfer from 09112334455 to 09676769174",
           amount: -4000,
+          reference: "5043775892919",
           isExcluded: false,
         }),
       ]),

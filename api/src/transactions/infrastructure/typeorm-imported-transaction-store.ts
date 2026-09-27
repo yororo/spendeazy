@@ -46,6 +46,21 @@ export class TypeOrmImportedTransactionStore implements SpaceImportedTransaction
     return entities.map(toRecord);
   }
 
+  async findByReferenceHashInSpace(
+    spaceId: string,
+    referenceHash: string,
+  ): Promise<ImportedTransactionRecord[]> {
+    const entities = await this.entityManager
+      .getRepository(TransactionEntity)
+      .find({
+        where: importedTransactionSpaceWhere(spaceId, {
+          referenceHash,
+        }),
+      });
+
+    return entities.map(toRecord);
+  }
+
   async create(
     input: NewImportedTransaction,
   ): Promise<ImportedTransactionRecord> {
@@ -59,6 +74,7 @@ export class TypeOrmImportedTransactionStore implements SpaceImportedTransaction
       amount: input.amount,
       categoryMatchConfidence: input.categoryMatchConfidence,
       importFingerprint: input.importFingerprint,
+      referenceHash: input.referenceHash ?? null,
       deletedAt: null,
     });
 
@@ -227,7 +243,7 @@ function importedTransactionSpaceWhere(
   spaceId: string,
   identifier: Pick<
     FindOptionsWhere<TransactionEntity>,
-    'id' | 'importFingerprint'
+    'id' | 'importFingerprint' | 'referenceHash'
   >,
 ): FindOptionsWhere<TransactionEntity> {
   return {
@@ -242,7 +258,7 @@ function importedTransactionHistoryWhere(
   spaceId: string,
   identifier: Pick<
     FindOptionsWhere<TransactionEntity>,
-    'id' | 'importFingerprint'
+    'id' | 'importFingerprint' | 'referenceHash'
   >,
 ): FindOptionsWhere<TransactionEntity> {
   return {
@@ -336,6 +352,7 @@ function toRecord(entity: TransactionEntity): ImportedTransactionRecord {
     amount: entity.amount,
     categoryMatchConfidence: entity.categoryMatchConfidence,
     importFingerprint: entity.importFingerprint as string,
+    referenceHash: entity.referenceHash,
     source: 'imported',
     createdAt: entity.createdAt,
     updatedAt: entity.updatedAt,

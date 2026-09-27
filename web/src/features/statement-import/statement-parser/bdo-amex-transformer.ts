@@ -488,9 +488,12 @@ const bdoAmexTransformer: StatementTransformer = {
 
     return {
       summary: {
+        statementType: "credit_card",
         statementDate: controls.statementDate,
         provider: "BDO",
         accountType: "AMEX",
+        transactionHistoryStartDate: null,
+        totalDebit: null,
         totalTransactions: activity.transactions.length,
         totalAmountDue: centsToMoney(controls.totalAmountDueCents),
         totalExtractedAmount: centsToMoney(activity.totalExtractedCents),

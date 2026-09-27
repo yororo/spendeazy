@@ -3,6 +3,10 @@ import {
   DOMAIN_DATE_PATTERN,
   POSITIVE_INTEGER_ID_PATTERN,
 } from '../../http/validation-patterns';
+import {
+  STATEMENT_TYPES,
+  type StatementType,
+} from '../application/statement-type';
 
 type ApiSchemaOptionsWithAdditionalProperties = {
   name?: string;
@@ -61,6 +65,34 @@ export class StatementImportResponseDto {
     example: 'visa',
   })
   cardType!: string | null;
+
+  @ApiProperty({
+    description: 'Automatically classified Statement type.',
+    enum: STATEMENT_TYPES,
+    example: 'credit_card',
+  })
+  statementType!: StatementType;
+
+  @ApiProperty({
+    description:
+      'Inclusive E-Wallet Transaction History Period start, or null for Credit Card imports.',
+    type: String,
+    format: 'date',
+    pattern: DOMAIN_DATE_PATTERN.source,
+    nullable: true,
+    example: null,
+  })
+  transactionHistoryStartDate!: string | null;
+
+  @ApiProperty({
+    description:
+      'Original non-negative E-Wallet Total Debit control, or null for Credit Card imports.',
+    type: String,
+    pattern: '^\\d{1,13}\\.\\d{2}$',
+    nullable: true,
+    example: null,
+  })
+  totalDebit!: string | null;
 
   @ApiProperty({
     description: 'UTC timestamp when the Statement import was committed.',
@@ -129,6 +161,34 @@ export class StatementImportHistoryResponseDto {
     example: 'visa',
   })
   cardType!: string | null;
+
+  @ApiProperty({
+    description: 'Automatically classified Statement type.',
+    enum: STATEMENT_TYPES,
+    example: 'credit_card',
+  })
+  statementType!: StatementType;
+
+  @ApiProperty({
+    description:
+      'Inclusive E-Wallet Transaction History Period start, or null for Credit Card imports.',
+    type: String,
+    format: 'date',
+    pattern: DOMAIN_DATE_PATTERN.source,
+    nullable: true,
+    example: null,
+  })
+  transactionHistoryStartDate!: string | null;
+
+  @ApiProperty({
+    description:
+      'Original non-negative E-Wallet Total Debit control, or null for Credit Card imports.',
+    type: String,
+    pattern: '^\\d{1,13}\\.\\d{2}$',
+    nullable: true,
+    example: null,
+  })
+  totalDebit!: string | null;
 
   @ApiProperty({
     description: 'UTC timestamp when the Statement import was committed.',

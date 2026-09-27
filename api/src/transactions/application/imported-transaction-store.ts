@@ -13,6 +13,7 @@ export interface ImportedTransactionRecord {
   amount: string;
   categoryMatchConfidence: string | null;
   importFingerprint: string;
+  referenceHash?: string | null;
   source: 'imported';
   createdAt: Date;
   updatedAt: Date;
@@ -29,6 +30,7 @@ export interface NewImportedTransaction {
   amount: string;
   categoryMatchConfidence: string | null;
   importFingerprint: string;
+  referenceHash?: string | null;
 }
 
 export interface UpdateImportedTransactionCategory {
@@ -49,6 +51,10 @@ export interface SpaceImportedTransactionStore {
   findByFingerprintInSpace(
     spaceId: string,
     fingerprint: string,
+  ): Promise<ImportedTransactionRecord[]>;
+  findByReferenceHashInSpace(
+    spaceId: string,
+    referenceHash: string,
   ): Promise<ImportedTransactionRecord[]>;
   findByIdInSpace(
     spaceId: string,

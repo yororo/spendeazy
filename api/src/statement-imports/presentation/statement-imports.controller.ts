@@ -203,6 +203,9 @@ export function toStatementImportResponse(
     statementDate: statementImport.statementDate,
     bank: statementImport.bank,
     cardType: statementImport.cardType,
+    statementType: statementImport.statementType,
+    transactionHistoryStartDate: statementImport.transactionHistoryStartDate,
+    totalDebit: statementImport.totalDebit,
     importedAt: statementImport.importedAt.toISOString(),
     importedByUserId: statementImport.importedByUserId,
   };
@@ -215,6 +218,9 @@ type StatementImportResponseInput = Pick<
   | 'statementDate'
   | 'bank'
   | 'cardType'
+  | 'statementType'
+  | 'transactionHistoryStartDate'
+  | 'totalDebit'
   | 'importedAt'
   | 'importedByUserId'
 >;

@@ -698,6 +698,7 @@ test("completes the two-member Shared Space financial journey through an Invite 
           fileName: "shared-browser-journey.pdf",
           fileHash: "c".repeat(64),
           statementDate: purchaseDate,
+          statementType: "credit_card",
           bank: "Browser Journey Bank",
           cardType: "visa",
           transactions: [
@@ -712,6 +713,135 @@ test("completes the two-member Shared Space financial journey through an Invite 
       },
     );
     expect(imported.status).toBe(201);
+
+    const walletReferenceA = "5049000000001";
+    const walletReferenceB = "5049000000002";
+    const walletDescription = "Wallet same visible transaction";
+    const walletImport = await browserApi(
+      secondaryPage,
+      apiBaseUrl,
+      secondarySession.token,
+      `/api/v1/users/me/spaces/${sharedSpaceId}/statement-imports`,
+      {
+        method: "POST",
+        body: {
+          fileName: "shared-gcash-history.pdf",
+          fileHash: "e".repeat(64),
+          statementDate: purchaseDate,
+          statementType: "e_wallet",
+          transactionHistoryStartDate: purchaseDate,
+          totalDebit: "20.00",
+          bank: "GCash",
+          cardType: "E-Wallet",
+          transactions: [
+            {
+              categoryId: secondaryCategoryId,
+              purchaseDate,
+              description: walletDescription,
+              amount: "10.00",
+              reference: walletReferenceA,
+            },
+            {
+              categoryId: secondaryCategoryId,
+              purchaseDate,
+              description: walletDescription,
+              amount: "10.00",
+              reference: walletReferenceB,
+            },
+          ],
+        },
+      },
+    );
+    expect(walletImport.status).toBe(201);
+    expect(walletImport.body).toMatchObject({
+      fileName: "shared-gcash-history.pdf",
+      statementType: "e_wallet",
+      transactionHistoryStartDate: purchaseDate,
+      totalDebit: "20.00",
+    });
+    expect(JSON.stringify(walletImport.body)).not.toContain(walletReferenceA);
+    expect(JSON.stringify(walletImport.body)).not.toContain(walletReferenceB);
+
+    const walletTransactions = await browserApi(
+      page,
+      apiBaseUrl,
+      primaryToken,
+      `/api/v1/users/me/spaces/${sharedSpaceId}/transactions`,
+    );
+    expect(walletTransactions.status).toBe(200);
+    expect(JSON.stringify(walletTransactions.body)).toContain(walletDescription);
+    expect(JSON.stringify(walletTransactions.body)).not.toContain(walletReferenceA);
+    expect(JSON.stringify(walletTransactions.body)).not.toContain(walletReferenceB);
+
+    const duplicateWalletInput = {
+      fileName: "shared-gcash-history-retry.pdf",
+      fileHash: "f".repeat(64),
+      statementDate: purchaseDate,
+      statementType: "e_wallet",
+      transactionHistoryStartDate: purchaseDate,
+      totalDebit: "12.00",
+      bank: "GCash",
+      cardType: "E-Wallet",
+      transactions: [
+        {
+          categoryId: secondaryCategoryId,
+          purchaseDate,
+          description: "Wallet changed visible transaction",
+          amount: "12.00",
+          reference: walletReferenceA,
+        },
+      ],
+    };
+    const probableWalletDuplicate = await browserApi(
+      secondaryPage,
+      apiBaseUrl,
+      secondarySession.token,
+      `/api/v1/users/me/spaces/${sharedSpaceId}/statement-imports`,
+      { method: "POST", body: duplicateWalletInput },
+    );
+    expect(probableWalletDuplicate.status).toBe(409);
+    expect(JSON.stringify(probableWalletDuplicate.body)).not.toContain(
+      walletReferenceA,
+    );
+
+    const acknowledgedWalletDuplicate = await browserApi(
+      secondaryPage,
+      apiBaseUrl,
+      secondarySession.token,
+      `/api/v1/users/me/spaces/${sharedSpaceId}/statement-imports`,
+      {
+        method: "POST",
+        body: {
+          ...duplicateWalletInput,
+          fileHash: "0".repeat(64),
+          acknowledgeProbableDuplicates: true,
+        },
+      },
+    );
+    expect(acknowledgedWalletDuplicate.status).toBe(201);
+
+    const sameReferenceInAnotherSpace = await browserApi(
+      secondaryPage,
+      apiBaseUrl,
+      secondarySession.token,
+      `/api/v1/users/me/spaces/${String(secondaryPersonalSpace?.id)}/statement-imports`,
+      {
+        method: "POST",
+        body: {
+          ...duplicateWalletInput,
+          fileName: "personal-gcash-history.pdf",
+          fileHash: "1".repeat(64),
+          transactions: [
+            {
+              ...duplicateWalletInput.transactions[0],
+              categoryId: null,
+            },
+          ],
+        },
+      },
+    );
+    expect(sameReferenceInAnotherSpace.status).toBe(201);
+
     const imports = await browserApi(
       page,
       apiBaseUrl,
@@ -722,6 +852,11 @@ test("completes the two-member Shared Space financial journey through an Invite 
     expect(JSON.stringify(imports.body)).toContain(
       "shared-browser-journey.pdf",
     );
+    expect(JSON.stringify(imports.body)).toContain(
+      '"statementType":"e_wallet"',
+    );
+    expect(JSON.stringify(imports.body)).toContain(purchaseDate);
+    expect(JSON.stringify(imports.body)).toContain("20.00");
     const sharedTransactions = await browserApi(
       page,
       apiBaseUrl,
@@ -784,6 +919,7 @@ test("completes the two-member Shared Space financial journey through an Invite 
           fileName: "shared-browser-primary-journey.pdf",
           fileHash: "d".repeat(64),
           statementDate: purchaseDate,
+          statementType: "credit_card",
           bank: "Browser Primary Journey Bank",
           cardType: "visa",
           transactions: [

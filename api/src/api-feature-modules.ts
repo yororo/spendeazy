@@ -21,7 +21,7 @@ export function createApiFeatureModules(
     CategoriesModule.register(databaseIsConfigured, options),
     CategoryRulesModule.register(databaseIsConfigured, options),
     TransactionsModule.register(databaseIsConfigured, options),
-    StatementImportsModule.register(databaseIsConfigured, options),
+    StatementImportsModule.register(databaseIsConfigured, options, config),
     InvitationsModule.register(databaseIsConfigured, options, config),
   ];
 }

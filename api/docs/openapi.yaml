@@ -4388,6 +4388,13 @@ components:
           format: date
           pattern: ^\d{4}-\d{2}-\d{2}$
           example: '2026-08-31'
+        statementType:
+          type: string
+          description: Automatically classified Statement type.
+          enum:
+            - credit_card
+            - e_wallet
+          example: credit_card
         bank:
           type: string
           description: Statement bank name, trimmed before storage.
@@ -4403,6 +4410,19 @@ components:
           pattern: \S
           nullable: true
           example: visa
+        transactionHistoryStartDate:
+          type: string
+          description: Inclusive Transaction History Period start for E-Wallet imports. The statementDate field remains the period end for ordering and filtering.
+          format: date
+          pattern: ^\d{4}-\d{2}-\d{2}$
+          nullable: true
+          example: '2026-08-09'
+        totalDebit:
+          type: string
+          description: Original non-negative Total Debit control for E-Wallet imports, encoded as an exact two-decimal string.
+          pattern: ^\d{1,13}\.\d{2}$
+          nullable: true
+          example: '26696.92'
         transactions:
           type: array
           description: Reviewed Transactions to commit. The array may be empty; each row is normalized and validated before it is stored.
@@ -4418,6 +4438,7 @@ components:
         - fileName
         - fileHash
         - statementDate
+        - statementType
         - bank
         - transactions
     ReviewedStatementTransactionDto:
@@ -4453,6 +4474,14 @@ components:
           pattern: ^(?:0(?:\.\d{1,4})?|1(?:\.0{1,4})?)$
           nullable: true
           example: '0.9000'
+        reference:
+          type: string
+          description: Optional source reference used for GCash duplicate review. It is hashed before persistence and is never returned.
+          minLength: 1
+          maxLength: 100
+          pattern: \S
+          nullable: true
+          example: '123456789'
       additionalProperties: false
       required:
         - purchaseDate
@@ -4533,6 +4562,26 @@ components:
           pattern: \S
           nullable: true
           example: visa
+        statementType:
+          type: string
+          description: Automatically classified Statement type.
+          enum:
+            - credit_card
+            - e_wallet
+          example: credit_card
+        transactionHistoryStartDate:
+          type: string
+          description: Inclusive E-Wallet Transaction History Period start, or null for Credit Card imports.
+          format: date
+          pattern: ^\d{4}-\d{2}-\d{2}$
+          nullable: true
+          example: null
+        totalDebit:
+          type: string
+          description: Original non-negative E-Wallet Total Debit control, or null for Credit Card imports.
+          pattern: ^\d{1,13}\.\d{2}$
+          nullable: true
+          example: null
         importedAt:
           type: string
           description: UTC timestamp when the Statement import was committed.
@@ -4551,6 +4600,9 @@ components:
         - statementDate
         - bank
         - cardType
+        - statementType
+        - transactionHistoryStartDate
+        - totalDebit
         - importedAt
         - importedByUserId
     StatementImportHistoryResponseDto:
@@ -4589,6 +4641,26 @@ components:
           pattern: \S
           nullable: true
           example: visa
+        statementType:
+          type: string
+          description: Automatically classified Statement type.
+          enum:
+            - credit_card
+            - e_wallet
+          example: credit_card
+        transactionHistoryStartDate:
+          type: string
+          description: Inclusive E-Wallet Transaction History Period start, or null for Credit Card imports.
+          format: date
+          pattern: ^\d{4}-\d{2}-\d{2}$
+          nullable: true
+          example: null
+        totalDebit:
+          type: string
+          description: Original non-negative E-Wallet Total Debit control, or null for Credit Card imports.
+          pattern: ^\d{1,13}\.\d{2}$
+          nullable: true
+          example: null
         importedAt:
           type: string
           description: UTC timestamp when the Statement import was committed.
@@ -4612,6 +4684,9 @@ components:
         - statementDate
         - bank
         - cardType
+        - statementType
+        - transactionHistoryStartDate
+        - totalDebit
         - importedAt
         - importedByUserId
         - transactionCount

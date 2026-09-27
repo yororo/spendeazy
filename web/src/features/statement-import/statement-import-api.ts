@@ -1,4 +1,9 @@
-import { isRecord, type ApiDataErrorFactory } from "@/shared/api";
+import {
+  isRecord,
+  isUtcDateTime,
+  type ApiDataErrorFactory,
+} from "@/shared/api";
+import type { StatementType } from "./statement-type";
 import {
   isCategoryRuleMatchType,
   type CategoryRuleMatchType,
@@ -22,6 +27,9 @@ interface StatementImportResponse {
   readonly statementDate: string;
   readonly bank: string;
   readonly cardType: string | null;
+  readonly statementType: StatementType;
+  readonly transactionHistoryStartDate: string | null;
+  readonly totalDebit: string | null;
   readonly importedAt: string;
   readonly importedByUserId: string;
 }
@@ -38,6 +46,35 @@ interface StatementImportHistoryPageResponse {
 const POSITIVE_INTEGER_ID_PATTERN = /^[1-9]\d*$/u;
 const CATEGORY_RULE_ID_PATTERN = POSITIVE_INTEGER_ID_PATTERN;
 const CATEGORY_RULE_PATTERN_LIMIT = 500;
+const CALENDAR_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/u;
+const MONEY_PATTERN = /^\d{1,13}\.\d{2}$/u;
+
+function isCalendarDate(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+
+  const match = CALENDAR_DATE_PATTERN.exec(value);
+  if (!match) return false;
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const daysInMonth = [
+    31,
+    year % 400 === 0 || (year % 4 === 0 && year % 100 !== 0) ? 29 : 28,
+    31,
+    30,
+    31,
+    30,
+    31,
+    31,
+    30,
+    31,
+    30,
+    31,
+  ];
+
+  return month >= 1 && month <= 12 && day >= 1 && day <= (daysInMonth[month - 1] ?? 0);
+}
 
 function isCategoryRuleResponse(value: unknown): value is CategoryRuleResponse {
   return (
@@ -100,10 +137,16 @@ function isStatementImportResponse(
     isRecord(value) &&
     typeof value.id === "string" &&
     typeof value.fileName === "string" &&
-    typeof value.statementDate === "string" &&
+    isCalendarDate(value.statementDate) &&
     typeof value.bank === "string" &&
     (value.cardType === null || typeof value.cardType === "string") &&
-    typeof value.importedAt === "string" &&
+    (value.statementType === "credit_card" ||
+      value.statementType === "e_wallet") &&
+    (value.transactionHistoryStartDate === null ||
+      isCalendarDate(value.transactionHistoryStartDate)) &&
+    (value.totalDebit === null ||
+      (typeof value.totalDebit === "string" && MONEY_PATTERN.test(value.totalDebit))) &&
+    isUtcDateTime(value.importedAt) &&
     typeof value.importedByUserId === "string" &&
     POSITIVE_INTEGER_ID_PATTERN.test(value.importedByUserId)
   );
@@ -115,7 +158,10 @@ function isStatementImportHistoryItemResponse(
   return (
     isStatementImportResponse(value) &&
     typeof (value as unknown as Record<string, unknown>).transactionCount ===
-      "string"
+      "string" &&
+    /^\d+$/u.test(
+      (value as unknown as Record<string, unknown>).transactionCount as string,
+    )
   );
 }
 

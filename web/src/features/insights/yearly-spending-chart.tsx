@@ -161,7 +161,14 @@ function YearlySpendingChart({ report }: YearlySpendingChartProps) {
                           ),
                         )}
                         {visibleBudgetComparison && month.isOverBudget ? (
-                          <span className="absolute -top-5 inset-x-0 text-center font-mono text-sm font-bold text-destructive">
+                          <span
+                            data-testid="yearly-over-budget-marker"
+                            className="absolute inset-x-0 text-center font-mono text-sm font-bold text-destructive"
+                            style={{
+                              bottom: `${(month.totalSpendingCents / axisMaximum) * 100}%`,
+                              transform: "translateY(-100%)",
+                            }}
+                          >
                             !
                           </span>
                         ) : null}

@@ -364,6 +364,9 @@ describe("InsightsPage", () => {
     ).toBeTruthy();
     expect(within(yearlyTable).getAllByText("Over Budget")).toHaveLength(1);
     expect(within(yearlyTable).getAllByText("Within Budget").length).toBeGreaterThan(0);
+    const breachMarker = screen.getByTestId("yearly-over-budget-marker");
+    expect(breachMarker.style.bottom).toBe("100%");
+    expect(breachMarker.style.transform).toBe("translateY(-100%)");
     expect(within(yearlyTable).getByText(/uncategorized transactions/i)).toBeTruthy();
     expect(
       screen.getAllByText(/historical comparisons use current monthly Budgets/i)

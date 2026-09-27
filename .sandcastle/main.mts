@@ -37,6 +37,9 @@ await run({
   // The onSandboxReady hook still runs npm install as a safety net to handle
   // platform-specific binaries and any packages added since the last copy.
   copyToWorktree: ["web/node_modules", "api/node_modules"],
+  timeouts: {
+    copyToWorktreeMs: 5 * 240_000,
+  },
 
   // Lifecycle hooks — commands grouped by where they run (host or sandbox).
   hooks: {

@@ -38,8 +38,8 @@ const pageTitles: Record<string, string> = {
   "/": "Dashboard · Spendeazy",
   "/imports": "Statement Import · Spendeazy",
   "/transactions": "Transactions · Spendeazy",
-  "/categories": "Budget overview · Spendeazy",
   "/insights": "Insights · Spendeazy",
+  "/categories": "Budget overview · Spendeazy",
   "/history": "Space history · Spendeazy",
   "/sharing": "Sharing · Spendeazy",
 };
@@ -65,12 +65,12 @@ function AppShellContent() {
   const { requestNavigation } = useNavigationGuard();
   const rememberedSpaceIds = readRememberedSpaceIds(user?.id);
   const personalSpace = getPersonalSpace(spacesQuery.data ?? []);
-  const hasArchivedHistory = getArchivedSpaces(spacesQuery.data ?? []).length > 0;
+  const hasArchivedHistory =
+    getArchivedSpaces(spacesQuery.data ?? []).length > 0;
   const requestedSpaceId = isHistoryRoute
     ? null
     : getRequestedSpaceId(location.search);
-  const rememberedSpaceId =
-    rememberedSpaceIds.tab ?? rememberedSpaceIds.device;
+  const rememberedSpaceId = rememberedSpaceIds.tab ?? rememberedSpaceIds.device;
   const selectedSpaceId = resolveSpaceSelection(
     spacesQuery.data ?? [],
     requestedSpaceId,
@@ -169,9 +169,7 @@ function AppShellContent() {
       return;
     }
 
-    if (
-      requestNavigation(() => navigate(destinationPath))
-    ) {
+    if (requestNavigation(() => navigate(destinationPath))) {
       event.preventDefault();
     } else if (destinationPath !== anchorPath) {
       event.preventDefault();
@@ -244,7 +242,10 @@ function AppShellContent() {
               side="right"
               onEscapeKeyDown={(event) => {
                 // Let an open nested menu consume Escape before closing the Sheet.
-                if (event.target instanceof Element && event.target.closest('[role="menu"]')) {
+                if (
+                  event.target instanceof Element &&
+                  event.target.closest('[role="menu"]')
+                ) {
                   event.preventDefault();
                 }
               }}

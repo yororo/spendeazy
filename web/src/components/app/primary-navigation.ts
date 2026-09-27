@@ -11,13 +11,13 @@ const primaryNavigation = [
   { label: "Dashboard", href: "/", icon: LayoutDashboardIcon },
   { label: "Imports", href: "/imports", icon: ArrowDownToLineIcon },
   { label: "Transactions", href: "/transactions", icon: ListFilterIcon },
-  { label: "Categories", href: "/categories", icon: TagsIcon },
   { label: "Insights", href: "/insights", icon: ChartNoAxesCombinedIcon },
+  { label: "Categories", href: "/categories", icon: TagsIcon },
   { label: "Sharing", href: "/sharing", icon: UsersRoundIcon },
 ];
 
 const mobileNavigation = primaryNavigation.filter(
-  ({ href }) => href !== "/sharing" && href !== "/insights",
+  ({ href }) => href !== "/sharing" && href !== "/categories",
 );
 
 function getNavigationTarget(href: string, spaceId?: string): string {

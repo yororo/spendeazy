@@ -107,7 +107,7 @@ Cards have no default shadow. Hierarchy comes from 1px borders, black inverse su
 - Authenticated desktop pages use a 224px (`w-56`) sidebar.
 - Page content is fluid and constrained by `max-w-screen-2xl`.
 - Phone layouts apply below `md` (768px), based on viewport width rather than device detection. This includes narrow desktop windows; landscape phones at or above 768px use the wider layout.
-- Below `md`, authenticated pages show a fixed 64px Mobile Tab Bar with Dashboard, Imports, Transactions, and Categories links. It uses square geometry, solid semantic black/green surfaces, no shadow, 12px labels, and four equal touch targets. The mockup's rounded pill and tiny labels are not implementation rules.
+- Below `md`, authenticated pages show a fixed 64px Mobile Tab Bar with Dashboard, Imports, Transactions, and Insights links. It uses square geometry, solid semantic black/green surfaces, no shadow, 12px labels, and four equal touch targets. The mockup's rounded pill and tiny labels are not implementation rules.
 - The tab bar accounts for bottom and landscape safe areas. The shell reserves its height plus the bottom safe area so page content remains reachable. Modal Sheets and Dialogs appear above it.
 - The header and accessible navigation Sheet remain below `lg`, including on phones for profile and Sign out access. Tablets from 768px to 1023px use the Sheet without a tab bar. The persistent sidebar begins at `lg` (1024px).
 - Dashboard phone metrics show full-width Total spend followed by four metrics in a two-column grid. Wider Dashboard layouts retain two columns, reaching five columns at `xl`.

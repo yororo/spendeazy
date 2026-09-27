@@ -378,7 +378,7 @@ function StatementImportPage({
                 Recent Committed Statement Imports
               </h2>
             </div>
-            <ul className="grid flex-1 sm:grid-cols-3 lg:grid-cols-1">
+            <ul className="grid min-h-0 flex-1 overflow-y-auto sm:grid-cols-3 lg:grid-cols-1">
               {recentCommittedStatementImports.length === 0 && (
                 <li className="flex min-h-20 items-center px-3.5 py-3 text-sm text-muted-foreground">
                   No recent Committed Statement Imports.

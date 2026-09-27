@@ -117,3 +117,60 @@ for (const width of [320, 390]) {
     await expect(date).toHaveValue("2026-08-28");
   });
 }
+
+test("keeps recent Statement Import history inside its card on desktop", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.route("**/api/v1/users/me/**", async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    let body: unknown;
+    if (path.endsWith("/spaces")) {
+      body = [{
+        id: "1", kind: "personal", status: "active", accessLevel: "write",
+        members: [{ id: "10", name: "Ada Lovelace" }],
+        createdAt: "2026-09-01T00:00:00.000Z",
+        updatedAt: "2026-09-01T00:00:00.000Z",
+      }];
+    } else if (path.endsWith("/categories")) {
+      body = [{
+        id: "42", name: "Housing", description: null, color: "teal", isActive: true,
+        createdAt: "2026-09-01T00:00:00.000Z",
+        updatedAt: "2026-09-01T00:00:00.000Z",
+      }];
+    } else if (path.endsWith("/category-rules")) {
+      body = [];
+    } else if (path.endsWith("/statement-imports")) {
+      body = {
+        items: [1, 2, 3].map((id) => ({
+          id: String(id),
+          fileName: `BDO-SOA-AMEX-EXPLORER-${id}-09172026.pdf`,
+          statementDate: "2026-09-17",
+          bank: "BDO",
+          cardType: "AMEX",
+          importedAt: "2026-09-18T00:00:00.000Z",
+          importedByUserId: "10",
+          transactionCount: "66",
+        })),
+        nextCursor: null,
+      };
+    } else {
+      await route.continue();
+      return;
+    }
+    await route.fulfill({ json: body });
+  });
+
+  await page.goto("/imports?spaceId=1");
+  const card = page.getByRole("region", {
+    name: "Recent Committed Statement Imports",
+  });
+  await expect(card.getByRole("listitem")).toHaveCount(3);
+
+  await expect.poll(async () => {
+    const [cardBox, listBox] = await Promise.all([
+      card.boundingBox(),
+      card.getByRole("list").boundingBox(),
+    ]);
+    if (!cardBox || !listBox) return false;
+    return listBox.y + listBox.height <= cardBox.y + cardBox.height - 1;
+  }).toBe(true);
+});

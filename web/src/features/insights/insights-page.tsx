@@ -15,6 +15,7 @@ import {
 } from "@/shared/reporting-period";
 
 import { DailySpendingChart } from "./daily-spending-chart";
+import { CategorySpendingChart } from "./category-spending-chart";
 import { useInsightsQuery, type InsightsView } from "./insights-queries";
 import { YearlySpendingChart } from "./yearly-spending-chart";
 
@@ -182,18 +183,29 @@ function InsightsPage({ spaceId, onSpaceChange }: InsightsPageProps = {}) {
         </CardContent>
       </Card>
 
-      <section
-        aria-label={
-          report.view === "yearly" ? "Yearly spending" : "Monthly daily spending"
-        }
-        aria-busy={insightsQuery.isFetching}
-      >
-        {report.view === "yearly" ? (
-          <YearlySpendingChart report={report} />
-        ) : (
-          <DailySpendingChart report={report} />
-        )}
-      </section>
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+        <section
+          aria-label={
+            report.view === "yearly" ? "Yearly spending" : "Monthly daily spending"
+          }
+          aria-busy={insightsQuery.isFetching}
+        >
+          {report.view === "yearly" ? (
+            <YearlySpendingChart report={report} />
+          ) : (
+            <DailySpendingChart report={report} />
+          )}
+        </section>
+        <section
+          aria-label="Category spending trends"
+          aria-busy={insightsQuery.isFetching}
+        >
+          <CategorySpendingChart
+            key={effectiveSpaceId ?? "personal"}
+            report={report}
+          />
+        </section>
+      </div>
     </div>
   );
 }

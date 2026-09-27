@@ -27,6 +27,7 @@ interface InsightsCategory {
   readonly label: string;
   readonly color: CategoryColor | null;
   readonly spendingCents: number;
+  readonly monthlyBudgetCents: number | null;
 }
 
 interface InsightsCategoryAmount {
@@ -50,6 +51,7 @@ interface InsightsReport {
   readonly monthlyBudgetCents: number;
   readonly dailyBudgetPaceCents: number;
   readonly categories: readonly InsightsCategory[];
+  readonly selectableCategories: readonly InsightsCategory[];
   readonly days: readonly InsightsDay[];
 }
 
@@ -68,6 +70,7 @@ interface InsightsYearlyReport {
   readonly budgetedSpendingCents: number;
   readonly monthlyBudgetCents: number;
   readonly categories: readonly InsightsCategory[];
+  readonly selectableCategories: readonly InsightsCategory[];
   readonly months: readonly InsightsMonth[];
 }
 
@@ -92,6 +95,7 @@ const TRANSACTION_PAGE_SIZE = 100;
 interface CategoryIdentity {
   readonly label: string;
   readonly color: CategoryColor;
+  readonly monthlyBudgetCents: number | null;
 }
 
 async function getInsights(
@@ -274,6 +278,10 @@ function createInsightsReport(
   });
 
   const categories = createCategoryReports(spendingByCategory, categoryById);
+  const selectableCategories = createSelectableCategoryReports(
+    spendingByCategory,
+    categoryById,
+  );
 
   const days = dailyCategoryTotals.map((categoryTotals, index): InsightsDay => ({
     date: `${period}-${String(index + 1).padStart(2, "0")}`,
@@ -302,6 +310,7 @@ function createInsightsReport(
     monthlyBudgetCents,
     dailyBudgetPaceCents: monthlyBudgetCents / daysInPeriod,
     categories,
+    selectableCategories,
     days,
   };
 }
@@ -386,6 +395,10 @@ function createYearlyInsightsReport(
     ),
     monthlyBudgetCents,
     categories: createCategoryReports(spendingByCategory, categoryById),
+    selectableCategories: createSelectableCategoryReports(
+      spendingByCategory,
+      categoryById,
+    ),
     months,
   };
 }
@@ -400,6 +413,7 @@ function createCategoryContext(
       {
         label: category.name,
         color: resolveCategoryColor(category.id, category.color),
+        monthlyBudgetCents: null,
       },
     ]),
   );
@@ -411,19 +425,29 @@ function createCategoryContext(
       categoryById.set(category.categoryId, {
         label: category.name,
         color: resolveCategoryColor(category.categoryId, undefined),
+        monthlyBudgetCents: null,
       });
     }
 
-    if (category.budgetAmount === null) return;
+    const identity = categoryById.get(category.categoryId)!;
+    const categoryBudgetCents = category.budgetAmount === null
+      ? null
+      : moneyToCents(
+          parseApiMoney(
+            category.budgetAmount,
+            `Budget ${category.categoryId}`,
+            createInsightsDataError,
+          ),
+        );
+    categoryById.set(category.categoryId, {
+      ...identity,
+      monthlyBudgetCents: categoryBudgetCents,
+    });
+
+    if (categoryBudgetCents === null) return;
 
     budgetedCategoryIds.add(category.categoryId);
-    monthlyBudgetCents += moneyToCents(
-      parseApiMoney(
-        category.budgetAmount,
-        `Budget ${category.categoryId}`,
-        createInsightsDataError,
-      ),
-    );
+    monthlyBudgetCents += categoryBudgetCents;
   });
 
   return { categoryById, budgetedCategoryIds, monthlyBudgetCents };
@@ -439,11 +463,31 @@ function createCategoryReports(
       label: id === null ? "Uncategorized" : categoryById.get(id)!.label,
       color: id === null ? null : categoryById.get(id)!.color,
       spendingCents,
+      monthlyBudgetCents: id === null
+        ? null
+        : categoryById.get(id)!.monthlyBudgetCents,
     }))
     .sort((left, right) =>
       left.label.localeCompare(right.label) ||
       (left.id ?? "").localeCompare(right.id ?? ""),
     );
+}
+
+function createSelectableCategoryReports(
+  spendingByCategory: ReadonlyMap<string | null, number>,
+  categoryById: ReadonlyMap<string, CategoryIdentity>,
+): InsightsCategory[] {
+  const spendingByKnownCategory = new Map(spendingByCategory);
+
+  categoryById.forEach((_, categoryId) => {
+    if (!spendingByKnownCategory.has(categoryId)) {
+      spendingByKnownCategory.set(categoryId, 0);
+    }
+  });
+
+  return createCategoryReports(spendingByKnownCategory, categoryById).filter(
+    ({ id }) => id !== null,
+  );
 }
 
 function getRollingPeriods(period: ReportingPeriod): ReportingPeriod[] {

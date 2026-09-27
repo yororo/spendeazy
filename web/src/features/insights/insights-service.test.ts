@@ -46,6 +46,14 @@ function categoryCatalog() {
       isActive: true,
       updatedAt: "2024-02-01T00:00:00.000Z",
     },
+    {
+      id: "45",
+      name: "Dining",
+      description: null,
+      color: "teal",
+      isActive: true,
+      updatedAt: "2024-02-01T00:00:00.000Z",
+    },
   ];
 }
 
@@ -212,12 +220,34 @@ describe("getInsights", () => {
           label: "Archived Category",
           color: "plum",
           spendingCents: 100,
+          monthlyBudgetCents: null,
+        }),
+        expect.objectContaining({
+          id: "42",
+          monthlyBudgetCents: 10_000,
         }),
         expect.objectContaining({
           id: null,
           label: "Uncategorized",
           color: null,
           spendingCents: 30,
+          monthlyBudgetCents: null,
+        }),
+      ]),
+    );
+    expect(report.selectableCategories).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "42",
+          color: "teal",
+          monthlyBudgetCents: 10_000,
+        }),
+        expect.objectContaining({
+          id: "45",
+          label: "Dining",
+          color: "teal",
+          spendingCents: 0,
+          monthlyBudgetCents: null,
         }),
       ]),
     );

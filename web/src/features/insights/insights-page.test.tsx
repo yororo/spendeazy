@@ -47,8 +47,22 @@ function createSuccessfulFetch(initialPeriod: string) {
   const fetch = vi.fn(async (input: RequestInfo | URL) => {
     const url = new URL(String(input));
     const path = url.pathname.replace("/api/v1/users/me", "");
+    const requestedSpaceId = path.match(/^\/spaces\/([^/]+)\//)?.[1] ?? "7";
 
-    if (path === "/spaces/7/categories") {
+    if (path.endsWith("/categories")) {
+      if (requestedSpaceId === "8") {
+        return apiResponse([
+          {
+            id: "80",
+            name: "Housing",
+            description: null,
+            color: "violet",
+            isActive: true,
+            updatedAt: "2026-09-01T00:00:00.000Z",
+          },
+        ]);
+      }
+
       return apiResponse([
         {
           id: "42",
@@ -62,14 +76,35 @@ function createSuccessfulFetch(initialPeriod: string) {
           id: "44",
           name: "Transit",
           description: null,
-          color: "forest",
+          color: "teal",
           isActive: true,
           updatedAt: "2026-09-01T00:00:00.000Z",
         },
       ]);
     }
 
-    if (path === "/spaces/7/category-summaries") {
+    if (path.endsWith("/category-summaries")) {
+      if (requestedSpaceId === "8") {
+        return apiResponse({
+          period: "monthly",
+          year: url.searchParams.get("year"),
+          month: url.searchParams.get("month"),
+          categories: [
+            {
+              categoryId: "80",
+              name: "Housing",
+              isActive: true,
+              totalAmount: "8.40",
+              transactionCount: "1",
+              budgetAmount: "500.00",
+              remainingAmount: "491.60",
+            },
+          ],
+          uncategorizedTotal: "0.00",
+          uncategorizedCount: "0",
+        });
+      }
+
       const amount = url.searchParams.get("year") === initialPeriod.slice(0, 4) &&
         url.searchParams.get("month") === initialPeriod.slice(5)
         ? "5.25"
@@ -103,9 +138,27 @@ function createSuccessfulFetch(initialPeriod: string) {
       });
     }
 
-    if (path === "/spaces/7/transactions") {
+    if (path.endsWith("/transactions")) {
       const fromDate = url.searchParams.get("fromDate")!;
       const toDate = url.searchParams.get("toDate")!;
+      if (requestedSpaceId === "8") {
+        const period = fromDate.slice(0, 7);
+        return apiResponse({
+          items: [
+            {
+              id: `housing-${period}`,
+              categoryId: "80",
+              purchaseDate: `${period}-03`,
+              description: "Rent",
+              amount: "8.40",
+              source: "manual",
+              statementImportId: null,
+            },
+          ],
+          nextCursor: null,
+        });
+      }
+
       if (fromDate.slice(0, 7) !== toDate.slice(0, 7)) {
         const firstPeriod = fromDate.slice(0, 7);
         const secondPeriod = nextMonth(firstPeriod);
@@ -206,19 +259,24 @@ function renderInsights(spaceId = "7") {
     defaultOptions: { queries: { retry: false } },
   });
 
-  const view = render(
+  const renderPage = (selectedSpaceId: string) => (
     <ApiClientProvider config={apiConfig} getToken={getToken}>
       <QueryClientProvider client={queryClient}>
         <ReportingPeriodProvider>
           <MemoryRouter>
-            <InsightsPage spaceId={spaceId} />
+            <InsightsPage spaceId={selectedSpaceId} />
           </MemoryRouter>
         </ReportingPeriodProvider>
       </QueryClientProvider>
-    </ApiClientProvider>,
+    </ApiClientProvider>
   );
+  const view = render(renderPage(spaceId));
 
-  return view;
+  return {
+    ...view,
+    rerenderSpace: (nextSpaceId: string) =>
+      view.rerender(renderPage(nextSpaceId)),
+  };
 }
 
 describe("InsightsPage", () => {
@@ -251,6 +309,27 @@ describe("InsightsPage", () => {
       within(chartTable).getByText(/pace guide, not a daily limit/i),
     ).toBeTruthy();
     expect(screen.getByRole("checkbox", { name: "Budget pace" })).toBeTruthy();
+    const trendsTable = screen.getByRole("table", {
+      name: /category spending values/i,
+    });
+    const firstTrendDay = within(trendsTable).getByRole("rowheader", {
+      name: `${period}-01`,
+    });
+    const firstTrendRow = firstTrendDay.closest("tr")!;
+    expect(within(firstTrendRow).getByText(formatMoney(5.25))).toBeTruthy();
+    const initialDayCount = new Date(
+      Date.UTC(Number(period.slice(0, 4)), Number(period.slice(5)), 0),
+    ).getUTCDate();
+    const paceHeaderIndex = within(trendsTable)
+      .getAllByRole("columnheader")
+      .findIndex(
+        (header) => header.textContent === "Groceries daily Budget pace",
+      );
+    expect(paceHeaderIndex).toBeGreaterThan(0);
+    expect(
+      within(firstTrendRow).getAllByRole("cell")[paceHeaderIndex - 1]
+        ?.textContent,
+    ).toBe(formatMoney(100 / initialDayCount));
 
     fireEvent.change(screen.getByLabelText("Reporting period"), {
       target: { value: nextMonth(period) },
@@ -267,6 +346,138 @@ describe("InsightsPage", () => {
       name: "Monthly spending summary",
     });
     expect(within(nextSummary).getAllByText(formatMoney(3.1))).toHaveLength(2);
+    const nextTrendsTable = await screen.findByRole("table", {
+      name: /category spending values/i,
+    });
+    const nextTrendDay = within(nextTrendsTable).getByRole("rowheader", {
+      name: `${nextMonth(period)}-02`,
+    });
+    expect(
+      within(nextTrendDay.closest("tr")!).getByText(formatMoney(3.1)),
+    ).toBeTruthy();
+  });
+
+  it("filters daily Category trends by identity and shows Budget pace only when available", async () => {
+    const period = getCurrentReportingPeriod();
+    vi.stubGlobal("fetch", createSuccessfulFetch(period));
+    renderInsights();
+
+    const groceries = await screen.findByRole("button", { name: "Groceries" });
+    const transit = screen.getByRole("button", { name: "Transit" });
+    expect(groceries.getAttribute("aria-pressed")).toBe("true");
+    expect(transit.getAttribute("aria-pressed")).toBe("false");
+
+    let trendsTable = screen.getByRole("table", {
+      name: /category spending values/i,
+    });
+    expect(
+      within(trendsTable).getByRole("columnheader", {
+        name: "Groceries daily Budget pace",
+      }),
+    ).toBeTruthy();
+    const budgetToggle = screen.getByRole("checkbox", {
+      name: "Category Budgets",
+    });
+    expect(budgetToggle.getAttribute("aria-checked")).toBe("true");
+    fireEvent.click(budgetToggle);
+    expect(budgetToggle.getAttribute("aria-checked")).toBe("false");
+    expect(
+      within(trendsTable).queryByRole("columnheader", {
+        name: "Groceries daily Budget pace",
+      }),
+    ).toBeNull();
+    fireEvent.click(budgetToggle);
+
+    fireEvent.click(transit);
+    expect(transit.getAttribute("aria-pressed")).toBe("true");
+    trendsTable = screen.getByRole("table", {
+      name: /category spending values/i,
+    });
+    const dayCount = new Date(
+      Date.UTC(Number(period.slice(0, 4)), Number(period.slice(5)), 0),
+    ).getUTCDate();
+    expect(within(trendsTable).getAllByRole("row")).toHaveLength(dayCount + 1);
+    const transitHeaderIndex = within(trendsTable)
+      .getAllByRole("columnheader")
+      .findIndex((header) => header.textContent === "Transit spending");
+    expect(transitHeaderIndex).toBeGreaterThan(0);
+    const dailyRows = within(trendsTable).getAllByRole("row").slice(1);
+    expect(
+      dailyRows.every(
+        (row) =>
+          within(row).getAllByRole("cell")[transitHeaderIndex - 1]
+            ?.textContent === formatMoney(0),
+      ),
+    ).toBe(true);
+    expect(
+      within(trendsTable).getByRole("columnheader", {
+        name: "Transit spending",
+      }),
+    ).toBeTruthy();
+    expect(
+      within(trendsTable).queryByRole("columnheader", {
+        name: "Transit daily Budget pace",
+      }),
+    ).toBeNull();
+
+    fireEvent.click(groceries);
+    expect(groceries.getAttribute("aria-pressed")).toBe("false");
+    expect(transit.getAttribute("aria-pressed")).toBe("true");
+    trendsTable = screen.getByRole("table", {
+      name: /category spending values/i,
+    });
+    expect(
+      within(trendsTable).queryByRole("columnheader", {
+        name: "Groceries spending",
+      }),
+    ).toBeNull();
+    expect(
+      within(trendsTable).getByRole("columnheader", {
+        name: "Transit spending",
+      }),
+    ).toBeTruthy();
+
+    fireEvent.click(transit);
+    expect(
+      screen.getByRole("status").textContent,
+    ).toContain("Select a Category to see its spending trend.");
+  });
+
+  it("updates Category trends when the selected Space changes", async () => {
+    const period = getCurrentReportingPeriod();
+    vi.stubGlobal("fetch", createSuccessfulFetch(period));
+    const view = renderInsights("7");
+
+    const groceriesTable = await screen.findByRole("table", {
+      name: /category spending values/i,
+    });
+    expect(
+      within(groceriesTable).getByRole("columnheader", {
+        name: "Groceries spending",
+      }),
+    ).toBeTruthy();
+
+    view.rerenderSpace("8");
+
+    const housingTable = await screen.findByRole("table", {
+      name: /category spending values/i,
+    });
+    expect(
+      within(housingTable).getByRole("columnheader", {
+        name: "Housing spending",
+      }),
+    ).toBeTruthy();
+    const housingDay = within(housingTable).getByRole("rowheader", {
+      name: `${period}-03`,
+    });
+    expect(
+      within(housingDay.closest("tr")!).getByText(formatMoney(8.4)),
+    ).toBeTruthy();
+    expect(
+      within(housingTable).queryByRole("columnheader", {
+        name: "Groceries spending",
+      }),
+    ).toBeNull();
   });
 
   it("keeps zero-spend days visible in an empty period", async () => {
@@ -373,6 +584,42 @@ describe("InsightsPage", () => {
         .length,
     ).toBeGreaterThan(0);
     expect(screen.getByRole("region", { name: "Yearly spending" })).toBeTruthy();
+
+    let categoryTrendsTable = await screen.findByRole("table", {
+      name: /category spending values/i,
+    });
+    expect(within(categoryTrendsTable).getAllByRole("row")).toHaveLength(13);
+    expect(
+      within(categoryTrendsTable).getByRole("columnheader", {
+        name: "Groceries monthly Budget",
+      }),
+    ).toBeTruthy();
+    const budgetHeaderIndex = within(categoryTrendsTable)
+      .getAllByRole("columnheader")
+      .findIndex(
+        (header) => header.textContent === "Groceries monthly Budget",
+      );
+    const firstCategoryMonth = within(categoryTrendsTable)
+      .getAllByRole("row")
+      .at(1)!;
+    expect(
+      within(firstCategoryMonth).getAllByRole("cell")[budgetHeaderIndex - 1]
+        ?.textContent,
+    ).toBe(formatMoney(100));
+    const categoryBudgetToggle = screen.getByRole("checkbox", {
+      name: "Category Budgets",
+    });
+    expect(categoryBudgetToggle.getAttribute("aria-checked")).toBe("true");
+    fireEvent.click(categoryBudgetToggle);
+    categoryTrendsTable = screen.getByRole("table", {
+      name: /category spending values/i,
+    });
+    expect(
+      within(categoryTrendsTable).queryByRole("columnheader", {
+        name: "Groceries monthly Budget",
+      }),
+    ).toBeNull();
+    fireEvent.click(categoryBudgetToggle);
 
     const monthlyBudgetToggle = screen.getByRole("checkbox", {
       name: "Monthly Budget",

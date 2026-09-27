@@ -419,7 +419,6 @@ describe("InsightsPage", () => {
         name: "Transit daily Budget pace",
       }),
     ).toBeNull();
-
     fireEvent.click(groceries);
     expect(groceries.getAttribute("aria-pressed")).toBe("false");
     expect(transit.getAttribute("aria-pressed")).toBe("true");
@@ -436,6 +435,9 @@ describe("InsightsPage", () => {
         name: "Transit spending",
       }),
     ).toBeTruthy();
+    expect(trendsTable.querySelector("caption")?.textContent).toContain(
+      "No selected Category has a current monthly Budget reference.",
+    );
 
     fireEvent.click(transit);
     expect(

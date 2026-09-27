@@ -66,6 +66,9 @@ function CategorySpendingChart({ report }: CategorySpendingChartProps) {
   );
   const showSelectedBudgetReferences =
     showBudgetReferences && hasSelectedBudget;
+  const unavailableBudgetReferenceMessage = showBudgetReferences
+    ? "No selected Category has a current monthly Budget reference."
+    : "Category Budget references are hidden.";
   const trends: CategoryTrend[] = selectedCategories.map((category) => ({
     category,
     amountsCents: points.map(
@@ -158,9 +161,7 @@ function CategorySpendingChart({ report }: CategorySpendingChartProps) {
                   aria-hidden="true"
                   className={cn(
                     "size-3 shrink-0",
-                    category.color === null
-                      ? "border border-foreground/60 bg-muted-foreground"
-                      : getCategoryColorClass(category.color),
+                    getCategorySwatchClass(category.color),
                   )}
                 />
                 {category.label}
@@ -197,10 +198,8 @@ function CategorySpendingChart({ report }: CategorySpendingChartProps) {
                     Historical comparisons use current Budgets.
                   </>
                 )
-              ) : showBudgetReferences ? (
-                "No selected Category has a current monthly Budget reference."
               ) : (
-                "Category Budget references are hidden."
+                unavailableBudgetReferenceMessage
               )}
             </p>
 
@@ -267,7 +266,7 @@ function CategorySpendingChart({ report }: CategorySpendingChartProps) {
                     </svg>
                   </div>
                 </div>
-                <div className="absolute inset-x-[4.5rem] bottom-0 flex h-6 font-mono text-xs tabular-nums text-muted-foreground">
+                <div className="absolute inset-x-18 bottom-0 flex h-6 font-mono text-xs tabular-nums text-muted-foreground">
                   {points.map((point) => (
                     <span
                       key={point.key}
@@ -295,9 +294,7 @@ function CategorySpendingChart({ report }: CategorySpendingChartProps) {
                       aria-hidden="true"
                       className={cn(
                         "size-3 shrink-0",
-                        category.color === null
-                          ? "border border-foreground/60 bg-muted-foreground"
-                          : getCategoryColorClass(category.color),
+                        getCategorySwatchClass(category.color),
                       )}
                     />
                     <span>{category.label}</span>
@@ -330,7 +327,7 @@ function CategorySpendingChart({ report }: CategorySpendingChartProps) {
                       ? report.view === "monthly"
                         ? " Daily Budget pace values use each Category’s current monthly Budget divided by the selected month’s day count; they are pace guides, not daily limits."
                         : " Historical comparisons use each Category’s current monthly Budget."
-                      : " Category Budget references are hidden."}
+                      : ` ${unavailableBudgetReferenceMessage}`}
                   </caption>
                   <thead>
                     <tr>
@@ -395,12 +392,7 @@ function createTrendPoints(report: InsightsReportResult): TrendPoint[] {
       axisLabel: String(day.day),
       axisLabelVisible:
         day.day === 1 || day.day % 5 === 0 || day.day === report.days.length,
-      amountsByCategory: new Map(
-        day.categories.map(({ categoryId, amountCents }) => [
-          categoryId,
-          amountCents,
-        ]),
-      ),
+      amountsByCategory: createAmountsByCategoryMap(day.categories),
     }));
   }
 
@@ -411,13 +403,25 @@ function createTrendPoints(report: InsightsReportResult): TrendPoint[] {
       new Date(`${month.period}-01T00:00:00Z`),
     ),
     axisLabelVisible: true,
-    amountsByCategory: new Map(
-      month.categories.map(({ categoryId, amountCents }) => [
-        categoryId,
-        amountCents,
-      ]),
-    ),
+    amountsByCategory: createAmountsByCategoryMap(month.categories),
   }));
+}
+
+function createAmountsByCategoryMap(
+  amounts: readonly {
+    readonly categoryId: string | null;
+    readonly amountCents: number;
+  }[],
+): ReadonlyMap<string | null, number> {
+  return new Map(
+    amounts.map(({ categoryId, amountCents }) => [categoryId, amountCents]),
+  );
+}
+
+function getCategorySwatchClass(color: InsightsCategory["color"]): string {
+  return color === null
+    ? "border border-foreground/60 bg-muted-foreground"
+    : getCategoryColorClass(color);
 }
 
 function createLineDashMap(

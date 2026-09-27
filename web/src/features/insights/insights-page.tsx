@@ -100,7 +100,7 @@ function InsightsPage({ spaceId, onSpaceChange }: InsightsPageProps = {}) {
           >
             <button
               type="button"
-              aria-label="Yearly view"
+              aria-label="Monthly view"
               aria-pressed={view === "yearly"}
               onClick={() => setView("yearly")}
               className={cn(
@@ -110,11 +110,11 @@ function InsightsPage({ spaceId, onSpaceChange }: InsightsPageProps = {}) {
                   : "text-muted-foreground hover:bg-muted",
               )}
             >
-              Yearly
+              Monthly
             </button>
             <button
               type="button"
-              aria-label="Monthly view"
+              aria-label="Daily view"
               aria-pressed={view === "monthly"}
               onClick={() => setView("monthly")}
               className={cn(
@@ -124,7 +124,7 @@ function InsightsPage({ spaceId, onSpaceChange }: InsightsPageProps = {}) {
                   : "text-muted-foreground hover:bg-muted",
               )}
             >
-              Monthly
+              Daily
             </button>
           </div>
         </div>

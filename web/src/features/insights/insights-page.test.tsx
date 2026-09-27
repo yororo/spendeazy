@@ -654,7 +654,13 @@ describe("InsightsPage", () => {
     renderInsights();
 
     expect(await screen.findByRole("heading", { name: "Insights" })).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Yearly view" }));
+    const monthlyViewButton = screen.getByRole("button", {
+      name: "Monthly view",
+    });
+    const dailyViewButton = screen.getByRole("button", { name: "Daily view" });
+    expect(monthlyViewButton.textContent).toBe("Monthly");
+    expect(dailyViewButton.textContent).toBe("Daily");
+    fireEvent.click(monthlyViewButton);
 
     const yearlyTable = await screen.findByRole("table", {
       name: /monthly spending values/i,
@@ -748,7 +754,7 @@ describe("InsightsPage", () => {
       ).toBe(true),
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Monthly view" }));
+    fireEvent.click(screen.getByRole("button", { name: "Daily view" }));
     expect(
       await screen.findByRole("table", { name: /daily spending values/i }),
     ).toBeTruthy();

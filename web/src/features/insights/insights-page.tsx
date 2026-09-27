@@ -16,6 +16,7 @@ import {
 
 import { DailySpendingChart } from "./daily-spending-chart";
 import { CategorySpendingChart } from "./category-spending-chart";
+import { MonthlyCategoryRankings } from "./monthly-category-rankings";
 import { useInsightsQuery, type InsightsView } from "./insights-queries";
 import { YearlySpendingChart } from "./yearly-spending-chart";
 
@@ -206,6 +207,9 @@ function InsightsPage({ spaceId, onSpaceChange }: InsightsPageProps = {}) {
           />
         </section>
       </div>
+      {report.view === "monthly" ? (
+        <MonthlyCategoryRankings report={report} />
+      ) : null}
     </div>
   );
 }

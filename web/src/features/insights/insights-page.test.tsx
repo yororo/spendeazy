@@ -141,14 +141,14 @@ function createSuccessfulFetch(initialPeriod: string) {
     if (path.endsWith("/transactions")) {
       const fromDate = url.searchParams.get("fromDate")!;
       const toDate = url.searchParams.get("toDate")!;
+      const selectedPeriod = toDate.slice(0, 7);
       if (requestedSpaceId === "8") {
-        const period = fromDate.slice(0, 7);
         return apiResponse({
           items: [
             {
-              id: `housing-${period}`,
+              id: `housing-${selectedPeriod}`,
               categoryId: "80",
-              purchaseDate: `${period}-03`,
+              purchaseDate: `${selectedPeriod}-03`,
               description: "Rent",
               amount: "8.40",
               source: "manual",
@@ -159,72 +159,53 @@ function createSuccessfulFetch(initialPeriod: string) {
         });
       }
 
-      if (fromDate.slice(0, 7) !== toDate.slice(0, 7)) {
-        const firstPeriod = fromDate.slice(0, 7);
-        const secondPeriod = nextMonth(firstPeriod);
-        const selectedPeriod = toDate.slice(0, 7);
-        return apiResponse({
-          items: [
-            {
-              id: `at-budget-${firstPeriod}`,
-              categoryId: "42",
-              purchaseDate: `${firstPeriod}-10`,
-              description: "At the current Budget",
-              amount: "100.00",
-              source: "manual",
-              statementImportId: null,
-            },
-            {
-              id: `over-budget-${secondPeriod}`,
-              categoryId: "42",
-              purchaseDate: `${secondPeriod}-10`,
-              description: "Over the current Budget",
-              amount: "100.01",
-              source: "manual",
-              statementImportId: null,
-            },
-            {
-              id: `unbudgeted-${secondPeriod}`,
-              categoryId: "44",
-              purchaseDate: `${secondPeriod}-11`,
-              description: "Unbudgeted transit",
-              amount: "25.00",
-              source: "manual",
-              statementImportId: null,
-            },
-            {
-              id: `uncategorized-${secondPeriod}`,
-              categoryId: null,
-              purchaseDate: `${secondPeriod}-12`,
-              description: "Uncategorized purchase",
-              amount: "0.05",
-              source: "manual",
-              statementImportId: null,
-            },
-            {
-              id: `within-budget-${selectedPeriod}`,
-              categoryId: "42",
-              purchaseDate: `${selectedPeriod}-10`,
-              description: "Within the current Budget",
-              amount: "99.99",
-              source: "manual",
-              statementImportId: null,
-            },
-          ],
-          nextCursor: null,
-        });
-      }
-
-      const period = fromDate.slice(0, 7);
-      const isInitialPeriod = period === initialPeriod;
+      const firstPeriod = fromDate.slice(0, 7);
+      const secondPeriod = nextMonth(firstPeriod);
+      const isInitialPeriod = selectedPeriod === initialPeriod;
       const day = isInitialPeriod ? "01" : "02";
       const categoryAmount = isInitialPeriod ? "5.25" : "3.10";
       return apiResponse({
         items: [
           {
-            id: `grocery-${period}`,
+            id: `at-budget-${firstPeriod}`,
             categoryId: "42",
-            purchaseDate: `${period}-${day}`,
+            purchaseDate: `${firstPeriod}-10`,
+            description: "At the current Budget",
+            amount: "100.00",
+            source: "manual",
+            statementImportId: null,
+          },
+          {
+            id: `over-budget-${secondPeriod}`,
+            categoryId: "42",
+            purchaseDate: `${secondPeriod}-10`,
+            description: "Over the current Budget",
+            amount: "100.01",
+            source: "manual",
+            statementImportId: null,
+          },
+          {
+            id: `unbudgeted-${secondPeriod}`,
+            categoryId: "44",
+            purchaseDate: `${secondPeriod}-11`,
+            description: "Unbudgeted transit",
+            amount: "25.00",
+            source: "manual",
+            statementImportId: null,
+          },
+          {
+            id: `uncategorized-${secondPeriod}`,
+            categoryId: null,
+            purchaseDate: `${secondPeriod}-12`,
+            description: "Uncategorized purchase",
+            amount: "0.05",
+            source: "manual",
+            statementImportId: null,
+          },
+          {
+            id: `grocery-${selectedPeriod}`,
+            categoryId: "42",
+            purchaseDate: `${selectedPeriod}-${day}`,
             description: "Groceries",
             amount: categoryAmount,
             source: "manual",
@@ -233,9 +214,9 @@ function createSuccessfulFetch(initialPeriod: string) {
           ...(isInitialPeriod
             ? [
                 {
-                  id: `uncategorized-${period}`,
+                  id: `selected-uncategorized-${selectedPeriod}`,
                   categoryId: null,
-                  purchaseDate: `${period}-${day}`,
+                  purchaseDate: `${selectedPeriod}-${day}`,
                   description: "Uncategorized purchase",
                   amount: "2.50",
                   source: "manual",
@@ -295,6 +276,27 @@ describe("InsightsPage", () => {
     expect(within(summary).getByText(formatMoney(7.75))).toBeTruthy();
     expect(within(summary).getByText(formatMoney(5.25))).toBeTruthy();
 
+    const breachList = screen.getByRole("list", {
+      name: "Categories with the most monthly Budget breaches",
+    });
+    expect(within(breachList).getByText("Groceries")).toBeTruthy();
+    expect(
+      within(breachList).getByLabelText("1 of 12 months over Budget"),
+    ).toBeTruthy();
+    expect(
+      screen.getByText(/Historical comparisons use current monthly Budgets/i),
+    ).toBeTruthy();
+    const lowSpendingList = screen.getByRole("list", {
+      name: "Active monthly-budgeted Categories with the lowest spending",
+    });
+    expect(within(lowSpendingList).getByText("Groceries")).toBeTruthy();
+    expect(
+      within(lowSpendingList).getByText(`${formatMoney(5.25)} spent`),
+    ).toBeTruthy();
+    expect(
+      within(lowSpendingList).getByText(`${formatMoney(100)} Budget`),
+    ).toBeTruthy();
+
     const chartTable = screen.getByRole("table", {
       name: /daily spending values/i,
     });
@@ -338,10 +340,15 @@ describe("InsightsPage", () => {
     await waitFor(() =>
       expect(
         fetch.mock.calls.some(([input]) =>
-          String(input).includes(`fromDate=${nextMonth(period)}-01`),
+          String(input).includes(`fromDate=${rollingStart(nextMonth(period))}`),
         ),
       ).toBe(true),
     );
+    expect(
+      await screen.findByText(
+        `Months over Budget in the 12-month window ending ${formatReportingPeriod(nextMonth(period) as ReportingPeriod)}.`,
+      ),
+    ).toBeTruthy();
     const nextSummary = screen.getByRole("region", {
       name: "Monthly spending summary",
     });
@@ -458,6 +465,10 @@ describe("InsightsPage", () => {
         name: "Groceries spending",
       }),
     ).toBeTruthy();
+    const firstLowSpendingList = screen.getByRole("list", {
+      name: "Active monthly-budgeted Categories with the lowest spending",
+    });
+    expect(within(firstLowSpendingList).getByText("Groceries")).toBeTruthy();
 
     view.rerenderSpace("8");
 
@@ -480,6 +491,14 @@ describe("InsightsPage", () => {
         name: "Groceries spending",
       }),
     ).toBeNull();
+    const housingRanking = screen.getByRole("list", {
+      name: "Active monthly-budgeted Categories with the lowest spending",
+    });
+    expect(within(housingRanking).getByText("Housing")).toBeTruthy();
+    expect(
+      within(housingRanking).getByText(`${formatMoney(8.4)} spent`),
+    ).toBeTruthy();
+    expect(within(housingRanking).queryByText("Groceries")).toBeNull();
   });
 
   it("keeps zero-spend days visible in an empty period", async () => {
@@ -511,6 +530,14 @@ describe("InsightsPage", () => {
     expect(
       await screen.findByText("No spending was recorded for this month."),
     ).toBeTruthy();
+    expect(
+      screen.getByText(
+        "No monthly-budgeted Categories are available for comparison.",
+      ),
+    ).toBeTruthy();
+    expect(
+      screen.getByText("No active Categories have a current monthly Budget."),
+    ).toBeTruthy();
     const chartTable = screen.getByRole("table", {
       name: /daily spending values/i,
     });
@@ -522,6 +549,70 @@ describe("InsightsPage", () => {
     ).getUTCDate();
     expect(within(chartTable).getAllByRole("row")).toHaveLength(dayCount + 1);
     expect(within(summary).getAllByText(formatMoney(0))).toHaveLength(2);
+  });
+
+  it("explains when eligible Categories have no Budget breaches and includes zero spending", async () => {
+    const period = getCurrentReportingPeriod();
+    const fetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url = new URL(String(input));
+      const path = url.pathname.replace("/api/v1/users/me", "");
+
+      if (path === "/spaces/7/categories") {
+        return apiResponse([
+          {
+            id: "42",
+            name: "Emergency",
+            description: null,
+            color: "teal",
+            isActive: true,
+            updatedAt: "2026-09-01T00:00:00.000Z",
+          },
+        ]);
+      }
+      if (path === "/spaces/7/category-summaries") {
+        return apiResponse({
+          period: "monthly",
+          year: period.slice(0, 4),
+          month: period.slice(5),
+          categories: [
+            {
+              categoryId: "42",
+              name: "Emergency",
+              isActive: true,
+              totalAmount: "0.00",
+              transactionCount: "0",
+              budgetAmount: "100.00",
+              remainingAmount: "100.00",
+            },
+          ],
+          uncategorizedTotal: "0.00",
+          uncategorizedCount: "0",
+        });
+      }
+      if (path === "/spaces/7/transactions") {
+        return apiResponse({ items: [], nextCursor: null });
+      }
+
+      throw new Error(`Unexpected API request to ${url.pathname}${url.search}`);
+    });
+    vi.stubGlobal("fetch", fetch);
+    renderInsights();
+
+    expect(
+      await screen.findByText(
+        `No Categories exceeded their current Budget in the 12-month window ending ${formatReportingPeriod(period)}.`,
+      ),
+    ).toBeTruthy();
+    const lowSpendingList = screen.getByRole("list", {
+      name: "Active monthly-budgeted Categories with the lowest spending",
+    });
+    expect(within(lowSpendingList).getByText("Emergency")).toBeTruthy();
+    expect(
+      within(lowSpendingList).getByText(`${formatMoney(0)} spent`),
+    ).toBeTruthy();
+    expect(
+      within(lowSpendingList).getByText(`${formatMoney(100)} Budget`),
+    ).toBeTruthy();
   });
 
   it("shows a retryable error when monthly data cannot be loaded", async () => {
@@ -568,6 +659,9 @@ describe("InsightsPage", () => {
     const yearlyTable = await screen.findByRole("table", {
       name: /monthly spending values/i,
     });
+    expect(
+      screen.queryByRole("heading", { name: "Frequently over Budget" }),
+    ).toBeNull();
     const expectedStart = rollingStart(period);
     expect(within(yearlyTable).getAllByRole("row")).toHaveLength(13);
     expect(

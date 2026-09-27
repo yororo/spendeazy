@@ -1,6 +1,8 @@
 import {
+  ApiError,
   buildApiPath,
   buildMonthlyCategorySummaryPath,
+  isRecord,
   parseApiMoney,
   requireApiResponse,
   requireMonthlyCategorySummary,
@@ -30,6 +32,21 @@ interface InsightsCategory {
   readonly monthlyBudgetCents: number | null;
 }
 
+interface InsightsBudgetedCategory {
+  readonly categoryId: string;
+  readonly label: string;
+  readonly color: CategoryColor;
+  readonly monthlyBudgetCents: number;
+}
+
+interface InsightsBudgetBreach extends InsightsBudgetedCategory {
+  readonly breachCount: number;
+}
+
+interface InsightsLowSpendingCategory extends InsightsBudgetedCategory {
+  readonly spendingCents: number;
+}
+
 interface InsightsCategoryAmount {
   readonly categoryId: string | null;
   readonly amountCents: number;
@@ -50,6 +67,10 @@ interface InsightsReport {
   readonly budgetedSpendingCents: number;
   readonly monthlyBudgetCents: number;
   readonly dailyBudgetPaceCents: number;
+  readonly frequentlyOverBudget: readonly InsightsBudgetBreach[];
+  readonly lowestSpending: readonly InsightsLowSpendingCategory[];
+  readonly monthlyBudgetedCategoryCount: number;
+  readonly activeMonthlyBudgetedCategoryCount: number;
   readonly categories: readonly InsightsCategory[];
   readonly selectableCategories: readonly InsightsCategory[];
   readonly days: readonly InsightsDay[];
@@ -91,11 +112,21 @@ const createInsightsDataError = (message: string) =>
   new InsightsDataError(message);
 
 const TRANSACTION_PAGE_SIZE = 100;
+const MONTHLY_RANKING_LIMIT = 5;
 
 interface CategoryIdentity {
   readonly label: string;
   readonly color: CategoryColor;
+  readonly isActive: boolean;
   readonly monthlyBudgetCents: number | null;
+}
+
+interface CategoryBudgetResponse {
+  readonly id: string;
+  readonly categoryId: string;
+  readonly amount: string;
+  readonly period: "monthly" | "yearly";
+  readonly updatedAt: string;
 }
 
 async function getInsights(
@@ -105,6 +136,8 @@ async function getInsights(
   spaceId?: string,
 ): Promise<InsightsReport> {
   const bounds = getReportingPeriodBounds(period);
+  const periods = getRollingPeriods(period);
+  const firstPeriod = periods[0]!;
   const [categoryResponse, summaryResponse, transactions] = await Promise.all([
     apiClient.get<readonly CategoryCatalogItem[]>(
       buildCategoryCollectionPath(spaceId),
@@ -114,7 +147,13 @@ async function getInsights(
       buildMonthlyCategorySummaryPath(period, spaceId),
       { signal },
     ),
-    loadAllTransactions(apiClient, bounds.fromDate, bounds.toDate, signal, spaceId),
+    loadAllTransactions(
+      apiClient,
+      `${firstPeriod}-01`,
+      bounds.toDate,
+      signal,
+      spaceId,
+    ),
   ]);
 
   const catalog = requireCategoryCatalog(
@@ -128,8 +167,23 @@ async function getInsights(
     ),
     createInsightsDataError,
   );
+  const inactiveCategoryBudgets = await loadInactiveCategoryBudgets(
+    apiClient,
+    catalog,
+    summary,
+    signal,
+    spaceId,
+  );
 
-  return createInsightsReport(period, bounds.daysInPeriod, catalog, summary, transactions);
+  return createInsightsReport(
+    period,
+    periods,
+    bounds.daysInPeriod,
+    catalog,
+    summary,
+    inactiveCategoryBudgets,
+    transactions,
+  );
 }
 
 async function getYearlyInsights(
@@ -170,8 +224,22 @@ async function getYearlyInsights(
     ),
     createInsightsDataError,
   );
+  const inactiveCategoryBudgets = await loadInactiveCategoryBudgets(
+    apiClient,
+    catalog,
+    summary,
+    signal,
+    spaceId,
+  );
 
-  return createYearlyInsightsReport(period, periods, catalog, summary, transactions);
+  return createYearlyInsightsReport(
+    period,
+    periods,
+    catalog,
+    summary,
+    inactiveCategoryBudgets,
+    transactions,
+  );
 }
 
 async function loadAllTransactions(
@@ -218,16 +286,107 @@ async function loadAllTransactions(
   return transactions;
 }
 
+async function loadInactiveCategoryBudgets(
+  apiClient: InsightsApiClient,
+  catalog: readonly CategoryCatalogItem[],
+  summary: CategorySummaryResponse,
+  signal?: AbortSignal,
+  spaceId?: string,
+): Promise<ReadonlyMap<string, number | null>> {
+  // Monthly summaries omit inactive Categories without selected-month activity.
+  const summarizedCategoryIds = new Set(
+    summary.categories.map(({ categoryId }) => categoryId),
+  );
+  const categoriesWithoutSummary = catalog.filter(
+    ({ id, isActive }) => !isActive && !summarizedCategoryIds.has(id),
+  );
+  const categoryBudgets = await Promise.all(
+    categoriesWithoutSummary.map(async (category) => [
+      category.id,
+      await getInactiveCategoryBudget(apiClient, category, signal, spaceId),
+    ] as const),
+  );
+
+  return new Map(categoryBudgets);
+}
+
+async function getInactiveCategoryBudget(
+  apiClient: InsightsApiClient,
+  category: CategoryCatalogItem,
+  signal?: AbortSignal,
+  spaceId?: string,
+): Promise<number | null> {
+  try {
+    const response = requireApiResponse(
+      await apiClient.get<unknown>(
+        buildCategoryBudgetPath(category.id, spaceId),
+        { signal, expectedStatuses: [200] },
+      ),
+      "Category Budget",
+      createInsightsDataError,
+    );
+    if (
+      !isCategoryBudgetResponse(response) ||
+      response.categoryId !== category.id
+    ) {
+      throw new InsightsDataError(
+        `The API returned an invalid Budget for Category ${category.id}.`,
+      );
+    }
+    if (response.period !== "monthly") return null;
+
+    return moneyToCents(
+      parseApiMoney(
+        response.amount,
+        `Budget ${category.id}`,
+        createInsightsDataError,
+      ),
+    );
+  } catch (error) {
+    if (
+      error instanceof ApiError &&
+      error.status === 404 &&
+      error.code === "BUDGET_NOT_FOUND"
+    ) {
+      return null;
+    }
+
+    throw error;
+  }
+}
+
+function isCategoryBudgetResponse(
+  value: unknown,
+): value is CategoryBudgetResponse {
+  return (
+    isRecord(value) &&
+    typeof value.id === "string" &&
+    /^[1-9]\d*$/u.test(value.id) &&
+    typeof value.categoryId === "string" &&
+    /^[1-9]\d*$/u.test(value.categoryId) &&
+    typeof value.amount === "string" &&
+    /^(?=.*[1-9])\d{1,13}\.\d{2}$/u.test(value.amount) &&
+    (value.period === "monthly" || value.period === "yearly") &&
+    typeof value.updatedAt === "string"
+  );
+}
+
 function createInsightsReport(
   period: ReportingPeriod,
+  periods: readonly ReportingPeriod[],
   daysInPeriod: number,
   catalog: readonly CategoryCatalogItem[],
   summary: CategorySummaryResponse,
+  inactiveCategoryBudgets: ReadonlyMap<string, number | null>,
   transactions: readonly TransactionHistoryItem[],
 ): InsightsReport {
   const { categoryById, budgetedCategoryIds, monthlyBudgetCents } =
-    createCategoryContext(catalog, summary);
-
+    createCategoryContext(catalog, summary, inactiveCategoryBudgets);
+  const amountsByMonth = periods.map(() => new Map<string | null, number>());
+  const totalByMonth = periods.map(() => 0);
+  const budgetedByMonth = periods.map(() => 0);
+  const indexByPeriod = new Map(periods.map((month, index) => [month, index]));
+  const selectedMonthIndex = indexByPeriod.get(period)!;
   const dailyCategoryTotals = Array.from(
     { length: daysInPeriod },
     () => new Map<string | null, number>(),
@@ -239,7 +398,13 @@ function createInsightsReport(
   );
 
   transactions.forEach((transaction) => {
-    const day = getDayOfMonth(transaction.purchaseDate, period, daysInPeriod);
+    const transactionPeriod = getTransactionPeriod(transaction.purchaseDate);
+    const monthIndex = indexByPeriod.get(transactionPeriod);
+    if (monthIndex === undefined) {
+      throw new InsightsDataError(
+        "The API returned a Transaction outside the selected 12-month Reporting Period.",
+      );
+    }
     const amountCents = moneyToCents(
       parseApiMoney(
         transaction.amount,
@@ -255,31 +420,46 @@ function createInsightsReport(
       );
     }
 
-    const categoryTotals = dailyCategoryTotals[day - 1]!;
+    const categoryTotals = amountsByMonth[monthIndex]!;
     categoryTotals.set(
       categoryId,
       (categoryTotals.get(categoryId) ?? 0) + amountCents,
     );
-    dailySpendingCents[day - 1]! += amountCents;
+    totalByMonth[monthIndex]! += amountCents;
 
     if (categoryId !== null && budgetedCategoryIds.has(categoryId)) {
-      dailyBudgetedSpendingCents[day - 1]! += amountCents;
+      budgetedByMonth[monthIndex]! += amountCents;
+    }
+
+    if (monthIndex === selectedMonthIndex) {
+      const day = getDayOfMonth(
+        transaction.purchaseDate,
+        period,
+        daysInPeriod,
+      );
+      const dayCategoryTotals = dailyCategoryTotals[day - 1]!;
+      dayCategoryTotals.set(
+        categoryId,
+        (dayCategoryTotals.get(categoryId) ?? 0) + amountCents,
+      );
+      dailySpendingCents[day - 1]! += amountCents;
+
+      if (categoryId !== null && budgetedCategoryIds.has(categoryId)) {
+        dailyBudgetedSpendingCents[day - 1]! += amountCents;
+      }
     }
   });
 
-  const spendingByCategory = new Map<string | null, number>();
-  dailyCategoryTotals.forEach((categoryTotals) => {
-    categoryTotals.forEach((amountCents, categoryId) => {
-      spendingByCategory.set(
-        categoryId,
-        (spendingByCategory.get(categoryId) ?? 0) + amountCents,
-      );
-    });
-  });
+  const spendingByCategory = amountsByMonth[selectedMonthIndex]!;
 
   const categories = createCategoryReports(spendingByCategory, categoryById);
   const selectableCategories = createSelectableCategoryReports(
     spendingByCategory,
+    categoryById,
+  );
+  const { frequentlyOverBudget, lowestSpending } = createMonthlyRankings(
+    amountsByMonth,
+    selectedMonthIndex,
     categoryById,
   );
 
@@ -309,6 +489,12 @@ function createInsightsReport(
     budgetedSpendingCents,
     monthlyBudgetCents,
     dailyBudgetPaceCents: monthlyBudgetCents / daysInPeriod,
+    frequentlyOverBudget,
+    lowestSpending,
+    monthlyBudgetedCategoryCount: budgetedCategoryIds.size,
+    activeMonthlyBudgetedCategoryCount: [...budgetedCategoryIds].filter(
+      (categoryId) => categoryById.get(categoryId)?.isActive === true,
+    ).length,
     categories,
     selectableCategories,
     days,
@@ -320,10 +506,11 @@ function createYearlyInsightsReport(
   periods: readonly ReportingPeriod[],
   catalog: readonly CategoryCatalogItem[],
   summary: CategorySummaryResponse,
+  inactiveCategoryBudgets: ReadonlyMap<string, number | null>,
   transactions: readonly TransactionHistoryItem[],
 ): InsightsYearlyReport {
   const { categoryById, budgetedCategoryIds, monthlyBudgetCents } =
-    createCategoryContext(catalog, summary);
+    createCategoryContext(catalog, summary, inactiveCategoryBudgets);
   const amountsByMonth = periods.map(() => new Map<string | null, number>());
   const totalByMonth = periods.map(() => 0);
   const budgetedByMonth = periods.map(() => 0);
@@ -406,6 +593,7 @@ function createYearlyInsightsReport(
 function createCategoryContext(
   catalog: readonly CategoryCatalogItem[],
   summary: CategorySummaryResponse,
+  inactiveCategoryBudgets: ReadonlyMap<string, number | null>,
 ) {
   const categoryById = new Map<string, CategoryIdentity>(
     catalog.map((category) => [
@@ -413,25 +601,26 @@ function createCategoryContext(
       {
         label: category.name,
         color: resolveCategoryColor(category.id, category.color),
-        monthlyBudgetCents: null,
+        isActive: category.isActive,
+        monthlyBudgetCents: inactiveCategoryBudgets.get(category.id) ?? null,
       },
     ]),
   );
   const budgetedCategoryIds = new Set<string>();
-  let monthlyBudgetCents = 0;
 
   summary.categories.forEach((category) => {
     if (!categoryById.has(category.categoryId)) {
       categoryById.set(category.categoryId, {
         label: category.name,
         color: resolveCategoryColor(category.categoryId, undefined),
+        isActive: category.isActive,
         monthlyBudgetCents: null,
       });
     }
 
     const identity = categoryById.get(category.categoryId)!;
     const categoryBudgetCents = category.budgetAmount === null
-      ? null
+      ? identity.monthlyBudgetCents
       : moneyToCents(
           parseApiMoney(
             category.budgetAmount,
@@ -443,11 +632,14 @@ function createCategoryContext(
       ...identity,
       monthlyBudgetCents: categoryBudgetCents,
     });
+  });
 
-    if (categoryBudgetCents === null) return;
+  let monthlyBudgetCents = 0;
+  categoryById.forEach((category, categoryId) => {
+    if (category.monthlyBudgetCents === null) return;
 
-    budgetedCategoryIds.add(category.categoryId);
-    monthlyBudgetCents += categoryBudgetCents;
+    budgetedCategoryIds.add(categoryId);
+    monthlyBudgetCents += category.monthlyBudgetCents;
   });
 
   return { categoryById, budgetedCategoryIds, monthlyBudgetCents };
@@ -487,6 +679,73 @@ function createSelectableCategoryReports(
 
   return createCategoryReports(spendingByKnownCategory, categoryById).filter(
     ({ id }) => id !== null,
+  );
+}
+
+function createMonthlyRankings(
+  amountsByMonth: readonly ReadonlyMap<string | null, number>[],
+  selectedMonthIndex: number,
+  categoryById: ReadonlyMap<string, CategoryIdentity>,
+): {
+  readonly frequentlyOverBudget: readonly InsightsBudgetBreach[];
+  readonly lowestSpending: readonly InsightsLowSpendingCategory[];
+} {
+  const frequentlyOverBudget = [...categoryById.entries()]
+    .flatMap(([categoryId, category]) => {
+      const budgetCents = category.monthlyBudgetCents;
+      if (budgetCents === null) return [];
+
+      const breachCount = amountsByMonth.reduce(
+        (count, monthAmounts) =>
+          count + ((monthAmounts.get(categoryId) ?? 0) > budgetCents ? 1 : 0),
+        0,
+      );
+      if (breachCount === 0) return [];
+
+      return [{
+        categoryId,
+        label: category.label,
+        color: category.color,
+        monthlyBudgetCents: budgetCents,
+        breachCount,
+      }];
+    })
+    .sort((left, right) =>
+      right.breachCount - left.breachCount ||
+      compareCategoryNameAndId(left, right),
+    )
+    .slice(0, MONTHLY_RANKING_LIMIT);
+
+  const lowestSpending = [...categoryById.entries()]
+    .flatMap(([categoryId, category]) => {
+      const budgetCents = category.monthlyBudgetCents;
+      if (!category.isActive || budgetCents === null) return [];
+
+      return [{
+        categoryId,
+        label: category.label,
+        color: category.color,
+        spendingCents:
+          amountsByMonth[selectedMonthIndex]!.get(categoryId) ?? 0,
+        monthlyBudgetCents: budgetCents,
+      }];
+    })
+    .sort((left, right) =>
+      left.spendingCents - right.spendingCents ||
+      compareCategoryNameAndId(left, right),
+    )
+    .slice(0, MONTHLY_RANKING_LIMIT);
+
+  return { frequentlyOverBudget, lowestSpending };
+}
+
+function compareCategoryNameAndId(
+  left: Pick<InsightsBudgetedCategory, "label" | "categoryId">,
+  right: Pick<InsightsBudgetedCategory, "label" | "categoryId">,
+): number {
+  return (
+    left.label.localeCompare(right.label) ||
+    left.categoryId.localeCompare(right.categoryId)
   );
 }
 
@@ -554,6 +813,12 @@ function buildCategoryCollectionPath(spaceId?: string): string {
     : `/spaces/${encodeURIComponent(spaceId)}/categories`;
 }
 
+function buildCategoryBudgetPath(categoryId: string, spaceId?: string): string {
+  return `${buildCategoryCollectionPath(spaceId)}/${encodeURIComponent(
+    categoryId,
+  )}/budget`;
+}
+
 function buildTransactionCollectionPath(spaceId?: string): string {
   return spaceId === undefined
     ? "/transactions"
@@ -563,9 +828,11 @@ function buildTransactionCollectionPath(spaceId?: string): string {
 export { getInsights, getYearlyInsights, InsightsDataError };
 export type {
   InsightsApiClient,
+  InsightsBudgetBreach,
   InsightsCategory,
   InsightsCategoryAmount,
   InsightsDay,
+  InsightsLowSpendingCategory,
   InsightsMonth,
   InsightsReport,
   InsightsReportResult,

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { ApiError } from "@/shared/api";
 import type { ReportingPeriod } from "@/shared/reporting-period";
 
 import {
@@ -13,7 +14,7 @@ const categoryPath = "/spaces/7/categories";
 const summaryPath =
   "/spaces/7/category-summaries?period=monthly&year=2024&month=02";
 const transactionPath =
-  "/spaces/7/transactions?fromDate=2024-02-01&toDate=2024-02-29&pageSize=100";
+  "/spaces/7/transactions?fromDate=2023-03-01&toDate=2024-02-29&pageSize=100";
 const nextTransactionPath = `${transactionPath}&cursor=next-page`;
 const yearlySummaryPath =
   "/spaces/7/category-summaries?period=monthly&year=2026&month=01";
@@ -99,7 +100,9 @@ function monthlySummary() {
 function createApiClient(responses: ReadonlyMap<string, unknown>) {
   const get = vi.fn(async (path: string) => {
     if (!responses.has(path)) throw new Error(`Unexpected GET ${path}`);
-    return responses.get(path);
+    const response = responses.get(path);
+    if (response instanceof Error) throw response;
+    return response;
   });
 
   return { apiClient: { get } as unknown as InsightsApiClient, get };
@@ -253,6 +256,110 @@ describe("getInsights", () => {
     );
   });
 
+  it("ranks repeated strict Budget breaches and active low spend over the selected 12 months", async () => {
+    const period = "2026-01" as ReportingPeriod;
+    const monthlySummaryPath =
+      "/spaces/7/category-summaries?period=monthly&year=2026&month=01";
+    const monthlyTransactionsPath =
+      "/spaces/7/transactions?fromDate=2025-02-01&toDate=2026-01-31&pageSize=100";
+    const catalog = [
+      { ...categoryCatalog()[0]!, name: "Groceries" },
+      { ...categoryCatalog()[1]!, name: "Archived", isActive: false },
+      { ...categoryCatalog()[2]!, name: "Equal" },
+      { ...categoryCatalog()[3]!, name: "Equal", id: "46" },
+      { ...categoryCatalog()[2]!, name: "Transit", id: "47" },
+      { ...categoryCatalog()[2]!, name: "Dining", id: "48" },
+      { ...categoryCatalog()[2]!, name: "Fun", id: "49" },
+      { ...categoryCatalog()[2]!, name: "Health", id: "50" },
+      { ...categoryCatalog()[2]!, name: "zzz boundary", id: "51" },
+      { ...categoryCatalog()[2]!, name: "zzzz overflow", id: "52" },
+    ];
+    const budgetedCategories = [
+      ["42", "Groceries", "10.00", true],
+      ["44", "Equal", "30.00", true],
+      ["46", "Equal", "30.00", true],
+      ["47", "Transit", "30.00", true],
+      ["48", "Dining", "30.00", true],
+      ["49", "Fun", "30.00", true],
+      ["50", "Health", "30.00", true],
+      ["51", "zzz boundary", "50.00", true],
+      ["52", "zzzz overflow", "1.00", true],
+    ] as const;
+    const summary = {
+      period: "monthly",
+      year: "2026",
+      month: "01",
+      categories: budgetedCategories.map(([categoryId, name, budgetAmount, isActive]) => ({
+        categoryId,
+        name,
+        isActive,
+        totalAmount: "0.00",
+        transactionCount: "0",
+        budgetAmount,
+        remainingAmount: budgetAmount,
+      })),
+      uncategorizedTotal: "0.00",
+      uncategorizedCount: "0",
+    };
+    const transactions = [
+      ["boundary", "42", "2025-02-10", "10.00"],
+      ["grocery-over-1", "42", "2025-03-10", "10.01"],
+      ["grocery-over-2", "42", "2025-04-10", "10.01"],
+      ["inactive-over", "43", "2025-05-10", "20.01"],
+      ["equal-over-1", "44", "2025-06-10", "30.01"],
+      ["equal-over-2", "46", "2025-07-10", "30.01"],
+      ["transit-over", "47", "2025-08-10", "30.01"],
+      ["boundary-only", "51", "2025-09-10", "50.00"],
+      ["beyond-top-five", "52", "2025-10-10", "1.01"],
+      // Only one selected-month transaction is present, as for a partial month.
+      ["current-month-over", "42", "2026-01-05", "10.01"],
+    ].map(([id, categoryId, purchaseDate, amount]) => ({
+      id,
+      categoryId,
+      purchaseDate,
+      description: id,
+      amount,
+      source: "manual",
+      statementImportId: null,
+    }));
+    const { apiClient } = createApiClient(
+      new Map<string, unknown>([
+        [categoryPath, catalog],
+        [monthlySummaryPath, summary],
+        ["/spaces/7/categories/43/budget", {
+          id: "143",
+          categoryId: "43",
+          amount: "20.00",
+          period: "monthly",
+          updatedAt: "2026-01-01T00:00:00.000Z",
+        }],
+        [monthlyTransactionsPath, { items: transactions, nextCursor: null }],
+      ]),
+    );
+
+    const report = await getInsights(apiClient, period, undefined, "7");
+
+    expect(report.frequentlyOverBudget.map(({ categoryId, breachCount }) => [categoryId, breachCount])).toEqual([
+      ["42", 3],
+      ["43", 1],
+      ["44", 1],
+      ["46", 1],
+      ["47", 1],
+    ]);
+    expect(report.lowestSpending.map(({ categoryId }) => categoryId)).toEqual([
+      "48",
+      "44",
+      "46",
+      "49",
+      "50",
+    ]);
+    expect(report.lowestSpending.every(({ spendingCents }) => spendingCents === 0)).toBe(true);
+    expect(report.frequentlyOverBudget.some(({ categoryId }) => categoryId === "51")).toBe(false);
+    expect(report.frequentlyOverBudget.some(({ categoryId }) => categoryId === "52")).toBe(false);
+    expect(report.monthlyBudgetedCategoryCount).toBe(10);
+    expect(report.activeMonthlyBudgetedCategoryCount).toBe(9);
+  });
+
   it("returns every zero-spend day and a zero pace for a month without Budgets", async () => {
     const { apiClient } = createApiClient(
       new Map<string, unknown>([
@@ -269,7 +376,7 @@ describe("getInsights", () => {
           },
         ],
         [
-          "/transactions?fromDate=2026-08-01&toDate=2026-08-31&pageSize=100",
+          "/transactions?fromDate=2025-09-01&toDate=2026-08-31&pageSize=100",
           { items: [], nextCursor: null },
         ],
       ]),
@@ -322,6 +429,11 @@ describe("getInsights", () => {
             uncategorizedCount: "0",
           },
         ],
+        ["/spaces/7/categories/43/budget", new ApiError("Budget not found", {
+          kind: "http",
+          status: 404,
+          code: "BUDGET_NOT_FOUND",
+        })],
         [
           yearlyTransactionPath,
           {

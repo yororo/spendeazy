@@ -55444,115 +55444,126 @@
                 },
                 {
                   "type": "frame",
-                  "id": "ADvm0",
-                  "name": "Mobile View Toggle",
+                  "id": "EVDS9",
+                  "name": "Mobile Insights Period Controls",
                   "width": "fill_container",
                   "height": 44,
-                  "stroke": "$ink",
-                  "strokeWidth": 1,
-                  "gap": 2,
-                  "padding": 3,
-                  "children": [
-                    {
-                      "type": "frame",
-                      "id": "cuyiU",
-                      "name": "Mobile Yearly View",
-                      "width": "fill_container",
-                      "height": "fill_container",
-                      "justifyContent": "center",
-                      "alignItems": "center",
-                      "children": [
-                        {
-                          "type": "text",
-                          "id": "bflBn",
-                          "name": "Mobile Yearly Label",
-                          "fill": "$muted",
-                          "content": "YEARLY",
-                          "fontFamily": "$font-mono",
-                          "fontSize": 11,
-                          "fontWeight": "600",
-                          "letterSpacing": 0.5
-                        }
-                      ]
-                    },
-                    {
-                      "type": "frame",
-                      "id": "f09nT9",
-                      "name": "Mobile Monthly View",
-                      "width": "fill_container",
-                      "height": "fill_container",
-                      "fill": "$accent",
-                      "justifyContent": "center",
-                      "alignItems": "center",
-                      "children": [
-                        {
-                          "type": "text",
-                          "id": "iH98X",
-                          "name": "Mobile Monthly Label",
-                          "fill": "$ink",
-                          "content": "MONTHLY",
-                          "fontFamily": "$font-mono",
-                          "fontSize": 11,
-                          "fontWeight": "700",
-                          "letterSpacing": 0.5
-                        }
-                      ]
-                    }
-                  ]
-                },
-                {
-                  "type": "frame",
-                  "id": "a7WNY",
-                  "name": "Mobile Selected Month",
-                  "width": "fill_container",
-                  "height": 44,
-                  "stroke": "$line",
-                  "strokeWidth": 1,
-                  "padding": [
-                    0,
-                    12
-                  ],
-                  "justifyContent": "space_between",
+                  "gap": 8,
                   "alignItems": "center",
                   "children": [
                     {
                       "type": "frame",
-                      "id": "s3lUE",
-                      "name": "Mobile Selected Month Value",
-                      "gap": 9,
+                      "id": "a7WNY",
+                      "name": "Mobile Selected Month",
+                      "width": "fill_container",
+                      "height": 44,
+                      "stroke": "$line",
+                      "strokeWidth": 1,
+                      "padding": [
+                        0,
+                        12
+                      ],
+                      "justifyContent": "space_between",
                       "alignItems": "center",
                       "children": [
                         {
-                          "type": "icon",
-                          "id": "ZsDFh",
-                          "name": "Mobile Calendar Icon",
-                          "width": 16,
-                          "height": 16,
-                          "icon": "calendar-days",
-                          "library": "lucide",
-                          "fill": "$ink"
+                          "type": "frame",
+                          "id": "s3lUE",
+                          "name": "Mobile Selected Month Value",
+                          "gap": 9,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "ZsDFh",
+                              "name": "Mobile Calendar Icon",
+                              "width": 16,
+                              "height": 16,
+                              "icon": "calendar-days",
+                              "library": "lucide",
+                              "fill": "$ink"
+                            },
+                            {
+                              "type": "text",
+                              "id": "uarkL",
+                              "name": "Mobile Month Label",
+                              "fill": "$ink",
+                              "content": "May 2025",
+                              "fontFamily": "$font-mono",
+                              "fontSize": 12,
+                              "fontWeight": "600"
+                            }
+                          ]
                         },
                         {
-                          "type": "text",
-                          "id": "uarkL",
-                          "name": "Mobile Month Label",
-                          "fill": "$ink",
-                          "content": "May 2025",
-                          "fontFamily": "$font-mono",
-                          "fontSize": 12,
-                          "fontWeight": "600"
+                          "type": "icon",
+                          "id": "e7CJAo",
+                          "name": "Mobile Month Chevron",
+                          "width": 15,
+                          "height": 15,
+                          "icon": "chevron-down",
+                          "library": "lucide",
+                          "fill": "$muted"
                         }
                       ]
                     },
                     {
-                      "type": "icon",
-                      "id": "e7CJAo",
-                      "name": "Mobile Month Chevron",
-                      "width": 15,
-                      "height": 15,
-                      "icon": "chevron-down",
-                      "library": "lucide",
-                      "fill": "$muted"
+                      "type": "frame",
+                      "id": "ADvm0",
+                      "name": "Mobile View Toggle",
+                      "width": 170,
+                      "height": 44,
+                      "stroke": "$ink",
+                      "strokeWidth": 1,
+                      "gap": 2,
+                      "padding": 3,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "cuyiU",
+                          "name": "Mobile Yearly View",
+                          "width": "fill_container",
+                          "height": "fill_container",
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "bflBn",
+                              "name": "Mobile Yearly Label",
+                              "fill": "$muted",
+                              "content": "YEARLY",
+                              "fontFamily": "$font-mono",
+                              "fontSize": 11,
+                              "fontWeight": "600",
+                              "letterSpacing": 0.5
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "f09nT9",
+                          "name": "Mobile Monthly View",
+                          "width": "fill_container",
+                          "height": "fill_container",
+                          "fill": "$accent",
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "iH98X",
+                              "name": "Mobile Monthly Label",
+                              "fill": "$ink",
+                              "content": "MONTHLY",
+                              "fontFamily": "$font-mono",
+                              "fontSize": 11,
+                              "fontWeight": "700",
+                              "letterSpacing": 0.5
+                            }
+                          ]
+                        }
+                      ]
                     }
                   ]
                 }

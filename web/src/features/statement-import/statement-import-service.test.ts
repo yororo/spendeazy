@@ -706,7 +706,12 @@ describe("Statement Import commit", () => {
   });
 
   it("marks an edited Transaction Manual and permanently excludes a positive edit", () => {
-    const transactions = createCategorizedStatement().transactions;
+    const transactions = createCategorizedStatement().transactions.map(
+      (transaction, index) =>
+        index === 0
+          ? { ...transaction, reference: "5043775892919" }
+          : transaction,
+    );
 
     expect(
       applyManualTransactionEdit(transactions, {
@@ -722,6 +727,7 @@ describe("Statement Import commit", () => {
       categoryId: "99",
       assignment: "manual",
       isExcluded: true,
+      reference: "5043775892919",
     });
   });
 

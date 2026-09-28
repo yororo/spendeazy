@@ -1077,6 +1077,7 @@ describe('runtime responses against the generated OpenAPI contract', () => {
     transactionsService.listTransactions.mockReset().mockResolvedValue({
       items: [manualTransactionRecord(), importedTransactionRecord()],
       nextCursor: 'cursor_1',
+      totalCount: '2',
     });
     transactionsService.getManualTransaction
       .mockReset()
@@ -1549,6 +1550,7 @@ function transactionHistoryPageResponse(): Record<string, unknown> {
       },
     ],
     nextCursor: 'cursor_1',
+    totalCount: '2',
   };
 }
 

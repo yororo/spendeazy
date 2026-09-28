@@ -18,9 +18,12 @@ import {
 } from '../src/statement-imports/application/statement-imports.service';
 import { TypeOrmStatementImportConfirmationUnitOfWork } from '../src/database/unit-of-work';
 import { TypeOrmStatementImportStore } from '../src/statement-imports/infrastructure/typeorm-statement-import-store';
+import { NodeGCashReferenceHasher } from '../src/statement-imports/infrastructure/node-gcash-reference-hasher';
 import { TypeOrmSpaceStore } from '../src/spaces/infrastructure/typeorm-space-store';
+import { STATEMENT_IMPORT_PROBABLE_DUPLICATES_CODE } from '../src/statement-imports/application/statement-import-errors';
 
 const databaseUrl = process.env.TEST_STATEMENT_IMPORT_ROLLBACK_DATABASE_URL;
+const gcashReferenceHashKey = 'abcdef0123456789'.repeat(4);
 const describeDatabase = databaseUrl ? describe : describe.skip;
 
 describeDatabase('Statement Import rollback with PostgreSQL', () => {
@@ -44,6 +47,7 @@ describeDatabase('Statement Import rollback with PostgreSQL', () => {
     service = new StatementImportsService(
       new TypeOrmStatementImportStore(database.manager),
       new TypeOrmStatementImportConfirmationUnitOfWork(database),
+      new NodeGCashReferenceHasher(gcashReferenceHashKey),
     );
   });
 
@@ -174,6 +178,7 @@ describeDatabase('Statement Import rollback with PostgreSQL', () => {
         statementDate: '2026-09-01',
         bank: 'Rollback Bank',
         cardType: 'visa',
+        statementType: 'credit_card',
         transactions: [
           {
             categoryId: categories[1].id,
@@ -282,6 +287,7 @@ describeDatabase('Statement Import rollback with PostgreSQL', () => {
       statementDate: existingImport.statementDate,
       bank: existingImport.bank,
       cardType: existingImport.cardType,
+      statementType: 'credit_card' as const,
       transactions: [
         {
           categoryId: sharedCategory.id,
@@ -321,6 +327,102 @@ describeDatabase('Statement Import rollback with PostgreSQL', () => {
         spaceId: sharedSpace.id,
       }),
     ).resolves.toBe(1);
+  });
+
+  it('persists only the GCash reference HMAC and reuses it for duplicate review', async () => {
+    const currentUserId = userId;
+    const currentSpaceId = personalSpaceId;
+    if (currentUserId === undefined || currentSpaceId === undefined) {
+      throw new Error('The GCash reference test User was not created');
+    }
+
+    const category = await database
+      .getRepository(CategoryEntity)
+      .findOneByOrFail({
+        spaceId: currentSpaceId,
+        name: 'Existing category',
+      });
+    const reference = '5043775892919';
+    const cleanDescription = 'Transfer from 09111111111 to 09999999999';
+    const input = {
+      fileName: 'gcash-august.pdf',
+      fileHash: uniqueHash('gcash-import'),
+      statementDate: '2026-09-07',
+      bank: 'GCash',
+      cardType: 'E-Wallet',
+      statementType: 'e_wallet' as const,
+      transactionHistoryStartDate: '2026-08-09',
+      totalDebit: '26696.92',
+      transactions: [
+        {
+          categoryId: category.id,
+          purchaseDate: '2026-08-09',
+          description: cleanDescription,
+          amount: '4000.00',
+          reference,
+        },
+      ],
+    };
+
+    const committedImport = await service.commitReviewedStatementImportInSpace(
+      currentUserId,
+      currentSpaceId,
+      input,
+    );
+    const persistedTransaction = await database
+      .getRepository(TransactionEntity)
+      .findOneByOrFail({
+        spaceId: currentSpaceId,
+        statementImportId: committedImport.id,
+      });
+    const expectedReferenceHash = new NodeGCashReferenceHasher(
+      gcashReferenceHashKey,
+    ).hash({
+      spaceId: currentSpaceId,
+      provider: input.bank,
+      reference,
+    });
+
+    expect(persistedTransaction).toMatchObject({
+      description: cleanDescription,
+      referenceHash: expectedReferenceHash,
+    });
+    expect(JSON.stringify(committedImport)).not.toContain(reference);
+    expect(JSON.stringify(persistedTransaction)).not.toContain(reference);
+
+    const persistedRows: { persistedRow: string }[] = await database.query(
+      'SELECT row_to_json(transaction_row)::text AS "persistedRow" FROM transactions AS transaction_row WHERE transaction_row.id = $1',
+      [persistedTransaction.id],
+    );
+    expect(persistedRows[0]?.persistedRow).not.toContain(reference);
+
+    await expect(
+      service.commitReviewedStatementImportInSpace(
+        currentUserId,
+        currentSpaceId,
+        {
+          ...input,
+          fileName: 'gcash-september.pdf',
+          fileHash: uniqueHash('gcash-duplicate-import'),
+          transactions: [
+            {
+              ...input.transactions[0],
+              description: 'Different visible description',
+              amount: '999.99',
+              purchaseDate: '2026-08-10',
+            },
+          ],
+        },
+      ),
+    ).rejects.toMatchObject({
+      code: STATEMENT_IMPORT_PROBABLE_DUPLICATES_CODE,
+      details: [
+        expect.objectContaining({
+          transactionIndexes: [0],
+          committedTransactionIds: [persistedTransaction.id],
+        }),
+      ],
+    });
   });
 });
 

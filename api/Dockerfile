@@ -21,8 +21,9 @@ COPY --from=build --chown=node:node /app/package.json /app/package-lock.json ./
 COPY --from=build --chown=node:node /app/node_modules ./node_modules
 COPY --from=build --chown=node:node /app/dist ./dist
 
-# Supply DATABASE_URL, CORS_ORIGINS, CLERK_JWT_KEY, CLERK_SECRET_KEY, and
-# CLERK_AUTHORIZED_PARTIES through Azure Container Apps at runtime.
+# Supply DATABASE_URL, CORS_ORIGINS, CLERK_JWT_KEY, CLERK_SECRET_KEY,
+# CLERK_AUTHORIZED_PARTIES, INVITATION_CODE_ENCRYPTION_KEY, and
+# GCASH_REFERENCE_HASH_KEY through Azure Container Apps at runtime.
 EXPOSE 3000
 
 USER node

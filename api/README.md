@@ -26,6 +26,8 @@ Set `CLERK_JWT_KEY` to the PEM public key from Clerk, `CLERK_SECRET_KEY` to the 
 
 Set `INVITATION_CODE_ENCRYPTION_KEY` to a 32-byte hexadecimal secret in every database-backed API environment. It protects the reversible sender-only Invite Code display value while the database stores a separate HMAC lookup value. Generate one with `node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"` and keep it outside source control.
 
+Set `GCASH_REFERENCE_HASH_KEY` to a separate, stable 32-byte hexadecimal secret in every database-backed API environment. GCash source references are HMAC-protected with this key before persistence and are never returned. Keep the same value across deployments so duplicate detection remains stable; generate it with `node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"` and keep it outside source control.
+
 Shared Space archive notifications are stored and shown in-app. No email provider configuration is required.
 
 Optionally load deterministic development data with `npm run db:seed`. The seed commands are restricted to non-production environments and local databases.
@@ -54,7 +56,7 @@ npm run test:cov   # Unit tests with coverage
 npm run lint       # Lint the project
 ```
 
-PostgreSQL end-to-end suites use `TEST_SPACES_DATABASE_URL`, `TEST_CATEGORY_RULES_DATABASE_URL`, `TEST_CATEGORY_COLOR_DATABASE_URL`, `TEST_STATEMENT_IMPORT_ROLLBACK_DATABASE_URL`, `TEST_STATEMENT_IMPORT_CATEGORY_CONCURRENCY_DATABASE_URL`, `TEST_TRANSACTION_STATEMENT_IMPORT_SPACE_DATABASE_URL`, and `TEST_INVITATIONS_DATABASE_URL`. Point these at a disposable test database. The historical ownership migration suite uses `TEST_FINANCIAL_OWNERSHIP_MIGRATION_DATABASE_URL` and requires a separate, empty disposable database because it starts from the pre-Space schema. The suites skip when their URL is unset.
+PostgreSQL end-to-end suites use `TEST_SPACES_DATABASE_URL`, `TEST_CATEGORY_RULES_DATABASE_URL`, `TEST_CATEGORY_COLOR_DATABASE_URL`, `TEST_STATEMENT_IMPORT_ROLLBACK_DATABASE_URL`, `TEST_STATEMENT_IMPORT_CATEGORY_CONCURRENCY_DATABASE_URL`, `TEST_TRANSACTION_STATEMENT_IMPORT_SPACE_DATABASE_URL`, and `TEST_INVITATIONS_DATABASE_URL`. Point these at a disposable test database. The statement-import rollback suite also verifies the persisted GCash reference-hash contract. The historical ownership migration suite uses `TEST_FINANCIAL_OWNERSHIP_MIGRATION_DATABASE_URL` and requires a separate, empty disposable database because it starts from the pre-Space schema. The suites skip when their URL is unset.
 
 ## OpenAPI contract
 

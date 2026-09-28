@@ -1,0 +1,823 @@
+import {
+  expect,
+  test,
+  type APIRequestContext,
+  type Page,
+} from "@playwright/test";
+
+import { requireEnvironment } from "./test-helpers";
+
+const testClock =
+  process.env.SPENDEAZY_E2E_TEST_CLOCK ?? "2026-09-19T12:00:00.000Z";
+const suggestionPath =
+  "/api/v1/users/me/spaces/{spaceId}/statement-imports/category-suggestions";
+const suggestedCategoryName = "E2E Suggested Category";
+const fallbackCategoryName = "E2E Fallback Category";
+
+test.beforeEach(async ({ page }) => {
+  await page.clock.install({ time: testClock });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+});
+
+test("does not commit a Category Suggestion selected only in the unsaved editor", async ({
+  page,
+  request,
+}) => {
+  const apiBaseUrl = requireEnvironment("SPENDEAZY_E2E_API_BASE_URL");
+  const userToken = await switchToNewUser(page);
+  const spaceId = await getPersonalSpaceId(request, apiBaseUrl, userToken);
+  const spaceContext = { request, apiBaseUrl, token: userToken, spaceId };
+  const suggestedCategoryId = await createCategory(
+    spaceContext,
+    suggestedCategoryName,
+  );
+  const suggestionResponse = await request.post(
+    `${apiBaseUrl}${getCategorySuggestionPath(spaceId)}`,
+    {
+      headers: authorizationHeaders(userToken),
+      data: { description: "Payment to Cafe Preview" },
+    },
+  );
+  expect(suggestionResponse.status()).toBe(200);
+  expect(await suggestionResponse.json()).toEqual({
+    suggestions: [
+      {
+        categoryId: suggestedCategoryId,
+        categoryName: suggestedCategoryName,
+      },
+    ],
+  });
+  const description = "Payment to Cafe Preview";
+  const fileName = "category-suggestion-unsaved.pdf";
+  const browserSuggestionResponse = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      response.url().includes("/statement-imports/category-suggestions"),
+    { timeout: 10_000 },
+  );
+
+  await page.getByRole("link", { name: "Imports" }).click();
+  await uploadStatement(
+    page,
+    fileName,
+    [
+      {
+        date: "2026-09-02",
+        time: "09:00 AM",
+        description,
+        reference: "910001",
+        debit: "12.00",
+        balance: "88.00",
+      },
+    ],
+    {
+      startingBalance: "100.00",
+      endingBalance: "88.00",
+      totalDebit: "12.00",
+      totalCredit: "0.00",
+    },
+  );
+  const browserSuggestion = await browserSuggestionResponse;
+  expect(browserSuggestion.status()).toBe(200);
+  expect(await browserSuggestion.json()).toEqual({
+    suggestions: [
+      {
+        categoryId: suggestedCategoryId,
+        categoryName: suggestedCategoryName,
+      },
+    ],
+  });
+
+  await expect(
+    page.getByRole("button", {
+      name: `Suggestions available for ${description}`,
+    }),
+  ).toBeVisible();
+  const table = page.getByRole("table").first();
+  const transactionRow = table
+    .getByRole("row")
+    .filter({ hasText: description });
+  await expect(transactionRow).toContainText("Unmapped");
+
+  await page
+    .getByRole("button", {
+      name: `Suggestions available for ${description}`,
+    })
+    .click();
+  const suggestedCategory = page.getByRole("button", {
+    name: `Use suggested Category: ${suggestedCategoryName}`,
+  });
+  await expect(suggestedCategory).toBeVisible();
+  await suggestedCategory.click();
+  await expect(
+    page.getByRole("combobox", { name: `Category for ${description}` }),
+  ).toContainText(suggestedCategoryName);
+  await page
+    .getByRole("button", { name: `Cancel changes to ${description}` })
+    .click();
+
+  await expect(transactionRow).toContainText("Unmapped");
+  await expect(
+    page.getByRole("button", { name: "Review 1 Transactions" }),
+  ).toBeDisabled();
+  await page.getByRole("button", { name: "Back to Upload" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Leave Statement Import?" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Leave Categorize" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Upload your statement" }),
+  ).toBeVisible();
+
+  const importsResponse = await request.get(
+    `${apiBaseUrl}/api/v1/users/me/spaces/${spaceId}/statement-imports`,
+    { headers: authorizationHeaders(userToken) },
+  );
+  expect(importsResponse.status()).toBe(200);
+  expect(
+    readObjectsField(await importsResponse.json(), "items"),
+  ).toHaveLength(0);
+
+  const transactionsResponse = await request.get(
+    `${apiBaseUrl}/api/v1/users/me/spaces/${spaceId}/transactions`,
+    { headers: authorizationHeaders(userToken) },
+  );
+  expect(transactionsResponse.status()).toBe(200);
+  expect(
+    readObjectsField(await transactionsResponse.json(), "items"),
+  ).toHaveLength(0);
+});
+
+test("commits saved Category Suggestions through Statement Import with Space isolation", async ({
+  page,
+  request,
+  browser,
+}) => {
+  const apiBaseUrl = requireEnvironment("SPENDEAZY_E2E_API_BASE_URL");
+  const userToken = await switchToNewUser(page);
+  const spaceId = await getPersonalSpaceId(request, apiBaseUrl, userToken);
+  const spaceContext = { request, apiBaseUrl, token: userToken, spaceId };
+  const suggestedCategoryId = await createCategory(
+    spaceContext,
+    suggestedCategoryName,
+  );
+  const fallbackCategoryId = await createCategory(
+    spaceContext,
+    fallbackCategoryName,
+  );
+  const ruleCategoryId = await createCategory(
+    spaceContext,
+    "E2E Rule Category",
+  );
+  const ambiguousCategoryOneId = await createCategory(
+    spaceContext,
+    "E2E Ambiguous Category One",
+  );
+  const ambiguousCategoryTwoId = await createCategory(
+    spaceContext,
+    "E2E Ambiguous Category Two",
+  );
+
+  await createCategoryRule(spaceContext, {
+    categoryId: ruleCategoryId,
+    pattern: "Payment to Cafe Rule Shop",
+    matchType: "exact",
+  });
+  await createCategoryRule(spaceContext, {
+    categoryId: ambiguousCategoryOneId,
+    pattern: "Cafe Ambiguous",
+    matchType: "contains",
+  });
+  await createCategoryRule(spaceContext, {
+    categoryId: ambiguousCategoryTwoId,
+    pattern: "Ambiguous Shop",
+    matchType: "contains",
+  });
+
+  await expectCategorySuggestionContract(request, apiBaseUrl);
+  const directSuggestionResponse = await request.post(
+    `${apiBaseUrl}${getCategorySuggestionPath(spaceId)}`,
+    {
+      headers: authorizationHeaders(userToken),
+      data: { description: "Payment to Cafe Moon" },
+    },
+  );
+  expect(directSuggestionResponse.status()).toBe(200);
+  expect(await directSuggestionResponse.json()).toEqual({
+    suggestions: [
+      {
+        categoryId: suggestedCategoryId,
+        categoryName: suggestedCategoryName,
+      },
+    ],
+  });
+
+  const otherUserContext = await browser.newContext();
+  try {
+    const otherUserPage = await otherUserContext.newPage();
+    await otherUserPage.clock.install({ time: testClock });
+    const otherUserToken = await switchToNewUser(otherUserPage);
+    const otherSpaceId = await getPersonalSpaceId(
+      request,
+      apiBaseUrl,
+      otherUserToken,
+    );
+    const otherSpaceContext = {
+      request,
+      apiBaseUrl,
+      token: otherUserToken,
+      spaceId: otherSpaceId,
+    };
+    const otherSuggestedCategoryId = await createCategory(
+      otherSpaceContext,
+      suggestedCategoryName,
+    );
+    expect(otherSpaceId).not.toBe(spaceId);
+    expect(otherSuggestedCategoryId).not.toBe(suggestedCategoryId);
+
+    const crossSpaceSuggestionResponse = await request.post(
+      `${apiBaseUrl}${getCategorySuggestionPath(spaceId)}`,
+      {
+        headers: authorizationHeaders(otherUserToken),
+        data: { description: "Payment to Cafe Moon" },
+      },
+    );
+    expect(crossSpaceSuggestionResponse.status()).toBe(404);
+  } finally {
+    await otherUserContext.close();
+  }
+
+  const suggestionRequests: string[] = [];
+  const categorySuggestionUrl = new URL(apiBaseUrl);
+  const categorySuggestionRequestPath = getCategorySuggestionPath(spaceId);
+  page.on("request", (browserRequest) => {
+    const requestUrl = new URL(browserRequest.url());
+    if (
+      browserRequest.method() !== "POST" ||
+      requestUrl.origin !== categorySuggestionUrl.origin ||
+      requestUrl.pathname !== categorySuggestionRequestPath
+    ) {
+      return;
+    }
+
+    const body = browserRequest.postDataJSON() as { description?: unknown };
+    if (typeof body.description === "string") {
+      suggestionRequests.push(body.description);
+    }
+  });
+
+  const suggestedDescription = "Payment to Cafe Moon";
+  const unsavedDescription = "Payment to Cafe River";
+  const unavailableDescription = "Payment to Cafe Local Shop";
+  const slowDescription = "Payment to Cafe Slow Shop";
+  const ruleDescription = "Payment to Cafe Rule Shop";
+  const ambiguousDescription = "Refund from Cafe Ambiguous Shop";
+  const fileName = "category-suggestion-accepted.pdf";
+
+  await page.getByRole("link", { name: "Imports" }).click();
+  await uploadStatement(
+    page,
+    fileName,
+    [
+      {
+        date: "2026-09-02",
+        time: "09:00 AM",
+        description: suggestedDescription,
+        reference: "910001",
+        debit: "10.00",
+        balance: "190.00",
+      },
+      {
+        date: "2026-09-02",
+        time: "09:05 AM",
+        description: unsavedDescription,
+        reference: "910002",
+        debit: "12.00",
+        balance: "178.00",
+      },
+      {
+        date: "2026-09-02",
+        time: "09:10 AM",
+        description: unavailableDescription,
+        reference: "910003",
+        debit: "18.00",
+        balance: "160.00",
+      },
+      {
+        date: "2026-09-02",
+        time: "09:15 AM",
+        description: slowDescription,
+        reference: "910004",
+        debit: "5.00",
+        balance: "155.00",
+      },
+      {
+        date: "2026-09-02",
+        time: "09:20 AM",
+        description: ruleDescription,
+        reference: "910005",
+        debit: "15.00",
+        balance: "140.00",
+      },
+      {
+        date: "2026-09-02",
+        time: "09:25 AM",
+        description: ambiguousDescription,
+        reference: "910006",
+        debit: "20.00",
+        balance: "160.00",
+      },
+    ],
+    {
+      startingBalance: "200.00",
+      endingBalance: "160.00",
+      totalDebit: "60.00",
+      totalCredit: "20.00",
+    },
+  );
+
+  const table = page.getByRole("table").first();
+  const suggestedRow = table
+    .getByRole("row")
+    .filter({ hasText: suggestedDescription });
+  await expect(suggestedRow).toContainText("Unmapped");
+  await page
+    .getByRole("button", {
+      name: `Suggestions available for ${suggestedDescription}`,
+    })
+    .click();
+  await page
+    .getByRole("button", {
+      name: `Use suggested Category: ${suggestedCategoryName}`,
+    })
+    .click();
+  await page
+    .getByRole("button", { name: `Save changes to ${suggestedDescription}` })
+    .click();
+  await expect(suggestedRow).toContainText(suggestedCategoryName);
+  await expect(suggestedRow).toContainText("Manual");
+
+  const unsavedRow = table
+    .getByRole("row")
+    .filter({ hasText: unsavedDescription });
+  await page
+    .getByRole("button", {
+      name: `Suggestions available for ${unsavedDescription}`,
+    })
+    .click();
+  await page
+    .getByRole("button", {
+      name: `Use suggested Category: ${suggestedCategoryName}`,
+    })
+    .click();
+  await page
+    .getByRole("button", { name: `Cancel changes to ${unsavedDescription}` })
+    .click();
+  await expect(unsavedRow).toContainText("Unmapped");
+
+  await page
+    .getByRole("button", { name: `Edit ${unsavedDescription}` })
+    .click();
+  await selectCategory(page, unsavedDescription, fallbackCategoryName);
+  await page
+    .getByRole("button", { name: `Save changes to ${unsavedDescription}` })
+    .click();
+  await expect(unsavedRow).toContainText(fallbackCategoryName);
+  await expect(unsavedRow).toContainText("Manual");
+
+  await page
+    .getByRole("button", { name: `Edit ${unavailableDescription}` })
+    .click();
+  await expect(
+    page.getByText(
+      "No Category Suggestion available. Choose a Category from the list.",
+    ),
+  ).toBeVisible();
+  await selectCategory(page, unavailableDescription, fallbackCategoryName);
+  await page
+    .getByRole("button", { name: `Save changes to ${unavailableDescription}` })
+    .click();
+
+  const slowRow = table.getByRole("row").filter({ hasText: slowDescription });
+  await page
+    .getByRole("button", { name: `Edit ${slowDescription}` })
+    .click();
+  await expect(
+    page.getByText("Checking for a Category Suggestion…"),
+  ).toBeVisible();
+  await selectCategory(page, slowDescription, fallbackCategoryName);
+  await page
+    .getByRole("button", { name: `Save changes to ${slowDescription}` })
+    .click();
+  await expect(slowRow).toContainText(fallbackCategoryName);
+  await expect(slowRow).toContainText("Manual");
+
+  const ruleRow = table.getByRole("row").filter({ hasText: ruleDescription });
+  await expect(ruleRow).toContainText("E2E Rule Category");
+  await expect(ruleRow).toContainText("Rule");
+  const ambiguousRow = table
+    .getByRole("row")
+    .filter({ hasText: ambiguousDescription });
+  await expect(ambiguousRow).toContainText("Ambiguous");
+  await expect(ambiguousRow).toContainText("Excluded");
+
+  await expect(
+    page.getByRole("button", { name: "Review 5 Transactions" }),
+  ).toBeEnabled();
+  await page.getByRole("button", { name: "Review 5 Transactions" }).click();
+  const reviewTable = page.getByRole("table").first();
+  await expect(
+    reviewTable.getByRole("row").filter({ hasText: suggestedDescription }),
+  ).toContainText("Manual");
+  await expect(
+    reviewTable.getByRole("row").filter({ hasText: ruleDescription }),
+  ).toContainText("Rule");
+  await expect(
+    reviewTable.getByRole("row").filter({ hasText: unsavedDescription }),
+  ).toContainText(fallbackCategoryName);
+  await expect(
+    reviewTable.getByRole("row").filter({ hasText: unavailableDescription }),
+  ).toContainText(fallbackCategoryName);
+  await expect(
+    reviewTable.getByRole("row").filter({ hasText: slowDescription }),
+  ).toContainText(fallbackCategoryName);
+
+  await page.getByRole("button", { name: "Import 5 Transactions" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Statement imported" }),
+  ).toBeVisible();
+
+  expect(suggestionRequests).toEqual(
+    expect.arrayContaining([
+      suggestedDescription,
+      unsavedDescription,
+      unavailableDescription,
+      slowDescription,
+    ]),
+  );
+  expect(suggestionRequests).not.toContain(ruleDescription);
+  expect(suggestionRequests).not.toContain(ambiguousDescription);
+
+  const importsResponse = await request.get(
+    `${apiBaseUrl}/api/v1/users/me/spaces/${spaceId}/statement-imports`,
+    { headers: authorizationHeaders(userToken) },
+  );
+  expect(importsResponse.status()).toBe(200);
+  const committedImports = readObjectsField(
+    await importsResponse.json(),
+    "items",
+  );
+  expect(committedImports).toHaveLength(1);
+  expect(committedImports[0]).not.toHaveProperty("suggestions");
+  expect(committedImports[0]).not.toHaveProperty("categorySuggestion");
+  expect(committedImports[0]).not.toHaveProperty("suggestionFeedback");
+
+  const transactionsResponse = await request.get(
+    `${apiBaseUrl}/api/v1/users/me/spaces/${spaceId}/transactions?pageSize=100`,
+    { headers: authorizationHeaders(userToken) },
+  );
+  expect(transactionsResponse.status()).toBe(200);
+  const committedTransactions = readObjectsField(
+    await transactionsResponse.json(),
+    "items",
+  );
+  expect(committedTransactions).toHaveLength(5);
+  expect(
+    findTransaction(committedTransactions, suggestedDescription),
+  ).toMatchObject({
+    categoryId: suggestedCategoryId,
+  });
+  expect(
+    findTransaction(committedTransactions, unsavedDescription),
+  ).toMatchObject({
+    categoryId: fallbackCategoryId,
+  });
+  expect(
+    findTransaction(committedTransactions, unavailableDescription),
+  ).toMatchObject({
+    categoryId: fallbackCategoryId,
+  });
+  expect(findTransaction(committedTransactions, slowDescription)).toMatchObject(
+    {
+      categoryId: fallbackCategoryId,
+    },
+  );
+  expect(findTransaction(committedTransactions, ruleDescription)).toMatchObject(
+    {
+      categoryId: ruleCategoryId,
+    },
+  );
+  expect(
+    committedTransactions.some(
+      (transaction) => transaction.description === ambiguousDescription,
+    ),
+  ).toBe(false);
+  expect(
+    committedTransactions.every(
+      (transaction) =>
+        !Object.hasOwn(transaction, "suggestion") &&
+        !Object.hasOwn(transaction, "suggestionFeedback"),
+    ),
+  ).toBe(true);
+
+  const categoryRulesResponse = await request.get(
+    `${apiBaseUrl}/api/v1/users/me/spaces/${spaceId}/category-rules`,
+    { headers: authorizationHeaders(userToken) },
+  );
+  expect(categoryRulesResponse.status()).toBe(200);
+  const persistedRules = readObjectsField(
+    await categoryRulesResponse.json(),
+    "rules",
+  );
+  expect(persistedRules).toHaveLength(3);
+  expect(
+    persistedRules.map(({ categoryId, matchType, pattern }) => ({
+      categoryId,
+      matchType,
+      pattern,
+    })),
+  ).toEqual(
+    expect.arrayContaining([
+      {
+        categoryId: ruleCategoryId,
+        matchType: "exact",
+        pattern: "Payment to Cafe Rule Shop",
+      },
+      {
+        categoryId: ambiguousCategoryOneId,
+        matchType: "contains",
+        pattern: "Cafe Ambiguous",
+      },
+      {
+        categoryId: ambiguousCategoryTwoId,
+        matchType: "contains",
+        pattern: "Ambiguous Shop",
+      },
+    ]),
+  );
+});
+
+async function switchToNewUser(page: Page): Promise<string> {
+  await page.goto("/categories");
+  const sessionResponse = page.waitForResponse(
+    (response) =>
+      response.url().endsWith("/api/v1/users/me/local-test/sessions") &&
+      response.request().method() === "POST" &&
+      response.status() === 201,
+  );
+  await page
+    .getByTestId("local-test-panel")
+    .getByRole("button", { name: "New User" })
+    .click();
+  const response = await sessionResponse;
+  const sessionBody = (await response.json()) as { token?: unknown };
+  if (typeof sessionBody.token !== "string") {
+    throw new Error("The local test session response did not include a token.");
+  }
+
+  await expect(page.getByTestId("local-test-active-user")).toContainText(
+    "Fresh Local User",
+  );
+  await expect(
+    page.getByRole("heading", { name: "Budget overview" }),
+  ).toBeVisible();
+  return sessionBody.token;
+}
+
+async function getPersonalSpaceId(
+  request: APIRequestContext,
+  apiBaseUrl: string,
+  token: string,
+): Promise<string> {
+  const response = await request.get(`${apiBaseUrl}/api/v1/users/me/spaces`, {
+    headers: authorizationHeaders(token),
+  });
+  expect(response.status()).toBe(200);
+  const spaces = readArray(await response.json()).filter(isRecord);
+  const personalSpace = spaces.find(
+    (space) => space.kind === "personal" && space.status === "active",
+  );
+  return requiredString(personalSpace, "id");
+}
+
+interface AuthenticatedSpaceContext {
+  readonly request: APIRequestContext;
+  readonly apiBaseUrl: string;
+  readonly token: string;
+  readonly spaceId: string;
+}
+
+async function createCategory(
+  { request, apiBaseUrl, token, spaceId }: AuthenticatedSpaceContext,
+  name: string,
+): Promise<string> {
+  const response = await request.post(
+    `${apiBaseUrl}/api/v1/users/me/spaces/${spaceId}/categories`,
+    {
+      headers: authorizationHeaders(token),
+      data: { name },
+    },
+  );
+  expect(response.status()).toBe(201);
+  return requiredString(await response.json(), "id");
+}
+
+async function createCategoryRule(
+  { request, apiBaseUrl, token, spaceId }: AuthenticatedSpaceContext,
+  rule: {
+    readonly categoryId: string;
+    readonly pattern: string;
+    readonly matchType: "exact" | "contains";
+  },
+): Promise<void> {
+  const response = await request.post(
+    `${apiBaseUrl}/api/v1/users/me/spaces/${spaceId}/category-rules`,
+    {
+      headers: authorizationHeaders(token),
+      data: rule,
+    },
+  );
+  expect(response.status()).toBe(201);
+}
+
+async function expectCategorySuggestionContract(
+  request: APIRequestContext,
+  apiBaseUrl: string,
+): Promise<void> {
+  const response = await request.get(`${apiBaseUrl}/docs-json`);
+  expect(response.status()).toBe(200);
+  const document = (await response.json()) as {
+    paths?: Record<string, { post?: OpenApiOperation }>;
+  };
+  const operation = document.paths?.[suggestionPath]?.post;
+  expect(operation?.operationId).toBe("SpaceStatementImports_suggestCategory");
+  expect(
+    operation?.requestBody?.content?.["application/json"]?.schema?.$ref,
+  ).toBe("#/components/schemas/StatementCategorySuggestionRequestDto");
+  expect(
+    operation?.responses?.["200"]?.content?.["application/json"]?.schema?.$ref,
+  ).toBe("#/components/schemas/StatementCategorySuggestionResponseDto");
+}
+
+interface OpenApiOperation {
+  readonly operationId?: string;
+  readonly requestBody?: {
+    readonly content?: Readonly<Record<string, OpenApiMediaType>>;
+  };
+  readonly responses?: Readonly<Record<string, OpenApiResponse>>;
+}
+
+interface OpenApiResponse {
+  readonly content?: Readonly<Record<string, OpenApiMediaType>>;
+}
+
+interface OpenApiMediaType {
+  readonly schema?: { readonly $ref?: string };
+}
+
+async function uploadStatement(
+  page: Page,
+  fileName: string,
+  transactions: readonly GcashTransaction[],
+  summary: GcashStatementSummary,
+): Promise<void> {
+  const lines = [
+    "GCash Transaction History",
+    "2026-09-01 to 2026-09-07",
+    "Date and Time Description Reference No. Debit Credit Balance",
+    `STARTING BALANCE ${summary.startingBalance}`,
+    ...transactions.map(
+      ({ date, time, description, reference, debit, balance }) =>
+        `${date} ${time} ${description} ${reference} ${debit} ${balance}`,
+    ),
+    `ENDING BALANCE ${summary.endingBalance}`,
+    `Total Debit ${summary.totalDebit}`,
+    `Total Credit ${summary.totalCredit}`,
+  ];
+
+  await page.locator('input[type="file"]').setInputFiles({
+    name: fileName,
+    mimeType: "application/pdf",
+    buffer: createTextPdf(lines),
+  });
+  await page.getByRole("button", { name: "Skip" }).click();
+}
+
+interface GcashTransaction {
+  readonly date: string;
+  readonly time: string;
+  readonly description: string;
+  readonly reference: string;
+  readonly debit: string;
+  readonly balance: string;
+}
+
+interface GcashStatementSummary {
+  readonly startingBalance: string;
+  readonly endingBalance: string;
+  readonly totalDebit: string;
+  readonly totalCredit: string;
+}
+
+function getCategorySuggestionPath(spaceId: string): string {
+  return suggestionPath.replace("{spaceId}", spaceId);
+}
+
+function createTextPdf(lines: readonly string[]): Buffer {
+  const pageText = lines
+    .map(
+      (line, index) =>
+        `BT /F1 9 Tf 1 0 0 1 36 ${760 - index * 14} Tm (${escapePdfText(line)}) Tj ET`,
+    )
+    .join("\n");
+  const objects = [
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    `<< /Length ${Buffer.byteLength(pageText, "ascii")} >>\nstream\n${pageText}\nendstream`,
+  ];
+
+  let document = "%PDF-1.4\n";
+  const offsets = [0];
+  objects.forEach((object, index) => {
+    offsets.push(Buffer.byteLength(document, "ascii"));
+    document += `${index + 1} 0 obj\n${object}\nendobj\n`;
+  });
+
+  const crossReferenceOffset = Buffer.byteLength(document, "ascii");
+  document += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  for (const offset of offsets.slice(1)) {
+    document += `${offset.toString().padStart(10, "0")} 00000 n \n`;
+  }
+  document += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${crossReferenceOffset}\n%%EOF`;
+
+  return Buffer.from(document, "ascii");
+}
+
+function escapePdfText(value: string): string {
+  return value
+    .replaceAll("\\", "\\\\")
+    .replaceAll("(", "\\(")
+    .replaceAll(")", "\\)");
+}
+
+async function selectCategory(
+  page: Page,
+  description: string,
+  categoryName: string,
+): Promise<void> {
+  await page
+    .getByRole("combobox", { name: `Category for ${description}` })
+    .click();
+  await page.getByRole("option", { name: categoryName, exact: true }).click();
+}
+
+function findTransaction(
+  transactions: readonly Record<string, unknown>[],
+  description: string,
+): Record<string, unknown> {
+  const transaction = transactions.find(
+    (candidate) => candidate.description === description,
+  );
+  if (!transaction)
+    throw new Error(`Missing committed Transaction ${description}`);
+  return transaction;
+}
+
+function readArray(value: unknown): unknown[] {
+  if (!Array.isArray(value)) throw new Error("Expected a JSON array");
+  return value;
+}
+
+function readObjectsField(
+  value: unknown,
+  field: string,
+): Record<string, unknown>[] {
+  if (!isRecord(value) || !Array.isArray(value[field])) {
+    throw new Error(`Expected a response with an array ${field}`);
+  }
+
+  return value[field].map((item) => {
+    if (!isRecord(item)) {
+      throw new Error(`Expected ${field} to contain only objects`);
+    }
+    return item;
+  });
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function requiredString(value: unknown, field: string): string {
+  if (!isRecord(value) || typeof value[field] !== "string") {
+    throw new Error(`Expected a response with a string ${field}`);
+  }
+
+  return value[field];
+}
+
+function authorizationHeaders(token: string): Record<string, string> {
+  return { Authorization: `Bearer ${token}`, Accept: "application/json" };
+}

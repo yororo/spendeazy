@@ -19,6 +19,7 @@ import {
 import { validateLocalTestDatabaseTarget } from './database-target';
 import { createLocalTestClock } from './clock';
 import { loadLocalTestAppConfig } from './app-config';
+import { LocalTestCategorySuggestionEvaluator } from './category-suggestion-evaluator';
 import { LocalTestSessionModule } from './session-control';
 
 @Module({})
@@ -57,6 +58,12 @@ async function bootstrap(): Promise<void> {
             useValue: createSyntheticProfileService(),
           } satisfies Provider,
         },
+        ...(process.env.SPENDEAZY_LOCAL_TEST_CATEGORY_SUGGESTION_STUB === '1'
+          ? {
+              categorySuggestionEvaluator:
+                new LocalTestCategorySuggestionEvaluator(),
+            }
+          : {}),
       }),
       LocalTestSessionModule.register(sessionAuthority),
     ],

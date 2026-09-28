@@ -74,6 +74,9 @@ async function main() {
       GCASH_REFERENCE_HASH_KEY: localTestGcashReferenceHashKey,
       SPENDEAZY_LOCAL_TEST: "1",
       SPENDEAZY_LOCAL_TEST_SEED_FIXTURES: isE2e ? "0" : "1",
+      ...(isE2e
+        ? { SPENDEAZY_LOCAL_TEST_CATEGORY_SUGGESTION_STUB: "1" }
+        : {}),
       SPENDEAZY_TEST_DB_PORT: String(configuration.databasePort),
       SPENDEAZY_TEST_DB_USER: configuration.databaseUser,
       SPENDEAZY_TEST_DB_PASSWORD: configuration.databasePassword,

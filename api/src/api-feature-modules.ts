@@ -6,9 +6,11 @@ import { StatementImportsModule } from './statement-imports/statement-imports.mo
 import { TransactionsModule } from './transactions/transactions.module';
 import { UsersModule } from './users/users.module';
 import { InvitationsModule } from './invitations/invitations.module';
+import type { CategorySuggestionEvaluator } from './statement-imports/application/statement-category-suggestions';
 
 export interface ApiFeatureModuleOptions {
   includeControllers?: boolean;
+  categorySuggestionEvaluator?: CategorySuggestionEvaluator;
 }
 
 export function createApiFeatureModules(

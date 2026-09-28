@@ -8,6 +8,7 @@ import { StatementImportsService } from './application/statement-imports.service
 import {
   STATEMENT_CATEGORY_SUGGESTION_CATALOG_STORE,
   STATEMENT_CATEGORY_SUGGESTION_EVALUATOR,
+  type CategorySuggestionEvaluator,
 } from './application/statement-category-suggestions';
 import { StatementCategorySuggestionsService } from './application/statement-category-suggestions.service';
 import { GCASH_REFERENCE_HASHER } from './application/gcash-reference-hasher';
@@ -27,9 +28,18 @@ const controllers = [
 export class StatementImportsModule {
   static register(
     databaseIsConfigured: boolean,
-    options: { includeControllers?: boolean } = {},
+    options: {
+      includeControllers?: boolean;
+      categorySuggestionEvaluator?: CategorySuggestionEvaluator;
+    } = {},
     config?: AppConfig,
   ): DynamicModule {
+    if (options.categorySuggestionEvaluator && config?.environment !== 'test') {
+      throw new Error(
+        'Category Suggestion evaluator overrides are only available in the test environment',
+      );
+    }
+
     if (!databaseIsConfigured) {
       if (!options.includeControllers) {
         return { module: StatementImportsModule };
@@ -60,6 +70,7 @@ export class StatementImportsModule {
         {
           provide: STATEMENT_CATEGORY_SUGGESTION_EVALUATOR,
           useFactory: () =>
+            options.categorySuggestionEvaluator ??
             new TypeSafeCategorySuggestionEvaluator(config?.typesafeApiKey),
         },
         StatementCategorySuggestionsService,

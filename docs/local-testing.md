@@ -94,6 +94,8 @@ environment's loopback URLs, fixed clock/date, and temporary token.
 
 The automated run intentionally starts with an empty database so the initial provisioning smoke test remains a real first-time provisioning check. The browser suite then creates a fresh User, switches Users, verifies sign-out/re-entry, observes bounded expiration recovery and revocation failure, checks that expired and revoked credentials are rejected directly by the API while replacement credentials work, and makes direct authenticated API requests to prove that cross-User reads and mutations remain blocked. The persistent two-User fictional scenario is the ordinary manual-startup and explicit-reset fixture.
 
+The `--e2e` API process injects a deterministic Category Suggestion evaluator at the API's Jev integration boundary. It returns the test Category for eligible imports, simulates an unavailable service for one fixture description, and leaves another fixture request pending so the browser can prove the active Category selector still works. The normal API entrypoint and manual local-test environment do not register this evaluator, and the stub stores no suggestion or acceptance data.
+
 ## Run the full CI validation locally
 
 After installing dependencies and a Playwright browser, the checks used by

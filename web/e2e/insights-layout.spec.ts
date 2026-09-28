@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { requireEnvironment } from "./test-helpers";
+
 test("keeps desktop Insights scrolling inside the content pane", async ({
   page,
 }) => {
@@ -165,9 +167,3 @@ test("fits rolling-month Category trend labels across desktop and mobile plot wi
   );
   expect(deleteResponse.status()).toBe(204);
 });
-
-function requireEnvironment(name: string): string {
-  const value = process.env[name];
-  if (!value) throw new Error(`Missing required environment variable: ${name}`);
-  return value;
-}

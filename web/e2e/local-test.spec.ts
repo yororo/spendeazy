@@ -1,5 +1,7 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 
+import { requireEnvironment } from "./test-helpers";
+
 const testClock =
   process.env.SPENDEAZY_E2E_TEST_CLOCK ?? "2026-09-19T12:00:00.000Z";
 
@@ -1561,11 +1563,4 @@ function readSessionToken(value: unknown): string {
   }
 
   return (value as { token: string }).token;
-}
-
-function requireEnvironment(name: string): string {
-  const value = process.env[name];
-  if (!value)
-    throw new Error(`${name} is required for local-test E2E coverage.`);
-  return value;
 }

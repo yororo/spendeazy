@@ -355,6 +355,81 @@ describe('statement-import ownership through authenticated routes', () => {
     ).toEqual(['99', '42']);
   });
 
+  it('returns legacy GCash and current E-Wallet controls in one history page', async () => {
+    fixture.statementImports.seed(
+      statementImportRecord({
+        id: '500',
+        spaceId: '99',
+        importedByUserId: '99',
+        fileName: 'legacy-wallet-history.pdf',
+        statementDate: '2026-08-07',
+        bank: 'GCash',
+        cardType: 'E-Wallet',
+        statementType: 'e_wallet',
+        transactionHistoryStartDate: null,
+        totalDebit: null,
+      }),
+      statementImportRecord({
+        id: '501',
+        spaceId: '99',
+        importedByUserId: '99',
+        fileName: 'wallet-history.pdf',
+        statementDate: '2026-09-07',
+        bank: 'GCash',
+        cardType: 'E-Wallet',
+        statementType: 'e_wallet',
+        transactionHistoryStartDate: '2026-08-09',
+        totalDebit: '26696.92',
+      }),
+    );
+
+    const response = await statementRequest(application)
+      .get('/api/v1/users/me/statement-imports')
+      .set('Authorization', 'Bearer token-c')
+      .set('Accept', 'application/json');
+    const body = response.body as {
+      items: {
+        id: string;
+        statementDate: string;
+        statementType: string;
+        transactionHistoryStartDate: string | null;
+        totalDebit: string | null;
+      }[];
+    };
+    const legacyImport = await statementRequest(application)
+      .get('/api/v1/users/me/statement-imports/500')
+      .set('Authorization', 'Bearer token-c')
+      .set('Accept', 'application/json');
+
+    expect(response.status).toBe(200);
+    expect(body.items).toHaveLength(2);
+    expect(body.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: '500',
+          statementDate: '2026-08-07',
+          statementType: 'e_wallet',
+          transactionHistoryStartDate: null,
+          totalDebit: null,
+        }),
+        expect.objectContaining({
+          id: '501',
+          statementDate: '2026-09-07',
+          statementType: 'e_wallet',
+          transactionHistoryStartDate: '2026-08-09',
+          totalDebit: '26696.92',
+        }),
+      ]),
+    );
+    expect(legacyImport.status).toBe(200);
+    expect(legacyImport.body).toMatchObject({
+      id: '500',
+      statementType: 'e_wallet',
+      transactionHistoryStartDate: null,
+      totalDebit: null,
+    });
+  });
+
   it('scopes exact-file and probable-duplicate checks to the authenticated User', async () => {
     const input = statementImportInput();
     const fingerprint = computeImportFingerprint(input, input.transactions[0]);

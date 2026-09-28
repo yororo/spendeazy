@@ -649,9 +649,22 @@ describe("StatementImportPage Space destination", () => {
     expect(screen.getByText("Imported by Grace Hopper")).toBeTruthy();
   });
 
-  it("labels recent E-Wallet history with its complete period and Total Debit", async () => {
+  it("shows available controls for mixed legacy and new E-Wallet history", async () => {
     const fetchMock = createFetchMock({
       recentImports: [
+        {
+          id: "101",
+          fileName: "legacy-wallet-history.pdf",
+          statementDate: "2026-08-07",
+          bank: "GCash",
+          cardType: "E-Wallet",
+          statementType: "e_wallet",
+          transactionHistoryStartDate: null,
+          totalDebit: null,
+          importedAt: "2026-08-08T00:00:00.000Z",
+          importedByUserId: "1",
+          transactionCount: "2",
+        },
         {
           id: "102",
           fileName: "wallet-history.pdf",
@@ -677,6 +690,11 @@ describe("StatementImportPage Space destination", () => {
     expect(
       within(history).getByText(
         "3 Transactions · GCash · E-Wallet · Transaction History AUG 09 – SEP 07 · Total Debit ₱26,696.92",
+      ),
+    ).toBeTruthy();
+    expect(
+      within(history).getByText(
+        "2 Transactions · GCash · E-Wallet · Transaction History start unavailable – AUG 07 · Total Debit unavailable",
       ),
     ).toBeTruthy();
   });

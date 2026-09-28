@@ -132,6 +132,7 @@ function requireCategoryRuleCollection(
 
 function isStatementImportResponse(
   value: unknown,
+  allowUnavailableEWalletControls = false,
 ): value is StatementImportResponse {
   if (
     !isRecord(value) ||
@@ -149,11 +150,12 @@ function isStatementImportResponse(
     return false;
   }
 
-  return hasValidStatementImportControls(value);
+  return hasValidStatementImportControls(value, allowUnavailableEWalletControls);
 }
 
 function hasValidStatementImportControls(
   value: Record<string, unknown>,
+  allowUnavailableEWalletControls: boolean,
 ): boolean {
   if (value.statementType === "credit_card") {
     return (
@@ -161,22 +163,27 @@ function hasValidStatementImportControls(
     );
   }
 
-  return (
-    typeof value.transactionHistoryStartDate === "string" &&
-    isCalendarDate(value.transactionHistoryStartDate) &&
-    typeof value.statementDate === "string" &&
-    isCalendarDate(value.statementDate) &&
-    value.transactionHistoryStartDate <= value.statementDate &&
-    typeof value.totalDebit === "string" &&
-    MONEY_PATTERN.test(value.totalDebit)
-  );
+  const hasValidPeriodStart =
+    value.transactionHistoryStartDate === null
+      ? allowUnavailableEWalletControls
+      : typeof value.transactionHistoryStartDate === "string" &&
+        isCalendarDate(value.transactionHistoryStartDate) &&
+        typeof value.statementDate === "string" &&
+        isCalendarDate(value.statementDate) &&
+        value.transactionHistoryStartDate <= value.statementDate;
+  const hasValidTotalDebit =
+    value.totalDebit === null
+      ? allowUnavailableEWalletControls
+      : typeof value.totalDebit === "string" && MONEY_PATTERN.test(value.totalDebit);
+
+  return hasValidPeriodStart && hasValidTotalDebit;
 }
 
 function isStatementImportHistoryItemResponse(
   value: unknown,
 ): value is StatementImportHistoryItemResponse {
   return (
-    isStatementImportResponse(value) &&
+    isStatementImportResponse(value, true) &&
     typeof (value as unknown as Record<string, unknown>).transactionCount ===
       "string" &&
     /^\d+$/u.test(

@@ -75,7 +75,7 @@ export class StatementImportResponseDto {
 
   @ApiProperty({
     description:
-      'Inclusive E-Wallet Transaction History Period start, or null for Credit Card imports.',
+      'Inclusive E-Wallet Transaction History Period start; null for Credit Card imports or legacy imports where this control is unavailable.',
     type: String,
     format: 'date',
     pattern: DOMAIN_DATE_PATTERN.source,
@@ -86,7 +86,7 @@ export class StatementImportResponseDto {
 
   @ApiProperty({
     description:
-      'Original non-negative E-Wallet Total Debit control, or null for Credit Card imports.',
+      'Original non-negative E-Wallet Total Debit control; null for Credit Card imports or legacy imports where this control is unavailable.',
     type: String,
     pattern: '^\\d{1,13}\\.\\d{2}$',
     nullable: true,
@@ -171,7 +171,7 @@ export class StatementImportHistoryResponseDto {
 
   @ApiProperty({
     description:
-      'Inclusive E-Wallet Transaction History Period start, or null for Credit Card imports.',
+      'Inclusive E-Wallet Transaction History Period start; null for Credit Card imports or legacy imports where this control is unavailable.',
     type: String,
     format: 'date',
     pattern: DOMAIN_DATE_PATTERN.source,
@@ -182,7 +182,7 @@ export class StatementImportHistoryResponseDto {
 
   @ApiProperty({
     description:
-      'Original non-negative E-Wallet Total Debit control, or null for Credit Card imports.',
+      'Original non-negative E-Wallet Total Debit control; null for Credit Card imports or legacy imports where this control is unavailable.',
     type: String,
     pattern: '^\\d{1,13}\\.\\d{2}$',
     nullable: true,

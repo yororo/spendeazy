@@ -405,8 +405,12 @@ function StatementImportPage({
                     {item.statementType === "e_wallet" ? (
                       <>
                         {item.transactionHistoryStartDate
-                          ? `Transaction History ${item.transactionHistoryStartDate} – ${item.statementDate} · Total Debit ${formatMoney(item.totalDebit ?? 0)}`
-                          : item.statementDate}
+                          ? `Transaction History ${item.transactionHistoryStartDate} – ${item.statementDate}`
+                          : `Transaction History start unavailable – ${item.statementDate}`}
+                        {" · "}
+                        {item.totalDebit === null
+                          ? "Total Debit unavailable"
+                          : `Total Debit ${formatMoney(item.totalDebit)}`}
                       </>
                     ) : (
                       <>{item.statementDate}</>

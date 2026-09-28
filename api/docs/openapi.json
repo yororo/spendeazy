@@ -6449,7 +6449,7 @@
           },
           "transactionHistoryStartDate": {
             "type": "string",
-            "description": "Inclusive E-Wallet Transaction History Period start, or null for Credit Card imports.",
+            "description": "Inclusive E-Wallet Transaction History Period start; null for Credit Card imports or legacy imports where this control is unavailable.",
             "format": "date",
             "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
             "nullable": true,
@@ -6457,7 +6457,7 @@
           },
           "totalDebit": {
             "type": "string",
-            "description": "Original non-negative E-Wallet Total Debit control, or null for Credit Card imports.",
+            "description": "Original non-negative E-Wallet Total Debit control; null for Credit Card imports or legacy imports where this control is unavailable.",
             "pattern": "^\\d{1,13}\\.\\d{2}$",
             "nullable": true,
             "example": null
@@ -6542,7 +6542,7 @@
           },
           "transactionHistoryStartDate": {
             "type": "string",
-            "description": "Inclusive E-Wallet Transaction History Period start, or null for Credit Card imports.",
+            "description": "Inclusive E-Wallet Transaction History Period start; null for Credit Card imports or legacy imports where this control is unavailable.",
             "format": "date",
             "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
             "nullable": true,
@@ -6550,7 +6550,7 @@
           },
           "totalDebit": {
             "type": "string",
-            "description": "Original non-negative E-Wallet Total Debit control, or null for Credit Card imports.",
+            "description": "Original non-negative E-Wallet Total Debit control; null for Credit Card imports or legacy imports where this control is unavailable.",
             "pattern": "^\\d{1,13}\\.\\d{2}$",
             "nullable": true,
             "example": null

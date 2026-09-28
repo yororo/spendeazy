@@ -662,8 +662,8 @@ describe("Statement Import categorization", () => {
     { totalDebit: "12345678901234.00" },
     { totalDebit: "1.2" },
     { importedAt: "2026-09-01" },
-    { transactionHistoryStartDate: null },
-    { totalDebit: null },
+    { transactionHistoryStartDate: undefined },
+    { totalDebit: undefined },
     { transactionHistoryStartDate: "2026-09-01" },
   ])("rejects malformed Statement Import control fields", async (override) => {
     const get = vi.fn(async () => ({
@@ -913,6 +913,38 @@ describe("Statement Import commit", () => {
       { signal: undefined },
     );
     expect(post.mock.calls[0]?.[1]).not.toHaveProperty("file");
+  });
+
+  it("requires complete E-Wallet controls in a successful commit response", async () => {
+    const file = new File(["hello"], "wallet-history.pdf", {
+      type: "application/pdf",
+    });
+    const statement: CategorizedStatement = {
+      ...createCategorizedStatement(),
+      summary: {
+        ...createSummary(),
+        statementType: "e_wallet",
+        transactionHistoryStartDate: new Date("2026-08-01T00:00:00.000Z"),
+        totalDebit: 100,
+      },
+    };
+    const post = vi.fn(async () => ({
+      id: "100",
+      fileName: "wallet-history.pdf",
+      statementDate: "2026-08-31",
+      bank: "GCash",
+      cardType: "E-Wallet",
+      statementType: "e_wallet",
+      transactionHistoryStartDate: null,
+      totalDebit: null,
+      importedAt: "2026-09-01T00:00:00.000Z",
+      importedByUserId: "7",
+    }));
+    const apiClient = { post } as unknown as StatementImportApiClient;
+
+    await expect(
+      commitStatementImport(apiClient, file, statement),
+    ).rejects.toMatchObject({ kind: "data" });
   });
 
   it("commits reviewed data to an explicit destination Space", async () => {

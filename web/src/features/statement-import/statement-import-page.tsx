@@ -17,6 +17,7 @@ import {
   useCommitStatementImportMutation,
   useRecentCommittedStatementImportsQuery,
   useStatementImportCategoriesQuery,
+  useStatementCategorySuggestionFetcher,
   useStatementImportRulesQuery,
   useRememberCategoryRuleMutation,
 } from "./statement-import-queries";
@@ -65,6 +66,7 @@ function StatementImportPage({
   const recentCommittedStatementImportsQuery =
     useRecentCommittedStatementImportsQuery(destinationSpaceId, scopeReady);
   const commitMutation = useCommitStatementImportMutation();
+  const getCategorySuggestion = useStatementCategorySuggestionFetcher();
   const rememberCategoryRuleMutation = useRememberCategoryRuleMutation();
   const destinationLabel = getDestinationLabel(
     destinationSpaceId,
@@ -285,6 +287,7 @@ function StatementImportPage({
         currentCategoryRules={categoryRules}
         destinationLabel={destinationLabel}
         spaceId={destinationSpaceId}
+        getCategorySuggestion={getCategorySuggestion}
         fileName={importedFile.name}
         statementSummary={statement.summary}
         onBack={() => requestExit(resetImport)}

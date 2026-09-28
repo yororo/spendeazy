@@ -2580,6 +2580,47 @@ paths:
       summary: Commit an already parsed and reviewed statement atomically.
       tags:
         - Statement imports
+  /api/v1/users/me/spaces/{spaceId}/statement-imports/category-suggestions:
+    post:
+      description: Evaluates the submitted Transaction description against active Categories in the destination Space. The suggestion does not assign a Category or commit a Statement Import.
+      operationId: SpaceStatementImports_suggestCategory
+      parameters:
+        - name: spaceId
+          required: true
+          in: path
+          description: Positive bigint Space identifier encoded as a string.
+          schema:
+            type: string
+            pattern: ^[1-9]\d*$
+            example: '7'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StatementCategorySuggestionRequestDto'
+      responses:
+        '200':
+          description: One active Category suggestion, or no suggestion.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatementCategorySuggestionResponseDto'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthenticatedError'
+        '403':
+          $ref: '#/components/responses/UserNotProvisionedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '406':
+          $ref: '#/components/responses/NotAcceptableError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      summary: Suggest one Category for a Transaction in an authorized Space.
+      tags:
+        - Statement imports
   /api/v1/users/me/spaces/{spaceId}/statement-imports/{statementImportId}:
     get:
       operationId: SpaceStatementImports_getStatementImport
@@ -4726,6 +4767,48 @@ components:
       required:
         - spaceId
         - statementImportId
+    StatementCategorySuggestionRequestDto:
+      type: object
+      properties:
+        description:
+          type: string
+          description: The reviewed Transaction description to categorize.
+          minLength: 1
+          maxLength: 500
+          pattern: \S
+          example: Market purchase
+      additionalProperties: false
+      required:
+        - description
+    StatementCategorySuggestionItemResponseDto:
+      type: object
+      properties:
+        categoryId:
+          type: string
+          description: Positive bigint Category identifier encoded as a string.
+          pattern: ^[1-9]\d*$
+          example: '42'
+        categoryName:
+          type: string
+          description: The current display name of the active Category.
+          maxLength: 100
+          example: Groceries
+      additionalProperties: false
+      required:
+        - categoryId
+        - categoryName
+    StatementCategorySuggestionResponseDto:
+      type: object
+      properties:
+        suggestion:
+          description: One active Category suggestion, or null when no Category is supported.
+          nullable: true
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/StatementCategorySuggestionItemResponseDto'
+      additionalProperties: false
+      required:
+        - suggestion
     OutgoingInvitationResponseDto:
       type: object
       properties:

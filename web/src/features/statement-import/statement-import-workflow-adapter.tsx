@@ -5,6 +5,7 @@ import type {
   CategoryCatalogOption,
   CategoryColorOption,
   CategoryRule,
+  CategorySuggestionFetcher,
 } from "./statement-import-service";
 import type {
   StatementImportWorkflow,
@@ -20,6 +21,7 @@ interface CategorizeStatementAdapterProps {
   readonly currentCategoryRules: readonly CategoryRule[];
   readonly destinationLabel?: string;
   readonly spaceId?: string;
+  readonly getCategorySuggestion?: CategorySuggestionFetcher;
   readonly fileName: string;
   readonly statementSummary: CategorizedStatement["summary"];
   readonly onBack: () => void;
@@ -33,6 +35,7 @@ function CategorizeStatementAdapter({
   currentCategoryRules,
   destinationLabel,
   spaceId,
+  getCategorySuggestion,
   fileName,
   statementSummary,
   onBack,
@@ -58,6 +61,7 @@ function CategorizeStatementAdapter({
       categoryRules={state.categoryRules}
       destinationLabel={destinationLabel}
       spaceId={spaceId}
+      getCategorySuggestion={getCategorySuggestion}
       fileName={fileName}
       statementSummary={statementSummary}
       transactions={statement.transactions}

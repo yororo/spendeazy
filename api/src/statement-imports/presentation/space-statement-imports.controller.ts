@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
   HttpStatus,
   Param,
   Post,
@@ -26,6 +27,7 @@ import { ApiStandardErrorResponses } from '../../http/api-error.dto';
 import { POSITIVE_INTEGER_ID_PATTERN } from '../../http/validation-patterns';
 import { SpaceAccessService } from '../../spaces/application/space-access.service';
 import { SpaceParamsDto } from '../../spaces/presentation/space.dto';
+import { StatementCategorySuggestionsService } from '../application/statement-category-suggestions.service';
 import { StatementImportsService } from '../application/statement-imports.service';
 import {
   CommitReviewedStatementImportDto,
@@ -37,6 +39,11 @@ import {
   StatementImportHistoryResponseDto,
   StatementImportResponseDto,
 } from './statement-import-response.dto';
+import { StatementCategorySuggestionRequestDto } from './statement-category-suggestion.dto';
+import {
+  StatementCategorySuggestionItemResponseDto,
+  StatementCategorySuggestionResponseDto,
+} from './statement-category-suggestion-response.dto';
 import {
   spaceStatementImportLocation,
   toStatementImportHistoryResponse,
@@ -54,6 +61,9 @@ import { SpaceStatementImportParamsDto } from './space-statement-import.dto';
   StatementImportResponseDto,
   StatementImportHistoryResponseDto,
   StatementImportHistoryPageResponseDto,
+  StatementCategorySuggestionRequestDto,
+  StatementCategorySuggestionItemResponseDto,
+  StatementCategorySuggestionResponseDto,
 )
 @ApiParam({
   name: 'spaceId',
@@ -67,8 +77,44 @@ import { SpaceStatementImportParamsDto } from './space-statement-import.dto';
 export class SpaceStatementImportsController {
   constructor(
     private readonly statementImportsService: StatementImportsService,
+    private readonly categorySuggestionsService: StatementCategorySuggestionsService,
     private readonly spaceAccessService: SpaceAccessService,
   ) {}
+
+  @Post('category-suggestions')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Suggest one Category for a Transaction in an authorized Space.',
+    description:
+      'Evaluates the submitted Transaction description against active Categories in the destination Space. The suggestion does not assign a Category or commit a Statement Import.',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'One active Category suggestion, or no suggestion.',
+    type: StatementCategorySuggestionResponseDto,
+  })
+  @ApiStandardErrorResponses(
+    'UnauthenticatedError',
+    'UserNotProvisionedError',
+    'ValidationError',
+    'NotFoundError',
+    'NotAcceptableError',
+    'InternalError',
+  )
+  async suggestCategory(
+    @Req() request: AuthenticatedRequest,
+    @Param() params: SpaceParamsDto,
+    @Body() input: StatementCategorySuggestionRequestDto,
+  ): Promise<StatementCategorySuggestionResponseDto> {
+    const userId = requireAuthenticatedUserId(request);
+    await this.spaceAccessService.requireWriteAccess(userId, params.spaceId);
+    return {
+      suggestion: await this.categorySuggestionsService.suggestInSpace(
+        params.spaceId,
+        input.description,
+      ),
+    };
+  }
 
   @Get(':statementImportId')
   @ApiOperation({

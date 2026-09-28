@@ -21,6 +21,7 @@ import { computeImportFingerprint } from '../src/statement-imports/application/i
 import { StatementImportsController } from '../src/statement-imports/presentation/statement-imports.controller';
 import { SpaceStatementImportsController } from '../src/statement-imports/presentation/space-statement-imports.controller';
 import { StatementImportsService } from '../src/statement-imports/application/statement-imports.service';
+import { StatementCategorySuggestionsService } from '../src/statement-imports/application/statement-category-suggestions.service';
 import { SpaceAccessService } from '../src/spaces/application/space-access.service';
 import {
   SpaceNotFoundError,
@@ -583,6 +584,7 @@ describe('statement-import access through Space routes', () => {
     requireReadAccess: jest.Mock;
     requireWriteAccess: jest.Mock;
   };
+  let categorySuggestionsService: { suggestInSpace: jest.Mock };
 
   beforeEach(async () => {
     statementImportsService = createStatementImportsServiceMock();
@@ -590,9 +592,15 @@ describe('statement-import access through Space routes', () => {
       requireReadAccess: jest.fn().mockResolvedValue({ id: '77' }),
       requireWriteAccess: jest.fn().mockResolvedValue({ id: '77' }),
     };
+    categorySuggestionsService = {
+      suggestInSpace: jest
+        .fn()
+        .mockResolvedValue({ categoryId: '42', categoryName: 'Groceries' }),
+    };
     application = await createSpaceStatementImportApplication(
       statementImportsService,
       spaceAccessService,
+      categorySuggestionsService,
     );
   });
 
@@ -696,6 +704,60 @@ describe('statement-import access through Space routes', () => {
       statementImportsService.commitReviewedStatementImportInSpace,
     ).not.toHaveBeenCalled();
   });
+
+  it('authorizes the destination Space before returning a Category Suggestion', async () => {
+    const response = await statementRequest(application)
+      .post('/api/v1/users/me/spaces/77/statement-imports/category-suggestions')
+      .set('Authorization', 'Bearer token-c')
+      .set('Accept', 'application/json')
+      .send({ description: 'Market purchase' });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      suggestion: { categoryId: '42', categoryName: 'Groceries' },
+    });
+    expect(spaceAccessService.requireWriteAccess).toHaveBeenCalledWith(
+      '99',
+      '77',
+    );
+    expect(categorySuggestionsService.suggestInSpace).toHaveBeenCalledWith(
+      '77',
+      'Market purchase',
+    );
+  });
+
+  it('keeps suggestions optional and rejects unsupported request fields', async () => {
+    categorySuggestionsService.suggestInSpace.mockResolvedValueOnce(null);
+    const noMatchResponse = await statementRequest(application)
+      .post('/api/v1/users/me/spaces/77/statement-imports/category-suggestions')
+      .set('Authorization', 'Bearer token-c')
+      .set('Accept', 'application/json')
+      .send({ description: 'Unknown purchase' });
+    const unsupportedFieldResponse = await statementRequest(application)
+      .post('/api/v1/users/me/spaces/77/statement-imports/category-suggestions')
+      .set('Authorization', 'Bearer token-c')
+      .set('Accept', 'application/json')
+      .send({ description: 'Market purchase', amount: '25.00' });
+
+    expect(noMatchResponse.status).toBe(200);
+    expect(noMatchResponse.body).toEqual({ suggestion: null });
+    expect(unsupportedFieldResponse.status).toBe(400);
+    expect(categorySuggestionsService.suggestInSpace).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not request a suggestion for an inaccessible or unwritable Space', async () => {
+    spaceAccessService.requireWriteAccess.mockRejectedValueOnce(
+      new SpaceNotWritableError(),
+    );
+    const response = await statementRequest(application)
+      .post('/api/v1/users/me/spaces/77/statement-imports/category-suggestions')
+      .set('Authorization', 'Bearer token-c')
+      .set('Accept', 'application/json')
+      .send({ description: 'Market purchase' });
+
+    expect(response.status).toBe(403);
+    expect(categorySuggestionsService.suggestInSpace).not.toHaveBeenCalled();
+  });
 });
 
 interface StatementImportsServiceMock {
@@ -736,6 +798,7 @@ async function createSpaceStatementImportApplication(
     requireReadAccess: jest.Mock;
     requireWriteAccess: jest.Mock;
   },
+  categorySuggestionsService: { suggestInSpace: jest.Mock },
 ): Promise<INestApplication> {
   const module = await Test.createTestingModule({
     controllers: [SpaceStatementImportsController],
@@ -749,6 +812,10 @@ async function createSpaceStatementImportApplication(
       ClerkAuthenticationGuard,
       ProvisionedUserGuard,
       { provide: StatementImportsService, useValue: statementImportsProvider },
+      {
+        provide: StatementCategorySuggestionsService,
+        useValue: categorySuggestionsService,
+      },
       { provide: SpaceAccessService, useValue: spaceAccessService },
     ],
   }).compile();

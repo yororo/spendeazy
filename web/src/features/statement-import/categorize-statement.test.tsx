@@ -11,11 +11,10 @@ import {
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import {
-  CategorizeStatementAdapter,
-} from "./statement-import-workflow-adapter";
+import { CategorizeStatementAdapter } from "./statement-import-workflow-adapter";
 import { useStatementImportWorkflow } from "./use-statement-import-workflow";
 import type {
+  CategorySuggestionFetcher,
   CategoryRule,
   RememberCategoryRuleInput,
   RememberCategoryRuleResult,
@@ -49,6 +48,12 @@ const ambiguousTransaction: CategorizedTransaction = {
   isExcluded: false,
 };
 
+const unmappedTransaction: CategorizedTransaction = {
+  ...ambiguousTransaction,
+  assignment: "unmapped",
+  matchedCategoryIds: [],
+};
+
 const categoryRules: readonly CategoryRule[] = [
   { id: "1", categoryId: "42", pattern: "Green", matchType: "contains" },
   { id: "2", categoryId: "43", pattern: "Market", matchType: "contains" },
@@ -61,12 +66,14 @@ type RememberCategoryRuleHandler = (
 
 interface CategorizeHarnessProps {
   readonly initialTransactions?: CategorizedTransaction[];
+  readonly getCategorySuggestion?: CategorySuggestionFetcher;
   readonly onRememberCategoryRule?: RememberCategoryRuleHandler;
   readonly statementSummary?: CategorizedStatement["summary"];
 }
 
 function CategorizeHarness({
   initialTransactions = [ambiguousTransaction],
+  getCategorySuggestion = async () => null,
   onRememberCategoryRule = async () => ({
     status: "created" as const,
     rule: {
@@ -127,6 +134,8 @@ function CategorizeHarness({
         { value: "43", label: "Groceries", color: "forest", isActive: true },
       ]}
       currentCategoryRules={categoryRules}
+      getCategorySuggestion={getCategorySuggestion}
+      spaceId="77"
       fileName="statement.pdf"
       statementSummary={statementSummary}
       onBack={vi.fn()}
@@ -144,6 +153,229 @@ function getDesktopTable() {
 }
 
 describe("CategorizeStatement ambiguity handling", () => {
+  it("uses a mobile Category Suggestion as an unsaved draft until Save", async () => {
+    const getCategorySuggestion = vi.fn(async () => ({
+      categoryId: "43",
+      categoryName: "Groceries",
+    }));
+    const rememberCategoryRule = vi.fn(async () => ({
+      status: "created" as const,
+      rule: {
+        id: "8",
+        categoryId: "43",
+        pattern: "Green Market Cafe",
+        matchType: "contains" as const,
+      },
+    }));
+    render(
+      <CategorizeHarness
+        initialTransactions={[unmappedTransaction]}
+        getCategorySuggestion={getCategorySuggestion}
+        onRememberCategoryRule={rememberCategoryRule}
+      />,
+    );
+
+    const mobileList = screen.getByRole("list", {
+      name: "Transactions to categorize",
+    });
+    fireEvent.click(
+      within(mobileList).getByRole("button", {
+        name: "Edit Green Market Cafe",
+      }),
+    );
+
+    const editor = screen.getByRole("dialog", { name: "Edit Transaction" });
+    const suggestion = await within(editor).findByRole("button", {
+      name: "Use suggested Category: Groceries",
+    });
+    expect(getCategorySuggestion).toHaveBeenCalledWith(
+      "Green Market Cafe",
+      expect.any(AbortSignal),
+      "77",
+    );
+    fireEvent.click(suggestion);
+    expect(
+      within(editor).getByRole("combobox", {
+        name: "Category for Green Market Cafe",
+      }).textContent,
+    ).toContain("Groceries");
+    expect(within(mobileList).getByText("Unmapped")).toBeTruthy();
+
+    fireEvent.click(within(editor).getByRole("button", { name: "Cancel" }));
+    expect(within(mobileList).getByText("Unmapped")).toBeTruthy();
+    expect(rememberCategoryRule).not.toHaveBeenCalled();
+
+    fireEvent.click(
+      within(mobileList).getByRole("button", {
+        name: "Edit Green Market Cafe",
+      }),
+    );
+    const reopenedEditor = screen.getByRole("dialog", {
+      name: "Edit Transaction",
+    });
+    fireEvent.click(
+      await within(reopenedEditor).findByRole("button", {
+        name: "Use suggested Category: Groceries",
+      }),
+    );
+    fireEvent.click(
+      within(reopenedEditor).getByRole("button", { name: "Save changes" }),
+    );
+
+    await waitFor(() => {
+      expect(within(mobileList).getByText("Groceries")).toBeTruthy();
+      expect(within(mobileList).getByText("Manual")).toBeTruthy();
+    });
+    expect(rememberCategoryRule).not.toHaveBeenCalled();
+  });
+
+  it("shows one Category Suggestion in the desktop editor and keeps the full selector available", async () => {
+    const getCategorySuggestion = vi.fn(async () => ({
+      categoryId: "42",
+      categoryName: "Housing",
+    }));
+    render(
+      <CategorizeHarness
+        initialTransactions={[unmappedTransaction]}
+        getCategorySuggestion={getCategorySuggestion}
+      />,
+    );
+
+    const transactionTable = getDesktopTable();
+    fireEvent.click(
+      within(transactionTable).getByRole("button", {
+        name: "Edit Green Market Cafe",
+      }),
+    );
+
+    const suggestion = await within(transactionTable).findByRole("button", {
+      name: "Use suggested Category: Housing",
+    });
+    expect(
+      within(transactionTable).getByRole("combobox", {
+        name: "Category for Green Market Cafe",
+      }),
+    ).toBeTruthy();
+    fireEvent.click(suggestion);
+    expect(
+      within(transactionTable).getByRole("combobox", {
+        name: "Category for Green Market Cafe",
+      }).textContent,
+    ).toContain("Housing");
+  });
+
+  it("shows nonblocking loading feedback while checking for a suggestion", async () => {
+    const getCategorySuggestion = vi.fn(() => new Promise<null>(() => {}));
+    render(
+      <CategorizeHarness
+        initialTransactions={[unmappedTransaction]}
+        getCategorySuggestion={getCategorySuggestion}
+      />,
+    );
+
+    const mobileList = screen.getByRole("list", {
+      name: "Transactions to categorize",
+    });
+    fireEvent.click(
+      within(mobileList).getByRole("button", {
+        name: "Edit Green Market Cafe",
+      }),
+    );
+
+    const editor = screen.getByRole("dialog", { name: "Edit Transaction" });
+    const feedback = await within(editor).findByRole("status");
+    expect(feedback.textContent).toContain(
+      "Checking for a Category Suggestion",
+    );
+    expect(
+      within(editor).getByRole("combobox", {
+        name: "Category for Green Market Cafe",
+      }),
+    ).toBeTruthy();
+  });
+
+  it("shows an empty state when the API has no supported Category", async () => {
+    const getCategorySuggestion = vi.fn(async () => null);
+    render(
+      <CategorizeHarness
+        initialTransactions={[unmappedTransaction]}
+        getCategorySuggestion={getCategorySuggestion}
+      />,
+    );
+
+    const mobileList = screen.getByRole("list", {
+      name: "Transactions to categorize",
+    });
+    fireEvent.click(
+      within(mobileList).getByRole("button", {
+        name: "Edit Green Market Cafe",
+      }),
+    );
+
+    const editor = screen.getByRole("dialog", { name: "Edit Transaction" });
+    const feedback = await within(editor).findByRole("status");
+    expect(feedback.textContent).toContain("No Category Suggestion available");
+    expect(
+      within(editor).getByRole("combobox", {
+        name: "Category for Green Market Cafe",
+      }),
+    ).toBeTruthy();
+  });
+
+  it("shows an unavailable state without blocking manual categorization", async () => {
+    const getCategorySuggestion = vi.fn(async () => {
+      throw new Error("offline");
+    });
+    render(
+      <CategorizeHarness
+        initialTransactions={[unmappedTransaction]}
+        getCategorySuggestion={getCategorySuggestion}
+      />,
+    );
+
+    const mobileList = screen.getByRole("list", {
+      name: "Transactions to categorize",
+    });
+    fireEvent.click(
+      within(mobileList).getByRole("button", {
+        name: "Edit Green Market Cafe",
+      }),
+    );
+
+    const editor = screen.getByRole("dialog", { name: "Edit Transaction" });
+    const feedback = await within(editor).findByRole("status");
+    expect(feedback.textContent).toContain("Category Suggestion unavailable");
+    expect(
+      within(editor).getByRole("combobox", {
+        name: "Category for Green Market Cafe",
+      }),
+    ).toBeTruthy();
+  });
+
+  it("does not request suggestions for an Ambiguous Category Match", () => {
+    const getCategorySuggestion = vi.fn(async () => ({
+      categoryId: "42",
+      categoryName: "Housing",
+    }));
+    render(<CategorizeHarness getCategorySuggestion={getCategorySuggestion} />);
+
+    const mobileList = screen.getByRole("list", {
+      name: "Transactions to categorize",
+    });
+    fireEvent.click(
+      within(mobileList).getByRole("button", {
+        name: "Edit Green Market Cafe",
+      }),
+    );
+
+    expect(getCategorySuggestion).not.toHaveBeenCalled();
+    expect(
+      within(
+        screen.getByRole("dialog", { name: "Edit Transaction" }),
+      ).getByRole("combobox", { name: "Category for Green Market Cafe" }),
+    ).toBeTruthy();
+  });
+
   it("uses the saved Category Color for an assigned Transaction", () => {
     render(
       <CategorizeHarness
@@ -192,9 +424,7 @@ describe("CategorizeStatement ambiguity handling", () => {
       matchedCategoryIds: [],
     };
 
-    render(
-      <CategorizeHarness initialTransactions={[unmappedTransaction]} />,
-    );
+    render(<CategorizeHarness initialTransactions={[unmappedTransaction]} />);
 
     const mobileItem = within(
       screen.getByRole("list", { name: "Transactions to categorize" }),
@@ -363,11 +593,7 @@ describe("CategorizeStatement ambiguity handling", () => {
       }),
     );
 
-    render(
-      <CategorizeHarness
-        onRememberCategoryRule={rememberCategoryRule}
-      />,
-    );
+    render(<CategorizeHarness onRememberCategoryRule={rememberCategoryRule} />);
 
     const mobileList = screen.getByRole("list", {
       name: "Transactions to categorize",
@@ -681,9 +907,9 @@ describe("CategorizeStatement ambiguity handling", () => {
     expect(rememberCheckbox.parentElement?.className.split(/\s+/u)).toContain(
       "justify-end",
     );
-    expect(
-      rememberCheckbox.closest("tr")?.className.split(/\s+/u),
-    ).toContain("!border-b");
+    expect(rememberCheckbox.closest("tr")?.className.split(/\s+/u)).toContain(
+      "!border-b",
+    );
 
     fireEvent.click(rememberCheckbox);
 

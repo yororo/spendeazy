@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback } from "react";
 
 import { useApiClient } from "@/shared/api";
 import {
@@ -18,11 +19,13 @@ import {
   getCategoryCatalogOptions,
   getCategoryRules,
   getRecentCommittedStatementImports,
+  getStatementCategorySuggestion,
   rememberCategoryRule,
   type CategoryRule,
   type CommitStatementImportOptions,
   type RememberCategoryRuleInput,
   type RememberCategoryRuleResult,
+  type CategorySuggestionFetcher,
 } from "./statement-import-service";
 import type { CategorizedStatement } from "./statement-categorizer";
 
@@ -52,6 +55,16 @@ function useStatementImportCategoriesQuery(
     enabled,
     staleTime: queryPolicy.categoryCatalogStaleTime,
   });
+}
+
+function useStatementCategorySuggestionFetcher(): CategorySuggestionFetcher {
+  const apiClient = useApiClient();
+
+  return useCallback(
+    (description, signal, spaceId) =>
+      getStatementCategorySuggestion(apiClient, spaceId, description, signal),
+    [apiClient],
+  );
 }
 
 function useStatementImportRulesQuery(spaceId?: string, enabled = true) {
@@ -135,6 +148,7 @@ export {
   useCommitStatementImportMutation,
   useRecentCommittedStatementImportsQuery,
   useStatementImportCategoriesQuery,
+  useStatementCategorySuggestionFetcher,
   useStatementImportRulesQuery,
   useRememberCategoryRuleMutation,
 };

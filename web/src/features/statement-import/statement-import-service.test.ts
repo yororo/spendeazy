@@ -9,6 +9,7 @@ import {
   categorizeTransactions,
   commitStatementImport,
   getCategoryOptions,
+  getStatementCategorySuggestion,
   getCategoryRules,
   getIncludedTransactions,
   getRecentCommittedStatementImports,
@@ -96,6 +97,36 @@ function createCategorizedStatement(): CategorizedStatement {
 }
 
 describe("Statement Import categorization", () => {
+  it("requests one Category Suggestion from the destination Space using only the Transaction description", async () => {
+    const post = vi.fn(async () => ({
+      suggestion: { categoryId: "42", categoryName: "Groceries" },
+    }));
+    const apiClient = { post } as unknown as StatementImportApiClient;
+    const signal = new AbortController().signal;
+
+    await expect(
+      getStatementCategorySuggestion(apiClient, "77", "Market purchase", signal),
+    ).resolves.toEqual({ categoryId: "42", categoryName: "Groceries" });
+
+    expect(post).toHaveBeenCalledWith(
+      "/spaces/77/statement-imports/category-suggestions",
+      { description: "Market purchase" },
+      { signal },
+    );
+  });
+
+  it("treats an unavailable suggestion response as no suggestion", async () => {
+    const post = vi.fn(async () => ({ suggestion: null }));
+
+    await expect(
+      getStatementCategorySuggestion(
+        { post } as unknown as StatementImportApiClient,
+        "77",
+        "Market purchase",
+      ),
+    ).resolves.toBeNull();
+  });
+
   it("normalizes descriptions and applies literal Contains Rules after Exact Rules", () => {
     expect(normalizeDescription("  Green   Market ")).toBe("GREEN MARKET");
 

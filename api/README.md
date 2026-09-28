@@ -28,6 +28,8 @@ Set `INVITATION_CODE_ENCRYPTION_KEY` to a 32-byte hexadecimal secret in every da
 
 Set `GCASH_REFERENCE_HASH_KEY` to a separate, stable 32-byte hexadecimal secret in every database-backed API environment. GCash source references are HMAC-protected with this key before persistence and are never returned. Keep the same value across deployments so duplicate detection remains stable; generate it with `node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"` and keep it outside source control.
 
+Optionally set `TYPESAFE_API_KEY` to enable server-side Category Suggestions during Statement Import. Without it, the suggestion endpoint returns no suggestion and the ordinary Category selector remains available.
+
 Shared Space archive notifications are stored and shown in-app. No email provider configuration is required.
 
 Optionally load deterministic development data with `npm run db:seed`. The seed commands are restricted to non-production environments and local databases.

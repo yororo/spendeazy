@@ -249,6 +249,87 @@ describe('Statement import OpenAPI contract', () => {
     expect(JSON.stringify(document)).not.toContain('importFingerprint');
     expect(JSON.stringify(document)).not.toContain('ux_statement_imports');
   });
+
+  it('describes the Space-scoped Category Suggestion request and nullable result', async () => {
+    const document = await createOpenApiDocument();
+    const path = `/${API_PREFIX}/users/me/spaces/{spaceId}/statement-imports/category-suggestions`;
+    const operation = document.paths[path]?.post as OperationObject;
+
+    await expect(
+      SwaggerParser.validate(cloneDocument(document)),
+    ).resolves.toBeDefined();
+    expect(operation).toMatchObject({
+      operationId: 'SpaceStatementImports_suggestCategory',
+      tags: ['Statement imports'],
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: {
+              $ref: '#/components/schemas/StatementCategorySuggestionRequestDto',
+            },
+          },
+        },
+      },
+      responses: {
+        '200': {
+          description: 'One active Category suggestion, or no suggestion.',
+          content: {
+            'application/json': {
+              schema: {
+                $ref: '#/components/schemas/StatementCategorySuggestionResponseDto',
+              },
+            },
+          },
+        },
+      },
+    });
+    expect(
+      schema(document, 'StatementCategorySuggestionRequestDto'),
+    ).toMatchObject({
+      type: 'object',
+      additionalProperties: false,
+      required: ['description'],
+      properties: {
+        description: {
+          type: 'string',
+          minLength: 1,
+          maxLength: 500,
+          pattern: '\\S',
+        },
+      },
+    });
+    expect(
+      schema(document, 'StatementCategorySuggestionResponseDto'),
+    ).toMatchObject({
+      type: 'object',
+      additionalProperties: false,
+      required: ['suggestion'],
+      properties: {
+        suggestion: {
+          allOf: [
+            {
+              $ref: '#/components/schemas/StatementCategorySuggestionItemResponseDto',
+            },
+          ],
+          description:
+            'One active Category suggestion, or null when no Category is supported.',
+          nullable: true,
+          type: 'object',
+        },
+      },
+    });
+    expectResponseStatuses(operation, [
+      '200',
+      '400',
+      '401',
+      '403',
+      '404',
+      '406',
+      '500',
+    ]);
+    expect(JSON.stringify(operation)).not.toContain('TYPESAFE_API_KEY');
+  });
 });
 
 function expectCommitRequestSchema(document: OpenAPIObject): void {

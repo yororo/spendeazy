@@ -68,6 +68,8 @@ import {
   type CategoryCatalogOption,
   type CategoryColorOption,
   type CategoryRule,
+  type CategorySuggestion,
+  type CategorySuggestionFetcher,
 } from "./statement-import-service";
 import {
   getCategoryLabel,
@@ -86,7 +88,17 @@ import type {
 } from "./statement-import-workflow";
 
 type CategoryFilter = "all" | "unmapped" | string;
+type CategorySuggestionFeedback = "loading" | "none" | "unavailable" | null;
 const MOBILE_EDITOR_BREAKPOINT_PX = 768;
+
+type CategorySuggestionResult =
+  | { readonly requestKey: string; readonly status: "none" }
+  | { readonly requestKey: string; readonly status: "unavailable" }
+  | {
+      readonly requestKey: string;
+      readonly status: "suggested";
+      readonly suggestion: CategorySuggestion;
+    };
 
 interface CategorizeStatementProps {
   categoryOptions: readonly CategoryColorOption[];
@@ -94,6 +106,7 @@ interface CategorizeStatementProps {
   categoryRules: readonly CategoryRule[];
   destinationLabel?: string;
   spaceId?: string;
+  getCategorySuggestion?: CategorySuggestionFetcher;
   fileName: string;
   statementSummary: CategorizedStatement["summary"];
   transactions: readonly CategorizedTransaction[];
@@ -104,7 +117,9 @@ interface CategorizeStatementProps {
   onChangeDraft: (draft: TransactionDraft) => boolean;
   onChangeDescription: (description: string) => boolean;
   onChangeRememberRule: (checked: boolean) => boolean;
-  onChangeRememberedMatchType: (matchType: CategoryRule["matchType"]) => boolean;
+  onChangeRememberedMatchType: (
+    matchType: CategoryRule["matchType"],
+  ) => boolean;
   onChangeRememberedPattern: (pattern: string) => boolean;
   onSaveEdit: () => void;
   onToggleTransactionExclusion: (transactionId: string) => boolean;
@@ -118,6 +133,7 @@ function CategorizeStatement({
   categoryRules,
   destinationLabel,
   spaceId,
+  getCategorySuggestion,
   fileName,
   statementSummary,
   transactions,
@@ -141,6 +157,8 @@ function CategorizeStatement({
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
   const [sort, setSort] = useState("date-desc");
   const [mobileEditorOpen, setMobileEditorOpen] = useState(false);
+  const [categorySuggestionResult, setCategorySuggestionResult] =
+    useState<CategorySuggestionResult | null>(null);
   const {
     draft,
     draftError,
@@ -154,6 +172,109 @@ function CategorizeStatement({
   const editingTransaction = transactions.find(
     (transaction) => transaction.id === editingId,
   );
+  const activeCategoryIdsKey = categoryOptions
+    .map((option) => option.value)
+    .sort()
+    .join(",");
+  const categorySuggestionRequest = useMemo(() => {
+    if (
+      !getCategorySuggestion ||
+      !spaceId ||
+      !draft ||
+      !editingTransaction ||
+      editingTransaction.assignment !== "unmapped" ||
+      !isIncludedStatementTransaction(editingTransaction) ||
+      draft.category.trim().length > 0 ||
+      !draft.description.trim()
+    ) {
+      return null;
+    }
+
+    return {
+      description: draft.description,
+      spaceId,
+      transactionId: editingTransaction.id,
+      requestKey: JSON.stringify([
+        spaceId,
+        editingTransaction.id,
+        draft.description,
+        activeCategoryIdsKey,
+      ]),
+    };
+  }, [
+    activeCategoryIdsKey,
+    draft,
+    editingTransaction,
+    getCategorySuggestion,
+    spaceId,
+  ]);
+  useEffect(() => {
+    if (!categorySuggestionRequest || !getCategorySuggestion) return;
+
+    const controller = new AbortController();
+    let isCurrent = true;
+    void getCategorySuggestion(
+      categorySuggestionRequest.description,
+      controller.signal,
+      categorySuggestionRequest.spaceId,
+    )
+      .then((suggestion) => {
+        if (!isCurrent) return;
+        setCategorySuggestionResult(
+          suggestion
+            ? {
+                requestKey: categorySuggestionRequest.requestKey,
+                status: "suggested",
+                suggestion,
+              }
+            : {
+                requestKey: categorySuggestionRequest.requestKey,
+                status: "none",
+              },
+        );
+      })
+      .catch(() => {
+        // Suggestions are optional and do not block manual categorization.
+        if (!isCurrent) return;
+        setCategorySuggestionResult({
+          requestKey: categorySuggestionRequest.requestKey,
+          status: "unavailable",
+        });
+      });
+
+    return () => {
+      isCurrent = false;
+      controller.abort();
+    };
+  }, [categorySuggestionRequest, getCategorySuggestion]);
+  const currentCategorySuggestionResult =
+    categorySuggestionRequest &&
+    categorySuggestionResult?.requestKey ===
+      categorySuggestionRequest.requestKey
+      ? categorySuggestionResult
+      : null;
+  const currentCategorySuggestion =
+    currentCategorySuggestionResult &&
+    currentCategorySuggestionResult.status === "suggested"
+      ? currentCategorySuggestionResult.suggestion
+      : null;
+  const suggestedCategory = currentCategorySuggestion
+    ? categoryOptions.find(
+        (option) => option.value === currentCategorySuggestion.categoryId,
+      )
+    : undefined;
+  const categorySuggestionFeedback: CategorySuggestionFeedback =
+    !categorySuggestionRequest
+      ? null
+      : !currentCategorySuggestionResult
+        ? "loading"
+        : currentCategorySuggestionResult.status === "unavailable"
+          ? "unavailable"
+          : currentCategorySuggestionResult.status === "none" ||
+              (currentCategorySuggestionResult.status === "suggested" &&
+                !suggestedCategory)
+            ? "none"
+            : null;
   const getCategoryLabelForTransaction = (categoryId: string) =>
     getCategoryLabel(categoryLabels, categoryId);
 
@@ -201,28 +322,35 @@ function CategorizeStatement({
   const visibleTransactions = useMemo(() => {
     const normalizedSearch = normalizeDescription(search);
 
-    return transactions.filter((transaction) => {
-      const transactionDate = toDateInputValue(transaction.transactionDate);
-      const matchesSearch =
-        !normalizedSearch ||
-        normalizeDescription(transaction.description).includes(
-          normalizedSearch,
-        );
-      const matchesStart = !dateFrom || transactionDate >= dateFrom;
-      const matchesEnd = !dateTo || transactionDate <= dateTo;
-      const matchesCategory =
-        categoryFilter === "all" ||
-        (categoryFilter === "unmapped"
-          ? transaction.categoryId === null
-          : transaction.categoryId === categoryFilter);
+    return transactions
+      .filter((transaction) => {
+        const transactionDate = toDateInputValue(transaction.transactionDate);
+        const matchesSearch =
+          !normalizedSearch ||
+          normalizeDescription(transaction.description).includes(
+            normalizedSearch,
+          );
+        const matchesStart = !dateFrom || transactionDate >= dateFrom;
+        const matchesEnd = !dateTo || transactionDate <= dateTo;
+        const matchesCategory =
+          categoryFilter === "all" ||
+          (categoryFilter === "unmapped"
+            ? transaction.categoryId === null
+            : transaction.categoryId === categoryFilter);
 
-      return matchesSearch && matchesStart && matchesEnd && matchesCategory;
-    }).sort((a, b) => {
-      const difference = sort.startsWith("amount")
-        ? Math.abs(a.amount) - Math.abs(b.amount)
-        : toDateInputValue(a.transactionDate).localeCompare(toDateInputValue(b.transactionDate));
-      return (sort.endsWith("asc") ? difference : -difference) || a.id.localeCompare(b.id);
-    });
+        return matchesSearch && matchesStart && matchesEnd && matchesCategory;
+      })
+      .sort((a, b) => {
+        const difference = sort.startsWith("amount")
+          ? Math.abs(a.amount) - Math.abs(b.amount)
+          : toDateInputValue(a.transactionDate).localeCompare(
+              toDateInputValue(b.transactionDate),
+            );
+        return (
+          (sort.endsWith("asc") ? difference : -difference) ||
+          a.id.localeCompare(b.id)
+        );
+      });
   }, [categoryFilter, dateFrom, dateTo, search, sort, transactions]);
   const editingTransactionIsVisible = visibleTransactions.some(
     (transaction) => transaction.id === editingId,
@@ -251,15 +379,24 @@ function CategorizeStatement({
   }
 
   function beginDesktopEditing(transactionId: string) {
-    if (onBeginEdit(transactionId)) setMobileEditorOpen(false);
+    if (onBeginEdit(transactionId)) {
+      setCategorySuggestionResult(null);
+      setMobileEditorOpen(false);
+    }
   }
 
   function beginMobileEditing(transactionId: string) {
-    if (onBeginEdit(transactionId)) setMobileEditorOpen(true);
+    if (onBeginEdit(transactionId)) {
+      setCategorySuggestionResult(null);
+      setMobileEditorOpen(true);
+    }
   }
 
   function cancelEditing() {
-    if (onCancelEdit()) setMobileEditorOpen(false);
+    if (onCancelEdit()) {
+      setCategorySuggestionResult(null);
+      setMobileEditorOpen(false);
+    }
   }
 
   function closeMobileEditor() {
@@ -290,7 +427,11 @@ function CategorizeStatement({
       </header>
 
       {isSaving && (
-        <p role="status" aria-live="polite" className="font-mono text-sm font-semibold">
+        <p
+          role="status"
+          aria-live="polite"
+          className="font-mono text-sm font-semibold"
+        >
           Saving…
         </p>
       )}
@@ -311,7 +452,8 @@ function CategorizeStatement({
               {statementSummary.provider}
             </p>
             <p className="mt-1 font-mono text-xs font-semibold uppercase wrap-anywhere">
-              {isEWallet && `${formatStatementType(statementSummary.statementType)} · `}
+              {isEWallet &&
+                `${formatStatementType(statementSummary.statementType)} · `}
               {statementSummary.accountType} · {fileName}
             </p>
           </div>
@@ -349,10 +491,11 @@ function CategorizeStatement({
               <p className="mt-1 truncate text-base font-bold">
                 {statementSummary.provider}
               </p>
-            <p className="truncate font-mono text-xs font-semibold uppercase">
-              {isEWallet && `${formatStatementType(statementSummary.statementType)} · `}
-              {statementSummary.accountType} · {fileName}
-            </p>
+              <p className="truncate font-mono text-xs font-semibold uppercase">
+                {isEWallet &&
+                  `${formatStatementType(statementSummary.statementType)} · `}
+                {statementSummary.accountType} · {fileName}
+              </p>
             </div>
           </div>
 
@@ -363,7 +506,10 @@ function CategorizeStatement({
               ? statementHistoryPeriod
               : formatImportDate(statementSummary.statementDate)}
           </SummaryMetric>
-          <SummaryMetric label={isEWallet ? "Total Debit" : "Statement Amount"} emphasized>
+          <SummaryMetric
+            label={isEWallet ? "Total Debit" : "Statement Amount"}
+            emphasized
+          >
             {formatMoney(
               isEWallet
                 ? (statementSummary.totalDebit ?? 0)
@@ -483,12 +629,25 @@ function CategorizeStatement({
                   <div>
                     <Label htmlFor="mobile-transaction-sort">Sort by</Label>
                     <Select value={sort} onValueChange={setSort}>
-                      <SelectTrigger id="mobile-transaction-sort" className="mt-1.5"><SelectValue /></SelectTrigger>
+                      <SelectTrigger
+                        id="mobile-transaction-sort"
+                        className="mt-1.5"
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="date-desc">Date: newest first</SelectItem>
-                        <SelectItem value="date-asc">Date: oldest first</SelectItem>
-                        <SelectItem value="amount-desc">Amount: highest first</SelectItem>
-                        <SelectItem value="amount-asc">Amount: lowest first</SelectItem>
+                        <SelectItem value="date-desc">
+                          Date: newest first
+                        </SelectItem>
+                        <SelectItem value="date-asc">
+                          Date: oldest first
+                        </SelectItem>
+                        <SelectItem value="amount-desc">
+                          Amount: highest first
+                        </SelectItem>
+                        <SelectItem value="amount-asc">
+                          Amount: lowest first
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -542,10 +701,7 @@ function CategorizeStatement({
             </div>
             <div>
               <Label htmlFor="transaction-category-filter">Category</Label>
-              <Select
-                value={categoryFilter}
-                onValueChange={setCategoryFilter}
-              >
+              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
                 <SelectTrigger
                   id="transaction-category-filter"
                   className="mt-1.5"
@@ -572,12 +728,18 @@ function CategorizeStatement({
             <div>
               <Label htmlFor="transaction-sort">Sort by</Label>
               <Select value={sort} onValueChange={setSort}>
-                <SelectTrigger id="transaction-sort" className="mt-1.5"><SelectValue /></SelectTrigger>
+                <SelectTrigger id="transaction-sort" className="mt-1.5">
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="date-desc">Date: newest first</SelectItem>
                   <SelectItem value="date-asc">Date: oldest first</SelectItem>
-                  <SelectItem value="amount-desc">Amount: highest first</SelectItem>
-                  <SelectItem value="amount-asc">Amount: lowest first</SelectItem>
+                  <SelectItem value="amount-desc">
+                    Amount: highest first
+                  </SelectItem>
+                  <SelectItem value="amount-asc">
+                    Amount: lowest first
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -711,7 +873,9 @@ function CategorizeStatement({
 
                       <div className="flex items-center justify-between gap-3">
                         {transaction.assignment !== "unmapped" && (
-                          <AssignmentBadge assignment={transaction.assignment} />
+                          <AssignmentBadge
+                            assignment={transaction.assignment}
+                          />
                         )}
                         <div className="ml-auto flex gap-0">
                           <Button
@@ -799,6 +963,10 @@ function CategorizeStatement({
                         <TransactionEditRows
                           key={transaction.id}
                           categoryOptions={categoryOptions}
+                          suggestedCategory={suggestedCategory}
+                          categorySuggestionFeedback={
+                            categorySuggestionFeedback
+                          }
                           transaction={transaction}
                           draft={draft}
                           error={draftError}
@@ -807,6 +975,9 @@ function CategorizeStatement({
                           rememberedPattern={rememberedPattern}
                           isSaving={isSaving}
                           onDraftChange={onChangeDraft}
+                          onUseSuggestedCategory={(categoryId) =>
+                            onChangeDraft({ ...draft, category: categoryId })
+                          }
                           onDescriptionChange={onChangeDescription}
                           onRememberRuleChange={onChangeRememberRule}
                           onRememberedMatchTypeChange={
@@ -867,7 +1038,9 @@ function CategorizeStatement({
                               type="button"
                               variant="ghost"
                               size="icon-sm"
-                              onClick={() => beginDesktopEditing(transaction.id)}
+                              onClick={() =>
+                                beginDesktopEditing(transaction.id)
+                              }
                               disabled={isEditing || transaction.isExcluded}
                               aria-label={`Edit ${transaction.description}`}
                             >
@@ -939,6 +1112,8 @@ function CategorizeStatement({
                 </DialogHeader>
                 <MobileTransactionEditor
                   categoryOptions={categoryOptions}
+                  suggestedCategory={suggestedCategory}
+                  categorySuggestionFeedback={categorySuggestionFeedback}
                   transaction={editingTransaction}
                   draft={draft}
                   error={draftError}
@@ -947,6 +1122,9 @@ function CategorizeStatement({
                   rememberedPattern={rememberedPattern}
                   isSaving={isSaving}
                   onDraftChange={onChangeDraft}
+                  onUseSuggestedCategory={(categoryId) =>
+                    onChangeDraft({ ...draft, category: categoryId })
+                  }
                   onDescriptionChange={onChangeDescription}
                   onRememberRuleChange={onChangeRememberRule}
                   onRememberedMatchTypeChange={onChangeRememberedMatchType}
@@ -1037,8 +1215,23 @@ function SummaryMetric({ label, children, emphasized }: SummaryMetricProps) {
   );
 }
 
+function getCategorySuggestionFeedbackText(
+  feedback: Exclude<CategorySuggestionFeedback, null>,
+): string {
+  switch (feedback) {
+    case "loading":
+      return "Checking for a Category Suggestion…";
+    case "none":
+      return "No Category Suggestion available. Choose a Category from the list.";
+    case "unavailable":
+      return "Category Suggestion unavailable. Choose a Category from the list.";
+  }
+}
+
 interface TransactionEditRowsProps {
   categoryOptions: readonly CategoryColorOption[];
+  suggestedCategory?: CategoryColorOption;
+  categorySuggestionFeedback: CategorySuggestionFeedback;
   transaction: CategorizedTransaction;
   draft: TransactionDraft;
   error: string | null;
@@ -1047,6 +1240,7 @@ interface TransactionEditRowsProps {
   rememberedMatchType: CategoryRule["matchType"];
   rememberedPattern: string;
   onDraftChange: (draft: TransactionDraft) => void;
+  onUseSuggestedCategory: (categoryId: string) => void;
   onDescriptionChange: (description: string) => void;
   onRememberRuleChange: (checked: boolean) => void;
   onRememberedMatchTypeChange: (matchType: CategoryRule["matchType"]) => void;
@@ -1058,22 +1252,28 @@ interface TransactionEditRowsProps {
 interface TransactionDraftFieldsProps {
   readonly layout: "mobile" | "table";
   readonly categoryOptions: readonly CategoryColorOption[];
+  readonly suggestedCategory?: CategoryColorOption;
+  readonly categorySuggestionFeedback: CategorySuggestionFeedback;
   readonly transaction: CategorizedTransaction;
   readonly draft: TransactionDraft;
   readonly isSaving: boolean;
   readonly errorId?: string;
   readonly onDraftChange: (draft: TransactionDraft) => void;
+  readonly onUseSuggestedCategory: (categoryId: string) => void;
   readonly onDescriptionChange: (description: string) => void;
 }
 
 function TransactionDraftFields({
   layout,
   categoryOptions,
+  suggestedCategory,
+  categorySuggestionFeedback,
   transaction,
   draft,
   isSaving,
   errorId,
   onDraftChange,
+  onUseSuggestedCategory,
   onDescriptionChange,
 }: TransactionDraftFieldsProps) {
   const idPrefix =
@@ -1159,6 +1359,30 @@ function TransactionDraftFields({
       </SelectContent>
     </Select>
   );
+  const categorySuggestion = suggestedCategory ? (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      className="h-auto min-h-8 whitespace-normal text-left"
+      disabled={isSaving}
+      onClick={() => onUseSuggestedCategory(suggestedCategory.value)}
+    >
+      <span
+        aria-hidden="true"
+        className={`size-2 shrink-0 ${getCategoryColorClass(suggestedCategory.color)}`}
+      />
+      Use suggested Category: {suggestedCategory.label}
+    </Button>
+  ) : categorySuggestionFeedback ? (
+    <p
+      role="status"
+      aria-live="polite"
+      className="text-xs text-muted-foreground"
+    >
+      {getCategorySuggestionFeedbackText(categorySuggestionFeedback)}
+    </p>
+  ) : null;
 
   if (layout === "table") {
     return (
@@ -1166,7 +1390,12 @@ function TransactionDraftFields({
         <TableCell>{dateInput}</TableCell>
         <TableCell>{descriptionInput}</TableCell>
         <TableCell>{amountInput}</TableCell>
-        <TableCell>{categoryInput}</TableCell>
+        <TableCell>
+          <div className="flex flex-col items-start gap-1.5">
+            {categoryInput}
+            {categorySuggestion}
+          </div>
+        </TableCell>
         <TableCell className="text-center">
           {assignment !== "unmapped" && (
             <AssignmentBadge assignment={assignment} />
@@ -1193,6 +1422,7 @@ function TransactionDraftFields({
       <div className="min-w-0">
         <Label htmlFor={`${idPrefix}-category`}>Category</Label>
         {categoryInput}
+        {categorySuggestion && <div className="mt-2">{categorySuggestion}</div>}
       </div>
       <div className="flex items-center justify-between gap-3 border-t pt-4">
         <span className="text-label text-muted-foreground">Assignment</span>
@@ -1329,6 +1559,8 @@ function TransactionDraftError({
 
 function MobileTransactionEditor({
   categoryOptions,
+  suggestedCategory,
+  categorySuggestionFeedback,
   transaction,
   draft,
   error,
@@ -1337,6 +1569,7 @@ function MobileTransactionEditor({
   rememberedPattern,
   isSaving,
   onDraftChange,
+  onUseSuggestedCategory,
   onDescriptionChange,
   onRememberRuleChange,
   onRememberedMatchTypeChange,
@@ -1353,11 +1586,14 @@ function MobileTransactionEditor({
         <TransactionDraftFields
           layout="mobile"
           categoryOptions={categoryOptions}
+          suggestedCategory={suggestedCategory}
+          categorySuggestionFeedback={categorySuggestionFeedback}
           transaction={transaction}
           draft={draft}
           isSaving={isSaving}
           errorId={error ? errorId : undefined}
           onDraftChange={onDraftChange}
+          onUseSuggestedCategory={onUseSuggestedCategory}
           onDescriptionChange={onDescriptionChange}
         />
         <RememberCategoryRuleField
@@ -1399,6 +1635,8 @@ function MobileTransactionEditor({
 
 function TransactionEditRows({
   categoryOptions,
+  suggestedCategory,
+  categorySuggestionFeedback,
   transaction,
   draft,
   error,
@@ -1407,6 +1645,7 @@ function TransactionEditRows({
   rememberedPattern,
   isSaving,
   onDraftChange,
+  onUseSuggestedCategory,
   onDescriptionChange,
   onRememberRuleChange,
   onRememberedMatchTypeChange,
@@ -1423,11 +1662,14 @@ function TransactionEditRows({
         <TransactionDraftFields
           layout="table"
           categoryOptions={categoryOptions}
+          suggestedCategory={suggestedCategory}
+          categorySuggestionFeedback={categorySuggestionFeedback}
           transaction={transaction}
           draft={draft}
           isSaving={isSaving}
           errorId={error ? errorId : undefined}
           onDraftChange={onDraftChange}
+          onUseSuggestedCategory={onUseSuggestedCategory}
           onDescriptionChange={onDescriptionChange}
         />
         <TableCell>

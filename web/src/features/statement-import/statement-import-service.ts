@@ -3,6 +3,7 @@ import {
   buildApiPath,
   parseApiCount,
   requireApiResponse,
+  isRecord,
   type ApiClient,
   type ApiDataErrorFactory,
 } from "@/shared/api";
@@ -60,8 +61,20 @@ interface CategoryColorOption extends CategoryOption {
 }
 
 interface CategoryCatalogOption extends CategoryColorOption {
+  readonly description?: string | null;
   readonly isActive: boolean;
 }
+
+interface CategorySuggestion {
+  readonly categoryId: string;
+  readonly categoryName: string;
+}
+
+type CategorySuggestionFetcher = (
+  description: string,
+  signal: AbortSignal,
+  spaceId: string,
+) => Promise<CategorySuggestion | null>;
 
 interface CategorizationResult {
   readonly categoryId: string | null;
@@ -192,8 +205,50 @@ async function getCategoryCatalogOptions(
     value: category.id,
     label: category.name,
     color: resolveCategoryColor(category.id, category.color),
+    description: category.description,
     isActive: category.isActive,
   }));
+}
+
+async function getStatementCategorySuggestion(
+  apiClient: StatementImportApiClient,
+  spaceId: string,
+  description: string,
+  signal?: AbortSignal,
+): Promise<CategorySuggestion | null> {
+  const response = requireApiResponse(
+    await apiClient.post<unknown>(
+      `/spaces/${encodeURIComponent(spaceId)}/statement-imports/category-suggestions`,
+      { description },
+      { signal },
+    ),
+    "Category Suggestion",
+    createStatementImportDataError,
+  );
+
+  if (!isRecord(response) || !("suggestion" in response)) {
+    throw createStatementImportDataError(
+      "The API returned an invalid Category Suggestion.",
+    );
+  }
+  if (response.suggestion === null) return null;
+
+  if (
+    !isRecord(response.suggestion) ||
+    typeof response.suggestion.categoryId !== "string" ||
+    !/^[1-9]\d*$/.test(response.suggestion.categoryId) ||
+    typeof response.suggestion.categoryName !== "string" ||
+    response.suggestion.categoryName.trim().length === 0
+  ) {
+    throw createStatementImportDataError(
+      "The API returned an invalid Category Suggestion.",
+    );
+  }
+
+  return {
+    categoryId: response.suggestion.categoryId,
+    categoryName: response.suggestion.categoryName,
+  };
 }
 
 async function getCategoryOptions(
@@ -693,6 +748,7 @@ export {
   getCategoryCatalogOptions,
   getCategoryOptions,
   getCategoryRules,
+  getStatementCategorySuggestion,
   getIncludedTransactions,
   getRecentCommittedStatementImports,
   hashStatementFile,
@@ -704,6 +760,8 @@ export type {
   CategoryColorOption,
   CategoryOption,
   CategoryRule,
+  CategorySuggestion,
+  CategorySuggestionFetcher,
   CategoryRuleConflict,
   CategorizationResult,
   CommittedStatementImport,

@@ -110,6 +110,7 @@ describe('OpenAPI document factory', () => {
         `DELETE ${apiRoot}/users/me/spaces/{spaceId}/category-rules/{ruleId}`,
         `GET ${apiRoot}/users/me/spaces/{spaceId}/category-summaries`,
         `GET ${apiRoot}/users/me/spaces/{spaceId}/statement-imports`,
+        `POST ${apiRoot}/users/me/spaces/{spaceId}/statement-imports/category-suggestions`,
         `GET ${apiRoot}/users/me/spaces/{spaceId}/statement-imports/{statementImportId}`,
         `GET ${apiRoot}/users/me/spaces/{spaceId}/transactions`,
         `GET ${apiRoot}/users/me/spaces/{spaceId}/transactions/history`,

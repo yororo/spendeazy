@@ -175,6 +175,16 @@ describe('loadAppConfig', () => {
       clerkAuthorizedParties: [],
     });
   });
+
+  it('loads the optional TypeSafe API key without making the integration required', () => {
+    expect(
+      loadAppConfig({
+        NODE_ENV: 'test',
+        TYPESAFE_API_KEY: '  typesafe-test-key  ',
+      }).typesafeApiKey,
+    ).toBe('typesafe-test-key');
+    expect(loadAppConfig({ NODE_ENV: 'test' }).typesafeApiKey).toBeUndefined();
+  });
 });
 
 describe('loadLocalEnvironment', () => {

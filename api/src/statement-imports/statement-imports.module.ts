@@ -5,8 +5,15 @@ import { TypeOrmStatementImportConfirmationUnitOfWork } from '../database/unit-o
 import { STATEMENT_IMPORT_CONFIRMATION_UNIT_OF_WORK } from './application/statement-import-confirmation';
 import { STATEMENT_IMPORT_STORE } from './application/statement-import-store';
 import { StatementImportsService } from './application/statement-imports.service';
+import {
+  STATEMENT_CATEGORY_SUGGESTION_CATALOG_STORE,
+  STATEMENT_CATEGORY_SUGGESTION_EVALUATOR,
+} from './application/statement-category-suggestions';
+import { StatementCategorySuggestionsService } from './application/statement-category-suggestions.service';
 import { GCASH_REFERENCE_HASHER } from './application/gcash-reference-hasher';
 import { NodeGCashReferenceHasher } from './infrastructure/node-gcash-reference-hasher';
+import { TypeOrmStatementCategorySuggestionCatalog } from './infrastructure/typeorm-statement-category-suggestion-catalog';
+import { TypeSafeCategorySuggestionEvaluator } from './infrastructure/typesafe-category-suggestion-evaluator';
 import { TypeOrmStatementImportStore } from './infrastructure/typeorm-statement-import-store';
 import { StatementImportsController } from './presentation/statement-imports.controller';
 import { SpaceStatementImportsController } from './presentation/space-statement-imports.controller';
@@ -32,7 +39,10 @@ export class StatementImportsModule {
         module: StatementImportsModule,
         imports: [SpacesModule.register(false, options)],
         controllers,
-        providers: [{ provide: StatementImportsService, useValue: {} }],
+        providers: [
+          { provide: StatementImportsService, useValue: {} },
+          { provide: StatementCategorySuggestionsService, useValue: {} },
+        ],
       };
     }
 
@@ -42,6 +52,17 @@ export class StatementImportsModule {
       controllers,
       providers: [
         TypeOrmStatementImportStore,
+        TypeOrmStatementCategorySuggestionCatalog,
+        {
+          provide: STATEMENT_CATEGORY_SUGGESTION_CATALOG_STORE,
+          useExisting: TypeOrmStatementCategorySuggestionCatalog,
+        },
+        {
+          provide: STATEMENT_CATEGORY_SUGGESTION_EVALUATOR,
+          useFactory: () =>
+            new TypeSafeCategorySuggestionEvaluator(config?.typesafeApiKey),
+        },
+        StatementCategorySuggestionsService,
         TypeOrmStatementImportConfirmationUnitOfWork,
         {
           provide: STATEMENT_IMPORT_CONFIRMATION_UNIT_OF_WORK,

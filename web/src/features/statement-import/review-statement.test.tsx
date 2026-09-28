@@ -37,6 +37,18 @@ const statementSummary = {
   totalExtractedAmount: 65.5,
 };
 
+const eWalletStatementSummary = {
+  statementType: "e_wallet" as const,
+  statementDate: new Date("2026-09-07T00:00:00.000Z"),
+  provider: "GCash",
+  accountType: "E-Wallet",
+  transactionHistoryStartDate: new Date("2026-08-09T00:00:00.000Z"),
+  totalDebit: 26696.92,
+  totalTransactions: 3,
+  totalAmountDue: 26696.92,
+  totalExtractedAmount: -25291.92,
+};
+
 const completeTransactions: CategorizedTransaction[] = [
   {
     id: "housing-transaction",
@@ -248,6 +260,35 @@ describe("ReviewStatement phone composition", () => {
     expect(backButtons).toHaveLength(1);
     fireEvent.click(backButtons[0]);
     expect(defaultProps.onBack).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("ReviewStatement E-Wallet controls", () => {
+  it("shows the document period and Total Debit separately from included debits", () => {
+    renderReview({
+      statementSummary: eWalletStatementSummary,
+      transactions: completeTransactions,
+    });
+
+    const summaries = screen.getAllByRole("region", {
+      name: "Statement review summary",
+    });
+    expect(summaries).toHaveLength(2);
+    for (const summary of summaries) {
+      expect(within(summary).getByText("Transaction History Period")).toBeTruthy();
+      expect(summary.textContent).toContain("Aug 09, 2026 – Sep 07, 2026");
+      expect(summary.textContent).toContain("₱26,696.92");
+      expect(within(summary).queryByText(/\*{4}/u)).toBeNull();
+    }
+
+    expect(screen.getByText("Included debits").parentElement?.textContent).toContain(
+      "₱65.50",
+    );
+    expect(
+      screen.getByRole("table", {
+        name: "All Transactions parsed from statement.pdf",
+      }),
+    ).toBeTruthy();
   });
 });
 

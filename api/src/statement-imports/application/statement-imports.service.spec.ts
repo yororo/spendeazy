@@ -182,6 +182,42 @@ describe('StatementImportsService', () => {
     });
   });
 
+  it.each([
+    { transactionHistoryStartDate: null, totalDebit: '1.00' },
+    { transactionHistoryStartDate: '2026-08-09', totalDebit: null },
+    { transactionHistoryStartDate: '2026-09-01', totalDebit: '1.00' },
+    { transactionHistoryStartDate: '2026-08-09', totalDebit: '-1.00' },
+  ])(
+    'rejects invalid E-Wallet controls before persistence',
+    async (controls) => {
+      const statementImports = new StatementImportStoreFake();
+      const importedTransactions = new ImportedTransactionStoreFake();
+      const unitOfWork = new UnitOfWorkFake({
+        users: userStore(),
+        statementImports,
+        importedTransactions,
+        categories: new TransactionCategoryStoreFake([
+          categoryRecord({ id: '42' }),
+        ]),
+        transactionActivities: new TransactionActivityStoreFake(),
+      });
+      const service = new StatementImportsService(statementImports, unitOfWork);
+
+      await expect(
+        service.commitReviewedStatementImportInSpace('7', '7', {
+          ...statementInput(),
+          statementType: 'e_wallet',
+          bank: 'GCash',
+          cardType: 'E-Wallet',
+          ...controls,
+        }),
+      ).rejects.toBeInstanceOf(StatementImportValidationError);
+
+      expect(statementImports.createdInput).toBeUndefined();
+      expect(importedTransactions.createdInputs).toEqual([]);
+    },
+  );
+
   it('uses the Space-scoped GCash reference hash for duplicate review', async () => {
     const duplicateReferenceHash = 'digest:7:GCash:123456789';
     const statementImports = new StatementImportStoreFake();

@@ -662,6 +662,9 @@ describe("Statement Import categorization", () => {
     { totalDebit: "12345678901234.00" },
     { totalDebit: "1.2" },
     { importedAt: "2026-09-01" },
+    { transactionHistoryStartDate: null },
+    { totalDebit: null },
+    { transactionHistoryStartDate: "2026-09-01" },
   ])("rejects malformed Statement Import control fields", async (override) => {
     const get = vi.fn(async () => ({
       items: [

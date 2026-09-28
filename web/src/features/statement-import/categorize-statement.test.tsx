@@ -62,6 +62,7 @@ type RememberCategoryRuleHandler = (
 interface CategorizeHarnessProps {
   readonly initialTransactions?: CategorizedTransaction[];
   readonly onRememberCategoryRule?: RememberCategoryRuleHandler;
+  readonly statementSummary?: CategorizedStatement["summary"];
 }
 
 function CategorizeHarness({
@@ -75,6 +76,7 @@ function CategorizeHarness({
       matchType: "contains" as const,
     },
   }),
+  statementSummary = summary,
 }: CategorizeHarnessProps) {
   const { workflow } = useStatementImportWorkflow({
     categoryOptions: [
@@ -101,7 +103,7 @@ function CategorizeHarness({
     }),
   });
   const initialStatementRef = useRef({
-    summary,
+    summary: statementSummary,
     transactions: initialTransactions,
   });
 
@@ -126,7 +128,7 @@ function CategorizeHarness({
       ]}
       currentCategoryRules={categoryRules}
       fileName="statement.pdf"
-      statementSummary={summary}
+      statementSummary={statementSummary}
       onBack={vi.fn()}
       onReview={vi.fn()}
     />
@@ -790,6 +792,51 @@ describe("CategorizeStatement ambiguity handling", () => {
     expect(
       screen.getByRole("button", { name: "Review 1 Transactions" }),
     ).toHaveProperty("disabled", true);
+  });
+});
+
+describe("CategorizeStatement E-Wallet controls", () => {
+  it("shows the complete document period and original Total Debit in both summaries", () => {
+    render(
+      <CategorizeHarness
+        statementSummary={{
+          ...summary,
+          statementType: "e_wallet",
+          statementDate: new Date("2026-09-07T00:00:00.000Z"),
+          provider: "GCash",
+          accountType: "E-Wallet",
+          transactionHistoryStartDate: new Date("2026-08-09T00:00:00.000Z"),
+          totalDebit: 26696.92,
+          totalAmountDue: 26696.92,
+          totalExtractedAmount: -25291.92,
+        }}
+        initialTransactions={[
+          ambiguousTransaction,
+          {
+            ...ambiguousTransaction,
+            id: "excluded-transaction",
+            description: "Received transfer",
+            amount: 10,
+            isExcluded: true,
+          },
+        ]}
+      />,
+    );
+
+    const summaries = screen.getAllByRole("region", {
+      name: "Parsed statement summary",
+    });
+    expect(summaries).toHaveLength(2);
+    for (const summaryRegion of summaries) {
+      expect(
+        within(summaryRegion).getByText("Transaction History Period"),
+      ).toBeTruthy();
+      expect(summaryRegion.textContent).toContain(
+        "Aug 09, 2026 – Sep 07, 2026",
+      );
+      expect(summaryRegion.textContent).toContain("₱26,696.92");
+      expect(within(summaryRegion).queryByText("Statement Amount")).toBeNull();
+    }
   });
 });
 

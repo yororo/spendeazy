@@ -29,7 +29,7 @@ import {
 } from "./statement-import-workflow-adapter";
 import { useStatementImportNavigationGuard } from "./statement-import-navigation-guard";
 import { useStatementImportWorkflow } from "./use-statement-import-workflow";
-import { formatStatementType } from "./statement-type";
+import { formatStatementType, type StatementType } from "./statement-type";
 
 interface StatementImportPageProps {
   onViewTransactions: (spaceId?: string) => void;
@@ -396,9 +396,11 @@ function StatementImportPage({
                   </p>
                   <p className="mt-1.5 font-mono text-xs text-muted-foreground uppercase">
                     {item.transactionCount} Transactions ·{" "}
-                    {[item.provider, item.accountType]
-                      .filter(Boolean)
-                      .join(" · ")}{" "}
+                    {formatRecentImportAccount(
+                      item.provider,
+                      item.accountType,
+                      item.statementType,
+                    )}{" "}
                     · {formatStatementType(item.statementType)} ·{" "}
                     {item.statementType === "e_wallet" ? (
                       <>
@@ -462,4 +464,18 @@ function getDestinationLabel(
   }
 
   return `Space ${spaceId}`;
+}
+
+function formatRecentImportAccount(
+  provider: string,
+  accountType: string | null,
+  statementType: StatementType,
+): string {
+  const statementTypeLabel = formatStatementType(statementType);
+  return [provider, accountType]
+    .filter(
+      (value): value is string =>
+        Boolean(value) && value !== statementTypeLabel,
+    )
+    .join(" · ");
 }

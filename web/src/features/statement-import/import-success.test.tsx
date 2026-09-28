@@ -64,3 +64,34 @@ describe("ImportSuccess importer attribution", () => {
     expect(screen.queryByText("Imported by")).toBeNull();
   });
 });
+
+describe("ImportSuccess E-Wallet controls", () => {
+  it("shows the saved document period and original Total Debit", () => {
+    render(
+      <ImportSuccess
+        committedImport={{
+          id: "101",
+          fileName: "wallet-history.pdf",
+          statementDate: "2026-09-07",
+          provider: "GCash",
+          accountType: "E-Wallet",
+          statementType: "e_wallet",
+          transactionHistoryStartDate: "2026-08-09",
+          totalDebit: 26696.92,
+          importedAt: "2026-09-08T00:00:00.000Z",
+          transactionCount: 3,
+          importedByUserId: "10",
+        }}
+        onImportAnother={vi.fn()}
+        onViewTransactions={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Statement Type")).toBeTruthy();
+    expect(screen.getByText("E-Wallet")).toBeTruthy();
+    expect(screen.getByText("Transaction History Period")).toBeTruthy();
+    expect(screen.getByText("Aug 09, 2026 – Sep 07, 2026")).toBeTruthy();
+    expect(screen.getByText("Total Debit")).toBeTruthy();
+    expect(screen.getByText("₱26,696.92")).toBeTruthy();
+  });
+});

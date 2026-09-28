@@ -649,6 +649,38 @@ describe("StatementImportPage Space destination", () => {
     expect(screen.getByText("Imported by Grace Hopper")).toBeTruthy();
   });
 
+  it("labels recent E-Wallet history with its complete period and Total Debit", async () => {
+    const fetchMock = createFetchMock({
+      recentImports: [
+        {
+          id: "102",
+          fileName: "wallet-history.pdf",
+          statementDate: "2026-09-07",
+          bank: "GCash",
+          cardType: "E-Wallet",
+          statementType: "e_wallet",
+          transactionHistoryStartDate: "2026-08-09",
+          totalDebit: "26696.92",
+          importedAt: "2026-09-08T00:00:00.000Z",
+          importedByUserId: "1",
+          transactionCount: "3",
+        },
+      ],
+    });
+
+    renderStatementImportPage(fetchMock);
+
+    await screen.findByRole("heading", { name: "Upload your statement" });
+    const history = screen.getByRole("region", {
+      name: "Recent Committed Statement Imports",
+    });
+    expect(
+      within(history).getByText(
+        "3 Transactions · GCash · E-Wallet · Transaction History AUG 09 – SEP 07 · Total Debit ₱26,696.92",
+      ),
+    ).toBeTruthy();
+  });
+
   it("retains Deleted user attribution in archived Shared history", async () => {
     const fetchMock = createFetchMock({
       accessibleSpaces: [

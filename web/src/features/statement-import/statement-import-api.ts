@@ -133,22 +133,42 @@ function requireCategoryRuleCollection(
 function isStatementImportResponse(
   value: unknown,
 ): value is StatementImportResponse {
+  if (
+    !isRecord(value) ||
+    typeof value.id !== "string" ||
+    typeof value.fileName !== "string" ||
+    !isCalendarDate(value.statementDate) ||
+    typeof value.bank !== "string" ||
+    (value.cardType !== null && typeof value.cardType !== "string") ||
+    (value.statementType !== "credit_card" &&
+      value.statementType !== "e_wallet") ||
+    !isUtcDateTime(value.importedAt) ||
+    typeof value.importedByUserId !== "string" ||
+    !POSITIVE_INTEGER_ID_PATTERN.test(value.importedByUserId)
+  ) {
+    return false;
+  }
+
+  return hasValidStatementImportControls(value);
+}
+
+function hasValidStatementImportControls(
+  value: Record<string, unknown>,
+): boolean {
+  if (value.statementType === "credit_card") {
+    return (
+      value.transactionHistoryStartDate === null && value.totalDebit === null
+    );
+  }
+
   return (
-    isRecord(value) &&
-    typeof value.id === "string" &&
-    typeof value.fileName === "string" &&
+    typeof value.transactionHistoryStartDate === "string" &&
+    isCalendarDate(value.transactionHistoryStartDate) &&
+    typeof value.statementDate === "string" &&
     isCalendarDate(value.statementDate) &&
-    typeof value.bank === "string" &&
-    (value.cardType === null || typeof value.cardType === "string") &&
-    (value.statementType === "credit_card" ||
-      value.statementType === "e_wallet") &&
-    (value.transactionHistoryStartDate === null ||
-      isCalendarDate(value.transactionHistoryStartDate)) &&
-    (value.totalDebit === null ||
-      (typeof value.totalDebit === "string" && MONEY_PATTERN.test(value.totalDebit))) &&
-    isUtcDateTime(value.importedAt) &&
-    typeof value.importedByUserId === "string" &&
-    POSITIVE_INTEGER_ID_PATTERN.test(value.importedByUserId)
+    value.transactionHistoryStartDate <= value.statementDate &&
+    typeof value.totalDebit === "string" &&
+    MONEY_PATTERN.test(value.totalDebit)
   );
 }
 

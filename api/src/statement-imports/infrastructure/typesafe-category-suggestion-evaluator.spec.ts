@@ -8,6 +8,10 @@ describe('TypeSafeCategorySuggestionEvaluator', () => {
   ];
 
   it('sends only the description and active Category context in a typed Choice request', async () => {
+    const examples = [
+      { categoryId: '42', description: 'Metro Market North' },
+      { categoryId: '43', description: 'City bus fare' },
+    ];
     const fetch = createFetchResponse('42', {
       '42': 0.8,
       '43': 0.1,
@@ -19,7 +23,7 @@ describe('TypeSafeCategorySuggestionEvaluator', () => {
     );
 
     await expect(
-      evaluator.suggestCategory('Market purchase', categories),
+      evaluator.suggestCategory('Market purchase', categories, examples),
     ).resolves.toBe('42');
 
     const [url, requestInit] = fetch.mock.calls[0] ?? [];
@@ -50,6 +54,7 @@ describe('TypeSafeCategorySuggestionEvaluator', () => {
         },
         { id: '43', name: 'Transport' },
       ],
+      categorizedExamples: examples,
     });
     const suggestionQuestion = request.questions.suggestedCategory;
     expect(suggestionQuestion.type).toBe('choice');
@@ -62,7 +67,7 @@ describe('TypeSafeCategorySuggestionEvaluator', () => {
     expect(suggestionQuestion.criteria['43']).toBeNull();
     expect(typeof suggestionQuestion.criteria.none_of_the_above).toBe('string');
     expect(JSON.stringify(request)).not.toMatch(
-      /amount|date|account|reference|statement text/iu,
+      /amount|date|account|reference|statement text|transactionId|statementImportId|purchaseDate/iu,
     );
   });
 
@@ -78,7 +83,7 @@ describe('TypeSafeCategorySuggestionEvaluator', () => {
     );
 
     await expect(
-      evaluator.suggestCategory('Unclear purchase', categories),
+      evaluator.suggestCategory('Unclear purchase', categories, []),
     ).resolves.toBeNull();
   });
 
@@ -95,7 +100,7 @@ describe('TypeSafeCategorySuggestionEvaluator', () => {
     );
 
     await expect(
-      evaluator.suggestCategory('Market purchase', categories),
+      evaluator.suggestCategory('Market purchase', categories, []),
     ).resolves.toBeNull();
   });
 
@@ -113,10 +118,10 @@ describe('TypeSafeCategorySuggestionEvaluator', () => {
     );
 
     await expect(
-      unconfigured.suggestCategory('Market purchase', categories),
+      unconfigured.suggestCategory('Market purchase', categories, []),
     ).resolves.toBeNull();
     await expect(
-      unavailable.suggestCategory('Market purchase', categories),
+      unavailable.suggestCategory('Market purchase', categories, []),
     ).resolves.toBeNull();
     expect(fetch).not.toHaveBeenCalled();
   });

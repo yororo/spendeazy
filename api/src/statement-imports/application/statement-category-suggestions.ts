@@ -8,11 +8,22 @@ export const STATEMENT_CATEGORY_SUGGESTION_EVALUATOR = Symbol(
 export const TYPE_SAFE_CHOICE_MAX_OPTIONS = 255;
 export const MAX_SUGGESTIBLE_ACTIVE_CATEGORIES =
   TYPE_SAFE_CHOICE_MAX_OPTIONS - 1;
+export const MAX_CATEGORY_SUGGESTION_EXAMPLES = 16;
 
 export interface CategorySuggestionCandidate {
   readonly id: string;
   readonly name: string;
   readonly description: string | null;
+}
+
+export interface CategorySuggestionExample {
+  readonly categoryId: string;
+  readonly description: string;
+}
+
+export interface CategorySuggestionCatalog {
+  readonly categories: readonly CategorySuggestionCandidate[];
+  readonly examples: readonly CategorySuggestionExample[];
 }
 
 export interface CategorySuggestion {
@@ -21,9 +32,9 @@ export interface CategorySuggestion {
 }
 
 export interface CategorySuggestionCatalogStore {
-  findActiveCategoriesInSpace(
+  findSuggestionCatalogInSpace(
     spaceId: string,
-  ): Promise<CategorySuggestionCandidate[]>;
+  ): Promise<CategorySuggestionCatalog>;
   findActiveCategoryInSpace(
     spaceId: string,
     categoryId: string,
@@ -34,5 +45,6 @@ export interface CategorySuggestionEvaluator {
   suggestCategory(
     transactionDescription: string,
     categories: readonly CategorySuggestionCandidate[],
+    examples: readonly CategorySuggestionExample[],
   ): Promise<string | null>;
 }

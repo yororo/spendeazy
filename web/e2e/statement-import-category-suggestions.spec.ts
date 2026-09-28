@@ -220,18 +220,12 @@ test("commits saved Category Suggestions through Statement Import with Space iso
   try {
     const otherUserPage = await otherUserContext.newPage();
     await otherUserPage.clock.install({ time: testClock });
-    const otherUserToken = await switchToNewUser(otherUserPage);
-    const otherSpaceId = await getPersonalSpaceId(
+    const otherSpaceContext = await createFreshUserSpaceContext(
+      otherUserPage,
       request,
       apiBaseUrl,
-      otherUserToken,
     );
-    const otherSpaceContext = {
-      request,
-      apiBaseUrl,
-      token: otherUserToken,
-      spaceId: otherSpaceId,
-    };
+    const { token: otherUserToken, spaceId: otherSpaceId } = otherSpaceContext;
     const otherSuggestedCategoryId = await createCategory(
       otherSpaceContext,
       suggestedCategoryName,

@@ -10,6 +10,7 @@ import {
   LandmarkIcon,
   PencilIcon,
   SearchIcon,
+  SparklesIcon,
   XIcon,
 } from "lucide-react";
 
@@ -216,6 +217,24 @@ function CategorizeStatement({
                 suggestedCategories.length === 0)
             ? "none"
             : null;
+  function hasCurrentCategorySuggestions(transaction: CategorizedTransaction) {
+    if (
+      transaction.assignment !== "unmapped" ||
+      !isIncludedStatementTransaction(transaction)
+    ) {
+      return false;
+    }
+
+    const result = categorySuggestionResults.get(
+      normalizeDescription(transaction.description),
+    );
+    return (
+      result?.status === "suggested" &&
+      result.suggestions.some((suggestion) =>
+        categoryOptions.some((option) => option.value === suggestion.categoryId),
+      )
+    );
+  }
   const getCategoryLabelForTransaction = (categoryId: string) =>
     getCategoryLabel(categoryLabels, categoryId);
 
@@ -809,6 +828,15 @@ function CategorizeStatement({
                         </div>
                       </button>
 
+                      {hasCurrentCategorySuggestions(transaction) && (
+                        <CategorySuggestionCue
+                          description={transaction.description}
+                          disabled={isEditing}
+                          className="h-auto min-h-11 w-full justify-start whitespace-normal px-3 py-2 text-left"
+                          onActivate={() => beginMobileEditing(transaction.id)}
+                        />
+                      )}
+
                       <div className="flex items-center justify-between gap-3">
                         {transaction.assignment !== "unmapped" && (
                           <AssignmentBadge
@@ -955,13 +983,25 @@ function CategorizeStatement({
                           {formatMoney(transaction.amount)}
                         </TableCell>
                         <TableCell>
-                          <CategoryMatchCell
-                            assignment={transaction.assignment}
-                            categoryId={transaction.categoryId}
-                            getCategoryLabel={getCategoryLabelForTransaction}
-                            getCategoryColor={getCategoryColor}
-                            matchedCategoryIds={transaction.matchedCategoryIds}
-                          />
+                          <div className="flex flex-col items-start gap-1">
+                            <CategoryMatchCell
+                              assignment={transaction.assignment}
+                              categoryId={transaction.categoryId}
+                              getCategoryLabel={getCategoryLabelForTransaction}
+                              getCategoryColor={getCategoryColor}
+                              matchedCategoryIds={transaction.matchedCategoryIds}
+                            />
+                            {hasCurrentCategorySuggestions(transaction) && (
+                              <CategorySuggestionCue
+                                description={transaction.description}
+                                disabled={isEditing}
+                                className="h-8 justify-start px-2 text-left"
+                                onActivate={() =>
+                                  beginDesktopEditing(transaction.id)
+                                }
+                              />
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell className="text-center">
                           {transaction.assignment !== "unmapped" && (
@@ -1150,6 +1190,33 @@ function SummaryMetric({ label, children, emphasized }: SummaryMetricProps) {
         {children}
       </p>
     </div>
+  );
+}
+
+function CategorySuggestionCue({
+  description,
+  disabled,
+  className,
+  onActivate,
+}: {
+  description: string;
+  disabled: boolean;
+  className?: string;
+  onActivate: () => void;
+}) {
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size="sm"
+      className={className}
+      disabled={disabled}
+      aria-label={`Suggestions available for ${description}`}
+      onClick={onActivate}
+    >
+      <SparklesIcon aria-hidden="true" />
+      Suggestions available
+    </Button>
   );
 }
 

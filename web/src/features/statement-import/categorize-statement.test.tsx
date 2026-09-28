@@ -573,6 +573,112 @@ describe("CategorizeStatement ambiguity handling", () => {
     expect(rememberCategoryRule).not.toHaveBeenCalled();
   });
 
+  it("shows the mobile Suggestions available cue only for included Unmapped rows with suggestions", async () => {
+    const getCategorySuggestion = vi.fn(async (description: string) =>
+      description === "Green Market Cafe"
+        ? [{ categoryId: "43", categoryName: "Groceries" }]
+        : null,
+    );
+    const noSuggestionTransaction = {
+      ...unmappedTransaction,
+      id: "transaction-no-suggestions",
+      description: "No suggestion Cafe",
+    };
+    const excludedTransaction = {
+      ...unmappedTransaction,
+      id: "transaction-excluded",
+      description: "Excluded Cafe",
+      isExcluded: true,
+    };
+    const categorizedTransaction = {
+      ...unmappedTransaction,
+      id: "transaction-categorized",
+      description: "Already categorized Cafe",
+      categoryId: "42",
+      assignment: "manual" as const,
+    };
+    render(
+      <CategorizeHarness
+        initialTransactions={[
+          unmappedTransaction,
+          noSuggestionTransaction,
+          excludedTransaction,
+          categorizedTransaction,
+        ]}
+        getCategorySuggestion={getCategorySuggestion}
+      />,
+    );
+
+    const mobileList = screen.getByRole("list", {
+      name: "Transactions to categorize",
+    });
+    const cue = await within(mobileList).findByRole("button", {
+      name: "Suggestions available for Green Market Cafe",
+    });
+    expect(cue.textContent).toContain("Suggestions available");
+    for (const description of [
+      "No suggestion Cafe",
+      "Excluded Cafe",
+      "Already categorized Cafe",
+    ]) {
+      expect(
+        within(mobileList).queryByRole("button", {
+          name: `Suggestions available for ${description}`,
+        }),
+      ).toBeNull();
+    }
+
+    fireEvent.click(cue);
+
+    const editor = screen.getByRole("dialog", { name: "Edit Transaction" });
+    expect(
+      await within(editor).findByRole("button", {
+        name: "Use suggested Category: Groceries",
+      }),
+    ).toBeTruthy();
+  });
+
+  it("shows an accessible desktop Suggestions available cue that opens the Category editor", async () => {
+    const getCategorySuggestion = vi.fn(async (description: string) =>
+      description === "Green Market Cafe"
+        ? [{ categoryId: "43", categoryName: "Groceries" }]
+        : null,
+    );
+    const noSuggestionTransaction = {
+      ...unmappedTransaction,
+      id: "transaction-no-suggestions",
+      description: "No suggestion Cafe",
+    };
+    render(
+      <CategorizeHarness
+        initialTransactions={[unmappedTransaction, noSuggestionTransaction]}
+        getCategorySuggestion={getCategorySuggestion}
+      />,
+    );
+
+    const transactionTable = getDesktopTable();
+    const cue = await within(transactionTable).findByRole("button", {
+      name: "Suggestions available for Green Market Cafe",
+    });
+    expect(cue.textContent).toContain("Suggestions available");
+    expect(
+      within(transactionTable).queryByRole("button", {
+        name: "Suggestions available for No suggestion Cafe",
+      }),
+    ).toBeNull();
+
+    fireEvent.click(cue);
+
+    const suggestionGroup = await within(transactionTable).findByRole("group", {
+      name: "Category Suggestions",
+    });
+    expect(
+      within(suggestionGroup).getByRole("button", {
+        name: "Use suggested Category: Groceries",
+      }),
+    ).toBeTruthy();
+  });
+
   it("shows ordered Category Suggestions in the desktop editor and keeps the full selector available", async () => {
     const getCategorySuggestion = vi.fn(async () => [
       { categoryId: "42", categoryName: "Housing" },

@@ -831,6 +831,7 @@ describe("CategorizeStatement E-Wallet controls", () => {
       expect(
         within(summaryRegion).getByText("Transaction History Period"),
       ).toBeTruthy();
+      expect(summaryRegion.textContent).toContain("E-Wallet");
       expect(summaryRegion.textContent).toContain(
         "Aug 09, 2026 – Sep 07, 2026",
       );

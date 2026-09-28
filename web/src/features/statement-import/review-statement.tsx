@@ -36,6 +36,10 @@ import {
 } from "lucide-react";
 
 import { ImportProgress } from "./import-progress";
+import {
+  formatImportDate,
+  formatTransactionHistoryPeriod,
+} from "./statement-import-date-formatting";
 import { formatStatementType } from "./statement-type";
 import type { CategoryColorOption } from "./statement-import-service";
 import type {
@@ -69,33 +73,14 @@ interface ReviewStatementProps {
   onCommit: (acknowledgeProbableDuplicates: boolean) => void;
 }
 
-const fullDateFormatter = new Intl.DateTimeFormat("en-US", {
-  day: "2-digit",
-  month: "short",
-  year: "numeric",
-  timeZone: "UTC",
-});
-
 const shortDateFormatter = new Intl.DateTimeFormat("en-US", {
   day: "2-digit",
   month: "short",
   timeZone: "UTC",
 });
 
-function formatDate(value: Date) {
-  return fullDateFormatter.format(value);
-}
-
 function formatShortDate(value: Date) {
   return shortDateFormatter.format(value).toLocaleUpperCase();
-}
-
-function formatStatementHistoryPeriod(
-  startDate: Date | null,
-  endDate: Date,
-) {
-  if (!startDate) return formatDate(endDate);
-  return `${formatDate(startDate)} – ${formatDate(endDate)}`;
 }
 
 function formatPeriod(
@@ -230,7 +215,7 @@ function ReviewStatement({
   const largestCategoryAmount = categoryBreakdown[0]?.amount ?? 0;
   const hasUnmappedTransactions = unmappedTransactions.length > 0;
   const isEWallet = statementSummary.statementType === "e_wallet";
-  const statementHistoryPeriod = formatStatementHistoryPeriod(
+  const statementHistoryPeriod = formatTransactionHistoryPeriod(
     statementSummary.transactionHistoryStartDate,
     statementSummary.statementDate,
   );
@@ -284,7 +269,7 @@ function ReviewStatement({
             >
               {isEWallet
                 ? statementHistoryPeriod
-                : formatDate(statementSummary.statementDate)}
+                : formatImportDate(statementSummary.statementDate)}
             </MobileSummaryMetric>
             <MobileSummaryMetric
               label={isEWallet ? "Total Debit" : "Amount"}
@@ -338,7 +323,7 @@ function ReviewStatement({
           >
             {isEWallet
               ? statementHistoryPeriod
-              : formatDate(statementSummary.statementDate)}
+              : formatImportDate(statementSummary.statementDate)}
           </ReviewMetric>
           <ReviewMetric label={isEWallet ? "Total Debit" : "Statement Amount"} emphasized>
             {formatMoney(
@@ -981,7 +966,7 @@ function MobileTransactionList({
                       />
                     </div>
                     <p className="mt-1 font-mono text-xs font-semibold uppercase text-muted-foreground">
-                      {formatDate(transaction.transactionDate)}
+                      {formatImportDate(transaction.transactionDate)}
                     </p>
                   </div>
                   <p className="max-w-[45%] shrink-0 text-right font-mono text-sm font-bold tabular-nums wrap-anywhere">

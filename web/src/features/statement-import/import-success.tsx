@@ -12,6 +12,10 @@ import {
 } from "@/components/ui/card";
 
 import type { CommittedStatementImport } from "./statement-import-service";
+import {
+  formatImportDate,
+  formatTransactionHistoryPeriod,
+} from "./statement-import-date-formatting";
 import { formatStatementType } from "./statement-type";
 
 interface ImportSuccessProps {
@@ -23,29 +27,10 @@ interface ImportSuccessProps {
   onViewTransactions: () => void;
 }
 
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  day: "2-digit",
-  month: "short",
-  year: "numeric",
-  timeZone: "UTC",
-});
-
 function formatAccount(committedImport: CommittedStatementImport) {
   return [committedImport.provider, committedImport.accountType]
     .filter(Boolean)
     .join(" · ");
-}
-
-function formatHistoryPeriod(committedImport: CommittedStatementImport) {
-  const endDate = dateFormatter.format(
-    new Date(`${committedImport.statementDate}T00:00:00Z`),
-  );
-  if (!committedImport.transactionHistoryStartDate) return endDate;
-
-  const startDate = dateFormatter.format(
-    new Date(`${committedImport.transactionHistoryStartDate}T00:00:00Z`),
-  );
-  return `${startDate} – ${endDate}`;
 }
 
 function ImportSuccess({
@@ -132,10 +117,11 @@ function ImportSuccess({
                 </dt>
                 <dd className="mt-1 font-mono text-sm font-semibold uppercase">
                   {committedImport.statementType === "e_wallet"
-                    ? formatHistoryPeriod(committedImport)
-                    : dateFormatter.format(
-                        new Date(`${committedImport.statementDate}T00:00:00Z`),
-                      )}
+                    ? formatTransactionHistoryPeriod(
+                        committedImport.transactionHistoryStartDate,
+                        committedImport.statementDate,
+                      )
+                    : formatImportDate(committedImport.statementDate)}
                 </dd>
               </div>
               {committedImport.statementType === "e_wallet" && (

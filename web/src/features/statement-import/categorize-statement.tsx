@@ -59,6 +59,10 @@ import {
 import { formatMoney } from "@/shared/money";
 
 import { ImportProgress } from "./import-progress";
+import {
+  formatImportDate,
+  formatTransactionHistoryPeriod,
+} from "./statement-import-date-formatting";
 import { formatStatementType } from "./statement-type";
 import {
   type CategoryCatalogOption,
@@ -106,25 +110,6 @@ interface CategorizeStatementProps {
   onToggleTransactionExclusion: (transactionId: string) => boolean;
   onBack: () => void;
   onReview: () => void;
-}
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  day: "2-digit",
-  month: "short",
-  year: "numeric",
-  timeZone: "UTC",
-});
-
-function formatDate(value: Date) {
-  return dateFormatter.format(value);
-}
-
-function formatStatementHistoryPeriod(
-  startDate: Date | null,
-  endDate: Date,
-) {
-  if (!startDate) return formatDate(endDate);
-  return `${formatDate(startDate)} – ${formatDate(endDate)}`;
 }
 
 function CategorizeStatement({
@@ -208,7 +193,7 @@ function CategorizeStatement({
   ).length;
   const excludedCount = transactions.length - includedTransactions.length;
   const isEWallet = statementSummary.statementType === "e_wallet";
-  const statementHistoryPeriod = formatStatementHistoryPeriod(
+  const statementHistoryPeriod = formatTransactionHistoryPeriod(
     statementSummary.transactionHistoryStartDate,
     statementSummary.statementDate,
   );
@@ -336,7 +321,7 @@ function CategorizeStatement({
             >
               {isEWallet
                 ? statementHistoryPeriod
-                : formatDate(statementSummary.statementDate)}
+                : formatImportDate(statementSummary.statementDate)}
             </MobileSummaryMetric>
             <MobileSummaryMetric label={isEWallet ? "Total Debit" : "Amount"}>
               {formatMoney(
@@ -376,7 +361,7 @@ function CategorizeStatement({
           >
             {isEWallet
               ? statementHistoryPeriod
-              : formatDate(statementSummary.statementDate)}
+              : formatImportDate(statementSummary.statementDate)}
           </SummaryMetric>
           <SummaryMetric label={isEWallet ? "Total Debit" : "Statement Amount"} emphasized>
             {formatMoney(
@@ -699,7 +684,7 @@ function CategorizeStatement({
                             )}
                           </div>
                           <p className="mt-1 font-mono text-xs font-semibold uppercase text-muted-foreground">
-                            {formatDate(transaction.transactionDate)}
+                            {formatImportDate(transaction.transactionDate)}
                           </p>
                         </div>
                         <p className="max-w-1/2 shrink-0 font-mono text-sm font-bold tabular-nums wrap-anywhere">
@@ -844,7 +829,7 @@ function CategorizeStatement({
                         }
                       >
                         <TableCell className="font-mono text-xs font-semibold tabular-nums uppercase">
-                          {formatDate(transaction.transactionDate)}
+                          {formatImportDate(transaction.transactionDate)}
                         </TableCell>
                         <TableCell className="font-medium whitespace-normal">
                           <div className="flex flex-wrap items-center gap-2">

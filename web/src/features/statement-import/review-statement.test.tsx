@@ -276,6 +276,7 @@ describe("ReviewStatement E-Wallet controls", () => {
     expect(summaries).toHaveLength(2);
     for (const summary of summaries) {
       expect(within(summary).getByText("Transaction History Period")).toBeTruthy();
+      expect(summary.textContent).toContain("E-Wallet");
       expect(summary.textContent).toContain("Aug 09, 2026 – Sep 07, 2026");
       expect(summary.textContent).toContain("₱26,696.92");
       expect(within(summary).queryByText(/\*{4}/u)).toBeNull();

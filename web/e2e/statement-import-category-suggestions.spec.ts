@@ -8,6 +8,7 @@ import {
 import {
   authorizationHeaders,
   createNewLocalTestUser,
+  isRecord,
   requireEnvironment,
 } from "./test-helpers";
 
@@ -803,10 +804,6 @@ function readObjectsField(
     }
     return item;
   });
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 function readRecord(value: unknown, description: string): Record<string, unknown> {

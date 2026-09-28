@@ -37,4 +37,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
-export { authorizationHeaders, createNewLocalTestUser, requireEnvironment };
+export {
+  authorizationHeaders,
+  createNewLocalTestUser,
+  isRecord,
+  readSessionToken,
+  requireEnvironment,
+};

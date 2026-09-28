@@ -3,6 +3,7 @@ import { expect, test, type APIRequestContext, type Page } from "@playwright/tes
 import {
   authorizationHeaders,
   createNewLocalTestUser,
+  readSessionToken,
   requireEnvironment,
 } from "./test-helpers";
 
@@ -1535,17 +1536,4 @@ async function expectUnauthenticated(response: {
   await expect(response.json()).resolves.toMatchObject({
     error: { code: "UNAUTHENTICATED" },
   });
-}
-
-function readSessionToken(value: unknown): string {
-  if (
-    value === null ||
-    typeof value !== "object" ||
-    Array.isArray(value) ||
-    typeof (value as { token?: unknown }).token !== "string"
-  ) {
-    throw new Error("The local test session response did not include a token.");
-  }
-
-  return (value as { token: string }).token;
 }

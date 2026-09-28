@@ -32,9 +32,10 @@ export class StatementCategorySuggestionItemResponseDto {
 export class StatementCategorySuggestionResponseDto {
   @ApiProperty({
     description:
-      'One active Category suggestion, or null when no Category is supported.',
-    type: StatementCategorySuggestionItemResponseDto,
-    nullable: true,
+      'Zero to three ordered suggestions for distinct active Categories.',
+    type: [StatementCategorySuggestionItemResponseDto],
+    minItems: 0,
+    maxItems: 3,
   })
-  suggestion!: StatementCategorySuggestionItemResponseDto | null;
+  suggestions!: StatementCategorySuggestionItemResponseDto[];
 }

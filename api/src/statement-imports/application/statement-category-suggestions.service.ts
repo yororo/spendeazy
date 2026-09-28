@@ -1,13 +1,16 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { normalizeMatchingText } from '../../normalization/matching-text';
+import { rankCategorySuggestionIds } from './category-suggestion-display-policy';
 import {
   MAX_CATEGORY_SUGGESTION_EXAMPLES,
   MAX_SUGGESTIBLE_ACTIVE_CATEGORIES,
   STATEMENT_CATEGORY_SUGGESTION_CATALOG_STORE,
   STATEMENT_CATEGORY_SUGGESTION_EVALUATOR,
+  deduplicateCategorySuggestionCandidates,
   type CategorySuggestion,
   type CategorySuggestionCatalog,
   type CategorySuggestionCatalogStore,
+  type CategorySuggestionDistribution,
   type CategorySuggestionEvaluator,
 } from './statement-category-suggestions';
 
@@ -25,49 +28,56 @@ export class StatementCategorySuggestionsService {
   async suggestInSpace(
     spaceId: string,
     transactionDescription: string,
-  ): Promise<CategorySuggestion | null> {
+  ): Promise<readonly CategorySuggestion[]> {
     const description = transactionDescription.trim();
-    if (!description) return null;
+    if (!description) return [];
 
     const targetTokens = descriptionTokens(description);
     const catalog =
       await this.catalogStore.findSuggestionCatalogInSpace(spaceId);
-    const { categories } = catalog;
+    const categories = deduplicateCategorySuggestionCandidates(
+      catalog.categories,
+    );
     if (
       categories.length === 0 ||
       categories.length > MAX_SUGGESTIBLE_ACTIVE_CATEGORIES
     ) {
-      return null;
+      return [];
     }
 
-    let selectedCategoryId: string | null;
+    let distribution: CategorySuggestionDistribution | null;
     try {
-      selectedCategoryId = await this.evaluator.suggestCategory(
+      distribution = await this.evaluator.suggestCategory(
         description,
         categories,
         selectRelevantExamples(targetTokens, catalog.examples, categories),
       );
     } catch {
-      return null;
+      return [];
     }
 
-    if (!selectedCategoryId) return null;
+    if (!distribution) return [];
 
-    const selectedFromRequest = categories.find(
-      (category) => category.id === selectedCategoryId,
+    const selectedCategoryIds = rankCategorySuggestionIds(
+      categories,
+      distribution.choice,
+      distribution.probabilities,
     );
-    if (!selectedFromRequest) return null;
+    const suggestions: CategorySuggestion[] = [];
+    for (const categoryId of selectedCategoryIds) {
+      const currentCategory = await this.catalogStore.findActiveCategoryInSpace(
+        spaceId,
+        categoryId,
+      );
+      if (!currentCategory || currentCategory.id !== categoryId) continue;
 
-    const currentCategory = await this.catalogStore.findActiveCategoryInSpace(
-      spaceId,
-      selectedCategoryId,
-    );
-    if (!currentCategory) return null;
+      suggestions.push({
+        categoryId: currentCategory.id,
+        categoryName: currentCategory.name,
+      });
+    }
 
-    return {
-      categoryId: currentCategory.id,
-      categoryName: currentCategory.name,
-    };
+    return suggestions;
   }
 }
 

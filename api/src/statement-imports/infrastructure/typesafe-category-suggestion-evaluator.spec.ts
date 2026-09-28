@@ -24,7 +24,14 @@ describe('TypeSafeCategorySuggestionEvaluator', () => {
 
     await expect(
       evaluator.suggestCategory('Market purchase', categories, examples),
-    ).resolves.toBe('42');
+    ).resolves.toEqual({
+      choice: '42',
+      probabilities: {
+        '42': 0.8,
+        '43': 0.1,
+        none_of_the_above: 0.1,
+      },
+    });
 
     const [url, requestInit] = fetch.mock.calls[0] ?? [];
     expect(url).toBe('https://api.typesafe.ai/v1/systemone');
@@ -43,7 +50,7 @@ describe('TypeSafeCategorySuggestionEvaluator', () => {
         { type: string; criteria: Record<string, unknown> }
       >;
     };
-    expect(request.model).toBe('jev-latest');
+    expect(request.model).toBe('jev-1.13.0');
     expect(request.state).toEqual({
       transactionDescription: 'Market purchase',
       activeCategories: [
@@ -71,7 +78,7 @@ describe('TypeSafeCategorySuggestionEvaluator', () => {
     );
   });
 
-  it('returns no suggestion when none of the active Categories is selected', async () => {
+  it('preserves the explicit none-of-the-above outcome for display policy', async () => {
     const fetch = createFetchResponse('none_of_the_above', {
       '42': 0.25,
       '43': 0.25,
@@ -84,6 +91,50 @@ describe('TypeSafeCategorySuggestionEvaluator', () => {
 
     await expect(
       evaluator.suggestCategory('Unclear purchase', categories, []),
+    ).resolves.toEqual({
+      choice: 'none_of_the_above',
+      probabilities: {
+        '42': 0.25,
+        '43': 0.25,
+        none_of_the_above: 0.5,
+      },
+    });
+  });
+
+  it('rejects duplicate active Category IDs before making a request', async () => {
+    const fetch = createFetchResponse('42', {
+      '42': 0.8,
+      '43': 0.1,
+      none_of_the_above: 0.1,
+    });
+    const evaluator = new TypeSafeCategorySuggestionEvaluator(
+      'server-secret',
+      fetch,
+    );
+
+    await expect(
+      evaluator.suggestCategory(
+        'Market purchase',
+        [...categories, categories[0]],
+        [],
+      ),
+    ).resolves.toBeNull();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('rejects a Choice that is not the highest-probability option', async () => {
+    const fetch = createFetchResponse('42', {
+      '42': 0.2,
+      '43': 0.7,
+      none_of_the_above: 0.1,
+    });
+    const evaluator = new TypeSafeCategorySuggestionEvaluator(
+      'server-secret',
+      fetch,
+    );
+
+    await expect(
+      evaluator.suggestCategory('Market purchase', categories, []),
     ).resolves.toBeNull();
   });
 

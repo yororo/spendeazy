@@ -74,7 +74,7 @@ type CategorySuggestionFetcher = (
   description: string,
   signal: AbortSignal,
   spaceId: string,
-) => Promise<CategorySuggestion | null>;
+) => Promise<readonly CategorySuggestion[] | null>;
 
 interface CategorizationResult {
   readonly categoryId: string | null;
@@ -215,7 +215,7 @@ async function getStatementCategorySuggestion(
   spaceId: string,
   description: string,
   signal?: AbortSignal,
-): Promise<CategorySuggestion | null> {
+): Promise<readonly CategorySuggestion[] | null> {
   const response = requireApiResponse(
     await apiClient.post<unknown>(
       `/spaces/${encodeURIComponent(spaceId)}/statement-imports/category-suggestions`,
@@ -226,29 +226,39 @@ async function getStatementCategorySuggestion(
     createStatementImportDataError,
   );
 
-  if (!isRecord(response) || !("suggestion" in response)) {
-    throw createStatementImportDataError(
-      "The API returned an invalid Category Suggestion.",
-    );
-  }
-  if (response.suggestion === null) return null;
-
   if (
-    !isRecord(response.suggestion) ||
-    typeof response.suggestion.categoryId !== "string" ||
-    !/^[1-9]\d*$/.test(response.suggestion.categoryId) ||
-    typeof response.suggestion.categoryName !== "string" ||
-    response.suggestion.categoryName.trim().length === 0
+    !isRecord(response) ||
+    !Array.isArray(response.suggestions) ||
+    response.suggestions.length > 3
   ) {
     throw createStatementImportDataError(
       "The API returned an invalid Category Suggestion.",
     );
   }
 
-  return {
-    categoryId: response.suggestion.categoryId,
-    categoryName: response.suggestion.categoryName,
-  };
+  const suggestions: CategorySuggestion[] = [];
+  const seenCategoryIds = new Set<string>();
+  for (const suggestion of response.suggestions) {
+    if (
+      !isRecord(suggestion) ||
+      typeof suggestion.categoryId !== "string" ||
+      !/^[1-9]\d*$/.test(suggestion.categoryId) ||
+      typeof suggestion.categoryName !== "string" ||
+      suggestion.categoryName.trim().length === 0
+    ) {
+      throw createStatementImportDataError(
+        "The API returned an invalid Category Suggestion.",
+      );
+    }
+    if (seenCategoryIds.has(suggestion.categoryId)) continue;
+    seenCategoryIds.add(suggestion.categoryId);
+    suggestions.push({
+      categoryId: suggestion.categoryId,
+      categoryName: suggestion.categoryName,
+    });
+  }
+
+  return suggestions.length === 0 ? null : suggestions;
 }
 
 async function getCategoryOptions(

@@ -1,0 +1,1017 @@
+{
+  "schemaVersion": 1,
+  "createdOn": "2026-09-28",
+  "privacy": "Synthetic descriptions and labels created for offline evaluation; no customer or statement data is included.",
+  "model": "jev-1.13.0",
+  "pricing": {
+    "currency": "USD",
+    "inputUsdPerMillionTokens": 0.042,
+    "outputUsdPerMillionTokens": 0,
+    "effectiveDate": "2026-09-28"
+  },
+  "profiles": {
+    "personal-card": {
+      "spaceType": "personal",
+      "provider": "credit-card",
+      "evidence": "saved-history",
+      "categories": [
+        {
+          "id": "1101",
+          "name": "Groceries",
+          "description": "Food and household supplies"
+        },
+        {
+          "id": "1102",
+          "name": "Dining",
+          "description": "Meals and drinks prepared outside home"
+        },
+        {
+          "id": "1103",
+          "name": "Transport",
+          "description": "Public transport, rides, and fuel"
+        },
+        {
+          "id": "1104",
+          "name": "Household",
+          "description": "Non-food home supplies"
+        },
+        {
+          "id": "1105",
+          "name": "Utilities",
+          "description": "Electricity, water, and internet bills"
+        },
+        {
+          "id": "1106",
+          "name": "Subscriptions",
+          "description": "Recurring digital and service plans"
+        }
+      ],
+      "examples": [
+        {
+          "categoryId": "1101",
+          "description": "market stall rice and vegetables"
+        },
+        {
+          "categoryId": "1101",
+          "description": "grocery checkout eggs and fruit"
+        },
+        {
+          "categoryId": "1102",
+          "description": "coffee bar counter"
+        },
+        {
+          "categoryId": "1102",
+          "description": "canteen lunch meal"
+        },
+        {
+          "categoryId": "1103",
+          "description": "bus fare reload"
+        },
+        {
+          "categoryId": "1103",
+          "description": "ride home after work"
+        },
+        {
+          "categoryId": "1104",
+          "description": "dish soap refill"
+        },
+        {
+          "categoryId": "1104",
+          "description": "paper towels household aisle"
+        },
+        {
+          "categoryId": "1105",
+          "description": "electric service bill payment"
+        },
+        {
+          "categoryId": "1105",
+          "description": "water district online payment"
+        },
+        {
+          "categoryId": "1106",
+          "description": "monthly music plan renewal"
+        },
+        {
+          "categoryId": "1106",
+          "description": "cloud storage subscription"
+        }
+      ]
+    },
+    "shared-wallet": {
+      "spaceType": "shared",
+      "provider": "e-wallet",
+      "evidence": "saved-history",
+      "categories": [
+        {
+          "id": "2101",
+          "name": "Groceries",
+          "description": "Food, ingredients, and household staples"
+        },
+        {
+          "id": "2102",
+          "name": "Household",
+          "description": "Cleaning and home-care supplies"
+        },
+        {
+          "id": "2103",
+          "name": "Childcare",
+          "description": "School and care services for children"
+        },
+        {
+          "id": "2104",
+          "name": "Utilities",
+          "description": "Electricity, water, and internet bills"
+        },
+        {
+          "id": "2105",
+          "name": "Health",
+          "description": "Clinics, medicine, and health services"
+        },
+        {
+          "id": "2106",
+          "name": "Dining",
+          "description": "Prepared meals and food delivery"
+        }
+      ],
+      "examples": [
+        {
+          "categoryId": "2101",
+          "description": "market rice and fish stall"
+        },
+        {
+          "categoryId": "2101",
+          "description": "grocery basket vegetables"
+        },
+        {
+          "categoryId": "2102",
+          "description": "laundry detergent refill"
+        },
+        {
+          "categoryId": "2102",
+          "description": "home cleaning supplies"
+        },
+        {
+          "categoryId": "2103",
+          "description": "monthly school service"
+        },
+        {
+          "categoryId": "2103",
+          "description": "child care center fee"
+        },
+        {
+          "categoryId": "2104",
+          "description": "electricity bill online"
+        },
+        {
+          "categoryId": "2104",
+          "description": "water service payment"
+        },
+        {
+          "categoryId": "2105",
+          "description": "pharmacy prescription"
+        },
+        {
+          "categoryId": "2105",
+          "description": "clinic consultation fee"
+        },
+        {
+          "categoryId": "2106",
+          "description": "dinner delivery order"
+        },
+        {
+          "categoryId": "2106",
+          "description": "takeout meal counter"
+        }
+      ]
+    },
+    "personal-sparse": {
+      "spaceType": "personal",
+      "provider": "credit-card",
+      "evidence": "no-saved-history",
+      "categories": [
+        {
+          "id": "3101",
+          "name": "Food and Supplies",
+          "description": "Groceries and everyday food"
+        },
+        {
+          "id": "3102",
+          "name": "Transport",
+          "description": "Public transit, rides, and travel fares"
+        },
+        {
+          "id": "3103",
+          "name": "Healthcare",
+          "description": "Medical visits, services, and medicine"
+        },
+        {
+          "id": "3104",
+          "name": "Telecom",
+          "description": "Mobile phone load and data plans"
+        },
+        {
+          "id": "3105",
+          "name": "Entertainment",
+          "description": "Music, video, and recreation services"
+        }
+      ],
+      "examples": []
+    },
+    "shared-card": {
+      "spaceType": "shared",
+      "provider": "credit-card",
+      "evidence": "saved-history",
+      "categories": [
+        {
+          "id": "4101",
+          "name": "Education",
+          "description": "School materials, fees, and learning services"
+        },
+        {
+          "id": "4102",
+          "name": "Pet Care",
+          "description": "Veterinary visits and pet supplies"
+        },
+        {
+          "id": "4103",
+          "name": "Home Repair",
+          "description": "Repairs, maintenance, and tradespeople"
+        },
+        {
+          "id": "4104",
+          "name": "Transport",
+          "description": "Public transit, rides, and fuel"
+        },
+        {
+          "id": "4105",
+          "name": "Groceries",
+          "description": "Food and household staples"
+        }
+      ],
+      "examples": [
+        {
+          "categoryId": "4101",
+          "description": "school books and project paper"
+        },
+        {
+          "categoryId": "4101",
+          "description": "class materials photocopy"
+        },
+        {
+          "categoryId": "4102",
+          "description": "veterinary checkup"
+        },
+        {
+          "categoryId": "4102",
+          "description": "pet food store"
+        },
+        {
+          "categoryId": "4103",
+          "description": "plumber faucet repair"
+        },
+        {
+          "categoryId": "4103",
+          "description": "home maintenance service"
+        },
+        {
+          "categoryId": "4104",
+          "description": "jeepney fare"
+        },
+        {
+          "categoryId": "4104",
+          "description": "commute ride fare"
+        },
+        {
+          "categoryId": "4105",
+          "description": "rice and fish market"
+        },
+        {
+          "categoryId": "4105",
+          "description": "grocery fruit and vegetables"
+        }
+      ]
+    }
+  },
+  "cases": [
+    {
+      "id": "personal-card-01",
+      "profile": "personal-card",
+      "language": "Filipino",
+      "tags": [
+        "local-language",
+        "history-backed"
+      ],
+      "description": "palengke gulay at itlog",
+      "goldCategoryId": "1101",
+      "recording": {
+        "model": "jev-1.13.0",
+        "choice": "1101",
+        "probabilities": {
+          "1101": 0.91,
+          "1102": 0.07,
+          "1103": 0,
+          "1104": 0,
+          "1105": 0,
+          "1106": 0,
+          "none_of_the_above": 0.02
+        },
+        "latencyMs": 921.4,
+        "inputTokens": 1018,
+        "outputTokens": 97
+      }
+    },
+    {
+      "id": "personal-card-02",
+      "profile": "personal-card",
+      "language": "English",
+      "tags": [
+        "vague-merchant",
+        "history-backed"
+      ],
+      "description": "CAFE 18 terminal",
+      "goldCategoryId": "1102",
+      "recording": {
+        "model": "jev-1.13.0",
+        "choice": "1102",
+        "probabilities": {
+          "1101": 0.01,
+          "1102": 0.94,
+          "1103": 0.01,
+          "1104": 0,
+          "1105": 0,
+          "1106": 0,
+          "none_of_the_above": 0.04
+        },
+        "latencyMs": 12684.2,
+        "inputTokens": 1016,
+        "outputTokens": 97
+      }
+    },
+    {
+      "id": "personal-card-03",
+      "profile": "personal-card",
+      "language": "English",
+      "tags": [
+        "history-backed"
+      ],
+      "description": "rider trip to office",
+      "goldCategoryId": "1103",
+      "recording": {
+        "model": "jev-1.13.0",
+        "choice": "1103",
+        "probabilities": {
+          "1101": 0,
+          "1102": 0,
+          "1103": 1,
+          "1104": 0,
+          "1105": 0,
+          "1106": 0,
+          "none_of_the_above": 0
+        },
+        "latencyMs": 8853.7,
+        "inputTokens": 1015,
+        "outputTokens": 97
+      }
+    },
+    {
+      "id": "personal-card-04",
+      "profile": "personal-card",
+      "language": "English",
+      "tags": [
+        "history-backed"
+      ],
+      "description": "dish soap refill",
+      "goldCategoryId": "1104",
+      "recording": {
+        "model": "jev-1.13.0",
+        "choice": "1104",
+        "probabilities": {
+          "1101": 0,
+          "1102": 0,
+          "1103": 0,
+          "1104": 1,
+          "1105": 0,
+          "1106": 0,
+          "none_of_the_above": 0
+        },
+        "latencyMs": 12977.4,
+        "inputTokens": 1013,
+        "outputTokens": 97
+      }
+    },
+    {
+      "id": "personal-card-05",
+      "profile": "personal-card",
+      "language": "Taglish",
+      "tags": [
+        "local-language",
+        "history-backed"
+      ],
+      "description": "water bill online payment",
+      "goldCategoryId": "1105",
+      "recording": null
+    },
+    {
+      "id": "personal-card-06",
+      "profile": "personal-card",
+      "language": "English",
+      "tags": [
+        "history-backed"
+      ],
+      "description": "monthly music access renewal",
+      "goldCategoryId": "1106",
+      "recording": {
+        "model": "jev-1.13.0",
+        "choice": "1106",
+        "probabilities": {
+          "1101": 0,
+          "1102": 0,
+          "1103": 0,
+          "1104": 0,
+          "1105": 0,
+          "1106": 1,
+          "none_of_the_above": 0
+        },
+        "latencyMs": 2899.4,
+        "inputTokens": 1014,
+        "outputTokens": 97
+      }
+    },
+    {
+      "id": "personal-card-07",
+      "profile": "personal-card",
+      "language": "Unknown",
+      "tags": [
+        "vague-merchant",
+        "unsupported"
+      ],
+      "description": "merchant terminal 5812",
+      "goldCategoryId": null,
+      "recording": {
+        "model": "jev-1.13.0",
+        "choice": "none_of_the_above",
+        "probabilities": {
+          "1101": 0.05,
+          "1102": 0.01,
+          "1103": 0,
+          "1104": 0,
+          "1105": 0,
+          "1106": 0,
+          "none_of_the_above": 0.94
+        },
+        "latencyMs": 614.8,
+        "inputTokens": 1017,
+        "outputTokens": 98
+      }
+    },
+    {
+      "id": "personal-card-08",
+      "profile": "personal-card",
+      "language": "English",
+      "tags": [
+        "vague-merchant",
+        "unsupported"
+      ],
+      "description": "general online store purchase",
+      "goldCategoryId": null,
+      "recording": {
+        "model": "jev-1.13.0",
+        "choice": "none_of_the_above",
+        "probabilities": {
+          "1101": 0.09,
+          "1102": 0,
+          "1103": 0,
+          "1104": 0.01,
+          "1105": 0,
+          "1106": 0,
+          "none_of_the_above": 0.9
+        },
+        "latencyMs": 1903.7,
+        "inputTokens": 1014,
+        "outputTokens": 98
+      }
+    },
+    {
+      "id": "shared-wallet-01",
+      "profile": "shared-wallet",
+      "language": "Cebuano",
+      "tags": [
+        "local-language",
+        "history-backed"
+      ],
+      "description": "palit og bugas ug utan",
+      "goldCategoryId": "2101",
+      "recording": {
+        "model": "jev-1.13.0",
+        "choice": "2101",
+        "probabilities": {
+          "2101": 0.79,
+          "2102": 0.01,
+          "2103": 0.01,
+          "2104": 0.01,
+          "2105": 0.01,
+          "2106": 0.06,
+          "none_of_the_above": 0.11
+        },
+        "latencyMs": 721.5,
+        "inputTokens": 1019,
+        "outputTokens": 97
+      }
+    },
+    {
+      "id": "shared-wallet-02",
+      "profile": "shared-wallet",
+      "language": "Filipino",
+      "tags": [
+        "local-language",
+        "history-backed"
+      ],
+      "description": "bayad sa kuryente",
+      "goldCategoryId": "2104",
+      "recording": {
+        "model": "jev-1.13.0",
+        "choice": "2104",
+        "probabilities": {
+          "2101": 0,
+          "2102": 0,
+          "2103": 0,
+          "2104": 1,
+          "2105": 0,
+          "2106": 0,
+          "none_of_the_above": 0
+        },
+        "latencyMs": 486.2,
+        "inputTokens": 1018,
+        "outputTokens": 97
+      }
+    },
+    {
+      "id": "shared-wallet-03",
+      "profile": "shared-wallet",
+      "language": "Filipino",
+      "tags": [
+        "local-language",
+        "history-backed"
+      ],
+      "description": "botika reseta",
+      "goldCategoryId": "2105",
+      "recording": {
+        "model": "jev-1.13.0",
+        "choice": "2105",
+        "probabilities": {
+          "2101": 0.13,
+          "2102": 0.02,
+          "2103": 0.01,
+          "2104": 0.01,
+          "2105": 0.66,
+          "2106": 0.05,
+          "none_of_the_above": 0.12
+        },
+        "latencyMs": 412.5,
+        "inputTokens": 1016,
+        "outputTokens": 97
+      }
+    },
+    {
+      "id": "shared-wallet-04",
+      "profile": "shared-wallet",
+      "language": "English",
+      "tags": [
+        "history-backed"
+      ],
+      "description": "school service monthly",
+      "goldCategoryId": "2103",
+      "recording": {
+        "model": "jev-1.13.0",
+        "choice": "2103",
+        "probabilities": {
+          "2101": 0,
+          "2102": 0,
+          "2103": 1,
+          "2104": 0,
+          "2105": 0,
+          "2106": 0,
+          "none_of_the_above": 0
+        },
+        "latencyMs": 325.2,
+        "inputTokens": 1015,
+        "outputTokens": 97
+      }
+    },
+    {
+      "id": "shared-wallet-05",
+      "profile": "shared-wallet",
+      "language": "Taglish",
+      "tags": [
+        "local-language",
+        "history-backed"
+      ],
+      "description": "home cleaning refill",
+      "goldCategoryId": "2102",
+      "recording": {
+        "model": "jev-1.13.0",
+        "choice": "2102",
+        "probabilities": {
+          "2101": 0,
+          "2102": 1,
+          "2103": 0,
+          "2104": 0,
+          "2105": 0,
+          "2106": 0,
+          "none_of_the_above": 0
+        },
+        "latencyMs": 507.6,
+        "inputTokens": 1015,
+        "outputTokens": 97
+      }
+    },
+    {
+      "id": "shared-wallet-06",
+      "profile": "shared-wallet",
+      "language": "English",
+      "tags": [
+        "history-backed"
+      ],
+      "description": "dinner delivery order",
+      "goldCategoryId": "2106",
+      "recording": {
+        "model": "jev-1.13.0",
+        "choice": "2106",
+        "probabilities": {
+          "2101": 0,
+          "2102": 0,
+          "2103": 0,
+          "2104": 0,
+          "2105": 0,
+          "2106": 1,
+          "none_of_the_above": 0
+        },
+        "latencyMs": 307.7,
+        "inputTokens": 1016,
+        "outputTokens": 97
+      }
+    },
+    {
+      "id": "shared-wallet-07",
+      "profile": "shared-wallet",
+      "language": "Unknown",
+      "tags": [
+        "vague-merchant",
+        "unsupported"
+      ],
+      "description": "STORE PAYMENT",
+      "goldCategoryId": null,
+      "recording": {
+        "model": "jev-1.13.0",
+        "choice": "2101",
+        "probabilities": {
+          "2101": 0.52,
+          "2102": 0,
+          "2103": 0,
+          "2104": 0,
+          "2105": 0,
+          "2106": 0,
+          "none_of_the_above": 0.48
+        },
+        "latencyMs": 1960.3,
+        "inputTokens": 1015,
+        "outputTokens": 97
+      }
+    },
+    {
+      "id": "shared-wallet-08",
+      "profile": "shared-wallet",
+      "language": "English",
+      "tags": [
+        "vague-merchant",
+        "history-backed"
+      ],
+      "description": "snacks for the house",
+      "goldCategoryId": "2101",
+      "recording": {
+        "model": "jev-1.13.0",
+        "choice": "2101",
+        "probabilities": {
+          "2101": 1,
+          "2102": 0,
+          "2103": 0,
+          "2104": 0,
+          "2105": 0,
+          "2106": 0,
+          "none_of_the_above": 0
+        },
+        "latencyMs": 296.1,
+        "inputTokens": 1017,
+        "outputTokens": 97
+      }
+    },
+    {
+      "id": "personal-sparse-01",
+      "profile": "personal-sparse",
+      "language": "English",
+      "tags": [
+        "sparse-history",
+        "vague-merchant"
+      ],
+      "description": "MetroPay terminal",
+      "goldCategoryId": "3102",
+      "recording": {
+        "model": "jev-1.13.0",
+        "choice": "3102",
+        "probabilities": {
+          "3101": 0.01,
+          "3102": 0.54,
+          "3103": 0,
+          "3104": 0.03,
+          "3105": 0.01,
+          "none_of_the_above": 0.41
+        },
+        "latencyMs": 367.5,
+        "inputTokens": 650,
+        "outputTokens": 87
+      }
+    },
+    {
+      "id": "personal-sparse-02",
+      "profile": "personal-sparse",
+      "language": "Unknown",
+      "tags": [
+        "sparse-history",
+        "unsupported",
+        "vague-merchant"
+      ],
+      "description": "BAYAD ONLINE",
+      "goldCategoryId": null,
+      "recording": {
+        "model": "jev-1.13.0",
+        "choice": "none_of_the_above",
+        "probabilities": {
+          "3101": 0.01,
+          "3102": 0,
+          "3103": 0,
+          "3104": 0.18,
+          "3105": 0.02,
+          "none_of_the_above": 0.79
+        },
+        "latencyMs": 292.1,
+        "inputTokens": 650,
+        "outputTokens": 88
+      }
+    },
+    {
+      "id": "personal-sparse-03",
+      "profile": "personal-sparse",
+      "language": "English",
+      "tags": [
+        "sparse-history"
+      ],
+      "description": "doctor consultation",
+      "goldCategoryId": "3103",
+      "recording": {
+        "model": "jev-1.13.0",
+        "choice": "3103",
+        "probabilities": {
+          "3101": 0,
+          "3102": 0,
+          "3103": 1,
+          "3104": 0,
+          "3105": 0,
+          "none_of_the_above": 0
+        },
+        "latencyMs": 1392.6,
+        "inputTokens": 648,
+        "outputTokens": 87
+      }
+    },
+    {
+      "id": "personal-sparse-04",
+      "profile": "personal-sparse",
+      "language": "Taglish",
+      "tags": [
+        "sparse-history",
+        "local-language"
+      ],
+      "description": "palit load sa cellphone",
+      "goldCategoryId": "3104",
+      "recording": {
+        "model": "jev-1.13.0",
+        "choice": "3104",
+        "probabilities": {
+          "3101": 0,
+          "3102": 0,
+          "3103": 0,
+          "3104": 1,
+          "3105": 0,
+          "none_of_the_above": 0
+        },
+        "latencyMs": 441.8,
+        "inputTokens": 651,
+        "outputTokens": 87
+      }
+    },
+    {
+      "id": "personal-sparse-05",
+      "profile": "personal-sparse",
+      "language": "English",
+      "tags": [
+        "sparse-history"
+      ],
+      "description": "video service renewal",
+      "goldCategoryId": "3105",
+      "recording": {
+        "model": "jev-1.13.0",
+        "choice": "3105",
+        "probabilities": {
+          "3101": 0,
+          "3102": 0,
+          "3103": 0,
+          "3104": 0,
+          "3105": 1,
+          "none_of_the_above": 0
+        },
+        "latencyMs": 347.5,
+        "inputTokens": 649,
+        "outputTokens": 87
+      }
+    },
+    {
+      "id": "personal-sparse-06",
+      "profile": "personal-sparse",
+      "language": "Unknown",
+      "tags": [
+        "sparse-history",
+        "unsupported",
+        "vague-merchant"
+      ],
+      "description": "cafe and market purchase",
+      "goldCategoryId": null,
+      "recording": {
+        "model": "jev-1.13.0",
+        "choice": "3101",
+        "probabilities": {
+          "3101": 0.99,
+          "3102": 0,
+          "3103": 0,
+          "3104": 0,
+          "3105": 0,
+          "none_of_the_above": 0.01
+        },
+        "latencyMs": 387.3,
+        "inputTokens": 651,
+        "outputTokens": 87
+      }
+    },
+    {
+      "id": "shared-card-01",
+      "profile": "shared-card",
+      "language": "English",
+      "tags": [
+        "history-backed"
+      ],
+      "description": "school project photocopies",
+      "goldCategoryId": "4101",
+      "recording": {
+        "model": "jev-1.13.0",
+        "choice": "4101",
+        "probabilities": {
+          "4101": 1,
+          "4102": 0,
+          "4103": 0,
+          "4104": 0,
+          "4105": 0,
+          "none_of_the_above": 0
+        },
+        "latencyMs": 1264.4,
+        "inputTokens": 924,
+        "outputTokens": 87
+      }
+    },
+    {
+      "id": "shared-card-02",
+      "profile": "shared-card",
+      "language": "English",
+      "tags": [
+        "history-backed"
+      ],
+      "description": "veterinary visit",
+      "goldCategoryId": "4102",
+      "recording": {
+        "model": "jev-1.13.0",
+        "choice": "4102",
+        "probabilities": {
+          "4101": 0,
+          "4102": 1,
+          "4103": 0,
+          "4104": 0,
+          "4105": 0,
+          "none_of_the_above": 0
+        },
+        "latencyMs": 408,
+        "inputTokens": 922,
+        "outputTokens": 87
+      }
+    },
+    {
+      "id": "shared-card-03",
+      "profile": "shared-card",
+      "language": "English",
+      "tags": [
+        "history-backed"
+      ],
+      "description": "faucet plumber call",
+      "goldCategoryId": "4103",
+      "recording": {
+        "model": "jev-1.13.0",
+        "choice": "4103",
+        "probabilities": {
+          "4101": 0,
+          "4102": 0,
+          "4103": 1,
+          "4104": 0,
+          "4105": 0,
+          "none_of_the_above": 0
+        },
+        "latencyMs": 351.2,
+        "inputTokens": 923,
+        "outputTokens": 87
+      }
+    },
+    {
+      "id": "shared-card-04",
+      "profile": "shared-card",
+      "language": "Filipino",
+      "tags": [
+        "local-language",
+        "history-backed"
+      ],
+      "description": "pamasahe sa jeep",
+      "goldCategoryId": "4104",
+      "recording": {
+        "model": "jev-1.13.0",
+        "choice": "4104",
+        "probabilities": {
+          "4101": 0,
+          "4102": 0,
+          "4103": 0,
+          "4104": 1,
+          "4105": 0,
+          "none_of_the_above": 0
+        },
+        "latencyMs": 633.6,
+        "inputTokens": 923,
+        "outputTokens": 87
+      }
+    },
+    {
+      "id": "shared-card-05",
+      "profile": "shared-card",
+      "language": "English",
+      "tags": [
+        "history-backed"
+      ],
+      "description": "fish and rice market stall",
+      "goldCategoryId": "4105",
+      "recording": {
+        "model": "jev-1.13.0",
+        "choice": "4105",
+        "probabilities": {
+          "4101": 0,
+          "4102": 0,
+          "4103": 0,
+          "4104": 0,
+          "4105": 1,
+          "none_of_the_above": 0
+        },
+        "latencyMs": 408.3,
+        "inputTokens": 923,
+        "outputTokens": 87
+      }
+    },
+    {
+      "id": "shared-card-06",
+      "profile": "shared-card",
+      "language": "Unknown",
+      "tags": [
+        "unsupported",
+        "vague-merchant"
+      ],
+      "description": "MERCHANT PAY 664",
+      "goldCategoryId": null,
+      "recording": {
+        "model": "jev-1.13.0",
+        "choice": "none_of_the_above",
+        "probabilities": {
+          "4101": 0.01,
+          "4102": 0,
+          "4103": 0.01,
+          "4104": 0.01,
+          "4105": 0.02,
+          "none_of_the_above": 0.95
+        },
+        "latencyMs": 339.8,
+        "inputTokens": 925,
+        "outputTokens": 88
+      }
+    }
+  ]
+}

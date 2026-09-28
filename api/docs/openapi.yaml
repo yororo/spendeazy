@@ -2582,7 +2582,7 @@ paths:
         - Statement imports
   /api/v1/users/me/spaces/{spaceId}/statement-imports/category-suggestions:
     post:
-      description: Evaluates the submitted Transaction description against active Categories in the destination Space. The suggestion does not assign a Category or commit a Statement Import.
+      description: Evaluates the submitted Transaction description against active Categories in the authorized destination Space. Returns zero to three ordered suggestions and never assigns a Category or commits a Statement Import.
       operationId: SpaceStatementImports_suggestCategory
       parameters:
         - name: spaceId
@@ -2601,7 +2601,7 @@ paths:
               $ref: '#/components/schemas/StatementCategorySuggestionRequestDto'
       responses:
         '200':
-          description: One active Category suggestion, or no suggestion.
+          description: Zero to three active Category suggestions in rank order.
           content:
             application/json:
               schema:
@@ -2618,7 +2618,7 @@ paths:
           $ref: '#/components/responses/NotAcceptableError'
         '500':
           $ref: '#/components/responses/InternalError'
-      summary: Suggest one Category for a Transaction in an authorized Space.
+      summary: Suggest up to three ranked Categories for a Transaction.
       tags:
         - Statement imports
   /api/v1/users/me/spaces/{spaceId}/statement-imports/{statementImportId}:
@@ -4800,15 +4800,16 @@ components:
     StatementCategorySuggestionResponseDto:
       type: object
       properties:
-        suggestion:
-          description: One active Category suggestion, or null when no Category is supported.
-          nullable: true
-          type: object
-          allOf:
-            - $ref: '#/components/schemas/StatementCategorySuggestionItemResponseDto'
+        suggestions:
+          description: Zero to three ordered suggestions for distinct active Categories.
+          minItems: 0
+          maxItems: 3
+          type: array
+          items:
+            $ref: '#/components/schemas/StatementCategorySuggestionItemResponseDto'
       additionalProperties: false
       required:
-        - suggestion
+        - suggestions
     OutgoingInvitationResponseDto:
       type: object
       properties:

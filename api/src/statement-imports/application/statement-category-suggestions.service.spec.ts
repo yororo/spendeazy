@@ -1,6 +1,7 @@
 import type {
   CategorySuggestionCatalogStore,
   CategorySuggestionCandidate,
+  CategorySuggestionDistribution,
   CategorySuggestionEvaluator,
 } from './statement-category-suggestions';
 import { StatementCategorySuggestionsService } from './statement-category-suggestions.service';
@@ -9,6 +10,7 @@ describe('StatementCategorySuggestionsService', () => {
   const categories: readonly CategorySuggestionCandidate[] = [
     { id: '42', name: 'Groceries', description: 'Food and household supplies' },
     { id: '43', name: 'Transport', description: null },
+    { id: '44', name: 'Dining', description: 'Prepared meals' },
   ];
 
   it('evaluates the trimmed description against active Categories in the destination Space', async () => {
@@ -22,24 +24,25 @@ describe('StatementCategorySuggestionsService', () => {
     });
     const findActiveCategoryInSpace = jest
       .fn()
-      .mockResolvedValue(categories[0]);
-    const suggestCategory =
-      createSuggestCategoryEvaluator().mockResolvedValue('42');
-    const catalogStore: CategorySuggestionCatalogStore = {
-      findSuggestionCatalogInSpace,
-      findActiveCategoryInSpace,
-    };
-    const evaluator: CategorySuggestionEvaluator = {
-      suggestCategory,
-    };
-    const service = new StatementCategorySuggestionsService(
-      catalogStore,
-      evaluator,
+      .mockImplementation((_spaceId: string, categoryId: string) =>
+        Promise.resolve(categories.find(({ id }) => id === categoryId) ?? null),
+      );
+    const suggestCategory = createSuggestCategoryEvaluator().mockResolvedValue(
+      distribution('42', {
+        '42': 0.65,
+        '43': 0.1,
+        '44': 0.05,
+        none_of_the_above: 0.2,
+      }),
+    );
+    const service = createService(
+      { findSuggestionCatalogInSpace, findActiveCategoryInSpace },
+      { suggestCategory },
     );
 
     await expect(
       service.suggestInSpace('7', '  Market purchase  '),
-    ).resolves.toEqual({ categoryId: '42', categoryName: 'Groceries' });
+    ).resolves.toEqual([{ categoryId: '42', categoryName: 'Groceries' }]);
 
     expect(findSuggestionCatalogInSpace).toHaveBeenCalledWith('7');
     expect(findActiveCategoryInSpace).toHaveBeenCalledWith('7', '42');
@@ -51,9 +54,15 @@ describe('StatementCategorySuggestionsService', () => {
   });
 
   it('keeps active Category names available when history has no useful examples', async () => {
-    const suggestCategory =
-      createSuggestCategoryEvaluator().mockResolvedValue('42');
-    const service = new StatementCategorySuggestionsService(
+    const suggestCategory = createSuggestCategoryEvaluator().mockResolvedValue(
+      distribution('42', {
+        '42': 0.65,
+        '43': 0.1,
+        '44': 0.05,
+        none_of_the_above: 0.2,
+      }),
+    );
+    const service = createService(
       {
         findSuggestionCatalogInSpace: jest.fn().mockResolvedValue({
           categories,
@@ -61,14 +70,20 @@ describe('StatementCategorySuggestionsService', () => {
             { categoryId: '43', description: 'Bus route to the office' },
           ],
         }),
-        findActiveCategoryInSpace: jest.fn().mockResolvedValue(categories[0]),
+        findActiveCategoryInSpace: jest
+          .fn()
+          .mockImplementation((_spaceId: string, categoryId: string) =>
+            Promise.resolve(
+              categories.find(({ id }) => id === categoryId) ?? null,
+            ),
+          ),
       },
       { suggestCategory },
     );
 
     await expect(
       service.suggestInSpace('7', 'Market purchase'),
-    ).resolves.toEqual({ categoryId: '42', categoryName: 'Groceries' });
+    ).resolves.toEqual([{ categoryId: '42', categoryName: 'Groceries' }]);
     expect(suggestCategory).toHaveBeenCalledWith(
       'Market purchase',
       categories,
@@ -86,9 +101,10 @@ describe('StatementCategorySuggestionsService', () => {
       categoryId: id,
       description: `Market purchase example ${index}`,
     }));
-    const suggestCategory =
-      createSuggestCategoryEvaluator().mockResolvedValue(null);
-    const service = new StatementCategorySuggestionsService(
+    const suggestCategory = createSuggestCategoryEvaluator().mockResolvedValue(
+      distribution('none_of_the_above', { none_of_the_above: 1 }),
+    );
+    const service = createService(
       {
         findSuggestionCatalogInSpace: jest.fn().mockResolvedValue({
           categories: manyCategories,
@@ -119,8 +135,14 @@ describe('StatementCategorySuggestionsService', () => {
       categoryId: id,
       description: index === 16 ? 'Metro cafe' : `Online purchase ${index}`,
     }));
-    const suggestCategory = createSuggestCategoryEvaluator();
-    const service = new StatementCategorySuggestionsService(
+    const probabilities: Record<string, number> = Object.fromEntries(
+      manyCategories.map(({ id }) => [id, 0]),
+    );
+    probabilities.none_of_the_above = 1;
+    const suggestCategory = createSuggestCategoryEvaluator().mockResolvedValue(
+      distribution('none_of_the_above', probabilities),
+    );
+    const service = createService(
       {
         findSuggestionCatalogInSpace: jest.fn().mockResolvedValue({
           categories: manyCategories,
@@ -142,31 +164,167 @@ describe('StatementCategorySuggestionsService', () => {
     });
   });
 
-  it.each(['none_of_the_above', '999'])(
-    'returns no suggestion when the evaluator selects %s',
-    async (selectedId) => {
-      const evaluator: CategorySuggestionEvaluator = {
-        suggestCategory: jest.fn().mockResolvedValue(selectedId),
-      };
-      const service = new StatementCategorySuggestionsService(
+  it.each([
+    {
+      count: 0,
+      result: distribution('none_of_the_above', {
+        '42': 0.2,
+        '43': 0.1,
+        '44': 0.1,
+        none_of_the_above: 0.6,
+      }),
+      expected: [],
+    },
+    {
+      count: 1,
+      result: distribution('42', {
+        '42': 0.7,
+        '43': 0.15,
+        '44': 0.1,
+        none_of_the_above: 0.05,
+      }),
+      expected: [{ categoryId: '42', categoryName: 'Groceries' }],
+    },
+    {
+      count: 2,
+      result: distribution('42', {
+        '42': 0.6,
+        '43': 0.3,
+        '44': 0.1,
+        none_of_the_above: 0,
+      }),
+      expected: [
+        { categoryId: '42', categoryName: 'Groceries' },
+        { categoryId: '43', categoryName: 'Transport' },
+      ],
+    },
+    {
+      count: 3,
+      result: distribution('42', {
+        '42': 0.5,
+        '43': 0.25,
+        '44': 0.25,
+        none_of_the_above: 0,
+      }),
+      expected: [
+        { categoryId: '42', categoryName: 'Groceries' },
+        { categoryId: '43', categoryName: 'Transport' },
+        { categoryId: '44', categoryName: 'Dining' },
+      ],
+    },
+  ])(
+    'returns $count calibrated, distinct suggestions',
+    async ({ result, expected }) => {
+      const service = createService(
         {
           findSuggestionCatalogInSpace: jest.fn().mockResolvedValue({
             categories,
             examples: [],
           }),
-          findActiveCategoryInSpace: jest.fn().mockResolvedValue(categories[0]),
+          findActiveCategoryInSpace: jest
+            .fn()
+            .mockImplementation((_spaceId: string, categoryId: string) =>
+              Promise.resolve(
+                categories.find(({ id }) => id === categoryId) ?? null,
+              ),
+            ),
         },
-        evaluator,
+        { suggestCategory: jest.fn().mockResolvedValue(result) },
       );
 
       await expect(
         service.suggestInSpace('7', 'Market purchase'),
-      ).resolves.toBeNull();
+      ).resolves.toEqual(expected);
     },
   );
 
+  it('drops duplicate catalog IDs and rechecks active status before returning results', async () => {
+    const duplicateCategories = [
+      categories[0],
+      categories[0],
+      ...categories.slice(1),
+    ];
+    const suggestCategory = createSuggestCategoryEvaluator().mockResolvedValue(
+      distribution('42', {
+        '42': 0.5,
+        '43': 0.25,
+        '44': 0.25,
+        none_of_the_above: 0,
+      }),
+    );
+    const findActiveCategoryInSpace = jest
+      .fn()
+      .mockImplementation((_spaceId: string, categoryId: string) =>
+        Promise.resolve(
+          categoryId === '43'
+            ? null
+            : (categories.find(({ id }) => id === categoryId) ?? null),
+        ),
+      );
+    const service = createService(
+      {
+        findSuggestionCatalogInSpace: jest.fn().mockResolvedValue({
+          categories: duplicateCategories,
+          examples: [],
+        }),
+        findActiveCategoryInSpace,
+      },
+      { suggestCategory },
+    );
+
+    await expect(
+      service.suggestInSpace('7', 'Market purchase'),
+    ).resolves.toEqual([
+      { categoryId: '42', categoryName: 'Groceries' },
+      { categoryId: '44', categoryName: 'Dining' },
+    ]);
+    expect(suggestCategory).toHaveBeenCalledWith(
+      'Market purchase',
+      categories,
+      [],
+    );
+    expect(findActiveCategoryInSpace).toHaveBeenCalledWith('7', '43');
+    expect(findActiveCategoryInSpace).toHaveBeenCalledTimes(3);
+    expect(findActiveCategoryInSpace).toHaveBeenNthCalledWith(1, '7', '42');
+    expect(findActiveCategoryInSpace).toHaveBeenNthCalledWith(2, '7', '43');
+    expect(findActiveCategoryInSpace).toHaveBeenNthCalledWith(3, '7', '44');
+  });
+
+  it('discards unknown IDs from a returned distribution', async () => {
+    const service = createService(
+      {
+        findSuggestionCatalogInSpace: jest.fn().mockResolvedValue({
+          categories,
+          examples: [],
+        }),
+        findActiveCategoryInSpace: jest
+          .fn()
+          .mockImplementation((_spaceId: string, categoryId: string) =>
+            Promise.resolve(
+              categories.find(({ id }) => id === categoryId) ?? null,
+            ),
+          ),
+      },
+      {
+        suggestCategory: jest.fn().mockResolvedValue(
+          distribution('42', {
+            '42': 0.5,
+            '43': 0.25,
+            '44': 0.25,
+            '999': 0,
+            none_of_the_above: 0,
+          }),
+        ),
+      },
+    );
+
+    await expect(
+      service.suggestInSpace('7', 'Market purchase'),
+    ).resolves.toHaveLength(3);
+  });
+
   it('keeps suggestion failures optional', async () => {
-    const service = new StatementCategorySuggestionsService(
+    const service = createService(
       {
         findSuggestionCatalogInSpace: jest.fn().mockResolvedValue({
           categories,
@@ -181,15 +339,13 @@ describe('StatementCategorySuggestionsService', () => {
 
     await expect(
       service.suggestInSpace('7', 'Market purchase'),
-    ).resolves.toBeNull();
+    ).resolves.toEqual([]);
   });
 
-  it('does not call the evaluator when the Space has no active Categories', async () => {
+  it('does not call the evaluator when description or active Categories are missing', async () => {
     const suggestCategory = createSuggestCategoryEvaluator();
-    const evaluator: CategorySuggestionEvaluator = {
-      suggestCategory,
-    };
-    const service = new StatementCategorySuggestionsService(
+    const evaluator = { suggestCategory };
+    const noCategories = createService(
       {
         findSuggestionCatalogInSpace: jest.fn().mockResolvedValue({
           categories: [],
@@ -201,11 +357,26 @@ describe('StatementCategorySuggestionsService', () => {
     );
 
     await expect(
-      service.suggestInSpace('7', 'Market purchase'),
-    ).resolves.toBeNull();
+      noCategories.suggestInSpace('7', 'Market purchase'),
+    ).resolves.toEqual([]);
+    await expect(noCategories.suggestInSpace('7', '  ')).resolves.toEqual([]);
     expect(suggestCategory).not.toHaveBeenCalled();
   });
 });
+
+function createService(
+  catalogStore: CategorySuggestionCatalogStore,
+  evaluator: CategorySuggestionEvaluator,
+): StatementCategorySuggestionsService {
+  return new StatementCategorySuggestionsService(catalogStore, evaluator);
+}
+
+function distribution(
+  choice: string,
+  probabilities: Readonly<Record<string, number>>,
+): CategorySuggestionDistribution {
+  return { choice, probabilities };
+}
 
 function createSuggestCategoryEvaluator() {
   type SuggestCategory = CategorySuggestionEvaluator['suggestCategory'];

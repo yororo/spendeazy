@@ -250,7 +250,7 @@ describe('Statement import OpenAPI contract', () => {
     expect(JSON.stringify(document)).not.toContain('ux_statement_imports');
   });
 
-  it('describes the Space-scoped Category Suggestion request and nullable result', async () => {
+  it('describes the Space-scoped Category Suggestion request and bounded result list', async () => {
     const document = await createOpenApiDocument();
     const path = `/${API_PREFIX}/users/me/spaces/{spaceId}/statement-imports/category-suggestions`;
     const operation = document.paths[path]?.post as OperationObject;
@@ -273,7 +273,8 @@ describe('Statement import OpenAPI contract', () => {
       },
       responses: {
         '200': {
-          description: 'One active Category suggestion, or no suggestion.',
+          description:
+            'Zero to three active Category suggestions in rank order.',
           content: {
             'application/json': {
               schema: {
@@ -304,18 +305,17 @@ describe('Statement import OpenAPI contract', () => {
     ).toMatchObject({
       type: 'object',
       additionalProperties: false,
-      required: ['suggestion'],
+      required: ['suggestions'],
       properties: {
-        suggestion: {
-          allOf: [
-            {
-              $ref: '#/components/schemas/StatementCategorySuggestionItemResponseDto',
-            },
-          ],
+        suggestions: {
+          type: 'array',
           description:
-            'One active Category suggestion, or null when no Category is supported.',
-          nullable: true,
-          type: 'object',
+            'Zero to three ordered suggestions for distinct active Categories.',
+          minItems: 0,
+          maxItems: 3,
+          items: {
+            $ref: '#/components/schemas/StatementCategorySuggestionItemResponseDto',
+          },
         },
       },
     });

@@ -84,13 +84,13 @@ export class SpaceStatementImportsController {
   @Post('category-suggestions')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Suggest one Category for a Transaction in an authorized Space.',
+    summary: 'Suggest up to three ranked Categories for a Transaction.',
     description:
-      'Evaluates the submitted Transaction description against active Categories in the destination Space. The suggestion does not assign a Category or commit a Statement Import.',
+      'Evaluates the submitted Transaction description against active Categories in the authorized destination Space. Returns zero to three ordered suggestions and never assigns a Category or commits a Statement Import.',
   })
   @ApiResponse({
     status: HttpStatus.OK,
-    description: 'One active Category suggestion, or no suggestion.',
+    description: 'Zero to three active Category suggestions in rank order.',
     type: StatementCategorySuggestionResponseDto,
   })
   @ApiStandardErrorResponses(
@@ -109,10 +109,12 @@ export class SpaceStatementImportsController {
     const userId = requireAuthenticatedUserId(request);
     await this.spaceAccessService.requireWriteAccess(userId, params.spaceId);
     return {
-      suggestion: await this.categorySuggestionsService.suggestInSpace(
-        params.spaceId,
-        input.description,
-      ),
+      suggestions: [
+        ...(await this.categorySuggestionsService.suggestInSpace(
+          params.spaceId,
+          input.description,
+        )),
+      ],
     };
   }
 

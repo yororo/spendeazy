@@ -97,16 +97,22 @@ function createCategorizedStatement(): CategorizedStatement {
 }
 
 describe("Statement Import categorization", () => {
-  it("requests one Category Suggestion from the destination Space using only the Transaction description", async () => {
+  it("requests up to three ordered Category Suggestions from the destination Space using only the Transaction description", async () => {
     const post = vi.fn(async () => ({
-      suggestion: { categoryId: "42", categoryName: "Groceries" },
+      suggestions: [
+        { categoryId: "42", categoryName: "Groceries" },
+        { categoryId: "43", categoryName: "Transport" },
+      ],
     }));
     const apiClient = { post } as unknown as StatementImportApiClient;
     const signal = new AbortController().signal;
 
     await expect(
       getStatementCategorySuggestion(apiClient, "77", "Market purchase", signal),
-    ).resolves.toEqual({ categoryId: "42", categoryName: "Groceries" });
+    ).resolves.toEqual([
+      { categoryId: "42", categoryName: "Groceries" },
+      { categoryId: "43", categoryName: "Transport" },
+    ]);
 
     expect(post).toHaveBeenCalledWith(
       "/spaces/77/statement-imports/category-suggestions",
@@ -116,7 +122,7 @@ describe("Statement Import categorization", () => {
   });
 
   it("treats an unavailable suggestion response as no suggestion", async () => {
-    const post = vi.fn(async () => ({ suggestion: null }));
+    const post = vi.fn(async () => ({ suggestions: [] }));
 
     await expect(
       getStatementCategorySuggestion(
@@ -125,6 +131,23 @@ describe("Statement Import categorization", () => {
         "Market purchase",
       ),
     ).resolves.toBeNull();
+  });
+
+  it("rejects Category Suggestion responses longer than three", async () => {
+    const post = vi.fn(async () => ({
+      suggestions: Array.from({ length: 4 }, (_, index) => ({
+        categoryId: String(index + 1),
+        categoryName: `Category ${index + 1}`,
+      })),
+    }));
+
+    await expect(
+      getStatementCategorySuggestion(
+        { post } as unknown as StatementImportApiClient,
+        "77",
+        "Market purchase",
+      ),
+    ).rejects.toThrow("The API returned an invalid Category Suggestion.");
   });
 
   it("normalizes descriptions and applies literal Contains Rules after Exact Rules", () => {

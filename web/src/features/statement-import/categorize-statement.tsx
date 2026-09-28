@@ -97,7 +97,7 @@ type CategorySuggestionResult =
   | {
       readonly requestKey: string;
       readonly status: "suggested";
-      readonly suggestion: CategorySuggestion;
+      readonly suggestions: readonly CategorySuggestion[];
     };
 
 interface CategorizeStatementProps {
@@ -221,11 +221,11 @@ function CategorizeStatement({
       .then((suggestion) => {
         if (!isCurrent) return;
         setCategorySuggestionResult(
-          suggestion
+          suggestion && suggestion.length > 0
             ? {
                 requestKey: categorySuggestionRequest.requestKey,
                 status: "suggested",
-                suggestion,
+                suggestions: suggestion,
               }
             : {
                 requestKey: categorySuggestionRequest.requestKey,
@@ -253,16 +253,19 @@ function CategorizeStatement({
       categorySuggestionRequest.requestKey
       ? categorySuggestionResult
       : null;
-  const currentCategorySuggestion =
+  const currentCategorySuggestions =
     currentCategorySuggestionResult &&
     currentCategorySuggestionResult.status === "suggested"
-      ? currentCategorySuggestionResult.suggestion
-      : null;
-  const suggestedCategory = currentCategorySuggestion
-    ? categoryOptions.find(
-        (option) => option.value === currentCategorySuggestion.categoryId,
-      )
-    : undefined;
+      ? currentCategorySuggestionResult.suggestions
+      : [];
+  const suggestedCategories = currentCategorySuggestions.flatMap(
+    (suggestion) => {
+      const category = categoryOptions.find(
+        (option) => option.value === suggestion.categoryId,
+      );
+      return category ? [category] : [];
+    },
+  );
   const categorySuggestionFeedback: CategorySuggestionFeedback =
     !categorySuggestionRequest
       ? null
@@ -272,7 +275,7 @@ function CategorizeStatement({
           ? "unavailable"
           : currentCategorySuggestionResult.status === "none" ||
               (currentCategorySuggestionResult.status === "suggested" &&
-                !suggestedCategory)
+                suggestedCategories.length === 0)
             ? "none"
             : null;
   const getCategoryLabelForTransaction = (categoryId: string) =>
@@ -963,7 +966,7 @@ function CategorizeStatement({
                         <TransactionEditRows
                           key={transaction.id}
                           categoryOptions={categoryOptions}
-                          suggestedCategory={suggestedCategory}
+                          suggestedCategories={suggestedCategories}
                           categorySuggestionFeedback={
                             categorySuggestionFeedback
                           }
@@ -1112,7 +1115,7 @@ function CategorizeStatement({
                 </DialogHeader>
                 <MobileTransactionEditor
                   categoryOptions={categoryOptions}
-                  suggestedCategory={suggestedCategory}
+                  suggestedCategories={suggestedCategories}
                   categorySuggestionFeedback={categorySuggestionFeedback}
                   transaction={editingTransaction}
                   draft={draft}
@@ -1230,7 +1233,7 @@ function getCategorySuggestionFeedbackText(
 
 interface TransactionEditRowsProps {
   categoryOptions: readonly CategoryColorOption[];
-  suggestedCategory?: CategoryColorOption;
+  suggestedCategories: readonly CategoryColorOption[];
   categorySuggestionFeedback: CategorySuggestionFeedback;
   transaction: CategorizedTransaction;
   draft: TransactionDraft;
@@ -1252,7 +1255,7 @@ interface TransactionEditRowsProps {
 interface TransactionDraftFieldsProps {
   readonly layout: "mobile" | "table";
   readonly categoryOptions: readonly CategoryColorOption[];
-  readonly suggestedCategory?: CategoryColorOption;
+  readonly suggestedCategories: readonly CategoryColorOption[];
   readonly categorySuggestionFeedback: CategorySuggestionFeedback;
   readonly transaction: CategorizedTransaction;
   readonly draft: TransactionDraft;
@@ -1266,7 +1269,7 @@ interface TransactionDraftFieldsProps {
 function TransactionDraftFields({
   layout,
   categoryOptions,
-  suggestedCategory,
+  suggestedCategories,
   categorySuggestionFeedback,
   transaction,
   draft,
@@ -1359,21 +1362,30 @@ function TransactionDraftFields({
       </SelectContent>
     </Select>
   );
-  const categorySuggestion = suggestedCategory ? (
-    <Button
-      type="button"
-      variant="outline"
-      size="sm"
-      className="h-auto min-h-8 whitespace-normal text-left"
-      disabled={isSaving}
-      onClick={() => onUseSuggestedCategory(suggestedCategory.value)}
+  const categorySuggestion = suggestedCategories.length > 0 ? (
+    <div
+      role="group"
+      aria-label="Category Suggestions"
+      className="flex flex-wrap items-start gap-1.5"
     >
-      <span
-        aria-hidden="true"
-        className={`size-2 shrink-0 ${getCategoryColorClass(suggestedCategory.color)}`}
-      />
-      Use suggested Category: {suggestedCategory.label}
-    </Button>
+      {suggestedCategories.map((suggestedCategory) => (
+        <Button
+          key={suggestedCategory.value}
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-auto min-h-10 whitespace-normal text-left"
+          disabled={isSaving}
+          onClick={() => onUseSuggestedCategory(suggestedCategory.value)}
+        >
+          <span
+            aria-hidden="true"
+            className={`size-2 shrink-0 ${getCategoryColorClass(suggestedCategory.color)}`}
+          />
+          Use suggested Category: {suggestedCategory.label}
+        </Button>
+      ))}
+    </div>
   ) : categorySuggestionFeedback ? (
     <p
       role="status"
@@ -1559,7 +1571,7 @@ function TransactionDraftError({
 
 function MobileTransactionEditor({
   categoryOptions,
-  suggestedCategory,
+  suggestedCategories,
   categorySuggestionFeedback,
   transaction,
   draft,
@@ -1586,7 +1598,7 @@ function MobileTransactionEditor({
         <TransactionDraftFields
           layout="mobile"
           categoryOptions={categoryOptions}
-          suggestedCategory={suggestedCategory}
+          suggestedCategories={suggestedCategories}
           categorySuggestionFeedback={categorySuggestionFeedback}
           transaction={transaction}
           draft={draft}
@@ -1635,7 +1647,7 @@ function MobileTransactionEditor({
 
 function TransactionEditRows({
   categoryOptions,
-  suggestedCategory,
+  suggestedCategories,
   categorySuggestionFeedback,
   transaction,
   draft,
@@ -1662,7 +1674,7 @@ function TransactionEditRows({
         <TransactionDraftFields
           layout="table"
           categoryOptions={categoryOptions}
-          suggestedCategory={suggestedCategory}
+          suggestedCategories={suggestedCategories}
           categorySuggestionFeedback={categorySuggestionFeedback}
           transaction={transaction}
           draft={draft}

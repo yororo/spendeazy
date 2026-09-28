@@ -595,7 +595,7 @@ describe('statement-import access through Space routes', () => {
     categorySuggestionsService = {
       suggestInSpace: jest
         .fn()
-        .mockResolvedValue({ categoryId: '42', categoryName: 'Groceries' }),
+        .mockResolvedValue([{ categoryId: '42', categoryName: 'Groceries' }]),
     };
     application = await createSpaceStatementImportApplication(
       statementImportsService,
@@ -714,7 +714,7 @@ describe('statement-import access through Space routes', () => {
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual({
-      suggestion: { categoryId: '42', categoryName: 'Groceries' },
+      suggestions: [{ categoryId: '42', categoryName: 'Groceries' }],
     });
     expect(spaceAccessService.requireWriteAccess).toHaveBeenCalledWith(
       '99',
@@ -727,7 +727,7 @@ describe('statement-import access through Space routes', () => {
   });
 
   it('keeps suggestions optional and rejects unsupported request fields', async () => {
-    categorySuggestionsService.suggestInSpace.mockResolvedValueOnce(null);
+    categorySuggestionsService.suggestInSpace.mockResolvedValueOnce([]);
     const noMatchResponse = await statementRequest(application)
       .post('/api/v1/users/me/spaces/77/statement-imports/category-suggestions')
       .set('Authorization', 'Bearer token-c')
@@ -740,7 +740,7 @@ describe('statement-import access through Space routes', () => {
       .send({ description: 'Market purchase', amount: '25.00' });
 
     expect(noMatchResponse.status).toBe(200);
-    expect(noMatchResponse.body).toEqual({ suggestion: null });
+    expect(noMatchResponse.body).toEqual({ suggestions: [] });
     expect(unsupportedFieldResponse.status).toBe(400);
     expect(categorySuggestionsService.suggestInSpace).toHaveBeenCalledTimes(1);
   });

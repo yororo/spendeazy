@@ -89,10 +89,12 @@ function CategorizeHarness({
     categoryOptions: [
       { value: "42", label: "Housing", color: "teal" },
       { value: "43", label: "Groceries", color: "forest" },
+      { value: "44", label: "Dining", color: "amber" },
     ],
     categoryLabels: [
       { value: "42", label: "Housing", color: "teal", isActive: true },
       { value: "43", label: "Groceries", color: "forest", isActive: true },
+      { value: "44", label: "Dining", color: "amber", isActive: true },
     ],
     onRememberCategoryRule,
     onCommitStatementImport: async () => ({
@@ -128,10 +130,12 @@ function CategorizeHarness({
       categoryOptions={[
         { value: "42", label: "Housing", color: "teal" },
         { value: "43", label: "Groceries", color: "forest" },
+        { value: "44", label: "Dining", color: "amber" },
       ]}
       categoryLabels={[
         { value: "42", label: "Housing", color: "teal", isActive: true },
         { value: "43", label: "Groceries", color: "forest", isActive: true },
+        { value: "44", label: "Dining", color: "amber", isActive: true },
       ]}
       currentCategoryRules={categoryRules}
       getCategorySuggestion={getCategorySuggestion}
@@ -154,10 +158,9 @@ function getDesktopTable() {
 
 describe("CategorizeStatement ambiguity handling", () => {
   it("uses a mobile Category Suggestion as an unsaved draft until Save", async () => {
-    const getCategorySuggestion = vi.fn(async () => ({
-      categoryId: "43",
-      categoryName: "Groceries",
-    }));
+    const getCategorySuggestion = vi.fn(async () => [
+      { categoryId: "43", categoryName: "Groceries" },
+    ]);
     const rememberCategoryRule = vi.fn(async () => ({
       status: "created" as const,
       rule: {
@@ -229,11 +232,12 @@ describe("CategorizeStatement ambiguity handling", () => {
     expect(rememberCategoryRule).not.toHaveBeenCalled();
   });
 
-  it("shows one Category Suggestion in the desktop editor and keeps the full selector available", async () => {
-    const getCategorySuggestion = vi.fn(async () => ({
-      categoryId: "42",
-      categoryName: "Housing",
-    }));
+  it("shows ordered Category Suggestions in the desktop editor and keeps the full selector available", async () => {
+    const getCategorySuggestion = vi.fn(async () => [
+      { categoryId: "42", categoryName: "Housing" },
+      { categoryId: "43", categoryName: "Groceries" },
+      { categoryId: "44", categoryName: "Dining" },
+    ]);
     render(
       <CategorizeHarness
         initialTransactions={[unmappedTransaction]}
@@ -251,6 +255,21 @@ describe("CategorizeStatement ambiguity handling", () => {
     const suggestion = await within(transactionTable).findByRole("button", {
       name: "Use suggested Category: Housing",
     });
+    const suggestionGroup = within(transactionTable).getByRole("group", {
+      name: "Category Suggestions",
+    });
+    expect(
+      within(suggestionGroup).getAllByRole("button", {
+        name: /^Use suggested Category:/,
+      }),
+    ).toHaveLength(3);
+    expect(
+      within(suggestionGroup).getAllByRole("button").map((button) => button.textContent),
+    ).toEqual([
+      expect.stringContaining("Housing"),
+      expect.stringContaining("Groceries"),
+      expect.stringContaining("Dining"),
+    ]);
     expect(
       within(transactionTable).getByRole("combobox", {
         name: "Category for Green Market Cafe",
@@ -353,10 +372,9 @@ describe("CategorizeStatement ambiguity handling", () => {
   });
 
   it("does not request suggestions for an Ambiguous Category Match", () => {
-    const getCategorySuggestion = vi.fn(async () => ({
-      categoryId: "42",
-      categoryName: "Housing",
-    }));
+    const getCategorySuggestion = vi.fn(async () => [
+      { categoryId: "42", categoryName: "Housing" },
+    ]);
     render(<CategorizeHarness getCategorySuggestion={getCategorySuggestion} />);
 
     const mobileList = screen.getByRole("list", {

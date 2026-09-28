@@ -23,10 +23,12 @@ test("does not commit a Category Suggestion selected only in the unsaved editor"
   page,
   request,
 }) => {
-  const apiBaseUrl = requireEnvironment("SPENDEAZY_E2E_API_BASE_URL");
-  const userToken = await switchToNewUser(page);
-  const spaceId = await getPersonalSpaceId(request, apiBaseUrl, userToken);
-  const spaceContext = { request, apiBaseUrl, token: userToken, spaceId };
+  const spaceContext = await createFreshUserSpaceContext(
+    page,
+    request,
+    requireEnvironment("SPENDEAZY_E2E_API_BASE_URL"),
+  );
+  const { apiBaseUrl, token: userToken, spaceId } = spaceContext;
   const suggestedCategoryId = await createCategory(
     spaceContext,
     suggestedCategoryName,
@@ -153,10 +155,12 @@ test("commits saved Category Suggestions through Statement Import with Space iso
   request,
   browser,
 }) => {
-  const apiBaseUrl = requireEnvironment("SPENDEAZY_E2E_API_BASE_URL");
-  const userToken = await switchToNewUser(page);
-  const spaceId = await getPersonalSpaceId(request, apiBaseUrl, userToken);
-  const spaceContext = { request, apiBaseUrl, token: userToken, spaceId };
+  const spaceContext = await createFreshUserSpaceContext(
+    page,
+    request,
+    requireEnvironment("SPENDEAZY_E2E_API_BASE_URL"),
+  );
+  const { apiBaseUrl, token: userToken, spaceId } = spaceContext;
   const suggestedCategoryId = await createCategory(
     spaceContext,
     suggestedCategoryName,
@@ -260,7 +264,7 @@ test("commits saved Category Suggestions through Statement Import with Space iso
       return;
     }
 
-    const body = browserRequest.postDataJSON() as { description?: unknown };
+    const body = readRecord(browserRequest.postDataJSON(), "suggestion request");
     if (typeof body.description === "string") {
       suggestionRequests.push(body.description);
     }
@@ -570,10 +574,7 @@ async function switchToNewUser(page: Page): Promise<string> {
     .getByRole("button", { name: "New User" })
     .click();
   const response = await sessionResponse;
-  const sessionBody = (await response.json()) as { token?: unknown };
-  if (typeof sessionBody.token !== "string") {
-    throw new Error("The local test session response did not include a token.");
-  }
+  const token = requiredString(await response.json(), "token");
 
   await expect(page.getByTestId("local-test-active-user")).toContainText(
     "Fresh Local User",
@@ -581,7 +582,7 @@ async function switchToNewUser(page: Page): Promise<string> {
   await expect(
     page.getByRole("heading", { name: "Budget overview" }),
   ).toBeVisible();
-  return sessionBody.token;
+  return token;
 }
 
 async function getPersonalSpaceId(
@@ -598,6 +599,16 @@ async function getPersonalSpaceId(
     (space) => space.kind === "personal" && space.status === "active",
   );
   return requiredString(personalSpace, "id");
+}
+
+async function createFreshUserSpaceContext(
+  page: Page,
+  request: APIRequestContext,
+  apiBaseUrl: string,
+): Promise<AuthenticatedSpaceContext> {
+  const token = await switchToNewUser(page);
+  const spaceId = await getPersonalSpaceId(request, apiBaseUrl, token);
+  return { request, apiBaseUrl, token, spaceId };
 }
 
 interface AuthenticatedSpaceContext {
@@ -646,33 +657,34 @@ async function expectCategorySuggestionContract(
 ): Promise<void> {
   const response = await request.get(`${apiBaseUrl}/docs-json`);
   expect(response.status()).toBe(200);
-  const document = (await response.json()) as {
-    paths?: Record<string, { post?: OpenApiOperation }>;
-  };
-  const operation = document.paths?.[suggestionPath]?.post;
-  expect(operation?.operationId).toBe("SpaceStatementImports_suggestCategory");
-  expect(
-    operation?.requestBody?.content?.["application/json"]?.schema?.$ref,
-  ).toBe("#/components/schemas/StatementCategorySuggestionRequestDto");
-  expect(
-    operation?.responses?.["200"]?.content?.["application/json"]?.schema?.$ref,
-  ).toBe("#/components/schemas/StatementCategorySuggestionResponseDto");
-}
+  const document = readRecord(await response.json(), "OpenAPI document");
+  const paths = readRecord(document.paths, "OpenAPI paths");
+  const path = readRecord(paths[suggestionPath], "category suggestion path");
+  const operation = readRecord(path.post, "category suggestion operation");
+  expect(operation.operationId).toBe("SpaceStatementImports_suggestCategory");
 
-interface OpenApiOperation {
-  readonly operationId?: string;
-  readonly requestBody?: {
-    readonly content?: Readonly<Record<string, OpenApiMediaType>>;
-  };
-  readonly responses?: Readonly<Record<string, OpenApiResponse>>;
-}
+  const requestBody = readRecord(operation.requestBody, "request body");
+  const requestContent = readRecord(requestBody.content, "request content");
+  const requestJson = readRecord(
+    requestContent["application/json"],
+    "JSON request content",
+  );
+  const requestSchema = readRecord(requestJson.schema, "request schema");
+  expect(requestSchema.$ref).toBe(
+    "#/components/schemas/StatementCategorySuggestionRequestDto",
+  );
 
-interface OpenApiResponse {
-  readonly content?: Readonly<Record<string, OpenApiMediaType>>;
-}
-
-interface OpenApiMediaType {
-  readonly schema?: { readonly $ref?: string };
+  const responses = readRecord(operation.responses, "operation responses");
+  const successResponse = readRecord(responses["200"], "200 response");
+  const responseContent = readRecord(successResponse.content, "response content");
+  const responseJson = readRecord(
+    responseContent["application/json"],
+    "JSON response content",
+  );
+  const responseSchema = readRecord(responseJson.schema, "response schema");
+  expect(responseSchema.$ref).toBe(
+    "#/components/schemas/StatementCategorySuggestionResponseDto",
+  );
 }
 
 async function uploadStatement(
@@ -808,6 +820,14 @@ function readObjectsField(
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function readRecord(value: unknown, description: string): Record<string, unknown> {
+  if (!isRecord(value)) {
+    throw new Error(`Expected ${description} to be a JSON object`);
+  }
+
+  return value;
 }
 
 function requiredString(value: unknown, field: string): string {

@@ -104,6 +104,10 @@ _Avoid_: Deleted Category, archived Category
 The strength of an automatically assigned Category match, expressed from 0 to 1. Unmapped and manually categorized Transactions have no confidence.
 _Avoid_: Match percentage, categorization score
 
+**Category Suggestion**:
+One of up to three proposed Categories shown for an Unmapped Transaction during Statement Import. It does not assign a Category; a User's selection becomes a Manual assignment.
+_Avoid_: Automatic Category, AI assignment
+
 **Category Rule**:
 A persistent association between a description pattern and a Category, using either Exact or Contains matching during future Statement Imports. Matching ignores case and normalizes whitespace; rules for Inactive Categories do not participate.
 _Avoid_: Category mapping, remembered mapping

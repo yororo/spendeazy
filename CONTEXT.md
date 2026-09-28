@@ -52,6 +52,14 @@ _Avoid_: Parsed statement, upload
 A financial account statement whose provider and account format Spendeazy recognizes and whose extracted activity can be reconciled against the statement's control totals.
 _Avoid_: Compatible PDF, accepted statement
 
+**Statement Type**:
+The kind of Supported Statement being imported: Credit Card or E-Wallet. It is distinct from the statement's provider and the Account through which a Transaction was made.
+_Avoid_: Provider, Account Type
+
+**Transaction History Period**:
+The inclusive date range covered by an E-Wallet statement's transaction history.
+_Avoid_: Statement Date
+
 **Upload**:
 The Statement Import stage in which a statement file is selected and processed.
 _Avoid_: Import, ingest

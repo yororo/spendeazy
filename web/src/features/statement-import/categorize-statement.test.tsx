@@ -58,6 +58,18 @@ const unmappedTransaction: CategorizedTransaction = {
   matchedCategoryIds: [],
 };
 
+const noSuggestionTransaction: CategorizedTransaction = {
+  ...unmappedTransaction,
+  id: "transaction-no-suggestions",
+  description: "No suggestion Cafe",
+};
+
+async function getSuggestionsForGreenMarket(description: string) {
+  return description === "Green Market Cafe"
+    ? [{ categoryId: "43", categoryName: "Groceries" }]
+    : null;
+}
+
 const categoryRules: readonly CategoryRule[] = [
   { id: "1", categoryId: "42", pattern: "Green", matchType: "contains" },
   { id: "2", categoryId: "43", pattern: "Market", matchType: "contains" },
@@ -574,16 +586,7 @@ describe("CategorizeStatement ambiguity handling", () => {
   });
 
   it("shows the mobile Suggestions available cue only for included Unmapped rows with suggestions", async () => {
-    const getCategorySuggestion = vi.fn(async (description: string) =>
-      description === "Green Market Cafe"
-        ? [{ categoryId: "43", categoryName: "Groceries" }]
-        : null,
-    );
-    const noSuggestionTransaction = {
-      ...unmappedTransaction,
-      id: "transaction-no-suggestions",
-      description: "No suggestion Cafe",
-    };
+    const getCategorySuggestion = vi.fn(getSuggestionsForGreenMarket);
     const excludedTransaction = {
       ...unmappedTransaction,
       id: "transaction-excluded",
@@ -639,16 +642,7 @@ describe("CategorizeStatement ambiguity handling", () => {
   });
 
   it("shows an accessible desktop Suggestions available cue that opens the Category editor", async () => {
-    const getCategorySuggestion = vi.fn(async (description: string) =>
-      description === "Green Market Cafe"
-        ? [{ categoryId: "43", categoryName: "Groceries" }]
-        : null,
-    );
-    const noSuggestionTransaction = {
-      ...unmappedTransaction,
-      id: "transaction-no-suggestions",
-      description: "No suggestion Cafe",
-    };
+    const getCategorySuggestion = vi.fn(getSuggestionsForGreenMarket);
     render(
       <CategorizeHarness
         initialTransactions={[unmappedTransaction, noSuggestionTransaction]}
@@ -669,6 +663,10 @@ describe("CategorizeStatement ambiguity handling", () => {
 
     fireEvent.click(cue);
 
+    const dateInput = within(transactionTable).getByLabelText(
+      "Date for Green Market Cafe",
+    );
+    expect(document.activeElement).toBe(dateInput);
     const suggestionGroup = await within(transactionTable).findByRole("group", {
       name: "Category Suggestions",
     });

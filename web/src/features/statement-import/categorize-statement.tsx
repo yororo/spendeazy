@@ -1293,6 +1293,7 @@ function TransactionDraftFields({
     <DateInput
       id={idPrefix ? `${idPrefix}-date` : undefined}
       value={draft.date}
+      autoFocus={layout === "table"}
       disabled={isSaving}
       onChange={(event) =>
         onDraftChange({ ...draft, date: event.target.value })

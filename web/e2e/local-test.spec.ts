@@ -1,6 +1,10 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 
-import { requireEnvironment } from "./test-helpers";
+import {
+  authorizationHeaders,
+  createNewLocalTestUser,
+  requireEnvironment,
+} from "./test-helpers";
 
 const testClock =
   process.env.SPENDEAZY_E2E_TEST_CLOCK ?? "2026-09-19T12:00:00.000Z";
@@ -1170,7 +1174,7 @@ test("completes the Invite Code journey between two fresh signed-in Users", asyn
 
   try {
     await page.goto("/sharing");
-    const senderToken = await switchToNewUser(page);
+    const senderToken = await createNewLocalTestUser(page);
     const senderName = (
       await page.getByTestId("local-test-active-user").textContent()
     )?.trim();
@@ -1198,7 +1202,7 @@ test("completes the Invite Code journey between two fresh signed-in Users", asyn
 
     await recipientPage.clock.install({ time: testClock });
     await recipientPage.goto("/sharing");
-    const recipientToken = await switchToNewUser(recipientPage);
+    const recipientToken = await createNewLocalTestUser(recipientPage);
     await expect(
       recipientPage.getByTestId("local-test-active-user"),
     ).toContainText("Fresh Local User");
@@ -1275,7 +1279,7 @@ test(
   "offers an Invite Code to a User without an active Shared Space",
   async ({ page }) => {
     await page.goto("/sharing");
-    await switchToNewUser(page);
+    await createNewLocalTestUser(page);
     await expect(
       page.getByRole("heading", {
         name: "Create a Shared Space Invite Code",
@@ -1346,21 +1350,6 @@ async function createSharedSpace(
   );
   expect(acceptance.status).toBe(200);
   return readStringId(acceptance.body);
-}
-
-async function switchToNewUser(page: Page): Promise<string> {
-  const sessionResponse = page.waitForResponse(
-    (response) =>
-      response.url().endsWith("/api/v1/users/me/local-test/sessions") &&
-      response.request().method() === "POST" &&
-      response.status() === 201,
-  );
-  await page
-    .getByTestId("local-test-panel")
-    .getByRole("button", { name: "New User" })
-    .click();
-
-  return readSessionToken(await (await sessionResponse).json());
 }
 
 interface BrowserApiResponse {
@@ -1536,10 +1525,6 @@ async function createTransactionWithRequest(
       categoryId: null,
     },
   });
-}
-
-function authorizationHeaders(token: string): Record<string, string> {
-  return { Authorization: `Bearer ${token}`, Accept: "application/json" };
 }
 
 async function expectUnauthenticated(response: {

@@ -5,7 +5,11 @@ import {
   type Page,
 } from "@playwright/test";
 
-import { requireEnvironment } from "./test-helpers";
+import {
+  authorizationHeaders,
+  createNewLocalTestUser,
+  requireEnvironment,
+} from "./test-helpers";
 
 const testClock =
   process.env.SPENDEAZY_E2E_TEST_CLOCK ?? "2026-09-19T12:00:00.000Z";
@@ -557,18 +561,7 @@ test("commits saved Category Suggestions through Statement Import with Space iso
 
 async function switchToNewUser(page: Page): Promise<string> {
   await page.goto("/categories");
-  const sessionResponse = page.waitForResponse(
-    (response) =>
-      response.url().endsWith("/api/v1/users/me/local-test/sessions") &&
-      response.request().method() === "POST" &&
-      response.status() === 201,
-  );
-  await page
-    .getByTestId("local-test-panel")
-    .getByRole("button", { name: "New User" })
-    .click();
-  const response = await sessionResponse;
-  const token = requiredString(await response.json(), "token");
+  const token = await createNewLocalTestUser(page);
 
   await expect(page.getByTestId("local-test-active-user")).toContainText(
     "Fresh Local User",
@@ -830,8 +823,4 @@ function requiredString(value: unknown, field: string): string {
   }
 
   return value[field];
-}
-
-function authorizationHeaders(token: string): Record<string, string> {
-  return { Authorization: `Bearer ${token}`, Accept: "application/json" };
 }

@@ -109,6 +109,39 @@ describe('StatementCategorySuggestionsService', () => {
     ).toBe(16);
   });
 
+  it('ranks rare merchant words ahead of common purchase terms', async () => {
+    const manyCategories = Array.from({ length: 17 }, (_, index) => ({
+      id: String(100 + index),
+      name: `Category ${index}`,
+      description: null,
+    }));
+    const examples = manyCategories.map(({ id }, index) => ({
+      categoryId: id,
+      description: index === 16 ? 'Metro cafe' : `Online purchase ${index}`,
+    }));
+    const suggestCategory = createSuggestCategoryEvaluator();
+    const service = new StatementCategorySuggestionsService(
+      {
+        findSuggestionCatalogInSpace: jest.fn().mockResolvedValue({
+          categories: manyCategories,
+          examples,
+        }),
+        findActiveCategoryInSpace: jest.fn().mockResolvedValue(null),
+      },
+      { suggestCategory },
+    );
+
+    await service.suggestInSpace('7', 'Metro purchase');
+
+    const sentExamples = suggestCategory.mock.calls[0]?.[2] as
+      readonly { categoryId: string; description: string }[] | undefined;
+    expect(sentExamples).toHaveLength(16);
+    expect(sentExamples?.[0]).toEqual({
+      categoryId: '116',
+      description: 'Metro cafe',
+    });
+  });
+
   it.each(['none_of_the_above', '999'])(
     'returns no suggestion when the evaluator selects %s',
     async (selectedId) => {

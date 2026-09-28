@@ -2,14 +2,16 @@ import { Injectable } from '@nestjs/common';
 import { InjectEntityManager } from '@nestjs/typeorm';
 import type { EntityManager } from 'typeorm';
 import { CategoryEntity } from '../../database/entities/category.entity';
-import { TransactionEntity } from '../../database/entities/transaction.entity';
 import type {
   CategorySuggestionCatalog,
   CategorySuggestionCandidate,
   CategorySuggestionExample,
   CategorySuggestionCatalogStore,
 } from '../application/statement-category-suggestions';
-import { MAX_SUGGESTIBLE_ACTIVE_CATEGORIES } from '../application/statement-category-suggestions';
+import {
+  MAX_CATEGORY_SUGGESTION_HISTORY_PER_CATEGORY,
+  MAX_SUGGESTIBLE_ACTIVE_CATEGORIES,
+} from '../application/statement-category-suggestions';
 
 @Injectable()
 export class TypeOrmStatementCategorySuggestionCatalog implements CategorySuggestionCatalogStore {
@@ -38,39 +40,39 @@ export class TypeOrmStatementCategorySuggestionCatalog implements CategorySugges
       return { categories: activeCategories, examples: [] };
     }
 
-    const examples = await this.entityManager
-      .getRepository(TransactionEntity)
-      .createQueryBuilder('transaction')
-      .distinctOn(['transaction.categoryId'])
-      .innerJoin(
-        CategoryEntity,
-        'category',
-        'category.id = transaction.categoryId AND category.spaceId = transaction.spaceId AND category.isActive = :isActive',
-        { isActive: true },
-      )
-      .select('transaction.categoryId', 'categoryId')
-      .addSelect('transaction.description', 'description')
-      .addSelect('transaction.purchaseDate', 'purchaseDate')
-      .addSelect('transaction.id', 'transactionId')
-      .where('transaction.spaceId = :spaceId', { spaceId })
-      .andWhere('transaction.deletedAt IS NULL')
-      .orderBy('transaction.categoryId', 'ASC')
-      .addOrderBy('transaction.purchaseDate', 'DESC')
-      .addOrderBy('transaction.id', 'DESC')
-      .limit(activeCategories.length)
-      .getRawMany<
-        CategorySuggestionExample & {
-          purchaseDate: string;
-          transactionId: string;
-        }
-      >();
+    const queryResult: unknown = await this.entityManager.query(
+      `
+        SELECT history.category_id AS "categoryId", history.description
+        FROM categories AS category
+        CROSS JOIN LATERAL (
+          SELECT
+            transaction.category_id,
+            transaction.description,
+            transaction.purchase_date,
+            transaction.id
+          FROM transactions AS transaction
+          WHERE transaction.space_id = category.space_id
+            AND transaction.category_id = category.id
+            AND transaction.deleted_at IS NULL
+          ORDER BY transaction.purchase_date DESC, transaction.id DESC
+          LIMIT $3
+        ) AS history
+        WHERE category.space_id = $1
+          AND category.is_active = TRUE
+          AND category.id = ANY($2::bigint[])
+        ORDER BY category.id ASC, history.purchase_date DESC, history.id DESC
+      `,
+      [
+        spaceId,
+        activeCategories.map(({ id }) => id),
+        MAX_CATEGORY_SUGGESTION_HISTORY_PER_CATEGORY,
+      ],
+    );
+    const examples = queryResult as CategorySuggestionExample[];
 
     return {
       categories: activeCategories,
-      examples: examples.map(({ categoryId, description }) => ({
-        categoryId,
-        description,
-      })),
+      examples,
     };
   }
 

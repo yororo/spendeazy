@@ -9,6 +9,7 @@ export const TYPE_SAFE_CHOICE_MAX_OPTIONS = 255;
 export const MAX_SUGGESTIBLE_ACTIVE_CATEGORIES =
   TYPE_SAFE_CHOICE_MAX_OPTIONS - 1;
 export const MAX_CATEGORY_SUGGESTION_EXAMPLES = 16;
+export const MAX_CATEGORY_SUGGESTION_HISTORY_PER_CATEGORY = 4;
 
 export interface CategorySuggestionCandidate {
   readonly id: string;

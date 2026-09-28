@@ -1,6 +1,5 @@
 import type { EntityManager, Repository } from 'typeorm';
 import { CategoryEntity } from '../../database/entities/category.entity';
-import { TransactionEntity } from '../../database/entities/transaction.entity';
 import { TypeOrmStatementCategorySuggestionCatalog } from './typeorm-statement-category-suggestion-catalog';
 
 describe('TypeOrmStatementCategorySuggestionCatalog', () => {
@@ -11,28 +10,14 @@ describe('TypeOrmStatementCategorySuggestionCatalog', () => {
       find,
     } as unknown as Repository<CategoryEntity>;
     const examples = [{ categoryId: '42', description: 'Metro Market North' }];
-    const getRawMany = jest.fn().mockResolvedValue(examples);
-    const queryBuilder = {
-      distinctOn: jest.fn().mockReturnThis(),
-      innerJoin: jest.fn().mockReturnThis(),
-      select: jest.fn().mockReturnThis(),
-      addSelect: jest.fn().mockReturnThis(),
-      where: jest.fn().mockReturnThis(),
-      andWhere: jest.fn().mockReturnThis(),
-      orderBy: jest.fn().mockReturnThis(),
-      addOrderBy: jest.fn().mockReturnThis(),
-      limit: jest.fn().mockReturnThis(),
-      getRawMany,
-    };
-    const transactionRepository = {
-      createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
-    } as unknown as Repository<TransactionEntity>;
-    const getRepository = jest
-      .fn()
-      .mockReturnValueOnce(categoryRepository)
-      .mockReturnValueOnce(transactionRepository);
+    type EntityManagerQuery = EntityManager['query'];
+    const query = jest
+      .fn<ReturnType<EntityManagerQuery>, Parameters<EntityManagerQuery>>()
+      .mockResolvedValue(examples);
+    const getRepository = jest.fn().mockReturnValue(categoryRepository);
     const entityManager = {
       getRepository,
+      query,
     } as unknown as EntityManager;
     const catalog = new TypeOrmStatementCategorySuggestionCatalog(
       entityManager,
@@ -50,44 +35,42 @@ describe('TypeOrmStatementCategorySuggestionCatalog', () => {
     });
 
     expect(getRepository).toHaveBeenNthCalledWith(1, CategoryEntity);
-    expect(getRepository).toHaveBeenNthCalledWith(2, TransactionEntity);
     expect(find).toHaveBeenCalledWith({
       select: { id: true, name: true, description: true },
       where: { spaceId: '7', isActive: true },
       order: { id: 'ASC' },
       take: 255,
     });
-    expect(queryBuilder.distinctOn).toHaveBeenCalledWith([
-      'transaction.categoryId',
-    ]);
-    expect(queryBuilder.innerJoin).toHaveBeenCalledWith(
-      CategoryEntity,
-      'category',
-      'category.id = transaction.categoryId AND category.spaceId = transaction.spaceId AND category.isActive = :isActive',
-      { isActive: true },
+    expect(query).toHaveBeenCalledWith(
+      expect.stringContaining('CROSS JOIN LATERAL'),
+      ['7', ['42'], 4],
     );
-    expect(queryBuilder.where).toHaveBeenCalledWith(
-      'transaction.spaceId = :spaceId',
-      { spaceId: '7' },
+    const [sql] = query.mock.calls[0] as [string, unknown[]];
+    expect(sql).toContain('transaction.space_id = category.space_id');
+    expect(sql).toContain('category.is_active = TRUE');
+    expect(sql).toContain('transaction.deleted_at IS NULL');
+    expect(sql).toContain('LIMIT $3');
+    expect(sql).toContain('category.id = ANY($2::bigint[])');
+    expect(sql).toContain(
+      'ORDER BY category.id ASC, history.purchase_date DESC, history.id DESC',
     );
-    expect(queryBuilder.andWhere).toHaveBeenCalledWith(
-      'transaction.deletedAt IS NULL',
-    );
-    expect(queryBuilder.orderBy).toHaveBeenCalledWith(
-      'transaction.categoryId',
-      'ASC',
-    );
-    expect(queryBuilder.addOrderBy).toHaveBeenNthCalledWith(
-      1,
-      'transaction.purchaseDate',
-      'DESC',
-    );
-    expect(queryBuilder.addOrderBy).toHaveBeenNthCalledWith(
-      2,
-      'transaction.id',
-      'DESC',
-    );
-    expect(queryBuilder.limit).toHaveBeenCalledWith(1);
+  });
+
+  it('does not query Transaction history when there are no active Categories', async () => {
+    const categoryRepository = {
+      find: jest.fn().mockResolvedValue([]),
+    } as unknown as Repository<CategoryEntity>;
+    const query = jest.fn();
+    const catalog = new TypeOrmStatementCategorySuggestionCatalog({
+      getRepository: jest.fn().mockReturnValue(categoryRepository),
+      query,
+    } as unknown as EntityManager);
+
+    await expect(catalog.findSuggestionCatalogInSpace('7')).resolves.toEqual({
+      categories: [],
+      examples: [],
+    });
+    expect(query).not.toHaveBeenCalled();
   });
 
   it('revalidates that a selected Category remains active in the same Space', async () => {

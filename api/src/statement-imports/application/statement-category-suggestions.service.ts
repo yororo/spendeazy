@@ -11,6 +11,8 @@ import {
   type CategorySuggestionEvaluator,
 } from './statement-category-suggestions';
 
+const MINIMUM_RELEVANT_TOKEN_LENGTH = 2;
+
 @Injectable()
 export class StatementCategorySuggestionsService {
   constructor(
@@ -27,6 +29,7 @@ export class StatementCategorySuggestionsService {
     const description = transactionDescription.trim();
     if (!description) return null;
 
+    const targetTokens = descriptionTokens(description);
     const catalog =
       await this.catalogStore.findSuggestionCatalogInSpace(spaceId);
     const { categories } = catalog;
@@ -42,7 +45,7 @@ export class StatementCategorySuggestionsService {
       selectedCategoryId = await this.evaluator.suggestCategory(
         description,
         categories,
-        selectRelevantExamples(description, catalog.examples, categories),
+        selectRelevantExamples(targetTokens, catalog.examples, categories),
       );
     } catch {
       return null;
@@ -69,28 +72,46 @@ export class StatementCategorySuggestionsService {
 }
 
 function selectRelevantExamples(
-  transactionDescription: string,
+  targetTokens: ReadonlySet<string>,
   examples: CategorySuggestionCatalog['examples'],
   categories: CategorySuggestionCatalog['categories'],
 ): CategorySuggestionCatalog['examples'] {
-  const targetTokens = descriptionTokens(transactionDescription);
   if (targetTokens.size === 0) return [];
 
   const activeCategoryIds = new Set(categories.map(({ id }) => id));
-  const rankedExamples = examples
+  const tokenizedExamples = examples
+    .filter((example) => activeCategoryIds.has(example.categoryId))
     .map((example, index) => ({
       example,
       index,
-      overlap: [...descriptionTokens(example.description)].filter((token) =>
-        targetTokens.has(token),
-      ).length,
+      tokens: descriptionTokens(example.description),
+    }));
+  const matchingTokenFrequencies = new Map<string, number>();
+  for (const { tokens } of tokenizedExamples) {
+    for (const token of tokens) {
+      if (!targetTokens.has(token)) continue;
+      matchingTokenFrequencies.set(
+        token,
+        (matchingTokenFrequencies.get(token) ?? 0) + 1,
+      );
+    }
+  }
+
+  const rankedExamples = tokenizedExamples
+    .map(({ example, index, tokens }) => ({
+      example,
+      index,
+      relevance: [...tokens].reduce((score, token) => {
+        if (!targetTokens.has(token)) return score;
+        // A rare shared word is a stronger merchant clue than a generic one.
+        const frequency = matchingTokenFrequencies.get(token);
+        return frequency ? score + 1 / frequency : score;
+      }, 0),
     }))
-    .filter(
-      ({ example, overlap }) =>
-        overlap > 0 && activeCategoryIds.has(example.categoryId),
-    )
+    .filter(({ relevance }) => relevance > 0)
     .sort(
-      (left, right) => right.overlap - left.overlap || left.index - right.index,
+      (left, right) =>
+        right.relevance - left.relevance || left.index - right.index,
     );
 
   const selected: CategorySuggestionCatalog['examples'][number][] = [];
@@ -109,6 +130,9 @@ function descriptionTokens(description: string): Set<string> {
   return new Set(
     normalizeMatchingText(description)
       .split(/[^\p{L}\p{N}]+/u)
-      .filter((token) => token.length > 1 && /\p{L}/u.test(token)),
+      .filter(
+        (token) =>
+          token.length >= MINIMUM_RELEVANT_TOKEN_LENGTH && /\p{L}/u.test(token),
+      ),
   );
 }

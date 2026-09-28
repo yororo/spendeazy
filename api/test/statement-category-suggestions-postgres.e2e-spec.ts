@@ -307,6 +307,43 @@ describeDatabase(
       expect(evaluation.mock.calls[3]?.[2]).toEqual([]);
     });
 
+    it('finds older matching history when a Category has a newer unrelated Transaction', async () => {
+      const category = await database.getRepository(CategoryEntity).save({
+        spaceId: sharedSpaceId,
+        name: 'Groceries',
+        description: null,
+        isActive: true,
+      });
+      await database
+        .getRepository(TransactionEntity)
+        .save([
+          transactionFixture(
+            sharedSpaceId,
+            userId,
+            category.id,
+            'Old Metro Market purchase',
+            '2026-09-01',
+          ),
+          transactionFixture(
+            sharedSpaceId,
+            userId,
+            category.id,
+            'New unrelated pharmacy purchase',
+            '2026-09-10',
+          ),
+        ]);
+
+      const evaluation = createSuggestionEvaluator().mockResolvedValue(null);
+      await createSuggestionsService(evaluation).suggestInSpace(
+        sharedSpaceId,
+        'Metro Market purchase',
+      );
+
+      expect(evaluation.mock.calls[0]?.[2]).toEqual([
+        { categoryId: category.id, description: 'Old Metro Market purchase' },
+      ]);
+    });
+
     it('does not use examples whose current Category is inactive', async () => {
       const [activeCategory, inactiveCategory] = await database
         .getRepository(CategoryEntity)

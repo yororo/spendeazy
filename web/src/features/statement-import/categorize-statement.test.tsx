@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -14,6 +15,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { CategorizeStatementAdapter } from "./statement-import-workflow-adapter";
 import { useStatementImportWorkflow } from "./use-statement-import-workflow";
 import type {
+  CategoryCatalogOption,
+  CategoryColorOption,
+  CategorySuggestion,
   CategorySuggestionFetcher,
   CategoryRule,
   RememberCategoryRuleInput,
@@ -68,12 +72,20 @@ interface CategorizeHarnessProps {
   readonly initialTransactions?: CategorizedTransaction[];
   readonly getCategorySuggestion?: CategorySuggestionFetcher;
   readonly onRememberCategoryRule?: RememberCategoryRuleHandler;
+  readonly onReview?: () => void;
+  readonly resetImport?: boolean;
+  readonly spaceId?: string;
+  readonly categoryDescription?: string;
   readonly statementSummary?: CategorizedStatement["summary"];
 }
 
 function CategorizeHarness({
   initialTransactions = [ambiguousTransaction],
   getCategorySuggestion = async () => null,
+  onReview,
+  resetImport = false,
+  spaceId = "77",
+  categoryDescription,
   onRememberCategoryRule = async () => ({
     status: "created" as const,
     rule: {
@@ -85,17 +97,19 @@ function CategorizeHarness({
   }),
   statementSummary = summary,
 }: CategorizeHarnessProps) {
+  const categoryOptions: CategoryColorOption[] = [
+    { value: "42", label: "Housing", color: "teal" },
+    { value: "43", label: "Groceries", color: "forest" },
+    { value: "44", label: "Dining", color: "amber" },
+  ];
+  const categoryLabels: CategoryCatalogOption[] = categoryOptions.map((category) => ({
+    ...category,
+    description: categoryDescription ?? null,
+    isActive: true,
+  }));
   const { workflow } = useStatementImportWorkflow({
-    categoryOptions: [
-      { value: "42", label: "Housing", color: "teal" },
-      { value: "43", label: "Groceries", color: "forest" },
-      { value: "44", label: "Dining", color: "amber" },
-    ],
-    categoryLabels: [
-      { value: "42", label: "Housing", color: "teal", isActive: true },
-      { value: "43", label: "Groceries", color: "forest", isActive: true },
-      { value: "44", label: "Dining", color: "amber", isActive: true },
-    ],
+    categoryOptions,
+    categoryLabels,
     onRememberCategoryRule,
     onCommitStatementImport: async () => ({
       id: "import-1",
@@ -124,31 +138,40 @@ function CategorizeHarness({
     );
   }, [workflow]);
 
+  useEffect(() => {
+    if (resetImport) workflow.backToUpload();
+  }, [resetImport, workflow]);
+
   return (
     <CategorizeStatementAdapter
       workflow={workflow}
-      categoryOptions={[
-        { value: "42", label: "Housing", color: "teal" },
-        { value: "43", label: "Groceries", color: "forest" },
-        { value: "44", label: "Dining", color: "amber" },
-      ]}
-      categoryLabels={[
-        { value: "42", label: "Housing", color: "teal", isActive: true },
-        { value: "43", label: "Groceries", color: "forest", isActive: true },
-        { value: "44", label: "Dining", color: "amber", isActive: true },
-      ]}
+      categoryOptions={categoryOptions}
+      categoryLabels={categoryLabels}
       currentCategoryRules={categoryRules}
       getCategorySuggestion={getCategorySuggestion}
-      spaceId="77"
+      spaceId={spaceId}
       fileName="statement.pdf"
       statementSummary={statementSummary}
       onBack={vi.fn()}
-      onReview={vi.fn()}
+      onReview={onReview ?? vi.fn()}
     />
   );
 }
 
-afterEach(() => cleanup());
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+});
+
+function createDeferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, resolve, reject };
+}
 
 function getDesktopTable() {
   return screen.getByRole("table", {
@@ -157,6 +180,324 @@ function getDesktopTable() {
 }
 
 describe("CategorizeStatement ambiguity handling", () => {
+  it("prepares suggestions in the background once per normalized description", async () => {
+    const getCategorySuggestion = vi.fn(() => new Promise<null>(() => {}));
+    render(
+      <CategorizeHarness
+        initialTransactions={[
+          unmappedTransaction,
+          {
+            ...unmappedTransaction,
+            id: "transaction-2",
+            description: "  GREEN   MARKET CAFE  ",
+          },
+        ]}
+        getCategorySuggestion={getCategorySuggestion}
+      />,
+    );
+
+    expect(
+      screen.getByRole("heading", { name: "Categorize and update" }),
+    ).toBeTruthy();
+    await waitFor(() => {
+      expect(getCategorySuggestion).toHaveBeenCalledTimes(1);
+    });
+    expect(getCategorySuggestion).toHaveBeenCalledWith(
+      "Green Market Cafe",
+      expect.any(AbortSignal),
+      "77",
+    );
+  });
+
+  it("keeps at most three Category Suggestion requests in flight", async () => {
+    const requests = new Map<
+      string,
+      ReturnType<typeof createDeferred<readonly CategorySuggestion[] | null>>
+    >();
+    const getCategorySuggestion = vi.fn((description: string) => {
+      const request = createDeferred<readonly CategorySuggestion[] | null>();
+      requests.set(description, request);
+      return request.promise;
+    });
+    render(
+      <CategorizeHarness
+        initialTransactions={[
+          "Market One",
+          "Market Two",
+          "Market Three",
+          "Market Four",
+        ].map((description, index) => ({
+          ...unmappedTransaction,
+          id: `transaction-${index + 1}`,
+          description,
+        }))}
+        getCategorySuggestion={getCategorySuggestion}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(getCategorySuggestion).toHaveBeenCalledTimes(3);
+    });
+    expect(requests.has("Market Four")).toBe(false);
+
+    await act(async () => {
+      requests.get("Market One")?.resolve(null);
+    });
+    await waitFor(() => {
+      expect(getCategorySuggestion).toHaveBeenCalledTimes(4);
+    });
+    expect(requests.has("Market Four")).toBe(true);
+  });
+
+  it("does not show a late result after the edited Transaction description changes", async () => {
+    const originalResult = createDeferred<readonly CategorySuggestion[] | null>();
+    const editedResult = createDeferred<readonly CategorySuggestion[] | null>();
+    const getCategorySuggestion = vi.fn((description: string) =>
+      description === "Green Market Cafe"
+        ? originalResult.promise
+        : editedResult.promise,
+    );
+    render(
+      <CategorizeHarness
+        initialTransactions={[unmappedTransaction]}
+        getCategorySuggestion={getCategorySuggestion}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(getCategorySuggestion).toHaveBeenCalledTimes(1);
+    });
+    const mobileList = screen.getByRole("list", {
+      name: "Transactions to categorize",
+    });
+    fireEvent.click(
+      within(mobileList).getByRole("button", {
+        name: "Edit Green Market Cafe",
+      }),
+    );
+    const editor = screen.getByRole("dialog", { name: "Edit Transaction" });
+    fireEvent.change(
+      within(editor).getByRole("textbox", {
+        name: "Description for Green Market Cafe",
+      }),
+      { target: { value: "Fresh Market" } },
+    );
+
+    await waitFor(() => {
+      expect(getCategorySuggestion).toHaveBeenCalledTimes(2);
+    });
+    await act(async () => {
+      originalResult.resolve([{ categoryId: "42", categoryName: "Housing" }]);
+    });
+    expect(
+      within(editor).queryByRole("button", {
+        name: "Use suggested Category: Housing",
+      }),
+    ).toBeNull();
+
+    await act(async () => {
+      editedResult.resolve([{ categoryId: "43", categoryName: "Groceries" }]);
+    });
+    expect(
+      await within(editor).findByRole("button", {
+        name: "Use suggested Category: Groceries",
+      }),
+    ).toBeTruthy();
+  });
+
+  it("discards suggestions when the destination Space or Category catalog changes", async () => {
+    const requests: Array<{
+      readonly spaceId: string;
+      readonly result: ReturnType<
+        typeof createDeferred<readonly CategorySuggestion[] | null>
+      >;
+    }> = [];
+    const getCategorySuggestion = vi.fn(
+      (_description: string, _signal: AbortSignal, spaceId: string) => {
+        const result = createDeferred<readonly CategorySuggestion[] | null>();
+        requests.push({ spaceId, result });
+        return result.promise;
+      },
+    );
+    const view = render(
+      <CategorizeHarness
+        initialTransactions={[unmappedTransaction]}
+        getCategorySuggestion={getCategorySuggestion}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(getCategorySuggestion).toHaveBeenCalledTimes(1);
+    });
+    const mobileList = screen.getByRole("list", {
+      name: "Transactions to categorize",
+    });
+    fireEvent.click(
+      within(mobileList).getByRole("button", {
+        name: "Edit Green Market Cafe",
+      }),
+    );
+    const editor = screen.getByRole("dialog", { name: "Edit Transaction" });
+
+    view.rerender(
+      <CategorizeHarness
+        initialTransactions={[unmappedTransaction]}
+        getCategorySuggestion={getCategorySuggestion}
+        spaceId="88"
+      />,
+    );
+    await waitFor(() => {
+      expect(getCategorySuggestion).toHaveBeenCalledTimes(2);
+    });
+    expect(requests.map(({ spaceId }) => spaceId)).toEqual(["77", "88"]);
+    await act(async () => {
+      requests[0]?.result.resolve([
+        { categoryId: "42", categoryName: "Housing" },
+      ]);
+    });
+    expect(
+      within(editor).queryByRole("button", {
+        name: "Use suggested Category: Housing",
+      }),
+    ).toBeNull();
+    await act(async () => {
+      requests[1]?.result.resolve([
+        { categoryId: "43", categoryName: "Groceries" },
+      ]);
+    });
+    expect(
+      await within(editor).findByRole("button", {
+        name: "Use suggested Category: Groceries",
+      }),
+    ).toBeTruthy();
+
+    view.rerender(
+      <CategorizeHarness
+        initialTransactions={[unmappedTransaction]}
+        getCategorySuggestion={getCategorySuggestion}
+        spaceId="88"
+        categoryDescription="Updated Category purpose"
+      />,
+    );
+    await waitFor(() => {
+      expect(getCategorySuggestion).toHaveBeenCalledTimes(3);
+    });
+    expect(
+      within(editor).queryByRole("button", {
+        name: "Use suggested Category: Groceries",
+      }),
+    ).toBeNull();
+    await act(async () => {
+      requests[2]?.result.resolve([
+        { categoryId: "44", categoryName: "Dining" },
+      ]);
+    });
+    expect(
+      await within(editor).findByRole("button", {
+        name: "Use suggested Category: Dining",
+      }),
+    ).toBeTruthy();
+  });
+
+  it("cancels obsolete suggestion work when a Transaction is excluded", async () => {
+    const requests: Array<{
+      readonly signal: AbortSignal;
+      readonly result: ReturnType<
+        typeof createDeferred<readonly CategorySuggestion[] | null>
+      >;
+    }> = [];
+    const getCategorySuggestion = vi.fn(
+      (_description: string, signal: AbortSignal) => {
+        const result = createDeferred<readonly CategorySuggestion[] | null>();
+        requests.push({ signal, result });
+        return result.promise;
+      },
+    );
+    render(
+      <CategorizeHarness
+        initialTransactions={[unmappedTransaction]}
+        getCategorySuggestion={getCategorySuggestion}
+      />,
+    );
+    await waitFor(() => {
+      expect(getCategorySuggestion).toHaveBeenCalledTimes(1);
+    });
+
+    const mobileList = screen.getByRole("list", {
+      name: "Transactions to categorize",
+    });
+    fireEvent.click(
+      within(mobileList).getByRole("button", {
+        name: "Exclude Green Market Cafe",
+      }),
+    );
+    expect(requests[0]?.signal.aborted).toBe(true);
+    await act(async () => {
+      requests[0]?.result.resolve([
+        { categoryId: "42", categoryName: "Housing" },
+      ]);
+    });
+    expect(within(mobileList).getByText("Excluded")).toBeTruthy();
+
+    fireEvent.click(
+      within(mobileList).getByRole("button", {
+        name: "Include Green Market Cafe",
+      }),
+    );
+    await waitFor(() => {
+      expect(getCategorySuggestion).toHaveBeenCalledTimes(2);
+    });
+    fireEvent.click(
+      within(mobileList).getByRole("button", {
+        name: "Edit Green Market Cafe",
+      }),
+    );
+    const editor = screen.getByRole("dialog", { name: "Edit Transaction" });
+    expect(
+      within(editor).queryByRole("button", {
+        name: "Use suggested Category: Housing",
+      }),
+    ).toBeNull();
+    expect(within(editor).getByRole("status").textContent).toContain(
+      "Checking for a Category Suggestion",
+    );
+  });
+
+  it("cancels suggestion work when the Statement Import is reset", async () => {
+    const result = createDeferred<readonly CategorySuggestion[] | null>();
+    let requestSignal: AbortSignal | undefined;
+    const getCategorySuggestion = vi.fn(
+      (_description: string, signal: AbortSignal) => {
+        requestSignal = signal;
+        return result.promise;
+      },
+    );
+    const view = render(
+      <CategorizeHarness
+        initialTransactions={[unmappedTransaction]}
+        getCategorySuggestion={getCategorySuggestion}
+      />,
+    );
+    await waitFor(() => {
+      expect(getCategorySuggestion).toHaveBeenCalledTimes(1);
+    });
+
+    view.rerender(
+      <CategorizeHarness
+        initialTransactions={[unmappedTransaction]}
+        getCategorySuggestion={getCategorySuggestion}
+        resetImport
+      />,
+    );
+    expect(requestSignal?.aborted).toBe(true);
+    await act(async () => {
+      result.resolve([{ categoryId: "42", categoryName: "Housing" }]);
+    });
+    expect(
+      screen.queryByRole("heading", { name: "Categorize and update" }),
+    ).toBeNull();
+  });
+
   it("uses a mobile Category Suggestion as an unsaved draft until Save", async () => {
     const getCategorySuggestion = vi.fn(async () => [
       { categoryId: "43", categoryName: "Groceries" },
@@ -313,6 +654,41 @@ describe("CategorizeStatement ambiguity handling", () => {
     ).toBeTruthy();
   });
 
+  it("keeps the Category selector available after a suggestion request times out", async () => {
+    vi.useFakeTimers();
+    const getCategorySuggestion = vi.fn(() => new Promise<null>(() => {}));
+    render(
+      <CategorizeHarness
+        initialTransactions={[unmappedTransaction]}
+        getCategorySuggestion={getCategorySuggestion}
+      />,
+    );
+
+    const mobileList = screen.getByRole("list", {
+      name: "Transactions to categorize",
+    });
+    fireEvent.click(
+      within(mobileList).getByRole("button", {
+        name: "Edit Green Market Cafe",
+      }),
+    );
+    const editor = screen.getByRole("dialog", { name: "Edit Transaction" });
+    const feedback = within(editor).getByRole("status");
+    expect(feedback.textContent).toContain(
+      "Checking for a Category Suggestion",
+    );
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10_000);
+    });
+    expect(feedback.textContent).toContain("Category Suggestion unavailable");
+    expect(
+      within(editor).getByRole("combobox", {
+        name: "Category for Green Market Cafe",
+      }),
+    ).toBeTruthy();
+  });
+
   it("shows an empty state when the API has no supported Category", async () => {
     const getCategorySuggestion = vi.fn(async () => null);
     render(
@@ -345,10 +721,12 @@ describe("CategorizeStatement ambiguity handling", () => {
     const getCategorySuggestion = vi.fn(async () => {
       throw new Error("offline");
     });
+    const onReview = vi.fn();
     render(
       <CategorizeHarness
         initialTransactions={[unmappedTransaction]}
         getCategorySuggestion={getCategorySuggestion}
+        onReview={onReview}
       />,
     );
 
@@ -369,6 +747,20 @@ describe("CategorizeStatement ambiguity handling", () => {
         name: "Category for Green Market Cafe",
       }),
     ).toBeTruthy();
+    fireEvent.click(
+      within(editor).getByRole("combobox", {
+        name: "Category for Green Market Cafe",
+      }),
+    );
+    fireEvent.click(screen.getByRole("option", { name: "Groceries" }));
+    fireEvent.click(within(editor).getByRole("button", { name: "Save changes" }));
+
+    const reviewButton = screen.getByRole("button", {
+      name: "Review 1 Transactions",
+    });
+    await waitFor(() => expect(reviewButton).toHaveProperty("disabled", false));
+    fireEvent.click(reviewButton);
+    expect(onReview).toHaveBeenCalledTimes(1);
   });
 
   it("does not request suggestions for an Ambiguous Category Match", () => {

@@ -68,7 +68,6 @@ import {
   type CategoryCatalogOption,
   type CategoryColorOption,
   type CategoryRule,
-  type CategorySuggestion,
   type CategorySuggestionFetcher,
 } from "./statement-import-service";
 import {
@@ -86,19 +85,14 @@ import type {
   CategorizeEditorState,
   TransactionDraft,
 } from "./statement-import-workflow";
+import {
+  useStatementCategorySuggestions,
+  type CategorySuggestionState,
+} from "./use-statement-category-suggestions";
 
 type CategoryFilter = "all" | "unmapped" | string;
 type CategorySuggestionFeedback = "loading" | "none" | "unavailable" | null;
 const MOBILE_EDITOR_BREAKPOINT_PX = 768;
-
-type CategorySuggestionResult =
-  | { readonly requestKey: string; readonly status: "none" }
-  | { readonly requestKey: string; readonly status: "unavailable" }
-  | {
-      readonly requestKey: string;
-      readonly status: "suggested";
-      readonly suggestions: readonly CategorySuggestion[];
-    };
 
 interface CategorizeStatementProps {
   categoryOptions: readonly CategoryColorOption[];
@@ -157,8 +151,6 @@ function CategorizeStatement({
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
   const [sort, setSort] = useState("date-desc");
   const [mobileEditorOpen, setMobileEditorOpen] = useState(false);
-  const [categorySuggestionResult, setCategorySuggestionResult] =
-    useState<CategorySuggestionResult | null>(null);
   const {
     draft,
     draftError,
@@ -172,91 +164,37 @@ function CategorizeStatement({
   const editingTransaction = transactions.find(
     (transaction) => transaction.id === editingId,
   );
-  const activeCategoryIdsKey = categoryOptions
-    .map((option) => option.value)
-    .sort()
-    .join(",");
-  const categorySuggestionRequest = useMemo(() => {
-    if (
-      !getCategorySuggestion ||
-      !spaceId ||
-      !draft ||
-      !editingTransaction ||
-      editingTransaction.assignment !== "unmapped" ||
-      !isIncludedStatementTransaction(editingTransaction) ||
-      draft.category.trim().length > 0 ||
-      !draft.description.trim()
-    ) {
-      return null;
-    }
-
-    return {
-      description: draft.description,
+  const canRequestEditingSuggestion = Boolean(
+    getCategorySuggestion &&
+      spaceId &&
+      draft &&
+      editingTransaction?.assignment === "unmapped" &&
+      isIncludedStatementTransaction(editingTransaction) &&
+      draft.category.trim().length === 0 &&
+      draft.description.trim().length > 0,
+  );
+  const { results: categorySuggestionResults, isAvailable: suggestionsAvailable } =
+    useStatementCategorySuggestions({
+      transactions,
+      editingTransaction,
+      editingDescription: canRequestEditingSuggestion ? draft?.description ?? null : null,
+      categoryOptions,
+      categoryLabels,
       spaceId,
-      transactionId: editingTransaction.id,
-      requestKey: JSON.stringify([
-        spaceId,
-        editingTransaction.id,
-        draft.description,
-        activeCategoryIdsKey,
-      ]),
-    };
-  }, [
-    activeCategoryIdsKey,
-    draft,
-    editingTransaction,
-    getCategorySuggestion,
-    spaceId,
-  ]);
-  useEffect(() => {
-    if (!categorySuggestionRequest || !getCategorySuggestion) return;
-
-    const controller = new AbortController();
-    let isCurrent = true;
-    void getCategorySuggestion(
-      categorySuggestionRequest.description,
-      controller.signal,
-      categorySuggestionRequest.spaceId,
-    )
-      .then((suggestion) => {
-        if (!isCurrent) return;
-        setCategorySuggestionResult(
-          suggestion && suggestion.length > 0
-            ? {
-                requestKey: categorySuggestionRequest.requestKey,
-                status: "suggested",
-                suggestions: suggestion,
-              }
-            : {
-                requestKey: categorySuggestionRequest.requestKey,
-                status: "none",
-              },
-        );
-      })
-      .catch(() => {
-        // Suggestions are optional and do not block manual categorization.
-        if (!isCurrent) return;
-        setCategorySuggestionResult({
-          requestKey: categorySuggestionRequest.requestKey,
-          status: "unavailable",
-        });
-      });
-
-    return () => {
-      isCurrent = false;
-      controller.abort();
-    };
-  }, [categorySuggestionRequest, getCategorySuggestion]);
-  const currentCategorySuggestionResult =
-    categorySuggestionRequest &&
-    categorySuggestionResult?.requestKey ===
-      categorySuggestionRequest.requestKey
-      ? categorySuggestionResult
+      getCategorySuggestion,
+    });
+  const editingDescriptionKey = canRequestEditingSuggestion
+    ? normalizeDescription(draft?.description ?? "")
+    : "";
+  const categorySuggestionResult: CategorySuggestionState | null =
+    editingDescriptionKey && suggestionsAvailable
+      ? categorySuggestionResults.get(editingDescriptionKey) ?? {
+          status: "loading",
+        }
       : null;
   const currentCategorySuggestions =
-    currentCategorySuggestionResult &&
-    currentCategorySuggestionResult.status === "suggested"
-      ? currentCategorySuggestionResult.suggestions
+    categorySuggestionResult?.status === "suggested"
+      ? categorySuggestionResult.suggestions
       : [];
   const suggestedCategories = currentCategorySuggestions.flatMap(
     (suggestion) => {
@@ -267,14 +205,14 @@ function CategorizeStatement({
     },
   );
   const categorySuggestionFeedback: CategorySuggestionFeedback =
-    !categorySuggestionRequest
+    !categorySuggestionResult
       ? null
-      : !currentCategorySuggestionResult
+      : categorySuggestionResult.status === "loading"
         ? "loading"
-        : currentCategorySuggestionResult.status === "unavailable"
+        : categorySuggestionResult.status === "unavailable"
           ? "unavailable"
-          : currentCategorySuggestionResult.status === "none" ||
-              (currentCategorySuggestionResult.status === "suggested" &&
+          : categorySuggestionResult.status === "none" ||
+              (categorySuggestionResult.status === "suggested" &&
                 suggestedCategories.length === 0)
             ? "none"
             : null;
@@ -383,21 +321,18 @@ function CategorizeStatement({
 
   function beginDesktopEditing(transactionId: string) {
     if (onBeginEdit(transactionId)) {
-      setCategorySuggestionResult(null);
       setMobileEditorOpen(false);
     }
   }
 
   function beginMobileEditing(transactionId: string) {
     if (onBeginEdit(transactionId)) {
-      setCategorySuggestionResult(null);
       setMobileEditorOpen(true);
     }
   }
 
   function cancelEditing() {
     if (onCancelEdit()) {
-      setCategorySuggestionResult(null);
       setMobileEditorOpen(false);
     }
   }

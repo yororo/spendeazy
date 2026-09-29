@@ -1,5 +1,11 @@
 import { useId, useState } from "react";
 import { DateInput } from "@/components/ui/date-input";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -13,7 +19,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { FilterIcon, HistoryIcon, PencilIcon, SearchIcon, Trash2Icon } from "lucide-react";
+import { FilterIcon, HistoryIcon, MoreHorizontalIcon, PencilIcon, SearchIcon, Trash2Icon } from "lucide-react";
 import { CategoryBadge } from "@/shared/category";
 import { formatMoney } from "@/shared/money";
 import type { AccountOption } from "@/shared/account";
@@ -40,6 +46,14 @@ interface TransactionTableProps {
   categoryOptions?: readonly { id: string; label: string }[];
   accountOptions?: readonly AccountOption[];
   totalCount?: number;
+}
+
+interface TransactionActionsMenuProps {
+  readonly transaction: Transaction;
+  readonly onEdit?: (transaction: Transaction) => void;
+  readonly onDelete?: (transaction: Transaction) => void;
+  readonly onViewActivity?: (transaction: Transaction) => void;
+  readonly allowImportedDeletion: boolean;
 }
 
 function TransactionTable({
@@ -162,26 +176,38 @@ function TransactionTable({
             {visibleTransactions.map((transaction) => (
               <li key={transaction.id} className="space-y-3 px-4 py-4">
                 <div className="flex items-start justify-between gap-3">
-                  <p className="min-w-0 font-medium wrap-anywhere">
-                    {transaction.description}
-                  </p>
-                  {transaction.deletedAt !== undefined && (
-                    <p className="text-xs font-medium uppercase text-destructive">
-                      Deleted
+                  <div className="min-w-0 flex-1">
+                    <div className="flex min-h-8 items-center gap-2">
+                      <p className="text-label text-muted-foreground">Transaction</p>
+                      {transaction.deletedAt !== undefined && (
+                        <p className="text-label text-destructive">Deleted</p>
+                      )}
+                    </div>
+                    <p className="font-medium wrap-anywhere">
+                      {transaction.description}
                     </p>
+                    <CategoryBadge
+                      category={transaction.category}
+                      color={transaction.categoryColor ?? undefined}
+                      className="mt-1 min-w-0 whitespace-normal wrap-anywhere"
+                    >
+                      {transaction.categoryLabel}
+                    </CategoryBadge>
+                  </div>
+                  {hasActions && (
+                    <TransactionActionsMenu
+                      transaction={transaction}
+                      onEdit={onEdit}
+                      onDelete={onDelete}
+                      onViewActivity={onViewActivity}
+                      allowImportedDeletion={allowImportedDeletion}
+                    />
                   )}
-                  <p className="max-w-1/2 shrink-0 text-right font-mono text-sm font-semibold tabular-nums wrap-anywhere">
-                    {formatMoney(transaction.amount)}
-                  </p>
                 </div>
                 <div className="flex items-end justify-between gap-3 text-xs text-muted-foreground">
-                  <CategoryBadge
-                    category={transaction.category}
-                    color={transaction.categoryColor ?? undefined}
-                    className="min-w-0 whitespace-normal wrap-anywhere"
-                  >
-                    {transaction.categoryLabel}
-                  </CategoryBadge>
+                  <p className="max-w-1/2 shrink-0 text-metric text-lg text-foreground wrap-anywhere">
+                    {formatMoney(transaction.amount)}
+                  </p>
                   <p className="min-w-0 text-right font-mono wrap-anywhere">
                     <span>{transaction.date}</span>
                     <span aria-hidden="true"> · </span>
@@ -192,45 +218,6 @@ function TransactionTable({
                   <p className="text-xs text-muted-foreground">
                     Added by {attributionLabel(transaction.addedByUserId, attributionMembers)}
                   </p>
-                )}
-                {hasActions && (
-                  <div className="flex justify-end gap-2">
-                    {onEdit && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => onEdit(transaction)}
-                      >
-                        <PencilIcon aria-hidden="true" />
-                        Edit
-                      </Button>
-                    )}
-                    {onDelete &&
-                      (transaction.source !== "imported" ||
-                        allowImportedDeletion) && (
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => onDelete(transaction)}
-                      >
-                        <Trash2Icon aria-hidden="true" />
-                        Delete
-                      </Button>
-                    )}
-                    {onViewActivity && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => onViewActivity(transaction)}
-                      >
-                        <HistoryIcon aria-hidden="true" />
-                        Activity
-                      </Button>
-                    )}
-                  </div>
                 )}
               </li>
             ))}
@@ -304,7 +291,7 @@ function TransactionTable({
                           variant="ghost"
                           size="icon-sm"
                           onClick={() => onEdit(transaction)}
-                          aria-label={`Edit ${transaction.description}`}
+                          aria-label={"Edit " + transaction.description}
                         >
                           <PencilIcon aria-hidden="true" />
                         </Button>
@@ -317,7 +304,7 @@ function TransactionTable({
                           variant="ghost"
                           size="icon-sm"
                           onClick={() => onDelete(transaction)}
-                          aria-label={`Delete ${transaction.description}`}
+                          aria-label={"Delete " + transaction.description}
                         >
                           <Trash2Icon aria-hidden="true" />
                         </Button>
@@ -328,7 +315,7 @@ function TransactionTable({
                           variant="ghost"
                           size="icon-sm"
                           onClick={() => onViewActivity(transaction)}
-                          aria-label={`View activity for ${transaction.description}`}
+                          aria-label={"View activity for " + transaction.description}
                         >
                           <HistoryIcon aria-hidden="true" />
                         </Button>
@@ -342,6 +329,61 @@ function TransactionTable({
         </Table>
       </div>
     </>
+  );
+}
+
+function TransactionActionsMenu({
+  transaction,
+  onEdit,
+  onDelete,
+  onViewActivity,
+  allowImportedDeletion,
+}: TransactionActionsMenuProps) {
+  const canDelete =
+    onDelete !== undefined &&
+    (transaction.source !== "imported" || allowImportedDeletion);
+
+  return (
+    <DropdownMenu>
+      <div className="relative inline-flex">
+        <DropdownMenuTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon-sm"
+            aria-label={"More actions for " + transaction.description}
+          >
+            <MoreHorizontalIcon aria-hidden="true" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          {onEdit && (
+            <DropdownMenuItem
+              restoreFocusOnSelect={false}
+              onSelect={() => onEdit(transaction)}
+            >
+              <PencilIcon aria-hidden="true" />
+              Edit
+            </DropdownMenuItem>
+          )}
+          {onViewActivity && (
+            <DropdownMenuItem onSelect={() => onViewActivity(transaction)}>
+              <HistoryIcon aria-hidden="true" />
+              Activity
+            </DropdownMenuItem>
+          )}
+          {canDelete && (
+            <DropdownMenuItem
+              className="text-destructive hover:text-destructive"
+              onSelect={() => onDelete?.(transaction)}
+            >
+              <Trash2Icon aria-hidden="true" />
+              Delete
+            </DropdownMenuItem>
+          )}
+        </DropdownMenuContent>
+      </div>
+    </DropdownMenu>
   );
 }
 

@@ -11,7 +11,7 @@ interface DropdownMenuContextValue {
   readonly initialFocusRef: React.MutableRefObject<DropdownMenuInitialFocus>;
   readonly open: boolean;
   readonly openMenu: (initialFocus?: DropdownMenuInitialFocus) => void;
-  readonly closeMenu: () => void;
+  readonly closeMenu: (restoreFocus?: boolean) => void;
   readonly getEnabledItems: () => HTMLButtonElement[];
   readonly triggerRef: React.RefObject<HTMLButtonElement | null>;
 }
@@ -87,8 +87,8 @@ function DropdownMenu({
     [setOpen],
   );
 
-  const closeMenu = React.useCallback(() => {
-    restoreFocusOnCloseRef.current = true;
+  const closeMenu = React.useCallback((restoreFocus = true) => {
+    restoreFocusOnCloseRef.current = restoreFocus;
     setOpen(false);
   }, [setOpen]);
 
@@ -352,6 +352,7 @@ const DropdownMenuContent = React.forwardRef<
 interface DropdownMenuItemProps
   extends Omit<React.ComponentPropsWithoutRef<"button">, "onSelect"> {
   readonly onSelect?: (event: React.SyntheticEvent<HTMLButtonElement>) => void;
+  readonly restoreFocusOnSelect?: boolean;
 }
 
 const DropdownMenuItem = React.forwardRef<
@@ -365,6 +366,7 @@ const DropdownMenuItem = React.forwardRef<
     onClick,
     onKeyDown,
     onSelect,
+    restoreFocusOnSelect = true,
     role = "menuitem",
     ...props
   },
@@ -377,7 +379,7 @@ const DropdownMenuItem = React.forwardRef<
     if (event.defaultPrevented || disabled) return;
 
     onSelect?.(event);
-    if (!event.defaultPrevented) closeMenu();
+    if (!event.defaultPrevented) closeMenu(restoreFocusOnSelect);
   }
 
   function handleKeyDown(event: React.KeyboardEvent<HTMLButtonElement>) {

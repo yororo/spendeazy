@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { Transaction } from "./transactions-service";
 import { TransactionTable } from "./transaction-table";
@@ -61,6 +61,54 @@ describe("TransactionTable Category Colors", () => {
           ?.className,
       ).toContain("bg-category-teal");
     }
+  });
+
+  it("keeps desktop actions visible while mobile actions stay in the overflow menu", () => {
+    const transaction: Transaction = {
+      id: "12",
+      categoryId: "food",
+      purchaseDate: "2026-08-31",
+      date: "Aug 31",
+      description: "Coffee shop",
+      category: "other",
+      categoryLabel: "Food",
+      categoryColor: null,
+      account: "Cash",
+      amount: -8,
+      source: "manual",
+      statementImportId: null,
+    };
+    const onEdit = vi.fn();
+    const onDelete = vi.fn();
+    const onViewActivity = vi.fn();
+
+    render(
+      <TransactionTable
+        transactions={[transaction]}
+        emptyMessage="No Transactions"
+        onEdit={onEdit}
+        onDelete={onDelete}
+        onViewActivity={onViewActivity}
+      />,
+    );
+
+    expect(screen.getAllByRole("button", { name: "Edit Coffee shop" })).toHaveLength(1);
+    expect(screen.getAllByRole("button", { name: "Delete Coffee shop" })).toHaveLength(1);
+    expect(
+      screen.getAllByRole("button", { name: "View activity for Coffee shop" }),
+    ).toHaveLength(1);
+    expect(screen.queryByRole("menuitem", { name: "Edit" })).toBeNull();
+    expect(screen.queryByRole("menuitem", { name: "Activity" })).toBeNull();
+    expect(screen.queryByRole("menuitem", { name: "Delete" })).toBeNull();
+
+    fireEvent.click(
+      screen.getAllByRole("button", { name: "More actions for Coffee shop" })[0],
+    );
+
+    fireEvent.click(screen.getByRole("menuitem", { name: "Activity" }));
+    expect(onViewActivity).toHaveBeenCalledWith(transaction);
+    expect(onEdit).not.toHaveBeenCalled();
+    expect(onDelete).not.toHaveBeenCalled();
   });
 
   it("shows immutable creator attribution for shared rows", () => {

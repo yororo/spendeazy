@@ -178,6 +178,16 @@ function renderPage(initialEntry = "/history") {
   );
 }
 
+function clickTransactionActivity(description: string, occurrence = 0) {
+  const actionButtons = screen.getAllByRole("button", {
+    name: "More actions for " + description,
+  });
+  const actionButton = actionButtons.at(occurrence);
+  if (!actionButton) throw new Error("Transaction action menu was not found.");
+  fireEvent.click(actionButton);
+  fireEvent.click(screen.getByRole("menuitem", { name: "Activity" }));
+}
+
 describe("ArchivedSpaceHistoryPage", () => {
   it("shows archived Shared Spaces separately with identity and read-only status", () => {
     renderPage();
@@ -208,9 +218,7 @@ describe("ArchivedSpaceHistoryPage", () => {
     expect(
       screen.queryByRole("button", { name: "Delete Archived dinner" }),
     ).toBeNull();
-    fireEvent.click(
-      screen.getByRole("button", { name: "View activity for Archived dinner" }),
-    );
+    clickTransactionActivity("Archived dinner");
     expect(
       within(screen.getByRole("dialog")).getByText("Created by Katherine Johnson"),
     ).toBeTruthy();
@@ -242,10 +250,7 @@ describe("ArchivedSpaceHistoryPage", () => {
     expect(
       screen.getByRole("heading", { name: "Deleted Transactions" }),
     ).toBeTruthy();
-    const activityButtons = screen.getAllByRole("button", {
-      name: "View activity for Archived dinner",
-    });
-    fireEvent.click(activityButtons.at(-1)!);
+    clickTransactionActivity("Archived dinner", -1);
     expect(
       within(screen.getByRole("dialog")).getByText("Deleted by Ada Lovelace"),
     ).toBeTruthy();

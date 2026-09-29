@@ -103,10 +103,12 @@ test("keeps mobile date fields contained and shows their picker affordance", asy
 
   await page
     .getByRole("list", { name: "All transactions" })
-    .getByRole("button", { name: "Edit" })
+    .getByRole("button", { name: /More actions for/u })
     .first()
     .click();
+  await page.getByRole("menuitem", { name: "Edit" }).click();
   const editDialog = page.getByRole("dialog", { name: "Edit Transaction" });
+  await expect(editDialog).toBeVisible();
   await expectMobileDateField(
     editDialog.getByLabel("Purchase date"),
     editDialog,

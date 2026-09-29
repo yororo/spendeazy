@@ -269,6 +269,20 @@ function renderPage(options: { readonly onNavigate?: NavigationAction } = {}) {
   );
 }
 
+function clickTransactionAction(
+  description: string,
+  action: string,
+  occurrence = 0,
+) {
+  const actionButtons = screen.getAllByRole("button", {
+    name: "More actions for " + description,
+  });
+  const actionButton = actionButtons.at(occurrence);
+  if (!actionButton) throw new Error("Transaction action menu was not found.");
+  fireEvent.click(actionButton);
+  fireEvent.click(screen.getByRole("menuitem", { name: action }));
+}
+
 describe("TransactionsPage", () => {
   it("blocks transaction queries when accessible Spaces cannot be loaded", () => {
     pageState.spacesQuery.isError = true;
@@ -289,9 +303,7 @@ describe("TransactionsPage", () => {
     expect(screen.getAllByText("Added by User 8").length).toBeGreaterThan(0);
     expect(pageState.lastTransactionQueryArgs?.[1]).toBe("99");
 
-    fireEvent.click(
-      screen.getByRole("button", { name: "View activity for Coffee" }),
-    );
+    clickTransactionAction("Coffee", "Activity");
     const activityDialog = screen.getByRole("dialog");
     expect(
       within(activityDialog).getByText("Created by User 7"),
@@ -323,7 +335,7 @@ describe("TransactionsPage", () => {
       categoryId: null,
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Edit Coffee" }));
+    clickTransactionAction("Coffee", "Edit");
     const editDialog = screen.getByRole("dialog");
     fireEvent.change(within(editDialog).getByLabelText("Description"), {
       target: { value: "Coffee shop" },
@@ -342,7 +354,7 @@ describe("TransactionsPage", () => {
       updatedAt: "2026-08-31T00:00:00.000Z",
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Edit Lunch" }));
+    clickTransactionAction("Lunch", "Edit");
     const importedEditDialog = screen.getByRole("dialog");
     fireEvent.change(
       within(importedEditDialog).getByLabelText("Purchase date"),
@@ -375,7 +387,7 @@ describe("TransactionsPage", () => {
       updatedAt: "2026-08-31T00:00:00.000Z",
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Delete Coffee" }));
+    clickTransactionAction("Coffee", "Delete");
     const deleteDialog = screen.getByRole("dialog");
     fireEvent.click(
       within(deleteDialog).getByRole("button", { name: "Delete Transaction" }),
@@ -387,7 +399,7 @@ describe("TransactionsPage", () => {
       updatedAt: "2026-08-31T00:00:00.000Z",
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Delete Lunch" }));
+    clickTransactionAction("Lunch", "Delete");
     const importedDeleteDialog = screen.getByRole("dialog");
     fireEvent.click(
       within(importedDeleteDialog).getByRole("button", {
@@ -462,10 +474,7 @@ describe("TransactionsPage", () => {
     renderPage();
 
     expect(await screen.findByRole("heading", { name: "Deleted Transactions" })).toBeTruthy();
-    const activityButtons = screen.getAllByRole("button", {
-      name: "View activity for Coffee",
-    });
-    fireEvent.click(activityButtons.at(-1)!);
+    clickTransactionAction("Coffee", "Activity", -1);
 
     expect(within(screen.getByRole("dialog")).getByText("Deleted by User 9")).toBeTruthy();
   });

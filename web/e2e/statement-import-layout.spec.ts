@@ -107,6 +107,17 @@ for (const width of [320, 390]) {
         Math.abs(excludeBox.x + excludeBox.width - (transactionBox.x + transactionBox.width - 16)) <= 1;
     }).toBe(true);
 
+    await category.click();
+    const categoryEditor = page.getByRole("dialog", { name: "Edit Transaction" });
+    const categoryInput = categoryEditor.getByRole("combobox", {
+      name: "Category for Green Market Cafe",
+    });
+    await expect(categoryInput).toBeFocused();
+    await expect.poll(() =>
+      categoryInput.evaluate((element) => getComputedStyle(element).boxShadow),
+    ).not.toBe("none");
+    await categoryEditor.getByRole("button", { name: "Cancel", exact: true }).click();
+
     await edit.click();
     const editor = page.getByRole("dialog", { name: "Edit Transaction" });
     const date = editor.getByLabel("Date for Green Market Cafe", { exact: true });

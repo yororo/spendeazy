@@ -1099,6 +1099,7 @@ function CategorizeStatement({
                   categoryOptions={categoryOptions}
                   suggestedCategories={suggestedCategories}
                   categorySuggestionFeedback={categorySuggestionFeedback}
+                  focusCategoryInitially={mobileEditorFocus === "category"}
                   transaction={editingTransaction}
                   draft={draft}
                   error={draftError}
@@ -1263,6 +1264,7 @@ interface TransactionEditRowsProps {
 
 interface TransactionDraftFieldsProps {
   readonly layout: "mobile" | "table";
+  readonly focusCategoryInitially?: boolean;
   readonly categoryOptions: readonly CategoryColorOption[];
   readonly suggestedCategories: readonly CategoryColorOption[];
   readonly categorySuggestionFeedback: CategorySuggestionFeedback;
@@ -1277,6 +1279,7 @@ interface TransactionDraftFieldsProps {
 
 function TransactionDraftFields({
   layout,
+  focusCategoryInitially = false,
   categoryOptions,
   suggestedCategories,
   categorySuggestionFeedback,
@@ -1353,6 +1356,7 @@ function TransactionDraftFields({
       <SelectTrigger
         id={idPrefix ? `${idPrefix}-category` : undefined}
         className={layout === "mobile" ? "mt-1.5" : "h-8 min-w-40"}
+        data-initial-focus={focusCategoryInitially ? "" : undefined}
         aria-label={`Category for ${transaction.description}`}
       >
         <SelectValue placeholder="Select Category" />
@@ -1583,6 +1587,7 @@ function MobileTransactionEditor({
   categoryOptions,
   suggestedCategories,
   categorySuggestionFeedback,
+  focusCategoryInitially,
   transaction,
   draft,
   error,
@@ -1598,7 +1603,9 @@ function MobileTransactionEditor({
   onRememberedPatternChange,
   onSave,
   onCancel,
-}: TransactionEditRowsProps) {
+}: TransactionEditRowsProps & {
+  readonly focusCategoryInitially: boolean;
+}) {
   const errorId = `mobile-transaction-${transaction.id}-error`;
   const rememberId = `mobile-transaction-${transaction.id}-remember`;
 
@@ -1607,6 +1614,7 @@ function MobileTransactionEditor({
       <div className="grid min-w-0 gap-4 p-5">
         <TransactionDraftFields
           layout="mobile"
+          focusCategoryInitially={focusCategoryInitially}
           categoryOptions={categoryOptions}
           suggestedCategories={suggestedCategories}
           categorySuggestionFeedback={categorySuggestionFeedback}

@@ -315,7 +315,8 @@
   outline: 2px solid transparent;
   outline-offset: 2px;
 
-  &:focus-visible {
+  &:focus-visible,
+  &[data-initial-focus]:focus {
     box-shadow:
       0 0 0 2px var(--background),
       0 0 0 4px var(--ring);

@@ -585,7 +585,7 @@ describe("CategorizeStatement ambiguity handling", () => {
     expect(rememberCategoryRule).not.toHaveBeenCalled();
   });
 
-  it("shows the mobile Suggestions available cue only for included Unmapped rows with suggestions", async () => {
+  it("shows suggestions in the mobile Category control only for included Unmapped rows", async () => {
     const getCategorySuggestion = vi.fn(getSuggestionsForGreenMarket);
     const excludedTransaction = {
       ...unmappedTransaction,
@@ -615,10 +615,10 @@ describe("CategorizeStatement ambiguity handling", () => {
     const mobileList = screen.getByRole("list", {
       name: "Transactions to categorize",
     });
-    const cue = await within(mobileList).findByRole("button", {
-      name: "Suggestions available for Green Market Cafe",
+    const categoryControl = await within(mobileList).findByRole("button", {
+      name: "Edit Category for Green Market Cafe, 1 suggestion available",
     });
-    expect(cue.textContent).toContain("Suggestions available");
+    expect(categoryControl.textContent).toContain("1 suggestion");
     for (const description of [
       "No suggestion Cafe",
       "Excluded Cafe",
@@ -626,14 +626,17 @@ describe("CategorizeStatement ambiguity handling", () => {
     ]) {
       expect(
         within(mobileList).queryByRole("button", {
-          name: `Suggestions available for ${description}`,
+          name: new RegExp(`Edit Category for ${description}, .* suggestions? available`),
         }),
       ).toBeNull();
     }
 
-    fireEvent.click(cue);
+    fireEvent.click(categoryControl);
 
     const editor = screen.getByRole("dialog", { name: "Edit Transaction" });
+    expect(within(editor).getByRole("combobox", { name: "Category for Green Market Cafe" })).toBe(
+      document.activeElement,
+    );
     expect(
       await within(editor).findByRole("button", {
         name: "Use suggested Category: Groceries",
@@ -952,12 +955,32 @@ describe("CategorizeStatement ambiguity handling", () => {
     expect(
       mobileItem && within(mobileItem).getAllByText("Unmapped"),
     ).toHaveLength(1);
+    expect(mobileItem && within(mobileItem).getByText("Choose category")).toBeTruthy();
     expect(
       desktopRow && within(desktopRow).getAllByText("Unmapped"),
     ).toHaveLength(1);
     expect(
       desktopRow && within(desktopRow).getAllByRole("cell")[4]?.textContent,
     ).toBe("");
+  });
+
+  it("focuses the Category selector when Choose category opens the mobile editor", () => {
+    render(<CategorizeHarness initialTransactions={[unmappedTransaction]} />);
+
+    const mobileList = screen.getByRole("list", {
+      name: "Transactions to categorize",
+    });
+    fireEvent.click(
+      within(mobileList).getByRole("button", {
+        name: "Edit Category for Green Market Cafe",
+      }),
+    );
+
+    const editor = screen.getByRole("dialog", { name: "Edit Transaction" });
+    const categoryInput = within(editor).getByRole("combobox", {
+      name: "Category for Green Market Cafe",
+    });
+    expect(document.activeElement).toBe(categoryInput);
   });
 
   it("does not mark the Sheet filters active for inline search", () => {

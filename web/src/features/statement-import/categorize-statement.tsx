@@ -11,6 +11,7 @@ import {
   PencilIcon,
   SearchIcon,
   SparklesIcon,
+  TagIcon,
   XIcon,
 } from "lucide-react";
 
@@ -152,6 +153,9 @@ function CategorizeStatement({
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
   const [sort, setSort] = useState("date-desc");
   const [mobileEditorOpen, setMobileEditorOpen] = useState(false);
+  const [mobileEditorFocus, setMobileEditorFocus] = useState<
+    "category" | "details"
+  >("details");
   const {
     draft,
     draftError,
@@ -217,23 +221,22 @@ function CategorizeStatement({
                 suggestedCategories.length === 0)
             ? "none"
             : null;
-  function hasCurrentCategorySuggestions(transaction: CategorizedTransaction) {
+  function currentCategorySuggestionCount(transaction: CategorizedTransaction) {
     if (
       transaction.assignment !== "unmapped" ||
       !isIncludedStatementTransaction(transaction)
     ) {
-      return false;
+      return 0;
     }
 
     const result = categorySuggestionResults.get(
       normalizeDescription(transaction.description),
     );
-    return (
-      result?.status === "suggested" &&
-      result.suggestions.some((suggestion) =>
-        categoryOptions.some((option) => option.value === suggestion.categoryId),
-      )
-    );
+    return result?.status === "suggested"
+      ? result.suggestions.filter((suggestion) =>
+          categoryOptions.some((option) => option.value === suggestion.categoryId),
+        ).length
+      : 0;
   }
   const getCategoryLabelForTransaction = (categoryId: string) =>
     getCategoryLabel(categoryLabels, categoryId);
@@ -344,8 +347,12 @@ function CategorizeStatement({
     }
   }
 
-  function beginMobileEditing(transactionId: string) {
+  function beginMobileEditing(
+    transactionId: string,
+    focus: "category" | "details" = "details",
+  ) {
     if (onBeginEdit(transactionId)) {
+      setMobileEditorFocus(focus);
       setMobileEditorOpen(true);
     }
   }
@@ -780,107 +787,101 @@ function CategorizeStatement({
             ) : (
               <ul className="divide-y" aria-label="Transactions to categorize">
                 {visibleTransactions.map((transaction) => {
+                  const suggestionCount = currentCategorySuggestionCount(transaction);
                   return (
                     <li
                       key={transaction.id}
-                      className={`space-y-3 p-4 ${
+                      className={`space-y-2.5 px-4 py-3 ${
                         transaction.isExcluded
                           ? "bg-muted/70 text-muted-foreground"
                           : ""
                       }`}
                     >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <p className="min-w-0 font-semibold wrap-anywhere">
-                              {transaction.description}
-                            </p>
-                            {transaction.amount > 0 && (
-                              <Badge variant="muted">Debit</Badge>
-                            )}
-                            {transaction.isExcluded && (
-                              <Badge variant="muted">Excluded</Badge>
-                            )}
-                          </div>
-                          <p className="mt-1 font-mono text-xs font-semibold uppercase text-muted-foreground">
-                            {formatImportDate(transaction.transactionDate)}
-                          </p>
-                        </div>
-                        <p className="max-w-1/2 shrink-0 font-mono text-sm font-bold tabular-nums wrap-anywhere">
+                      <div className="flex items-start gap-3">
+                        <p className="min-w-0 flex-1 font-semibold wrap-anywhere">
+                          {transaction.description}
+                        </p>
+                        <p className="max-w-1/2 shrink-0 text-right font-mono text-sm font-bold tabular-nums wrap-anywhere">
                           {formatMoney(transaction.amount)}
                         </p>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="size-10"
+                          onClick={() => beginMobileEditing(transaction.id)}
+                          disabled={isEditing || transaction.isExcluded}
+                          aria-label={`Edit ${transaction.description}`}
+                        >
+                          <PencilIcon aria-hidden="true" />
+                        </Button>
                       </div>
 
-                      <button
-                        type="button"
-                        className="focus-ledger flex min-h-10 w-full items-center justify-between gap-3 border border-input bg-muted px-3 py-2 text-left disabled:cursor-not-allowed disabled:opacity-60"
-                        disabled={isEditing || transaction.isExcluded}
-                        aria-label={`Edit Category for ${transaction.description}`}
-                      >
-                        <div className="min-w-0 whitespace-normal wrap-anywhere">
-                          <CategoryMatchCell
-                            assignment={transaction.assignment}
-                            categoryId={transaction.categoryId}
-                            getCategoryLabel={getCategoryLabelForTransaction}
-                            getCategoryColor={getCategoryColor}
-                            matchedCategoryIds={transaction.matchedCategoryIds}
-                          />
-                        </div>
-                      </button>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-mono text-xs font-semibold uppercase text-muted-foreground">
+                          {formatImportDate(transaction.transactionDate)}
+                        </p>
+                        <AssignmentBadge assignment={transaction.assignment} />
+                        {transaction.amount > 0 && <Badge variant="muted">Debit</Badge>}
+                        {transaction.isExcluded && <Badge variant="muted">Excluded</Badge>}
+                      </div>
 
-                      {hasCurrentCategorySuggestions(transaction) && (
-                        <CategorySuggestionCue
-                          description={transaction.description}
-                          disabled={isEditing}
-                          className="h-auto min-h-11 w-full justify-start whitespace-normal px-3 py-2 text-left"
-                          onActivate={() => beginMobileEditing(transaction.id)}
-                        />
-                      )}
-
-                      <div className="flex items-center justify-between gap-3">
-                        {transaction.assignment !== "unmapped" && (
-                          <AssignmentBadge
-                            assignment={transaction.assignment}
-                          />
-                        )}
-                        <div className="ml-auto flex gap-0">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="size-11"
-                            onClick={() => beginMobileEditing(transaction.id)}
-                            disabled={isEditing || transaction.isExcluded}
-                            aria-label={`Edit ${transaction.description}`}
-                          >
-                            <PencilIcon aria-hidden="true" />
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className={`size-11 ${
-                              transaction.isExcluded
-                                ? "text-success hover:text-success"
-                                : "text-destructive hover:text-destructive"
-                            }`}
-                            onClick={() =>
-                              onToggleTransactionExclusion(transaction.id)
-                            }
-                            disabled={isEditing || transaction.amount > 0}
-                            aria-label={
-                              transaction.amount > 0
-                                ? `Debit ${transaction.description} is permanently excluded`
-                                : `${transaction.isExcluded ? "Include" : "Exclude"} ${transaction.description}`
-                            }
-                          >
-                            {transaction.isExcluded ? (
-                              <CirclePlusIcon aria-hidden="true" />
+                      <div className="flex items-stretch gap-2">
+                        <button
+                          type="button"
+                          className="focus-ledger flex min-h-10 min-w-0 flex-1 items-center justify-between gap-2 border border-input bg-muted px-3 py-2 text-left disabled:cursor-not-allowed disabled:opacity-60"
+                          onClick={() => beginMobileEditing(transaction.id, "category")}
+                          disabled={isEditing || transaction.isExcluded}
+                          aria-label={`Edit Category for ${transaction.description}${suggestionCount > 0 ? `, ${suggestionCount} ${suggestionCount === 1 ? "suggestion" : "suggestions"} available` : ""}`}
+                        >
+                          <span className="min-w-0 whitespace-normal wrap-anywhere">
+                            {transaction.assignment === "unmapped" ? (
+                              <span className="inline-flex items-center gap-2 font-medium text-warning">
+                                <TagIcon className="size-4 shrink-0" aria-hidden="true" />
+                                Choose category
+                              </span>
                             ) : (
-                              <CircleMinusIcon aria-hidden="true" />
+                              <CategoryMatchCell
+                                assignment={transaction.assignment}
+                                categoryId={transaction.categoryId}
+                                getCategoryLabel={getCategoryLabelForTransaction}
+                                getCategoryColor={getCategoryColor}
+                                matchedCategoryIds={transaction.matchedCategoryIds}
+                              />
                             )}
-                          </Button>
-                        </div>
+                          </span>
+                          {suggestionCount > 0 && (
+                            <span className="inline-flex shrink-0 items-center gap-1 font-mono text-xs font-semibold text-success">
+                              <SparklesIcon className="size-4" aria-hidden="true" />
+                              {suggestionCount} {suggestionCount === 1 ? "suggestion" : "suggestions"}
+                            </span>
+                          )}
+                        </button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className={`size-10 ${
+                            transaction.isExcluded
+                              ? "text-success hover:text-success"
+                              : "text-destructive hover:text-destructive"
+                          }`}
+                          onClick={() =>
+                            onToggleTransactionExclusion(transaction.id)
+                          }
+                          disabled={isEditing || transaction.amount > 0}
+                          aria-label={
+                            transaction.amount > 0
+                              ? `Debit ${transaction.description} is permanently excluded`
+                              : `${transaction.isExcluded ? "Include" : "Exclude"} ${transaction.description}`
+                          }
+                        >
+                          {transaction.isExcluded ? (
+                            <CirclePlusIcon aria-hidden="true" />
+                          ) : (
+                            <CircleMinusIcon aria-hidden="true" />
+                          )}
+                        </Button>
                       </div>
                     </li>
                   );
@@ -991,7 +992,7 @@ function CategorizeStatement({
                               getCategoryColor={getCategoryColor}
                               matchedCategoryIds={transaction.matchedCategoryIds}
                             />
-                            {hasCurrentCategorySuggestions(transaction) && (
+                            {currentCategorySuggestionCount(transaction) > 0 && (
                               <CategorySuggestionCue
                                 description={transaction.description}
                                 disabled={isEditing}
@@ -1074,7 +1075,13 @@ function CategorizeStatement({
                 onOpenAutoFocus={(event) => {
                   event.preventDefault();
                   if (event.currentTarget instanceof HTMLElement) {
-                    event.currentTarget.focus();
+                    const focusTarget =
+                      mobileEditorFocus === "category"
+                        ? event.currentTarget.querySelector<HTMLElement>(
+                            `#mobile-transaction-${editingTransaction.id}-category`,
+                          )
+                        : null;
+                    (focusTarget ?? event.currentTarget).focus();
                   }
                 }}
                 onEscapeKeyDown={(event) => {

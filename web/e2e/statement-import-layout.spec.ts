@@ -46,7 +46,7 @@ function createStatementPdf() {
 }
 
 for (const width of [320, 390]) {
-  test(`keeps Categorize actions right-aligned and the editor within ${width}px`, async ({ page }) => {
+  test(`groups mobile Categorize actions and keeps the editor within ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 844 });
     // Stub financial reads only; layout uses the real route, styles and workflow.
     await page.route("**/api/v1/users/me/**", async (route) => {
@@ -87,18 +87,24 @@ for (const width of [320, 390]) {
     const edit = transaction.getByRole("button", { name: "Edit Green Market Cafe", exact: true });
     const exclude = transaction.getByRole("button", { name: "Exclude Green Market Cafe", exact: true });
     const category = transaction.getByRole("button", { name: "Edit Category for Green Market Cafe" });
+    const description = transaction.getByText("Green Market Cafe", { exact: true });
     await expect(edit).toBeVisible();
     await expect(exclude).toBeVisible();
 
     // Compare visible controls, not CSS classes or incidental DOM containers.
     await expect.poll(async () => {
-      const [editBox, excludeBox, categoryBox] = await Promise.all([
-        edit.boundingBox(), exclude.boundingBox(), category.boundingBox(),
+      const [transactionBox, descriptionBox, editBox, excludeBox, categoryBox] = await Promise.all([
+        transaction.boundingBox(),
+        description.boundingBox(),
+        edit.boundingBox(),
+        exclude.boundingBox(),
+        category.boundingBox(),
       ]);
-      if (!editBox || !excludeBox || !categoryBox) return false;
-      return editBox.x + editBox.width <= excludeBox.x + 1 &&
-        Math.abs(editBox.y - excludeBox.y) <= 1 &&
-        Math.abs(excludeBox.x + excludeBox.width - categoryBox.x - categoryBox.width) <= 1;
+      if (!transactionBox || !descriptionBox || !editBox || !excludeBox || !categoryBox) return false;
+      return Math.abs(editBox.y - descriptionBox.y) <= 1 &&
+        Math.abs(excludeBox.y - categoryBox.y) <= 1 &&
+        categoryBox.x + categoryBox.width <= excludeBox.x + 1 &&
+        Math.abs(excludeBox.x + excludeBox.width - (transactionBox.x + transactionBox.width - 16)) <= 1;
     }).toBe(true);
 
     await edit.click();

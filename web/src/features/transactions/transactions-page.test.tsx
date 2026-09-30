@@ -250,13 +250,13 @@ function NavigationProbe({ onNavigate }: { readonly onNavigate: () => void }) {
   );
 }
 
-function renderPage(options: { readonly onNavigate?: NavigationAction } = {}) {
+function renderPage(options: { readonly onNavigate?: NavigationAction; readonly initialPath?: string } = {}) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
 
   return render(
-    <MemoryRouter><NavigationGuardProvider>
+    <MemoryRouter initialEntries={[options.initialPath ?? "/"]}><NavigationGuardProvider>
       <QueryClientProvider client={queryClient}>
         <ReportingPeriodProvider>
           <TransactionsPage spaceId="99" onSpaceChange={vi.fn()} />
@@ -284,6 +284,15 @@ function clickTransactionAction(
 }
 
 describe("TransactionsPage", () => {
+  it("retains statement context and monthly recovery when Spaces fail to load", () => {
+    pageState.spacesQuery.isError = true;
+    pageState.spacesQuery.isSuccess = false;
+    renderPage({ initialPath: "/transactions?spaceId=99&statementImportId=100" });
+    expect(screen.getByRole("region", { name: "Statement filter" }).textContent).toContain("Statement Import #100");
+    fireEvent.click(screen.getByRole("button", { name: "Return to monthly view" }));
+    expect(screen.queryByRole("region", { name: "Statement filter" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Retry" })).toBeTruthy();
+  });
   it("blocks transaction queries when accessible Spaces cannot be loaded", () => {
     pageState.spacesQuery.isError = true;
     pageState.spacesQuery.isSuccess = false;

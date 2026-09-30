@@ -1,4 +1,5 @@
 import { ArrowRightIcon, CheckCircle2Icon, LandmarkIcon } from "lucide-react";
+import { useEffect, useRef } from "react";
 
 import { Button } from "@/components/ui/button";
 import { formatMoney } from "@/shared/money";
@@ -20,6 +21,7 @@ import { formatStatementType } from "./statement-type";
 
 interface ImportSuccessProps {
   committedImport: CommittedStatementImport;
+  totalExpense?: number;
   destinationLabel?: string;
   importerName?: string;
   spaceId?: string;
@@ -35,21 +37,31 @@ function formatAccount(committedImport: CommittedStatementImport) {
 
 function ImportSuccess({
   committedImport,
+  totalExpense,
   destinationLabel,
   importerName,
   spaceId,
   onImportAnother,
   onViewTransactions,
 }: ImportSuccessProps) {
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    headingRef.current?.scrollIntoView?.({ block: "start" });
+    headingRef.current?.focus({ preventScroll: true });
+  }, []);
   return (
     <div className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-screen-2xl flex-col gap-6 px-4 py-6 sm:px-6 lg:min-h-screen lg:px-9 lg:py-7">
       <header>
         <ActiveSpaceLabel spaceId={spaceId} />
         <p className="text-label text-muted-foreground">Imports / Complete</p>
-        <h1 className="mt-1 font-mono text-2xl font-bold tracking-tight sm:text-3xl">
+        <h1 ref={headingRef} tabIndex={-1} className="mt-1 font-mono text-2xl font-bold tracking-tight sm:text-3xl">
           Statement imported
         </h1>
       </header>
+      <p role="status" className="text-sm">
+        {committedImport.transactionCount} expenses saved to {destinationLabel ?? "Personal"}
+        {totalExpense !== undefined && ` · ${formatMoney(totalExpense)}`}.
+      </p>
 
       <main className="grid flex-1 place-content-center">
         <Card variant="strong" className="w-full max-w-2xl">
@@ -136,12 +148,16 @@ function ImportSuccess({
               )}
               <div>
                 <dt className="text-label text-muted-foreground">
-                  Transactions saved
+                  Expenses saved
                 </dt>
                 <dd className="mt-1 font-mono text-sm font-semibold tabular-nums">
                   {committedImport.transactionCount}
                 </dd>
               </div>
+              {totalExpense !== undefined && <div>
+                <dt className="text-label text-muted-foreground">Total expense saved</dt>
+                <dd className="mt-1 font-mono text-sm font-semibold tabular-nums">{formatMoney(totalExpense)}</dd>
+              </div>}
             </dl>
 
             <p className="mt-6 border-t border-border pt-4 text-sm text-muted-foreground">

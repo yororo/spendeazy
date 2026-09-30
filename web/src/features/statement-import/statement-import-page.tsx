@@ -7,10 +7,11 @@ import {
   FeatureDataLoading,
 } from "@/shared/ui/feature-data-state";
 import { useAccessibleSpacesQuery, type AccessibleSpace } from "@/shared/api";
-import { formatMoney } from "@/shared/money";
+import { centsToMoney, formatMoney, moneyToCents } from "@/shared/money";
 import { ActiveSpaceLabel, SpaceLabelProvider, getSpaceIdentityLabel } from "@/shared/ui";
 import { ImportProgress } from "./import-progress";
 import { ImportSuccess } from "./import-success";
+import { isIncludedStatementTransaction } from "./statement-import-utils";
 import { ReviewStatement } from "./review-statement";
 import { importFeatures } from "./statement-import-data";
 import {
@@ -33,7 +34,7 @@ import { useStatementImportWorkflow } from "./use-statement-import-workflow";
 import { formatStatementType, type StatementType } from "./statement-type";
 
 interface StatementImportPageProps {
-  onViewTransactions: (spaceId?: string) => void;
+  onViewTransactions: (spaceId: string | undefined, statementImportId: string) => void;
   spaceId?: string;
   onSpaceChange?: (spaceId?: string) => void;
 }
@@ -216,6 +217,7 @@ function StatementImportPage({
   }
 
   if (workflowState.commit.result) {
+    const committedImport = workflowState.commit.result;
     const importerName = getImporterName(
       workflowState.commit.result.importedByUserId,
       destinationSpace,
@@ -234,13 +236,16 @@ function StatementImportPage({
     return withNavigationGuard(
       <ImportSuccess
         committedImport={workflowState.commit.result}
+        totalExpense={centsToMoney((workflowState.statement?.transactions ?? [])
+          .filter(isIncludedStatementTransaction)
+          .reduce((total, transaction) => total + moneyToCents(Math.abs(transaction.amount)), 0))}
         destinationLabel={destinationLabel}
         importerName={
           destinationSpace?.kind === "shared" ? importerName : undefined
         }
         spaceId={destinationSpaceId}
         onImportAnother={resetImport}
-        onViewTransactions={() => onViewTransactions(destinationSpaceId)}
+        onViewTransactions={() => onViewTransactions(destinationSpaceId, committedImport.id)}
       />,
     );
   }

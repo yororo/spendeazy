@@ -111,6 +111,19 @@ function createApiClient(responses: ReadonlyMap<string, unknown>) {
 }
 
 describe("listTransactions", () => {
+  it("browses a committed statement across months and summarizes every filtered page", async () => {
+    const rows = [createTransaction({ purchaseDate: "2026-07-31" }), createTransaction({ id: "11", purchaseDate: "2026-08-01", amount: "30.25" })];
+    const { apiClient } = createApiClient(new Map<string, unknown>([
+      [categoriesPath, createCategories()],
+      ["/transactions?statementImportId=100&pageSize=20", { items: rows, nextCursor: null }],
+      ["/transactions?statementImportId=100&pageSize=100", { items: [rows[0]], nextCursor: "next" }],
+      ["/transactions?statementImportId=100&pageSize=100&cursor=next", { items: [rows[1]], nextCursor: null }],
+      ["/statement-imports/100", { id: "100", fileName: "fictional.pdf", bank: "BDO", cardType: "AMEX" }],
+    ]));
+    const page = await listTransactions(apiClient, { period, pageSize: 20, statementImportId: "100" });
+    expect(page.items.map((item) => item.purchaseDate)).toEqual(["2026-07-31", "2026-08-01"]);
+    expect(page.summary).toEqual({ period: "Statement Import #100", transactionCount: 2, totalExpense: 100.25, activityFromDate: "2026-07-31", activityToDate: "2026-08-01" });
+  });
   it("requests the selected month and projects summary, Category, and Account data", async () => {
     const responses = new Map<string, unknown>([
       [categoriesPath, createCategories()],

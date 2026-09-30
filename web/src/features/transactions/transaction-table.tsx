@@ -34,6 +34,7 @@ interface AttributionMember {
 interface TransactionTableProps {
   transactions: readonly Transaction[];
   emptyMessage: string;
+  scopeLabel?: string;
   onEdit?: (transaction: Transaction) => void;
   onDelete?: (transaction: Transaction) => void;
   onViewActivity?: (transaction: Transaction) => void;
@@ -60,6 +61,7 @@ interface TransactionActionsMenuProps {
 function TransactionTable({
   transactions,
   emptyMessage,
+  scopeLabel = "the selected Reporting Period",
   onEdit,
   onDelete,
   onViewActivity,
@@ -171,11 +173,11 @@ function TransactionTable({
         {filterFields(controlId)}
         <Button type="button" variant="outline" disabled={!hasFilters} onClick={clearFilters}>Clear filters</Button>
       </div>
-      <p className="border-b px-3 py-2 text-xs text-muted-foreground" role="status">{isLoading ? "Loading matching Transactions" : serverFilters ? `Showing ${visibleTransactions.length} of ${totalCount ?? transactions.length} matching Transactions in the selected Reporting Period` : `Showing ${visibleTransactions.length} of ${transactions.length} loaded Transactions`}</p>
+      <p className="border-b px-3 py-2 text-xs text-muted-foreground" role="status">{isLoading ? "Loading matching Transactions" : serverFilters ? `Showing ${visibleTransactions.length} of ${totalCount ?? transactions.length} matching Transactions in ${scopeLabel}` : `Showing ${visibleTransactions.length} of ${transactions.length} loaded Transactions`}</p>
       <div className="md:hidden">
         {visibleTransactions.length === 0 ? (
           <p className="px-4 py-10 text-center text-muted-foreground">
-            {isLoading ? "Loading matching Transactions" : hasFilters ? "No Transactions match the filters." : emptyMessage}
+            {isLoading ? "Loading matching Transactions" : !serverFilters && hasFilters ? "No Transactions match the filters." : emptyMessage}
           </p>
         ) : (
           <ul className="divide-y" aria-label={ariaLabel}>
@@ -252,7 +254,7 @@ function TransactionTable({
                   colSpan={hasActions ? 6 : 5}
                   className="py-10 text-center text-muted-foreground"
                 >
-                  {isLoading ? "Loading matching Transactions" : hasFilters ? "No Transactions match the filters." : emptyMessage}
+                  {isLoading ? "Loading matching Transactions" : !serverFilters && hasFilters ? "No Transactions match the filters." : emptyMessage}
                 </TableCell>
               </TableRow>
             )}

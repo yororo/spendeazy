@@ -70,7 +70,7 @@ function buildCanonicalSpaceSearch(
   personalSpaceId?: string,
 ): string {
   const params = new URLSearchParams(search);
-  if (personalSpaceId !== undefined && spaceId === personalSpaceId) {
+  if (personalSpaceId !== undefined && spaceId === personalSpaceId && !params.has("statementImportId")) {
     params.delete("spaceId");
   } else {
     params.set("spaceId", spaceId);

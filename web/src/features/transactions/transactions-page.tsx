@@ -44,10 +44,23 @@ function TransactionsPage({
 }: TransactionsPageProps = {}) {
   const { period } = useReportingPeriod();
   const [searchParams, setSearchParams] = useSearchParams();
+  const statementImportId = searchParams.get("statementImportId") ?? undefined;
   const linkedCategoryId = searchParams.get("categoryId") ?? "all";
   const [localFilters, setLocalFilters] = useState<Omit<TransactionListFilters, "categoryId">>({
     search: "", fromDate: "", toDate: "", accountKey: "all",
   });
+  function returnToMonthlyView() {
+    const params = new URLSearchParams(searchParams);
+    params.delete("statementImportId");
+    params.delete("categoryId");
+    setLocalFilters({ search: "", fromDate: "", toDate: "", accountKey: "all" });
+    setSearchParams(params, { replace: true });
+  }
+  const statementContext = statementImportId && <section aria-label="Statement filter" className="mb-4 border border-border p-4">
+    <p className="font-mono text-sm font-semibold">Statement Import #{statementImportId}</p>
+    <p className="mt-1 text-sm">Saved statement expenses across all months.</p>
+    <Button className="mt-3" variant="outline" onClick={returnToMonthlyView}>Return to monthly view</Button>
+  </section>;
   const filters: TransactionListFilters = { ...localFilters, categoryId: linkedCategoryId };
   const [editorState, setEditorState] =
     useState<TransactionEditorState | null>(null);
@@ -74,6 +87,7 @@ function TransactionsPage({
     !shouldResolvePersonalSpace || spacesQuery.isSuccess,
     filters,
     accountOptionsQuery.data,
+    statementImportId,
   );
   const deletedTransactionsQuery = useDeletedTransactionsQuery(
     effectiveSpaceId,
@@ -82,30 +96,30 @@ function TransactionsPage({
 
   if (spacesQuery.isError) {
     return (
-      <FeatureDataError
+      <div>{statementContext}<FeatureDataError
         message={spacesQuery.error.message}
         onRetry={() => void spacesQuery.refetch()}
-      />
+      /></div>
     );
   }
 
   if (spacesQuery.isSuccess && !effectiveSpaceId) {
-    return <FeatureDataError message="Personal Space is unavailable." onRetry={() => void spacesQuery.refetch()} />;
+    return <div>{statementContext}<FeatureDataError message="Personal Space is unavailable." onRetry={() => void spacesQuery.refetch()} /></div>;
   }
 
   if (transactionsQuery.isPending) {
     if (accountOptionsQuery.isError) {
-      return <FeatureDataError message={accountOptionsQuery.error.message} onRetry={() => void accountOptionsQuery.refetch()} />;
+      return <div>{statementContext}<FeatureDataError message={accountOptionsQuery.error.message} onRetry={() => void accountOptionsQuery.refetch()} /></div>;
     }
-    return <FeatureDataLoading label="Loading Transactions" />;
+    return <div>{statementContext}<FeatureDataLoading label={statementImportId ? "Loading statement Transactions" : "Loading Transactions"} /></div>;
   }
 
   if (transactionsQuery.isError && !transactionsQuery.data) {
     return (
-      <FeatureDataError
-        message={transactionsQuery.error.message}
+      <div>{statementContext}<FeatureDataError
+        message={statementImportId ? `Statement Import #${statementImportId}: ${transactionsQuery.error.message}` : transactionsQuery.error.message}
         onRetry={() => void transactionsQuery.refetch()}
-      />
+      /></div>
     );
   }
 
@@ -119,7 +133,7 @@ function TransactionsPage({
     (page) => page.items,
   );
   const transactionSummary = firstPage.summary;
-  const hasFilters = hasActiveTransactionFilters(filters);
+  const hasFilters = Boolean(statementImportId) || hasActiveTransactionFilters(filters);
   const isScopeTransitioning =
     transactionsQuery.isFetching && transactionsQuery.isPlaceholderData;
   const controlsDisabled = isScopeTransitioning;
@@ -158,10 +172,10 @@ function TransactionsPage({
           </h1>
         </div>
         <div className="flex w-full min-w-0 flex-col gap-3 md:w-auto md:flex-row md:items-end">
-          <ReportingPeriodFilter
+          {!statementImportId && <ReportingPeriodFilter
             id="transactions-reporting-period"
             disabled={controlsDisabled}
-          />
+          />}
           <Button
             type="button"
             onClick={() => {
@@ -175,6 +189,14 @@ function TransactionsPage({
           </Button>
         </div>
       </header>
+      {statementContext}
+      {firstPage.statement && <p className="mb-2 break-all text-sm font-semibold">{firstPage.statement.fileName} · {firstPage.statement.account}</p>}
+      {statementImportId && !isScopeTransitioning && <p className="mb-4 text-sm text-muted-foreground">
+        {transactionSummary.activityFromDate && transactionSummary.activityToDate
+          ? `Recorded expense activity matching this view: ${transactionSummary.activityFromDate} – ${transactionSummary.activityToDate}.`
+          : "No recorded expense activity matches this view."}
+        {" "}Activity dates do not establish complete statement or Space coverage.
+      </p>}
 
       {isScopeTransitioning ? <FeatureDataLoading label="Loading matching Transactions" /> : <section
         className="grid grid-cols-2 gap-3"
@@ -211,7 +233,8 @@ function TransactionsPage({
             categoryOptions={firstPage.categories.map((category) => ({ id: category.id, label: category.name }))}
             accountOptions={accountOptionsQuery.data}
             totalCount={firstPage.totalCount}
-            emptyMessage={hasFilters ? "No Transactions match these filters in this Reporting Period." : "No Transactions were recorded for this Reporting Period."}
+            scopeLabel={statementImportId ? "this statement" : undefined}
+            emptyMessage={statementImportId ? "No saved expenses match these filters in this statement." : hasFilters ? "No Transactions match these filters in this Reporting Period." : "No Transactions were recorded for this Reporting Period."}
             onEdit={(transaction) => {
               setEditorRevision((revision) => revision + 1);
               setEditorState({ mode: "edit", transaction });
@@ -242,13 +265,13 @@ function TransactionsPage({
           </CardContent>
         )}
       </Card>
-      <DeletedTransactionsCard
+      {!statementImportId && <DeletedTransactionsCard
         query={deletedTransactionsQuery}
         transactions={deletedTransactions}
         onViewActivity={setTransactionToViewActivity}
         showAttribution={spaceId !== undefined}
         attributionMembers={attributionMembers}
-      />
+      />}
       <TransactionEditorDialog
         key={editorRevision}
         open={editorState !== null}

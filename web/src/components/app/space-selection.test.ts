@@ -73,6 +73,9 @@ describe("getArchivedSpaces", () => {
 });
 
 describe("buildCanonicalSpaceSearch", () => {
+  it("preserves the explicit destination for statement-scoped browsing", () => {
+    expect(buildCanonicalSpaceSearch("?statementImportId=100&spaceId=10", "10", "10")).toBe("?statementImportId=100&spaceId=10");
+  });
   it("removes the Personal Space query while preserving other parameters", () => {
     expect(buildCanonicalSpaceSearch("?month=2026-09&spaceId=20", "10", "10")).toBe(
       "?month=2026-09",

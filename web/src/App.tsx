@@ -90,8 +90,9 @@ function StatementImportRoute() {
         }
         setSearchParams(nextParams);
       }}
-      onViewTransactions={(destinationSpaceId) => {
+      onViewTransactions={(destinationSpaceId, statementImportId) => {
         const nextParams = new URLSearchParams();
+        nextParams.set("statementImportId", statementImportId);
         if (destinationSpaceId !== undefined) {
           nextParams.set("spaceId", destinationSpaceId);
         }

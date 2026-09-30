@@ -1,0 +1,211 @@
+{
+  "version": "2.19",
+  "children": [
+    {
+      "type": "frame",
+      "id": "s79success",
+      "name": "Statement Import — Complete",
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844,
+      "fill": "#FFFFFF",
+      "layout": "vertical",
+      "gap": 20,
+      "padding": 24,
+      "children": [
+        {
+          "type": "text",
+          "id": "s79space",
+          "content": "Personal",
+          "fontFamily": "Geist Mono",
+          "fontSize": 14,
+          "fill": "#000000"
+        },
+        {
+          "type": "text",
+          "id": "s79heading",
+          "content": "Statement imported",
+          "fontFamily": "Geist Mono",
+          "fontSize": 24,
+          "fill": "#000000"
+        },
+        {
+          "type": "text",
+          "id": "s79announce",
+          "content": "21 expenses saved · ₱21.00",
+          "fontFamily": "Geist Mono",
+          "fontSize": 14,
+          "fill": "#000000"
+        },
+        {
+          "type": "text",
+          "id": "s79file",
+          "content": "fictional-two-months.pdf",
+          "fontFamily": "Geist Mono",
+          "fontSize": 14,
+          "fill": "#000000"
+        },
+        {
+          "type": "text",
+          "id": "s79dest",
+          "content": "Destination: Personal",
+          "fontFamily": "Geist Mono",
+          "fontSize": 14,
+          "fill": "#000000"
+        },
+        {
+          "type": "text",
+          "id": "s79count",
+          "content": "Expenses saved: 21",
+          "fontFamily": "Geist Mono",
+          "fontSize": 14,
+          "fill": "#000000"
+        },
+        {
+          "type": "text",
+          "id": "s79total",
+          "content": "Total expense saved: ₱21.00",
+          "fontFamily": "Geist Mono",
+          "fontSize": 14,
+          "fill": "#000000"
+        },
+        {
+          "type": "text",
+          "id": "s79view",
+          "content": "View Transactions →",
+          "fontFamily": "Geist Mono",
+          "fontSize": 14,
+          "fill": "#000000"
+        },
+        {
+          "type": "text",
+          "id": "s79another",
+          "content": "Import another statement",
+          "fontFamily": "Geist Mono",
+          "fontSize": 14,
+          "fill": "#000000"
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "s79viewframe",
+      "name": "Transactions — Statement scope",
+      "x": 430,
+      "y": 0,
+      "width": 390,
+      "height": 844,
+      "fill": "#FFFFFF",
+      "layout": "vertical",
+      "gap": 20,
+      "padding": 24,
+      "children": [
+        {
+          "type": "text",
+          "id": "s79viewspace",
+          "content": "Personal",
+          "fontFamily": "Geist Mono",
+          "fontSize": 14,
+          "fill": "#000000"
+        },
+        {
+          "type": "text",
+          "id": "s79viewheading",
+          "content": "Your spending",
+          "fontFamily": "Geist Mono",
+          "fontSize": 24,
+          "fill": "#000000"
+        },
+        {
+          "type": "text",
+          "id": "s79scope",
+          "content": "Statement Import #100",
+          "fontFamily": "Geist Mono",
+          "fontSize": 14,
+          "fill": "#000000"
+        },
+        {
+          "type": "text",
+          "id": "s79scopehint",
+          "content": "Saved expenses across all months",
+          "fontFamily": "Geist Mono",
+          "fontSize": 14,
+          "fill": "#000000"
+        },
+        {
+          "type": "text",
+          "id": "s79return",
+          "content": "Return to monthly view",
+          "fontFamily": "Geist Mono",
+          "fontSize": 14,
+          "fill": "#000000"
+        },
+        {
+          "type": "text",
+          "id": "s79context",
+          "content": "fictional-two-months.pdf · BDO · AMEX",
+          "fontFamily": "Geist Mono",
+          "fontSize": 14,
+          "fill": "#000000"
+        },
+        {
+          "type": "text",
+          "id": "s79range",
+          "content": "Recorded activity: Jul 31 – Aug 1, 2026",
+          "fontFamily": "Geist Mono",
+          "fontSize": 14,
+          "fill": "#000000"
+        },
+        {
+          "type": "text",
+          "id": "s79counts",
+          "content": "Filtered Transactions: 21",
+          "fontFamily": "Geist Mono",
+          "fontSize": 14,
+          "fill": "#000000"
+        },
+        {
+          "type": "text",
+          "id": "s79expense",
+          "content": "Filtered expense: ₱21.00",
+          "fontFamily": "Geist Mono",
+          "fontSize": 20,
+          "fill": "#000000"
+        },
+        {
+          "type": "text",
+          "id": "s79search",
+          "content": "Search descriptions",
+          "fontFamily": "Geist Mono",
+          "fontSize": 14,
+          "fill": "#000000"
+        },
+        {
+          "type": "text",
+          "id": "s79filters",
+          "content": "From / To · Category · Account",
+          "fontFamily": "Geist Mono",
+          "fontSize": 14,
+          "fill": "#000000"
+        },
+        {
+          "type": "text",
+          "id": "s79rows",
+          "content": "Fictional Scope Expense · ₱1.00",
+          "fontFamily": "Geist Mono",
+          "fontSize": 14,
+          "fill": "#000000"
+        },
+        {
+          "type": "text",
+          "id": "s79more",
+          "content": "Showing 20 of 21 · Load more",
+          "fontFamily": "Geist Mono",
+          "fontSize": 14,
+          "fill": "#000000"
+        }
+      ]
+    }
+  ]
+}

@@ -34,6 +34,8 @@ interface TransactionSummary {
   period: string;
   transactionCount: number;
   totalExpense: number;
+  activityFromDate?: string | null;
+  activityToDate?: string | null;
 }
 
 interface TransactionListFilters {
@@ -45,6 +47,7 @@ interface TransactionListFilters {
 }
 
 interface ListTransactionsParams {
+  statementImportId?: string;
   period: ReportingPeriod;
   pageSize: number;
   cursor?: string | null;
@@ -60,6 +63,7 @@ interface ListTransactionsParams {
 }
 
 interface TransactionPage {
+  statement?: { readonly fileName: string; readonly account: string };
   items: readonly TransactionProjection[];
   nextCursor: string | null;
   summary: TransactionSummary;
@@ -210,7 +214,7 @@ function requireTransactionActivity(
 const MAX_PAGE_SIZE = 100;
 
 function hasTransactionFilters(params: ListTransactionsParams): boolean {
-  return Boolean(params.description || params.fromDate || params.toDate ||
+  return Boolean(params.statementImportId || params.description || params.fromDate || params.toDate ||
     params.categoryId || params.categoryState || params.accountBank || params.source);
 }
 
@@ -222,8 +226,9 @@ function hasActiveTransactionFilters(filters: TransactionListFilters): boolean {
 function buildTransactionListPath(params: ListTransactionsParams, pageSize: number, cursor?: string | null) {
   const { fromDate, toDate } = getReportingPeriodBounds(params.period);
   return buildApiPath(buildTransactionCollectionPath(params.spaceId), {
-    fromDate: params.fromDate && params.fromDate > fromDate ? params.fromDate : fromDate,
-    toDate: params.toDate && params.toDate < toDate ? params.toDate : toDate,
+    fromDate: params.statementImportId ? params.fromDate : params.fromDate && params.fromDate > fromDate ? params.fromDate : fromDate,
+    toDate: params.statementImportId ? params.toDate : params.toDate && params.toDate < toDate ? params.toDate : toDate,
+    statementImportId: params.statementImportId,
     description: params.description || undefined,
     categoryId: params.categoryId,
     categoryState: params.categoryState,
@@ -239,6 +244,8 @@ async function loadFilteredSummary(apiClient: TransactionsApiClient, params: Lis
   let cursor: string | null = null;
   let transactionCount = 0;
   let totalCents = 0;
+  let activityFromDate: string | null = null;
+  let activityToDate: string | null = null;
   const seenCursors = new Set<string>();
   // The history API provides a filtered count, but no filtered expense sum.
   // Traverse every page with the same filters; UI pagination is independent.
@@ -249,6 +256,8 @@ async function loadFilteredSummary(apiClient: TransactionsApiClient, params: Lis
     ), createTransactionsDataError);
     transactionCount += page.items.length;
     for (const item of page.items) {
+      if (activityFromDate === null || item.purchaseDate < activityFromDate) activityFromDate = item.purchaseDate;
+      if (activityToDate === null || item.purchaseDate > activityToDate) activityToDate = item.purchaseDate;
       totalCents += moneyToCents(parseApiMoney(item.amount, "Transaction amount", createTransactionsDataError));
     }
     cursor = page.nextCursor;
@@ -257,7 +266,11 @@ async function loadFilteredSummary(apiClient: TransactionsApiClient, params: Lis
       seenCursors.add(cursor);
     }
   } while (cursor !== null);
-  return { period: formatReportingPeriod(params.period), transactionCount, totalExpense: centsToMoney(totalCents) };
+  return {
+    period: params.statementImportId ? `Statement Import #${params.statementImportId}` : formatReportingPeriod(params.period),
+    transactionCount, totalExpense: centsToMoney(totalCents),
+    ...(params.statementImportId ? { activityFromDate, activityToDate } : {}),
+  };
 }
 
 function createTransactionSummary(
@@ -322,8 +335,20 @@ async function listTransactions(
     params.spaceId,
   );
   const categoryById = projectCategoryCatalog(categories);
+  let statement: TransactionPage["statement"];
+  if (params.statementImportId) {
+    const collection = params.spaceId === undefined ? "/statement-imports" : `/spaces/${encodeURIComponent(params.spaceId)}/statement-imports`;
+    const metadata = await apiClient.get<unknown>(`${collection}/${encodeURIComponent(params.statementImportId)}`, { signal });
+    if (!isRecord(metadata) || metadata.id !== params.statementImportId ||
+        typeof metadata.fileName !== "string" || typeof metadata.bank !== "string" ||
+        (metadata.cardType !== null && typeof metadata.cardType !== "string")) {
+      throw createTransactionsDataError("The requested Statement Import is unavailable.");
+    }
+    statement = { fileName: metadata.fileName, account: [metadata.bank, metadata.cardType].filter(Boolean).join(" · ") };
+  }
 
   return {
+    ...(statement ? { statement } : {}),
     items: transactionPage.items.map((transaction) =>
       projectTransactionHistoryItem(
         transaction,

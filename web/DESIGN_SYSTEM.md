@@ -208,6 +208,10 @@ Space labels resolve from the accessible Space's actual kind, including explicit
 
 The sidebar and navigation Sheet call the existing `/categories` destination **Budgets**. It retains Budget overview, Add Category, editing, Matching Rules, and Category lifecycle management. The four phone tabs remain Dashboard, Imports, Transactions, and Insights. Dashboard's Budget attention and Monthly Insights' current Budget summary expose **Manage Budgets** through keyboard-accessible buttons. These actions retain the selected Space and shared Reporting Period and use the existing Budget overview route. Daily Insights retains its own chart controls.
 
+Statement Import completion scrolls to and focuses the confirmation heading, with an announced destination, saved expense count, and total. View Transactions carries the destination Space and Committed Statement Import identity. In statement scope, a visible statement context and Return to monthly view action replace the month picker. Recorded expense activity dates and complete filtered count/total span all statement months; additional filters only narrow this scope. Activity dates do not establish complete statement or Space coverage. Returning clears narrowing filters and restores the unchanged prior Reporting Period. Loading, failure, and empty states retain statement context and recovery actions.
+
+The supplemental [statement browsing reference](design/statement-transactions.pen) records the completion and statement-view compositions; the existing main Pen reference remains the source for shared components and tokens.
+
 ### SpendingChart interface
 
 Dashboard callers provide typed spending points, labels, and an accessible summary. Bar height calculation and CSS rendering stay inside the module. A future SVG or chart-library implementation should preserve this interface unless the domain itself changes.

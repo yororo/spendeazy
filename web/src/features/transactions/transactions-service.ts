@@ -2,6 +2,7 @@ import { loadStatementImports } from "@/shared/account";
 import {
   buildApiPath,
   isRecord,
+  parseApiMoney,
   buildMonthlyCategorySummaryPath,
   getCategorySummaryTotals,
   requireApiResponse,
@@ -27,6 +28,7 @@ import {
   projectTransactionHistoryItem,
   type TransactionProjection,
 } from "@/shared/transaction";
+import { centsToMoney, moneyToCents } from "@/shared/money";
 
 interface TransactionSummary {
   period: string;
@@ -207,6 +209,57 @@ function requireTransactionActivity(
 
 const MAX_PAGE_SIZE = 100;
 
+function hasTransactionFilters(params: ListTransactionsParams): boolean {
+  return Boolean(params.description || params.fromDate || params.toDate ||
+    params.categoryId || params.categoryState || params.accountBank || params.source);
+}
+
+function hasActiveTransactionFilters(filters: TransactionListFilters): boolean {
+  return Boolean(filters.search.trim() || filters.fromDate || filters.toDate ||
+    filters.categoryId !== "all" || filters.accountKey !== "all");
+}
+
+function buildTransactionListPath(params: ListTransactionsParams, pageSize: number, cursor?: string | null) {
+  const { fromDate, toDate } = getReportingPeriodBounds(params.period);
+  return buildApiPath(buildTransactionCollectionPath(params.spaceId), {
+    fromDate: params.fromDate && params.fromDate > fromDate ? params.fromDate : fromDate,
+    toDate: params.toDate && params.toDate < toDate ? params.toDate : toDate,
+    description: params.description || undefined,
+    categoryId: params.categoryId,
+    categoryState: params.categoryState,
+    accountBank: params.accountBank,
+    accountCardType: params.accountCardType,
+    source: params.source,
+    pageSize: String(pageSize),
+    cursor: cursor ?? undefined,
+  });
+}
+
+async function loadFilteredSummary(apiClient: TransactionsApiClient, params: ListTransactionsParams, signal?: AbortSignal): Promise<TransactionSummary> {
+  let cursor: string | null = null;
+  let transactionCount = 0;
+  let totalCents = 0;
+  const seenCursors = new Set<string>();
+  // The history API provides a filtered count, but no filtered expense sum.
+  // Traverse every page with the same filters; UI pagination is independent.
+  do {
+    const page = requireTransactionHistoryPage(requireApiResponse(
+      await apiClient.get<TransactionHistoryPage>(buildTransactionListPath(params, MAX_PAGE_SIZE, cursor), { signal }),
+      "filtered Transaction history page", createTransactionsDataError,
+    ), createTransactionsDataError);
+    transactionCount += page.items.length;
+    for (const item of page.items) {
+      totalCents += moneyToCents(parseApiMoney(item.amount, "Transaction amount", createTransactionsDataError));
+    }
+    cursor = page.nextCursor;
+    if (cursor !== null) {
+      if (seenCursors.has(cursor)) throw createTransactionsDataError("The API repeated a Transaction history cursor.");
+      seenCursors.add(cursor);
+    }
+  } while (cursor !== null);
+  return { period: formatReportingPeriod(params.period), transactionCount, totalExpense: centsToMoney(totalCents) };
+}
+
 function createTransactionSummary(
   categorySummary: CategorySummaryResponse,
   period: ReportingPeriod,
@@ -228,51 +281,31 @@ async function listTransactions(
   params: ListTransactionsParams,
   signal?: AbortSignal,
 ): Promise<TransactionPage> {
-  const { fromDate, toDate } = getReportingPeriodBounds(params.period);
   const pageSize = Math.min(
     Math.max(1, Math.trunc(params.pageSize)),
     MAX_PAGE_SIZE,
   );
-  const [categoriesResponse, summaryResponse, transactionsResponse] =
+  const summaryPromise = hasTransactionFilters(params)
+    ? loadFilteredSummary(apiClient, params, signal)
+    : apiClient.get<CategorySummaryResponse>(buildMonthlyCategorySummaryPath(params.period, params.spaceId), { signal }).then((response) =>
+      createTransactionSummary(requireMonthlyCategorySummary(requireApiResponse(response, "monthly Category Summary", createTransactionsDataError), createTransactionsDataError), params.period));
+  const [categoriesResponse, summary, transactionsResponse] =
     await Promise.all([
-      requireApiResponse(
-        await apiClient.get<readonly CategoryCatalogItem[]>(
+      apiClient.get<readonly CategoryCatalogItem[]>(
           buildCategoryCollectionPath(params.spaceId),
           { signal },
-        ),
+        ).then((response) => requireApiResponse(response,
         "Category catalog",
         createTransactionsDataError,
-      ),
-      apiClient.get<CategorySummaryResponse>(
-        buildMonthlyCategorySummaryPath(params.period, params.spaceId),
-        { signal },
-      ),
+      )),
+      summaryPromise,
         apiClient.get<TransactionHistoryPage>(
-        buildApiPath(buildTransactionCollectionPath(params.spaceId), {
-          fromDate: params.fromDate && params.fromDate > fromDate ? params.fromDate : fromDate,
-          toDate: params.toDate && params.toDate < toDate ? params.toDate : toDate,
-          description: params.description || undefined,
-          categoryId: params.categoryId,
-          categoryState: params.categoryState,
-          accountBank: params.accountBank,
-          accountCardType: params.accountCardType,
-          source: params.source,
-          pageSize: String(pageSize),
-          cursor: params.cursor ?? undefined,
-        }),
+        buildTransactionListPath(params, pageSize, params.cursor),
         { signal },
       ),
     ]);
   const categories = requireCategoryCatalog(
     categoriesResponse,
-  );
-  const categorySummary = requireMonthlyCategorySummary(
-    requireApiResponse(
-      summaryResponse,
-      "monthly Category Summary",
-      createTransactionsDataError,
-    ),
-    createTransactionsDataError,
   );
   const transactionPage = requireTransactionHistoryPage(
     requireApiResponse(
@@ -300,8 +333,8 @@ async function listTransactions(
       ),
     ),
     nextCursor: transactionPage.nextCursor,
-    totalCount: Number(transactionPage.totalCount ?? transactionPage.items.length),
-    summary: createTransactionSummary(categorySummary, params.period),
+    totalCount: hasTransactionFilters(params) ? summary.transactionCount : Number(transactionPage.totalCount ?? summary.transactionCount),
+    summary,
     categories,
   };
 }
@@ -494,6 +527,7 @@ export {
   createTransaction,
   deleteTransaction,
   getTransactionActivity,
+  hasActiveTransactionFilters,
   listTransactions,
   listDeletedTransactions,
   updateTransaction,

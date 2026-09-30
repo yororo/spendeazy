@@ -12,8 +12,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ApiClientProvider } from "@/shared/api";
 import { AppSessionProvider, type AppSession } from "@/shared/session";
+import type { ReportingPeriod } from "@/shared/reporting-period";
 
-import { useCreateTransactionMutation } from "./transactions-queries";
+import { useCreateTransactionMutation, useTransactionsQuery } from "./transactions-queries";
 
 interface Deferred<T> {
   readonly promise: Promise<T>;
@@ -96,6 +97,39 @@ function renderProbe(
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+});
+
+function FilteredTransactionsProbe({ spaceId }: { readonly spaceId: string }) {
+  const query = useTransactionsQuery("2026-08" as ReportingPeriod, spaceId, true,
+    { search: "Coffee", fromDate: "", toDate: "", categoryId: "all", accountKey: "all" });
+  return query.isPending ? <p>Loading selected Space</p> : <p>{query.data?.pages[0].summary.totalExpense}</p>;
+}
+
+it("never carries a filtered summary into another Space while its request is pending", async () => {
+  const secondSpace = createDeferred<Response>();
+  const fetchMock = vi.fn<FetchMock>(async (input) => {
+    const url = new URL(String(input));
+    if (url.pathname.endsWith("/categories")) return new Response("[]");
+    if (url.pathname.includes("/space-b/")) return (await secondSpace.promise).clone();
+    return new Response(JSON.stringify({ items: [{
+      id: "1", categoryId: null, purchaseDate: "2026-08-01", description: "Coffee",
+      amount: "12.34", source: "manual", statementImportId: null,
+    }], nextCursor: null, totalCount: "1" }));
+  });
+  vi.stubGlobal("fetch", fetchMock);
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const renderScope = (spaceId: string) => <AppSessionProvider session={createSession("user-1")}>
+    <ApiClientProvider config={{ baseUrl: "https://api.example.test" }} getToken={async () => "token"}>
+      <QueryClientProvider client={queryClient}><FilteredTransactionsProbe spaceId={spaceId} /></QueryClientProvider>
+    </ApiClientProvider>
+  </AppSessionProvider>;
+  const view = render(renderScope("space-a"));
+  await screen.findByText("12.34");
+  view.rerender(renderScope("space-b"));
+  await screen.findByText("Loading selected Space");
+  expect(screen.queryByText("12.34")).toBeNull();
+  secondSpace.resolve(new Response(JSON.stringify({ items: [], nextCursor: null, totalCount: "0" })));
+  await screen.findByText("0");
 });
 
 describe("transaction mutation scope", () => {

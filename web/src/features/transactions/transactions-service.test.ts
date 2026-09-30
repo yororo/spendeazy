@@ -188,7 +188,7 @@ describe("listTransactions", () => {
         },
       ],
       nextCursor: "cursor-2",
-      totalCount: 2,
+      totalCount: 4,
       summary: {
         period: "Aug 2026",
         transactionCount: 4,
@@ -261,6 +261,7 @@ describe("listTransactions", () => {
       [categoriesPath, createCategories()],
       [summaryPath, createSummary()],
       [filteredPath, { items: [], nextCursor: null, totalCount: "0" }],
+      [filteredPath.replace("pageSize=20", "pageSize=100"), { items: [], nextCursor: null, totalCount: "0" }],
     ]));
     const page = await listTransactions(apiClient, {
       period, pageSize: 20, description: "Coffee", fromDate: "2026-08-10",
@@ -268,6 +269,37 @@ describe("listTransactions", () => {
     });
     expect(page.totalCount).toBe(0);
     expect(get).toHaveBeenCalledWith(filteredPath, { signal: undefined });
+  });
+
+  it("sums every filtered page with combined filters and ignores the UI cursor", async () => {
+    const base = "/spaces/7/transactions?fromDate=2026-08-10&toDate=2026-08-20&description=Coffee&categoryState=uncategorized&source=manual";
+    const item = createTransaction({ source: "manual", statementImportId: null, categoryId: null, amount: "0.10" });
+    const { apiClient, get } = createApiClient(new Map<string, unknown>([
+      ["/spaces/7/categories", createCategories()],
+      [`${base}&pageSize=20&cursor=ui-page`, { items: [item], nextCursor: null, totalCount: "3" }],
+      [`${base}&pageSize=100`, { items: [item, { ...item, id: "11", amount: "12.34" }], nextCursor: "summary-page", totalCount: "3" }],
+      [`${base}&pageSize=100&cursor=summary-page`, { items: [{ ...item, id: "12", amount: "0.20" }], nextCursor: null, totalCount: "3" }],
+    ]));
+    const page = await listTransactions(apiClient, { period, spaceId: "7", pageSize: 20, cursor: "ui-page", description: "Coffee", categoryState: "uncategorized", source: "manual", fromDate: "2026-08-10", toDate: "2026-08-20" });
+    expect(page.summary).toEqual({ period: "Aug 2026", transactionCount: 3, totalExpense: 12.64 });
+    expect(page.totalCount).toBe(3);
+    expect(page.items).toHaveLength(1);
+    expect(get).not.toHaveBeenCalledWith(expect.stringContaining("category-summaries"), expect.anything());
+  });
+
+  it("rejects incomplete filtered totals and retries the complete traversal", async () => {
+    const base = "/transactions?fromDate=2026-08-01&toDate=2026-08-31&description=Coffee&pageSize=";
+    const item = createTransaction({ source: "manual", statementImportId: null, amount: "1.25" });
+    const responses = new Map<string, unknown>([
+      [categoriesPath, createCategories()],
+      [`${base}20`, { items: [item], nextCursor: null }],
+      [`${base}100`, { items: [item], nextCursor: "next" }],
+    ]);
+    const { apiClient } = createApiClient(responses);
+    await expect(listTransactions(apiClient, { period, pageSize: 20, description: "Coffee" })).rejects.toThrow("Unexpected GET");
+    responses.set(`${base}100&cursor=next`, { items: [], nextCursor: null });
+    const page = await listTransactions(apiClient, { period, pageSize: 20, description: "Coffee" });
+    expect(page.summary).toEqual({ period: "Aug 2026", transactionCount: 1, totalExpense: 1.25 });
   });
 
   it("composes a subsequent cursor request without using numbered pages", async () => {

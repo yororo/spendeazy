@@ -32,6 +32,8 @@ import {
 } from "./transactions-service";
 
 const TRANSACTION_PAGE_SIZE = 20;
+const TRANSACTION_IDENTITY_KEY_INDEX = 4;
+const TRANSACTION_SPACE_KEY_INDEX = 5;
 
 function useTransactionsQuery(
   period: ReportingPeriod,
@@ -42,10 +44,17 @@ function useTransactionsQuery(
 ) {
   const apiClient = useApiClient();
   const scope = useFinancialQueryScope(spaceId);
+  const selectedAccount = accounts.find((option) => option.key === filters?.accountKey);
+  const requiresAccount = Boolean(filters?.accountKey && filters.accountKey !== "all" && filters.accountKey !== "manual:cash");
+  const { search, fromDate, toDate, categoryId, accountKey } = filters ?? {};
+  const queryKey = buildFinancialQueryKey(
+    { identityId: scope.identityId, spaceId: scope.spaceId },
+    ["transactions", { search, fromDate, toDate, categoryId, accountKey }, selectedAccount?.bank ?? null, selectedAccount?.cardType ?? null], period,
+  );
 
   return useInfiniteQuery({
     ...financialQueryOptions,
-    queryKey: buildFinancialQueryKey(scope, ["transactions", filters ?? null], period),
+    queryKey,
     queryFn: ({ pageParam, signal }) =>
       listTransactions(
         apiClient,
@@ -60,19 +69,19 @@ function useTransactionsQuery(
           categoryId: filters?.categoryId && filters.categoryId !== "all" && filters.categoryId !== "uncategorized" ? filters.categoryId : undefined,
           categoryState: filters?.categoryId === "uncategorized" ? "uncategorized" : undefined,
           ...(filters?.accountKey === "manual:cash" ? { source: "manual" as const } : {}),
-          ...(filters?.accountKey && filters.accountKey !== "all" && filters.accountKey !== "manual:cash"
-            ? (() => {
-                const account = accounts.find((option) => option.key === filters.accountKey);
-                return account?.bank ? { accountBank: account.bank, accountCardType: account.cardType ?? "" } : {};
-              })()
-            : {}),
+          ...(requiresAccount && selectedAccount?.bank ? { accountBank: selectedAccount.bank, accountCardType: selectedAccount.cardType ?? "" } : {}),
         },
         signal,
       ),
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
-    enabled,
+    placeholderData: (previousData, previousQuery) =>
+      previousQuery?.queryKey[TRANSACTION_IDENTITY_KEY_INDEX] === scope.identityId && previousQuery.queryKey[TRANSACTION_SPACE_KEY_INDEX] === scope.spaceId
+        ? previousData : undefined,
+    enabled: enabled && (!requiresAccount || selectedAccount !== undefined),
     staleTime: queryPolicy.activityStaleTime,
+    // Returning to an inactive filter or Space starts at the first page.
+    gcTime: 0,
   });
 }
 

@@ -27,7 +27,7 @@ import {
   useAccountOptionsQuery,
   useTransactionsQuery,
 } from "./transactions-queries";
-import type { Transaction, TransactionListFilters } from "./transactions-service";
+import { hasActiveTransactionFilters, type Transaction, type TransactionListFilters } from "./transactions-service";
 
 interface TransactionsPageProps {
   readonly spaceId?: string;
@@ -64,6 +64,10 @@ function TransactionsPage({
     effectiveSpaceId,
     !shouldResolvePersonalSpace || spacesQuery.isSuccess,
   );
+  if (accountOptionsQuery.isSuccess && filters.accountKey !== "all" &&
+    !accountOptionsQuery.data.some((account) => account.key === filters.accountKey)) {
+    setLocalFilters({ ...localFilters, accountKey: "all" });
+  }
   const transactionsQuery = useTransactionsQuery(
     period,
     effectiveSpaceId,
@@ -90,6 +94,9 @@ function TransactionsPage({
   }
 
   if (transactionsQuery.isPending) {
+    if (accountOptionsQuery.isError) {
+      return <FeatureDataError message={accountOptionsQuery.error.message} onRetry={() => void accountOptionsQuery.refetch()} />;
+    }
     return <FeatureDataLoading label="Loading Transactions" />;
   }
 
@@ -112,6 +119,7 @@ function TransactionsPage({
     (page) => page.items,
   );
   const transactionSummary = firstPage.summary;
+  const hasFilters = hasActiveTransactionFilters(filters);
   const isScopeTransitioning =
     transactionsQuery.isFetching && transactionsQuery.isPlaceholderData;
   const controlsDisabled = isScopeTransitioning;
@@ -168,41 +176,42 @@ function TransactionsPage({
         </div>
       </header>
 
-      <section
+      {isScopeTransitioning ? <FeatureDataLoading label="Loading matching Transactions" /> : <section
         className="grid grid-cols-2 gap-3"
         aria-label="Transaction summary"
       >
         <MetricCard
           className="min-w-0 [&_.text-metric]:text-xl sm:[&_.text-metric]:text-2xl"
-          label="Transactions"
+          label={hasFilters ? "Filtered Transactions" : "Transactions"}
           value={transactionSummary.transactionCount.toString()}
-          detail={transactionSummary.period}
+          detail={hasFilters ? `Matching filters · ${transactionSummary.period}` : transactionSummary.period}
         />
         <MetricCard
           className="min-w-0 [&_.text-metric]:text-xl sm:[&_.text-metric]:text-2xl"
-          label="Total expense"
+          label={hasFilters ? "Filtered expense" : "Total expense"}
           value={formatMoney(transactionSummary.totalExpense)}
-          detail={transactionSummary.period}
+          detail={hasFilters ? `Matching filters · ${transactionSummary.period}` : transactionSummary.period}
           emphasized
         />
-      </section>
+      </section>}
 
       <Card
         variant="strong"
         className="-mx-4 mt-5 border-x-0 sm:mx-0 sm:border-x"
       >
         <CardHeader className="hidden border-b md:flex">
-          <CardTitle>All transactions</CardTitle>
+          <CardTitle>{hasFilters ? "Filtered transactions" : "All transactions"}</CardTitle>
         </CardHeader>
         <div aria-busy={transactionsQuery.isFetching}>
           <TransactionTable
-            transactions={transactions}
+            transactions={isScopeTransitioning ? [] : transactions}
+            isLoading={isScopeTransitioning}
             serverFilters={filters}
             onServerFiltersChange={updateFilters}
             categoryOptions={firstPage.categories.map((category) => ({ id: category.id, label: category.name }))}
             accountOptions={accountOptionsQuery.data}
             totalCount={firstPage.totalCount}
-            emptyMessage="No Transactions were recorded for this Reporting Period."
+            emptyMessage={hasFilters ? "No Transactions match these filters in this Reporting Period." : "No Transactions were recorded for this Reporting Period."}
             onEdit={(transaction) => {
               setEditorRevision((revision) => revision + 1);
               setEditorState({ mode: "edit", transaction });

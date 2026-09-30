@@ -24,7 +24,7 @@ import { CategoryBadge } from "@/shared/category";
 import { formatMoney } from "@/shared/money";
 import type { AccountOption } from "@/shared/account";
 
-import type { Transaction, TransactionListFilters } from "./transactions-service";
+import { hasActiveTransactionFilters, type Transaction, type TransactionListFilters } from "./transactions-service";
 
 interface AttributionMember {
   readonly id: string;
@@ -46,6 +46,7 @@ interface TransactionTableProps {
   categoryOptions?: readonly { id: string; label: string }[];
   accountOptions?: readonly AccountOption[];
   totalCount?: number;
+  isLoading?: boolean;
 }
 
 interface TransactionActionsMenuProps {
@@ -71,6 +72,7 @@ function TransactionTable({
   categoryOptions,
   accountOptions = [],
   totalCount,
+  isLoading = false,
 }: TransactionTableProps) {
   const controlId = useId();
   const [localSearch, setLocalSearch] = useState("");
@@ -107,9 +109,13 @@ function TransactionTable({
       : a.purchaseDate.localeCompare(b.purchaseDate);
     return (sort.endsWith("asc") ? difference : -difference) || a.id.localeCompare(b.id);
   });
-  const hasFilters = Boolean(search.trim() || dateFrom || dateTo || categoryFilter !== "all" || accountFilter !== "all");
+  const hasFilters = hasActiveTransactionFilters({ search, fromDate: dateFrom, toDate: dateTo, categoryId: categoryFilter, accountKey: accountFilter });
   const hasSheetFilters = Boolean(dateFrom || dateTo || categoryFilter !== "all" || accountFilter !== "all" || sort !== "date-desc");
   function clearFilters() {
+    if (serverFilters && onServerFiltersChange) {
+      onServerFiltersChange({ search: "", fromDate: "", toDate: "", categoryId: "all", accountKey: "all" });
+      return;
+    }
     setSearch("");
     setDateFrom("");
     setDateTo("");
@@ -155,7 +161,7 @@ function TransactionTable({
             <SheetHeader className="border-b p-5 pr-14"><SheetTitle>Filter Transactions</SheetTitle><SheetDescription>Results update immediately as filters change.</SheetDescription></SheetHeader>
             <div className="grid gap-4 p-5">
               {filterFields(`${controlId}-mobile`)}
-              <Button type="button" variant="outline" disabled={!hasSheetFilters} onClick={() => { setDateFrom(""); setDateTo(""); setCategoryFilter("all"); setAccountFilter("all"); setSort("date-desc"); }}>Clear filters</Button>
+              <Button type="button" variant="outline" disabled={!hasFilters && sort === "date-desc"} onClick={() => { clearFilters(); setSort("date-desc"); }}>Clear filters</Button>
             </div>
           </SheetContent>
         </Sheet>
@@ -165,11 +171,11 @@ function TransactionTable({
         {filterFields(controlId)}
         <Button type="button" variant="outline" disabled={!hasFilters} onClick={clearFilters}>Clear filters</Button>
       </div>
-      <p className="border-b px-3 py-2 text-xs text-muted-foreground" role="status">{serverFilters ? `Showing ${visibleTransactions.length} of ${totalCount ?? transactions.length} matching Transactions in the selected Reporting Period` : `Showing ${visibleTransactions.length} of ${transactions.length} loaded Transactions`}</p>
+      <p className="border-b px-3 py-2 text-xs text-muted-foreground" role="status">{isLoading ? "Loading matching Transactions" : serverFilters ? `Showing ${visibleTransactions.length} of ${totalCount ?? transactions.length} matching Transactions in the selected Reporting Period` : `Showing ${visibleTransactions.length} of ${transactions.length} loaded Transactions`}</p>
       <div className="md:hidden">
         {visibleTransactions.length === 0 ? (
           <p className="px-4 py-10 text-center text-muted-foreground">
-            {hasFilters ? "No Transactions match the filters." : emptyMessage}
+            {isLoading ? "Loading matching Transactions" : hasFilters ? "No Transactions match the filters." : emptyMessage}
           </p>
         ) : (
           <ul className="divide-y" aria-label={ariaLabel}>
@@ -246,7 +252,7 @@ function TransactionTable({
                   colSpan={hasActions ? 6 : 5}
                   className="py-10 text-center text-muted-foreground"
                 >
-                  {hasFilters ? "No Transactions match the filters." : emptyMessage}
+                  {isLoading ? "Loading matching Transactions" : hasFilters ? "No Transactions match the filters." : emptyMessage}
                 </TableCell>
               </TableRow>
             )}

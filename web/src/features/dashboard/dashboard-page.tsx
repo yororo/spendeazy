@@ -8,7 +8,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAccessibleSpacesQuery } from "@/shared/api";
-import { formatMoney } from "@/shared/money";
+import { formatMoney, moneyToCents } from "@/shared/money";
+import { budgetStatusLabels, describeBudget } from "@/shared/budget";
 import {
   ReportingPeriodFilter,
   useReportingPeriod,
@@ -141,11 +142,11 @@ function DashboardPage({ spaceId, onSpaceChange, onManageBudgets }: DashboardPag
             detail="Across all categories"
           />
           <MetricCard
-            label="Budgeted Categories used"
+            label="Budgeted spending / total monthly limits"
             className="min-w-0 [&_.text-metric]:text-xl md:[&_.text-metric]:text-2xl"
             value={dashboardSummary.budgetLimit > 0 ? `${dashboardSummary.budgetUsed}%` : "No Budgets"}
             detail={dashboardSummary.budgetLimit > 0
-              ? `${formatMoney(dashboardSummary.budgetedSpend)} of ${formatMoney(dashboardSummary.budgetLimit)} · ${formatMoney(dashboardSummary.budgetRemaining)} remaining`
+              ? `${formatMoney(dashboardSummary.budgetedSpend)} of ${formatMoney(dashboardSummary.budgetLimit)} · ${describeBudget(moneyToCents(dashboardSummary.budgetedSpend), moneyToCents(dashboardSummary.budgetLimit))}`
               : "Add a monthly Budget to track progress"}
             progress={dashboardSummary.budgetLimit > 0 ? dashboardSummary.budgetUsed : undefined}
           />
@@ -153,7 +154,7 @@ function DashboardPage({ spaceId, onSpaceChange, onManageBudgets }: DashboardPag
             label="Unbudgeted spending"
             className="min-w-0 [&_.text-metric]:text-xl md:[&_.text-metric]:text-2xl"
             value={formatMoney(dashboardSummary.unbudgetedSpend)}
-            detail="Includes Uncategorized"
+            detail="Without monthly limits, including Uncategorized"
           />
         </div>
       </section>
@@ -169,7 +170,7 @@ function DashboardPage({ spaceId, onSpaceChange, onManageBudgets }: DashboardPag
           </CardHeader>
           <CardContent className="border-t p-0">
             {visibleBudgetAlerts.length === 0 ? (
-              <p className="p-4 text-sm text-muted-foreground">{dashboardQuery.isPlaceholderData ? "Updating Budget attention…" : "No Categories need attention in this Reporting Period."}</p>
+              <p className="p-4 text-sm text-muted-foreground">{dashboardQuery.isPlaceholderData ? "Updating Budget attention…" : dashboardSummary.transactionCount === 0 ? "No spending recorded in this Reporting Period. Recorded activity does not establish complete monthly coverage." : dashboardSummary.budgetLimit === 0 ? "Add a monthly Budget to track Category limits." : "No recorded Category spending has reached 80% of its monthly Budget."}</p>
             ) : (
               <ul className="divide-y">
                 {visibleBudgetAlerts.map((alert) => (
@@ -181,9 +182,11 @@ function DashboardPage({ spaceId, onSpaceChange, onManageBudgets }: DashboardPag
                       <span className="min-w-0 font-medium">{alert.label}</span>
                       <span className="text-right font-mono text-sm tabular-nums">
                         {alert.status === "over"
-                          ? `${formatMoney(Math.abs(alert.remaining ?? 0))} over Budget`
+                          ? `${budgetStatusLabels.over} · ${formatMoney(Math.abs(alert.remaining ?? 0))} over`
+                          : alert.status === "limit"
+                            ? `${budgetStatusLabels.limit} · ${formatMoney(0)} remaining`
                           : alert.status === "near"
-                            ? `${alert.usage}% used · ${formatMoney(alert.remaining ?? 0)} left`
+                            ? `${budgetStatusLabels.near} · ${alert.usage}% used · ${formatMoney(alert.remaining ?? 0)} left`
                             : `${formatMoney(alert.spent)} · No Budget`}
                       </span>
                     </Link>

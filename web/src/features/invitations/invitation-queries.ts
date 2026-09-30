@@ -88,7 +88,7 @@ function useAcceptInvitationMutation() {
     mutationFn: (claimId: string) => acceptInvitation(apiClient, claimId),
     retry: 0,
     onSuccess: () => {
-      void Promise.all([
+      return Promise.all([
         queryClient.invalidateQueries({ queryKey: INVITATIONS_QUERY_KEY }),
         queryClient.invalidateQueries({ queryKey: ['spaces', 'accessible'] }),
       ]);

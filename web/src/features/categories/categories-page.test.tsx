@@ -644,6 +644,19 @@ afterEach(() => {
 });
 
 describe("CategoriesPage", () => {
+  it.each([
+    ["799.99", "Within Budget · ₱200.01 remaining"],
+    ["800.00", "Nearing Budget · ₱200.00 remaining"],
+    ["999.99", "Nearing Budget · ₱0.01 remaining"],
+    ["1000.00", "At Budget Limit · ₱0.00 remaining"],
+    ["1000.01", "Over Budget · ₱0.01 over"],
+  ])("shows exact Budget status for %s on mobile and desktop", async (amount, expected) => {
+    const { fetchMock } = createFetchMock({ initialBudget: { amount: "1000.00", period: "monthly" }, categorySpending: { "42": amount } });
+    renderCategoriesPage(fetchMock);
+    await screen.findByRole("heading", { name: "Budget overview" });
+    await waitFor(() => expect(screen.getAllByText(expected)).toHaveLength(2));
+  });
+
   it("shows the active Space above the title", async () => {
     const { fetchMock } = createFetchMock();
     renderCategoriesPage(fetchMock, { spaceId: "99", onSpaceChange: vi.fn() });

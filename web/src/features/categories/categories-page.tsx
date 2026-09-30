@@ -1,3 +1,5 @@
+import { describeBudget } from "@/shared/budget";
+import { moneyToCents } from "@/shared/money";
 import { useRef, useState } from "react";
 import {
   ArchiveIcon,
@@ -506,6 +508,9 @@ function CategoriesPage({ spaceId, onSpaceChange }: CategoriesPageProps = {}) {
                           />
                           <p className="mt-1 font-mono text-xs text-muted-foreground">
                             {category.usage}% used
+                            {category.budget !== null && (
+                              <span className="block">{describeBudget(moneyToCents(category.spent), moneyToCents(category.budget))}</span>
+                            )}
                           </p>
                         </>
                       )}

@@ -77,6 +77,27 @@ function createApiClient(responses: ReadonlyMap<string, unknown>) {
 }
 
 describe("getDashboard", () => {
+  it.each([
+    ["799.99", null],
+    ["800.00", "near"],
+    ["999.99", "near"],
+    ["1000.00", "limit"],
+    ["1000.01", "over"],
+  ])("uses exact cents for %s even with low aggregate usage", async (spent, status) => {
+    const { apiClient } = createApiClient(new Map<string, unknown>([
+      [summaryPath, { ...createEmptySummary(), categories: [
+        { categoryId: "42", name: "Housing", isActive: true, totalAmount: spent, transactionCount: "1", budgetAmount: "1000.00", remainingAmount: null },
+        { categoryId: "43", name: "Groceries", isActive: true, totalAmount: "0.00", transactionCount: "0", budgetAmount: "99000.00", remainingAmount: null },
+      ] }],
+      [fullTransactionsPath, { items: [], nextCursor: null }],
+      [recentTransactionsPath, { items: [], nextCursor: null }],
+    ]));
+    const dashboard = await getDashboard(apiClient, period);
+    expect(dashboard.summary.budgetUsed).toBeLessThan(2);
+    expect(dashboard.budgetAlerts.map((alert) => alert.status)).toEqual(status === null ? [] : [status]);
+    if (spent === "1000.01") expect(dashboard.budgetAlerts[0]?.remaining).toBe(-0.01);
+  });
+
   it("loads Dashboard aggregates and recent Transactions from the selected Space", async () => {
     const responses = new Map<string, unknown>([
       [scopedCategoryPath, createCategoryCatalog()],

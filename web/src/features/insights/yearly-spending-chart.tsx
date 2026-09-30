@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { getCategoryColorClass } from "@/shared/category";
 import { centsToMoney, formatMoney } from "@/shared/money";
+import { describeBudget } from "@/shared/budget";
 import { formatReportingPeriod } from "@/shared/reporting-period";
 
 import type { InsightsYearlyReport } from "./insights-service";
@@ -281,9 +282,9 @@ function YearlySpendingChart({ report }: YearlySpendingChartProps) {
                     <td>
                       {!hasMonthlyBudget
                         ? "No current monthly Budget"
-                        : month.isOverBudget
-                          ? "Over Budget"
-                          : "Within Budget"}
+                        : month.totalSpendingCents === 0
+                          ? "No spending recorded"
+                          : describeBudget(month.budgetedSpendingCents, report.monthlyBudgetCents)}
                     </td>
                     {report.categories.map((category) => (
                       <td key={category.id ?? "uncategorized"}>

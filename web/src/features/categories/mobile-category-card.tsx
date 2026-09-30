@@ -1,3 +1,5 @@
+import { describeBudget } from "@/shared/budget";
+import { moneyToCents } from "@/shared/money";
 import { useRef } from "react";
 import { ArchiveIcon, EllipsisIcon, RotateCcwIcon } from "lucide-react";
 
@@ -186,6 +188,9 @@ function MobileCategoryCard({
                 />
                 <p className="font-mono text-xs text-muted-foreground">
                   {category.usage}% used
+                  {category.budget !== null && (
+                    <span className="block">{describeBudget(moneyToCents(category.spent), moneyToCents(category.budget))}</span>
+                  )}
                 </p>
               </div>
             )}

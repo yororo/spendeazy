@@ -52,6 +52,7 @@ The important shared seams are:
 - `shared/api`: validated configuration, authenticated user scope, HTTP transport, cancellation, response validation, and structured errors. Endpoint-specific adapters stay in features.
 - `shared/category`, `shared/account`, and `shared/transaction`: domain identity or projections used by multiple features. Feature-specific Budget and Transaction behavior stays with its feature.
 - `shared/money`: currency formatting and exact cents arithmetic. It is not a currency-bearing Money value object; introduce one only when multi-currency behavior requires it.
+- `shared/budget`: exact monthly Budget status and amount descriptions used by Dashboard attention, Category summaries, and Insights chart details. Feature queries and Budget editing remain feature-owned.
 - `shared/reporting-period`: one browser-local calendar-month selection and inclusive bounds shared by reporting features.
 - `shared/query`: common cache, freshness, and retry policy.
 - `shared/ui`: composed UI with proven cross-feature behavior, including feature loading/error/empty states, authentication loading presentation, and branding. Authentication lifecycle stays in application composition; generic primitives remain in `components/ui`.

@@ -675,8 +675,9 @@ describe("InsightsPage", () => {
         name: formatReportingPeriod(expectedStart.slice(0, 7) as ReportingPeriod),
       }),
     ).toBeTruthy();
-    expect(within(yearlyTable).getAllByText("Over Budget")).toHaveLength(1);
-    expect(within(yearlyTable).getAllByText("Within Budget").length).toBeGreaterThan(0);
+    expect(within(yearlyTable).getAllByText(/^Over Budget ·/)).toHaveLength(1);
+    expect(within(yearlyTable).getAllByText(/^Within Budget ·/).length).toBeGreaterThan(0);
+    expect(within(yearlyTable).getAllByText("No spending recorded").length).toBeGreaterThan(0);
     const breachMarker = screen.getByTestId("yearly-over-budget-marker");
     expect(breachMarker.style.bottom).toBe("100%");
     expect(breachMarker.style.transform).toBe("translateY(-100%)");

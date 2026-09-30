@@ -284,6 +284,8 @@ Incorrect generic coupling:
 
 ## Adding a new pattern
 
+Monthly Budget presentations classify exact cents before rounding display values: below 80% is Within Budget, 80% to below 100% is Nearing Budget, exactly 100% is At Budget Limit, and above 100% is Over Budget. Show precise remaining or over amounts beside rounded usage. Aggregate comparisons use Budgeted Spending against current monthly limits; total recorded spending and Unbudgeted Spending remain separate. Show setup guidance when monthly limits are absent and describe zero activity as no spending recorded, without implying complete monthly coverage.
+
 Before adding UI, classify it in this order:
 
 1. Existing token

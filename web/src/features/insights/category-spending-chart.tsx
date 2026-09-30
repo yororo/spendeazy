@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { getCategoryColorClass, getCategoryColorOption } from "@/shared/category";
 import { centsToMoney, formatMoney } from "@/shared/money";
+import { describeBudget } from "@/shared/budget";
 import { formatReportingPeriod } from "@/shared/reporting-period";
 
 import type {
@@ -312,6 +313,11 @@ function CategorySpendingChart({ report }: CategorySpendingChartProps) {
                       )}
                     />
                     <span>{category.label}</span>
+                    {report.view === "monthly" && category.monthlyBudgetCents !== null && (
+                      <span className="font-mono text-xs text-muted-foreground">
+                        {describeBudget(category.spendingCents, category.monthlyBudgetCents)}
+                      </span>
+                    )}
                     {category.monthlyBudgetCents !== null &&
                     showSelectedBudgetReferences ? (
                       <span className="font-mono text-xs text-muted-foreground">
@@ -375,6 +381,9 @@ function CategorySpendingChart({ report }: CategorySpendingChartProps) {
                               centsToMoney(
                                 point.amountsByCategory.get(category.id) ?? 0,
                               ),
+                            )}
+                            {report.view === "yearly" && category.monthlyBudgetCents !== null && (
+                              <span> · {describeBudget(point.amountsByCategory.get(category.id) ?? 0, category.monthlyBudgetCents)}</span>
                             )}
                           </td>
                         ))}

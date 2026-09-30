@@ -27,6 +27,7 @@ import {
   type CategoryProjection,
 } from "@/shared/category";
 import { centsToMoney, moneyToCents, roundMoney } from "@/shared/money";
+import { getBudgetStatus } from "@/shared/budget";
 import {
   formatReportingPeriod,
   getReportingPeriodBounds,
@@ -76,7 +77,7 @@ interface BudgetAlert {
   readonly budget: number | null;
   readonly remaining: number | null;
   readonly usage: number | null;
-  readonly status: "over" | "near" | "unbudgeted";
+  readonly status: "over" | "limit" | "near" | "unbudgeted";
 }
 
 interface DashboardData {
@@ -394,7 +395,8 @@ function createBudgetAlerts(
     }
     const budget = parseApiMoney(category.budgetAmount, `Budget ${category.categoryId}`, createDashboardDataError);
     const usage = budget > 0 ? Math.round((spent / budget) * 100) : 0;
-    if (usage < 80) return null;
+    const status = getBudgetStatus(moneyToCents(spent), moneyToCents(budget));
+    if (status === "within") return null;
     return {
       categoryId: category.categoryId,
       label,
@@ -402,10 +404,10 @@ function createBudgetAlerts(
       budget,
       remaining: centsToMoney(moneyToCents(budget) - moneyToCents(spent)),
       usage,
-      status: usage >= 100 ? "over" : "near",
+      status,
     };
   }).filter((alert): alert is BudgetAlert => alert !== null);
-  const priority = { over: 0, near: 1, unbudgeted: 2 };
+  const priority = { over: 0, limit: 1, near: 2, unbudgeted: 3 };
   return [
     ...alerts.filter((alert) => alert.status !== "unbudgeted"),
     ...alerts.filter((alert) => alert.status === "unbudgeted").sort((a, b) => b.spent - a.spent).slice(0, 3),

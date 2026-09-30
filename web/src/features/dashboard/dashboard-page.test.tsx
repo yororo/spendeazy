@@ -86,7 +86,7 @@ function renderDashboard() {
 describe("DashboardPage", () => {
   it("removes categories from the previous Reporting Period while the next period loads", () => {
     const view = renderDashboard();
-    expect(screen.getByRole("link", { name: /Housing.*over Budget/ }).getAttribute("href")).toBe("/transactions?categoryId=category-housing");
+    expect(screen.getByRole("link", { name: /Housing.*Over Budget/ }).getAttribute("href")).toBe("/transactions?categoryId=category-housing");
     expect(
       screen.getByRole("img", { name: "Housing: 100% of monthly spending" }),
     ).toBeTruthy();

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
 
 import {
   FeatureDataError,
@@ -23,9 +24,10 @@ import { YearlySpendingChart } from "./yearly-spending-chart";
 interface InsightsPageProps {
   readonly spaceId?: string;
   readonly onSpaceChange?: (spaceId?: string) => void;
+  readonly onManageBudgets?: () => void;
 }
 
-function InsightsPage({ spaceId, onSpaceChange }: InsightsPageProps = {}) {
+function InsightsPage({ spaceId, onSpaceChange, onManageBudgets }: InsightsPageProps = {}) {
   const [view, setView] = useState<InsightsView>("monthly");
   const { period } = useReportingPeriod();
   const shouldResolvePersonalSpace = onSpaceChange !== undefined;
@@ -78,7 +80,7 @@ function InsightsPage({ spaceId, onSpaceChange }: InsightsPageProps = {}) {
     <div className="mx-auto w-full max-w-screen-2xl px-4 py-6 sm:px-6 lg:px-9 lg:py-7">
       <header className="mb-6 flex flex-col gap-5 border-b border-foreground pb-5 md:flex-row md:items-end md:justify-between">
         <div>
-          <ActiveSpaceLabel spaceId={spaceId} />
+          <ActiveSpaceLabel spaceId={effectiveSpaceId} spaces={spacesQuery.data} />
           <p className="text-label text-muted-foreground">Spending insights</p>
           <h1 className="mt-2 font-mono text-2xl font-bold tracking-tight md:text-3xl">
             Insights
@@ -169,6 +171,9 @@ function InsightsPage({ spaceId, onSpaceChange }: InsightsPageProps = {}) {
           <p className="font-semibold">
             Current monthly Budgets: {formatMoney(centsToMoney(report.monthlyBudgetCents))}
           </p>
+          {view === "yearly" && onManageBudgets && (
+            <Button variant="outline" onClick={onManageBudgets}>Manage Budgets</Button>
+          )}
           {report.view === "yearly" ? (
             <p className="text-muted-foreground">
               Historical comparisons use current monthly Budgets; past Budget

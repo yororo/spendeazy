@@ -209,7 +209,7 @@
                 {
                   "type": "frame",
                   "id": "N5SKAK",
-                  "name": "Nav — Categories",
+                  "name": "Nav — Budgets",
                   "width": "fill_container",
                   "fill": "#000000",
                   "gap": 12,
@@ -232,9 +232,9 @@
                     {
                       "type": "text",
                       "id": "gsLNn",
-                      "name": "Categories Label",
+                      "name": "Budgets Label",
                       "fill": "$surface",
-                      "content": "Categories",
+                      "content": "Budgets",
                       "fontFamily": "$font-mono",
                       "fontSize": 13,
                       "fontWeight": "500"
@@ -7306,7 +7306,7 @@
                 {
                   "type": "frame",
                   "id": "um2tc",
-                  "name": "Nav — Categories",
+                  "name": "Nav — Budgets",
                   "width": "fill_container",
                   "fill": "#000000",
                   "gap": 12,
@@ -7329,9 +7329,9 @@
                     {
                       "type": "text",
                       "id": "HmeUO",
-                      "name": "Categories Label",
+                      "name": "Budgets Label",
                       "fill": "$surface",
-                      "content": "Categories",
+                      "content": "Budgets",
                       "fontFamily": "$font-mono",
                       "fontSize": 13,
                       "fontWeight": "500"
@@ -11142,7 +11142,7 @@
                 {
                   "type": "frame",
                   "id": "gziTi",
-                  "name": "Nav — Categories",
+                  "name": "Nav — Budgets",
                   "width": "fill_container",
                   "fill": "#000000",
                   "gap": 12,
@@ -11165,9 +11165,9 @@
                     {
                       "type": "text",
                       "id": "QUpCW",
-                      "name": "Categories Label",
+                      "name": "Budgets Label",
                       "fill": "$surface",
-                      "content": "Categories",
+                      "content": "Budgets",
                       "fontFamily": "$font-mono",
                       "fontSize": 13,
                       "fontWeight": "500"
@@ -14335,7 +14335,7 @@
                 {
                   "type": "frame",
                   "id": "lfpgO",
-                  "name": "Nav — Categories",
+                  "name": "Nav — Budgets",
                   "width": "fill_container",
                   "fill": "$accent",
                   "gap": 12,
@@ -14358,9 +14358,9 @@
                     {
                       "type": "text",
                       "id": "d7kbUB",
-                      "name": "Categories Label",
+                      "name": "Budgets Label",
                       "fill": "$ink",
-                      "content": "Categories",
+                      "content": "Budgets",
                       "fontFamily": "$font-mono",
                       "fontSize": 13,
                       "fontWeight": "700"
@@ -18519,7 +18519,7 @@
                 {
                   "type": "frame",
                   "id": "lH8a2",
-                  "name": "Nav — Categories",
+                  "name": "Nav — Budgets",
                   "width": "fill_container",
                   "fill": "$--sidebar",
                   "gap": 12,
@@ -18542,9 +18542,9 @@
                     {
                       "type": "text",
                       "id": "E7Rpr0",
-                      "name": "Categories Label",
+                      "name": "Budgets Label",
                       "fill": "$--sidebar-foreground",
-                      "content": "Categories",
+                      "content": "Budgets",
                       "fontFamily": "$font-mono",
                       "fontSize": 13,
                       "fontWeight": "500"
@@ -21881,7 +21881,7 @@
                 {
                   "type": "frame",
                   "id": "HfIr5",
-                  "name": "Nav — Categories",
+                  "name": "Nav — Budgets",
                   "width": "fill_container",
                   "fill": "$accent",
                   "gap": 12,
@@ -21904,9 +21904,9 @@
                     {
                       "type": "text",
                       "id": "xcreG",
-                      "name": "Categories Label",
+                      "name": "Budgets Label",
                       "fill": "$ink",
-                      "content": "Categories",
+                      "content": "Budgets",
                       "fontFamily": "$font-mono",
                       "fontSize": 13,
                       "fontWeight": "700"
@@ -36229,7 +36229,7 @@
                 {
                   "type": "frame",
                   "id": "RKycd",
-                  "name": "Nav — Categories",
+                  "name": "Nav — Budgets",
                   "width": "fill_container",
                   "fill": "#000000",
                   "gap": 12,
@@ -36252,9 +36252,9 @@
                     {
                       "type": "text",
                       "id": "z8zja3",
-                      "name": "Categories Label",
+                      "name": "Budgets Label",
                       "fill": "$surface",
-                      "content": "Categories",
+                      "content": "Budgets",
                       "fontFamily": "$font-mono",
                       "fontSize": 13,
                       "fontWeight": "500"
@@ -47563,7 +47563,7 @@
                 {
                   "type": "frame",
                   "id": "D8buqn",
-                  "name": "Nav — Categories",
+                  "name": "Nav — Budgets",
                   "width": "fill_container",
                   "fill": "#000000",
                   "gap": 12,
@@ -47586,9 +47586,9 @@
                     {
                       "type": "text",
                       "id": "wpMEO",
-                      "name": "Categories Label",
+                      "name": "Budgets Label",
                       "fill": "$surface",
-                      "content": "Categories",
+                      "content": "Budgets",
                       "fontFamily": "$font-mono",
                       "fontSize": 13,
                       "fontWeight": "500"
@@ -52019,7 +52019,7 @@
                 {
                   "type": "frame",
                   "id": "Knlra",
-                  "name": "Nav — Categories",
+                  "name": "Nav — Budgets",
                   "width": "fill_container",
                   "fill": "#000000",
                   "gap": 12,
@@ -52042,9 +52042,9 @@
                     {
                       "type": "text",
                       "id": "IxA9V",
-                      "name": "Categories Label",
+                      "name": "Budgets Label",
                       "fill": "$surface",
-                      "content": "Categories",
+                      "content": "Budgets",
                       "fontFamily": "$font-mono",
                       "fontSize": 13,
                       "fontWeight": "500"

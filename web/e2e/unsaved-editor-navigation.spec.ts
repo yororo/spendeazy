@@ -253,7 +253,7 @@ test("guards ordinary primary navigation while a Transaction editor is dirty", a
   await description.fill("Unsaved dinner");
   await description.focus();
 
-  await page.getByRole("link", { name: "Categories" }).first().click();
+  await page.getByRole("link", { name: "Budgets" }).first().click();
   await expect(
     page.getByRole("dialog", { name: "Leave Transaction editor?" }),
   ).toBeVisible();
@@ -262,7 +262,7 @@ test("guards ordinary primary navigation while a Transaction editor is dirty", a
   await expect(description).toBeFocused();
   await expect(description).toHaveValue("Unsaved dinner");
 
-  await page.getByRole("link", { name: "Categories" }).first().click();
+  await page.getByRole("link", { name: "Budgets" }).first().click();
   await leaveThroughGuard(page, "Transaction");
   await expect(page).toHaveURL(/\/categories(?:\?spaceId=1)?$/u);
 });

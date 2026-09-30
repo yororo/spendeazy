@@ -7,6 +7,7 @@ import {
   FeatureDataLoading,
 } from "@/shared/ui/feature-data-state";
 import { LedgerMark } from "@/shared/ui/ledger-mark";
+import { SpaceLabelProvider } from "@/shared/ui";
 import { MobileTabBar } from "@/components/app/mobile-tab-bar";
 import { PrimarySidebar } from "@/components/app/primary-sidebar";
 import { SpaceSwitcher } from "@/components/app/space-switcher";
@@ -211,6 +212,7 @@ function AppShellContent() {
   }
 
   return (
+    <SpaceLabelProvider spaces={spacesQuery.data}>
     <div
       className="min-h-screen bg-background lg:flex lg:h-screen lg:overflow-hidden"
       onClickCapture={handleNavigationClickCapture}
@@ -275,6 +277,7 @@ function AppShellContent() {
       </div>
       <MobileTabBar />
     </div>
+    </SpaceLabelProvider>
   );
 }
 

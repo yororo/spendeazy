@@ -23,9 +23,10 @@ import { SpendingChart } from "./spending-chart";
 interface DashboardPageProps {
   readonly spaceId?: string;
   readonly onSpaceChange?: (spaceId?: string) => void;
+  readonly onManageBudgets?: () => void;
 }
 
-function DashboardPage({ spaceId, onSpaceChange }: DashboardPageProps = {}) {
+function DashboardPage({ spaceId, onSpaceChange, onManageBudgets }: DashboardPageProps = {}) {
   const { period } = useReportingPeriod();
   const shouldResolvePersonalSpace = onSpaceChange !== undefined;
   const spacesQuery = useAccessibleSpacesQuery(shouldResolvePersonalSpace);
@@ -81,7 +82,7 @@ function DashboardPage({ spaceId, onSpaceChange }: DashboardPageProps = {}) {
     >
       <header className="mb-6 flex flex-col gap-5 border-b border-foreground pb-5 md:flex-row md:items-end md:justify-between">
         <div>
-          <ActiveSpaceLabel spaceId={spaceId} />
+          <ActiveSpaceLabel spaceId={effectiveSpaceId} spaces={spacesQuery.data} />
           <p className="text-label text-muted-foreground">
             Dashboard / Monthly expenses
           </p>
@@ -161,6 +162,9 @@ function DashboardPage({ spaceId, onSpaceChange }: DashboardPageProps = {}) {
         <Card variant="strong">
           <CardHeader>
             <CardTitle id="budget-attention-heading">Budget attention</CardTitle>
+            {onManageBudgets && (
+              <Button variant="outline" onClick={onManageBudgets}>Manage Budgets</Button>
+            )}
             <p className="text-sm text-muted-foreground">Categories at 80% of their monthly Budget, plus the three highest unbudgeted Categories.</p>
           </CardHeader>
           <CardContent className="border-t p-0">

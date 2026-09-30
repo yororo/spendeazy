@@ -4,6 +4,7 @@ import { Route, Routes, useNavigate, useSearchParams } from "react-router-dom";
 import { AuthenticatedRoute } from "@/components/app/authenticated-route";
 import { RouteLoading } from "@/components/app/route-loading";
 import { AppShell } from "@/layouts/app-shell";
+import { getNavigationTarget } from "@/components/app/primary-navigation";
 import { NotFoundPage } from "@/pages/not-found-page";
 
 interface AppProps {
@@ -122,12 +123,14 @@ function CategoriesRoute() {
 }
 
 function InsightsRoute() {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const spaceId = searchParams.get("spaceId") ?? undefined;
 
   return (
     <InsightsPage
       spaceId={spaceId}
+      onManageBudgets={() => navigate(getNavigationTarget("/categories", spaceId))}
       onSpaceChange={(nextSpaceId) => {
         const nextParams = new URLSearchParams(searchParams);
         if (nextSpaceId === undefined) {
@@ -142,12 +145,14 @@ function InsightsRoute() {
 }
 
 function DashboardRoute() {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const spaceId = searchParams.get("spaceId") ?? undefined;
 
   return (
     <DashboardPage
       spaceId={spaceId}
+      onManageBudgets={() => navigate(getNavigationTarget("/categories", spaceId))}
       onSpaceChange={(nextSpaceId) => {
         const nextParams = new URLSearchParams(searchParams);
         if (nextSpaceId === undefined) {

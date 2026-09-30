@@ -385,7 +385,7 @@ describe("AppShell", () => {
       </AppSessionProvider>,
     );
 
-    fireEvent.click(screen.getAllByRole("link", { name: "Categories" })[0]!);
+    fireEvent.click(screen.getAllByRole("link", { name: "Budgets" })[0]!);
     expect(screen.getByText("/categories?spaceId=shared-1")).toBeTruthy();
 
     fireEvent.click(screen.getAllByRole("link", { name: "Dashboard" })[0]!);
@@ -744,7 +744,7 @@ describe("AppShell", () => {
     );
 
     fireEvent.click(
-      screen.getAllByRole("link", { name: "Categories" })[0]!,
+      screen.getAllByRole("link", { name: "Budgets" })[0]!,
     );
     expect(
       screen.getByRole("dialog", { name: "Leave Statement Import?" }),
@@ -755,7 +755,7 @@ describe("AppShell", () => {
     expect(screen.queryByText("Categories page")).toBeNull();
 
     fireEvent.click(
-      screen.getAllByRole("link", { name: "Categories" })[0]!,
+      screen.getAllByRole("link", { name: "Budgets" })[0]!,
     );
     fireEvent.click(screen.getByRole("button", { name: "Leave Categorize" }));
     expect(screen.getByText("Categories page")).toBeTruthy();

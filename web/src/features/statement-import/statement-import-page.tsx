@@ -8,7 +8,7 @@ import {
 } from "@/shared/ui/feature-data-state";
 import { useAccessibleSpacesQuery, type AccessibleSpace } from "@/shared/api";
 import { formatMoney } from "@/shared/money";
-import { ActiveSpaceLabel, getSpaceIdentityLabel } from "@/shared/ui";
+import { ActiveSpaceLabel, SpaceLabelProvider, getSpaceIdentityLabel } from "@/shared/ui";
 import { ImportProgress } from "./import-progress";
 import { ImportSuccess } from "./import-success";
 import { ReviewStatement } from "./review-statement";
@@ -112,10 +112,10 @@ function StatementImportPage({
 
   function withNavigationGuard(content: ReactNode) {
     return (
-      <>
+      <SpaceLabelProvider spaces={spacesQuery.data}>
         {navigationGuardDialog}
         {content}
-      </>
+      </SpaceLabelProvider>
     );
   }
 
@@ -300,7 +300,7 @@ function StatementImportPage({
     <div className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-screen-2xl flex-col gap-6 px-4 py-6 sm:px-6 lg:h-screen lg:min-h-0 lg:px-9 lg:py-7">
       <header className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
         <div>
-          <ActiveSpaceLabel spaceId={spaceId} />
+          <ActiveSpaceLabel spaceId={destinationSpaceId} />
           <p className="text-label text-muted-foreground">Imports / Upload</p>
           <h1 className="mt-1 font-mono text-2xl font-bold tracking-tight sm:text-3xl">
             Upload your statement

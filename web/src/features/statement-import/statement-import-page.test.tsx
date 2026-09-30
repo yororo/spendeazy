@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useState } from "react";
 import {
   act,
   cleanup,
@@ -488,7 +489,7 @@ afterEach(() => {
 });
 
 describe("StatementImportPage Space destination", () => {
-  it("identifies a Personal destination with the User name", async () => {
+  it("keeps explicit-ID Personal labels and the locked destination through commit when the route changes", async () => {
     const fetchMock = createFetchMock({
       accessibleSpaces: [
         {
@@ -500,19 +501,56 @@ describe("StatementImportPage Space destination", () => {
           createdAt: "2026-01-01T00:00:00.000Z",
           updatedAt: "2026-01-01T00:00:00.000Z",
         },
+        {
+          id: "10", kind: "shared", status: "active", accessLevel: "write",
+          members: [{ id: "1", name: "Ada Lovelace" }, { id: "2", name: "Grace Hopper" }],
+          createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+        },
       ],
+      categoryRules: [{ id: "10", categoryId: "42", pattern: "Green Market Cafe", matchType: "exact" }],
     });
-    renderStatementImportPage(fetchMock, {
-      spaceId: "1",
-      onSpaceChange: vi.fn(),
-    });
+    vi.stubGlobal("fetch", fetchMock);
+    function DestinationHost() {
+      const [spaceId, setSpaceId] = useState("1");
+      return <>
+        <button onClick={() => setSpaceId("10")}>Change route Space</button>
+        <StatementImportPage spaceId={spaceId} onSpaceChange={vi.fn()} onViewTransactions={vi.fn()} />
+      </>;
+    }
+    render(
+      <NavigationGuardProvider>
+        <ApiClientProvider config={apiConfig} getToken={async () => "session-token"}>
+          <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+            <DestinationHost />
+          </QueryClientProvider>
+        </ApiClientProvider>
+      </NavigationGuardProvider>,
+    );
 
     await screen.findByRole("heading", { name: "Upload your statement" });
+    expect(screen.getByText("Personal", { exact: true })).toBeTruthy();
     await uploadStatementFile("personal-statement.pdf");
+    expect(screen.getByText("Personal", { exact: true })).toBeTruthy();
 
     expect(
       screen.getByText("Destination: Personal Space · Ada Lovelace"),
     ).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Change route Space" }));
+    expect(screen.getByText("Personal", { exact: true })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Review 1 Transactions" }));
+    await screen.findByRole("heading", { name: "Review your imported statement" });
+    expect(screen.getByText("Personal", { exact: true })).toBeTruthy();
+    expect(screen.getByText("Destination: Personal Space · Ada Lovelace")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Import 1 Transactions" }));
+    await screen.findByRole("heading", { name: "Statement imported" });
+    expect(screen.getByText("Personal", { exact: true })).toBeTruthy();
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/spaces/1/statement-imports"),
+      expect.objectContaining({ method: "POST" }),
+    );
+    expect(fetchMock.mock.calls.some(([url, init]) =>
+      String(url).includes("/spaces/10/statement-imports") && init?.method === "POST",
+    )).toBe(false);
   });
 
   it("keeps the selected destination across review and confirmation", async () => {

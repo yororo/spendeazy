@@ -10,12 +10,12 @@ import { centsToMoney, formatMoney } from "@/shared/money";
 import { formatReportingPeriod } from "@/shared/reporting-period";
 
 import type {
-  InsightsReport,
-  InsightsYearlyReport,
+  InsightsDailyReport,
+  InsightsMonthlyReport,
 } from "./insights-service";
 
 interface MonthlyCategoryRankingsProps {
-  readonly report: InsightsReport | InsightsYearlyReport;
+  readonly report: InsightsDailyReport | InsightsMonthlyReport;
 }
 
 function MonthlyCategoryRankings({ report }: MonthlyCategoryRankingsProps) {

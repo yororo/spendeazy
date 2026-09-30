@@ -1,0 +1,244 @@
+{
+  "parent": 75,
+  "repo": "yororo/spendeazy",
+  "status": "approved-published-and-verified",
+  "sharedGuidance": "Use existing feature/page/service and isolated browser → API → PostgreSQL test seams. Each slice owns its meaningful regression tests and runs required owning-project checks plus the repository-required isolated end-to-end suite before completion. Preserve accepted Rule-storage/reconciliation ADRs, frontend feature boundaries, existing authorization and atomic import behavior; validate both sides of any discovered API contract adjustment. No new test framework, Review editing, numerical forecasts, automatic Budget changes, or private financial fixtures.",
+  "tickets": [
+    {
+      "id": 1,
+      "title": "Show correct Space identity and discoverable Budget navigation",
+      "blockers": [],
+      "stories": "1–4",
+      "decisions": "ID-1",
+      "deliverable": "Users see Personal consistently throughout the application and Statement Import, and can find Budgets while retaining the four mobile tabs.",
+      "criteria": [
+        "Resolve labels from actual Space identity/kind: an explicit Personal Space ID never displays Shared; the shell and all import stages show the correct Space.",
+        "Retain the import destination lock when a file is accepted; labels and later commit destination remain consistent.",
+        "Keep Dashboard, Imports, Transactions, and Insights as the four mobile tabs; rename the Categories menu destination to Budgets and retain Category management and existing route compatibility.",
+        "Provide Manage Budgets from Dashboard and Monthly Insights without changing the selected Space or Reporting Period.",
+        "Verify explicit-ID Personal routes on phone and desktop, existing authorization/cache isolation, accessible navigation, and updated design-system guidance."
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Make monthly Budget status and Dashboard summaries consistent",
+      "blockers": [],
+      "stories": "5–9",
+      "decisions": "ID-2",
+      "deliverable": "Dashboard distinguishes total, Budgeted, and Unbudgeted Spending and exposes Category risks even when aggregate usage is low; all existing Budget presentations use exact status boundaries.",
+      "criteria": [
+        "Use exact cents: below 80% Within Budget; 80% to below 100% Nearing Budget; exactly 100% At Budget Limit; above 100% Over Budget. Round display values only.",
+        "Apply the policy consistently to Dashboard, existing Insights/Category summaries, and available chart details through a narrowly shared policy for concrete callers.",
+        "Label the aggregate Budgeted spending / total monthly limits, using only monthly-budgeted Categories in its numerator and current monthly limits in its denominator.",
+        "Show total recorded spending and Unbudgeted Spending separately; yearly-only Categories and Uncategorized contribute to Unbudgeted Spending.",
+        "Show individual Category status and exact remaining/over amounts despite low aggregate usage. When there are no monthly limits, show setup guidance rather than an invalid percentage.",
+        "Test PHP 799.99, 800.00, 999.99, 1000.00, and 1000.01 against a PHP 1000 limit, display rounding traps, yearly-only/no Budgets, and a breach hidden by low aggregate usage. Do not claim empty recorded months are complete or healthy."
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Make filtered Transaction counts and totals match the result",
+      "blockers": [],
+      "stories": "37",
+      "decisions": "ID-3, ID-4",
+      "deliverable": "Users filtering Transactions see the complete filtered count and expense total, with clearly secondary whole-month context.",
+      "criteria": [
+        "Show the total count and expense amount for the complete filtered result across pagination, not the current page or an unfiltered month.",
+        "Any whole-month count or amount is explicitly labeled and secondary; filters and summaries visibly agree.",
+        "Category, date, search, and account filters update both result and summary; clearing filters restores normal monthly results.",
+        "Reset pagination and isolate cache identity when filter or Space scope changes; avoid showing a stale summary under a new filter.",
+        "Use existing query/API boundaries; inspect available summary capabilities and paginate/aggregate correctly if needed, rather than assuming the first page is the complete result. Any contract adjustment is validated on API and browser sides.",
+        "Verify multiple pages, combined filters, empty results, failure/retry, and preservation of Reporting Period and Space."
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Open newly imported Transactions across every statement month",
+      "blockers": [
+        3
+      ],
+      "stories": "32–36",
+      "decisions": "ID-4, ID-7",
+      "deliverable": "After a confirmed import, Users see a focused success message and can browse precisely the saved statement expenses across months before returning to their previous monthly view.",
+      "criteria": [
+        "Success scrolls to and focuses the announced confirmation heading and shows the destination Space, included expense count, and total.",
+        "View Transactions passes the destination Space and Committed Statement Import identity; use the existing API statementImportId filter and bypass the browser month clamp in statement scope.",
+        "Show a visible statement filter/context, recorded expense activity date range, complete filtered count, and total. Do not describe the activity range as complete coverage.",
+        "Replace the month picker during statement scope; additional filters narrow that scope without including unrelated expenses.",
+        "Return to monthly view restores the prior Reporting Period; scope changes reset pagination/cache context and provide honest loading/error/empty states.",
+        "Test a fictional committed statement spanning two months, unrelated same-date expenses, a prior Reporting Period outside that range, extra filters, pagination, and Space ownership. Reconciliation, duplicate protection, and atomic commit remain unchanged."
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Make individual mobile categorization fast and explicit",
+      "blockers": [],
+      "stories": "11, 12, 16, 26",
+      "decisions": "ID-5",
+      "deliverable": "Users assign Categories in a compact phone interaction, retain full corrections, and explicitly advance through included Unmapped Transactions.",
+      "criteria": [
+        "Provide compact Category assignment while preserving full description, date, amount, and Category corrections in Categorize.",
+        "Do not apply an assignment merely on Category selection; Apply & next explicitly saves and advances to the next included Unmapped row in the selected order using stable row identities.",
+        "When no included Unmapped row remains, show completion feedback and the normal route to Review; do not automatically commit.",
+        "Eligible expense exclusion/re-inclusion remains reversible in Categorize and updates summaries; ineligible payment/credit activity remains ineligible.",
+        "Failures retain entered values and editor position; selected order and filters remain usable across repeated assignments.",
+        "Verify 320px/390px phones, desktop, keyboard/focus behavior, full corrections, exclusion/re-inclusion, next-row skipping, and coexistence with existing Category Suggestions. Avoid changing Rule semantics in this slice."
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Apply Categories to repeated statement descriptions with preview",
+      "blockers": [
+        5
+      ],
+      "stories": "13–15",
+      "decisions": "ID-5",
+      "deliverable": "Users categorize repeated descriptions in one statement through a controlled preview without overwriting previously reviewed work.",
+      "criteria": [
+        "Default candidates to included Unmapped expense rows with the same normalized full description in the current Statement Import.",
+        "Normalize case and whitespace using existing matching semantics; retain punctuation and do not infer merchant identity or search other imports.",
+        "Preview the affected rows and count, permit deselection, and apply one Category only to the selected rows.",
+        "Preserve existing assignments unless explicitly selected for replacement; default selection never changes or re-includes excluded rows.",
+        "Bulk assignment is Manual and temporary; it never implicitly creates a persistent Category Rule or rewrites reviewed assignments.",
+        "Test normalized repeats, punctuation distinctions, deselection, explicit replacement, excluded rows, empty selection, and consistent summaries through Review and commit."
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Encourage Remember with safe Rule saves and clear recovery",
+      "blockers": [
+        5
+      ],
+      "stories": "17–25",
+      "decisions": "ID-6",
+      "deliverable": "Users understand Remember's future benefit, opt into a predictable Exact Rule, and recover from failure or conflict without losing their draft.",
+      "criteria": [
+        "Remember remains unchecked but prominent wherever useful, explains future-import benefits, and suppresses redundant encouragement for an equivalent Rule.",
+        "Default to Exact; offer Contains explicitly with substring semantics and current-statement match preview. Preserve Exact precedence, normalized matching, inactive-Category restrictions, and reviewed assignments.",
+        "Apply & remember persists the Rule immediately before the local assignment and confirms Rule saved for future imports; it is separate from atomic import confirmation.",
+        "Rule failure/conflict applies no local assignment and retains all editor inputs; offer Retry and Apply without remembering.",
+        "A conflicting normalized pattern/match type names the existing Category and is never silently replaced. Equivalent same-Category Rules are reused without duplicates.",
+        "Leaving/discarding explains that draft Transactions are discarded but saved Rules remain. Handle uncertain network completion honestly and retry through equivalent-Rule reuse.",
+        "Verify failure/retry, conflict, equivalence, immediate persistence before confirmation, draft discard, current suggestions/bulk coexistence, and Space-scoped authorization. Do not introduce distributed transaction semantics."
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Keep Review read-only and preserve correction context",
+      "blockers": [
+        5
+      ],
+      "stories": "27–31",
+      "decisions": "ID-7",
+      "deliverable": "Users inspect every parsed statement row with clear expense/exclusion language and return to Categorize for corrections without losing their place.",
+      "criteria": [
+        "Review contains no editing controls; one Back to Categorize action restores the previous sort, filters, and position.",
+        "Show included expenses first in the chosen order and an expandable excluded section with reasons. Previous Categorize filters never silently hide Review rows.",
+        "Keep a sticky included expense count and total reachable without obscuring rows, confirmation, or mobile navigation.",
+        "Present expenses with positive readable amounts rather than green Credit based on internal parser sign; identify payments and other credits accurately using provider-supported information.",
+        "Keep expense-only persistence and existing eligibility: payments/other credits remain excluded; eligible expenses can be re-included in Categorize.",
+        "Preserve reconciliation, duplicate warnings, explicit confirmation, and atomic commit. Test hidden-by-filter rows, ordering within groups, exclusion reasons, Back restoration, and no-edit behavior across mobile/desktop.",
+        "Preserve newer categorization/Remember functionality as it lands; this ticket does not need to wait for bulk assignment or Remember redesign to deliver read-only Review."
+      ]
+    },
+    {
+      "id": 9,
+      "title": "Lead Monthly Insights with actionable Category risks",
+      "blockers": [
+        1,
+        2,
+        3
+      ],
+      "stories": "38–41",
+      "decisions": "ID-3",
+      "deliverable": "Users immediately see selected-month risks and can investigate Transactions or edit/set a Category Budget while preserving context.",
+      "criteria": [
+        "Place the selected Reporting Period, recorded spending summary, and Category attention states before historical totals/charts.",
+        "Surface individual Nearing Budget, At Budget Limit, and Over Budget states; do not present a breach in a low-spending ranking without its warning.",
+        "Provide View Transactions and Edit Budget/Set Budget actions carrying Space, month, and Category; return/cancel restores the originating view and filters.",
+        "Budgeted, total, and Unbudgeted summaries use the agreed scope and exact status policy; no-budget and empty states provide useful actions without completeness claims.",
+        "For the current month, show actual usage alongside elapsed-month progress labeled as recorded spending. Historical periods show actual historical spending; do not add numerical forecasts.",
+        "Verify contextual handoffs, filtered totals, return/cancel, changed Reporting Period, mobile hierarchy, desktop consistency, and accessibility. Statement-scoped browsing is not a prerequisite for month-scoped actions."
+      ]
+    },
+    {
+      "id": 10,
+      "title": "Explain potential unusual Category spending using recorded history",
+      "blockers": [
+        9
+      ],
+      "stories": "42, 43",
+      "decisions": "ID-8",
+      "deliverable": "Users see conservative potential-spending-pattern signals with transparent comparison evidence and contributing Transactions, or an honest insufficient-history state.",
+      "criteria": [
+        "Use up to six preceding calendar months and require at least three positive recorded Category comparisons; do not reach further back to fill missing months.",
+        "For the current month compare through the equivalent day, clamping shorter months; for a historical selected month use full months. Exclude comparisons with no recorded Category spending and prevent selected/future month leakage.",
+        "Flag only when the selected amount is at least 1.5 times the median AND at least PHP 500 above it; use exact amounts, including precision for even-sized medians.",
+        "Show selected amount, baseline window/cutoff, contributing months, median, relative/absolute change, and contributing Transactions with useful investigation actions.",
+        "Show insufficient recorded history below three eligible comparisons and describe potential patterns in recorded spending; no-signal and empty data are not proof of normal spending or complete coverage.",
+        "Test eligibility/window boundaries, both noise thresholds and equality, even medians, partial months, shorter months/leap years, future leakage, sparse data, and visible explanation/actions. Do not add affordability judgments or forecasts."
+      ]
+    },
+    {
+      "id": 11,
+      "title": "Suggest Budget review from recurring breaches and disclose historical effects",
+      "blockers": [
+        9
+      ],
+      "stories": "44, 45",
+      "decisions": "ID-3, ID-8",
+      "deliverable": "Users can assess recurring Category breaches, review a current recurring Budget, and understand that changing it affects historical comparisons.",
+      "criteria": [
+        "Suggest reviewing a monthly Budget after breaches in at least three of the last six eligible recorded Category months.",
+        "Use completed months at/before a historical selected period or before the current partial month; exclude future periods and months without recorded Category spending. Show actual eligible denominator and current-limit evidence.",
+        "Open the Category's existing Budget editor with evidence available; Unbudgeted Categories offer Set Budget. The User enters and explicitly saves any new amount; never auto-adjust limits.",
+        "Before saving, explain historical comparisons will use the new current recurring limit; label historical views accordingly and refresh dependent queries after success.",
+        "Preserve yearly Budgets, current positive monthly limits, existing stale-write protection, Space authorization, and cancellation/return context; add no effective-dated Budget history.",
+        "Test recurring breach eligibility/counts, exact-limit non-breach, historical/current cutoffs, no-monthly-Budget actions, save/cancel/stale failure, and recalculated historical evidence. This slice is independent of unusual-spending median signals."
+      ]
+    },
+    {
+      "id": 12,
+      "title": "Make chart selection and spending inspection usable on phones",
+      "blockers": [
+        9
+      ],
+      "stories": "46–49",
+      "decisions": "ID-9",
+      "deliverable": "Users inspect monthly trends and daily spikes through readable touch/keyboard details and a compact Category selector without silently changing their Reporting Period.",
+      "criteria": [
+        "Default comparisons to the three highest-spending available Categories for the chart range, or all if fewer; provide a compact selector for changing/adding Categories.",
+        "Keep stable Category Colors across views and distinguish Categories that share a color through labels/other cues; use readable month/year labels.",
+        "Touch, pointer, and keyboard inspection opens equivalent details with date/month, totals, Category breakdown, Budget states, contributing Transactions, and contextual actions.",
+        "Inspection alone preserves Reporting Period; only explicit View this month changes it. Subsequent Transaction actions carry inspected context and dismissal restores focus.",
+        "Preserve accessible tables and nonvisual detail access; aria-hidden charts must not be the sole interactive path, and overlays/tab bars leave controls reachable.",
+        "Explain recorded daily-spike contributions even without enough historical data for a potential-pattern signal; chart inspection does not depend on that signal engine.",
+        "Verify default/fewer Categories, selector updates, duplicate colors, keyboard/touch interaction, month navigation, focus, readable phone layouts, desktop behavior, and light/dark tokens."
+      ]
+    },
+    {
+      "id": 13,
+      "title": "Verify the complete mobile spending-monitoring journey",
+      "blockers": [
+        4,
+        6,
+        7,
+        8,
+        10,
+        11,
+        12
+      ],
+      "stories": "1–50",
+      "decisions": "Testing Decisions, ID-10",
+      "deliverable": "A deterministic isolated browser/API/PostgreSQL journey proves the full redesigned experience works consistently from Dashboard through import and spending actions.",
+      "criteria": [
+        "Use fictional reconciled and encrypted PDF fixtures spanning two months through real Upload/parsing; never publish the User's statement, password, identifiers, or private evidence.",
+        "Exercise Personal Dashboard → unlock → individual/bulk assignment and Remember → exclusion/re-inclusion → read-only Review → confirmation → statement-scoped Transactions → monthly return → Monthly Insights → Transactions/Budget action → return.",
+        "Assert persisted destination, expense count/amount, saved Rule behavior, exact Budget states, explicit filtered/statement scope, and preserved Reporting Period/context; protect atomic rollback and duplicate confirmation behavior.",
+        "Exercise 320px and 390px phone layouts and 1440px desktop, reachable sticky controls/tab bars, no horizontal page overflow, keyboard details, focus/success announcements, accessible tables, stable colors, and light/dark semantic tokens.",
+        "Resolve cross-feature regressions exposed by this journey and reconcile implemented design-system/visual-reference guidance; preserve Category Suggestions and unrelated work.",
+        "Run owning-project checks and the required isolated browser/API/PostgreSQL suite; report actual validation results. This final journey complements rather than postpones each earlier ticket's own acceptance tests."
+      ]
+    }
+  ]
+}

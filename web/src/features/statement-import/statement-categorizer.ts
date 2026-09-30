@@ -32,6 +32,7 @@ async function categorizeStatement(
 ): Promise<CategorizedStatement> {
   const pages = await extractPdfPages(file, password);
   const statementText = pages.map(({ text }) => text).join("\n");
+  console.log("Extracted statement text:", statementText);
   const transformedStatement = transformStatement(statementText);
   const extractedTransactions = transformedStatement.transactions;
 
@@ -67,7 +68,4 @@ async function categorizeStatement(
 }
 
 export { categorizeStatement };
-export type {
-  CategorizedStatement,
-  CategorizedTransaction,
-};
+export type { CategorizedStatement, CategorizedTransaction };

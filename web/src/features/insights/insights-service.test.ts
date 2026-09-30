@@ -4,8 +4,8 @@ import { ApiError } from "@/shared/api";
 import type { ReportingPeriod } from "@/shared/reporting-period";
 
 import {
-  getInsights,
-  getYearlyInsights,
+  getDailyInsights,
+  getMonthlyInsights,
   type InsightsApiClient,
 } from "./insights-service";
 
@@ -16,9 +16,9 @@ const summaryPath =
 const transactionPath =
   "/spaces/7/transactions?fromDate=2023-03-01&toDate=2024-02-29&pageSize=100";
 const nextTransactionPath = `${transactionPath}&cursor=next-page`;
-const yearlySummaryPath =
+const monthlySummaryPath =
   "/spaces/7/category-summaries?period=monthly&year=2026&month=01";
-const yearlyTransactionPath =
+const monthlyTransactionPath =
   "/spaces/7/transactions?fromDate=2025-02-01&toDate=2026-01-31&pageSize=100";
 
 function categoryCatalog() {
@@ -108,7 +108,7 @@ function createApiClient(responses: ReadonlyMap<string, unknown>) {
   return { apiClient: { get } as unknown as InsightsApiClient, get };
 }
 
-describe("getInsights", () => {
+describe("getDailyInsights", () => {
   it("aggregates exact daily spending across pages in the selected Space", async () => {
     const { apiClient, get } = createApiClient(
       new Map<string, unknown>([
@@ -187,7 +187,7 @@ describe("getInsights", () => {
       ]),
     );
 
-    const report = await getInsights(apiClient, leapMonth, undefined, "7");
+    const report = await getDailyInsights(apiClient, leapMonth, undefined, "7");
 
     expect(get).toHaveBeenCalledWith(categoryPath, { signal: undefined });
     expect(get).toHaveBeenCalledWith(summaryPath, { signal: undefined });
@@ -195,6 +195,7 @@ describe("getInsights", () => {
     expect(get).toHaveBeenCalledWith(nextTransactionPath, {
       signal: undefined,
     });
+    expect(report.view).toBe("daily");
     expect(report.days).toHaveLength(29);
     expect(report.days[0]).toMatchObject({ day: 1, spendingCents: 0 });
     expect(report.days[9]).toMatchObject({
@@ -337,7 +338,7 @@ describe("getInsights", () => {
       ]),
     );
 
-    const report = await getInsights(apiClient, period, undefined, "7");
+    const report = await getDailyInsights(apiClient, period, undefined, "7");
 
     expect(report.frequentlyOverBudget.map(({ categoryId, breachCount }) => [categoryId, breachCount])).toEqual([
       ["42", 3],
@@ -382,7 +383,7 @@ describe("getInsights", () => {
       ]),
     );
 
-    const report = await getInsights(
+    const report = await getDailyInsights(
       apiClient,
       "2026-08" as ReportingPeriod,
     );
@@ -400,7 +401,7 @@ describe("getInsights", () => {
       new Map<string, unknown>([
         [categoryPath, categoryCatalog()],
         [
-          yearlySummaryPath,
+          monthlySummaryPath,
           {
             period: "monthly",
             year: "2026",
@@ -435,7 +436,7 @@ describe("getInsights", () => {
           code: "BUDGET_NOT_FOUND",
         })],
         [
-          yearlyTransactionPath,
+          monthlyTransactionPath,
           {
             items: [
               {
@@ -497,7 +498,7 @@ describe("getInsights", () => {
           },
         ],
         [
-          `${yearlyTransactionPath}&cursor=last-page`,
+          `${monthlyTransactionPath}&cursor=last-page`,
           {
             items: [
               {
@@ -516,21 +517,22 @@ describe("getInsights", () => {
       ]),
     );
 
-    const report = await getYearlyInsights(
+    const report = await getMonthlyInsights(
       apiClient,
       "2026-01" as ReportingPeriod,
       undefined,
       "7",
     );
 
-    expect(get).toHaveBeenCalledWith(yearlySummaryPath, { signal: undefined });
-    expect(get).toHaveBeenCalledWith(yearlyTransactionPath, {
+    expect(get).toHaveBeenCalledWith(monthlySummaryPath, { signal: undefined });
+    expect(get).toHaveBeenCalledWith(monthlyTransactionPath, {
       signal: undefined,
     });
     expect(get).toHaveBeenCalledWith(
-      `${yearlyTransactionPath}&cursor=last-page`,
+      `${monthlyTransactionPath}&cursor=last-page`,
       { signal: undefined },
     );
+    expect(report.view).toBe("monthly");
     expect(report.monthlyBudgetCents).toBe(1_000);
     expect(report.totalSpendingCents).toBe(4_675);
     expect(report.budgetedSpendingCents).toBe(3_050);

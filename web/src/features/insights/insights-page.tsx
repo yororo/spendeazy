@@ -19,7 +19,7 @@ import { DailySpendingChart } from "./daily-spending-chart";
 import { CategorySpendingChart } from "./category-spending-chart";
 import { MonthlyCategoryRankings } from "./monthly-category-rankings";
 import { useInsightsQuery, type InsightsView } from "./insights-queries";
-import { YearlySpendingChart } from "./yearly-spending-chart";
+import { MonthlySpendingChart } from "./monthly-spending-chart";
 
 interface InsightsPageProps {
   readonly spaceId?: string;
@@ -86,7 +86,7 @@ function InsightsPage({ spaceId, onSpaceChange, onManageBudgets }: InsightsPageP
             Insights
           </h1>
           <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-            {view === "yearly"
+            {view === "monthly"
               ? "See spending across the selected month and its previous 11 months."
               : "See how spending changes across the selected month."}
           </p>
@@ -103,11 +103,11 @@ function InsightsPage({ spaceId, onSpaceChange, onManageBudgets }: InsightsPageP
             <button
               type="button"
               aria-label="Monthly view"
-              aria-pressed={view === "yearly"}
-              onClick={() => setView("yearly")}
+              aria-pressed={view === "monthly"}
+              onClick={() => setView("monthly")}
               className={cn(
                 "h-8 px-3",
-                view === "yearly"
+                view === "monthly"
                   ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:bg-muted",
               )}
@@ -117,11 +117,11 @@ function InsightsPage({ spaceId, onSpaceChange, onManageBudgets }: InsightsPageP
             <button
               type="button"
               aria-label="Daily view"
-              aria-pressed={view === "monthly"}
-              onClick={() => setView("monthly")}
+              aria-pressed={view === "daily"}
+              onClick={() => setView("daily")}
               className={cn(
                 "h-8 px-3",
-                view === "monthly"
+                view === "daily"
                   ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:bg-muted",
               )}
@@ -134,22 +134,22 @@ function InsightsPage({ spaceId, onSpaceChange, onManageBudgets }: InsightsPageP
 
       <section
         aria-label={
-          report.view === "yearly"
+          report.view === "monthly"
             ? "12-month spending summary"
-            : "Monthly spending summary"
+            : "Daily spending summary"
         }
         aria-busy={insightsQuery.isFetching}
         className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2"
       >
         <MetricCard
           label={
-            report.view === "yearly"
+            report.view === "monthly"
               ? "12-month total spending"
               : "Total spending"
           }
           value={formatMoney(centsToMoney(report.totalSpendingCents))}
           detail={
-            report.view === "yearly"
+            report.view === "monthly"
               ? "All Transactions across the selected month and previous 11 months, including Uncategorized spending"
               : "All Transactions, including Uncategorized spending"
           }
@@ -159,7 +159,7 @@ function InsightsPage({ spaceId, onSpaceChange, onManageBudgets }: InsightsPageP
           label="Budgeted Spending"
           value={formatMoney(centsToMoney(report.budgetedSpendingCents))}
           detail={
-            report.view === "yearly"
+            report.view === "monthly"
               ? "Transactions in Categories with current monthly Budgets across the 12-month window"
               : "Transactions in Categories with a current monthly Budget"
           }
@@ -171,10 +171,10 @@ function InsightsPage({ spaceId, onSpaceChange, onManageBudgets }: InsightsPageP
           <p className="font-semibold">
             Current monthly Budgets: {formatMoney(centsToMoney(report.monthlyBudgetCents))}
           </p>
-          {view === "yearly" && onManageBudgets && (
+          {view === "monthly" && onManageBudgets && (
             <Button variant="outline" onClick={onManageBudgets}>Manage Budgets</Button>
           )}
-          {report.view === "yearly" ? (
+          {report.view === "monthly" ? (
             <p className="text-muted-foreground">
               Historical comparisons use current monthly Budgets; past Budget
               amounts are not reconstructed. The dashed reference and Over
@@ -192,12 +192,12 @@ function InsightsPage({ spaceId, onSpaceChange, onManageBudgets }: InsightsPageP
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
         <section
           aria-label={
-            report.view === "yearly" ? "Yearly spending" : "Monthly daily spending"
+            report.view === "monthly" ? "Monthly spending" : "Daily spending"
           }
           aria-busy={insightsQuery.isFetching}
         >
-          {report.view === "yearly" ? (
-            <YearlySpendingChart report={report} />
+          {report.view === "monthly" ? (
+            <MonthlySpendingChart report={report} />
           ) : (
             <DailySpendingChart report={report} />
           )}
@@ -212,7 +212,7 @@ function InsightsPage({ spaceId, onSpaceChange, onManageBudgets }: InsightsPageP
           />
         </section>
       </div>
-      {report.view === "yearly" ? (
+      {report.view === "monthly" ? (
         <MonthlyCategoryRankings report={report} />
       ) : null}
     </div>

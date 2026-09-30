@@ -77,7 +77,7 @@ function CategorySpendingChart({ report }: CategorySpendingChartProps) {
     ),
     budgetReferenceCents:
       showSelectedBudgetReferences && category.monthlyBudgetCents !== null
-        ? report.view === "monthly"
+        ? report.view === "daily"
           ? category.monthlyBudgetCents / report.days.length
           : category.monthlyBudgetCents
         : null,
@@ -116,7 +116,7 @@ function CategorySpendingChart({ report }: CategorySpendingChartProps) {
               Spending by Category
             </CardTitle>
             <p className="mt-1 text-sm text-muted-foreground">
-              {report.view === "monthly"
+              {report.view === "daily"
                 ? "Daily movement · select Categories to compare"
                 : "Monthly movement · select Categories to compare"}
             </p>
@@ -187,7 +187,7 @@ function CategorySpendingChart({ report }: CategorySpendingChartProps) {
 
             <p className="text-sm text-muted-foreground">
               {showSelectedBudgetReferences ? (
-                report.view === "monthly" ? (
+                report.view === "daily" ? (
                   <>
                     Dashed references show each selected Category’s daily Budget pace,
                     calculated from its current monthly Budget across {report.days.length} days.
@@ -279,7 +279,7 @@ function CategorySpendingChart({ report }: CategorySpendingChartProps) {
                         !point.axisLabelVisible && "invisible",
                       )}
                     >
-                      {report.view === "yearly" ? (
+                      {report.view === "monthly" ? (
                         <>
                           <span className="hidden sm:inline">
                             {point.axisLabel}
@@ -313,7 +313,7 @@ function CategorySpendingChart({ report }: CategorySpendingChartProps) {
                       )}
                     />
                     <span>{category.label}</span>
-                    {report.view === "monthly" && category.monthlyBudgetCents !== null && (
+                    {report.view === "daily" && category.monthlyBudgetCents !== null && (
                       <span className="font-mono text-xs text-muted-foreground">
                         {describeBudget(category.spendingCents, category.monthlyBudgetCents)}
                       </span>
@@ -324,12 +324,12 @@ function CategorySpendingChart({ report }: CategorySpendingChartProps) {
                         {formatMoney(
                           centsToMoney(
                             category.monthlyBudgetCents /
-                              (report.view === "monthly"
+                              (report.view === "daily"
                                 ? report.days.length
                                 : 1),
                           ),
                         )}
-                        {report.view === "monthly" ? " / day pace" : " / month"}
+                        {report.view === "daily" ? " / day pace" : " / month"}
                       </span>
                     ) : null}
                   </li>
@@ -340,11 +340,11 @@ function CategorySpendingChart({ report }: CategorySpendingChartProps) {
                 <table>
                   <caption>
                     Category spending values for {formatReportingPeriod(report.period)}.
-                    Amounts are in PHP. {report.view === "monthly"
+                    Amounts are in PHP. {report.view === "daily"
                       ? "Each row is a calendar day in the selected month."
                       : "Each row is one month in the rolling 12-month period."}
                     {showSelectedBudgetReferences
-                      ? report.view === "monthly"
+                      ? report.view === "daily"
                         ? " Daily Budget pace values use each Category’s current monthly Budget divided by the selected month’s day count; they are pace guides, not daily limits."
                         : " Historical comparisons use each Category’s current monthly Budget."
                       : ` ${unavailableBudgetReferenceMessage}`}
@@ -352,7 +352,7 @@ function CategorySpendingChart({ report }: CategorySpendingChartProps) {
                   <thead>
                     <tr>
                       <th scope="col">
-                        {report.view === "monthly" ? "Date" : "Reporting Period"}
+                        {report.view === "daily" ? "Date" : "Reporting Period"}
                       </th>
                       {trends.map(({ category }) => (
                         <th key={category.id} scope="col">
@@ -363,7 +363,7 @@ function CategorySpendingChart({ report }: CategorySpendingChartProps) {
                         budgetReferenceCents === null ? null : (
                           <th key={`${category.id}-budget`} scope="col">
                             {category.label}{" "}
-                            {report.view === "monthly"
+                            {report.view === "daily"
                               ? "daily Budget pace"
                               : "monthly Budget"}
                           </th>
@@ -382,7 +382,7 @@ function CategorySpendingChart({ report }: CategorySpendingChartProps) {
                                 point.amountsByCategory.get(category.id) ?? 0,
                               ),
                             )}
-                            {report.view === "yearly" && category.monthlyBudgetCents !== null && (
+                            {report.view === "monthly" && category.monthlyBudgetCents !== null && (
                               <span> · {describeBudget(point.amountsByCategory.get(category.id) ?? 0, category.monthlyBudgetCents)}</span>
                             )}
                           </td>
@@ -408,7 +408,7 @@ function CategorySpendingChart({ report }: CategorySpendingChartProps) {
 }
 
 function createTrendPoints(report: InsightsReportResult): TrendPoint[] {
-  if (report.view === "monthly") {
+  if (report.view === "daily") {
     return report.days.map((day: InsightsDay) => ({
       key: day.date,
       periodLabel: day.date,

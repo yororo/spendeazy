@@ -12,10 +12,10 @@ import { cn } from "@/lib/utils";
 import { getCategoryColorClass } from "@/shared/category";
 import { centsToMoney, formatMoney } from "@/shared/money";
 
-import type { InsightsReport } from "./insights-service";
+import type { InsightsDailyReport } from "./insights-service";
 
 interface DailySpendingChartProps {
-  readonly report: InsightsReport;
+  readonly report: InsightsDailyReport;
 }
 
 function DailySpendingChart({ report }: DailySpendingChartProps) {

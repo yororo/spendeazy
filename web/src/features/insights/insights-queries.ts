@@ -10,12 +10,12 @@ import {
 import type { ReportingPeriod } from "@/shared/reporting-period";
 
 import {
-  getInsights,
-  getYearlyInsights,
+  getDailyInsights,
+  getMonthlyInsights,
   type InsightsReportResult,
 } from "./insights-service";
 
-type InsightsView = "monthly" | "yearly";
+type InsightsView = "daily" | "monthly";
 
 function useInsightsQuery(
   period: ReportingPeriod,
@@ -30,9 +30,9 @@ function useInsightsQuery(
     ...financialQueryOptions,
     queryKey: buildFinancialQueryKey(scope, ["insights", view], period),
     queryFn: ({ signal }): Promise<InsightsReportResult> =>
-      view === "yearly"
-        ? getYearlyInsights(apiClient, period, signal, spaceId)
-        : getInsights(apiClient, period, signal, spaceId),
+      view === "monthly"
+        ? getMonthlyInsights(apiClient, period, signal, spaceId)
+        : getDailyInsights(apiClient, period, signal, spaceId),
     enabled,
     staleTime: queryPolicy.activityStaleTime,
   });

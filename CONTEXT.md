@@ -108,6 +108,10 @@ _Avoid_: Match percentage, categorization score
 One of up to three proposed Categories shown for an Unmapped Transaction during Statement Import. It does not assign a Category; a User's selection becomes a Manual assignment.
 _Avoid_: Automatic Category, AI assignment
 
+**Bulk Category Assignment**:
+A Manual assignment of one Category to multiple selected parsed Transactions within the same Statement Import. It is distinct from a Category Rule that applies to future Statement Imports.
+_Avoid_: Bulk Rule, automatic merchant mapping
+
 **Category Rule**:
 A persistent association between a description pattern and a Category, using either Exact or Contains matching during future Statement Imports. Matching ignores case and normalizes whitespace; rules for Inactive Categories do not participate.
 _Avoid_: Category mapping, remembered mapping
@@ -127,6 +131,18 @@ _Avoid_: Multiple matches, guessed Category
 **Budget**:
 The single recurring spending limit associated with a Category, over either a monthly or yearly period.
 _Avoid_: Allowance, Budget Category
+
+**Over Budget**:
+A Category whose spending for the selected Reporting Period exceeds its monthly Budget. Spending exactly equal to the limit is not Over Budget.
+_Avoid_: At limit, projected breach
+
+**Nearing Budget**:
+A Category whose spending for the selected Reporting Period is at least 80% of its monthly Budget and below the limit.
+_Avoid_: Projected breach, Over Budget
+
+**At Budget Limit**:
+A Category whose spending for the selected Reporting Period equals its monthly Budget exactly.
+_Avoid_: Over Budget, rounded-to-limit
 
 **Budgeted Spending**:
 Spending in Categories with a monthly Budget for the selected Reporting Period. It is the spending compared with the sum of those monthly Budgets.

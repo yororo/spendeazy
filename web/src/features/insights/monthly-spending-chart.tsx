@@ -14,10 +14,10 @@ import { centsToMoney, formatMoney } from "@/shared/money";
 import { describeBudget } from "@/shared/budget";
 import { formatReportingPeriod } from "@/shared/reporting-period";
 
-import type { InsightsYearlyReport } from "./insights-service";
+import type { InsightsMonthlyReport } from "./insights-service";
 
-interface YearlySpendingChartProps {
-  readonly report: InsightsYearlyReport;
+interface MonthlySpendingChartProps {
+  readonly report: InsightsMonthlyReport;
 }
 
 const shortMonthFormatter = new Intl.DateTimeFormat("en-US", {
@@ -25,7 +25,7 @@ const shortMonthFormatter = new Intl.DateTimeFormat("en-US", {
   timeZone: "UTC",
 });
 
-function YearlySpendingChart({ report }: YearlySpendingChartProps) {
+function MonthlySpendingChart({ report }: MonthlySpendingChartProps) {
   const [showBudgetComparison, setShowBudgetComparison] = useState(true);
   const hasMonthlyBudget = report.monthlyBudgetCents > 0;
   const visibleBudgetComparison = showBudgetComparison && hasMonthlyBudget;
@@ -54,7 +54,7 @@ function YearlySpendingChart({ report }: YearlySpendingChartProps) {
     <Card variant="strong" className="flex flex-col">
       <CardHeader className="flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <CardTitle id="insights-yearly-spending-title">
+          <CardTitle id="insights-monthly-spending-title">
             Monthly total spending
           </CardTitle>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -86,7 +86,7 @@ function YearlySpendingChart({ report }: YearlySpendingChartProps) {
         ) : null}
 
         {visibleBudgetComparison ? (
-          <p id="insights-yearly-budget-description" className="text-sm">
+          <p id="insights-monthly-budget-description" className="text-sm">
             Dashed line: <span className="font-mono font-semibold">{budgetLabel} per month</span>
             <span className="text-muted-foreground">
               {" "}from current monthly Budgets. Bars include all Transactions;
@@ -105,7 +105,7 @@ function YearlySpendingChart({ report }: YearlySpendingChartProps) {
           </p>
         )}
 
-        <figure aria-labelledby="insights-yearly-spending-title">
+        <figure aria-labelledby="insights-monthly-spending-title">
           <div aria-hidden="true" className="flex h-64 w-full gap-2 pb-2">
             <div className="relative mb-5 flex w-[4.5rem] shrink-0 flex-col justify-between font-mono text-xs tabular-nums text-muted-foreground">
               {[axisMaximum, axisMaximum / 2, 0].map((value) => (
@@ -163,7 +163,7 @@ function YearlySpendingChart({ report }: YearlySpendingChartProps) {
                         )}
                         {visibleBudgetComparison && month.isOverBudget ? (
                           <span
-                            data-testid="yearly-over-budget-marker"
+                            data-testid="monthly-over-budget-marker"
                             className="absolute inset-x-0 text-center font-mono text-sm font-bold text-destructive"
                             style={{
                               bottom: `${(month.totalSpendingCents / axisMaximum) * 100}%`,
@@ -306,4 +306,4 @@ function YearlySpendingChart({ report }: YearlySpendingChartProps) {
   );
 }
 
-export { YearlySpendingChart };
+export { MonthlySpendingChart };

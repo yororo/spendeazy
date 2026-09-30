@@ -268,8 +268,12 @@ describe("InsightsPage", () => {
     renderInsights();
 
     expect(await screen.findByRole("heading", { name: "Insights" })).toBeTruthy();
-    const summary = screen.getByRole("region", {
-      name: "Monthly spending summary",
+    expect(
+      screen.getByRole("button", { name: "Monthly view" }).getAttribute("aria-pressed"),
+    ).toBe("true");
+    fireEvent.click(screen.getByRole("button", { name: "Daily view" }));
+    const summary = await screen.findByRole("region", {
+      name: "Daily spending summary",
     });
     expect(within(summary).getByText("Total spending")).toBeTruthy();
     expect(within(summary).getByText("Budgeted Spending")).toBeTruthy();
@@ -333,8 +337,8 @@ describe("InsightsPage", () => {
     expect(
       screen.queryByRole("heading", { name: "Frequently over Budget" }),
     ).toBeNull();
-    const nextSummary = screen.getByRole("region", {
-      name: "Monthly spending summary",
+    const nextSummary = await screen.findByRole("region", {
+      name: "Daily spending summary",
     });
     expect(within(nextSummary).getAllByText(formatMoney(3.1))).toHaveLength(2);
     const nextTrendsTable = await screen.findByRole("table", {
@@ -353,6 +357,7 @@ describe("InsightsPage", () => {
     vi.stubGlobal("fetch", createSuccessfulFetch(period));
     renderInsights();
 
+    fireEvent.click(await screen.findByRole("button", { name: "Daily view" }));
     const groceries = await screen.findByRole("button", { name: "Groceries" });
     const transit = screen.getByRole("button", { name: "Transit" });
     expect(groceries.getAttribute("aria-pressed")).toBe("true");
@@ -441,6 +446,7 @@ describe("InsightsPage", () => {
     vi.stubGlobal("fetch", createSuccessfulFetch(period));
     const view = renderInsights("7");
 
+    fireEvent.click(await screen.findByRole("button", { name: "Daily view" }));
     const groceriesTable = await screen.findByRole("table", {
       name: /category spending values/i,
     });
@@ -511,6 +517,7 @@ describe("InsightsPage", () => {
     vi.stubGlobal("fetch", fetch);
     renderInsights();
 
+    fireEvent.click(await screen.findByRole("button", { name: "Daily view" }));
     expect(
       await screen.findByText("No spending was recorded for this month."),
     ).toBeTruthy();
@@ -521,8 +528,8 @@ describe("InsightsPage", () => {
     const chartTable = screen.getByRole("table", {
       name: /daily spending values/i,
     });
-    const summary = screen.getByRole("region", {
-      name: "Monthly spending summary",
+    const summary = await screen.findByRole("region", {
+      name: "Daily spending summary",
     });
     const dayCount = new Date(
       Date.UTC(Number(period.slice(0, 4)), Number(period.slice(5)), 0),
@@ -589,7 +596,9 @@ describe("InsightsPage", () => {
     renderInsights();
 
     expect(await screen.findByRole("heading", { name: "Insights" })).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Monthly view" }));
+    expect(
+      screen.getByRole("button", { name: "Monthly view" }).getAttribute("aria-pressed"),
+    ).toBe("true");
     expect(
       await screen.findByText(
         `No Categories exceeded their current Budget in the 12-month window ending ${formatReportingPeriod(period)}.`,
@@ -639,7 +648,7 @@ describe("InsightsPage", () => {
     expect(screen.getByRole("status").textContent).toContain("Loading Insights");
   });
 
-  it("switches to a rolling Yearly report with accessible periods and Budget breach status", async () => {
+  it("shows the default Monthly view with accessible periods and Budget breach status", async () => {
     const period = getCurrentReportingPeriod();
     const fetch = createSuccessfulFetch(period);
     vi.stubGlobal("fetch", fetch);
@@ -652,9 +661,10 @@ describe("InsightsPage", () => {
     const dailyViewButton = screen.getByRole("button", { name: "Daily view" });
     expect(monthlyViewButton.textContent).toBe("Monthly");
     expect(dailyViewButton.textContent).toBe("Daily");
-    fireEvent.click(monthlyViewButton);
+    expect(monthlyViewButton.getAttribute("aria-pressed")).toBe("true");
+    expect(dailyViewButton.getAttribute("aria-pressed")).toBe("false");
 
-    const yearlyTable = await screen.findByRole("table", {
+    const monthlyTable = await screen.findByRole("table", {
       name: /monthly spending values/i,
     });
     const breachRanking = screen.getByRole("list", {
@@ -669,24 +679,24 @@ describe("InsightsPage", () => {
       within(lowSpendingRanking).getByText(`${formatMoney(5.25)} spent`),
     ).toBeTruthy();
     const expectedStart = rollingStart(period);
-    expect(within(yearlyTable).getAllByRole("row")).toHaveLength(13);
+    expect(within(monthlyTable).getAllByRole("row")).toHaveLength(13);
     expect(
-      within(yearlyTable).getByRole("rowheader", {
+      within(monthlyTable).getByRole("rowheader", {
         name: formatReportingPeriod(expectedStart.slice(0, 7) as ReportingPeriod),
       }),
     ).toBeTruthy();
-    expect(within(yearlyTable).getAllByText(/^Over Budget ·/)).toHaveLength(1);
-    expect(within(yearlyTable).getAllByText(/^Within Budget ·/).length).toBeGreaterThan(0);
-    expect(within(yearlyTable).getAllByText("No spending recorded").length).toBeGreaterThan(0);
-    const breachMarker = screen.getByTestId("yearly-over-budget-marker");
+    expect(within(monthlyTable).getAllByText(/^Over Budget ·/)).toHaveLength(1);
+    expect(within(monthlyTable).getAllByText(/^Within Budget ·/).length).toBeGreaterThan(0);
+    expect(within(monthlyTable).getAllByText("No spending recorded").length).toBeGreaterThan(0);
+    const breachMarker = screen.getByTestId("monthly-over-budget-marker");
     expect(breachMarker.style.bottom).toBe("100%");
     expect(breachMarker.style.transform).toBe("translateY(-100%)");
-    expect(within(yearlyTable).getByText(/uncategorized transactions/i)).toBeTruthy();
+    expect(within(monthlyTable).getByText(/uncategorized transactions/i)).toBeTruthy();
     expect(
       screen.getAllByText(/historical comparisons use current monthly Budgets/i)
         .length,
     ).toBeGreaterThan(0);
-    expect(screen.getByRole("region", { name: "Yearly spending" })).toBeTruthy();
+    expect(screen.getByRole("region", { name: "Monthly spending" })).toBeTruthy();
 
     let categoryTrendsTable = await screen.findByRole("table", {
       name: /category spending values/i,
@@ -759,6 +769,9 @@ describe("InsightsPage", () => {
     expect(
       await screen.findByRole("table", { name: /daily spending values/i }),
     ).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Daily view" }).getAttribute("aria-pressed"),
+    ).toBe("true");
     expect(
       screen.queryByRole("heading", { name: "Frequently over Budget" }),
     ).toBeNull();

@@ -1,0 +1,124 @@
+{
+  "repo": "yororo/spendeazy",
+  "tickets": [
+    {
+      "id": 1,
+      "number": 76,
+      "title": "Show correct Space identity and discoverable Budget navigation",
+      "url": "https://github.com/yororo/spendeazy/issues/76",
+      "blockers": []
+    },
+    {
+      "id": 2,
+      "number": 77,
+      "title": "Make monthly Budget status and Dashboard summaries consistent",
+      "url": "https://github.com/yororo/spendeazy/issues/77",
+      "blockers": []
+    },
+    {
+      "id": 3,
+      "number": 78,
+      "title": "Make filtered Transaction counts and totals match the result",
+      "url": "https://github.com/yororo/spendeazy/issues/78",
+      "blockers": []
+    },
+    {
+      "id": 4,
+      "number": 79,
+      "title": "Open newly imported Transactions across every statement month",
+      "url": "https://github.com/yororo/spendeazy/issues/79",
+      "blockers": [
+        3
+      ]
+    },
+    {
+      "id": 5,
+      "number": 80,
+      "title": "Make individual mobile categorization fast and explicit",
+      "url": "https://github.com/yororo/spendeazy/issues/80",
+      "blockers": []
+    },
+    {
+      "id": 6,
+      "number": 81,
+      "title": "Apply Categories to repeated statement descriptions with preview",
+      "url": "https://github.com/yororo/spendeazy/issues/81",
+      "blockers": [
+        5
+      ]
+    },
+    {
+      "id": 7,
+      "number": 82,
+      "title": "Encourage Remember with safe Rule saves and clear recovery",
+      "url": "https://github.com/yororo/spendeazy/issues/82",
+      "blockers": [
+        5
+      ]
+    },
+    {
+      "id": 8,
+      "number": 83,
+      "title": "Keep Review read-only and preserve correction context",
+      "url": "https://github.com/yororo/spendeazy/issues/83",
+      "blockers": [
+        5
+      ]
+    },
+    {
+      "id": 9,
+      "number": 84,
+      "title": "Lead Monthly Insights with actionable Category risks",
+      "url": "https://github.com/yororo/spendeazy/issues/84",
+      "blockers": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "id": 10,
+      "number": 85,
+      "title": "Explain potential unusual Category spending using recorded history",
+      "url": "https://github.com/yororo/spendeazy/issues/85",
+      "blockers": [
+        9
+      ]
+    },
+    {
+      "id": 11,
+      "number": 86,
+      "title": "Suggest Budget review from recurring breaches and disclose historical effects",
+      "url": "https://github.com/yororo/spendeazy/issues/86",
+      "blockers": [
+        9
+      ]
+    },
+    {
+      "id": 12,
+      "number": 87,
+      "title": "Make chart selection and spending inspection usable on phones",
+      "url": "https://github.com/yororo/spendeazy/issues/87",
+      "blockers": [
+        9
+      ]
+    },
+    {
+      "id": 13,
+      "number": 88,
+      "title": "Verify the complete mobile spending-monitoring journey",
+      "url": "https://github.com/yororo/spendeazy/issues/88",
+      "blockers": [
+        4,
+        6,
+        7,
+        8,
+        10,
+        11,
+        12
+      ]
+    }
+  ],
+  "status": "published-and-verified",
+  "parent": 75
+}

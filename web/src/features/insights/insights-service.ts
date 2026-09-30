@@ -60,8 +60,8 @@ interface InsightsDay {
   readonly categories: readonly InsightsCategoryAmount[];
 }
 
-interface InsightsReport {
-  readonly view: "monthly";
+interface InsightsDailyReport {
+  readonly view: "daily";
   readonly period: ReportingPeriod;
   readonly totalSpendingCents: number;
   readonly budgetedSpendingCents: number;
@@ -84,8 +84,8 @@ interface InsightsMonth {
   readonly categories: readonly InsightsCategoryAmount[];
 }
 
-interface InsightsYearlyReport {
-  readonly view: "yearly";
+interface InsightsMonthlyReport {
+  readonly view: "monthly";
   readonly period: ReportingPeriod;
   readonly totalSpendingCents: number;
   readonly budgetedSpendingCents: number;
@@ -99,7 +99,7 @@ interface InsightsYearlyReport {
   readonly months: readonly InsightsMonth[];
 }
 
-type InsightsReportResult = InsightsReport | InsightsYearlyReport;
+type InsightsReportResult = InsightsDailyReport | InsightsMonthlyReport;
 
 type InsightsApiClient = Pick<ApiClient, "get">;
 
@@ -133,12 +133,12 @@ interface CategoryBudgetResponse {
   readonly updatedAt: string;
 }
 
-async function getInsights(
+async function getDailyInsights(
   apiClient: InsightsApiClient,
   period: ReportingPeriod,
   signal?: AbortSignal,
   spaceId?: string,
-): Promise<InsightsReport> {
+): Promise<InsightsDailyReport> {
   const bounds = getReportingPeriodBounds(period);
   const periods = getRollingPeriods(period);
   const firstPeriod = periods[0]!;
@@ -179,7 +179,7 @@ async function getInsights(
     spaceId,
   );
 
-  return createInsightsReport(
+  return createDailyInsightsReport(
     period,
     periods,
     bounds.daysInPeriod,
@@ -190,12 +190,12 @@ async function getInsights(
   );
 }
 
-async function getYearlyInsights(
+async function getMonthlyInsights(
   apiClient: InsightsApiClient,
   period: ReportingPeriod,
   signal?: AbortSignal,
   spaceId?: string,
-): Promise<InsightsYearlyReport> {
+): Promise<InsightsMonthlyReport> {
   const periods = getRollingPeriods(period);
   const firstPeriod = periods[0]!;
   const { toDate } = getReportingPeriodBounds(period);
@@ -236,7 +236,7 @@ async function getYearlyInsights(
     spaceId,
   );
 
-  return createYearlyInsightsReport(
+  return createMonthlyInsightsReport(
     period,
     periods,
     catalog,
@@ -375,7 +375,7 @@ function isCategoryBudgetResponse(
   );
 }
 
-function createInsightsReport(
+function createDailyInsightsReport(
   period: ReportingPeriod,
   periods: readonly ReportingPeriod[],
   daysInPeriod: number,
@@ -383,7 +383,7 @@ function createInsightsReport(
   summary: CategorySummaryResponse,
   inactiveCategoryBudgets: ReadonlyMap<string, number | null>,
   transactions: readonly TransactionHistoryItem[],
-): InsightsReport {
+): InsightsDailyReport {
   const { categoryById, budgetedCategoryIds, monthlyBudgetCents } =
     createCategoryContext(catalog, summary, inactiveCategoryBudgets);
   const amountsByMonth = periods.map(() => new Map<string | null, number>());
@@ -487,7 +487,7 @@ function createInsightsReport(
   );
 
   return {
-    view: "monthly",
+    view: "daily",
     period,
     totalSpendingCents,
     budgetedSpendingCents,
@@ -505,14 +505,14 @@ function createInsightsReport(
   };
 }
 
-function createYearlyInsightsReport(
+function createMonthlyInsightsReport(
   period: ReportingPeriod,
   periods: readonly ReportingPeriod[],
   catalog: readonly CategoryCatalogItem[],
   summary: CategorySummaryResponse,
   inactiveCategoryBudgets: ReadonlyMap<string, number | null>,
   transactions: readonly TransactionHistoryItem[],
-): InsightsYearlyReport {
+): InsightsMonthlyReport {
   const { categoryById, budgetedCategoryIds, monthlyBudgetCents } =
     createCategoryContext(catalog, summary, inactiveCategoryBudgets);
   const amountsByMonth = periods.map(() => new Map<string | null, number>());
@@ -583,7 +583,7 @@ function createYearlyInsightsReport(
   );
 
   return {
-    view: "yearly",
+    view: "monthly",
     period,
     totalSpendingCents: totalByMonth.reduce((total, cents) => total + cents, 0),
     budgetedSpendingCents: budgetedByMonth.reduce(
@@ -841,7 +841,7 @@ function buildTransactionCollectionPath(spaceId?: string): string {
     : `/spaces/${encodeURIComponent(spaceId)}/transactions`;
 }
 
-export { getInsights, getYearlyInsights, InsightsDataError };
+export { getDailyInsights, getMonthlyInsights, InsightsDataError };
 export type {
   InsightsApiClient,
   InsightsBudgetBreach,
@@ -850,7 +850,7 @@ export type {
   InsightsDay,
   InsightsLowSpendingCategory,
   InsightsMonth,
-  InsightsReport,
+  InsightsDailyReport,
   InsightsReportResult,
-  InsightsYearlyReport,
+  InsightsMonthlyReport,
 };

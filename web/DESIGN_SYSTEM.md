@@ -299,3 +299,5 @@ Before adding UI, classify it in this order:
 5. New reusable pattern
 
 If a Pen screen appears to need a new value, determine whether it represents a real reusable decision or an accidental one-screen difference. Prefer a new intentional variant over changing a shared primitive for one caller.
+
+Statement Import Categorize opens a compact phone Category editor from the Category action, displaying the full description, date, and amount. Full corrections expands the existing form without discarding entered values. Category selection and Suggestions update only the draft. Apply & next explicitly saves, then focuses the next included Unmapped expense in the selected visible order using parsed-row identity, skipping assigned and excluded rows and wrapping to earlier remaining rows. Filters remain active; completion distinguishes the visible result from the complete statement and leaves Review as an explicit action. Failed saves retain the editor and corrections. Eligible expense exclusion remains reversible. The wider table retains full editing and adds the same Apply & next action. See [categorization reference](design/statement-categorization.pen).

@@ -964,6 +964,57 @@ describe("CategorizeStatement ambiguity handling", () => {
     ).toBe("");
   });
 
+  it("explicitly applies compact assignments and skips excluded rows", async () => {
+    render(<CategorizeHarness initialTransactions={[
+      unmappedTransaction,
+      { ...unmappedTransaction, id: "excluded", description: "Excluded Cafe", isExcluded: true },
+      { ...unmappedTransaction, id: "assigned", description: "Assigned Cafe", categoryId: "42", assignment: "manual" },
+      { ...unmappedTransaction, id: "next", description: "Next Cafe" },
+    ]} getCategorySuggestion={getSuggestionsForGreenMarket} />);
+    const list = screen.getByRole("list", { name: "Transactions to categorize" });
+    fireEvent.click(within(list).getByRole("button", { name: "Edit Category for Green Market Cafe" }));
+    const editor = screen.getByRole("dialog", { name: "Edit Transaction" });
+    expect(within(editor).queryByRole("textbox", { name: "Description for Green Market Cafe" })).toBeNull();
+    fireEvent.click(await within(editor).findByRole("button", { name: "Use suggested Category: Groceries" }));
+    expect(within(list).getAllByText("Unmapped").length).toBeGreaterThan(0);
+    fireEvent.click(within(editor).getByRole("button", { name: "Apply & next" }));
+    await waitFor(() => expect(screen.getByRole("combobox", { name: "Category for Next Cafe" })).toBeTruthy());
+    expect(document.activeElement).toBe(screen.getByRole("combobox", { name: "Category for Next Cafe" }));
+    fireEvent.click(screen.getByRole("button", { name: "Full corrections" }));
+    expect(screen.getByRole("textbox", { name: "Description for Next Cafe" })).toBeTruthy();
+    fireEvent.change(screen.getByRole("textbox", { name: "Description for Next Cafe" }), { target: { value: "Corrected Cafe" } });
+    fireEvent.click(screen.getByRole("combobox", { name: "Category for Next Cafe" }));
+    fireEvent.click(screen.getByRole("option", { name: "Housing" }));
+    fireEvent.click(screen.getByRole("button", { name: "Apply & next" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(screen.getByText("All included expenses have a Category. Continue to Review when ready.")).toBeTruthy();
+    expect(within(list).getByText("Corrected Cafe")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Review 3 Transactions" }).hasAttribute("disabled")).toBe(false);
+    fireEvent.click(within(list).getByRole("button", { name: "Include Excluded Cafe" }));
+    expect(screen.getByRole("button", { name: "Review 4 Transactions" }).hasAttribute("disabled")).toBe(true);
+  });
+
+  it("retains corrections and editor position when Apply & next fails", async () => {
+    render(<CategorizeHarness initialTransactions={[unmappedTransaction, { ...unmappedTransaction, id: "next", description: "Next Cafe" }]}
+      onRememberCategoryRule={async () => { throw new Error("Rule unavailable"); }} />);
+    const list = screen.getByRole("list", { name: "Transactions to categorize" });
+    fireEvent.click(within(list).getByRole("button", { name: "Edit Category for Green Market Cafe" }));
+    const editor = screen.getByRole("dialog");
+    fireEvent.click(within(editor).getByRole("button", { name: "Full corrections" }));
+    fireEvent.change(within(editor).getByRole("textbox", { name: "Description for Green Market Cafe" }), { target: { value: "Corrected Cafe" } });
+    fireEvent.change(within(editor).getByLabelText("Amount for Green Market Cafe"), { target: { value: "-30" } });
+    fireEvent.click(within(editor).getByRole("combobox", { name: "Category for Green Market Cafe" }));
+    fireEvent.click(screen.getByRole("option", { name: "Housing" }));
+    fireEvent.click(within(editor).getByRole("checkbox", { name: "Remember this category" }));
+    fireEvent.click(within(editor).getByRole("button", { name: "Apply & next" }));
+    expect(await screen.findByText("Rule unavailable")).toBeTruthy();
+    const recoveredEditor = screen.getByRole("dialog");
+    expect(within(recoveredEditor).getByRole("textbox", { name: "Description for Green Market Cafe" }).getAttribute("value")).toBe("Corrected Cafe");
+    expect(within(recoveredEditor).getByLabelText("Amount for Green Market Cafe").getAttribute("value")).toBe("-30");
+    expect(within(list).getByText("Green Market Cafe")).toBeTruthy();
+    expect(within(recoveredEditor).queryByRole("combobox", { name: "Category for Next Cafe" })).toBeNull();
+  });
+
   it("focuses the Category selector when Choose category opens the mobile editor", () => {
     render(<CategorizeHarness initialTransactions={[unmappedTransaction]} />);
 

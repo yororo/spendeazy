@@ -1,0 +1,226 @@
+{
+  "version": "2.19",
+  "children": [
+    {
+      "type": "frame",
+      "id": "s80compact",
+      "name": "Categorize — Compact Category assignment",
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 650,
+      "fill": "#FFFFFF",
+      "layout": "vertical",
+      "gap": 16,
+      "padding": 24,
+      "children": [
+        {
+          "type": "text",
+          "id": "s80title",
+          "content": "Edit Transaction",
+          "fontFamily": "Geist Mono",
+          "fontSize": 20,
+          "fill": "#000000"
+        },
+        {
+          "type": "text",
+          "id": "s80desc",
+          "content": "Payment to Fictional Cafe",
+          "fontFamily": "Geist Mono",
+          "fontSize": 14,
+          "fill": "#000000"
+        },
+        {
+          "type": "text",
+          "id": "s80details",
+          "content": "2026-09-03 · ₱30.00",
+          "fontFamily": "Geist Mono",
+          "fontSize": 14,
+          "fill": "#000000"
+        },
+        {
+          "type": "text",
+          "id": "s80expand",
+          "content": "Full corrections",
+          "fontFamily": "Geist Mono",
+          "fontSize": 14,
+          "fill": "#000000"
+        },
+        {
+          "type": "text",
+          "id": "s80category",
+          "content": "Category: Dining",
+          "fontFamily": "Geist Mono",
+          "fontSize": 14,
+          "fill": "#000000"
+        },
+        {
+          "type": "text",
+          "id": "s80suggestions",
+          "content": "Category Suggestions: Dining",
+          "fontFamily": "Geist Mono",
+          "fontSize": 14,
+          "fill": "#000000"
+        },
+        {
+          "type": "text",
+          "id": "s80remember",
+          "content": "□ Remember this category",
+          "fontFamily": "Geist Mono",
+          "fontSize": 14,
+          "fill": "#000000"
+        },
+        {
+          "type": "text",
+          "id": "s80apply",
+          "content": "Apply & next",
+          "fontFamily": "Geist Mono",
+          "fontSize": 14,
+          "fill": "#000000"
+        },
+        {
+          "type": "text",
+          "id": "s80cancel",
+          "content": "Cancel",
+          "fontFamily": "Geist Mono",
+          "fontSize": 14,
+          "fill": "#000000"
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "s80corrections",
+      "name": "Categorize — Full corrections",
+      "x": 430,
+      "y": 0,
+      "width": 390,
+      "height": 750,
+      "fill": "#FFFFFF",
+      "layout": "vertical",
+      "gap": 16,
+      "padding": 24,
+      "children": [
+        {
+          "type": "text",
+          "id": "s80fulltitle",
+          "content": "Edit Transaction",
+          "fontFamily": "Geist Mono",
+          "fontSize": 20,
+          "fill": "#000000"
+        },
+        {
+          "type": "text",
+          "id": "s80collapse",
+          "content": "Compact Category assignment",
+          "fontFamily": "Geist Mono",
+          "fontSize": 14,
+          "fill": "#000000"
+        },
+        {
+          "type": "text",
+          "id": "s80date",
+          "content": "Date: 2026-09-03",
+          "fontFamily": "Geist Mono",
+          "fontSize": 14,
+          "fill": "#000000"
+        },
+        {
+          "type": "text",
+          "id": "s80description",
+          "content": "Description: Payment to Fictional Cafe",
+          "fontFamily": "Geist Mono",
+          "fontSize": 14,
+          "fill": "#000000"
+        },
+        {
+          "type": "text",
+          "id": "s80amount",
+          "content": "Amount: -30.00",
+          "fontFamily": "Geist Mono",
+          "fontSize": 14,
+          "fill": "#000000"
+        },
+        {
+          "type": "text",
+          "id": "s80fullcategory",
+          "content": "Category: Dining",
+          "fontFamily": "Geist Mono",
+          "fontSize": 14,
+          "fill": "#000000"
+        },
+        {
+          "type": "text",
+          "id": "s80fullremember",
+          "content": "□ Remember this category",
+          "fontFamily": "Geist Mono",
+          "fontSize": 14,
+          "fill": "#000000"
+        },
+        {
+          "type": "text",
+          "id": "s80save",
+          "content": "Save changes",
+          "fontFamily": "Geist Mono",
+          "fontSize": 14,
+          "fill": "#000000"
+        },
+        {
+          "type": "text",
+          "id": "s80next",
+          "content": "Apply & next",
+          "fontFamily": "Geist Mono",
+          "fontSize": 14,
+          "fill": "#000000"
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "s80completion",
+      "name": "Categorize — Completion",
+      "x": 860,
+      "y": 0,
+      "width": 390,
+      "height": 400,
+      "fill": "#FFFFFF",
+      "layout": "vertical",
+      "gap": 16,
+      "padding": 24,
+      "children": [
+        {
+          "type": "text",
+          "id": "s80done",
+          "content": "All included expenses have a Category.",
+          "fontFamily": "Geist Mono",
+          "fontSize": 14,
+          "fill": "#000000"
+        },
+        {
+          "type": "text",
+          "id": "s80reviewcopy",
+          "content": "Continue to Review when ready.",
+          "fontFamily": "Geist Mono",
+          "fontSize": 14,
+          "fill": "#000000"
+        },
+        {
+          "type": "text",
+          "id": "s80review",
+          "content": "Review 3 Transactions",
+          "fontFamily": "Geist Mono",
+          "fontSize": 14,
+          "fill": "#000000"
+        },
+        {
+          "type": "text",
+          "id": "s80exclude",
+          "content": "Include excluded expense",
+          "fontFamily": "Geist Mono",
+          "fontSize": 14,
+          "fill": "#000000"
+        }
+      ]
+    }
+  ]
+}

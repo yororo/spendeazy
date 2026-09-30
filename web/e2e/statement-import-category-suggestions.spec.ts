@@ -560,6 +560,73 @@ test("commits saved Category Suggestions through Statement Import with Space iso
   );
 });
 
+for (const width of [320, 390, 1440]) {
+  test(`explicit categorization preserves corrections and advances at ${width}px`, async ({ page, request }) => {
+    const context = await createFreshUserSpaceContext(page, request, requireEnvironment("SPENDEAZY_E2E_API_BASE_URL"));
+    const categoryId = await createCategory(context, suggestedCategoryName);
+    await page.setViewportSize({ width, height: 1000 });
+    await page.getByRole("link", { name: "Imports", exact: true }).click();
+    await uploadStatement(page, `explicit-assignment-${width}.pdf`, [
+      { date: "2026-09-03", time: "09:00 AM", description: "Payment to First Cafe", reference: "920001", debit: "10.00", balance: "90.00" },
+      { date: "2026-09-02", time: "09:00 AM", description: "Payment to Excluded Cafe", reference: "920002", debit: "20.00", balance: "70.00" },
+      { date: "2026-09-01", time: "09:00 AM", description: "Payment to Last Cafe", reference: "920003", debit: "30.00", balance: "40.00" },
+    ], { startingBalance: "100.00", endingBalance: "40.00", totalDebit: "60.00", totalCredit: "0.00" });
+    await page.getByRole("button", { name: "Exclude Payment to Excluded Cafe", exact: true }).click();
+    const search = page.getByRole("textbox", { name: width < 768 ? "Search Transactions" : "Search descriptions", exact: true });
+    await search.fill("Cafe");
+    if (width < 768) await page.getByRole("button", { name: "Filter Transactions", exact: true }).click();
+    await page.getByRole("combobox", { name: "Sort by", exact: true }).click();
+    await page.getByRole("option", { name: "Amount: highest first", exact: true }).click();
+    await page.getByRole("combobox", { name: "Category", exact: true }).click();
+    await page.getByRole("option", { name: "Unmapped", exact: true }).click();
+    await page.getByLabel("From", { exact: true }).filter({ visible: true }).fill("2026-09-01");
+    if (width < 768) await page.getByRole("button", { name: "Close navigation" }).click();
+    await page.getByRole("button", { name: width < 768 ? "Edit Category for Payment to Last Cafe" : "Edit Payment to Last Cafe", exact: false }).click();
+    const category = page.getByRole("combobox", { name: "Category for Payment to Last Cafe" });
+    if (width < 768) await expect(category).toBeFocused();
+    await page.getByRole("button", { name: `Use suggested Category: ${suggestedCategoryName}`, exact: true }).click();
+    await page.getByRole("button", { name: width < 768 ? "Cancel" : "Cancel changes to Payment to Last Cafe", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Review 2 Transactions" })).toBeDisabled();
+    await page.getByRole("button", { name: width < 768 ? "Edit Category for Payment to Last Cafe" : "Edit Payment to Last Cafe", exact: false }).click();
+    await page.getByRole("button", { name: `Use suggested Category: ${suggestedCategoryName}`, exact: true }).click();
+    if (width < 768) {
+      await expect(page.getByLabel("Description for Payment to Last Cafe", { exact: true })).toHaveCount(0);
+      await page.getByRole("button", { name: "Full corrections" }).click();
+    }
+    await page.getByLabel("Description for Payment to Last Cafe", { exact: true }).fill("Payment to Corrected Cafe");
+    await page.getByLabel("Date for Payment to Last Cafe", { exact: true }).fill("2026-09-04");
+    await page.getByLabel("Amount for Payment to Last Cafe", { exact: true }).fill("-31.00");
+    await page.getByRole("button", { name: "Apply & next", exact: true }).focus();
+    await page.keyboard.press("Enter");
+    await expect(page.getByRole("combobox", { name: "Category for Payment to First Cafe" })).toBeFocused();
+    await selectCategory(page, "Payment to First Cafe", suggestedCategoryName);
+    await page.getByRole("button", { name: "Apply & next", exact: true }).click();
+    await expect(page.getByText("All included expenses have a Category. Continue to Review when ready.")).toBeVisible();
+    await expect(search).toHaveValue("Cafe");
+    if (width < 768) await page.getByRole("button", { name: "Filter Transactions, filters active" }).click();
+    await expect(page.getByRole("combobox", { name: "Sort by", exact: true })).toContainText("Amount: highest first");
+    await expect(page.getByRole("combobox", { name: "Category", exact: true })).toContainText("Unmapped");
+    await expect(page.getByLabel("From", { exact: true }).filter({ visible: true })).toHaveValue("2026-09-01");
+    if (width < 768) await page.getByRole("button", { name: "Close navigation" }).click();
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+    const beforeCommit = await request.get(`${context.apiBaseUrl}/api/v1/users/me/spaces/${context.spaceId}/statement-imports`, { headers: authorizationHeaders(context.token) });
+    expect(readObjectsField(await beforeCommit.json(), "items")).toHaveLength(0);
+    await page.getByRole("button", { name: "Include Payment to Excluded Cafe", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Review 3 Transactions" })).toBeDisabled();
+    await page.getByRole("button", { name: width < 768 ? "Edit Category for Payment to Excluded Cafe" : "Edit Payment to Excluded Cafe", exact: false }).click();
+    await selectCategory(page, "Payment to Excluded Cafe", suggestedCategoryName);
+    await page.getByRole("button", { name: "Apply & next", exact: true }).click();
+    await page.getByRole("button", { name: "Review 3 Transactions" }).click();
+    await page.getByRole("button", { name: "Import 3 Transactions" }).click();
+    await expect(page.getByRole("heading", { name: "Statement imported" })).toBeVisible();
+    const response = await request.get(`${context.apiBaseUrl}/api/v1/users/me/spaces/${context.spaceId}/transactions?pageSize=100`, { headers: authorizationHeaders(context.token) });
+    expect(response.status()).toBe(200);
+    const saved = readObjectsField(await response.json(), "items");
+    expect(saved).toHaveLength(3);
+    expect(findTransaction(saved, "Payment to Corrected Cafe")).toMatchObject({ categoryId, amount: "31.00", purchaseDate: "2026-09-04" });
+  });
+}
+
 async function switchToNewUser(page: Page): Promise<string> {
   await page.goto("/categories");
   const token = await createNewLocalTestUser(page);

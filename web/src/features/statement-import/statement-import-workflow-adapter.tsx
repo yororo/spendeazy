@@ -82,8 +82,11 @@ function CategorizeStatementAdapter({
       onChangeRememberedPattern={(pattern) =>
         workflow.changeRememberedPattern(pattern)
       }
-      onSaveEdit={() => {
-        void workflow.saveEdit();
+      onSaveEdit={async () => {
+        const result = await workflow.saveEdit();
+        return result === "saved"
+          ? workflow.getSnapshot().statement?.transactions ?? null
+          : null;
       }}
       onToggleTransactionExclusion={(transactionId) =>
         workflow.toggleTransactionExclusion(transactionId)

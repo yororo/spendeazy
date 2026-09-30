@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ActiveSpaceLabel } from "@/shared/ui";
 import {
   ArrowLeftIcon,
@@ -117,7 +117,7 @@ interface CategorizeStatementProps {
     matchType: CategoryRule["matchType"],
   ) => boolean;
   onChangeRememberedPattern: (pattern: string) => boolean;
-  onSaveEdit: () => void;
+  onSaveEdit: () => Promise<readonly CategorizedTransaction[] | null>;
   onToggleTransactionExclusion: (transactionId: string) => boolean;
   onBack: () => void;
   onReview: () => void;
@@ -152,6 +152,8 @@ function CategorizeStatement({
   const [dateTo, setDateTo] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
   const [sort, setSort] = useState("date-desc");
+  const completionRef = useRef<HTMLParagraphElement>(null);
+  const [assignmentFeedback, setAssignmentFeedback] = useState<string | null>(null);
   const [mobileEditorOpen, setMobileEditorOpen] = useState(false);
   const [mobileEditorFocus, setMobileEditorFocus] = useState<
     "category" | "details"
@@ -326,6 +328,38 @@ function CategorizeStatement({
     );
   }
 
+  async function applyAndNext() {
+    const orderedIds = visibleTransactions.map((transaction) => transaction.id);
+    const currentIndex = orderedIds.indexOf(editingId ?? "");
+    const candidateIds = [
+      ...orderedIds.slice(currentIndex + 1),
+      ...orderedIds.slice(0, currentIndex),
+    ];
+    const savedTransactions = await onSaveEdit();
+    if (!savedTransactions) return;
+    const remainingIds = new Set(savedTransactions
+      .filter((transaction) =>
+        isIncludedStatementTransaction(transaction) && transaction.categoryId === null,
+      )
+      .map((transaction) => transaction.id));
+    const nextId = candidateIds.find((id) => remainingIds.has(id));
+    if (nextId && onBeginEdit(nextId)) {
+      setMobileEditorFocus("category");
+      setMobileEditorOpen(
+        mobileEditorOpen || window.innerWidth < MOBILE_EDITOR_BREAKPOINT_PX,
+      );
+    } else {
+      setMobileEditorOpen(false);
+      setAssignmentFeedback(remainingIds.size > 0
+        ? "All visible expenses have a Category. Adjust filters to find remaining Unmapped expenses."
+        : "All included expenses have a Category. Continue to Review when ready.");
+    }
+  }
+
+  function toggleTransactionExclusion(transactionId: string) {
+    if (onToggleTransactionExclusion(transactionId)) setAssignmentFeedback(null);
+  }
+
   function clearFilters() {
     setSearch("");
     setDateFrom("");
@@ -343,6 +377,8 @@ function CategorizeStatement({
 
   function beginDesktopEditing(transactionId: string) {
     if (onBeginEdit(transactionId)) {
+      setAssignmentFeedback(null);
+      setMobileEditorFocus("details");
       setMobileEditorOpen(false);
     }
   }
@@ -352,6 +388,7 @@ function CategorizeStatement({
     focus: "category" | "details" = "details",
   ) {
     if (onBeginEdit(transactionId)) {
+      setAssignmentFeedback(null);
       setMobileEditorFocus(focus);
       setMobileEditorOpen(true);
     }
@@ -402,6 +439,12 @@ function CategorizeStatement({
       {draftError && !mobileEditorOpen && !editingTransactionIsVisible && (
         <p role="alert" className="font-medium text-destructive">
           {draftError}
+        </p>
+      )}
+
+      {assignmentFeedback && (
+        <p ref={completionRef} tabIndex={-1} role="status" aria-live="polite">
+          {assignmentFeedback}
         </p>
       )}
 
@@ -867,7 +910,7 @@ function CategorizeStatement({
                               : "text-destructive hover:text-destructive"
                           }`}
                           onClick={() =>
-                            onToggleTransactionExclusion(transaction.id)
+                            toggleTransactionExclusion(transaction.id)
                           }
                           disabled={isEditing || transaction.amount > 0}
                           aria-label={
@@ -951,6 +994,8 @@ function CategorizeStatement({
                             onChangeRememberedMatchType
                           }
                           onRememberedPatternChange={onChangeRememberedPattern}
+                          focusCategoryInitially={mobileEditorFocus === "category"}
+                          onApplyAndNext={applyAndNext}
                           onSave={onSaveEdit}
                           onCancel={cancelEditing}
                         />
@@ -1035,7 +1080,7 @@ function CategorizeStatement({
                                   : "text-destructive hover:text-destructive"
                               }
                               onClick={() =>
-                                onToggleTransactionExclusion(transaction.id)
+                                toggleTransactionExclusion(transaction.id)
                               }
                               disabled={isEditing || transaction.amount > 0}
                               aria-label={
@@ -1072,6 +1117,12 @@ function CategorizeStatement({
               <DialogContent
                 className="md:hidden"
                 closeButtonDisabled={isSaving}
+                onCloseAutoFocus={(event) => {
+                  if (completionRef.current) {
+                    event.preventDefault();
+                    completionRef.current.focus();
+                  }
+                }}
                 onOpenAutoFocus={(event) => {
                   event.preventDefault();
                   if (event.currentTarget instanceof HTMLElement) {
@@ -1096,10 +1147,15 @@ function CategorizeStatement({
                   </DialogDescription>
                 </DialogHeader>
                 <MobileTransactionEditor
+                  key={editingTransaction.id}
+                  onApplyAndNext={applyAndNext}
                   categoryOptions={categoryOptions}
                   suggestedCategories={suggestedCategories}
                   categorySuggestionFeedback={categorySuggestionFeedback}
                   focusCategoryInitially={mobileEditorFocus === "category"}
+                  onToggleCorrections={() => setMobileEditorFocus(
+                    mobileEditorFocus === "category" ? "details" : "category",
+                  )}
                   transaction={editingTransaction}
                   draft={draft}
                   error={draftError}
@@ -1242,6 +1298,7 @@ function getCategorySuggestionFeedbackText(
 }
 
 interface TransactionEditRowsProps {
+  readonly focusCategoryInitially?: boolean;
   categoryOptions: readonly CategoryColorOption[];
   suggestedCategories: readonly CategoryColorOption[];
   categorySuggestionFeedback: CategorySuggestionFeedback;
@@ -1258,12 +1315,14 @@ interface TransactionEditRowsProps {
   onRememberRuleChange: (checked: boolean) => void;
   onRememberedMatchTypeChange: (matchType: CategoryRule["matchType"]) => void;
   onRememberedPatternChange: (pattern: string) => void;
+  onApplyAndNext: () => void;
   onSave: () => void;
   onCancel: () => void;
 }
 
 interface TransactionDraftFieldsProps {
   readonly layout: "mobile" | "table";
+  readonly compact?: boolean;
   readonly focusCategoryInitially?: boolean;
   readonly categoryOptions: readonly CategoryColorOption[];
   readonly suggestedCategories: readonly CategoryColorOption[];
@@ -1279,6 +1338,7 @@ interface TransactionDraftFieldsProps {
 
 function TransactionDraftFields({
   layout,
+  compact = false,
   focusCategoryInitially = false,
   categoryOptions,
   suggestedCategories,
@@ -1433,18 +1493,22 @@ function TransactionDraftFields({
 
   return (
     <>
-      <div className="min-w-0">
-        <Label htmlFor={`${idPrefix}-date`}>Date</Label>
-        {dateInput}
-      </div>
-      <div className="min-w-0">
-        <Label htmlFor={`${idPrefix}-description`}>Description</Label>
-        {descriptionInput}
-      </div>
-      <div className="min-w-0">
-        <Label htmlFor={`${idPrefix}-amount`}>Amount</Label>
-        {amountInput}
-      </div>
+      {!compact && (
+        <>
+          <div className="min-w-0">
+            <Label htmlFor={`${idPrefix}-date`}>Date</Label>
+            {dateInput}
+          </div>
+          <div className="min-w-0">
+            <Label htmlFor={`${idPrefix}-description`}>Description</Label>
+            {descriptionInput}
+          </div>
+          <div className="min-w-0">
+            <Label htmlFor={`${idPrefix}-amount`}>Amount</Label>
+            {amountInput}
+          </div>
+        </>
+      )}
       <div className="min-w-0">
         <Label htmlFor={`${idPrefix}-category`}>Category</Label>
         {categoryInput}
@@ -1601,19 +1665,47 @@ function MobileTransactionEditor({
   onRememberRuleChange,
   onRememberedMatchTypeChange,
   onRememberedPatternChange,
+  onApplyAndNext,
   onSave,
   onCancel,
+  onToggleCorrections,
 }: TransactionEditRowsProps & {
   readonly focusCategoryInitially: boolean;
+  readonly onToggleCorrections: () => void;
 }) {
+  const showCorrections = !focusCategoryInitially;
+  const categoryRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (focusCategoryInitially) {
+      categoryRef.current?.querySelector<HTMLElement>("[role=combobox]")?.focus();
+    }
+  }, [focusCategoryInitially, transaction.id]);
   const errorId = `mobile-transaction-${transaction.id}-error`;
   const rememberId = `mobile-transaction-${transaction.id}-remember`;
 
   return (
     <>
-      <div className="grid min-w-0 gap-4 p-5">
+      <div ref={categoryRef} className="grid min-w-0 gap-4 p-5">
+        {!showCorrections && (
+          <p className="wrap-anywhere">
+            {draft.description}<br />
+            <span className="font-mono tabular-nums">
+              {draft.date} · {formatMoney(Math.abs(Number(draft.amount)))}
+            </span>
+          </p>
+        )}
+        <Button
+          type="button"
+          variant="outline"
+          disabled={isSaving}
+          aria-expanded={showCorrections}
+          onClick={onToggleCorrections}
+        >
+          {showCorrections ? "Compact Category assignment" : "Full corrections"}
+        </Button>
         <TransactionDraftFields
           layout="mobile"
+          compact={!showCorrections}
           focusCategoryInitially={focusCategoryInitially}
           categoryOptions={categoryOptions}
           suggestedCategories={suggestedCategories}
@@ -1655,8 +1747,13 @@ function MobileTransactionEditor({
         >
           Cancel
         </Button>
-        <Button type="button" onClick={onSave} disabled={isSaving}>
-          Save changes
+        {showCorrections && (
+          <Button type="button" onClick={onSave} disabled={isSaving}>
+            Save changes
+          </Button>
+        )}
+        <Button type="button" onClick={onApplyAndNext} disabled={isSaving}>
+          Apply &amp; next
         </Button>
       </DialogFooter>
     </>
@@ -1664,6 +1761,7 @@ function MobileTransactionEditor({
 }
 
 function TransactionEditRows({
+  focusCategoryInitially = false,
   categoryOptions,
   suggestedCategories,
   categorySuggestionFeedback,
@@ -1680,15 +1778,22 @@ function TransactionEditRows({
   onRememberRuleChange,
   onRememberedMatchTypeChange,
   onRememberedPatternChange,
+  onApplyAndNext,
   onSave,
   onCancel,
 }: TransactionEditRowsProps) {
+  const rowRef = useRef<HTMLTableRowElement>(null);
+  useEffect(() => {
+    if (focusCategoryInitially) {
+      rowRef.current?.querySelector<HTMLElement>("[role=combobox]")?.focus();
+    }
+  }, [focusCategoryInitially, transaction.id]);
   const errorId = `transaction-${transaction.id}-error`;
   const rememberId = `transaction-${transaction.id}-remember`;
 
   return (
     <>
-      <TableRow className="bg-primary/10 hover:bg-primary/10">
+      <TableRow ref={rowRef} className="bg-primary/10 hover:bg-primary/10">
         <TransactionDraftFields
           layout="table"
           categoryOptions={categoryOptions}
@@ -1703,7 +1808,8 @@ function TransactionEditRows({
           onDescriptionChange={onDescriptionChange}
         />
         <TableCell>
-          <div className="flex justify-end gap-1">
+          <div className="flex flex-wrap justify-end gap-1">
+            <Button type="button" size="sm" onClick={onApplyAndNext} disabled={isSaving}>Apply &amp; next</Button>
             <Button
               type="button"
               size="icon-sm"

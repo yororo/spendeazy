@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { fileURLToPath } from "node:url";
 import { expectFinancialTokenContrast } from "./financial-accessibility";
+import { changeTheme } from "./theme-helpers";
 import { authorizationHeaders, createNewLocalTestUser, isRecord, requireEnvironment } from "./test-helpers";
 
 const fixture = fileURLToPath(new URL("./fixtures/spending-journey-encrypted.pdf", import.meta.url));
@@ -80,6 +81,13 @@ for (const width of [320, 390, 1440]) {
     await expect(page.getByText("Unrelated same-date expense", { exact: true })).toHaveCount(0);
     const importedColor = await page.getByText("Journey expenses", { exact: true }).filter({ visible: true }).first()
       .locator('[aria-hidden="true"]').evaluate((element) => getComputedStyle(element).backgroundColor);
+    const transactionRoute = page.url();
+    await changeTheme(page, "Playful");
+    await expect(page).toHaveURL(transactionRoute);
+    await expect(page.getByRole("region", { name: "Statement filter" })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Transaction summary" })).toContainText("₱2,000.01");
+    await expect(page.getByText("Journey expenses", { exact: true }).filter({ visible: true }).first()
+      .locator('[aria-hidden="true"]')).toHaveCSS("background-color", importedColor);
     await page.getByRole("button", { name: "Return to monthly view", exact: true }).click();
     await expect(page.getByLabel("Reporting period", { exact: true })).toHaveValue("2026-06");
     await navigation.getByRole("link", { name: "Insights", exact: true }).click();
@@ -108,6 +116,10 @@ for (const width of [320, 390, 1440]) {
     const budget = page.getByRole("dialog", { name: "Edit Journey expenses" });
     await expect(budget).toContainText("Saving a new limit also changes historical comparisons");
     await budget.getByRole("textbox", { name: "Monthly Budget for Journey expenses" }).fill("1250.00");
+    await changeTheme(page, "Technical");
+    await expect(budget.getByRole("textbox", { name: "Monthly Budget for Journey expenses" })).toHaveValue("1250.00");
+    await changeTheme(page, "Playful");
+    await expect(budget.getByRole("textbox", { name: "Monthly Budget for Journey expenses" })).toHaveValue("1250.00");
     await budget.getByRole("button", { name: /Save/ }).click();
     await expect(edit).toBeFocused();
     await expect(summary.getByText(/Nearing Budget · ₱249.99 remaining/)).toHaveCount(2);

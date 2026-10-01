@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+import { capturePageScroll, restorePageScroll } from "@/shared/ui/page-scroll";
 
 type Theme = "technical" | "playful";
 const STORAGE_KEY = "spendeazy.theme";
@@ -17,7 +18,10 @@ function readPreference(): Theme {
 function initializeTheme() {
   preference = readPreference();
   function apply() {
+    const scroll = capturePageScroll();
     document.documentElement.dataset.visualTheme = preference;
+    // Force the new font layout before browser scroll anchoring can move the page.
+    restorePageScroll(scroll);
   }
   function syncStorage(event: StorageEvent) {
     if (event.key !== STORAGE_KEY && event.key !== null) return;

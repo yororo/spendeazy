@@ -220,7 +220,7 @@ function CategorySpendingChart({ report, onInspect }: CategorySpendingChartProps
                       </span>
                     ))}
                   </div>
-                  <div className="relative min-w-0 flex-1 cursor-pointer border-b border-foreground" onClick={event => { const bounds = event.currentTarget.getBoundingClientRect(); const index = Math.max(0, Math.min(points.length - 1, Math.round(((event.clientX - bounds.left) / bounds.width) * (points.length - 1)))); const point = points[index]; if (point) onInspect?.(point.key); }}>
+                  <div className="relative min-w-0 flex-1 cursor-pointer border-b border-structure" onClick={event => { const bounds = event.currentTarget.getBoundingClientRect(); const index = Math.max(0, Math.min(points.length - 1, Math.round(((event.clientX - bounds.left) / bounds.width) * (points.length - 1)))); const point = points[index]; if (point) onInspect?.(point.key); }}>
                     {[0, 50, 100].map((position) => (
                       <div
                         key={position}

@@ -146,11 +146,11 @@ function TransactionTable({
         <div className="relative min-w-0 flex-1">
           <Label htmlFor={`${controlId}-mobile-search`} className="sr-only">Search descriptions</Label>
           <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-          <Input id={`${controlId}-mobile-search`} aria-label="Search Transactions" className="h-11 border-foreground pl-9" placeholder="Search description" value={search} onChange={(event) => setSearch(event.target.value)} />
+          <Input id={`${controlId}-mobile-search`} aria-label="Search Transactions" className="h-11 border-control-border pl-9" placeholder="Search description" value={search} onChange={(event) => setSearch(event.target.value)} />
         </div>
         <Sheet>
           <SheetTrigger asChild>
-            <Button type="button" variant="outline" size="icon" className="relative size-11 border-foreground" aria-label={hasSheetFilters ? "Filter Transactions, filters active" : "Filter Transactions"}>
+            <Button type="button" variant="outline" size="icon" className="relative size-11 border-structure" aria-label={hasSheetFilters ? "Filter Transactions, filters active" : "Filter Transactions"}>
               <FilterIcon aria-hidden="true" />
               {hasSheetFilters && <span className="absolute top-1 right-1 size-2 rounded-full bg-primary ring-1 ring-foreground" aria-hidden="true" />}
             </Button>

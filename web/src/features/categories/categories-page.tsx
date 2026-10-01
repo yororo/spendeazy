@@ -285,7 +285,7 @@ function CategoriesPage({ spaceId, onSpaceChange }: CategoriesPageProps = {}) {
 
   return (
     <div className="mx-auto w-full max-w-screen-2xl px-4 py-6 sm:px-6 lg:px-9 lg:py-7">
-      <header className="mb-6 flex flex-col gap-5 border-b border-foreground pb-5 md:flex-row md:items-end md:justify-between">
+      <header className="mb-6 flex flex-col gap-5 border-b border-structure pb-5 md:flex-row md:items-end md:justify-between">
         <div>
           <ActiveSpaceLabel spaceId={effectiveSpaceId} spaces={spacesQuery.data} />
           <p className="text-label text-muted-foreground">Categories</p>
@@ -353,8 +353,8 @@ function CategoriesPage({ spaceId, onSpaceChange }: CategoriesPageProps = {}) {
       <Card variant="strong" className="mt-5">
         <CardHeader className="gap-4 border-b md:flex-row md:items-end md:justify-between">
           <CardTitle>Monthly Budgets</CardTitle>
-          <div className="flex w-full flex-col gap-3 md:w-auto md:flex-row md:items-center">
-            <div className="relative order-1 w-full min-w-0 md:order-2 md:w-96 md:flex-none">
+          <div className="flex w-full min-w-0 flex-col gap-3 md:w-auto md:flex-row md:items-center">
+            <div className="relative order-1 w-full min-w-0 md:order-2 md:w-96">
               <SearchIcon
                 className="pointer-events-none absolute top-3 left-3 size-4 text-muted-foreground"
                 aria-hidden="true"

@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { authorizationHeaders, createNewLocalTestUser, requireEnvironment } from "./test-helpers";
+import { changeTheme } from "./theme-helpers";
 
 test.use({ hasTouch: true });
 for (const width of [320, 390, 1440]) {
@@ -22,6 +23,7 @@ for (const width of [320, 390, 1440]) {
     await page.getByLabel("Reporting period", { exact: true }).fill("2026-09");
     const selector = page.getByText("Categories to compare · 3 selected", { exact: true });
     await expect(selector).toBeVisible();
+    await changeTheme(page, "Playful");
     await selector.click();
     const options = page.getByRole("group", { name: "Categories to compare", exact: true });
     await expect(options.getByRole("button", { name: "Chart A", exact: true })).toHaveAttribute("aria-pressed", "true");
@@ -34,6 +36,9 @@ for (const width of [320, 390, 1440]) {
     await page.keyboard.press("Enter");
     const dialog = page.getByRole("dialog");
     await expect(dialog.getByText("Total: ₱3,000.00", { exact: true })).toBeVisible();
+    await changeTheme(page, "Technical");
+    await expect(dialog.getByText("Total: ₱3,000.00", { exact: true })).toBeVisible();
+    await changeTheme(page, "Playful");
     await expect(dialog.getByText(/Synthetic Chart A contribution/)).toBeVisible();
     await expect(page.getByLabel("Reporting period", { exact: true })).toHaveValue("2026-09");
     await page.keyboard.press("Escape");

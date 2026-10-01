@@ -32,9 +32,9 @@ import {
 } from "./transactions-service";
 
 const TRANSACTION_PAGE_SIZE = 20;
-const TRANSACTION_IDENTITY_KEY_INDEX = 4;
-const TRANSACTION_SPACE_KEY_INDEX = 5;
-const TRANSACTION_FILTERS_KEY_INDEX = 1;
+const TRANSACTION_IDENTITY_KEY_INDEX = 1;
+const TRANSACTION_SPACE_KEY_INDEX = 2;
+const TRANSACTION_FILTERS_KEY_INDEX = 4;
 
 function useTransactionsQuery(
   period: ReportingPeriod,
@@ -51,7 +51,9 @@ function useTransactionsQuery(
   const { search, fromDate, toDate, categoryId, accountKey } = filters ?? {};
   const queryKey = buildFinancialQueryKey(
     { identityId: scope.identityId, spaceId: scope.spaceId },
-    ["transactions", { search, fromDate, toDate, categoryId, accountKey, statementImportId }, selectedAccount?.bank ?? null, selectedAccount?.cardType ?? null], period,
+    ["transactions"], period,
+    { search, fromDate, toDate, categoryId, accountKey, statementImportId },
+    selectedAccount?.bank ?? null, selectedAccount?.cardType ?? null,
   );
 
   return useInfiniteQuery({

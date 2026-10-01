@@ -163,7 +163,7 @@ function TransactionsPage({
 
   return (
     <div className="mx-auto w-full max-w-screen-2xl px-4 py-6 sm:px-6 lg:px-9 lg:py-7">
-      <header className="mb-6 flex flex-col gap-5 border-b border-foreground pb-5 md:flex-row md:items-end md:justify-between">
+      <header className="mb-6 flex flex-col gap-5 border-b border-structure pb-5 md:flex-row md:items-end md:justify-between">
         <div>
           <ActiveSpaceLabel spaceId={effectiveSpaceId} spaces={spacesQuery.data} />
           <p className="text-label text-muted-foreground">Transactions</p>

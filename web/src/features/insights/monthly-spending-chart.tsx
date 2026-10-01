@@ -117,7 +117,7 @@ function MonthlySpendingChart({ report, onInspect }: MonthlySpendingChartProps) 
               ))}
             </div>
             <div className="flex min-w-0 flex-1 flex-col">
-              <div className="relative min-h-0 flex-1 border-b border-foreground">
+              <div className="relative min-h-0 flex-1 border-b border-structure">
                 {[0, 50, 100].map((position) => (
                   <div
                     key={position}

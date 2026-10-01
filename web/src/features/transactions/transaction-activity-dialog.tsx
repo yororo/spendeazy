@@ -102,7 +102,7 @@ function TransactionActivityDialog({
               {activityQuery.data.map((activity) => (
                 <li
                   key={activity.id}
-                  className="border-l-2 border-foreground pl-4"
+                  className="border-l-2 border-structure pl-4"
                 >
                   <p className="font-mono text-sm font-bold uppercase">
                     {activityLabel(activity.type)}

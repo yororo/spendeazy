@@ -85,6 +85,7 @@ interface InsightsMonth {
 }
 
 interface InsightsMonthlyReport {
+  readonly selectedMonthCategories: readonly InsightsCategory[];
   readonly view: "monthly";
   readonly period: ReportingPeriod;
   readonly totalSpendingCents: number;
@@ -584,6 +585,7 @@ function createMonthlyInsightsReport(
 
   return {
     view: "monthly",
+    selectedMonthCategories: createSelectableCategoryReports(amountsByMonth[selectedMonthIndex]!, categoryById),
     period,
     totalSpendingCents: totalByMonth.reduce((total, cents) => total + cents, 0),
     budgetedSpendingCents: budgetedByMonth.reduce(

@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
+import { useEffect, useState } from "react";
+import { restorePageScroll, type PageScrollPosition } from "@/shared/ui/page-scroll";
 
 import {
   FeatureDataError,
@@ -13,6 +13,7 @@ import { formatMoney, centsToMoney } from "@/shared/money";
 import {
   ReportingPeriodFilter,
   useReportingPeriod,
+  type ReportingPeriod,
 } from "@/shared/reporting-period";
 
 import { DailySpendingChart } from "./daily-spending-chart";
@@ -20,14 +21,23 @@ import { CategorySpendingChart } from "./category-spending-chart";
 import { MonthlyCategoryRankings } from "./monthly-category-rankings";
 import { useInsightsQuery, type InsightsView } from "./insights-queries";
 import { MonthlySpendingChart } from "./monthly-spending-chart";
+import { SelectedMonthSummary } from "./selected-month-summary";
+
+interface InsightsReturnContext {
+  readonly scroll: PageScrollPosition;
+  readonly focusId: string;
+}
 
 interface InsightsPageProps {
+  readonly returnContext?: InsightsReturnContext;
   readonly spaceId?: string;
   readonly onSpaceChange?: (spaceId?: string) => void;
   readonly onManageBudgets?: () => void;
+  readonly onViewTransactions?: (categoryId: string | undefined, period: ReportingPeriod, spaceId?: string) => void;
+  readonly onEditBudget?: (categoryId: string, period: ReportingPeriod, spaceId?: string) => void;
 }
 
-function InsightsPage({ spaceId, onSpaceChange, onManageBudgets }: InsightsPageProps = {}) {
+function InsightsPage({ spaceId, onSpaceChange, onManageBudgets, onViewTransactions, onEditBudget, returnContext }: InsightsPageProps = {}) {
   const [view, setView] = useState<InsightsView>("monthly");
   const { period } = useReportingPeriod();
   const shouldResolvePersonalSpace = onSpaceChange !== undefined;
@@ -40,6 +50,16 @@ function InsightsPage({ spaceId, onSpaceChange, onManageBudgets }: InsightsPageP
     !shouldResolvePersonalSpace || spacesQuery.isSuccess,
     view,
   );
+  const ready = insightsQuery.isSuccess;
+  useEffect(() => {
+    if (!returnContext || !ready) return;
+    const frame = requestAnimationFrame(() => {
+      const target = document.getElementById(returnContext.focusId);
+      target?.focus({ preventScroll: true });
+      restorePageScroll(returnContext.scroll);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [returnContext, ready]);
 
   if (spacesQuery.isError) {
     return (
@@ -132,6 +152,7 @@ function InsightsPage({ spaceId, onSpaceChange, onManageBudgets }: InsightsPageP
         </div>
       </header>
 
+      {report.view === "monthly" && <SelectedMonthSummary report={report} onViewTransactions={onViewTransactions ? (categoryId, selectedPeriod) => onViewTransactions(categoryId, selectedPeriod, effectiveSpaceId) : undefined} onEditBudget={onEditBudget ? (categoryId, selectedPeriod) => onEditBudget(categoryId, selectedPeriod, effectiveSpaceId) : undefined} onManageBudgets={onManageBudgets} />}
       <section
         aria-label={
           report.view === "monthly"
@@ -171,9 +192,6 @@ function InsightsPage({ spaceId, onSpaceChange, onManageBudgets }: InsightsPageP
           <p className="font-semibold">
             Current monthly Budgets: {formatMoney(centsToMoney(report.monthlyBudgetCents))}
           </p>
-          {view === "monthly" && onManageBudgets && (
-            <Button variant="outline" onClick={onManageBudgets}>Manage Budgets</Button>
-          )}
           {report.view === "monthly" ? (
             <p className="text-muted-foreground">
               Historical comparisons use current monthly Budgets; past Budget
@@ -220,3 +238,4 @@ function InsightsPage({ spaceId, onSpaceChange, onManageBudgets }: InsightsPageP
 }
 
 export { InsightsPage };
+export type { InsightsReturnContext };

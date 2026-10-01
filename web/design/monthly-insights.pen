@@ -1,0 +1,20 @@
+{
+  "version": "2.19",
+  "children": [
+    {
+      "type": "frame", "id": "i84month", "name": "Monthly Insights — Selected month first",
+      "x": 0, "y": 0, "width": 390, "height": 1100, "fill": "#FFFFFF",
+      "layout": "vertical", "gap": 20, "padding": 24,
+      "children": [
+        { "type": "text", "id": "i84space", "content": "Personal · Insights", "fontFamily": "Geist Mono", "fontSize": 24, "fill": "#000000" },
+        { "type": "text", "id": "i84period", "content": "Sep 2026 · Recorded spending", "fontFamily": "Geist Mono", "fontSize": 18, "fill": "#000000" },
+        { "type": "text", "id": "i84totals", "content": "Total recorded spending  ₱1,025.01\nBudgeted Spending  ₱1,000.01\nUnbudgeted Spending  ₱25.00", "fontFamily": "Geist Mono", "fontSize": 14, "fill": "#000000" },
+        { "type": "text", "id": "i84progress", "content": "Recorded Budget usage 100%\nOver Budget · ₱0.01 over\nElapsed month 63% · 19 of 30 days", "fontFamily": "Geist Mono", "fontSize": 14, "fill": "#A30000" },
+        { "type": "text", "id": "i84manage", "content": "[Manage Budgets]  [View Transactions]", "fontFamily": "Geist Mono", "fontSize": 14, "fill": "#000000" },
+        { "type": "text", "id": "i84attention", "content": "Category attention\nGroceries · ₱1,000.01 recorded\nOver Budget · ₱0.01 over\n[View Transactions]  [Edit Budget]", "fontFamily": "Geist Mono", "fontSize": 14, "fill": "#A30000" },
+        { "type": "text", "id": "i84history", "content": "12-month spending summary\nHistorical comparisons use current limits.\nMonthly spending / Category trends\nRankings include Budget warnings.", "fontFamily": "Geist Mono", "fontSize": 14, "fill": "#666666" },
+        { "type": "text", "id": "i84handoff", "content": "Transactions: Space + month + Category\nReturn restores month, scroll, and focus.\nBudget dialog: save/cancel restores Insights.\nSaving limits changes historical comparisons.", "fontFamily": "Geist Mono", "fontSize": 14, "fill": "#000000" }
+      ]
+    }
+  ]
+}

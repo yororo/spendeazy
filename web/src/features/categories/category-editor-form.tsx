@@ -202,7 +202,7 @@ function CategoryEditorBudgetField({
         id={`${fieldPrefix}-budget-help`}
         className="mt-1 text-left text-xs text-muted-foreground"
       >
-        Recurs independently of the selected Reporting Period.
+          Recurs independently of the selected Reporting Period. Saving a new limit also changes historical comparisons, which use current limits.
       </p>
       {editor.errors.budget && (
         <p

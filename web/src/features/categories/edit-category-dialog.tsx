@@ -369,4 +369,4 @@ function EditCategoryDialog({
   );
 }
 
-export { EditCategoryDialog };
+export { EditCategoryDialog, EditCategoryDialogContent };

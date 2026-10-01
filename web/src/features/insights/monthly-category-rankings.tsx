@@ -5,6 +5,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { describeBudget } from "@/shared/budget";
 import { getCategoryColorClass } from "@/shared/category";
 import { centsToMoney, formatMoney } from "@/shared/money";
 import { formatReportingPeriod } from "@/shared/reporting-period";
@@ -50,7 +51,7 @@ function MonthlyCategoryRankings({ report }: MonthlyCategoryRankingsProps) {
               {report.frequentlyOverBudget.map((category, index) => (
                 <li
                   key={category.categoryId}
-                  className="flex min-h-14 items-center gap-3 py-2"
+                  className="flex min-h-14 flex-wrap items-center gap-3 py-2"
                 >
                   <span
                     aria-hidden="true"
@@ -116,7 +117,7 @@ function MonthlyCategoryRankings({ report }: MonthlyCategoryRankingsProps) {
               {report.lowestSpending.map((category, index) => (
                 <li
                   key={category.categoryId}
-                  className="flex min-h-14 items-center gap-3 py-2"
+                  className="flex min-h-14 flex-wrap items-center gap-3 py-2"
                 >
                   <span
                     aria-hidden="true"
@@ -134,13 +135,14 @@ function MonthlyCategoryRankings({ report }: MonthlyCategoryRankingsProps) {
                   <span className="min-w-0 flex-1 truncate text-sm font-medium">
                     {category.label}
                   </span>
-                  <span className="shrink-0 text-right font-mono text-xs tabular-nums sm:text-sm">
+                  <span className="w-full min-w-0 text-right font-mono text-xs tabular-nums sm:w-auto sm:text-sm">
                     <span className="block">
                       {formatMoney(centsToMoney(category.spendingCents))} spent
                     </span>
                     <span className="block text-muted-foreground">
                       {formatMoney(centsToMoney(category.monthlyBudgetCents))} Budget
                     </span>
+                    <span className="block text-warning">{describeBudget(category.spendingCents, category.monthlyBudgetCents)}</span>
                   </span>
                 </li>
               ))}

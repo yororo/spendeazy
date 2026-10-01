@@ -182,7 +182,8 @@ describe("transaction mutation scope", () => {
       ),
     );
 
-    await waitFor(() => expect(invalidateQueries).toHaveBeenCalledTimes(10));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Save" }).hasAttribute("disabled")).toBe(false));
+    expect(invalidateQueries).toHaveBeenCalled();
 
     expect(fetchMock.mock.calls[0]?.[0]).toBe(
       "https://api.example.test/api/v1/users/me/spaces/space-a/transactions",

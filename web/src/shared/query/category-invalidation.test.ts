@@ -22,6 +22,8 @@ function categoryDependentKeys(scope: FinancialQueryScope) {
     buildFinancialQueryKey(scope, ["categories", "budget"], "42"),
     buildFinancialQueryKey(scope, ["categories", "budget"], "43"),
     buildFinancialQueryKey(scope, ["dashboard"], period),
+    buildFinancialQueryKey(scope, ["insights", "monthly"], "2026-09"),
+    buildFinancialQueryKey(scope, ["insights", "daily"], "2026-09"),
     buildFinancialQueryKey(scope, ["transactions"], period),
     buildFinancialQueryKey(scope, ["transactions", "deleted"]),
     buildFinancialQueryKey(scope, ["transaction-activity"], "transaction-1"),

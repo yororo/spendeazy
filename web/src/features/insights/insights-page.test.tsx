@@ -261,6 +261,16 @@ function renderInsights(spaceId = "7") {
 }
 
 describe("InsightsPage", () => {
+  it("leads with selected-month recorded totals before historical spending", async () => {
+    vi.stubGlobal("fetch", createSuccessfulFetch(getCurrentReportingPeriod()));
+    renderInsights();
+    const summary = await screen.findByRole("region", { name: "Selected-month recorded spending" });
+    expect(within(summary).getByText(formatMoney(7.75))).toBeTruthy();
+    expect(within(summary).getByText(formatMoney(5.25))).toBeTruthy();
+    expect(within(summary).getByText(formatMoney(2.50))).toBeTruthy();
+    expect(summary.compareDocumentPosition(screen.getByRole("region", { name: "12-month spending summary" })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByText(/Elapsed month/)).toBeTruthy();
+  });
   it("shows daily totals without monthly rankings and updates when the month changes", async () => {
     const period = getCurrentReportingPeriod();
     const fetch = createSuccessfulFetch(period);

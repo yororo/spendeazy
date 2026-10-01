@@ -1,5 +1,9 @@
-import { lazy, Suspense, type ReactNode } from "react";
-import { Route, Routes, useNavigate, useSearchParams } from "react-router-dom";
+import { lazy, Suspense, useState, type ReactNode } from "react";
+import { Route, Routes, useNavigate, useSearchParams, useLocation } from "react-router-dom";
+import { useReportingPeriod, type ReportingPeriod } from "@/shared/reporting-period";
+import { capturePageScroll } from "@/shared/ui/page-scroll";
+import type { InsightsReturnContext } from "@/features/insights";
+import { Button } from "@/components/ui/button";
 
 import { AuthenticatedRoute } from "@/components/app/authenticated-route";
 import { RouteLoading } from "@/components/app/route-loading";
@@ -9,6 +13,11 @@ import { NotFoundPage } from "@/pages/not-found-page";
 
 interface AppProps {
   signInElement?: ReactNode;
+}
+
+interface InsightsOrigin extends InsightsReturnContext {
+  readonly path: string;
+  readonly period: ReportingPeriod;
 }
 
 const SignInPage = lazy(() =>
@@ -36,6 +45,7 @@ const CategoriesPage = lazy(() =>
     default: CategoriesPage,
   })),
 );
+const ContextualBudgetEditor = lazy(() => import("@/features/categories").then(({ ContextualBudgetEditor }) => ({ default: ContextualBudgetEditor })));
 const InsightsPage = lazy(() =>
   import("@/features/insights").then(({ InsightsPage }) => ({
     default: InsightsPage,
@@ -127,10 +137,31 @@ function InsightsRoute() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const spaceId = searchParams.get("spaceId") ?? undefined;
+  const location = useLocation();
+  const [budget, setBudget] = useState<{ categoryId: string; period: ReportingPeriod; spaceId?: string; trigger: HTMLElement | null } | null>(null);
+  const returned = location.state as { insightsReturn?: InsightsReturnContext } | null;
+  function closeBudget() {
+    const trigger = budget?.trigger;
+    setBudget(null);
+    requestAnimationFrame(() => {
+      const target = trigger?.isConnected ? trigger : document.getElementById("insights-recorded-spending");
+      target?.focus({ preventScroll: true });
+    });
+  }
 
   return (
-    <InsightsPage
+    <><InsightsPage
       spaceId={spaceId}
+      returnContext={returned?.insightsReturn}
+      onEditBudget={(categoryId, period, destinationSpaceId) => setBudget({ categoryId, period, spaceId: destinationSpaceId, trigger: document.activeElement instanceof HTMLElement ? document.activeElement : null })}
+      onViewTransactions={(categoryId, period, destinationSpaceId) => {
+        const params = new URLSearchParams(searchParams);
+        if (categoryId === undefined) params.delete("categoryId");
+        else params.set("categoryId", categoryId);
+        if (destinationSpaceId) params.set("spaceId", destinationSpaceId);
+        const context: InsightsOrigin = { path: `/insights${location.search}`, period, scroll: capturePageScroll(), focusId: document.activeElement?.id ?? "" };
+        navigate(`/transactions?${params}`, { state: { insightsOrigin: context } });
+      }}
       onManageBudgets={() => navigate(getNavigationTarget("/categories", spaceId))}
       onSpaceChange={(nextSpaceId) => {
         const nextParams = new URLSearchParams(searchParams);
@@ -141,7 +172,7 @@ function InsightsRoute() {
         }
         setSearchParams(nextParams);
       }}
-    />
+    />{budget && lazyRoute(<ContextualBudgetEditor categoryId={budget.categoryId} period={budget.period} spaceId={budget.spaceId} onClose={closeBudget} />)}</>
   );
 }
 
@@ -168,11 +199,17 @@ function DashboardRoute() {
 }
 
 function TransactionsRoute() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { setPeriod } = useReportingPeriod();
+  const [origin] = useState(() =>
+    (location.state as { insightsOrigin?: InsightsOrigin } | null)?.insightsOrigin,
+  );
   const [searchParams, setSearchParams] = useSearchParams();
   const spaceId = searchParams.get("spaceId") ?? undefined;
 
   return (
-    <TransactionsPage
+    <>{origin && <div className="px-4 pt-4"><Button variant="outline" onClick={() => { setPeriod(origin.period); navigate(origin.path, { state: { insightsReturn: origin } }); }}>Return to Insights</Button></div>}<TransactionsPage
       spaceId={spaceId}
       onSpaceChange={(nextSpaceId) => {
         const nextParams = new URLSearchParams(searchParams);
@@ -183,7 +220,7 @@ function TransactionsRoute() {
         }
         setSearchParams(nextParams);
       }}
-    />
+    /></>
   );
 }
 

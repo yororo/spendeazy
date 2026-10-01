@@ -106,7 +106,7 @@ function AppShellContent() {
 
     if (canonicalSearch !== location.search) {
       const destination = `${location.pathname}${canonicalSearch}${location.hash}`;
-      navigate(destination, { replace: true });
+      navigate(destination, { replace: true, state: location.state });
       return;
     }
 
@@ -116,6 +116,7 @@ function AppShellContent() {
     location.hash,
     location.pathname,
     location.search,
+    location.state,
     navigate,
     personalSpace,
     selectedSpaceId,

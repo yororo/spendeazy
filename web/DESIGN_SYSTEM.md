@@ -288,6 +288,10 @@ Incorrect generic coupling:
 
 ## Adding a new pattern
 
+Monthly Insights leads with the selected Reporting Period, Total recorded spending, Budgeted Spending, and Unbudgeted Spending before 12-month totals and charts. Category attention exposes Nearing Budget, At Budget Limit, and Over Budget independently of aggregate usage; lowest-spending rankings also show exact Budget descriptions. Current-month recorded usage and elapsed calendar-month progress appear together without forecasts. Historical spending uses current monthly limits. Category markers retain saved colors.
+
+View Transactions carries the selected Space, month, and Category. Return to Insights restores the originating Reporting Period, scroll, and action focus. Edit Budget and Set Budget open the existing Category editor in a focus-trapped dialog over Insights; save/cancel restores the originating action while successful saves refresh dependent queries. Budget help explains that changed recurring limits also affect historical comparisons. Empty and no-monthly-Budget states offer Transactions and Manage Budgets without claiming complete spending coverage. See [Monthly Insights reference](design/monthly-insights.pen).
+
 Monthly Budget presentations classify exact cents before rounding display values: below 80% is Within Budget, 80% to below 100% is Nearing Budget, exactly 100% is At Budget Limit, and above 100% is Over Budget. Show precise remaining or over amounts beside rounded usage. Aggregate comparisons use Budgeted Spending against current monthly limits; total recorded spending and Unbudgeted Spending remain separate. Show setup guidance when monthly limits are absent and describe zero activity as no spending recorded, without implying complete monthly coverage.
 
 Before adding UI, classify it in this order:

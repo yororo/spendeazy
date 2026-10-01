@@ -10,6 +10,8 @@ const CATEGORY_DEPENDENT_QUERY_KEYS = [
   ["categories", "rules"],
   ["categories", "budget"],
   ["dashboard"],
+  ["insights", "monthly"],
+  ["insights", "daily"],
   ["transactions"],
   ["transactions", "deleted"],
   ["transaction-activity"],

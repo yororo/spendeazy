@@ -294,6 +294,8 @@ View Transactions carries the selected Space, month, and Category. Return to Ins
 
 Monthly Budget presentations classify exact cents before rounding display values: below 80% is Within Budget, 80% to below 100% is Nearing Budget, exactly 100% is At Budget Limit, and above 100% is Over Budget. Show precise remaining or over amounts beside rounded usage. Aggregate comparisons use Budgeted Spending against current monthly limits; total recorded spending and Unbudgeted Spending remain separate. Show setup guidance when monthly limits are absent and describe zero activity as no spending recorded, without implying complete monthly coverage.
 
+Monthly Insights shows Potential spending patterns after selected-month attention and before historical charts. Native disclosure controls expose each Category’s selected amount, six preceding calendar months, equivalent-day or full-month cutoffs, positive contributing months, exact median (including half cents), changes, and contributing Transactions. Insufficient recorded history and no-signal states avoid completeness or normal-spending claims. Investigation actions carry Category, Space, and month; returning reopens evidence disclosures and restores focus. Comparison actions explicitly open the full month’s Transactions. See the evidence frame in [Monthly Insights reference](design/monthly-insights.pen).
+
 Before adding UI, classify it in this order:
 
 1. Existing token

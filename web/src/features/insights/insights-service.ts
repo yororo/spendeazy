@@ -19,6 +19,7 @@ import {
   type CategoryColor,
 } from "@/shared/category";
 import { moneyToCents } from "@/shared/money";
+import { createSpendingPatterns, type PatternTransaction, type SpendingPatterns } from "./spending-patterns";
 import {
   getReportingPeriodBounds,
   type ReportingPeriod,
@@ -85,6 +86,7 @@ interface InsightsMonth {
 }
 
 interface InsightsMonthlyReport {
+  readonly spendingPatterns: SpendingPatterns;
   readonly selectedMonthCategories: readonly InsightsCategory[];
   readonly view: "monthly";
   readonly period: ReportingPeriod;
@@ -521,6 +523,7 @@ function createMonthlyInsightsReport(
   const budgetedByMonth = periods.map(() => 0);
   const indexByPeriod = new Map(periods.map((month, index) => [month, index]));
   const selectedMonthIndex = indexByPeriod.get(period)!;
+  const patternTransactions: PatternTransaction[] = [];
 
   transactions.forEach((transaction) => {
     const transactionPeriod = getTransactionPeriod(transaction.purchaseDate);
@@ -539,6 +542,14 @@ function createMonthlyInsightsReport(
       ),
     );
     const categoryId = transaction.categoryId;
+
+    patternTransactions.push({
+      id: transaction.id,
+      categoryId,
+      date: transaction.purchaseDate,
+      description: transaction.description,
+      amountCents,
+    });
 
     if (categoryId !== null && !categoryById.has(categoryId)) {
       throw new InsightsDataError(
@@ -583,9 +594,19 @@ function createMonthlyInsightsReport(
     categoryById,
   );
 
+  const selectedMonthCategories = createSelectableCategoryReports(
+    amountsByMonth[selectedMonthIndex]!,
+    categoryById,
+  );
+
   return {
     view: "monthly",
-    selectedMonthCategories: createSelectableCategoryReports(amountsByMonth[selectedMonthIndex]!, categoryById),
+    spendingPatterns: createSpendingPatterns(
+      period,
+      selectedMonthCategories,
+      patternTransactions,
+    ),
+    selectedMonthCategories,
     period,
     totalSpendingCents: totalByMonth.reduce((total, cents) => total + cents, 0),
     budgetedSpendingCents: budgetedByMonth.reduce(

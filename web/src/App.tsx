@@ -135,6 +135,7 @@ function CategoriesRoute() {
 
 function InsightsRoute() {
   const navigate = useNavigate();
+  const { period: originPeriod, setPeriod } = useReportingPeriod();
   const [searchParams, setSearchParams] = useSearchParams();
   const spaceId = searchParams.get("spaceId") ?? undefined;
   const location = useLocation();
@@ -159,7 +160,8 @@ function InsightsRoute() {
         if (categoryId === undefined) params.delete("categoryId");
         else params.set("categoryId", categoryId);
         if (destinationSpaceId) params.set("spaceId", destinationSpaceId);
-        const context: InsightsOrigin = { path: `/insights${location.search}`, period, scroll: capturePageScroll(), focusId: document.activeElement?.id ?? "" };
+        const context: InsightsOrigin = { path: `/insights${location.search}`, period: originPeriod, scroll: capturePageScroll(), focusId: document.activeElement?.id ?? "" };
+        setPeriod(period);
         navigate(`/transactions?${params}`, { state: { insightsOrigin: context } });
       }}
       onManageBudgets={() => navigate(getNavigationTarget("/categories", spaceId))}

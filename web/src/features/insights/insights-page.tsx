@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { restorePageScroll, type PageScrollPosition } from "@/shared/ui/page-scroll";
 
 import {
@@ -22,6 +22,7 @@ import { MonthlyCategoryRankings } from "./monthly-category-rankings";
 import { useInsightsQuery, type InsightsView } from "./insights-queries";
 import { MonthlySpendingChart } from "./monthly-spending-chart";
 import { SelectedMonthSummary } from "./selected-month-summary";
+import { SpendingPatternEvidence } from "./spending-pattern-evidence";
 
 interface InsightsReturnContext {
   readonly scroll: PageScrollPosition;
@@ -51,10 +52,17 @@ function InsightsPage({ spaceId, onSpaceChange, onManageBudgets, onViewTransacti
     view,
   );
   const ready = insightsQuery.isSuccess;
+  const restoredContext = useRef<InsightsReturnContext | undefined>(undefined);
   useEffect(() => {
-    if (!returnContext || !ready) return;
+    if (!returnContext || !ready || restoredContext.current === returnContext) return;
     const frame = requestAnimationFrame(() => {
+      restoredContext.current = returnContext;
       const target = document.getElementById(returnContext.focusId);
+      let ancestor = target?.parentElement;
+      while (ancestor) {
+        if (ancestor instanceof HTMLDetailsElement) ancestor.open = true;
+        ancestor = ancestor.parentElement;
+      }
       target?.focus({ preventScroll: true });
       restorePageScroll(returnContext.scroll);
     });
@@ -153,6 +161,7 @@ function InsightsPage({ spaceId, onSpaceChange, onManageBudgets, onViewTransacti
       </header>
 
       {report.view === "monthly" && <SelectedMonthSummary report={report} onViewTransactions={onViewTransactions ? (categoryId, selectedPeriod) => onViewTransactions(categoryId, selectedPeriod, effectiveSpaceId) : undefined} onEditBudget={onEditBudget ? (categoryId, selectedPeriod) => onEditBudget(categoryId, selectedPeriod, effectiveSpaceId) : undefined} onManageBudgets={onManageBudgets} />}
+      {report.view === "monthly" && <SpendingPatternEvidence key={report.period} report={report.spendingPatterns} period={report.period} onViewTransactions={onViewTransactions ? (categoryId, selectedPeriod) => onViewTransactions(categoryId, selectedPeriod, effectiveSpaceId) : undefined} />}
       <section
         aria-label={
           report.view === "monthly"

@@ -1,0 +1,47 @@
+import { expect, test } from "@playwright/test";
+import { authorizationHeaders, createNewLocalTestUser, isRecord, requireEnvironment } from "./test-helpers";
+
+test("recorded spending evidence uses real history and restores investigation context", async ({ page }) => {
+  await page.clock.install({ time: requireEnvironment("SPENDEAZY_E2E_TEST_CLOCK") });
+  await page.setViewportSize({ width: 390, height: 900 });
+  await page.goto("/");
+  const token = await createNewLocalTestUser(page);
+  await expect(page.getByText(/No spending recorded in this Reporting Period/)).toBeVisible();
+  const headers = authorizationHeaders(token);
+  const base = `${requireEnvironment("SPENDEAZY_E2E_API_BASE_URL")}/api/v1/users/me`;
+  const response = await page.request.post(`${base}/categories`, { headers, data: { name: "Synthetic pattern" } });
+  expect(response.ok()).toBe(true);
+  const category: unknown = await response.json();
+  if (!isRecord(category) || typeof category.id !== "string") throw new Error("Expected Category ID");
+  for (const [purchaseDate, amount] of [["2026-06-10", "1000.00"], ["2026-07-10", "1000.00"], ["2026-08-10", "1000.00"], ["2026-09-10", "1500.00"], ["2026-08-25", "9000.00"]]) {
+    expect((await page.request.post(`${base}/transactions`, { headers, data: { categoryId: category.id, purchaseDate, amount, description: `Synthetic pattern ${purchaseDate}` } })).ok()).toBe(true);
+  }
+  await page.getByRole("navigation", { name: "Mobile navigation" }).getByRole("link", { name: "Insights", exact: true }).click();
+  await page.getByLabel("Reporting period", { exact: true }).fill("2026-09");
+  const evidence = page.getByRole("region", { name: "Potential spending patterns" });
+  await evidence.getByText("Synthetic pattern · Potential increase in recorded spending", { exact: true }).click();
+  await expect(evidence.getByText(/Median: ₱1,000.00 · Change: ₱500.00/)).toBeVisible();
+  await expect(evidence.getByText(/Selected recorded amount: ₱1,500.00 · 3 contributing months/)).toBeVisible();
+  await expect(evidence.getByText(/Through day 19/)).toBeVisible();
+  await expect(evidence.getByText("Synthetic pattern 2026-09-10", { exact: true })).toBeVisible();
+  const action = evidence.getByRole("button", { name: "Investigate Synthetic pattern selected-month Transactions" });
+  await action.click();
+  await expect(page).toHaveURL(new RegExp(`categoryId=${category.id}`));
+  await expect(page.getByRole("region", { name: "Transaction summary" }).getByText("₱1,500.00", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Return to Insights" }).click();
+  await expect(action).toBeFocused();
+  await expect(evidence.getByText(/Median: ₱1,000.00/)).toBeVisible();
+  await evidence.getByText(/Jun 2026 · ₱1,000.00/).click();
+  const comparisonAction = evidence.getByRole("button", { name: "Investigate Synthetic pattern Jun 2026 Transactions" });
+  await comparisonAction.click();
+  await expect(page.getByLabel("Reporting period", { exact: true })).toHaveValue("2026-06");
+  await expect(page.getByRole("region", { name: "Transaction summary" }).getByText("₱1,000.00", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Return to Insights" }).click();
+  await expect(page.getByLabel("Reporting period", { exact: true })).toHaveValue("2026-09");
+  await expect(comparisonAction).toBeFocused();
+  await page.getByLabel("Reporting period", { exact: true }).fill("2026-08");
+  await evidence.getByText("Synthetic pattern · Insufficient recorded history", { exact: true }).click();
+  await expect(evidence.getByText(/Insufficient recorded history: 2 of the required 3/)).toBeVisible();
+  await expect(evidence.getByText(/Selected recorded amount: ₱10,000.00/)).toBeVisible();
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+});

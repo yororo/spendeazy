@@ -15,6 +15,29 @@
         { "type": "text", "id": "i84history", "content": "12-month spending summary\nHistorical comparisons use current limits.\nMonthly spending / Category trends\nRankings include Budget warnings.", "fontFamily": "Geist Mono", "fontSize": 14, "fill": "#666666" },
         { "type": "text", "id": "i84handoff", "content": "Transactions: Space + month + Category\nReturn restores month, scroll, and focus.\nBudget dialog: save/cancel restores Insights.\nSaving limits changes historical comparisons.", "fontFamily": "Geist Mono", "fontSize": 14, "fill": "#000000" }
       ]
+    },
+{
+  "type": "frame",
+  "id": "i85evidence",
+  "name": "Monthly Insights — Potential spending evidence",
+  "x": 450,
+  "y": 0,
+  "width": 390,
+  "height": 850,
+  "fill": "#FFFFFF",
+  "layout": "vertical",
+  "gap": 20,
+  "padding": 24,
+  "children": [
+    {
+      "type": "text",
+      "id": "i85copy",
+      "content": "Potential spending patterns\nMar–Aug 2026 · Through day 19, clamped in shorter months\nSynthetic Food · Potential increase in recorded spending\nSelected: ₱1,500.00 · 3 contributing months\nMedian: ₱1,000.00 · Change: ₱500.00 (50%)\nJun ₱1,000 · Jul ₱1,000 · Aug ₱1,000\n[Expand contributing Transactions]\n[View selected-month Transactions]\n[View full month’s Transactions]\nOther Category · Insufficient recorded history\nAbsence of a signal does not prove normal spending or complete coverage.",
+      "fontFamily": "Geist Mono",
+      "fontSize": 14,
+      "fill": "#000000"
     }
+  ]
+}
   ]
 }

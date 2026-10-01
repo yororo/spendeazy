@@ -3,6 +3,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter, Outlet, useSearchParams } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { ReportingPeriodProvider } from "@/shared/reporting-period";
 
 import App from "./App";
 
@@ -92,7 +93,7 @@ describe("Insights route Space selection", () => {
   it("reads and updates the selected Space while retaining other URL parameters", async () => {
     render(
       <MemoryRouter initialEntries={["/insights?spaceId=10&view=monthly"]}>
-        <App />
+        <ReportingPeriodProvider><App /></ReportingPeriodProvider>
       </MemoryRouter>,
     );
 

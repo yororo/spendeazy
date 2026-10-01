@@ -9,6 +9,10 @@ export function statementPdf() {
     "08/01/26 08/02/26 Fictional Repeat 1.00", "08/02/26 08/03/26 FICTIONAL REPEAT 1.00", "08/03/26 08/04/26 Fictional Repeat 1.00", "08/04/26 08/05/26 Fictional Repeat! 1.00",
     "SUBTOTAL 4.00", "TOTAL 4.00",
   ];
+  return createFictionalStatementPdf(lines);
+}
+
+export function createFictionalStatementPdf(lines: readonly string[]) {
   const stream = `BT /F1 11 Tf 16 TL 40 750 Td\n${lines.map((line) => `(${line.replace(/[\\()]/gu, "\\$&")}) Tj T*`).join("\n")}\nET\n`;
   const objects = ["<< /Type /Catalog /Pages 2 0 R >>", "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
     "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",

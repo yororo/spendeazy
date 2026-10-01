@@ -48,11 +48,13 @@ describe("categorizeStatement", () => {
       expect.arrayContaining([
         expect.objectContaining({
           description: "FIX ONE AYALA MAKATI MAKATI PH",
+          activityKind: "expense",
           amount: -500,
           isExcluded: false,
         }),
         expect.objectContaining({
           description: "PAYMENT RECEIVED - THANK YOU",
+          activityKind: "payment",
           amount: 169252.98,
           isExcluded: true,
         }),
@@ -247,6 +249,7 @@ describe("categorizeStatement", () => {
         }),
         expect.objectContaining({
           description: "INTERNET PAYMENT",
+          activityKind: "payment",
           amount: 37155.45,
           isExcluded: true,
         }),

@@ -1,6 +1,7 @@
+import { compareStatementRows, isStatementSort, type CategorizeView, type StatementSort } from "./statement-review-order";
 import { hasSameRulePattern, matchesRuleDescription } from "./category-rule-matching";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
-import { ActiveSpaceLabel } from "@/shared/ui";
+import { ActiveSpaceLabel, capturePageScroll, restorePageScroll } from "@/shared/ui";
 import {
   ArrowLeftIcon,
   ArrowRightIcon,
@@ -76,6 +77,7 @@ import {
 } from "./statement-import-service";
 import {
   getCategoryLabel,
+  getStatementActivityLabel,
   isIncludedStatementTransaction,
   normalizeDescription,
   toDateInputValue,
@@ -99,6 +101,8 @@ type CategorySuggestionFeedback = "loading" | "none" | "unavailable" | null;
 const MOBILE_EDITOR_BREAKPOINT_PX = 768;
 
 interface CategorizeStatementProps {
+  initialView?: CategorizeView | null;
+  onCaptureView?: (view: CategorizeView) => void;
   categoryOptions: readonly CategoryColorOption[];
   categoryLabels: readonly CategoryCatalogOption[];
   categoryRules: readonly CategoryRule[];
@@ -127,6 +131,8 @@ interface CategorizeStatementProps {
 }
 
 function CategorizeStatement({
+  initialView,
+  onCaptureView,
   categoryOptions,
   categoryLabels,
   categoryRules,
@@ -151,11 +157,20 @@ function CategorizeStatement({
   onBack,
   onReview,
 }: CategorizeStatementProps) {
-  const [search, setSearch] = useState("");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
-  const [sort, setSort] = useState("date-desc");
+  const [search, setSearch] = useState(initialView?.search ?? "");
+  const [dateFrom, setDateFrom] = useState(initialView?.dateFrom ?? "");
+  const [dateTo, setDateTo] = useState(initialView?.dateTo ?? "");
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>(initialView?.categoryFilter ?? "all");
+  const [sort, setSort] = useState<StatementSort>(initialView?.sort ?? "date-desc");
+  const reviewButtonRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!initialView) return;
+    const frame = requestAnimationFrame(() => {
+      reviewButtonRef.current?.focus({ preventScroll: true });
+      restorePageScroll(initialView);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [initialView]);
   const completionRef = useRef<HTMLParagraphElement>(null);
   const [assignmentFeedback, setAssignmentFeedback] = useState<string | null>(null);
   const [mobileEditorOpen, setMobileEditorOpen] = useState(false);
@@ -309,17 +324,7 @@ function CategorizeStatement({
 
         return matchesSearch && matchesStart && matchesEnd && matchesCategory;
       })
-      .sort((a, b) => {
-        const difference = sort.startsWith("amount")
-          ? Math.abs(a.amount) - Math.abs(b.amount)
-          : toDateInputValue(a.transactionDate).localeCompare(
-              toDateInputValue(b.transactionDate),
-            );
-        return (
-          (sort.endsWith("asc") ? difference : -difference) ||
-          a.id.localeCompare(b.id)
-        );
-      });
+      .sort((a, b) => compareStatementRows(a, b, sort));
   }, [categoryFilter, dateFrom, dateTo, search, sort, transactions]);
   const editingTransactionIsVisible = visibleTransactions.some(
     (transaction) => transaction.id === editingId,
@@ -406,6 +411,10 @@ function CategorizeStatement({
     if (onToggleTransactionExclusion(transactionId)) setAssignmentFeedback(null);
   }
 
+  function changeSort(value: string) {
+    if (isStatementSort(value)) setSort(value);
+  }
+
   function clearFilters() {
     setSearch("");
     setDateFrom("");
@@ -414,6 +423,10 @@ function CategorizeStatement({
   }
 
   function advanceToReview() {
+    onCaptureView?.({
+      search, dateFrom, dateTo, categoryFilter, sort,
+      ...capturePageScroll(),
+    });
     onReview();
   }
 
@@ -681,7 +694,7 @@ function CategorizeStatement({
                   </div>
                   <div>
                     <Label htmlFor="mobile-transaction-sort">Sort by</Label>
-                    <Select value={sort} onValueChange={setSort}>
+                    <Select value={sort} onValueChange={changeSort}>
                       <SelectTrigger
                         id="mobile-transaction-sort"
                         className="mt-1.5"
@@ -780,7 +793,7 @@ function CategorizeStatement({
             </div>
             <div>
               <Label htmlFor="transaction-sort">Sort by</Label>
-              <Select value={sort} onValueChange={setSort}>
+              <Select value={sort} onValueChange={changeSort}>
                 <SelectTrigger id="transaction-sort" className="mt-1.5">
                   <SelectValue />
                 </SelectTrigger>
@@ -891,7 +904,7 @@ function CategorizeStatement({
                           {transaction.description}
                         </p>
                         <p className="max-w-1/2 shrink-0 text-right font-mono text-sm font-bold tabular-nums wrap-anywhere">
-                          {formatMoney(transaction.amount)}
+                          {formatMoney(Math.abs(transaction.amount))}
                         </p>
                         <Button
                           type="button"
@@ -911,7 +924,7 @@ function CategorizeStatement({
                           {formatImportDate(transaction.transactionDate)}
                         </p>
                         <AssignmentBadge assignment={transaction.assignment} />
-                        {transaction.amount > 0 && <Badge variant="muted">Debit</Badge>}
+                        {transaction.amount > 0 && <Badge variant="muted">{getStatementActivityLabel(transaction)}</Badge>}
                         {transaction.isExcluded && <Badge variant="muted">Excluded</Badge>}
                       </div>
 
@@ -969,7 +982,7 @@ function CategorizeStatement({
                           disabled={isEditing || transaction.amount > 0}
                           aria-label={
                             transaction.amount > 0
-                              ? `Debit ${transaction.description} is permanently excluded`
+                              ? `${getStatementActivityLabel(transaction)} ${transaction.description} is permanently excluded`
                               : `${transaction.isExcluded ? "Include" : "Exclude"} ${transaction.description}`
                           }
                         >
@@ -1073,7 +1086,7 @@ function CategorizeStatement({
                           <div className="flex flex-wrap items-center gap-2">
                             <span>{transaction.description}</span>
                             {transaction.amount > 0 && (
-                              <Badge variant="muted">Debit</Badge>
+                              <Badge variant="muted">{getStatementActivityLabel(transaction)}</Badge>
                             )}
                             {transaction.isExcluded && (
                               <Badge variant="muted">Excluded</Badge>
@@ -1081,7 +1094,7 @@ function CategorizeStatement({
                           </div>
                         </TableCell>
                         <TableCell className="text-right font-mono font-bold tabular-nums">
-                          {formatMoney(transaction.amount)}
+                          {formatMoney(Math.abs(transaction.amount))}
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-col items-start gap-1">
@@ -1148,7 +1161,7 @@ function CategorizeStatement({
                               disabled={isEditing || transaction.amount > 0}
                               aria-label={
                                 transaction.amount > 0
-                                  ? `Debit ${transaction.description} is permanently excluded`
+                                  ? `${getStatementActivityLabel(transaction)} ${transaction.description} is permanently excluded`
                                   : `${transaction.isExcluded ? "Include" : "Exclude"} ${transaction.description}`
                               }
                             >
@@ -1279,6 +1292,7 @@ function CategorizeStatement({
             type="button"
             variant="secondary"
             className="h-12 min-w-0 flex-1 md:h-10 md:flex-none"
+            ref={reviewButtonRef}
             onClick={advanceToReview}
             disabled={!canReview}
           >

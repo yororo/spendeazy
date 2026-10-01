@@ -103,7 +103,6 @@ const defaultProps: ReviewProps = {
   isCommitting: false,
   hasFileDuplicate: false,
   onBack: vi.fn(),
-  onResolve: vi.fn(),
   onCommit: vi.fn(),
 };
 
@@ -141,7 +140,7 @@ describe("ReviewStatement ambiguity handling", () => {
   });
 
   it("shows candidate Categories and blocks import until the ambiguity is resolved", () => {
-    const onResolve = vi.fn();
+    const onBack = vi.fn();
 
     render(
       <ReviewStatement
@@ -169,8 +168,7 @@ describe("ReviewStatement ambiguity handling", () => {
         canConfirm={false}
         isCommitting={false}
         hasFileDuplicate={false}
-        onBack={vi.fn()}
-        onResolve={onResolve}
+        onBack={onBack}
         onCommit={vi.fn()}
       />,
     );
@@ -184,9 +182,9 @@ describe("ReviewStatement ambiguity handling", () => {
     ).toBeTruthy();
     expect(screen.getAllByText(/multiple categories matched/).length).toBeGreaterThan(0);
     fireEvent.click(
-      screen.getAllByRole("button", { name: "Resolve before import" })[0],
+      screen.getByRole("button", { name: "Back to Categorize" }),
     );
-    expect(onResolve).toHaveBeenCalledTimes(1);
+    expect(onBack).toHaveBeenCalledTimes(1);
     expect(
       screen.getByRole("button", { name: "Import 1 Transactions" }),
     ).toHaveProperty("disabled", true);
@@ -239,15 +237,16 @@ describe("ReviewStatement phone composition", () => {
 
     expect(within(transactionList).getByText("Northline Properties")).toBeTruthy();
     expect(within(transactionList).getByText("Green Market Cafe")).toBeTruthy();
-    expect(within(transactionList).getByText("Store refund")).toBeTruthy();
+    fireEvent.click(screen.getAllByText("Excluded rows (1)")[0]);
+    const exclusions = screen.getByRole("list", { name: "Excluded rows to review" });
+    expect(within(exclusions).getByText("Store refund")).toBeTruthy();
     expect(within(transactionList).getByText("Aug 02, 2026")).toBeTruthy();
-    expect(within(transactionList).getByText("-₱50.00")).toBeTruthy();
-    expect(within(transactionList).getByText("-₱15.50")).toBeTruthy();
+    expect(within(transactionList).getByText("₱50.00")).toBeTruthy();
+    expect(within(transactionList).getByText("₱15.50")).toBeTruthy();
     expect(within(transactionList).getByText("Rule")).toBeTruthy();
     expect(within(transactionList).getByText("Manual")).toBeTruthy();
-    expect(within(transactionList).getAllByText("Unmapped")).toHaveLength(2);
-    expect(within(transactionList).getAllByText("Credit")).toHaveLength(2);
-    expect(within(transactionList).getByText("Excluded")).toBeTruthy();
+    expect(within(transactionList).getAllByText("Expense")).toHaveLength(2);
+    expect(within(exclusions).getByText("Other credit — not an expense")).toBeTruthy();
 
     const importButton = screen.getByRole("button", {
       name: "Import 2 Transactions",
@@ -287,7 +286,7 @@ describe("ReviewStatement E-Wallet controls", () => {
     );
     expect(
       screen.getByRole("table", {
-        name: "All Transactions parsed from statement.pdf",
+        name: "Included expenses from statement.pdf",
       }),
     ).toBeTruthy();
   });
@@ -333,11 +332,13 @@ describe("ReviewStatement import safeguards", () => {
     const { onCommit } = renderReview({
       transactions: completeTransactions,
       probableDuplicateConflict,
+      sort: "amount-asc",
     });
 
     expect(
       screen.getAllByText("Probable duplicate Transactions"),
     ).toHaveLength(2);
+    expect(screen.getAllByText(/Transaction 1.*Northline Properties/u)).toHaveLength(2);
     expect(screen.getByRole("button", { name: "Resolve duplicate warning above" })).toHaveProperty(
       "disabled",
       true,
@@ -384,13 +385,13 @@ describe("ReviewStatement import safeguards", () => {
         },
       ],
     };
-    const onResolve = vi.fn();
+    const onBack = vi.fn();
 
     renderReview({
       transactions: completeTransactions.slice(0, 2),
       categoryEligibilityConflict,
       canConfirm: false,
-      onResolve,
+      onBack,
     });
 
     expect(
@@ -398,13 +399,45 @@ describe("ReviewStatement import safeguards", () => {
     ).toHaveLength(2);
     expect(screen.getAllByText(/uses Category 42/)).toHaveLength(2);
     fireEvent.click(
-      screen.getAllByRole("button", {
-        name: "Resolve Category assignments",
-      })[0],
+      screen.getByRole("button", { name: "Back to Categorize" }),
     );
-    expect(onResolve).toHaveBeenCalledTimes(1);
+    expect(onBack).toHaveBeenCalledTimes(1);
     expect(
       screen.getByRole("button", { name: "Import 2 Transactions" }),
     ).toHaveProperty("disabled", true);
   });
+});
+
+
+describe("read-only expense Review", () => {
+  it("groups every expense before expandable exclusions and displays positive amounts", () => {
+    renderReview({ transactions: [completeTransactions[2], completeTransactions[1], completeTransactions[0]] });
+    const list = screen.getByRole("list", { name: "Transactions to review" });
+    expect(within(list).getAllByRole("listitem")).toHaveLength(2);
+    expect(within(list).getByText("₱50.00")).toBeTruthy();
+    expect(within(list).queryByText("Credit")).toBeNull();
+    expect(screen.getAllByText("Excluded rows (1)")).toHaveLength(2);
+    expect(screen.getAllByText("Other credit — not an expense")).toHaveLength(2);
+    expect(screen.queryByRole("textbox")).toBeNull();
+    expect(screen.queryByRole("combobox")).toBeNull();
+    expect(screen.queryByRole("checkbox")).toBeNull();
+  });
+});
+
+
+it("preserves the chosen amount order within both groups and explains excluded expenses and payments", () => {
+  renderReview({ sort: "amount-asc", transactions: [
+    completeTransactions[0], completeTransactions[1],
+    { ...completeTransactions[0], id: "excluded-expense", description: "Excluded purchase", isExcluded: true },
+    { ...completeTransactions[2], id: "payment", description: "PAYMENT RECEIVED", amount: 100, activityKind: "payment" },
+    completeTransactions[2],
+  ] });
+  const included = screen.getByRole("list", { name: "Transactions to review" });
+  expectBefore(within(included).getByText("Green Market Cafe"), within(included).getByText("Northline Properties"));
+  fireEvent.click(screen.getAllByText("Excluded rows (3)")[0]);
+  const excluded = screen.getByRole("list", { name: "Excluded rows to review" });
+  expectBefore(within(excluded).getByText("Store refund"), within(excluded).getByText("Excluded purchase"));
+  expectBefore(within(excluded).getByText("Excluded purchase"), within(excluded).getByText("PAYMENT RECEIVED"));
+  expect(within(excluded).getByText("Excluded by you")).toBeTruthy();
+  expect(within(excluded).getByText("Payment — not an expense")).toBeTruthy();
 });

@@ -1,3 +1,4 @@
+import type { CategorizeView } from "./statement-review-order";
 import { InfoIcon } from "lucide-react";
 import { useState, type ReactNode } from "react";
 
@@ -44,6 +45,7 @@ function StatementImportPage({
   spaceId,
   onSpaceChange,
 }: StatementImportPageProps) {
+  const [categorizeView, setCategorizeView] = useState<CategorizeView | null>(null);
   const shouldResolvePersonalSpace = onSpaceChange !== undefined;
   const spacesQuery = useAccessibleSpacesQuery(shouldResolvePersonalSpace);
   const effectiveSpaceId =
@@ -134,6 +136,7 @@ function StatementImportPage({
 
   function resetImport() {
     setImportDestination(null);
+    setCategorizeView(null);
     workflow.backToUpload();
   }
 
@@ -256,6 +259,7 @@ function StatementImportPage({
   if (importedFile && statement && stage === "review") {
     return withNavigationGuard(
       <ReviewStatement
+        sort={categorizeView?.sort}
         categoryOptions={categoryOptions}
         destinationLabel={destinationLabel}
         spaceId={destinationSpaceId}
@@ -269,12 +273,11 @@ function StatementImportPage({
         canConfirm={commit.canConfirm}
         isCommitting={commit.isCommitting}
         hasFileDuplicate={commit.hasFileDuplicate}
-        onBack={() => workflow.backToCategorize(categoryRules)}
-        onResolve={() => {
+        onBack={() => {
           if (commit.categoryEligibilityConflict) {
             void categoryOptionsQuery.refetch();
           }
-          workflow.returnToCategorize(categoryRules);
+          workflow.backToCategorize(categoryRules);
         }}
         onCommit={(acknowledgeProbableDuplicates) => {
           void workflow.confirmStatementImport(acknowledgeProbableDuplicates);
@@ -286,6 +289,8 @@ function StatementImportPage({
   if (importedFile && statement && stage === "categorize") {
     return withNavigationGuard(
       <CategorizeStatementAdapter
+        initialView={categorizeView}
+        onCaptureView={setCategorizeView}
         workflow={workflow}
         categoryOptions={categoryOptions}
         categoryLabels={categoryCatalog}

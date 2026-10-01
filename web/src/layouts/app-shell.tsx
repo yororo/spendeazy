@@ -269,6 +269,7 @@ function AppShellContent() {
 
       <div
         ref={contentRef}
+        data-page-scroll-host
         className="mobile-navigation-content min-w-0 flex-1 lg:min-h-0 lg:overflow-y-auto"
       >
         <main id="main-content" ref={mainRef} tabIndex={-1}>

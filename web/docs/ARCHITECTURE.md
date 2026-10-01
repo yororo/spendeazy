@@ -55,7 +55,7 @@ The important shared seams are:
 - `shared/budget`: exact monthly Budget status and amount descriptions used by Dashboard attention, Category summaries, and Insights chart details. Feature queries and Budget editing remain feature-owned.
 - `shared/reporting-period`: one browser-local calendar-month selection and inclusive bounds shared by reporting features.
 - `shared/query`: common cache, freshness, and retry policy.
-- `shared/ui`: composed UI with proven cross-feature behavior, including feature loading/error/empty states, authentication loading presentation, and branding. Authentication lifecycle stays in application composition; generic primitives remain in `components/ui`.
+- `shared/ui`: composed UI with proven cross-feature behavior, including feature loading/error/empty states, authentication loading presentation, and branding. Authentication lifecycle stays in application composition; generic primitives remain in `components/ui`. Application composition marks its scrolling pane with `data-page-scroll-host`; shared page-scroll operations capture and restore phone-window and desktop-pane positions without feature code depending on the shell DOM hierarchy.
 
 The authenticated composition boundary owns the TanStack Query client and remounts it for each session identity so cached financial data cannot cross a session switch. Route queries load on demand.
 

@@ -1,3 +1,4 @@
+import type { CategorizeView } from "./statement-review-order";
 import { useEffect, useState } from "react";
 
 import { CategorizeStatement } from "./categorize-statement";
@@ -15,6 +16,8 @@ import type { CategorizedStatement } from "./statement-categorizer";
 import { useWorkflowState } from "./use-statement-import-workflow";
 
 interface CategorizeStatementAdapterProps {
+  readonly initialView?: CategorizeView | null;
+  readonly onCaptureView?: (view: CategorizeView) => void;
   readonly workflow: StatementImportWorkflow;
   readonly categoryOptions: readonly CategoryColorOption[];
   readonly categoryLabels: readonly CategoryCatalogOption[];
@@ -29,6 +32,8 @@ interface CategorizeStatementAdapterProps {
 }
 
 function CategorizeStatementAdapter({
+  initialView,
+  onCaptureView,
   workflow,
   categoryOptions,
   categoryLabels,
@@ -56,6 +61,8 @@ function CategorizeStatementAdapter({
 
   return (
     <CategorizeStatement
+      initialView={initialView}
+      onCaptureView={onCaptureView}
       categoryOptions={categoryOptions}
       categoryLabels={categoryLabels}
       categoryRules={state.categoryRules}

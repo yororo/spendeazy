@@ -1,4 +1,5 @@
 import { normalizeCategoryRulePattern } from "@/shared/category-rule";
+import type { CategorizedTransaction } from "./statement-categorizer";
 
 interface CategoryLabelOption {
   readonly value: string;
@@ -16,6 +17,13 @@ interface ManualTransactionEdit {
   readonly description: string;
   readonly amount: number;
   readonly categoryId: string;
+}
+
+function getStatementActivityLabel(
+  transaction: Pick<CategorizedTransaction, "amount" | "activityKind">,
+): "Expense" | "Payment" | "Other credit" {
+  if (transaction.amount <= 0) return "Expense";
+  return transaction.activityKind === "payment" ? "Payment" : "Other credit";
 }
 
 function normalizeDescription(value: string) {
@@ -73,6 +81,7 @@ export {
   applyManualTransactionEdit,
   cleanDescription,
   getCategoryLabel,
+  getStatementActivityLabel,
   isIncludedStatementTransaction,
   normalizeDescription,
   toDateInputValue,

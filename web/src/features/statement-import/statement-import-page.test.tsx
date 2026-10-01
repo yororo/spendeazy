@@ -861,7 +861,7 @@ describe("StatementImportPage Space destination", () => {
 });
 
 describe("StatementImportPage GCash recipient flow", () => {
-  it("keeps matching Debits visible and out of Review totals and confirmation", async () => {
+  it("keeps incoming credits visible and out of Review totals and confirmation", async () => {
     const recipient = "09676769174";
     const firstTransfer = "Transfer from 09112334455 to 09676769174";
     const firstTransferReference = "5043775892919";
@@ -919,12 +919,12 @@ describe("StatementImportPage GCash recipient flow", () => {
     });
     for (const description of [firstTransfer, secondTransfer]) {
       const row = within(categorizeTable).getByText(description).closest("tr");
-      expect(row && within(row).getByText("Debit")).toBeTruthy();
+      expect(row && within(row).getByText("Other credit")).toBeTruthy();
       expect(row && within(row).getByText("Excluded")).toBeTruthy();
       expect(
         row &&
           within(row).getByRole("button", {
-            name: `Debit ${description} is permanently excluded`,
+            name: `Other credit ${description} is permanently excluded`,
           }),
       ).toHaveProperty("disabled", true);
     }
@@ -2449,13 +2449,13 @@ describe("StatementImportPage pending Category Rule saves", () => {
       expect(
         within(transactions).getByText("Fresh statement Transaction"),
       ).toBeTruthy();
-      expect(within(transactions).getByText("-₱25.50")).toBeTruthy();
+      expect(within(transactions).getByText("₱25.50")).toBeTruthy();
       expect(
         within(transactions).getAllByText("Unmapped").length,
       ).toBeGreaterThan(0);
       expect(within(transactions).queryByText("Abandoned draft")).toBeNull();
       expect(within(transactions).queryByText("Housing")).toBeNull();
-      expect(within(transactions).queryByText("-₱91.00")).toBeNull();
+      expect(within(transactions).queryByText("₱91.00")).toBeNull();
     },
   );
 

@@ -4606,7 +4606,7 @@
                       "id": "VEtfW",
                       "name": "Import Title",
                       "fill": "$ink",
-                      "content": "Confirm your imported statement",
+                      "content": "Review your imported statement",
                       "fontFamily": "$font-mono",
                       "fontSize": 28,
                       "fontWeight": "700",
@@ -4685,7 +4685,7 @@
                           "id": "tIK9c",
                           "name": "Step 02 Label",
                           "fill": "$muted",
-                          "content": "MAP",
+                          "content": "CATEGORIZE",
                           "fontFamily": "$font-mono",
                           "fontSize": 10,
                           "fontWeight": "500"
@@ -4741,6 +4741,39 @@
               "layout": "vertical",
               "gap": 14,
               "children": [
+                {
+                  "type": "frame",
+                  "id": "s83desktoptotal",
+                  "name": "Sticky included expense total — below app header",
+                  "width": "fill_container",
+                  "layout": "vertical",
+                  "gap": 8,
+                  "padding": 12,
+                  "fill": "#FFFFFF",
+                  "stroke": {
+                    "align": "inside",
+                    "thickness": 1,
+                    "fill": "#000000"
+                  },
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "s83desktopcount",
+                      "content": "142 INCLUDED EXPENSES",
+                      "fontFamily": "Geist Mono",
+                      "fontSize": 12,
+                      "fill": "#000000"
+                    },
+                    {
+                      "type": "text",
+                      "id": "s83desktopsum",
+                      "content": "$4,286.40",
+                      "fontFamily": "Geist Mono",
+                      "fontSize": 12,
+                      "fill": "#000000"
+                    }
+                  ]
+                },
                 {
                   "type": "frame",
                   "id": "V8n37C",
@@ -4953,7 +4986,7 @@
                           "id": "d9qvri",
                           "name": "MAPPING STATUS Label",
                           "fill": "$muted",
-                          "content": "MAPPING STATUS",
+                          "content": "CATEGORIZATION STATUS",
                           "fontFamily": "$font-mono",
                           "fontSize": 9,
                           "fontWeight": "600"
@@ -5027,7 +5060,7 @@
                                   "id": "qRGoG",
                                   "name": "Transactions Subtitle",
                                   "fill": "$line",
-                                  "content": "Compact preview of mapped statement activity",
+                                  "content": "Every included expense, in the chosen Categorize order",
                                   "fontFamily": "$font-ui",
                                   "fontSize": 11,
                                   "fontWeight": "normal"
@@ -5057,7 +5090,7 @@
                                       "id": "r8rjih",
                                       "name": "136 MAPPED Text",
                                       "fill": "$ink",
-                                      "content": "136 MAPPED",
+                                      "content": "136 CATEGORIZED",
                                       "fontFamily": "$font-mono",
                                       "fontSize": 9,
                                       "fontWeight": "700"
@@ -5125,7 +5158,7 @@
                                   "id": "y3a4p",
                                   "name": "TOTAL DEBITS Summary Label",
                                   "fill": "$muted",
-                                  "content": "TOTAL DEBITS",
+                                  "content": "INCLUDED EXPENSE TOTAL",
                                   "fontFamily": "$font-mono",
                                   "fontSize": 8,
                                   "fontWeight": "600"
@@ -5479,7 +5512,7 @@
                                       "id": "l7KPu2",
                                       "name": "Northline Properties Amount Text",
                                       "fill": "$ink",
-                                      "content": "−$1,482.00",
+                                      "content": "$1,482.00",
                                       "fontFamily": "$font-data",
                                       "fontSize": 10,
                                       "fontWeight": "500"
@@ -5612,7 +5645,7 @@
                                       "id": "wRk1H",
                                       "name": "Green Market No. 04 Amount Text",
                                       "fill": "$ink",
-                                      "content": "−$86.24",
+                                      "content": "$86.24",
                                       "fontFamily": "$font-data",
                                       "fontSize": 10,
                                       "fontWeight": "500"
@@ -5745,7 +5778,7 @@
                                       "id": "DSL2u",
                                       "name": "Metro Transit Authority Amount Text",
                                       "fill": "$ink",
-                                      "content": "−$42.00",
+                                      "content": "$42.00",
                                       "fontFamily": "$font-data",
                                       "fontSize": 10,
                                       "fontWeight": "500"
@@ -5878,7 +5911,7 @@
                                       "id": "q0hZx",
                                       "name": "Cloudgrid Energy Amount Text",
                                       "fill": "$ink",
-                                      "content": "−$118.60",
+                                      "content": "$118.60",
                                       "fontFamily": "$font-data",
                                       "fontSize": 10,
                                       "fontWeight": "500"
@@ -6011,7 +6044,7 @@
                                       "id": "NCqsp",
                                       "name": "Parallel Coffee Lab Amount Text",
                                       "fill": "$ink",
-                                      "content": "−$24.80",
+                                      "content": "$24.80",
                                       "fontFamily": "$font-data",
                                       "fontSize": 10,
                                       "fontWeight": "500"
@@ -6144,7 +6177,7 @@
                                       "id": "kNIWS",
                                       "name": "Harbor & Pine Amount Text",
                                       "fill": "$ink",
-                                      "content": "−$67.20",
+                                      "content": "$67.20",
                                       "fontFamily": "$font-data",
                                       "fontSize": 10,
                                       "fontWeight": "500"
@@ -6244,10 +6277,59 @@
                               "id": "FSg71",
                               "name": "Mapped Total",
                               "fill": "$ink",
-                              "content": "MAPPED TOTAL  $4,219.20",
+                              "content": "CATEGORIZED TOTAL  $4,219.20",
                               "fontFamily": "$font-data",
                               "fontSize": 10,
                               "fontWeight": "600"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "s83desktopexcluded",
+                          "name": "Excluded rows — expandable after included expenses",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 8,
+                          "padding": 12,
+                          "fill": "#FFFFFF",
+                          "stroke": {
+                            "align": "inside",
+                            "thickness": 1,
+                            "fill": "#000000"
+                          },
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "s83desktoptoggle",
+                              "content": "▸ EXCLUDED ROWS (3)",
+                              "fontFamily": "Geist Mono",
+                              "fontSize": 12,
+                              "fill": "#000000"
+                            },
+                            {
+                              "type": "text",
+                              "id": "s83desktopexpense",
+                              "content": "Fictional purchase · $12.00 · Excluded by you",
+                              "fontFamily": "Geist Mono",
+                              "fontSize": 12,
+                              "fill": "#000000"
+                            },
+                            {
+                              "type": "text",
+                              "id": "s83desktoppayment",
+                              "content": "PAYMENT RECEIVED · $10.00 · Payment — not an expense",
+                              "fontFamily": "Geist Mono",
+                              "fontSize": 12,
+                              "fill": "#000000"
+                            },
+                            {
+                              "type": "text",
+                              "id": "s83desktopcredit",
+                              "content": "Fictional refund · $5.00 · Other credit — not an expense",
+                              "fontFamily": "Geist Mono",
+                              "fontSize": 12,
+                              "fill": "#000000"
                             }
                           ]
                         }
@@ -6309,7 +6391,7 @@
                                       "id": "SDomW",
                                       "name": "Expense Chart Subtitle",
                                       "fill": "$line",
-                                      "content": "BY MAPPED CATEGORY",
+                                      "content": "BY CATEGORIZED CATEGORY",
                                       "fontFamily": "$font-mono",
                                       "fontSize": 8,
                                       "fontWeight": "600"
@@ -6902,7 +6984,7 @@
                                       "id": "nX8Te",
                                       "name": "Harbor & Pine Unmapped Amount",
                                       "fill": "$--color-warning-foreground",
-                                      "content": "−$67.20",
+                                      "content": "$67.20",
                                       "fontFamily": "$font-data",
                                       "fontSize": 10,
                                       "fontWeight": "600"
@@ -6932,7 +7014,7 @@
                                       "id": "N7fLq",
                                       "name": "Atlas Digital Goods Unmapped Amount",
                                       "fill": "$--color-warning-foreground",
-                                      "content": "−$42.00",
+                                      "content": "$42.00",
                                       "fontFamily": "$font-data",
                                       "fontSize": 10,
                                       "fontWeight": "600"
@@ -6962,7 +7044,7 @@
                                       "id": "CyiXF",
                                       "name": "+ 4 more transactions Unmapped Amount",
                                       "fill": "$--color-warning-foreground",
-                                      "content": "−$96.00",
+                                      "content": "$96.00",
                                       "fontFamily": "$font-data",
                                       "fontSize": 10,
                                       "fontWeight": "600"
@@ -6990,7 +7072,7 @@
                                   "id": "Kbc6J",
                                   "name": "Resolve Unmapped Label",
                                   "fill": "$surface",
-                                  "content": "RESOLVE BEFORE IMPORT",
+                                  "content": "USE BACK TO CATEGORIZE",
                                   "fontFamily": "$font-mono",
                                   "fontSize": 9,
                                   "fontWeight": "700"
@@ -7050,7 +7132,7 @@
                           "id": "FuQR3",
                           "name": "Back Label",
                           "fill": "$ink",
-                          "content": "BACK TO MAPPING",
+                          "content": "BACK TO CATEGORIZE",
                           "fontFamily": "$font-mono",
                           "fontSize": 10,
                           "fontWeight": "700"
@@ -30529,7 +30611,7 @@
                       "fill": "$ink",
                       "textGrowth": "fixed-width",
                       "width": "fill_container",
-                      "content": "Confirm your imported statement",
+                      "content": "Review your imported statement",
                       "fontFamily": "$font-mono",
                       "fontSize": 26,
                       "fontWeight": "700",
@@ -30653,6 +30735,39 @@
                       ]
                     }
                   ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "s83mobiletotal",
+              "name": "Sticky included expense total — below app header",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 8,
+              "padding": 12,
+              "fill": "#FFFFFF",
+              "stroke": {
+                "align": "inside",
+                "thickness": 1,
+                "fill": "#000000"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "id": "s83mobilecount",
+                  "content": "142 INCLUDED EXPENSES",
+                  "fontFamily": "Geist Mono",
+                  "fontSize": 12,
+                  "fill": "#000000"
+                },
+                {
+                  "type": "text",
+                  "id": "s83mobilesum",
+                  "content": "$4,286.40",
+                  "fontFamily": "Geist Mono",
+                  "fontSize": 12,
+                  "fill": "#000000"
                 }
               ]
             },
@@ -30799,7 +30914,7 @@
                           "id": "Fp1fZ",
                           "name": "Review MAPPED Label",
                           "fill": "$muted",
-                          "content": "MAPPED",
+                          "content": "CATEGORIZED",
                           "fontFamily": "$font-mono",
                           "fontSize": 10,
                           "fontWeight": "normal"
@@ -31195,7 +31310,7 @@
                       "id": "t1VPyc",
                       "name": "Transaction Review Title",
                       "fill": "$ink",
-                      "content": "Transaction preview",
+                      "content": "Included expenses",
                       "fontFamily": "$font-mono",
                       "fontSize": 15,
                       "fontWeight": "700"
@@ -31273,7 +31388,7 @@
                       "id": "RElzQ",
                       "name": "Northline Properties Review Value",
                       "fill": "$ink",
-                      "content": "−$1,483.20",
+                      "content": "$1,483.20",
                       "fontFamily": "$font-data",
                       "fontSize": 12,
                       "fontWeight": "700"
@@ -31341,7 +31456,7 @@
                       "id": "AIeUq",
                       "name": "Green Market No. 04 Review Value",
                       "fill": "$ink",
-                      "content": "−$126.84",
+                      "content": "$126.84",
                       "fontFamily": "$font-data",
                       "fontSize": 12,
                       "fontWeight": "700"
@@ -31409,10 +31524,59 @@
                       "id": "ByfRp",
                       "name": "Metro Transit Authority Review Value",
                       "fill": "$ink",
-                      "content": "−$42.50",
+                      "content": "$42.50",
                       "fontFamily": "$font-data",
                       "fontSize": 12,
                       "fontWeight": "700"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "s83mobileexcluded",
+                  "name": "Excluded rows — expandable after included expenses",
+                  "width": "fill_container",
+                  "layout": "vertical",
+                  "gap": 8,
+                  "padding": 12,
+                  "fill": "#FFFFFF",
+                  "stroke": {
+                    "align": "inside",
+                    "thickness": 1,
+                    "fill": "#000000"
+                  },
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "s83mobiletoggle",
+                      "content": "▸ EXCLUDED ROWS (3)",
+                      "fontFamily": "Geist Mono",
+                      "fontSize": 12,
+                      "fill": "#000000"
+                    },
+                    {
+                      "type": "text",
+                      "id": "s83mobileexpense",
+                      "content": "Fictional purchase · $12.00 · Excluded by you",
+                      "fontFamily": "Geist Mono",
+                      "fontSize": 12,
+                      "fill": "#000000"
+                    },
+                    {
+                      "type": "text",
+                      "id": "s83mobilepayment",
+                      "content": "PAYMENT RECEIVED · $10.00 · Payment — not an expense",
+                      "fontFamily": "Geist Mono",
+                      "fontSize": 12,
+                      "fill": "#000000"
+                    },
+                    {
+                      "type": "text",
+                      "id": "s83mobilecredit",
+                      "content": "Fictional refund · $5.00 · Other credit — not an expense",
+                      "fontFamily": "Geist Mono",
+                      "fontSize": 12,
+                      "fill": "#000000"
                     }
                   ]
                 }

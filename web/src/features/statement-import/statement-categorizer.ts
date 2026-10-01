@@ -12,6 +12,7 @@ import {
 } from "./statement-parser/transformer";
 
 interface CategorizedTransaction extends Transaction {
+  readonly activityKind?: "expense" | "payment" | "other_credit";
   readonly id: string;
   readonly categoryId: string | null;
   readonly assignment: AssignmentProvenance;
@@ -22,6 +23,21 @@ interface CategorizedTransaction extends Transaction {
 interface CategorizedStatement {
   summary: StatementSummary;
   transactions: CategorizedTransaction[];
+}
+
+function getActivityKind(
+  transaction: Transaction,
+  summary: StatementSummary,
+): NonNullable<CategorizedTransaction["activityKind"]> {
+  if (transaction.amount >= 0) return "expense";
+  // Only recognized card payment descriptions distinguish payments from other credits.
+  if (
+    summary.statementType === "credit_card" &&
+    /^(?:PAYMENT RECEIVED\b|INTERNET PAYMENT$)/i.test(transaction.description)
+  ) {
+    return "payment";
+  }
+  return "other_credit";
 }
 
 async function categorizeStatement(
@@ -40,6 +56,7 @@ async function categorizeStatement(
   const normalizedTransactions = extractedTransactions.map((transaction) => ({
     ...transaction,
     amount: -transaction.amount,
+    activityKind: getActivityKind(transaction, transformedStatement.summary),
   }));
   const normalizedExtractedCents = normalizedTransactions.reduce(
     (total, transaction) => total + moneyToCents(transaction.amount),

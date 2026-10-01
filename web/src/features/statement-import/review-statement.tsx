@@ -1,3 +1,5 @@
+import { useEffect, useRef } from "react";
+import { compareStatementRows, type StatementSort } from "./statement-review-order";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,8 +26,8 @@ import {
   getDefaultCategoryColor,
   type CategoryColor,
 } from "@/shared/category";
-import { formatMoney } from "@/shared/money";
-import { ActiveSpaceLabel } from "@/shared/ui";
+import { centsToMoney, moneyToCents, formatMoney } from "@/shared/money";
+import { ActiveSpaceLabel, scrollPageToTop } from "@/shared/ui";
 import {
   AlertTriangleIcon,
   ArrowLeftIcon,
@@ -47,7 +49,7 @@ import type {
   ProbableDuplicateConflict,
   ProbableDuplicateDetail,
 } from "./statement-import-errors";
-import { isIncludedStatementTransaction } from "./statement-import-utils";
+import { getStatementActivityLabel, isIncludedStatementTransaction } from "./statement-import-utils";
 import type {
   CategorizedStatement,
   CategorizedTransaction,
@@ -55,6 +57,7 @@ import type {
 import { AssignmentBadge, CategoryMatchCell } from "./statement-category-match";
 
 interface ReviewStatementProps {
+  sort?: StatementSort;
   categoryOptions: readonly CategoryColorOption[];
   destinationLabel?: string;
   spaceId?: string;
@@ -69,7 +72,6 @@ interface ReviewStatementProps {
   isCommitting: boolean;
   hasFileDuplicate: boolean;
   onBack: () => void;
-  onResolve: () => void;
   onCommit: (acknowledgeProbableDuplicates: boolean) => void;
 }
 
@@ -130,6 +132,7 @@ function formatCategoryEligibilityDetail(
 }
 
 function ReviewStatement({
+  sort = "date-desc",
   categoryOptions,
   destinationLabel,
   spaceId,
@@ -144,9 +147,14 @@ function ReviewStatement({
   isCommitting,
   hasFileDuplicate,
   onBack,
-  onResolve,
   onCommit,
 }: ReviewStatementProps) {
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    headingRef.current?.focus({ preventScroll: true });
+    scrollPageToTop();
+  }, []);
+
   function getCategoryLabel(categoryId: string) {
     return (
       categoryOptions.find((option) => option.value === categoryId)?.label ??
@@ -161,7 +169,9 @@ function ReviewStatement({
     );
   }
 
-  const includedTransactions = transactions.filter(
+  const orderedTransactions = [...transactions].sort((a, b) => compareStatementRows(a, b, sort));
+  const excludedTransactions = orderedTransactions.filter((row) => row.isExcluded);
+  const includedTransactions = orderedTransactions.filter(
     isIncludedStatementTransaction,
   );
   const unmappedTransactions = includedTransactions.filter(
@@ -180,10 +190,10 @@ function ReviewStatement({
     (transaction) => transaction.assignment === "manual",
   ).length;
   const excludedCount = transactions.length - includedTransactions.length;
-  const debitTotal = includedTransactions.reduce(
-    (total, transaction) => total + Math.abs(transaction.amount),
+  const debitTotal = centsToMoney(includedTransactions.reduce(
+    (total, transaction) => total + moneyToCents(Math.abs(transaction.amount)),
     0,
-  );
+  ));
   const averageDebit =
     includedTransactions.length > 0
       ? debitTotal / includedTransactions.length
@@ -219,13 +229,73 @@ function ReviewStatement({
     statementSummary.transactionHistoryStartDate,
     statementSummary.statementDate,
   );
+  function renderTransactionTable(rows: readonly CategorizedTransaction[], caption: string) {
+    return (
+      <Table className="min-w-[56rem]">
+        <TableCaption className="sr-only">
+          {caption}
+        </TableCaption>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-32">Date</TableHead>
+            <TableHead>Description</TableHead>
+            <TableHead className="w-36 text-right">Amount</TableHead>
+            <TableHead className="w-44">Category</TableHead>
+            <TableHead className="w-28 text-center">Assignment</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.map((transaction) => {
+            const activityDescriptionId = `review-${transaction.id}-activity-description`;
+            return (
+              <TableRow
+                key={transaction.id}
+                className={
+                  transaction.isExcluded
+                    ? "bg-muted/70 text-muted-foreground hover:bg-muted"
+                    : undefined
+                }
+              >
+                <TableCell className="font-mono text-xs font-semibold tabular-nums uppercase">
+                  {formatShortDate(transaction.transactionDate)}
+                </TableCell>
+                <TableCell className="font-medium whitespace-normal">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span>{transaction.description}</span>
+                    <TransactionIndicators
+                      transaction={transaction}
+                      activityDescriptionId={activityDescriptionId}
+                    />
+                  </div>
+                </TableCell>
+                <TableCell className="text-right font-mono font-bold tabular-nums">
+                  {formatMoney(Math.abs(transaction.amount))}
+                </TableCell>
+                <TableCell>
+                  <TransactionCategoryMatch
+                    transaction={transaction}
+                    getCategoryColor={getCategoryColor}
+                    getCategoryLabel={getCategoryLabel}
+                  />
+                </TableCell>
+                <TableCell className="text-center">
+                  <AssignmentBadge assignment={transaction.assignment} />
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+    );
+  }
+
   return (
     <div className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-screen-2xl flex-col gap-6 px-4 py-6 sm:px-6 lg:min-h-screen lg:px-9 lg:py-7">
       <header className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
         <div>
           <ActiveSpaceLabel spaceId={spaceId} />
           <p className="text-label text-muted-foreground">Imports / Review</p>
-          <h1 className="mt-1 font-mono text-2xl font-bold tracking-tight sm:text-3xl">
+          <h1 ref={headingRef} tabIndex={-1} className="mt-1 font-mono text-2xl font-bold tracking-tight sm:text-3xl">
             Review your imported statement
           </h1>
           {destinationLabel && (
@@ -241,6 +311,10 @@ function ReviewStatement({
       </header>
 
       <main className="flex flex-1 flex-col gap-4">
+        <div className="sticky top-[calc(4rem+env(safe-area-inset-top,0px))] z-10 lg:top-0 flex flex-wrap justify-between gap-2 border border-foreground bg-background p-3 font-mono text-sm font-bold" aria-label="Included expense total">
+          <span>{includedTransactions.length} included expenses</span>
+          <span>{formatMoney(debitTotal)}</span>
+        </div>
         <section
           className="border border-foreground md:hidden"
           aria-label="Statement review summary"
@@ -351,9 +425,7 @@ function ReviewStatement({
             hasUnmappedTransactions={hasUnmappedTransactions}
             unmappedTransactions={unmappedTransactions}
             ambiguousTransactions={ambiguousTransactions}
-            includedTransactions={includedTransactions}
-            onBack={onBack}
-            onResolve={onResolve}
+            includedTransactions={transactions.filter(isIncludedStatementTransaction)}
             onCommit={onCommit}
           />
           <MobileCategoryBreakdown
@@ -361,10 +433,17 @@ function ReviewStatement({
             categorizedDebitTotal={categorizedDebitTotal}
           />
           <MobileTransactionList
-            transactions={transactions}
+            transactions={includedTransactions}
             getCategoryColor={getCategoryColor}
             getCategoryLabel={getCategoryLabel}
           />
+
+          {excludedTransactions.length > 0 && (
+            <details className="border border-foreground p-3">
+              <summary className="cursor-pointer font-mono text-sm font-bold">Excluded rows ({excludedTransactions.length})</summary>
+              <MobileTransactionList transactions={excludedTransactions} getCategoryColor={getCategoryColor} getCategoryLabel={getCategoryLabel} excluded />
+            </details>
+          )}
         </div>
 
         <div className="hidden gap-4 md:grid xl:grid-cols-[minmax(0,1fr)_22.5rem]">
@@ -430,61 +509,13 @@ function ReviewStatement({
               />
             </div>
 
-            <Table className="min-w-[56rem]">
-              <TableCaption className="sr-only">
-                All Transactions parsed from {fileName}
-              </TableCaption>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-32">Date</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead className="w-36 text-right">Amount</TableHead>
-                  <TableHead className="w-44">Category</TableHead>
-                  <TableHead className="w-28 text-center">Assignment</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {transactions.map((transaction) => {
-                  const creditDescriptionId = `review-${transaction.id}-credit-description`;
-                  return (
-                    <TableRow
-                      key={transaction.id}
-                      className={
-                        transaction.isExcluded
-                          ? "bg-muted/70 text-muted-foreground hover:bg-muted"
-                          : undefined
-                      }
-                    >
-                      <TableCell className="font-mono text-xs font-semibold tabular-nums uppercase">
-                        {formatShortDate(transaction.transactionDate)}
-                      </TableCell>
-                      <TableCell className="font-medium whitespace-normal">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span>{transaction.description}</span>
-                          <TransactionIndicators
-                            transaction={transaction}
-                            creditDescriptionId={creditDescriptionId}
-                          />
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right font-mono font-bold tabular-nums">
-                        {formatMoney(transaction.amount)}
-                      </TableCell>
-                      <TableCell>
-                        <TransactionCategoryMatch
-                          transaction={transaction}
-                          getCategoryColor={getCategoryColor}
-                          getCategoryLabel={getCategoryLabel}
-                        />
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <AssignmentBadge assignment={transaction.assignment} />
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+            {renderTransactionTable(includedTransactions, `Included expenses from ${fileName}`)}
+            {excludedTransactions.length > 0 && (
+              <details className="border-t p-4">
+                <summary className="cursor-pointer font-mono text-sm font-bold">Excluded rows ({excludedTransactions.length})</summary>
+                {renderTransactionTable(excludedTransactions, `Excluded rows from ${fileName}`)}
+              </details>
+            )}
           </Card>
 
           <aside className="flex flex-col gap-4" aria-label="Review insights">
@@ -549,10 +580,8 @@ function ReviewStatement({
               hasUnmappedTransactions={hasUnmappedTransactions}
               unmappedTransactions={unmappedTransactions}
               ambiguousTransactions={ambiguousTransactions}
-              includedTransactions={includedTransactions}
-              onBack={onBack}
-              onResolve={onResolve}
-              onCommit={onCommit}
+              includedTransactions={transactions.filter(isIncludedStatementTransaction)}
+                  onCommit={onCommit}
             />
           </aside>
         </div>
@@ -613,8 +642,6 @@ interface ReviewStatusProps {
   unmappedTransactions: readonly CategorizedTransaction[];
   ambiguousTransactions: readonly CategorizedTransaction[];
   includedTransactions: readonly CategorizedTransaction[];
-  onBack: () => void;
-  onResolve: () => void;
   onCommit: (acknowledgeProbableDuplicates: boolean) => void;
 }
 
@@ -630,8 +657,6 @@ function ReviewStatus({
   unmappedTransactions,
   ambiguousTransactions,
   includedTransactions,
-  onBack,
-  onResolve,
   onCommit,
 }: ReviewStatusProps) {
   if (hasUnmappedTransactions) {
@@ -655,15 +680,7 @@ function ReviewStatus({
               ambiguity.
             </p>
           )}
-          <Button
-            type="button"
-            variant="secondary"
-            className="mt-3 w-full"
-            onClick={onResolve}
-          >
-            Resolve before import
-            <ArrowRightIcon className="text-primary" aria-hidden="true" />
-          </Button>
+          <p className="mt-3">Use Back to Categorize to correct these rows.</p>
         </AlertDescription>
       </Alert>
     );
@@ -691,9 +708,6 @@ function ReviewStatus({
           </p>
           {canImportAnyway && (
             <div className="mt-3 flex flex-col gap-2 border-t border-warning pt-3 sm:flex-row">
-              <Button type="button" variant="outline" onClick={onBack}>
-                Cancel
-              </Button>
               <Button
                 type="button"
                 variant="secondary"
@@ -725,15 +739,7 @@ function ReviewStatus({
               </li>
             ))}
           </ul>
-          <Button
-            type="button"
-            variant="secondary"
-            className="mt-3 w-full"
-            onClick={onResolve}
-          >
-            Resolve Category assignments
-            <ArrowRightIcon className="text-primary" aria-hidden="true" />
-          </Button>
+          <p className="mt-3">Use Back to Categorize to correct these rows.</p>
         </AlertDescription>
       </Alert>
     );
@@ -857,6 +863,7 @@ function MobileCategoryBreakdown({
 }
 
 interface MobileTransactionListProps {
+  excluded?: boolean;
   transactions: readonly CategorizedTransaction[];
   getCategoryColor: (categoryId: string) => CategoryColor;
   getCategoryLabel: (categoryId: string) => string;
@@ -864,26 +871,23 @@ interface MobileTransactionListProps {
 
 interface TransactionIndicatorsProps {
   transaction: CategorizedTransaction;
-  creditDescriptionId: string;
+  activityDescriptionId: string;
 }
 
 function TransactionIndicators({
   transaction,
-  creditDescriptionId,
+  activityDescriptionId,
 }: TransactionIndicatorsProps) {
   return (
     <>
-      {transaction.amount < 0 && (
-        <>
-          <Badge variant="success" aria-describedby={creditDescriptionId}>
-            Credit
-          </Badge>
-          <span id={creditDescriptionId} className="sr-only">
-            Credit. Included in import.
-          </span>
-        </>
+      <Badge variant="muted" aria-describedby={transaction.isExcluded ? activityDescriptionId : undefined}>
+        {getStatementActivityLabel(transaction)}
+      </Badge>
+      {transaction.isExcluded && (
+        <span id={activityDescriptionId} className="text-xs text-muted-foreground">
+          {transaction.amount <= 0 ? "Excluded by you" : `${getStatementActivityLabel(transaction)} — not an expense`}
+        </span>
       )}
-      {transaction.isExcluded && <Badge variant="muted">Excluded</Badge>}
     </>
   );
 }
@@ -914,6 +918,7 @@ function TransactionCategoryMatch({
 }
 
 function MobileTransactionList({
+  excluded = false,
   transactions,
   getCategoryColor,
   getCategoryLabel,
@@ -921,22 +926,21 @@ function MobileTransactionList({
   return (
     <section
       className="border border-foreground"
-      aria-labelledby="mobile-review-transactions-heading"
+      aria-label={excluded ? "Excluded row details" : "Included expense details"}
     >
       <div className="flex items-center justify-between gap-3 border-b p-3.5">
         <h2
-          id="mobile-review-transactions-heading"
           className="font-mono text-sm font-bold tracking-tight uppercase"
         >
-          Transaction details
+          {excluded ? "Excluded row details" : "Included expenses"}
         </h2>
         <p className="shrink-0 font-mono text-xs font-semibold text-muted-foreground uppercase">
           {transactions.length} Transactions
         </p>
       </div>
-      <ul className="divide-y" aria-label="Transactions to review">
+      <ul className="divide-y" aria-label={excluded ? "Excluded rows to review" : "Transactions to review"}>
         {transactions.map((transaction) => {
-          const creditDescriptionId = `mobile-review-${transaction.id}-credit-description`;
+          const activityDescriptionId = `mobile-review-${transaction.id}-activity-description`;
           const markerClass = transaction.categoryId
             ? getCategoryColorClass(getCategoryColor(transaction.categoryId))
             : "bg-warning";
@@ -962,7 +966,7 @@ function MobileTransactionList({
                       </p>
                       <TransactionIndicators
                         transaction={transaction}
-                        creditDescriptionId={creditDescriptionId}
+                        activityDescriptionId={activityDescriptionId}
                       />
                     </div>
                     <p className="mt-1 font-mono text-xs font-semibold uppercase text-muted-foreground">
@@ -970,7 +974,7 @@ function MobileTransactionList({
                     </p>
                   </div>
                   <p className="max-w-[45%] shrink-0 text-right font-mono text-sm font-bold tabular-nums wrap-anywhere">
-                    {formatMoney(transaction.amount)}
+                    {formatMoney(Math.abs(transaction.amount))}
                   </p>
                 </div>
                 <div className="mt-2 flex min-w-0 flex-wrap items-center gap-2">

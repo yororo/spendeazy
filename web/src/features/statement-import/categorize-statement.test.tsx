@@ -1717,11 +1717,12 @@ describe("CategorizeStatement E-Wallet controls", () => {
 });
 
 describe("CategorizeStatement row emphasis", () => {
-  it("mutes debits, labels them, and leaves credits visually active without a badge", () => {
+  it("labels excluded payments accurately and displays positive expense amounts", () => {
     const debitTransaction = {
       ...ambiguousTransaction,
       id: "transaction-2",
       description: "Payment received",
+      activityKind: "payment" as const,
       amount: 10,
       isExcluded: true,
     };
@@ -1746,9 +1747,10 @@ describe("CategorizeStatement row emphasis", () => {
     expect(hasClass(creditRow, "bg-muted/70")).toBe(false);
     expect(hasClass(creditRow, "text-muted-foreground")).toBe(false);
     expect(within(creditRow as HTMLElement).queryByText("Credit")).toBeNull();
+    expect(within(creditRow as HTMLElement).getByText("₱25.50")).toBeTruthy();
     expect(hasClass(debitRow, "bg-muted/70")).toBe(true);
     expect(hasClass(debitRow, "text-muted-foreground")).toBe(true);
-    expect(within(debitRow as HTMLElement).getByText("Debit")).toBeTruthy();
+    expect(within(debitRow as HTMLElement).getByText("Payment")).toBeTruthy();
   });
 
   it("mutes manually excluded transactions regardless of amount sign", () => {

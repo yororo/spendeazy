@@ -19,6 +19,7 @@ import {
   type CategoryColor,
 } from "@/shared/category";
 import { moneyToCents } from "@/shared/money";
+import { createBudgetReviews, type BudgetReview } from "./budget-reviews";
 import { createSpendingPatterns, type PatternTransaction, type SpendingPatterns } from "./spending-patterns";
 import {
   getReportingPeriodBounds,
@@ -86,6 +87,7 @@ interface InsightsMonth {
 }
 
 interface InsightsMonthlyReport {
+  readonly budgetReviews: readonly BudgetReview[];
   readonly spendingPatterns: SpendingPatterns;
   readonly selectedMonthCategories: readonly InsightsCategory[];
   readonly view: "monthly";
@@ -200,7 +202,6 @@ async function getMonthlyInsights(
   spaceId?: string,
 ): Promise<InsightsMonthlyReport> {
   const periods = getRollingPeriods(period);
-  const firstPeriod = periods[0]!;
   const { toDate } = getReportingPeriodBounds(period);
   const [categoryResponse, summaryResponse, transactions] = await Promise.all([
     apiClient.get<readonly CategoryCatalogItem[]>(
@@ -213,7 +214,7 @@ async function getMonthlyInsights(
     ),
     loadAllTransactions(
       apiClient,
-      `${firstPeriod}-01`,
+      undefined,
       toDate,
       signal,
       spaceId,
@@ -251,7 +252,7 @@ async function getMonthlyInsights(
 
 async function loadAllTransactions(
   apiClient: InsightsApiClient,
-  fromDate: string,
+  fromDate: string | undefined,
   toDate: string,
   signal?: AbortSignal,
   spaceId?: string,
@@ -528,11 +529,6 @@ function createMonthlyInsightsReport(
   transactions.forEach((transaction) => {
     const transactionPeriod = getTransactionPeriod(transaction.purchaseDate);
     const monthIndex = indexByPeriod.get(transactionPeriod);
-    if (monthIndex === undefined) {
-      throw new InsightsDataError(
-        "The API returned a Transaction outside the selected 12-month Reporting Period.",
-      );
-    }
 
     const amountCents = moneyToCents(
       parseApiMoney(
@@ -556,6 +552,9 @@ function createMonthlyInsightsReport(
         `Transaction ${transaction.id} references missing Category ${categoryId}.`,
       );
     }
+
+    if (transactionPeriod > period) throw new InsightsDataError("The API returned a future Transaction outside the selected Reporting Period.");
+    if (monthIndex === undefined) return;
 
     const monthAmounts = amountsByMonth[monthIndex]!;
     monthAmounts.set(
@@ -601,6 +600,7 @@ function createMonthlyInsightsReport(
 
   return {
     view: "monthly",
+    budgetReviews: createBudgetReviews(period, selectedMonthCategories, patternTransactions),
     spendingPatterns: createSpendingPatterns(
       period,
       selectedMonthCategories,

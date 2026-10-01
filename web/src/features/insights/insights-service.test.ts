@@ -19,7 +19,7 @@ const nextTransactionPath = `${transactionPath}&cursor=next-page`;
 const monthlySummaryPath =
   "/spaces/7/category-summaries?period=monthly&year=2026&month=01";
 const monthlyTransactionPath =
-  "/spaces/7/transactions?fromDate=2025-02-01&toDate=2026-01-31&pageSize=100";
+  "/spaces/7/transactions?toDate=2026-01-31&pageSize=100";
 
 function categoryCatalog() {
   return [
@@ -440,6 +440,15 @@ describe("getDailyInsights", () => {
           {
             items: [
               {
+                id: "older-recorded-breach",
+                categoryId: "42",
+                purchaseDate: "2024-01-10",
+                description: "Synthetic older recorded spending",
+                amount: "10.01",
+                source: "manual",
+                statementImportId: null,
+              },
+              {
                 id: "at-budget",
                 categoryId: "42",
                 purchaseDate: "2025-02-10",
@@ -533,6 +542,17 @@ describe("getDailyInsights", () => {
       { signal: undefined },
     );
     expect(report.view).toBe("monthly");
+    expect(report.budgetReviews.find(({ categoryId }) => categoryId === "42")).toMatchObject({
+      breachCount: 2,
+      suggestReview: false,
+      months: [
+        { period: "2026-01", amountCents: 999 },
+        { period: "2025-04", amountCents: 50 },
+        { period: "2025-03", amountCents: 1001 },
+        { period: "2025-02", amountCents: 1000 },
+        { period: "2024-01", amountCents: 1001 },
+      ],
+    });
     expect(report.monthlyBudgetCents).toBe(1_000);
     expect(report.totalSpendingCents).toBe(4_675);
     expect(report.budgetedSpendingCents).toBe(3_050);

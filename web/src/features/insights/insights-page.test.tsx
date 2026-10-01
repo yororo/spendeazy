@@ -139,7 +139,7 @@ function createSuccessfulFetch(initialPeriod: string) {
     }
 
     if (path.endsWith("/transactions")) {
-      const fromDate = url.searchParams.get("fromDate")!;
+      const fromDate = url.searchParams.get("fromDate") ?? rollingStart(url.searchParams.get("toDate")!.slice(0, 7));
       const toDate = url.searchParams.get("toDate")!;
       const selectedPeriod = toDate.slice(0, 7);
       if (requestedSpaceId === "8") {
@@ -758,7 +758,7 @@ describe("InsightsPage", () => {
     await waitFor(() =>
       expect(
         fetch.mock.calls.some(([input]) =>
-          String(input).includes(`fromDate=${expectedStart}`),
+          String(input).includes(`toDate=${period}-`),
         ),
       ).toBe(true),
     );
@@ -766,11 +766,10 @@ describe("InsightsPage", () => {
     fireEvent.change(screen.getByLabelText("Reporting period"), {
       target: { value: nextMonth(period) },
     });
-    const nextStart = rollingStart(nextMonth(period));
     await waitFor(() =>
       expect(
         fetch.mock.calls.some(([input]) =>
-          String(input).includes(`fromDate=${nextStart}`),
+          String(input).includes(`toDate=${nextMonth(period)}-`),
         ),
       ).toBe(true),
     );

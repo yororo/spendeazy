@@ -1,3 +1,5 @@
+import { moneyToCents } from "@/shared/money";
+import { type BudgetReviewHistory, describeBudgetReview } from "@/shared/budget";
 import {
   useRef,
   useState,
@@ -55,6 +57,7 @@ interface EditCategoryDialogBaseProps {
 }
 
 interface EditCategoryDialogContentProps extends EditCategoryDialogBaseProps {
+  readonly evidence?: BudgetReviewHistory;
   readonly onSaved: () => void;
 }
 
@@ -127,6 +130,7 @@ function EditCategoryBudgetError({
 }
 
 function EditCategoryDialogContent({
+  evidence,
   category,
   spaceId,
   onCancel,
@@ -192,6 +196,7 @@ function EditCategoryDialogContent({
 
   return (
     <ReadyEditCategoryDialog
+      evidence={evidence}
       authoritativeBudget={budgetQuery.data}
       category={category}
       spaceId={spaceId}
@@ -209,6 +214,7 @@ interface ReadyEditCategoryDialogProps
 }
 
 function ReadyEditCategoryDialog({
+  evidence,
   authoritativeBudget,
   category,
   spaceId,
@@ -275,6 +281,7 @@ function ReadyEditCategoryDialog({
       >
         <form id={formId} onSubmit={editor.submit} noValidate>
           <EditCategoryDialogHeader category={category} />
+          {evidence && <p className="px-5 pt-5 font-mono text-sm tabular-nums" aria-label="Budget review evidence">{describeBudgetReview(evidence, authoritativeBudget?.period === "monthly" ? moneyToCents(Number(authoritativeBudget.amount)) : null)}</p>}
           <CategoryEditorFields
             category={category}
             editor={editor}

@@ -38,6 +38,29 @@
       "fill": "#000000"
     }
   ]
+},
+{
+  "type": "frame",
+  "id": "i86review",
+  "name": "Monthly Insights — Recurring Budget review",
+  "x": 1000,
+  "y": 0,
+  "width": 390,
+  "height": 700,
+  "fill": "#FFFFFF",
+  "layout": "vertical",
+  "gap": 20,
+  "padding": 24,
+  "children": [
+    {
+      "type": "text",
+      "id": "i86evidence",
+      "content": "Recurring Budget review\nGroceries · 3 of 6 eligible months over current limit\nReview Budget suggested\nCurrent monthly limit ₱1,000.00\nCompleted recorded months only; gaps excluded.\nJan 2024 ₱1,000.01 · Feb 2025 ₱1,100.00\nMar 2026 ₱1,200.00 · May 2026 ₱1,000.00\nJun 2026 ₱900.00 · Aug 2026 ₱800.00\n[Review Budget]\nEvidence remains available inside the existing editor.\nSaving a new current recurring limit changes historical comparisons.\n[Cancel] [Save changes]",
+      "fontFamily": "Geist Mono",
+      "fontSize": 14,
+      "fill": "#000000"
+    }
+  ]
 }
   ]
 }

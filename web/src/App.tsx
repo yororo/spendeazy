@@ -1,3 +1,4 @@
+import { type BudgetReviewHistory } from "@/shared/budget";
 import { lazy, Suspense, useState, type ReactNode } from "react";
 import { Route, Routes, useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { useReportingPeriod, type ReportingPeriod } from "@/shared/reporting-period";
@@ -139,7 +140,7 @@ function InsightsRoute() {
   const [searchParams, setSearchParams] = useSearchParams();
   const spaceId = searchParams.get("spaceId") ?? undefined;
   const location = useLocation();
-  const [budget, setBudget] = useState<{ categoryId: string; period: ReportingPeriod; spaceId?: string; trigger: HTMLElement | null } | null>(null);
+  const [budget, setBudget] = useState<{ categoryId: string; period: ReportingPeriod; spaceId?: string; evidence?: BudgetReviewHistory; trigger: HTMLElement | null } | null>(null);
   const returned = location.state as { insightsReturn?: InsightsReturnContext } | null;
   function closeBudget() {
     const trigger = budget?.trigger;
@@ -154,7 +155,7 @@ function InsightsRoute() {
     <><InsightsPage
       spaceId={spaceId}
       returnContext={returned?.insightsReturn}
-      onEditBudget={(categoryId, period, destinationSpaceId) => setBudget({ categoryId, period, spaceId: destinationSpaceId, trigger: document.activeElement instanceof HTMLElement ? document.activeElement : null })}
+      onEditBudget={(categoryId, period, destinationSpaceId, evidence) => setBudget({ categoryId, period, spaceId: destinationSpaceId, evidence, trigger: document.activeElement instanceof HTMLElement ? document.activeElement : null })}
       onViewTransactions={(categoryId, period, destinationSpaceId) => {
         const params = new URLSearchParams(searchParams);
         if (categoryId === undefined) params.delete("categoryId");
@@ -174,7 +175,7 @@ function InsightsRoute() {
         }
         setSearchParams(nextParams);
       }}
-    />{budget && lazyRoute(<ContextualBudgetEditor categoryId={budget.categoryId} period={budget.period} spaceId={budget.spaceId} onClose={closeBudget} />)}</>
+    />{budget && lazyRoute(<ContextualBudgetEditor evidence={budget.evidence} categoryId={budget.categoryId} period={budget.period} spaceId={budget.spaceId} onClose={closeBudget} />)}</>
   );
 }
 

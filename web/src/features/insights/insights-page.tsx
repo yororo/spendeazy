@@ -1,3 +1,4 @@
+import { type BudgetReviewHistory } from "@/shared/budget";
 import { useEffect, useRef, useState } from "react";
 import { restorePageScroll, type PageScrollPosition } from "@/shared/ui/page-scroll";
 
@@ -22,6 +23,7 @@ import { MonthlyCategoryRankings } from "./monthly-category-rankings";
 import { useInsightsQuery, type InsightsView } from "./insights-queries";
 import { MonthlySpendingChart } from "./monthly-spending-chart";
 import { SelectedMonthSummary } from "./selected-month-summary";
+import { BudgetReviewEvidence } from "./budget-review-evidence";
 import { SpendingPatternEvidence } from "./spending-pattern-evidence";
 
 interface InsightsReturnContext {
@@ -35,7 +37,7 @@ interface InsightsPageProps {
   readonly onSpaceChange?: (spaceId?: string) => void;
   readonly onManageBudgets?: () => void;
   readonly onViewTransactions?: (categoryId: string | undefined, period: ReportingPeriod, spaceId?: string) => void;
-  readonly onEditBudget?: (categoryId: string, period: ReportingPeriod, spaceId?: string) => void;
+  readonly onEditBudget?: (categoryId: string, period: ReportingPeriod, spaceId?: string, evidence?: BudgetReviewHistory) => void;
 }
 
 function InsightsPage({ spaceId, onSpaceChange, onManageBudgets, onViewTransactions, onEditBudget, returnContext }: InsightsPageProps = {}) {
@@ -162,6 +164,7 @@ function InsightsPage({ spaceId, onSpaceChange, onManageBudgets, onViewTransacti
 
       {report.view === "monthly" && <SelectedMonthSummary report={report} onViewTransactions={onViewTransactions ? (categoryId, selectedPeriod) => onViewTransactions(categoryId, selectedPeriod, effectiveSpaceId) : undefined} onEditBudget={onEditBudget ? (categoryId, selectedPeriod) => onEditBudget(categoryId, selectedPeriod, effectiveSpaceId) : undefined} onManageBudgets={onManageBudgets} />}
       {report.view === "monthly" && <SpendingPatternEvidence key={report.period} report={report.spendingPatterns} period={report.period} onViewTransactions={onViewTransactions ? (categoryId, selectedPeriod) => onViewTransactions(categoryId, selectedPeriod, effectiveSpaceId) : undefined} />}
+      {report.view === "monthly" && <BudgetReviewEvidence reviews={report.budgetReviews} period={report.period} onEditBudget={onEditBudget ? (categoryId, selectedPeriod, evidence) => onEditBudget(categoryId, selectedPeriod, effectiveSpaceId, evidence) : undefined} />}
       <section
         aria-label={
           report.view === "monthly"

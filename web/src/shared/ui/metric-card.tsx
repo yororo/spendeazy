@@ -22,7 +22,7 @@ function MetricCard({
   return (
     <Card
       variant={emphasized ? "accent" : "strong"}
-      className={cn("h-full", className)}
+      className={cn("h-full rounded-[var(--metric-radius)]", className)}
     >
       <CardContent className="flex min-h-28 flex-col justify-between gap-3 p-4">
         <p className="text-label">{label}</p>

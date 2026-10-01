@@ -83,7 +83,7 @@ function SpendingChart({
         </div>
         <div className="flex flex-wrap justify-end gap-3 font-mono text-xs">
           <span className="inline-flex items-center gap-2">
-            <span aria-hidden="true" className="size-2 bg-primary" />
+            <span aria-hidden="true" className="size-2 bg-chart" />
             {currentLabel}
           </span>
         </div>
@@ -136,7 +136,7 @@ function SpendingChart({
                         className="flex h-full min-w-0 flex-1 items-end md:min-w-4"
                       >
                         <div
-                          className="min-h-px w-full bg-primary"
+                          className="min-h-px w-full rounded-t-[var(--chart-radius)] bg-chart"
                           style={{
                             height: `${(point.amount / amountAxis.maximum) * 100}%`,
                           }}

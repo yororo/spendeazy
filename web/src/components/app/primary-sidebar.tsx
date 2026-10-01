@@ -1,8 +1,10 @@
-import { HistoryIcon, LogOutIcon } from "lucide-react";
+import { useId, useState } from "react";
+import { HistoryIcon, LogOutIcon, SettingsIcon } from "lucide-react";
 import { NavLink, useNavigate, useSearchParams } from "react-router-dom";
 
 import { LedgerMark } from "@/shared/ui/ledger-mark";
 import { AppearanceSelector } from "@/components/app/appearance-selector";
+import { ThemeSelector } from "@/components/app/theme-selector";
 import {
   getNavigationTarget,
   primaryNavigation,
@@ -34,7 +36,7 @@ function getDisplayName(user: AppSessionUser | null): string {
 
 function getNavigationLinkClassName(isActive: boolean): string {
   return cn(
-    "focus-ledger flex min-h-10 items-center gap-3 px-3 font-mono text-xs font-semibold tracking-wide transition-colors",
+    "navigation-item focus-ledger flex min-h-10 items-center gap-3 px-3 font-mono text-xs font-semibold tracking-wide transition-colors",
     isActive
       ? "bg-primary text-primary-foreground"
       : "text-sidebar-foreground hover:bg-sidebar-foreground/10",
@@ -47,6 +49,8 @@ function PrimarySidebar({
   onNavigate,
 }: PrimarySidebarProps) {
   const { signOut, user } = useAppSession();
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const settingsId = useId();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { requestNavigation } = useNavigationGuard();
@@ -72,7 +76,7 @@ function PrimarySidebar({
         className,
       )}
     >
-      <LedgerMark />
+      <LedgerMark className="text-sidebar-foreground" />
 
       <SpaceSwitcher className="mt-6" onNavigate={onNavigate} />
 
@@ -111,7 +115,7 @@ function PrimarySidebar({
         </ul>
       </nav>
 
-      <div className="shrink-0 border border-sidebar-border p-3">
+      <div className="profile-card shrink-0 border border-sidebar-border p-3">
         <div className="flex items-center gap-3">
           <div
             aria-hidden="true"
@@ -122,6 +126,27 @@ function PrimarySidebar({
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold">{displayName}</p>
           </div>
+          <button
+            type="button"
+            aria-label="Settings"
+            aria-expanded={settingsOpen}
+            aria-controls={settingsId}
+            onClick={() => setSettingsOpen((open) => !open)}
+            className="focus-ledger grid size-11 shrink-0 place-items-center border border-sidebar-border hover:bg-sidebar-foreground/10"
+          >
+            <SettingsIcon className="size-4" aria-hidden="true" />
+          </button>
+        </div>
+        <div id={settingsId} hidden={!settingsOpen}>
+          {settingsOpen && (
+            <div className="mt-3 space-y-3 border-t border-sidebar-border pt-3">
+              <ThemeSelector />
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-label">Appearance</span>
+                <AppearanceSelector />
+              </div>
+            </div>
+          )}
         </div>
         <div className="mt-3 flex items-center gap-2 border-t border-sidebar-border pt-3">
           <button
@@ -132,7 +157,6 @@ function PrimarySidebar({
             <LogOutIcon className="size-4" aria-hidden="true" />
             Sign out
           </button>
-          <AppearanceSelector />
         </div>
       </div>
     </div>

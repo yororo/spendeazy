@@ -8,9 +8,12 @@ import "@fontsource-variable/geist-mono";
 import "./index.css";
 import App from "./App.tsx";
 import { initializeAppearance } from "@/components/app/appearance";
+import { initializeTheme } from "@/components/app/theme";
 import { ClerkSessionProvider } from "@/shared/session";
 
 const disposeAppearance = initializeAppearance();
+const disposeTheme = initializeTheme();
+if (import.meta.hot) import.meta.hot.dispose(disposeTheme);
 if (import.meta.hot) import.meta.hot.dispose(disposeAppearance);
 
 const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;

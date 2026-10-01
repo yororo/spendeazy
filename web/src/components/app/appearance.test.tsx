@@ -5,10 +5,13 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { initializeAppearance, setAppearance } from "./appearance";
 import { AppearanceSelector } from "./appearance-selector";
+import { initializeTheme, setTheme } from "./theme";
+import { ThemeSelector } from "./theme-selector";
 
 let dark = false;
 let systemChanged: () => void;
 let dispose: () => void;
+let disposeTheme: () => void;
 
 beforeEach(() => {
   localStorage.clear();
@@ -19,21 +22,26 @@ beforeEach(() => {
     removeEventListener: vi.fn(),
   }));
   dispose = initializeAppearance();
+  disposeTheme = initializeTheme();
 });
 
 afterEach(() => {
   cleanup();
   dispose();
+  disposeTheme();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
   delete document.documentElement.dataset.theme;
+  delete document.documentElement.dataset.visualTheme;
 });
 
 it("follows OS changes only in System mode and restores a saved override", () => {
+  setTheme("playful");
   expect(document.documentElement.dataset.theme).toBe("light");
   dark = true;
   systemChanged();
   expect(document.documentElement.dataset.theme).toBe("dark");
+  expect(document.documentElement.dataset.visualTheme).toBe("playful");
   setAppearance("light");
   systemChanged();
   expect(document.documentElement.dataset.theme).toBe("light");
@@ -42,6 +50,45 @@ it("follows OS changes only in System mode and restores a saved override", () =>
   expect(document.documentElement.dataset.theme).toBe("light");
   setAppearance("system");
   expect(document.documentElement.dataset.theme).toBe("dark");
+});
+
+it("defaults Theme to Technical and restores it before rendering without changing Appearance", () => {
+  expect(document.documentElement.dataset.visualTheme).toBe("technical");
+  setAppearance("dark");
+  setTheme("playful");
+  disposeTheme();
+  disposeTheme = initializeTheme();
+  expect(document.documentElement.dataset.visualTheme).toBe("playful");
+  expect(document.documentElement.dataset.theme).toBe("dark");
+  setTheme("technical");
+  expect(localStorage.getItem("spendeazy.appearance")).toBe("dark");
+});
+
+it("synchronizes checked Theme choices and resets missing, invalid and cleared values", () => {
+  render(<ThemeSelector />);
+  for (const value of ["playful", "invalid", null]) {
+    if (value === null) localStorage.removeItem("spendeazy.theme");
+    else localStorage.setItem("spendeazy.theme", value);
+    act(() => window.dispatchEvent(new StorageEvent("storage", { key: "spendeazy.theme" })));
+    const expected = value === "playful" ? "Playful" : "Technical";
+    expect((screen.getByRole("radio", { name: expected }) as HTMLInputElement).checked).toBe(true);
+  }
+  act(() => setTheme("playful"));
+  localStorage.clear();
+  act(() => window.dispatchEvent(new StorageEvent("storage", { key: null })));
+  expect(document.documentElement.dataset.visualTheme).toBe("technical");
+});
+
+it("permits current-visit Theme selection when both storage reads and writes throw", () => {
+  vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => { throw new Error("Blocked"); });
+  vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => { throw new Error("Blocked"); });
+  disposeTheme();
+  disposeTheme = initializeTheme();
+  render(<ThemeSelector />);
+  fireEvent.click(screen.getByRole("radio", { name: "Playful" }));
+  expect(document.documentElement.dataset.visualTheme).toBe("playful");
+  expect((screen.getByRole("radio", { name: "Playful" }) as HTMLInputElement).checked).toBe(true);
+  expect(document.documentElement.dataset.theme).toBe("light");
 });
 
 it("synchronizes external storage changes and treats invalid or cleared values as System", () => {

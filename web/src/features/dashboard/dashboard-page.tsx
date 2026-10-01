@@ -164,7 +164,7 @@ function DashboardPage({ spaceId, onSpaceChange, onManageBudgets }: DashboardPag
           <CardHeader>
             <CardTitle id="budget-attention-heading">Budget attention</CardTitle>
             {onManageBudgets && (
-              <Button variant="outline" onClick={onManageBudgets}>Manage Budgets</Button>
+              <Button variant="outline" className="budget-action" onClick={onManageBudgets}>Manage Budgets</Button>
             )}
             <p className="text-sm text-muted-foreground">Categories at 80% of their monthly Budget, plus the three highest unbudgeted Categories.</p>
           </CardHeader>

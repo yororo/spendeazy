@@ -11,8 +11,6 @@ import { SpaceLabelProvider } from "@/shared/ui";
 import { MobileTabBar } from "@/components/app/mobile-tab-bar";
 import { PrimarySidebar } from "@/components/app/primary-sidebar";
 import { SpaceSwitcher } from "@/components/app/space-switcher";
-import { DashboardThemePrototype } from "@/components/app/dashboard-theme-prototype";
-import "@/components/app/dashboard-theme-prototype.css";
 import {
   buildCanonicalSpaceSearch,
   getPersonalSpace,
@@ -63,8 +61,6 @@ function AppShellContent() {
   const spacesQuery = useAccessibleSpacesQuery(true);
   const location = useLocation();
   const { pathname } = location;
-  const prototypeVariant = new URLSearchParams(location.search).get("variant");
-  const showThemePrototype = import.meta.env.DEV && pathname === "/" && (prototypeVariant === "muted" || prototypeVariant === "technical");
   const isHistoryRoute = pathname === "/history";
   const navigate = useNavigate();
   const { requestNavigation } = useNavigationGuard();
@@ -219,7 +215,7 @@ function AppShellContent() {
   return (
     <SpaceLabelProvider spaces={spacesQuery.data}>
     <div
-      className={`min-h-screen bg-background lg:flex lg:h-screen lg:overflow-hidden${showThemePrototype && prototypeVariant === "muted" ? " dashboard-theme-prototype" : ""}`}
+      className="min-h-screen bg-background lg:flex lg:h-screen lg:overflow-hidden"
       onClickCapture={handleNavigationClickCapture}
     >
       <aside className="hidden h-screen w-56 shrink-0 self-start lg:sticky lg:top-0 lg:block">
@@ -230,7 +226,7 @@ function AppShellContent() {
       </aside>
 
       <header className="compact-app-header fixed inset-x-0 top-0 z-40 flex items-center justify-between gap-2 bg-sidebar text-sidebar-foreground lg:hidden">
-        <LedgerMark />
+        <LedgerMark className="text-sidebar-foreground" />
         <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
           <SpaceSwitcher className="min-w-0 max-w-[min(16rem,calc(100vw-10rem))] flex-1" />
           <Sheet open={navigationOpen} onOpenChange={setNavigationOpen}>
@@ -282,7 +278,6 @@ function AppShellContent() {
         </main>
       </div>
       <MobileTabBar />
-      {showThemePrototype && <DashboardThemePrototype />}
     </div>
     </SpaceLabelProvider>
   );

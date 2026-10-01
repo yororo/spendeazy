@@ -54,7 +54,33 @@ Category colors are application tokens, not generic UI states. Categories persis
 
 Legacy category-key tokens remain available for non-persisted labels such as Uncategorized. A `CategoryBadge` rendered for an API Category ID requires its resolved named swatch.
 
-### Appearance
+### Theme and Appearance
+
+Theme is the browser-wide visual style: **Technical** (default) or **Playful**. Appearance independently selects Light, Dark, or System. Both use the same routes, components, query/session composition, and financial data. Category Color swatches are invariant across both dimensions. See the accepted [Independent Theme and Appearance ADR](docs/adr/0004-independent-theme-and-appearance.md).
+
+Settings sits beside the User's name in the shared sidebar/profile composition, including the phone/tablet navigation Sheet. It starts collapsed on profile mount, announces expansion and its controlled inline section, and exposes labelled native Theme radios followed by the Appearance selector. Native radio keyboard behavior and visible focus identify selection. Selecting either preference leaves Settings open; Sign out remains below.
+
+`components/app/theme.ts` owns the browser preference `spendeazy.theme`; existing `spendeazy.appearance` storage and System defaults remain compatible. Both initialize before React renders, persist across reloads/sign-outs, and synchronize storage changes across tabs. Missing, invalid, removed, or cleared Theme values resolve to Technical. Storage failures still permit current-visit selection. Preferences do not belong to a User or Space and have no server persistence. The document's `data-visual-theme` selects Theme, while the existing `data-theme` marker records resolved light/dark Appearance and native `color-scheme`.
+
+Technical retains the palette above, Geist/Geist Mono, and square edges. Playful uses the approved Emerald and Honey treatment, with locally bundled Nunito headings/metrics and Nunito Sans body/navigation/controls/tables. Data typography remains tabular. Colors and edge/font roles change without altering text sizes, spacing, control dimensions, breakpoints, safe areas, wording, icons, logo, or component order; natural font wrapping is permitted.
+
+| Playful role | Light | Dark |
+| --- | --- | --- |
+| Background / foreground | `#FAF8F1` / `#172D25` | `#101E18` / `#EDF5EF` |
+| Card and popover | `#FFFFFF` | `#1A2C23` |
+| Primary/inverse action / foreground | `#087443` / `#FFFFFF` | `#8CE0B2` / `#10271B` |
+| Sidebar | `#EFEDE3` | `#15261E` |
+| Muted / muted foreground | `#EFEDE3` / `#4F6055` | `#293D31` / `#BDCFC2` |
+| Border / input | `#E4E5D9` / `#D2D6C7` | `#41584A` / `#5E7866` |
+| Focus / non-category chart | `#087443` / `#24A66A` | `#8CE0B2` / `#61CF98` |
+| Navigation selected / foreground | `#D8F2DF` / `#087443` | `#244A35` / `#A0E8BD` |
+| Honey surface / border / text | `#FFF0BB` / `#C68A16` / `#67450A` | `#43351A` / `#BC9649` / `#FFE0A0` |
+
+Global semantic success, warning, info, destructive, focus, and overlay roles include readable light/dark Playful values in `src/index.css`. Portaled primitives inherit document tokens. `structure` resolves to Technical foreground or Playful border; `chart` is reserved for non-category series. Font roles are `ui-font`, `data-font`, and `heading-font`. Edge roles normalize controls/overlays to 12px, cards to 24px, metrics/profiles to 20px, navigation to 16px, and chart-bar tops to 6px in Playful; all resolve to square in Technical. No separate Theme components or parallel pages are needed.
+
+Dashboard's emphasized Total spend metric uses primary surface/foreground; supporting metrics use card surface. Daily spending uses the chart role, preserving Category Colors in category breakdowns. Manage Budgets uses the restrained honey `budget-action` role. The prototype's reference colors remain design evidence, but its URL variant, floating controls, global shortcuts, forced-light scope, logo filtering, altered sizes/padding, and structural selectors are excluded from application composition.
+
+### Appearance behavior
 
 Appearance applies across all routes. The initial preference is System; Light and Dark override the operating system. System follows live OS appearance changes. The preference is remembered in this browser across reloads and sign-outs, and synchronized between tabs. If browser storage is unavailable, the choice lasts for the current visit.
 
@@ -62,7 +88,7 @@ The `Dashboard — Monthly Expenses — Dark` frame supplies the dark palette: b
 
 Status colors are normalized for dark readability: destructive `#FF9999`, success `#8CDB8C` on `#182B18`, warning `#FFC078` on `#302418`, and info `#80C7FF`, with `#111111` foreground for filled status actions. Category swatches remain the same in light and dark appearance; selected and focus states use the appearance-aware foreground, background, and ring tokens.
 
-`AppearanceSelector` is a 32px bordered icon button beside Sign out in `PrimarySidebar`, including the mobile/tablet navigation Sheet. Its menu opens upward to stay inside the viewport and exposes Light, System, and Dark as checked radio menu items. The trigger announces the current preference. Keyboard navigation, Escape dismissal, and focus restoration use the shared Dropdown Menu. The phone tab bar retains its four navigation destinations.
+`AppearanceSelector` is a 32px bordered icon button in the expanded inline Settings section of `PrimarySidebar`, including the mobile/tablet navigation Sheet. Its menu opens upward to stay inside the viewport and exposes Light, System, and Dark as checked radio menu items. The trigger announces the current preference. Keyboard navigation, Escape dismissal, and focus restoration use the shared Dropdown Menu. The phone tab bar retains its four navigation destinations.
 
 ### Typography
 
@@ -98,7 +124,7 @@ Do not reproduce source values such as 5px, 7px, 9px, or 11px unless a new docum
 
 ### Radius and elevation
 
-`--radius` is `0px`. Cards, inputs, buttons, badges, and panels are intentionally square. Circular geometry is reserved for semantic shapes such as status dots.
+Technical's `--radius` is `0px`; its cards, inputs, buttons, badges, and panels remain square. Playful uses the Theme edge roles above. Circular geometry is reserved for semantic shapes such as status dots.
 
 Cards have no default shadow. Hierarchy comes from 1px borders, black inverse surfaces, and spacing. The Pen file's single green processing glow is a workflow-specific effect, not a general elevation token.
 
@@ -230,7 +256,7 @@ Dashboard callers provide typed spending points, labels, and an accessible summa
 1. Search `src/components/ui` before creating a generic primitive.
 2. Search the owning feature and existing shared domain UI before creating a Spendeazy-specific module.
 3. Use semantic color tokens instead of literals in JSX.
-4. Use the established spacing and square-radius rules instead of arbitrary measurements.
+4. Use the established spacing and Theme edge roles instead of arbitrary measurements.
 5. Keep page-specific data and business behavior out of generic primitives.
 6. Add a meaningful variant when an existing module needs a reusable visual choice.
 7. Keep a module's interface smaller than its implementation; hide rendering detail from callers.

@@ -1,12 +1,13 @@
 # Dashboard theme prototype — throwaway
 
 Question: how does the current Dashboard feel with the **Dashboard — Monthly
-Expenses — Playful Theme - muted** treatment from `design/ui-design.pen`?
+Expenses — Playful — Mobile — Emerald & Honey** treatment from `design/ui-design.pen`?
 
 This is a theme comparison on the existing Dashboard, rather than a layout
 exploration. The reference supplies Nunito typography and rounded panels. The
-requested refinement simplifies its palette to cool neutral and pale blue surfaces
-with blue actions and charts. Current Dashboard content,
+requested refinement uses the Emerald & Honey reference's ivory background,
+emerald primary actions and Total spend card, white supporting cards, green chart
+bars, and a small honey accent for Manage Budgets. Current Dashboard content,
 financial calculations, Category Colors, and responsive structure are retained.
 
 From `web/`, run `npm run prototype:dashboard` with the normal development

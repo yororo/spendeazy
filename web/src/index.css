@@ -76,6 +76,7 @@
   --color-structure: var(--structure);
   --color-chart: var(--chart);
   --color-overlay: var(--overlay);
+  --color-control-border: var(--control-border);
   --font-sans: var(--ui-font);
   --font-mono: var(--data-font);
   --radius-sm: var(--radius);
@@ -91,6 +92,7 @@
   --structure: var(--foreground);
   --chart: var(--primary);
   --overlay: #00000099;
+  --control-border: var(--foreground);
   --card-radius: 0px;
   --metric-radius: 0px;
   --navigation-radius: 0px;
@@ -228,6 +230,7 @@
   --input: #d2d6c7;
   --ring: #087443;
   --structure: var(--border);
+  --control-border: var(--muted-foreground);
   --chart: #24a66a;
   --navigation-selected: #d8f2df;
   --navigation-selected-foreground: #087443;
@@ -320,7 +323,6 @@
   .profile-card { border-radius: var(--metric-radius); }
 
   :root[data-visual-theme="playful"] {
-    h1, h2, h3, [data-slot="card-title"] { font-family: var(--heading-font); }
     .font-mono { font-variant-numeric: tabular-nums; }
     .navigation-item { letter-spacing: 0; }
     .profile-card { background: var(--background); }

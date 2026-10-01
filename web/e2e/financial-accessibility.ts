@@ -10,6 +10,7 @@ export async function expectFinancialTokenContrast(page: Page) {
       ["destructive", "background"],
       ["warning", "warning-surface"],
       ["success", "success-surface"],
+      ["control-border", "background"],
     ].map(([foreground, background]) => ({
       name: `${foreground} on ${background}`,
       foreground: styles.getPropertyValue(`--${foreground}`).trim(),

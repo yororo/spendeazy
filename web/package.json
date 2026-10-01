@@ -5,7 +5,6 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "prototype:dashboard": "vite --host 127.0.0.1 --open /?variant=muted",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "local-test:dev": "vite --config local-test/vite.config.ts",

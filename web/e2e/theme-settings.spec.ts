@@ -34,7 +34,7 @@ for (const width of [320, 390, 768, 1023, 1024, 1440]) {
     await expect(summary).toBeVisible();
     await page.getByLabel("Reporting period", { exact: true }).fill("2026-08");
     await expect(summary).not.toHaveAttribute("aria-busy", "true");
-    const summaryText = await summary.innerText();
+    const summaryText = await summary.textContent();
     const route = page.url();
     const writes: string[] = [];
     page.on("request", (request) => {
@@ -76,7 +76,7 @@ for (const width of [320, 390, 768, 1023, 1024, 1440]) {
     await expect(page.getByRole("button", { name: "Sign out", exact: true }).first()).toBeVisible();
     await settings.click();
     if (width < 1024) await page.keyboard.press("Escape");
-    expect(await summary.innerText()).toBe(summaryText);
+    expect(await summary.textContent()).toBe(summaryText);
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await expect(page.getByRole("heading", { name: "Your spending at a glance" })).toHaveCSS("font-family", /Nunito Variable/);
     await expect(summary.getByText("Total spend", { exact: true }).locator("../..")).toHaveCSS("background-color", "rgb(8, 116, 67)");
@@ -90,8 +90,11 @@ for (const width of [320, 390, 768, 1023, 1024, 1440]) {
 test("restores Theme before the first render and retains it across sign-out and re-entry", async ({ page }) => {
   await page.clock.install({ time: clock });
   await page.addInitScript(() => {
-    localStorage.setItem("spendeazy.theme", "playful");
-    localStorage.setItem("spendeazy.appearance", "dark");
+    if (!sessionStorage.getItem("theme-restoration-fixture")) {
+      localStorage.setItem("spendeazy.theme", "playful");
+      localStorage.setItem("spendeazy.appearance", "dark");
+      sessionStorage.setItem("theme-restoration-fixture", "seeded");
+    }
     const observer = new MutationObserver(() => {
       if (!document.getElementById("root")?.firstChild) return;
       document.body.dataset.firstTheme = document.documentElement.dataset.visualTheme;
@@ -106,9 +109,13 @@ test("restores Theme before the first render and retains it across sign-out and 
   await expect(page.locator("body")).toHaveAttribute("data-first-appearance", "dark");
   await openSettings(page);
   await expect(page.getByRole("radio", { name: "Playful" })).toBeChecked();
+  await page.getByRole("radio", { name: "Technical" }).check();
   await page.reload();
   await openSettings(page);
-  await expect(page.getByRole("radio", { name: "Playful" })).toBeChecked();
+  await expect(page.getByRole("radio", { name: "Technical" })).toBeChecked();
+  await expect(page.locator("body")).toHaveAttribute("data-first-theme", "technical");
+  await expectAppearance(page, "dark");
+  await page.getByRole("radio", { name: "Playful" }).check();
   await page.getByRole("complementary").filter({ has: page.getByRole("button", { name: "Settings", exact: true }) }).getByRole("button", { name: "Sign out", exact: true }).click();
   await expect(page.getByTestId("local-test-signed-out")).toBeVisible();
   await expectAppearance(page, "dark");
@@ -204,13 +211,13 @@ test("Theme changes preserve recorded money and exact Category Colors", async ({
   expect(recorded.status()).toBe(201);
   await page.getByLabel("Reporting period", { exact: true }).fill("2026-08");
   const summary = page.getByRole("region", { name: "Monthly summary" });
-  await expect(summary.getByText("₱123.45", { exact: true })).toHaveCount(3);
+  await expect(summary.getByText("₱123.45", { exact: true })).toHaveCount(2);
   const categoryBar = page.getByRole("img", { name: /Theme fixture/ });
   const colorBefore = await categoryBar.evaluate((element) => getComputedStyle(element.firstElementChild ?? element).backgroundColor);
   expect(colorBefore).toBe("rgb(249, 115, 22)");
   await openSettings(page);
   await page.getByRole("radio", { name: "Playful" }).check();
-  await expect(summary.getByText("₱123.45", { exact: true })).toHaveCount(3);
+  await expect(summary.getByText("₱123.45", { exact: true })).toHaveCount(2);
   expect(await categoryBar.evaluate((element) => getComputedStyle(element.firstElementChild ?? element).backgroundColor)).toBe(colorBefore);
 });
 

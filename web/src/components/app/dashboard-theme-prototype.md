@@ -1,4 +1,9 @@
-# Dashboard theme prototype — throwaway
+# Dashboard theme prototype — historical design evidence
+
+The executable prototype was retired by issue #90. Use profile Settings to select
+Technical or Playful in the application. The original `.tsx` and `.css` reference
+is preserved in Git at commit `3878a253e1c368d67e7fad546c508a9dc27c1d5d`.
+Current styling and validation requirements are documented in `DESIGN_SYSTEM.md`.
 
 Question: how does the current Dashboard feel with the **Dashboard — Monthly
 Expenses — Playful — Mobile — Emerald & Honey** treatment from `design/ui-design.pen`?
@@ -10,25 +15,11 @@ emerald primary actions and Total spend card, white supporting cards, green char
 bars, and a small honey accent for Manage Budgets. Current Dashboard content,
 financial calculations, Category Colors, and responsive structure are retained.
 
-From `web/`, run `npm run prototype:dashboard` with the normal development
-environment configured. The Dashboard uses the existing authentication and queries.
-Alternatively, run `node scripts/local-test-launcher.mjs` from repository root
-and open `http://127.0.0.1:5174/?variant=muted` for fictional local-test data.
-Choose a populated Reporting Period if the current month has no Transactions.
-
-- `/?variant=muted`: muted Playful theme.
-- `/?variant=technical`: current theme baseline, retaining selected appearance.
-- No variant: ordinary Dashboard.
-
-The floating control and left/right keyboard arrows switch variants. Form controls
-retain their own arrow behavior. URL selection is reload-stable; no theme preference
-is saved. The prototype activates only in development. Existing app navigation and
-financial workflows remain functional; this introduces no new mutations.
-
-Validation: web lint, build, and 640 tests passed; isolated integration suite passed
+Historical validation: web lint, build, and 640 tests passed; isolated integration suite passed
 56 browser tests and three PostgreSQL rollback tests. Visually checked at 1440px
 and 390px; measured no horizontal overflow at 320px and 390px. Button and keyboard
 switching verified against the synthetic local-test environment.
 
-Verdict: ready for visual evaluation; no production theme decision has been made.
-Saved on `codex/prototype-dashboard-muted`; no originating issue was supplied.
+The User subsequently selected Emerald and Honey for Playful; see spec #89 and
+the accepted Independent Theme and Appearance ADR. These prototype results do not
+validate the production preference or current application behavior.

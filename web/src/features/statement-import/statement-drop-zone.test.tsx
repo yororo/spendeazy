@@ -528,9 +528,11 @@ describe("StatementDropZone PDF password challenge", () => {
     ).toBeTruthy();
     expect(password).toHaveProperty("value", "incorrect");
     expect(password.getAttribute("aria-invalid")).toBe("true");
-    expect(password).toBe(document.activeElement);
-    expect(password).toHaveProperty("selectionStart", 0);
-    expect(password).toHaveProperty("selectionEnd", "incorrect".length);
+    await waitFor(() => {
+      expect(password).toBe(document.activeElement);
+      expect(password).toHaveProperty("selectionStart", 0);
+      expect(password).toHaveProperty("selectionEnd", "incorrect".length);
+    });
   });
 
   it("abandons the challenged file and password when cancelled", async () => {

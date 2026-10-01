@@ -44,9 +44,9 @@ describe("ReportingPeriodFilter", () => {
 
   it("opens the picker when the displayed reporting period is clicked", () => {
     render(
-      <ReportingPeriodProvider>
+      <ReportingPeriodContext.Provider value={{ period: "2026-09" as ReportingPeriod, setPeriod: vi.fn() }}>
         <ReportingPeriodFilter id="reporting-period" />
-      </ReportingPeriodProvider>,
+      </ReportingPeriodContext.Provider>,
     );
 
     const input = screen.getByLabelText<HTMLInputElement>("Reporting period");

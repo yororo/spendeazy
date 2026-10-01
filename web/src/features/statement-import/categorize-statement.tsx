@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { hasSameRulePattern, matchesRuleDescription } from "./category-rule-matching";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { ActiveSpaceLabel } from "@/shared/ui";
 import {
   ArrowLeftIcon,
@@ -331,14 +332,56 @@ function CategorizeStatement({
     );
   }
 
+  const equivalentRule = categoryRules.some((rule) =>
+    rule.categoryId === draft?.category && hasSameRulePattern(rule, { matchType: rememberedMatchType, pattern: rememberedPattern }),
+  );
+  const normalizedRulePattern = normalizeDescription(rememberedPattern);
+  const previewRows = normalizedRulePattern ? transactions.filter((transaction) => {
+    const description = transaction.id === editingId ? draft?.description ?? transaction.description : transaction.description;
+    return matchesRuleDescription(description, { matchType: rememberedMatchType, pattern: rememberedPattern });
+  }) : [];
+
+  async function saveAssignment() {
+    const remembering = rememberRule;
+    const saved = await onSaveEdit();
+    if (saved && remembering) setAssignmentFeedback("Category Rule saved for future imports. This statement still needs Review and confirmation.");
+    return saved;
+  }
+
+  async function applyWithoutRemembering() {
+    if (onChangeRememberRule(false)) await onSaveEdit();
+  }
+
+  const ruleHelp = (layout: "mobile" | "table") => <div className="grid min-w-0 gap-2 text-sm">
+    <p>{equivalentRule
+      ? "An equivalent Rule already remembers this Category for future imports."
+      : "Remember to categorize matching descriptions in future imports. Rules are saved immediately, before this import is confirmed."}</p>
+    {rememberRule && <>
+      <p>{rememberedMatchType === "exact"
+        ? "Exact matches the entire description, ignoring case and repeated whitespace."
+        : "Contains matches anywhere in a description, even within a word. Punctuation matters. Exact Rules take precedence."}</p>
+      <p>{previewRows.length} matching {previewRows.length === 1 ? "row" : "rows"} in this statement</p>
+      <ul className="max-h-32 overflow-y-auto wrap-anywhere">
+        {previewRows.map((row) => <li key={row.id}>{row.id === editingId ? draft?.description : row.description}{row.isExcluded ? " · Excluded" : row.categoryId ? " · Reviewed assignment retained" : " · Unmapped; existing Rule precedence applies"}</li>)}
+      </ul>
+      <p>Preview shows description matches only. Other reviewed assignments remain unchanged.</p>
+      {draftError && <p>The save may have completed if the connection was lost. Retry safely reuses an equivalent Rule. Applying without remembering does not undo a Rule already saved.</p>}
+      <div className="flex flex-wrap gap-2">
+        {(draftError || layout === "table") && <Button type="button" disabled={isSaving} onClick={saveAssignment}>{draftError ? "Retry" : "Apply & remember"}</Button>}
+        {draftError && <Button type="button" variant="outline" disabled={isSaving} onClick={applyWithoutRemembering}>Apply without remembering</Button>}
+      </div>
+    </>}
+  </div>;
+
   async function applyAndNext() {
+    const rememberedFeedback = rememberRule ? "Category Rule saved for future imports. " : "";
     const orderedIds = visibleTransactions.map((transaction) => transaction.id);
     const currentIndex = orderedIds.indexOf(editingId ?? "");
     const candidateIds = [
       ...orderedIds.slice(currentIndex + 1),
       ...orderedIds.slice(0, currentIndex),
     ];
-    const savedTransactions = await onSaveEdit();
+    const savedTransactions = await saveAssignment();
     if (!savedTransactions) return;
     const remainingIds = new Set(savedTransactions
       .filter((transaction) =>
@@ -353,9 +396,9 @@ function CategorizeStatement({
       );
     } else {
       setMobileEditorOpen(false);
-      setAssignmentFeedback(remainingIds.size > 0
+      setAssignmentFeedback(rememberedFeedback + (remainingIds.size > 0
         ? "All visible expenses have a Category. Adjust filters to find remaining Unmapped expenses."
-        : "All included expenses have a Category. Continue to Review when ready.");
+        : "All included expenses have a Category. Continue to Review when ready."));
     }
   }
 
@@ -991,6 +1034,7 @@ function CategorizeStatement({
                           transaction={transaction}
                           draft={draft}
                           error={draftError}
+                          ruleHelp={ruleHelp("table")}
                           rememberRule={rememberRule}
                           rememberedMatchType={rememberedMatchType}
                           rememberedPattern={rememberedPattern}
@@ -1007,7 +1051,7 @@ function CategorizeStatement({
                           onRememberedPatternChange={onChangeRememberedPattern}
                           focusCategoryInitially={mobileEditorFocus === "category"}
                           onApplyAndNext={applyAndNext}
-                          onSave={onSaveEdit}
+                          onSave={saveAssignment}
                           onCancel={cancelEditing}
                         />
                       );
@@ -1178,6 +1222,7 @@ function CategorizeStatement({
                   transaction={editingTransaction}
                   draft={draft}
                   error={draftError}
+                          ruleHelp={ruleHelp("mobile")}
                   rememberRule={rememberRule}
                   rememberedMatchType={rememberedMatchType}
                   rememberedPattern={rememberedPattern}
@@ -1190,7 +1235,7 @@ function CategorizeStatement({
                   onRememberRuleChange={onChangeRememberRule}
                   onRememberedMatchTypeChange={onChangeRememberedMatchType}
                   onRememberedPatternChange={onChangeRememberedPattern}
-                  onSave={onSaveEdit}
+                  onSave={saveAssignment}
                   onCancel={closeMobileEditor}
                 />
               </DialogContent>
@@ -1324,6 +1369,7 @@ interface TransactionEditRowsProps {
   transaction: CategorizedTransaction;
   draft: TransactionDraft;
   error: string | null;
+  ruleHelp: ReactNode;
   rememberRule: boolean;
   isSaving: boolean;
   rememberedMatchType: CategoryRule["matchType"];
@@ -1622,8 +1668,8 @@ function RememberedRuleFields({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="contains">Contains</SelectItem>
             <SelectItem value="exact">Exact</SelectItem>
+            <SelectItem value="contains">Contains</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -1674,6 +1720,7 @@ function MobileTransactionEditor({
   transaction,
   draft,
   error,
+  ruleHelp,
   rememberRule,
   rememberedMatchType,
   rememberedPattern,
@@ -1743,6 +1790,7 @@ function MobileTransactionEditor({
           disabled={isSaving}
           onCheckedChange={onRememberRuleChange}
         />
+        {ruleHelp}
         {rememberRule && (
           <RememberedRuleFields
             layout="mobile"
@@ -1766,9 +1814,9 @@ function MobileTransactionEditor({
         >
           Cancel
         </Button>
-        {showCorrections && (
+        {(showCorrections || rememberRule) && (
           <Button type="button" onClick={onSave} disabled={isSaving}>
-            Save changes
+            {rememberRule ? "Apply & remember" : "Save changes"}
           </Button>
         )}
         <Button type="button" onClick={onApplyAndNext} disabled={isSaving}>
@@ -1787,6 +1835,7 @@ function TransactionEditRows({
   transaction,
   draft,
   error,
+  ruleHelp,
   rememberRule,
   rememberedMatchType,
   rememberedPattern,
@@ -1864,6 +1913,7 @@ function TransactionEditRows({
             className="justify-end"
             onCheckedChange={onRememberRuleChange}
           />
+          {ruleHelp}
         </TableCell>
       </TableRow>
       {rememberRule && (

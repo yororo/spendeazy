@@ -1,3 +1,4 @@
+import { hasSameRulePattern, matchesRuleDescription } from "./category-rule-matching";
 import {
   ApiError,
   buildApiPath,
@@ -378,20 +379,11 @@ function categorizeTransactions(
   function getMatchedCategoryIds(
     transaction: Transaction,
     matchingRules: readonly CategoryRule[],
-    isMatch: (
-      normalizedDescription: string,
-      normalizedPattern: string,
-    ) => boolean,
   ) {
-    const normalizedDescription = normalizeDescription(transaction.description);
     const matchedCategoryIds = new Set<string>();
 
     matchingRules.forEach((rule) => {
-      const normalizedPattern = normalizeDescription(rule.pattern);
-      if (
-        normalizedPattern &&
-        isMatch(normalizedDescription, normalizedPattern)
-      ) {
+      if (matchesRuleDescription(transaction.description, rule)) {
         matchedCategoryIds.add(rule.categoryId);
       }
     });
@@ -403,7 +395,6 @@ function categorizeTransactions(
     const exactCategoryIds = getMatchedCategoryIds(
       transaction,
       exactRules,
-      (description, pattern) => description === pattern,
     );
     const matchedCategoryIds =
       exactCategoryIds.length > 0
@@ -411,7 +402,6 @@ function categorizeTransactions(
         : getMatchedCategoryIds(
             transaction,
             containsRules,
-            (description, pattern) => description.includes(pattern),
           );
 
     if (matchedCategoryIds.length === 1) {
@@ -468,8 +458,7 @@ async function rememberCategoryRule(
 
   const existingRule = existingRules.find(
     (rule) =>
-      rule.matchType === input.matchType &&
-      normalizeDescription(rule.pattern) === normalizedPattern,
+      hasSameRulePattern(rule, input),
   );
   if (existingRule) {
     if (existingRule.categoryId === input.categoryId) {
@@ -536,8 +525,7 @@ async function rememberCategoryRule(
       const currentRules = await getCategoryRules(apiClient, signal, spaceId);
       const conflictingRule = currentRules.find(
         (rule) =>
-          rule.matchType === input.matchType &&
-          normalizeDescription(rule.pattern) === normalizedPattern,
+          hasSameRulePattern(rule, input),
       );
       if (conflictingRule?.categoryId === input.categoryId) {
         return { status: "existing", rule: conflictingRule };

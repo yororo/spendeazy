@@ -326,6 +326,146 @@
       ],
       "fill": "#FFFFFF",
       "type": "frame"
+    },
+    {
+      "type": "frame",
+      "id": "s82frame0",
+      "name": "Remember — Exact default",
+      "x": 900,
+      "y": 0,
+      "width": 390,
+      "height": 650,
+      "fill": "#FFFFFF",
+      "layout": "vertical",
+      "gap": 16,
+      "padding": 24,
+      "children": [
+        {
+          "type": "text",
+          "id": "s82text00",
+          "content": "Remember this category (unchecked)",
+          "fontFamily": "Geist",
+          "fontSize": 14,
+          "fill": "#000000",
+          "width": "fill_container",
+          "textGrowth": "fixed-width"
+        },
+        {
+          "type": "text",
+          "id": "s82text01",
+          "content": "Matching descriptions get this Category in future imports.",
+          "fontFamily": "Geist",
+          "fontSize": 14,
+          "fill": "#000000",
+          "width": "fill_container",
+          "textGrowth": "fixed-width"
+        },
+        {
+          "type": "text",
+          "id": "s82text02",
+          "content": "Exact: full description; case and whitespace normalized.",
+          "fontFamily": "Geist",
+          "fontSize": 14,
+          "fill": "#000000",
+          "width": "fill_container",
+          "textGrowth": "fixed-width"
+        },
+        {
+          "type": "text",
+          "id": "s82text03",
+          "content": "Contains: substring, including within words. Exact takes precedence.",
+          "fontFamily": "Geist",
+          "fontSize": 14,
+          "fill": "#000000",
+          "width": "fill_container",
+          "textGrowth": "fixed-width"
+        },
+        {
+          "type": "text",
+          "id": "s82text04",
+          "content": "3 matching rows · reviewed assignments retained",
+          "fontFamily": "Geist",
+          "fontSize": 14,
+          "fill": "#000000",
+          "width": "fill_container",
+          "textGrowth": "fixed-width"
+        },
+        {
+          "type": "text",
+          "id": "s82text05",
+          "content": "Apply & remember · Rule saved before import confirmation",
+          "fontFamily": "Geist",
+          "fontSize": 14,
+          "fill": "#000000",
+          "width": "fill_container",
+          "textGrowth": "fixed-width"
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "s82frame1",
+      "name": "Remember — Save recovery",
+      "x": 1340,
+      "y": 0,
+      "width": 390,
+      "height": 650,
+      "fill": "#FFFFFF",
+      "layout": "vertical",
+      "gap": 16,
+      "padding": 24,
+      "children": [
+        {
+          "type": "text",
+          "id": "s82text10",
+          "content": "Rule save failed. Your draft is retained.",
+          "fontFamily": "Geist",
+          "fontSize": 14,
+          "fill": "#000000",
+          "width": "fill_container",
+          "textGrowth": "fixed-width"
+        },
+        {
+          "type": "text",
+          "id": "s82text11",
+          "content": "Existing Category: Groceries. Conflicting Rule was not changed.",
+          "fontFamily": "Geist",
+          "fontSize": 14,
+          "fill": "#000000",
+          "width": "fill_container",
+          "textGrowth": "fixed-width"
+        },
+        {
+          "type": "text",
+          "id": "s82text12",
+          "content": "Retry · Apply without remembering",
+          "fontFamily": "Geist",
+          "fontSize": 14,
+          "fill": "#000000",
+          "width": "fill_container",
+          "textGrowth": "fixed-width"
+        },
+        {
+          "type": "text",
+          "id": "s82text13",
+          "content": "A lost response may follow a completed save. Retry reuses the Rule.",
+          "fontFamily": "Geist",
+          "fontSize": 14,
+          "fill": "#000000",
+          "width": "fill_container",
+          "textGrowth": "fixed-width"
+        },
+        {
+          "type": "text",
+          "id": "s82text14",
+          "content": "Discard draft Transactions · saved Rules remain",
+          "fontFamily": "Geist",
+          "fontSize": 14,
+          "fill": "#000000",
+          "width": "fill_container",
+          "textGrowth": "fixed-width"
+        }
+      ]
     }
   ]
 }

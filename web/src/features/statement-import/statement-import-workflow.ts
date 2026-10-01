@@ -107,7 +107,7 @@ const emptyEditor = (): CategorizeEditorState => ({
   draft: null,
   draftError: null,
   rememberRule: false,
-  rememberedMatchType: "contains",
+  rememberedMatchType: "exact",
   rememberedPattern: "",
   isSaving: false,
 });
@@ -471,7 +471,7 @@ class StatementImportWorkflow {
         },
         draftError: null,
         rememberRule: false,
-        rememberedMatchType: "contains",
+        rememberedMatchType: "exact",
         rememberedPattern: cleanDescription(transaction.description),
         isSaving: false,
       },

@@ -24,8 +24,8 @@ function useStatementImportNavigationGuard(
   const stageLabel = stage === "review" ? "Review" : "Categorize";
   const stageDescription =
     stage === "review"
-      ? "Your reviewed statement is still open. Leaving now will discard the statement and any changes you have made."
-      : "Your statement is still being categorized. Leaving now will discard the statement and any changes you have made.";
+      ? "Your reviewed statement is still open. Leaving now discards draft Transactions and corrections. Category Rules already saved remain for future imports. A Rule save still in progress may complete after leaving."
+      : "Your statement is still being categorized. Leaving now discards draft Transactions and corrections. Category Rules already saved remain for future imports. A Rule save still in progress may complete after leaving.";
   const { dialog, requestExit } = useUnsavedChangesNavigationGuard({
     description: stageDescription,
     discardLabel: `Leave ${stageLabel}`,

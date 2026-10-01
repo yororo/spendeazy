@@ -86,6 +86,7 @@ async function expectMobileDateField(
 test("keeps mobile date fields contained and shows their picker affordance", async ({
   page,
 }) => {
+  await page.clock.install({ time: new Date(process.env.SPENDEAZY_E2E_TEST_CLOCK ?? "2026-09-19T12:00:00.000Z") });
   await page.goto("/transactions?spaceId=1");
   await expect(
     page.getByRole("heading", { name: "Your spending" }),

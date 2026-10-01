@@ -369,6 +369,8 @@ async function beginRememberedRuleSave({
       name: "Remember this category",
     }),
   );
+  fireEvent.click(within(editor).getByRole("combobox", { name: `Match type for ${transactionDescription}` }));
+  fireEvent.click(screen.getByRole("option", { name: "Contains" }));
   fireEvent.change(
     within(editor).getByRole("textbox", {
       name: `Pattern for ${transactionDescription}`,
@@ -377,7 +379,7 @@ async function beginRememberedRuleSave({
   );
   fireEvent.click(
     within(editor).getByRole("button", {
-      name: isPhone ? "Save changes" : `Save changes to ${transactionDescription}`,
+      name: isPhone ? "Apply & remember" : `Save changes to ${transactionDescription}`,
     }),
   );
 }
@@ -1670,6 +1672,8 @@ describe("StatementImportPage rule resolution", () => {
         name: "Remember this category",
       }),
     );
+    fireEvent.click(screen.getByRole("combobox", { name: "Match type for Green Market Cafe" }));
+    fireEvent.click(screen.getByRole("option", { name: "Contains" }));
     fireEvent.change(
       screen.getByRole("textbox", {
         name: "Pattern for Green Market Cafe",
@@ -1758,7 +1762,7 @@ describe("StatementImportPage rule resolution", () => {
       { target: { value: "  Cafe  " } },
     );
     fireEvent.click(
-      within(editor).getByRole("button", { name: "Save changes" }),
+      within(editor).getByRole("button", { name: "Apply & remember" }),
     );
 
     await waitFor(() => {
@@ -1826,6 +1830,8 @@ describe("StatementImportPage pending Category Rule saves", () => {
     const pattern = screen.getByRole("textbox", {
       name: "Pattern for Green Market Cafe",
     });
+    fireEvent.click(screen.getByRole("combobox", { name: "Match type for Green Market Cafe" }));
+    fireEvent.click(screen.getByRole("option", { name: "Contains" }));
     fireEvent.change(pattern, { target: { value: "Cafe" } });
 
     const saveButton = within(table).getByRole("button", {
@@ -1967,6 +1973,8 @@ describe("StatementImportPage pending Category Rule saves", () => {
     const pattern = screen.getByRole("textbox", {
       name: "Pattern for Green Market Cafe",
     });
+    fireEvent.click(screen.getByRole("combobox", { name: "Match type for Green Market Cafe" }));
+    fireEvent.click(screen.getByRole("option", { name: "Contains" }));
     fireEvent.change(pattern, { target: { value: "Cafe" } });
     fireEvent.click(
       within(table).getByRole("button", {
@@ -2086,6 +2094,8 @@ describe("StatementImportPage pending Category Rule saves", () => {
     const pattern = screen.getByRole("textbox", {
       name: "Pattern for Green Market Cafe",
     });
+    fireEvent.click(screen.getByRole("combobox", { name: "Match type for Green Market Cafe" }));
+    fireEvent.click(screen.getByRole("option", { name: "Contains" }));
     fireEvent.change(pattern, { target: { value: "Cafe" } });
     fireEvent.click(
       within(table).getByRole("button", {
@@ -2142,7 +2152,7 @@ describe("StatementImportPage pending Category Rule saves", () => {
       }),
     ).toHaveProperty("value", "Cafe");
     expect(
-      within(recoveredDialog).getByRole("button", { name: "Save changes" }),
+      within(recoveredDialog).getByRole("button", { name: "Apply & remember" }),
     ).toHaveProperty("disabled", false);
 
     Object.defineProperty(window, "innerWidth", {
@@ -2229,6 +2239,8 @@ describe("StatementImportPage pending Category Rule saves", () => {
     const pattern = screen.getByRole("textbox", {
       name: "Pattern for Green Market Cafe",
     });
+    fireEvent.click(screen.getByRole("combobox", { name: "Match type for Green Market Cafe" }));
+    fireEvent.click(screen.getByRole("option", { name: "Contains" }));
     fireEvent.change(pattern, { target: { value: "Green Market Cafe" } });
     fireEvent.click(
       within(table).getByRole("button", {
@@ -2247,6 +2259,8 @@ describe("StatementImportPage pending Category Rule saves", () => {
     ).toBe("checked");
     expect(categoryRulePostCount(fetchMock)).toBe(0);
 
+    fireEvent.click(screen.getByRole("combobox", { name: "Match type for Green Market Cafe" }));
+    fireEvent.click(screen.getByRole("option", { name: "Contains" }));
     fireEvent.change(pattern, { target: { value: "Cafe" } });
     fireEvent.click(
       within(table).getByRole("button", {
@@ -2299,8 +2313,10 @@ describe("StatementImportPage pending Category Rule saves", () => {
     const pattern = within(dialog).getByRole("textbox", {
       name: "Pattern for Green Market Cafe",
     });
+    fireEvent.click(screen.getByRole("combobox", { name: "Match type for Green Market Cafe" }));
+    fireEvent.click(screen.getByRole("option", { name: "Contains" }));
     fireEvent.change(pattern, { target: { value: "Cafe" } });
-    fireEvent.click(within(dialog).getByRole("button", { name: "Save changes" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Apply & remember" }));
 
     await waitFor(() => expect(categoryRulePostCount(fetchMock)).toBe(1));
     expect(screen.getByRole("status").textContent).toContain("Saving…");
@@ -2325,7 +2341,7 @@ describe("StatementImportPage pending Category Rule saves", () => {
       within(pendingDialog).getByRole("button", { name: "Cancel" }),
     ).toHaveProperty("disabled", true);
     expect(
-      within(pendingDialog).getByRole("button", { name: "Save changes" }),
+      within(pendingDialog).getByRole("button", { name: "Apply & remember" }),
     ).toHaveProperty("disabled", true);
     expect(
       within(pendingDialog).getByRole("button", { name: "Close dialog" }),

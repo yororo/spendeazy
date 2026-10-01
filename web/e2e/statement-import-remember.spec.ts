@@ -1,0 +1,82 @@
+import { expect, test } from "@playwright/test";
+import { statementPdf } from "./fictional-repeat-statement";
+import { authorizationHeaders, createNewLocalTestUser, isRecord, requireEnvironment } from "./test-helpers";
+
+for (const width of [320, 390, 1440]) {
+  test(`Remember survives uncertain completion, retry and draft discard at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/");
+    const token = await createNewLocalTestUser(page);
+    await expect(page.getByRole("heading", { name: "Your spending at a glance" })).toBeVisible();
+    const base = `${requireEnvironment("SPENDEAZY_E2E_API_BASE_URL")}/api/v1/users/me`;
+    const headers = authorizationHeaders(token);
+    const spaces: unknown = await (await page.request.get(`${base}/spaces`, { headers })).json();
+    if (!Array.isArray(spaces) || !isRecord(spaces[0]) || typeof spaces[0].id !== "string") throw new Error("Expected Personal Space");
+    const scoped = `${base}/spaces/${spaces[0].id}`;
+    const categories: unknown = await (await page.request.get(`${scoped}/categories`, { headers })).json();
+    if (!Array.isArray(categories) || !isRecord(categories[0]) || typeof categories[0].id !== "string" || typeof categories[0].name !== "string") throw new Error("Expected Category");
+    const category = categories[0];
+    const navigation = page.getByRole("navigation", { name: width < 768 ? "Mobile navigation" : "Primary navigation" });
+    await navigation.getByRole("link", { name: "Imports", exact: true }).click();
+    await page.locator('input[type="file"]').setInputFiles({ name: "fictional-remember.pdf", mimeType: "application/pdf", buffer: statementPdf() });
+    const rows = width < 768 ? page.getByRole("list", { name: "Transactions to categorize" }) : page.getByRole("table");
+    await rows.getByRole("button", { name: "Edit FICTIONAL REPEAT", exact: true }).click();
+    const editor = width < 768 ? page.getByRole("dialog", { name: "Edit Transaction" }) : rows;
+    await editor.getByRole("combobox", { name: "Category for FICTIONAL REPEAT", exact: true }).click();
+    await page.getByRole("option", { name: category.name as string, exact: true }).click();
+    const remember = editor.getByRole("checkbox", { name: "Remember this category" });
+    await expect(remember).not.toBeChecked();
+    await remember.check();
+    await expect(editor.getByRole("combobox", { name: "Match type for FICTIONAL REPEAT", exact: true })).toHaveText("Exact");
+    await expect(editor.getByText("3 matching rows in this statement", { exact: true })).toBeVisible();
+    await editor.getByRole("combobox", { name: "Match type for FICTIONAL REPEAT", exact: true }).click();
+    await page.getByRole("option", { name: "Contains", exact: true }).click();
+    await expect(editor.getByText("4 matching rows in this statement", { exact: true })).toBeVisible();
+    await editor.getByRole("combobox", { name: "Match type for FICTIONAL REPEAT", exact: true }).click();
+    await page.getByRole("option", { name: "Exact", exact: true }).click();
+    let attempts = 0;
+    await page.route("**/category-rules", async (route) => {
+      if (route.request().method() !== "POST") return route.continue();
+      attempts += 1;
+      if (attempts === 1) {
+        // The real API commits, but its response is lost before the browser sees it.
+        await route.fetch();
+        return route.abort("connectionreset");
+      }
+      await route.continue();
+    });
+    await editor.getByRole("button", { name: "Apply & remember", exact: true }).click();
+    await expect(editor.getByText(/The save may have completed/)).toBeVisible();
+    await expect(editor.getByRole("combobox", { name: "Category for FICTIONAL REPEAT", exact: true })).toContainText(category.name as string);
+    const savedBeforeConfirmation: unknown = await (await page.request.get(`${scoped}/category-rules`, { headers })).json();
+    expect(isRecord(savedBeforeConfirmation) && Array.isArray(savedBeforeConfirmation.rules) ? savedBeforeConfirmation.rules.length : null).toBe(1);
+    await editor.getByRole("button", { name: "Retry", exact: true }).click();
+    await expect(page.getByRole("status").filter({ hasText: "Category Rule saved for future imports" })).toBeVisible();
+    expect(attempts).toBe(2);
+    const savedAfterRetry: unknown = await (await page.request.get(`${scoped}/category-rules`, { headers })).json();
+    expect(savedAfterRetry).toEqual(savedBeforeConfirmation);
+    await rows.getByRole("button", { name: "Edit FICTIONAL REPEAT", exact: true }).click();
+    await expect(editor.getByText("An equivalent Rule already remembers this Category for future imports.", { exact: true })).toBeVisible();
+    const otherCategory = categories[1];
+    if (!isRecord(otherCategory) || typeof otherCategory.name !== "string") throw new Error("Expected another Category");
+    await editor.getByRole("combobox", { name: "Category for FICTIONAL REPEAT", exact: true }).click();
+    await page.getByRole("option", { name: otherCategory.name, exact: true }).click();
+    await remember.check();
+    await editor.getByRole("button", { name: "Apply & remember", exact: true }).click();
+    await expect(editor.getByRole("alert")).toContainText(`Existing Category: “${category.name as string}”`);
+    expect(attempts).toBe(2);
+    await editor.getByRole("button", { name: "Apply without remembering" }).click();
+    expect(await (await page.request.get(`${scoped}/category-rules`, { headers })).json()).toEqual(savedBeforeConfirmation);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await navigation.getByRole("link", { name: "Dashboard", exact: true }).click();
+    const leave = page.getByRole("dialog", { name: "Leave Statement Import?" });
+    await expect(leave).toContainText("Category Rules already saved remain for future imports");
+    await leave.getByRole("button", { name: "Leave Categorize", exact: true }).click();
+    expect(await (await page.request.get(`${scoped}/category-rules`, { headers })).json()).toEqual(savedBeforeConfirmation);
+    const imports: unknown = await (await page.request.get(`${scoped}/statement-imports`, { headers })).json();
+    expect(isRecord(imports) ? imports.items : null).toEqual([]);
+    const otherToken = await createNewLocalTestUser(page);
+    expect((await page.request.get(`${scoped}/category-rules`, { headers: authorizationHeaders(otherToken) })).status()).toBe(403);
+    expect((await page.request.post(`${scoped}/category-rules`, { headers: authorizationHeaders(otherToken), data: { categoryId: category.id, pattern: "Foreign Rule", matchType: "exact" } })).status()).toBe(403);
+  });
+}

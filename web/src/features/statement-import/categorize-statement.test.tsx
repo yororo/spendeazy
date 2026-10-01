@@ -75,6 +75,27 @@ const categoryRules: readonly CategoryRule[] = [
   { id: "2", categoryId: "43", pattern: "Market", matchType: "contains" },
 ];
 
+it("offers an unchecked Exact Rule, previews matches, and recovers without remembering", async () => {
+  const remember = vi.fn(async () => { throw new Error("Connection lost"); });
+  render(<CategorizeHarness onRememberCategoryRule={remember} />);
+  const table = getDesktopTable();
+  fireEvent.click(within(table).getByRole("button", { name: "Edit Green Market Cafe" }));
+  const checkbox = within(table).getByRole("checkbox", { name: "Remember this category" });
+  expect(checkbox.getAttribute("aria-checked")).toBe("false");
+  fireEvent.click(within(table).getByRole("combobox", { name: "Category for Green Market Cafe" }));
+  fireEvent.click(screen.getByRole("option", { name: "Housing" }));
+  fireEvent.click(checkbox);
+  expect(within(table).getByRole("combobox", { name: "Match type for Green Market Cafe" }).textContent).toContain("Exact");
+  expect(within(table).getByText("1 matching row in this statement")).toBeTruthy();
+  fireEvent.click(within(table).getByRole("button", { name: "Apply & remember" }));
+  expect(await screen.findByText(/The save may have completed/)).toBeTruthy();
+  expect(within(table).getByRole("button", { name: "Retry" })).toBeTruthy();
+  fireEvent.click(within(table).getByRole("button", { name: "Apply without remembering" }));
+  await waitFor(() => expect(within(table).queryByRole("checkbox", { name: "Remember this category" })).toBeNull());
+  expect(remember).toHaveBeenCalledTimes(1);
+  expect(within(table).getByText("Housing")).toBeTruthy();
+});
+
 type RememberCategoryRuleHandler = (
   input: RememberCategoryRuleInput,
   existingRules: readonly CategoryRule[],
@@ -1168,7 +1189,10 @@ describe("CategorizeStatement ambiguity handling", () => {
       name: "Description for Green Market Cafe",
     });
 
-    expect(matchType.textContent).toContain("Contains");
+    expect(matchType.textContent).toContain("Exact");
+    expect(pattern).toHaveProperty("disabled", true);
+    fireEvent.click(matchType);
+    fireEvent.click(screen.getByRole("option", { name: "Contains" }));
     expect(pattern).toHaveProperty("value", "Green Market Cafe");
     expect(
       Boolean(
@@ -1235,6 +1259,8 @@ describe("CategorizeStatement ambiguity handling", () => {
         name: "Remember this category",
       }),
     );
+    fireEvent.click(within(editor).getByRole("combobox", { name: "Match type for Green Market Cafe" }));
+    fireEvent.click(screen.getByRole("option", { name: "Contains" }));
     fireEvent.change(
       within(editor).getByRole("textbox", {
         name: "Pattern for Green Market Cafe",
@@ -1242,7 +1268,7 @@ describe("CategorizeStatement ambiguity handling", () => {
       { target: { value: "  Cafe  " } },
     );
     fireEvent.click(
-      within(editor).getByRole("button", { name: "Save changes" }),
+      within(editor).getByRole("button", { name: "Apply & remember" }),
     );
 
     await waitFor(() => {
@@ -1254,6 +1280,7 @@ describe("CategorizeStatement ambiguity handling", () => {
       { pattern: "CAFE", categoryId: "42", matchType: "contains" },
       categoryRules,
     );
+    expect(screen.getByRole("status").textContent).toContain("Category Rule saved for future imports");
 
     const directItem = within(mobileList)
       .getByText("Green Market Cafe")
@@ -1304,7 +1331,7 @@ describe("CategorizeStatement ambiguity handling", () => {
       { target: { value: "  Cafe  " } },
     );
     fireEvent.click(
-      within(editor).getByRole("button", { name: "Save changes" }),
+      within(editor).getByRole("button", { name: "Apply & remember" }),
     );
 
     expect(await screen.findByText("Rule service unavailable.")).toBeTruthy();
@@ -1378,7 +1405,7 @@ describe("CategorizeStatement ambiguity handling", () => {
       { target: { value: "   " } },
     );
     fireEvent.click(
-      within(editor).getByRole("button", { name: "Save changes" }),
+      within(editor).getByRole("button", { name: "Apply & remember" }),
     );
 
     expect(
@@ -1561,6 +1588,8 @@ describe("CategorizeStatement ambiguity handling", () => {
       }),
     );
 
+    fireEvent.click(screen.getByRole("combobox", { name: "Match type for Green Market Cafe" }));
+    fireEvent.click(screen.getByRole("option", { name: "Contains" }));
     const descriptionInput = within(desktopTable).getByRole("textbox", {
       name: "Description for Green Market Cafe",
     });

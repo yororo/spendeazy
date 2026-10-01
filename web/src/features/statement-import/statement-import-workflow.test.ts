@@ -412,6 +412,7 @@ describe("Statement Import workflow", () => {
       category: "42",
     });
     workflow.changeRememberRule(true);
+    workflow.changeRememberedMatchType("contains");
     workflow.changeRememberedPattern("ABC");
 
     await expect(workflow.saveEdit()).resolves.toBe("saved");

@@ -1,0 +1,52 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+5 0 obj
+<< /Length 763 >>
+stream
+BT /F1 11 Tf 16 TL 40 750 Td
+(Statement of Account) Tj T*
+(BDO AMEX \(PHP\)) Tj T*
+(Statement Date August 31, 2026) Tj T*
+(Total Amount Due 2000.01) Tj T*
+(Previous Balance 0.00) Tj T*
+(Purchases and Advances \(+\) 2000.01) Tj T*
+(Finance Charge \(+\) 0.00) Tj T*
+(Fees/Other Debits \(+\) 0.00) Tj T*
+(Late Charge \(+\) 0.00) Tj T*
+(Payments/Other Credits \(-\) 0.00) Tj T*
+(Sale Date Post Date Transaction Details Amount) Tj T*
+(PREVIOUS STATEMENT BALANCE 0.00) Tj T*
+(CARD NUMBER 1111-222233-33444) Tj T*
+(07/31/26 08/01/26 Fictional Journey 1000.00) Tj T*
+(08/01/26 08/02/26 FICTIONAL JOURNEY 400.00) Tj T*
+(08/02/26 08/03/26 Fictional Journey 400.00) Tj T*
+(08/03/26 08/04/26 Fictional Separate 200.01) Tj T*
+(SUBTOTAL 2000.01) Tj T*
+(TOTAL 2000.01) Tj T*
+ET
+endstream
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000241 00000 n 
+0000000311 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+1124
+%%EOF

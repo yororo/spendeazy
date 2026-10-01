@@ -40,6 +40,17 @@ test("switches the Categories browser view to a seeded Shared Space", async ({
       body: JSON.stringify([personalSpace, sharedSpace]),
     });
   });
+  // This is a mocked Space-switching test. Its Personal Space ID must not
+  // accidentally depend on PostgreSQL sequence values or another test's User.
+  await page.route("**/api/v1/users/me/spaces/1/categories", (route) =>
+    route.fulfill({ json: [] }),
+  );
+  await page.route("**/api/v1/users/me/spaces/1/category-summaries**", (route) =>
+    route.fulfill({ json: {
+      period: "monthly", year: "2026", month: "09", categories: [],
+      uncategorizedTotal: "0.00", uncategorizedCount: "0",
+    } }),
+  );
   await page.route(
     "**/api/v1/users/me/spaces/99/categories",
     async (route) => {

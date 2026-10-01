@@ -273,6 +273,14 @@ Incorrect generic coupling:
 
 ## Source inconsistencies and decisions
 
+The integrated spending journey uses the detailed references linked below:
+`statement-categorization.pen` for assignment/Remember, `statement-transactions.pen`
+for committed-statement scope, `monthly-insights.pen` for monitoring and return
+actions, and `chart-inspection.pen` for accessible details. These refine the
+original overview frames in `ui-design.pen`; its Review frames retain read-only
+grouping and expense language. Follow this document's four-tab phone navigation,
+semantic tokens, exact Budget states, and viewport rules across all references.
+
 | Source inconsistency                                                   | Implemented decision                                                                                                            |
 | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
 | Two overlapping Dashboard frames                                       | Use the version headed “Your spending at a glance,” including Budget Used                                                       |

@@ -50,11 +50,26 @@ database user/password, volume, and loopback ports for every invocation:
 node .\scripts\local-test-launcher.mjs --e2e
 ```
 
-It starts the same real browser/API/database path, runs the Playwright smoke
-test, and removes only that run's Compose project and database volume when
+It starts the same real browser/API/database path, runs the API's PostgreSQL
+Statement Import rollback/duplicate tests and the Playwright browser suite,
+and removes only that run's Compose project and database volume when
 finished, including after a test failure. It never removes the persistent
 manual volume or an unrelated Compose project. A port or readiness failure is
 reported and returns a failing exit status.
+
+The rollback tests receive only the launcher's disposable database URL through
+`TEST_STATEMENT_IMPORT_ROLLBACK_DATABASE_URL`. They run before browser tests,
+create their own Users/Spaces, and remove their test records and failure trigger.
+This keeps atomic confirmation protection active rather than silently skipped
+by the default API suite.
+
+`web/e2e/spending-journey.spec.ts` joins the feature acceptance tests into one
+Personal Space journey at 320px, 390px, and 1440px: real encrypted PDF unlock,
+individual Remember, bulk assignment, exclusion/re-inclusion, read-only Review,
+confirmation, statement-scoped Transactions across two months, restoration of
+the prior Reporting Period, Insights Transaction/Budget actions and return,
+keyboard chart details, and repeated-file confirmation rejection. Its committed
+fictional PDFs and reconciliation ledger live in `web/e2e/fixtures/`.
 
 The automated clock is fixed at `2026-09-19T12:00:00.000Z` by default. Set
 `SPENDEAZY_E2E_TEST_CLOCK` to another explicit ISO-8601 UTC timestamp when

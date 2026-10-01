@@ -117,7 +117,7 @@ test("keeps Personal recent history concise", async ({ page }) => {
     });
   });
   await page.route(
-    "**/api/v1/users/me/categories",
+    "**/api/v1/users/me/spaces/1/categories",
     async (route) => {
       await route.fulfill({
         contentType: "application/json",
@@ -126,7 +126,7 @@ test("keeps Personal recent history concise", async ({ page }) => {
     },
   );
   await page.route(
-    "**/api/v1/users/me/category-rules",
+    "**/api/v1/users/me/spaces/1/category-rules",
     async (route) => {
       await route.fulfill({
         contentType: "application/json",

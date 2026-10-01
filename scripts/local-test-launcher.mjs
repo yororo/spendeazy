@@ -143,6 +143,19 @@ async function main() {
     console.log("Press Ctrl+C to stop the API, web server, and test database.");
 
     if (isE2e) {
+      // Exercise failure after a later database write against this run's
+      // PostgreSQL instance; the default API suite otherwise skips this seam.
+      await run(
+        "npm",
+        npmArguments("run", "test:e2e", "--", "--runInBand", "--runTestsByPath", "test/statement-import-rollback-postgres.e2e-spec.ts"),
+        {
+          cwd: apiDirectory,
+          env: {
+            ...apiEnvironment,
+            TEST_STATEMENT_IMPORT_ROLLBACK_DATABASE_URL: databaseUrl,
+          },
+        },
+      );
       await run("npm", npmArguments("run", "test:e2e"), {
         cwd: webDirectory,
         env: {

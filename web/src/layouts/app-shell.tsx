@@ -11,6 +11,8 @@ import { SpaceLabelProvider } from "@/shared/ui";
 import { MobileTabBar } from "@/components/app/mobile-tab-bar";
 import { PrimarySidebar } from "@/components/app/primary-sidebar";
 import { SpaceSwitcher } from "@/components/app/space-switcher";
+import { DashboardThemePrototype } from "@/components/app/dashboard-theme-prototype";
+import "@/components/app/dashboard-theme-prototype.css";
 import {
   buildCanonicalSpaceSearch,
   getPersonalSpace,
@@ -61,6 +63,8 @@ function AppShellContent() {
   const spacesQuery = useAccessibleSpacesQuery(true);
   const location = useLocation();
   const { pathname } = location;
+  const prototypeVariant = new URLSearchParams(location.search).get("variant");
+  const showThemePrototype = import.meta.env.DEV && pathname === "/" && (prototypeVariant === "muted" || prototypeVariant === "technical");
   const isHistoryRoute = pathname === "/history";
   const navigate = useNavigate();
   const { requestNavigation } = useNavigationGuard();
@@ -215,7 +219,7 @@ function AppShellContent() {
   return (
     <SpaceLabelProvider spaces={spacesQuery.data}>
     <div
-      className="min-h-screen bg-background lg:flex lg:h-screen lg:overflow-hidden"
+      className={`min-h-screen bg-background lg:flex lg:h-screen lg:overflow-hidden${showThemePrototype && prototypeVariant === "muted" ? " dashboard-theme-prototype" : ""}`}
       onClickCapture={handleNavigationClickCapture}
     >
       <aside className="hidden h-screen w-56 shrink-0 self-start lg:sticky lg:top-0 lg:block">
@@ -278,6 +282,7 @@ function AppShellContent() {
         </main>
       </div>
       <MobileTabBar />
+      {showThemePrototype && <DashboardThemePrototype />}
     </div>
     </SpaceLabelProvider>
   );

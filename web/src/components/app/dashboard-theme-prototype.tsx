@@ -33,7 +33,7 @@ function DashboardThemePrototype() {
   return (
     <div role="region" className="dashboard-prototype-switcher" aria-label="Dashboard theme prototype">
       <button type="button" onClick={toggle} aria-label="Previous theme"><ArrowLeftIcon size={18} /></button>
-      <span role="status"><small>PROTOTYPE · SAME DATA / LAYOUT</small>{muted ? "Muted Playful" : "Current Technical"}</span>
+      <span role="status"><small>PROTOTYPE · SAME DATA / LAYOUT</small>{muted ? "Muted Blue" : "Current Technical"}</span>
       <button type="button" onClick={toggle} aria-label="Next theme"><ArrowRightIcon size={18} /></button>
     </div>
   );

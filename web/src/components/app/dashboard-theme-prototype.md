@@ -4,8 +4,9 @@ Question: how does the current Dashboard feel with the **Dashboard — Monthly
 Expenses — Playful Theme - muted** treatment from `design/ui-design.pen`?
 
 This is a theme comparison on the existing Dashboard, rather than a layout
-exploration. The requested design supplies the cream, lavender, pastel surfaces,
-Nunito typography, rounded panels, and purple actions. Current Dashboard content,
+exploration. The reference supplies Nunito typography and rounded panels. The
+requested refinement simplifies its palette to cool neutral and pale blue surfaces
+with blue actions and charts. Current Dashboard content,
 financial calculations, Category Colors, and responsive structure are retained.
 
 From `web/`, run `npm run prototype:dashboard` with the normal development

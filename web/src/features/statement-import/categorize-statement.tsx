@@ -61,6 +61,7 @@ import {
 import { formatMoney } from "@/shared/money";
 
 import { ImportProgress } from "./import-progress";
+import { BulkCategoryPreview } from "./bulk-category-preview";
 import {
   formatImportDate,
   formatTransactionHistoryPeriod,
@@ -119,6 +120,7 @@ interface CategorizeStatementProps {
   onChangeRememberedPattern: (pattern: string) => boolean;
   onSaveEdit: () => Promise<readonly CategorizedTransaction[] | null>;
   onToggleTransactionExclusion: (transactionId: string) => boolean;
+  onApplyBulkCategory: (sourceId: string, selectedIds: readonly string[], categoryId: string) => boolean;
   onBack: () => void;
   onReview: () => void;
 }
@@ -144,6 +146,7 @@ function CategorizeStatement({
   onChangeRememberedPattern,
   onSaveEdit,
   onToggleTransactionExclusion,
+  onApplyBulkCategory,
   onBack,
   onReview,
 }: CategorizeStatementProps) {
@@ -869,6 +872,14 @@ function CategorizeStatement({
                         {transaction.isExcluded && <Badge variant="muted">Excluded</Badge>}
                       </div>
 
+                      <BulkCategoryPreview
+                        source={transaction}
+                        transactions={transactions}
+                        categoryOptions={categoryOptions}
+                        categoryLabels={categoryLabels}
+                        disabled={isEditing}
+                        onApply={onApplyBulkCategory}
+                      />
                       <div className="flex items-stretch gap-2">
                         <button
                           type="button"
@@ -1058,6 +1069,14 @@ function CategorizeStatement({
                         </TableCell>
                         <TableCell>
                           <div className="flex justify-end gap-1">
+                            <BulkCategoryPreview
+                              source={transaction}
+                              transactions={transactions}
+                              categoryOptions={categoryOptions}
+                              categoryLabels={categoryLabels}
+                              disabled={isEditing}
+                              onApply={onApplyBulkCategory}
+                            />
                             <Button
                               type="button"
                               variant="ghost"

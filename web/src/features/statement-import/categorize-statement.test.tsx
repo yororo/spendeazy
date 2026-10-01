@@ -191,6 +191,38 @@ function getDesktopTable() {
   });
 }
 
+it("previews normalized repeats and permits deselection and explicit replacement without remembering", () => {
+  const remember = vi.fn();
+  render(<CategorizeHarness onRememberCategoryRule={remember} initialTransactions={[
+    unmappedTransaction,
+    { ...unmappedTransaction, id: "repeat", description: " GREEN  market cafe ", transactionDate: new Date("2026-08-28T00:00:00Z") },
+    { ...unmappedTransaction, id: "reviewed", categoryId: "42", assignment: "manual" },
+    { ...unmappedTransaction, id: "excluded", isExcluded: true },
+    { ...unmappedTransaction, id: "punctuation", description: "Green Market Cafe!" },
+    { ...ambiguousTransaction, id: "ambiguous-repeat" },
+  ]} />);
+  fireEvent.click(screen.getAllByRole("button", { name: "Categorize repeats of Green Market Cafe" })[0]);
+  const preview = screen.getByRole("dialog", { name: "Categorize repeated descriptions" });
+  expect(within(preview).getByRole("status").textContent).toBe("2 of 5 matching rows selected");
+  const boxes = within(preview).getAllByRole("checkbox");
+  expect(boxes[3].hasAttribute("disabled")).toBe(true);
+  expect(boxes[4].getAttribute("aria-checked")).toBe("false");
+  fireEvent.click(boxes[1]);
+  fireEvent.click(boxes[0]);
+  expect(within(preview).getByRole("button", { name: "Apply to 0 expenses" }).hasAttribute("disabled")).toBe(true);
+  fireEvent.click(boxes[0]);
+  fireEvent.click(boxes[2]);
+  fireEvent.click(within(preview).getByRole("combobox", { name: "Category for selected expenses" }));
+  fireEvent.click(screen.getByRole("option", { name: "Groceries" }));
+  fireEvent.click(within(preview).getByRole("button", { name: "Apply to 2 expenses" }));
+  expect(screen.queryByRole("dialog", { name: "Categorize repeated descriptions" })).toBeNull();
+  expect(remember).not.toHaveBeenCalled();
+  fireEvent.click(screen.getAllByRole("button", { name: "Categorize repeats of Green Market Cafe" })[0]);
+  const reopened = screen.getByRole("dialog", { name: "Categorize repeated descriptions" });
+  expect(within(reopened).getByRole("status").textContent).toBe("1 of 5 matching rows selected");
+  expect(within(reopened).getAllByText("Replace Groceries")).toHaveLength(2);
+});
+
 describe("CategorizeStatement ambiguity handling", () => {
   it("prepares suggestions in the background once per normalized description", async () => {
     const getCategorySuggestion = vi.fn(() => new Promise<null>(() => {}));

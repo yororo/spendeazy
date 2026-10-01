@@ -4,6 +4,10 @@ import type {
 } from "./statement-categorizer";
 import { ApiError } from "@/shared/api";
 import {
+  getRepeatedStatementTransactions,
+  isBulkAssignableExpense,
+} from "./bulk-category-assignment";
+import {
   categorizeTransactions,
   type CategoryCatalogOption,
   type CategoryColorOption,
@@ -721,6 +725,46 @@ class StatementImportWorkflow {
       editor: emptyEditor(),
     }));
     return "saved";
+  }
+
+  applyBulkCategory(
+    sourceId: string,
+    selectedIds: readonly string[],
+    categoryId: string,
+  ) {
+    const { statement, editor, stage } = this.state;
+    if (
+      this.destroyed || stage !== "categorize" || !statement ||
+      editor.editingId !== null || editor.isSaving
+    ) return false;
+    if (!this.dependencies.getCategoryOptions().some(
+      (category) => category.value === categoryId,
+    )) return false;
+    const source = statement.transactions.find(
+      (transaction) => transaction.id === sourceId,
+    );
+    if (!source || !isBulkAssignableExpense(source)) return false;
+    const selected = new Set(selectedIds);
+    if (selected.size === 0) return false;
+    const eligibleIds = new Set(
+      getRepeatedStatementTransactions(statement.transactions, source)
+        .filter(isBulkAssignableExpense)
+        .map((transaction) => transaction.id),
+    );
+    if ([...selected].some((id) => !eligibleIds.has(id))) return false;
+
+    this.updateState((current) => ({
+      ...current,
+      statement: {
+        ...statement,
+        transactions: statement.transactions.map((transaction) =>
+          selected.has(transaction.id)
+            ? { ...transaction, categoryId, assignment: "manual", matchedCategoryIds: [] }
+            : transaction,
+        ),
+      },
+    }));
+    return true;
   }
 
   toggleTransactionExclusion(transactionId: string) {

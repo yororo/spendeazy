@@ -91,6 +91,7 @@ function CategorizeStatementAdapter({
       onToggleTransactionExclusion={(transactionId) =>
         workflow.toggleTransactionExclusion(transactionId)
       }
+      onApplyBulkCategory={(sourceId, selectedIds, categoryId) => workflow.applyBulkCategory(sourceId, selectedIds, categoryId)}
       onBack={onBack}
       onReview={onReview}
     />

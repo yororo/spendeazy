@@ -221,6 +221,111 @@
           "fill": "#000000"
         }
       ]
+    },
+    {
+      "y": 0,
+      "layout": "vertical",
+      "x": 440,
+      "height": 650,
+      "name": "Categorize — Repeated description preview",
+      "gap": 16,
+      "id": "s81preview",
+      "padding": 24,
+      "width": 390,
+      "children": [
+        {
+          "fontFamily": "Geist Mono",
+          "fontSize": 14,
+          "type": "text",
+          "fill": "#000000",
+          "textGrowth": "fixed-width",
+          "content": "Categorize repeated descriptions",
+          "width": "fill_container",
+          "id": "s81text0"
+        },
+        {
+          "fontFamily": "Geist Mono",
+          "fontSize": 14,
+          "type": "text",
+          "fill": "#000000",
+          "textGrowth": "fixed-width",
+          "content": "2 of 4 matching rows selected",
+          "width": "fill_container",
+          "id": "s81text1"
+        },
+        {
+          "fontFamily": "Geist Mono",
+          "fontSize": 14,
+          "type": "text",
+          "fill": "#000000",
+          "textGrowth": "fixed-width",
+          "content": "[x] Fictional Cafe · Aug 01 · ₱10.00 · Unmapped",
+          "width": "fill_container",
+          "id": "s81text2"
+        },
+        {
+          "fontFamily": "Geist Mono",
+          "fontSize": 14,
+          "type": "text",
+          "fill": "#000000",
+          "textGrowth": "fixed-width",
+          "content": "[x] FICTIONAL CAFE · Aug 02 · ₱20.00 · Unmapped",
+          "width": "fill_container",
+          "id": "s81text3"
+        },
+        {
+          "fontFamily": "Geist Mono",
+          "fontSize": 14,
+          "type": "text",
+          "fill": "#000000",
+          "textGrowth": "fixed-width",
+          "content": "[ ] Fictional Cafe · Aug 03 · ₱30.00 · Replace Dining",
+          "width": "fill_container",
+          "id": "s81text4"
+        },
+        {
+          "fontFamily": "Geist Mono",
+          "fontSize": 14,
+          "type": "text",
+          "fill": "#000000",
+          "textGrowth": "fixed-width",
+          "content": "[ ] Fictional Cafe · Aug 04 · ₱40.00 · Excluded (disabled)",
+          "width": "fill_container",
+          "id": "s81text5"
+        },
+        {
+          "fontFamily": "Geist Mono",
+          "fontSize": 14,
+          "type": "text",
+          "fill": "#000000",
+          "textGrowth": "fixed-width",
+          "content": "Category for selected expenses: Groceries",
+          "width": "fill_container",
+          "id": "s81text6"
+        },
+        {
+          "fontFamily": "Geist Mono",
+          "fontSize": 14,
+          "type": "text",
+          "fill": "#000000",
+          "textGrowth": "fixed-width",
+          "content": "Cancel                         Apply to 2 expenses",
+          "width": "fill_container",
+          "id": "s81text7"
+        },
+        {
+          "fontFamily": "Geist Mono",
+          "fontSize": 14,
+          "type": "text",
+          "fill": "#000000",
+          "textGrowth": "fixed-width",
+          "content": "Manual assignment in this statement; no Category Rule",
+          "width": "fill_container",
+          "id": "s81text8"
+        }
+      ],
+      "fill": "#FFFFFF",
+      "type": "frame"
     }
   ]
 }

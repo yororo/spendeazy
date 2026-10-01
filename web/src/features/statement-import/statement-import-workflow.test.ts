@@ -136,6 +136,38 @@ function withTransaction(
   return { ...transaction, ...overrides };
 }
 
+it("bulk assigns only explicitly selected matching included expenses through Review and commit", async () => {
+  const remember = vi.fn();
+  const commit = vi.fn<CommitStatementImport>(async () => committedImport);
+  const workflow = createWorkflow(remember, commit);
+  acceptStatement(workflow, [
+    transaction,
+    withTransaction({ id: "repeat", description: "  GREEN   market cafe " }),
+    withTransaction({ id: "reviewed", categoryId: "43", assignment: "manual" }),
+    withTransaction({ id: "excluded", isExcluded: true }),
+    withTransaction({ id: "punctuation", description: "Green Market Cafe!", categoryId: "43", assignment: "rule" }),
+    withTransaction({ id: "credit", amount: 25.5, isExcluded: true }),
+  ]);
+  expect(workflow.applyBulkCategory("transaction-1", [], "42")).toBe(false);
+  expect(workflow.applyBulkCategory("transaction-1", ["excluded"], "42")).toBe(false);
+  expect(workflow.applyBulkCategory("transaction-1", ["punctuation"], "42")).toBe(false);
+  expect(workflow.applyBulkCategory("transaction-1", ["transaction-1"], "42")).toBe(true);
+  expect(workflow.getSnapshot().statement?.transactions[1].categoryId).toBeNull();
+  expect(workflow.getSnapshot().statement?.transactions[2].categoryId).toBe("43");
+  expect(workflow.applyBulkCategory("repeat", ["repeat", "reviewed"], "42")).toBe(true);
+  expect(workflow.getSnapshot().statement?.transactions.map(({ categoryId, assignment, isExcluded }) =>
+    [categoryId, assignment, isExcluded],
+  )).toEqual([
+    ["42", "manual", false], ["42", "manual", false], ["42", "manual", false],
+    [null, "unmapped", true], ["43", "rule", false], [null, "unmapped", true],
+  ]);
+  expect(remember).not.toHaveBeenCalled();
+  expect(workflow.enterReview()).toBe(true);
+  expect(workflow.applyBulkCategory("repeat", ["repeat"], "43")).toBe(false);
+  expect(await workflow.confirmStatementImport(false)).toBe("committed");
+  expect(commit.mock.calls[0]?.[1]).toEqual(workflow.getSnapshot().statement);
+});
+
 function acceptReviewableStatement(
   workflow: ReturnType<typeof createStatementImportWorkflow>,
   transactions: readonly CategorizedTransaction[] = [

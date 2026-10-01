@@ -1,0 +1,51 @@
+{
+  "version": "2.19",
+  "children": [
+    {
+      "type": "frame",
+      "id": "i87select",
+      "name": "Insights — Compact Category comparison",
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 850,
+      "fill": "#FFFFFF",
+      "layout": "vertical",
+      "gap": 20,
+      "padding": 24,
+      "children": [
+        {
+          "type": "text",
+          "id": "i87selectcopy",
+          "content": "Personal · Insights\nSeptember 2026\nSpending by Category\n[Categories to compare · 3 selected ▸]\nGroceries ━ · Transit ┄ · Housing ┈\nStable shared teal colors, labeled line patterns\nOct 25 · Jan 26 · Apr 26 · Jul 26 · Sep 26\n[August 2026] [September 2026] →\nInspect recorded spending [August 2026 ▾]\n[Inspect August 2026]",
+          "fontFamily": "Geist Mono",
+          "fontSize": 14,
+          "fill": "#000000"
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "i87detail",
+      "name": "Insights — Recorded spending inspection",
+      "x": 450,
+      "y": 0,
+      "width": 390,
+      "height": 850,
+      "fill": "#FFFFFF",
+      "layout": "vertical",
+      "gap": 20,
+      "padding": 24,
+      "children": [
+        {
+          "type": "text",
+          "id": "i87detailcopy",
+          "content": "August 2026 recorded spending        [×]\nRecorded contributions, independent of pattern signals\nTotal ₱3,000.00\nBudgeted Spending ₱2,000.00\nUnbudgeted Spending ₱1,000.00\nFull-month states use current Budgets\nGroceries · ₱900.00\nWithin Budget · ₱100.00 remaining\n2026-08-10 · Synthetic groceries · ₱900.00\n[View Groceries month’s Transactions]\n[Edit Groceries Budget]\n[View this month]\n[View full month’s Transactions]\nScrollable dialog above mobile tabs\nClose restores the chart control; inspection preserves September.",
+          "fontFamily": "Geist Mono",
+          "fontSize": 14,
+          "fill": "#000000"
+        }
+      ]
+    }
+  ]
+}

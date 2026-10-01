@@ -127,7 +127,7 @@ test("fits rolling-month Category trend labels across desktop and mobile plot wi
         throw new Error("The Category trend plot was not rendered.");
       }
 
-      const visibleLabels = Array.from(element.children).map((month) => {
+      const visibleLabels = Array.from(element.children).filter(month => getComputedStyle(month).visibility !== "hidden").map((month) => {
         const label = Array.from(month.children).find(
           (child) => child.getClientRects().length > 0,
         );
@@ -153,7 +153,7 @@ test("fits rolling-month Category trend labels across desktop and mobile plot wi
 
     expect(layout.labelsLeft).toBeCloseTo(layout.plotLeft, 0);
     expect(layout.labelsRight).toBeCloseTo(layout.plotRight, 0);
-    expect(layout.visibleLabels).toHaveLength(12);
+    expect(layout.visibleLabels).toHaveLength(5);
     for (let index = 1; index < layout.visibleLabels.length; index += 1) {
       expect(layout.visibleLabels[index]!.left).toBeGreaterThanOrEqual(
         layout.visibleLabels[index - 1]!.right - 0.5,

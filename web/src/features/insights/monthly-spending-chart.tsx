@@ -18,14 +18,16 @@ import type { InsightsMonthlyReport } from "./insights-service";
 
 interface MonthlySpendingChartProps {
   readonly report: InsightsMonthlyReport;
+  readonly onInspect?: (point: string) => void;
 }
 
 const shortMonthFormatter = new Intl.DateTimeFormat("en-US", {
   month: "short",
+  year: "2-digit",
   timeZone: "UTC",
 });
 
-function MonthlySpendingChart({ report }: MonthlySpendingChartProps) {
+function MonthlySpendingChart({ report, onInspect }: MonthlySpendingChartProps) {
   const [showBudgetComparison, setShowBudgetComparison] = useState(true);
   const hasMonthlyBudget = report.monthlyBudgetCents > 0;
   const visibleBudgetComparison = showBudgetComparison && hasMonthlyBudget;
@@ -140,7 +142,8 @@ function MonthlySpendingChart({ report }: MonthlySpendingChartProps) {
                     return (
                       <div
                         key={month.period}
-                        className="relative flex h-full min-w-0 flex-1 items-end"
+                        onClick={() => onInspect?.(month.period)}
+                        className="relative flex h-full min-w-0 flex-1 cursor-pointer items-end"
                       >
                         {segments.map((segment) =>
                           segment === null ? null : (
@@ -195,10 +198,10 @@ function MonthlySpendingChart({ report }: MonthlySpendingChartProps) {
                   return (
                     <span
                       key={month.period}
-                      className="min-w-0 flex-1 text-center"
+                      className={cn("min-w-0 flex-1 text-center", report.months.indexOf(month) % 3 !== 0 && month.period !== report.period && "invisible")}
                     >
                       <span className="hidden sm:inline">{label}</span>
-                      <span className="sm:hidden">{label.slice(0, 1)}</span>
+                      <span className="sm:hidden">{label}</span>
                     </span>
                   );
                 })}
@@ -206,6 +209,9 @@ function MonthlySpendingChart({ report }: MonthlySpendingChartProps) {
             </div>
           </div>
 
+          <div role="group" aria-label="Inspect chart points" className="mt-3 flex gap-2 overflow-x-auto pb-2">
+            {report.months.map(point => <button id={"insights-point-" + point.period} key={point.period} type="button" className="focus-ledger min-h-10 shrink-0 border border-border px-3 text-sm" onClick={() => onInspect?.(point.period)} >{formatReportingPeriod(point.period)}</button>)}
+          </div>
           <ul
             aria-label="Categories in chart"
             className="mt-2 flex flex-wrap gap-x-4 gap-y-2"

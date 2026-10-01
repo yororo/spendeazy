@@ -1,6 +1,6 @@
 import { type BudgetReviewHistory } from "@/shared/budget";
 import { useEffect, useRef, useState } from "react";
-import { restorePageScroll, type PageScrollPosition } from "@/shared/ui/page-scroll";
+import { capturePageScroll, restorePageScroll, type PageScrollPosition } from "@/shared/ui/page-scroll";
 
 import {
   FeatureDataError,
@@ -17,6 +17,7 @@ import {
   type ReportingPeriod,
 } from "@/shared/reporting-period";
 
+import { SpendingInspection } from "./spending-inspection";
 import { DailySpendingChart } from "./daily-spending-chart";
 import { CategorySpendingChart } from "./category-spending-chart";
 import { MonthlyCategoryRankings } from "./monthly-category-rankings";
@@ -29,6 +30,7 @@ import { SpendingPatternEvidence } from "./spending-pattern-evidence";
 interface InsightsReturnContext {
   readonly scroll: PageScrollPosition;
   readonly focusId: string;
+  readonly view?: InsightsView;
 }
 
 interface InsightsPageProps {
@@ -36,12 +38,16 @@ interface InsightsPageProps {
   readonly spaceId?: string;
   readonly onSpaceChange?: (spaceId?: string) => void;
   readonly onManageBudgets?: () => void;
-  readonly onViewTransactions?: (categoryId: string | undefined, period: ReportingPeriod, spaceId?: string) => void;
-  readonly onEditBudget?: (categoryId: string, period: ReportingPeriod, spaceId?: string, evidence?: BudgetReviewHistory) => void;
+  readonly onViewTransactions?: (categoryId: string | undefined, period: ReportingPeriod, spaceId?: string, origin?: InsightsReturnContext) => void;
+  readonly onEditBudget?: (categoryId: string, period: ReportingPeriod, spaceId?: string, evidence?: BudgetReviewHistory, returnFocusId?: string) => void;
 }
 
 function InsightsPage({ spaceId, onSpaceChange, onManageBudgets, onViewTransactions, onEditBudget, returnContext }: InsightsPageProps = {}) {
-  const [view, setView] = useState<InsightsView>("monthly");
+  const [inspection, setInspection] = useState<{ point: string; triggerId: string; open: boolean } | null>(null);
+  function inspectPoint(point: string, triggerId = "insights-point-" + point) {
+    setInspection({ point, triggerId, open: true });
+  }
+  const [view, setView] = useState<InsightsView>(returnContext?.view ?? "monthly");
   const { period } = useReportingPeriod();
   const shouldResolvePersonalSpace = onSpaceChange !== undefined;
   const spacesQuery = useAccessibleSpacesQuery(shouldResolvePersonalSpace);
@@ -105,9 +111,12 @@ function InsightsPage({ spaceId, onSpaceChange, onManageBudgets, onViewTransacti
   if (!insightsQuery.data) return null;
 
   const report = insightsQuery.data;
+  function viewTransactions(categoryId: string | undefined, selectedPeriod: ReportingPeriod, focusId = document.activeElement?.id ?? "") {
+    onViewTransactions?.(categoryId, selectedPeriod, effectiveSpaceId, { view, focusId, scroll: capturePageScroll() });
+  }
 
   return (
-    <div className="mx-auto w-full max-w-screen-2xl px-4 py-6 sm:px-6 lg:px-9 lg:py-7">
+    <div data-insights-view={view} className="mx-auto w-full max-w-screen-2xl px-4 py-6 sm:px-6 lg:px-9 lg:py-7">
       <header className="mb-6 flex flex-col gap-5 border-b border-foreground pb-5 md:flex-row md:items-end md:justify-between">
         <div>
           <ActiveSpaceLabel spaceId={effectiveSpaceId} spaces={spacesQuery.data} />
@@ -162,8 +171,8 @@ function InsightsPage({ spaceId, onSpaceChange, onManageBudgets, onViewTransacti
         </div>
       </header>
 
-      {report.view === "monthly" && <SelectedMonthSummary report={report} onViewTransactions={onViewTransactions ? (categoryId, selectedPeriod) => onViewTransactions(categoryId, selectedPeriod, effectiveSpaceId) : undefined} onEditBudget={onEditBudget ? (categoryId, selectedPeriod) => onEditBudget(categoryId, selectedPeriod, effectiveSpaceId) : undefined} onManageBudgets={onManageBudgets} />}
-      {report.view === "monthly" && <SpendingPatternEvidence key={report.period} report={report.spendingPatterns} period={report.period} onViewTransactions={onViewTransactions ? (categoryId, selectedPeriod) => onViewTransactions(categoryId, selectedPeriod, effectiveSpaceId) : undefined} />}
+      {report.view === "monthly" && <SelectedMonthSummary report={report} onViewTransactions={onViewTransactions ? viewTransactions : undefined} onEditBudget={onEditBudget ? (categoryId, selectedPeriod) => onEditBudget(categoryId, selectedPeriod, effectiveSpaceId) : undefined} onManageBudgets={onManageBudgets} />}
+      {report.view === "monthly" && <SpendingPatternEvidence key={report.period} report={report.spendingPatterns} period={report.period} onViewTransactions={onViewTransactions ? viewTransactions : undefined} />}
       {report.view === "monthly" && <BudgetReviewEvidence reviews={report.budgetReviews} period={report.period} onEditBudget={onEditBudget ? (categoryId, selectedPeriod, evidence) => onEditBudget(categoryId, selectedPeriod, effectiveSpaceId, evidence) : undefined} />}
       <section
         aria-label={
@@ -227,16 +236,18 @@ function InsightsPage({ spaceId, onSpaceChange, onManageBudgets, onViewTransacti
           aria-busy={insightsQuery.isFetching}
         >
           {report.view === "monthly" ? (
-            <MonthlySpendingChart report={report} />
+            <MonthlySpendingChart report={report} onInspect={inspectPoint} />
           ) : (
-            <DailySpendingChart report={report} />
+            <DailySpendingChart report={report} onInspect={inspectPoint} />
           )}
+          <SpendingInspection point={inspection?.point} open={inspection?.open ?? false} triggerId={inspection?.triggerId} onInspect={inspectPoint} onDismiss={() => setInspection(current => current ? { ...current, open: false } : null)} key={report.view + report.period} report={report} onViewTransactions={onViewTransactions ? viewTransactions : undefined} onEditBudget={onEditBudget ? (categoryId, selectedPeriod, focusId) => onEditBudget(categoryId, selectedPeriod, effectiveSpaceId, undefined, focusId) : undefined} />
         </section>
         <section
           aria-label="Category spending trends"
           aria-busy={insightsQuery.isFetching}
         >
           <CategorySpendingChart
+            onInspect={inspectPoint}
             key={effectiveSpaceId ?? "personal"}
             report={report}
           />

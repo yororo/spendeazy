@@ -23,6 +23,7 @@ import type {
 
 interface CategorySpendingChartProps {
   readonly report: InsightsReportResult;
+  readonly onInspect?: (point: string) => void;
 }
 
 interface TrendPoint {
@@ -41,12 +42,13 @@ interface CategoryTrend {
 
 const shortMonthFormatter = new Intl.DateTimeFormat("en-US", {
   month: "short",
+  year: "2-digit",
   timeZone: "UTC",
 });
 
 const sharedColorLinePatterns = ["6 4", "2 3", "8 3 2 3"] as const;
 
-function CategorySpendingChart({ report }: CategorySpendingChartProps) {
+function CategorySpendingChart({ report, onInspect }: CategorySpendingChartProps) {
   const [selectedCategoryIds, setSelectedCategoryIds] =
     useState<ReadonlySet<string> | null>(null);
   const [showBudgetReferences, setShowBudgetReferences] = useState(true);
@@ -56,7 +58,8 @@ function CategorySpendingChart({ report }: CategorySpendingChartProps) {
   );
   const defaultCategoryIds = new Set(
     categories
-      .filter((category) => category.spendingCents > 0)
+      .toSorted((a, b) => b.spendingCents - a.spendingCents || a.label.localeCompare(b.label))
+      .slice(0, 3)
       .map(({ id }) => id),
   );
   const selectedIds = selectedCategoryIds ?? defaultCategoryIds;
@@ -140,7 +143,7 @@ function CategorySpendingChart({ report }: CategorySpendingChartProps) {
         </div>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        <div role="group" aria-label="Categories to compare" className="flex flex-wrap gap-2">
+        <details className="border border-border p-3"><summary className="focus-ledger min-h-8 cursor-pointer text-sm">Categories to compare · {selectedCategories.length} selected</summary><div role="group" aria-label="Categories to compare" className="mt-3 flex flex-wrap gap-2">
           {categories.map((category) => {
             const selected = selectedIds.has(category.id);
 
@@ -169,7 +172,7 @@ function CategorySpendingChart({ report }: CategorySpendingChartProps) {
               </button>
             );
           })}
-        </div>
+        </div></details>
 
         {selectedCategories.length === 0 ? (
           <p role="status" className="text-sm text-muted-foreground">
@@ -217,7 +220,7 @@ function CategorySpendingChart({ report }: CategorySpendingChartProps) {
                       </span>
                     ))}
                   </div>
-                  <div className="relative min-w-0 flex-1 border-b border-foreground">
+                  <div className="relative min-w-0 flex-1 cursor-pointer border-b border-foreground" onClick={event => { const bounds = event.currentTarget.getBoundingClientRect(); const index = Math.max(0, Math.min(points.length - 1, Math.round(((event.clientX - bounds.left) / bounds.width) * (points.length - 1)))); const point = points[index]; if (point) onInspect?.(point.key); }}>
                     {[0, 50, 100].map((position) => (
                       <div
                         key={position}
@@ -285,7 +288,7 @@ function CategorySpendingChart({ report }: CategorySpendingChartProps) {
                             {point.axisLabel}
                           </span>
                           <span className="sm:hidden">
-                            {point.axisLabel.slice(0, 1)}
+                            {point.axisLabel}
                           </span>
                         </>
                       ) : (
@@ -312,7 +315,7 @@ function CategorySpendingChart({ report }: CategorySpendingChartProps) {
                         getCategorySwatchClass(category.color),
                       )}
                     />
-                    <span>{category.label}</span>
+                    <svg aria-hidden="true" width="28" height="12" style={getCategoryStrokeStyle(category)}><line x1="0" x2="28" y1="6" y2="6" stroke="currentColor" strokeWidth="2" strokeDasharray={lineDashByCategoryId.get(category.id)} /></svg><span>{category.label}</span>
                     {report.view === "daily" && category.monthlyBudgetCents !== null && (
                       <span className="font-mono text-xs text-muted-foreground">
                         {describeBudget(category.spendingCents, category.monthlyBudgetCents)}
@@ -425,7 +428,7 @@ function createTrendPoints(report: InsightsReportResult): TrendPoint[] {
     axisLabel: shortMonthFormatter.format(
       new Date(`${month.period}-01T00:00:00Z`),
     ),
-    axisLabelVisible: true,
+    axisLabelVisible: report.months.indexOf(month) % 3 === 0 || month.period === report.period,
     amountsByCategory: createAmountsByCategoryMap(month.categories),
   }));
 }

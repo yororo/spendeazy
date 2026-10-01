@@ -16,9 +16,10 @@ import type { InsightsDailyReport } from "./insights-service";
 
 interface DailySpendingChartProps {
   readonly report: InsightsDailyReport;
+  readonly onInspect?: (point: string) => void;
 }
 
-function DailySpendingChart({ report }: DailySpendingChartProps) {
+function DailySpendingChart({ report, onInspect }: DailySpendingChartProps) {
   const [showBudgetPace, setShowBudgetPace] = useState(true);
   const isBudgetPaceAvailable = report.monthlyBudgetCents > 0;
   const highestDailySpending = Math.max(
@@ -131,7 +132,8 @@ function DailySpendingChart({ report }: DailySpendingChartProps) {
                     return (
                       <div
                         key={day.date}
-                        className="relative flex h-full min-w-0 flex-1 items-end"
+                        onClick={() => onInspect?.(day.date)}
+                        className="relative flex h-full min-w-0 flex-1 cursor-pointer items-end"
                       >
                         {segments.map((segment) =>
                           segment === null ? null : (
@@ -179,6 +181,9 @@ function DailySpendingChart({ report }: DailySpendingChartProps) {
             </div>
           </div>
 
+          <div role="group" aria-label="Inspect chart points" className="mt-3 flex gap-2 overflow-x-auto pb-2">
+            {report.days.map(point => <button id={"insights-point-" + point.date} key={point.date} type="button" className="focus-ledger min-h-10 shrink-0 border border-border px-3 text-sm" onClick={() => onInspect?.(point.date)} >{point.date}</button>)}
+          </div>
           <ul aria-label="Categories in chart" className="mt-2 flex flex-wrap gap-x-4 gap-y-2">
             {report.categories.map((category) => (
               <li

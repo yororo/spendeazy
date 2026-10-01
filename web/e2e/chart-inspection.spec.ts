@@ -1,0 +1,76 @@
+import { expect, test } from "@playwright/test";
+import { authorizationHeaders, createNewLocalTestUser, requireEnvironment } from "./test-helpers";
+
+test.use({ hasTouch: true });
+for (const width of [320, 390, 1440]) {
+  test(`chart inspection preserves context at ${width}px`, async ({ page }) => {
+    await page.emulateMedia({ colorScheme: "light" });
+    await page.clock.install({ time: requireEnvironment("SPENDEAZY_E2E_TEST_CLOCK") });
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/");
+    const token = await createNewLocalTestUser(page);
+    await expect(page.getByText(/No spending recorded in this Reporting Period/)).toBeVisible();
+    const headers = authorizationHeaders(token);
+    const base = requireEnvironment("SPENDEAZY_E2E_API_BASE_URL") + "/api/v1/users/me";
+    for (const [name, amount] of [["Chart A", "900.00"], ["Chart B", "800.00"], ["Chart C", "700.00"], ["Chart D", "600.00"]]) {
+      const response = await page.request.post(base + "/categories", { headers, data: { name, color: "teal" } });
+      expect(response.ok(), await response.text()).toBe(true);
+      const category = await response.json();
+      expect((await page.request.post(base + "/transactions", { headers, data: { categoryId: category.id, purchaseDate: "2026-08-10", amount, description: "Synthetic " + name + " contribution" } })).ok()).toBe(true);
+    }
+    await page.getByRole("navigation", { name: width < 768 ? "Mobile navigation" : "Primary navigation" }).getByRole("link", { name: "Insights", exact: true }).click();
+    await page.getByLabel("Reporting period", { exact: true }).fill("2026-09");
+    const selector = page.getByText("Categories to compare · 3 selected", { exact: true });
+    await expect(selector).toBeVisible();
+    await selector.click();
+    const options = page.getByRole("group", { name: "Categories to compare", exact: true });
+    await expect(options.getByRole("button", { name: "Chart A", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await expect(options.getByRole("button", { name: "Chart D", exact: true })).toHaveAttribute("aria-pressed", "false");
+    await options.getByRole("button", { name: "Chart D", exact: true }).click();
+    await expect(page.getByText("Categories to compare · 4 selected", { exact: true })).toBeVisible();
+    await expect(page.getByRole("list", { name: "Selected Categories in trend chart" }).getByText("Chart B", { exact: true })).toBeVisible();
+    const point = page.getByRole("group", { name: "Inspect chart points" }).getByRole("button", { name: "Aug 2026", exact: true });
+    await point.focus();
+    await page.keyboard.press("Enter");
+    const dialog = page.getByRole("dialog");
+    await expect(dialog.getByText("Total: ₱3,000.00", { exact: true })).toBeVisible();
+    await expect(dialog.getByText(/Synthetic Chart A contribution/)).toBeVisible();
+    await expect(page.getByLabel("Reporting period", { exact: true })).toHaveValue("2026-09");
+    await page.keyboard.press("Escape");
+    await expect(point).toBeFocused();
+    await point.tap();
+    await dialog.getByRole("button", { name: "View full month’s Transactions", exact: true }).click();
+    await expect(page.getByLabel("Reporting period", { exact: true })).toHaveValue("2026-08");
+    await page.getByRole("button", { name: "Return to Insights" }).click();
+    await expect(page.getByLabel("Reporting period", { exact: true })).toHaveValue("2026-09");
+    await expect(point).toBeFocused();
+    await point.click();
+    await dialog.getByRole("button", { name: "View this month", exact: true }).click();
+    await expect(page.getByLabel("Reporting period", { exact: true })).toHaveValue("2026-08");
+    await page.getByRole("button", { name: "Daily view" }).click();
+    const day = page.getByRole("group", { name: "Inspect chart points" }).getByRole("button", { name: "2026-08-10", exact: true });
+    await day.tap();
+    await expect(dialog.getByText("Total: ₱3,000.00", { exact: true })).toBeVisible();
+    await expect(dialog.getByText(/independently of potential-pattern signals/)).toBeVisible();
+    await page.screenshot({ path: `test-results/chart-inspection-${width}-light.png` });
+    await dialog.getByRole("button", { name: "Set Chart A Budget", exact: true }).click();
+    await page.getByRole("dialog", { name: "Edit Chart A", exact: true }).getByRole("button", { name: "Cancel", exact: true }).click();
+    await expect(day).toBeFocused();
+    await day.click();
+    await dialog.getByRole("button", { name: "View Chart A month’s Transactions", exact: true }).click();
+    await expect(page).toHaveURL(/categoryId=/);
+    await expect(page.getByLabel("Reporting period", { exact: true })).toHaveValue("2026-08");
+    await page.getByRole("button", { name: "Return to Insights" }).click();
+    await expect(page.getByRole("button", { name: "Daily view" })).toHaveAttribute("aria-pressed", "true");
+    await expect(day).toBeFocused();
+    await day.click();
+    await dialog.getByRole("button", { name: "Close dialog" }).click();
+    await expect(day).toBeFocused();
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+    await page.emulateMedia({ colorScheme: "dark" });
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+    await day.click();
+    await expect(dialog.getByRole("button", { name: "View this month" })).toBeVisible();
+    await page.screenshot({ path: `test-results/chart-inspection-${width}-dark.png` });
+  });
+}

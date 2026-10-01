@@ -261,6 +261,33 @@ function renderInsights(spaceId = "7") {
 }
 
 describe("InsightsPage", () => {
+  it("inspects recorded monthly and daily contributions without selecting a new Reporting Period and restores focus", async () => {
+    const period = getCurrentReportingPeriod();
+    vi.stubGlobal("fetch", createSuccessfulFetch(period));
+    renderInsights();
+    const label = formatReportingPeriod(period);
+    const monthly = await screen.findByRole("button", { name: label });
+    monthly.focus();
+    fireEvent.click(monthly);
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText(/Total:/).textContent).toContain(formatMoney(7.75));
+    expect(within(dialog).getByText(/Within Budget/)).toBeTruthy();
+    expect((screen.getByLabelText("Reporting period") as HTMLInputElement).value).toBe(period);
+    fireEvent.click(within(dialog).getByRole("button", { name: "Close dialog" }));
+    await waitFor(() => expect(document.activeElement).toBe(monthly));
+    fireEvent.click(screen.getByRole("button", { name: "Daily view" }));
+    const dailyInspect = await screen.findByRole("button", { name: "Inspect " + period + "-01" });
+    fireEvent.click(dailyInspect);
+    const dailyDialog = await screen.findByRole("dialog");
+    expect(within(dailyDialog).getByText(/Total:/).textContent).toContain(formatMoney(7.75));
+    fireEvent.click(within(dailyDialog).getByRole("button", { name: "Close dialog" }));
+    await waitFor(() => expect(document.activeElement).toBe(dailyInspect));
+    const day = await screen.findByRole("button", { name: period + "-01" });
+    fireEvent.click(day);
+    expect(await screen.findByRole("dialog")).toBeTruthy();
+    expect(screen.getByText(/independently of potential-pattern signals/)).toBeTruthy();
+  });
+
   it("leads with selected-month recorded totals before historical spending", async () => {
     vi.stubGlobal("fetch", createSuccessfulFetch(getCurrentReportingPeriod()));
     renderInsights();
@@ -371,7 +398,8 @@ describe("InsightsPage", () => {
     const groceries = await screen.findByRole("button", { name: "Groceries" });
     const transit = screen.getByRole("button", { name: "Transit" });
     expect(groceries.getAttribute("aria-pressed")).toBe("true");
-    expect(transit.getAttribute("aria-pressed")).toBe("false");
+    expect(transit.getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(transit);
 
     let trendsTable = screen.getByRole("table", {
       name: /category spending values/i,

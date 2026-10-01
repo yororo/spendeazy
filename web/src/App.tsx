@@ -155,13 +155,13 @@ function InsightsRoute() {
     <><InsightsPage
       spaceId={spaceId}
       returnContext={returned?.insightsReturn}
-      onEditBudget={(categoryId, period, destinationSpaceId, evidence) => setBudget({ categoryId, period, spaceId: destinationSpaceId, evidence, trigger: document.activeElement instanceof HTMLElement ? document.activeElement : null })}
-      onViewTransactions={(categoryId, period, destinationSpaceId) => {
+      onEditBudget={(categoryId, period, destinationSpaceId, evidence, returnFocusId) => setBudget({ categoryId, period, spaceId: destinationSpaceId, evidence, trigger: document.getElementById(returnFocusId ?? "") ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null) })}
+      onViewTransactions={(categoryId, period, destinationSpaceId, origin) => {
         const params = new URLSearchParams(searchParams);
         if (categoryId === undefined) params.delete("categoryId");
         else params.set("categoryId", categoryId);
         if (destinationSpaceId) params.set("spaceId", destinationSpaceId);
-        const context: InsightsOrigin = { path: `/insights${location.search}`, period: originPeriod, scroll: capturePageScroll(), focusId: document.activeElement?.id ?? "" };
+        const context: InsightsOrigin = { path: `/insights${location.search}`, period: originPeriod, scroll: origin?.scroll ?? capturePageScroll(), focusId: origin?.focusId ?? document.activeElement?.id ?? "", view: origin?.view };
         setPeriod(period);
         navigate(`/transactions?${params}`, { state: { insightsOrigin: context } });
       }}

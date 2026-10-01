@@ -63,6 +63,7 @@ interface InsightsDay {
 }
 
 interface InsightsDailyReport {
+  readonly transactions: readonly PatternTransaction[];
   readonly view: "daily";
   readonly period: ReportingPeriod;
   readonly totalSpendingCents: number;
@@ -87,6 +88,7 @@ interface InsightsMonth {
 }
 
 interface InsightsMonthlyReport {
+  readonly transactions: readonly PatternTransaction[];
   readonly budgetReviews: readonly BudgetReview[];
   readonly spendingPatterns: SpendingPatterns;
   readonly selectedMonthCategories: readonly InsightsCategory[];
@@ -492,6 +494,7 @@ function createDailyInsightsReport(
 
   return {
     view: "daily",
+    transactions: transactions.map((transaction) => ({ id: transaction.id, categoryId: transaction.categoryId, date: transaction.purchaseDate, description: transaction.description, amountCents: moneyToCents(parseApiMoney(transaction.amount, `Transaction ${transaction.id} amount`, createInsightsDataError)) })),
     period,
     totalSpendingCents,
     budgetedSpendingCents,
@@ -600,6 +603,7 @@ function createMonthlyInsightsReport(
 
   return {
     view: "monthly",
+    transactions: patternTransactions,
     budgetReviews: createBudgetReviews(period, selectedMonthCategories, patternTransactions),
     spendingPatterns: createSpendingPatterns(
       period,

@@ -21,7 +21,7 @@ function SpaceIdentityIcon({ className, kind }: SpaceIdentityIconProps) {
     <span
       aria-hidden="true"
       className={cn(
-        "grid size-6 shrink-0 place-content-center border border-background bg-primary text-primary-foreground",
+        "grid size-6 shrink-0 place-content-center rounded-md border border-background bg-primary text-primary-foreground",
         className,
       )}
     >

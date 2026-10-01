@@ -51,15 +51,17 @@ describe("PrimarySidebar", () => {
     );
     const settings = screen.getByRole("button", { name: "Settings" });
     expect(settings.getAttribute("aria-expanded")).toBe("false");
-    expect(screen.queryByRole("radio", { name: "Playful" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Theme:/ })).toBeNull();
     fireEvent.click(settings);
     expect(settings.getAttribute("aria-expanded")).toBe("true");
-    fireEvent.click(screen.getByRole("radio", { name: "Playful" }));
-    expect((screen.getByRole("radio", { name: "Playful" }) as HTMLInputElement).checked).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: /^Theme:/ }));
+    expect(screen.getAllByRole("menuitemradio")).toHaveLength(2);
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Playful" }));
+    expect(screen.getByRole("button", { name: "Theme: Playful" })).toBeTruthy();
     expect(settings.getAttribute("aria-expanded")).toBe("true");
     expect(screen.getByRole("button", { name: "Sign out" })).toBeTruthy();
     fireEvent.click(settings);
-    expect(screen.queryByRole("radio", { name: "Playful" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Theme:/ })).toBeNull();
   });
 
   it("opens Insights while preserving the selected Space", () => {

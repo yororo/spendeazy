@@ -1,29 +1,39 @@
-import { useId } from "react";
+import { CheckIcon, ChevronDownIcon } from "lucide-react";
+
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 import { setTheme, useTheme } from "./theme";
 
 function ThemeSelector() {
   const theme = useTheme();
-  const name = useId();
+  const selected = theme === "playful" ? "Playful" : "Technical";
   return (
-    <fieldset className="min-w-0">
-      <legend className="mb-2 text-label">Theme</legend>
-      <div className="grid grid-cols-2 gap-2">
-        {(["technical", "playful"] as const).map((value) => (
-          <label key={value} className="theme-choice flex min-h-11 cursor-pointer flex-col items-center justify-center gap-1 border border-sidebar-border px-2 py-2 text-xs has-checked:bg-primary has-checked:text-primary-foreground">
-            <input
-              type="radio"
-              name={name}
-              value={value}
-              checked={theme === value}
-              onChange={() => setTheme(value)}
-              className="focus-ledger size-4 shrink-0 accent-current"
-            />
-            {value === "technical" ? "Technical" : "Playful"}
-          </label>
-        ))}
-      </div>
-    </fieldset>
+    <div className="relative min-w-0">
+      <p className="mb-2 text-label">Theme</p>
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          aria-label={`Theme: ${selected}`}
+          className="focus-ledger flex min-h-11 w-full items-center justify-between gap-2 border border-sidebar-border px-3 text-sm text-sidebar-foreground hover:bg-sidebar-foreground/10"
+        >
+          {selected}
+          <ChevronDownIcon className="size-4" aria-hidden="true" />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent aria-label="Theme" className="bottom-full mb-2 mt-0 w-full min-w-0">
+          {(["technical", "playful"] as const).map((value) => (
+            <DropdownMenuItem key={value} role="menuitemradio" aria-checked={theme === value}
+              onSelect={() => setTheme(value)}>
+              {value === "technical" ? "Technical" : "Playful"}
+              {theme === value && <CheckIcon className="ml-auto size-4" aria-hidden="true" />}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   );
 }
 

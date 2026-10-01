@@ -318,6 +318,34 @@
   filter: brightness(0.97);
 }
 
+/* Round standalone surfaces and selection fills as well as shared primitives.
+   The viewport, dividers, and the unchanged logo are not UI surface corners. */
+:root[data-visual-theme="playful"] :is(
+  button, input:not([type="radio"]), select, textarea,
+  [role="option"], [data-slot="progress-indicator"], [data-slot="table-container"],
+  [class~="border"]:not([data-slot="card"]):not(.profile-card):not([data-slot="sheet-content"]),
+  span[class*="bg-"], div[class~="bg-primary"]:not([data-slot="card"]),
+  div[class~="bg-secondary"]:not([data-slot="card"]),
+  div[class*="bg-category-"], [role="img"], [role="img"] > div
+) {
+  border-radius: var(--radius);
+}
+
+:root[data-visual-theme="playful"] [data-slot="sheet-content"] {
+  border-radius: var(--card-radius);
+  overflow: hidden;
+}
+
+:root[data-visual-theme="playful"] [data-slot="card-header"] {
+  border-top-left-radius: var(--card-radius);
+  border-top-right-radius: var(--card-radius);
+}
+
+:root[data-visual-theme="playful"] svg rect {
+  rx: var(--chart-radius);
+  ry: var(--chart-radius);
+}
+
 @layer components {
   .navigation-item { border-radius: var(--navigation-radius); }
   .profile-card { border-radius: var(--metric-radius); }
@@ -329,7 +357,7 @@
     button, input:not([type="radio"]):not([type="checkbox"]), select, textarea,
     [data-slot="select-trigger"], [data-slot="badge"], [data-slot="progress"],
     [data-slot="dialog-content"], [data-slot="dropdown-menu-content"],
-    [data-slot="select-content"], .theme-choice { border-radius: var(--radius); }
+    [data-slot="select-content"] { border-radius: var(--radius); }
     [data-slot="card-header"] { border-color: transparent; }
   }
   .date-input-mobile-icon {

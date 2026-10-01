@@ -15,7 +15,7 @@ function ActiveSpaceLabel({ spaceId, spaces }: ActiveSpaceLabelProps) {
     : candidate.id === spaceId);
   const resolvedKind = space?.kind;
   return (
-    <span className="mb-3 inline-flex min-h-8 items-center bg-primary px-3 font-mono text-sm font-semibold text-primary-foreground">
+    <span className="mb-3 inline-flex min-h-8 items-center rounded-md bg-primary px-3 font-mono text-sm font-semibold text-primary-foreground">
       {resolvedKind === "personal" || (resolvedKind === undefined && spaceId === undefined)
         ? "Personal"
         : resolvedKind === "shared" ? "Shared" : "Space"}

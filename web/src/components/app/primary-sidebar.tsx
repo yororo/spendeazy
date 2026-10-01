@@ -119,7 +119,7 @@ function PrimarySidebar({
         <div className="flex items-center gap-3">
           <div
             aria-hidden="true"
-            className="grid size-8 shrink-0 place-content-center bg-primary font-mono text-xs font-bold text-primary-foreground"
+            className="grid size-8 shrink-0 place-content-center rounded-md bg-primary font-mono text-xs font-bold text-primary-foreground"
           >
             {getNameInitials(displayName)}
           </div>

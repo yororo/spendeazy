@@ -792,8 +792,9 @@ describe("AppShell", () => {
     const settings = within(navigation).getByRole("button", { name: "Settings" });
     expect(settings.getAttribute("aria-expanded")).toBe("false");
     fireEvent.click(settings);
-    expect(within(navigation).getAllByRole("radio")).toHaveLength(2);
-    fireEvent.click(within(navigation).getByRole("radio", { name: "Playful" }));
+    fireEvent.click(within(navigation).getByRole("button", { name: /^Theme:/ }));
+    expect(within(navigation).getAllByRole("menuitemradio")).toHaveLength(2);
+    fireEvent.click(within(navigation).getByRole("menuitemradio", { name: "Playful" }));
     expect(settings.getAttribute("aria-expanded")).toBe("true");
     fireEvent.click(within(navigation).getByRole("button", { name: "Appearance: System" }));
     expect(within(navigation).getByRole("menu", { name: "Appearance" })).toBeTruthy();

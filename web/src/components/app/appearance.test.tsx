@@ -71,7 +71,7 @@ it("synchronizes checked Theme choices and resets missing, invalid and cleared v
     else localStorage.setItem("spendeazy.theme", value);
     act(() => window.dispatchEvent(new StorageEvent("storage", { key: "spendeazy.theme" })));
     const expected = value === "playful" ? "Playful" : "Technical";
-    expect((screen.getByRole("radio", { name: expected }) as HTMLInputElement).checked).toBe(true);
+    expect(screen.getByRole("button", { name: `Theme: ${expected}` })).toBeTruthy();
   }
   act(() => setTheme("playful"));
   localStorage.clear();
@@ -85,9 +85,10 @@ it("permits current-visit Theme selection when both storage reads and writes thr
   disposeTheme();
   disposeTheme = initializeTheme();
   render(<ThemeSelector />);
-  fireEvent.click(screen.getByRole("radio", { name: "Playful" }));
+  fireEvent.click(screen.getByRole("button", { name: "Theme: Technical" }));
+  fireEvent.click(screen.getByRole("menuitemradio", { name: "Playful" }));
   expect(document.documentElement.dataset.visualTheme).toBe("playful");
-  expect((screen.getByRole("radio", { name: "Playful" }) as HTMLInputElement).checked).toBe(true);
+  expect(screen.getByRole("button", { name: "Theme: Playful" })).toBeTruthy();
   expect(document.documentElement.dataset.theme).toBe("light");
 });
 

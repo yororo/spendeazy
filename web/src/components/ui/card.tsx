@@ -3,16 +3,16 @@ import { cva, type VariantProps } from "class-variance-authority";
 
 import { cn } from "@/lib/utils";
 
-const cardVariants = cva("border bg-card text-card-foreground", {
+const cardVariants = cva("rounded-[var(--card-radius)] border bg-card text-card-foreground", {
   variants: {
     variant: {
       default: "border-border",
-      strong: "border-foreground",
+      strong: "border-structure",
       muted: "border-border bg-muted",
       inverse:
         "border-secondary bg-secondary text-secondary-foreground",
       accent:
-        "border-foreground bg-primary text-primary-foreground",
+        "border-structure bg-primary text-primary-foreground",
     },
   },
   defaultVariants: {

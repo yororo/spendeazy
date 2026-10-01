@@ -789,6 +789,12 @@ describe("AppShell", () => {
     expect(navigation.classList.contains("right-0")).toBe(true);
     expect(navigation.classList.contains("left-0")).toBe(false);
     expect(within(navigation).getByText("Ada Lovelace")).toBeTruthy();
+    const settings = within(navigation).getByRole("button", { name: "Settings" });
+    expect(settings.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(settings);
+    expect(within(navigation).getAllByRole("radio")).toHaveLength(2);
+    fireEvent.click(within(navigation).getByRole("radio", { name: "Playful" }));
+    expect(settings.getAttribute("aria-expanded")).toBe("true");
     fireEvent.click(within(navigation).getByRole("button", { name: "Appearance: System" }));
     expect(within(navigation).getByRole("menu", { name: "Appearance" })).toBeTruthy();
     expect(within(navigation).getAllByRole("menuitemradio")).toHaveLength(3);

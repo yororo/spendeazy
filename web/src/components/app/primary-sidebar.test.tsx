@@ -43,6 +43,25 @@ function CurrentLocation() {
 }
 
 describe("PrimarySidebar", () => {
+  it("starts Settings collapsed and keeps it open after a Theme selection", () => {
+    render(
+      <AppSessionContext.Provider value={session}>
+        <MemoryRouter><PrimarySidebar /></MemoryRouter>
+      </AppSessionContext.Provider>,
+    );
+    const settings = screen.getByRole("button", { name: "Settings" });
+    expect(settings.getAttribute("aria-expanded")).toBe("false");
+    expect(screen.queryByRole("radio", { name: "Playful" })).toBeNull();
+    fireEvent.click(settings);
+    expect(settings.getAttribute("aria-expanded")).toBe("true");
+    fireEvent.click(screen.getByRole("radio", { name: "Playful" }));
+    expect((screen.getByRole("radio", { name: "Playful" }) as HTMLInputElement).checked).toBe(true);
+    expect(settings.getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByRole("button", { name: "Sign out" })).toBeTruthy();
+    fireEvent.click(settings);
+    expect(screen.queryByRole("radio", { name: "Playful" })).toBeNull();
+  });
+
   it("opens Insights while preserving the selected Space", () => {
     render(
       <AppSessionContext.Provider value={session}>

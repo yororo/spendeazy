@@ -40,6 +40,14 @@ _Avoid_: Owner, payer
 The authenticated overview of recent spending, monthly totals, budget usage, and recent transactions.
 _Avoid_: Spending Overview, Overview page
 
+**Theme**:
+A User's chosen visual style for Spendeazy, initially Technical or Playful. A Theme changes presentation while preserving financial data, page structure, and responsive layout.
+_Avoid_: Skin, layout preset
+
+**Appearance**:
+Spendeazy's light or dark presentation, chosen independently of Theme through Light, Dark, or System. System follows the User's operating-system appearance.
+_Avoid_: Theme, color theme
+
 **Statement Import**:
 The workflow that converts a supported account statement into categorized transactions ready to be saved as expenses.
 _Avoid_: File import, transaction import

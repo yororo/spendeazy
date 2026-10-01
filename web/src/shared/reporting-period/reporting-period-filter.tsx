@@ -49,7 +49,7 @@ function ReportingPeriodFilter({
 
   return (
     <div
-      className="relative flex h-10 w-full min-w-0 border border-foreground bg-background px-3 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 has-[:disabled]:bg-muted has-[:disabled]:opacity-60 sm:w-48 sm:shrink-0"
+      className="relative flex h-10 w-full min-w-0 rounded-md border border-structure bg-background px-3 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 has-[:disabled]:bg-muted has-[:disabled]:opacity-60 sm:w-48 sm:shrink-0"
       onClick={() => {
         if (!isOpeningFallbackRef.current) openPicker();
       }}

@@ -226,7 +226,7 @@ function AppShellContent() {
       </aside>
 
       <header className="compact-app-header fixed inset-x-0 top-0 z-40 flex items-center justify-between gap-2 bg-sidebar text-sidebar-foreground lg:hidden">
-        <LedgerMark />
+        <LedgerMark className="text-sidebar-foreground" />
         <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
           <SpaceSwitcher className="min-w-0 max-w-[min(16rem,calc(100vw-10rem))] flex-1" />
           <Sheet open={navigationOpen} onOpenChange={setNavigationOpen}>

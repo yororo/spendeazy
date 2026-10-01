@@ -6,6 +6,7 @@ import "@fontsource-variable/geist-mono";
 
 import App from "../src/App";
 import { initializeAppearance } from "../src/components/app/appearance";
+import { initializeTheme } from "../src/components/app/theme";
 import "../src/index.css";
 import "./layout.css";
 import { SyntheticSessionProvider } from "./synthetic-session-provider";
@@ -25,6 +26,8 @@ if (!apiBaseUrl) {
 }
 
 const disposeAppearance = initializeAppearance();
+const disposeTheme = initializeTheme();
+if (import.meta.hot) import.meta.hot.dispose(disposeTheme);
 if (import.meta.hot) import.meta.hot.dispose(disposeAppearance);
 
 createRoot(document.getElementById("root")!).render(

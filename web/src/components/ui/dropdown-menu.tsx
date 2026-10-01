@@ -338,7 +338,7 @@ const DropdownMenuContent = React.forwardRef<
       aria-orientation="vertical"
       data-slot="dropdown-menu-content"
       className={cn(
-        "absolute z-50 mt-1 min-w-44 border border-foreground bg-popover p-1 text-popover-foreground shadow-none",
+        "absolute z-50 mt-1 min-w-44 border border-structure bg-popover p-1 text-popover-foreground shadow-none",
         align === "end" ? "right-0" : "left-0",
         className,
       )}

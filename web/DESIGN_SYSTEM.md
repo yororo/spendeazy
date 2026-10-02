@@ -257,6 +257,12 @@ Dashboard callers provide typed spending points, labels, and an accessible summa
 />
 ```
 
+### Public pages and session transitions
+
+Public sign-in and legal brand surfaces, authentication/SSO loading, and account preparation reuse the global Theme and Appearance roles. On secondary surfaces, use `secondary-foreground` for text and `inverse-accent` for selected links, hover emphasis, and activity indicators. Never pair `primary` text with `secondary`: those surfaces share emerald in Playful. `inverse-supporting` and `inverse-subtle` preserve Technical's existing 70%/50% white treatment and use opaque secondary foreground in Playful for readable supporting copy in both appearances. Structural public borders use `structure`; fonts and edges follow the same global roles as authenticated pages.
+
+Preferences initialize before React in both production and synthetic entrypoints and remain outside the session-scoped query provider. Public routes need no preference selector. Signing out or switching Users preserves browser preferences while session-keyed financial caches retain their existing isolation. Credential-free acceptance covers legal routes and synthetic session transitions; Clerk sign-in and SSO behavior are verified separately at their existing mocked composition boundary.
+
 ## Development rules
 
 1. Search `src/components/ui` before creating a generic primitive.

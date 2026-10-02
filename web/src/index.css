@@ -79,6 +79,8 @@
   --color-control-border: var(--control-border);
   --color-inverse-accent: var(--inverse-accent);
   --color-inverse-muted: var(--inverse-muted);
+  --color-inverse-supporting: var(--inverse-supporting);
+  --color-inverse-subtle: var(--inverse-subtle);
   --color-upload-action: var(--upload-action);
   --font-sans: var(--ui-font);
   --font-mono: var(--data-font);
@@ -98,6 +100,8 @@
   --control-border: var(--foreground);
   --inverse-accent: var(--primary);
   --inverse-muted: var(--border);
+  --inverse-supporting: rgb(255 255 255 / 70%);
+  --inverse-subtle: rgb(255 255 255 / 50%);
   --upload-action: var(--secondary);
   --card-radius: 0px;
   --metric-radius: 0px;
@@ -241,6 +245,8 @@
   --control-border: var(--muted-foreground);
   --inverse-accent: var(--secondary-foreground);
   --inverse-muted: var(--secondary-foreground);
+  --inverse-supporting: var(--secondary-foreground);
+  --inverse-subtle: var(--secondary-foreground);
   --upload-action: var(--secondary);
   --chart: #24a66a;
   --navigation-selected: #d8f2df;

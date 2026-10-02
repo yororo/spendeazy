@@ -148,10 +148,10 @@ function LocalTestSignedOut({ onResume }: { onResume: () => void }) {
       data-testid="local-test-signed-out"
       className="grid min-h-screen place-content-center bg-secondary px-4 text-secondary-foreground"
     >
-      <section className="max-w-lg border border-primary p-6">
-        <p className="text-label text-primary">Local test environment</p>
+      <section className="max-w-lg border border-inverse-accent p-6">
+        <p className="text-label text-inverse-accent">Local test environment</p>
         <h1 className="mt-3 text-2xl font-bold">Synthetic session signed out</h1>
-        <p className="mt-3 text-sm text-secondary-foreground/70">
+        <p className="mt-3 text-sm text-inverse-supporting">
           The protected route sent you here without contacting Clerk. Resume a
           fictional User to enter the real API again.
         </p>

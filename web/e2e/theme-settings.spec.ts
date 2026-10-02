@@ -145,7 +145,9 @@ test("restores Theme before the first render and retains it across sign-out and 
   await selectTheme(page, "Playful");
   await page.getByRole("complementary").filter({ has: page.getByRole("button", { name: "Settings", exact: true }) }).getByRole("button", { name: "Sign out", exact: true }).click();
   await expect(page.getByTestId("local-test-signed-out")).toBeVisible();
+  await expect(page.locator("html")).toHaveAttribute("data-visual-theme", "playful");
   await expectAppearance(page, "dark");
+  await expect(page.getByTestId("local-test-signed-out").getByRole("heading")).toHaveCSS("font-family", /Nunito Variable/);
   await page.getByRole("button", { name: "Resume synthetic session" }).click();
   await openSettings(page);
   await expectTheme(page, "Playful");

@@ -80,26 +80,26 @@ function SignInPage() {
         <LedgerMark interactive={false} />
 
         <div className="my-14 max-w-2xl lg:my-10">
-          <p className="text-label text-primary">Your money, made eazy</p>
+          <p className="text-label text-inverse-accent">Your money, made eazy</p>
           <h1 className="mt-4 text-4xl leading-[1.05] font-bold tracking-tight sm:text-5xl lg:text-6xl">
             Spend confidently.
             <br />
             Save effortlessly.
           </h1>
-          <p className="mt-5 max-w-lg text-base text-white/70">
+          <p className="mt-5 max-w-lg text-base text-inverse-supporting">
             A straightforward and secure expense tracker for everyone
           </p>
           <ul className="mt-8 grid gap-3 font-mono text-xs tracking-wide uppercase sm:grid-cols-3 lg:grid-cols-1">
             {benefits.map((benefit) => (
               <li key={benefit} className="flex items-center gap-3">
-                <span aria-hidden="true" className="size-1.5 bg-primary" />
+                <span aria-hidden="true" className="size-1.5 bg-inverse-accent" />
                 {benefit}
               </li>
             ))}
           </ul>
         </div>
 
-        <p className="font-mono text-xs tracking-wider text-white/50 uppercase">
+        <p className="font-mono text-xs tracking-wider text-inverse-subtle uppercase">
           © 2026 Spendeazy
         </p>
       </section>

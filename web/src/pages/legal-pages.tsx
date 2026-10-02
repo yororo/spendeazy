@@ -629,7 +629,7 @@ function LegalPage({ page }: LegalPageProps) {
         Skip to legal content
       </a>
 
-      <header className="border-b border-foreground bg-secondary text-secondary-foreground">
+      <header className="border-b border-structure bg-secondary text-secondary-foreground">
         <div className="mx-auto flex min-h-16 max-w-screen-2xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3 sm:px-6 lg:px-9">
           <LedgerMark interactive={false} />
 
@@ -640,8 +640,8 @@ function LegalPage({ page }: LegalPageProps) {
             <Link
               aria-current={page === "privacy" ? "page" : undefined}
               className={cn(
-                "focus-ledger py-2 underline-offset-4 hover:text-primary hover:underline",
-                page === "privacy" && "text-primary",
+                "focus-ledger py-2 underline-offset-4 hover:text-inverse-accent hover:underline",
+                page === "privacy" && "text-inverse-accent",
               )}
               to="/privacy"
             >
@@ -650,8 +650,8 @@ function LegalPage({ page }: LegalPageProps) {
             <Link
               aria-current={page === "terms" ? "page" : undefined}
               className={cn(
-                "focus-ledger py-2 underline-offset-4 hover:text-primary hover:underline",
-                page === "terms" && "text-primary",
+                "focus-ledger py-2 underline-offset-4 hover:text-inverse-accent hover:underline",
+                page === "terms" && "text-inverse-accent",
               )}
               to="/terms"
             >
@@ -660,7 +660,7 @@ function LegalPage({ page }: LegalPageProps) {
           </nav>
 
           <Link
-            className="focus-ledger ml-auto inline-flex min-h-10 items-center gap-2 font-mono text-xs font-semibold uppercase tracking-wide hover:text-primary"
+            className="focus-ledger ml-auto inline-flex min-h-10 items-center gap-2 font-mono text-xs font-semibold uppercase tracking-wide hover:text-inverse-accent"
             to="/sign-in"
           >
             <ArrowLeftIcon className="size-4" aria-hidden="true" />
@@ -749,7 +749,7 @@ function LegalPage({ page }: LegalPageProps) {
                 ))}
               </div>
 
-              <footer className="mt-16 flex flex-col gap-4 border-t border-foreground pt-6 sm:flex-row sm:items-center sm:justify-between">
+              <footer className="mt-16 flex flex-col gap-4 border-t border-structure pt-6 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-sm text-muted-foreground">
                   Need to review the other legal document?
                 </p>

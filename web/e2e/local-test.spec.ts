@@ -66,6 +66,10 @@ test("creates a fresh User with real first-time provisioning", async ({
 });
 
 test("switches Users without exposing stale browser data", async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem("spendeazy.theme", "playful");
+    localStorage.setItem("spendeazy.appearance", "dark");
+  });
   const apiBaseUrl = requireEnvironment("SPENDEAZY_E2E_API_BASE_URL");
   const primaryToken = requireEnvironment("VITE_LOCAL_TEST_SESSION_TOKEN");
   const purchaseDate = requireEnvironment("SPENDEAZY_E2E_TEST_DATE");
@@ -104,6 +108,8 @@ test("switches Users without exposing stale browser data", async ({ page }) => {
     page.getByRole("heading", { name: "Your spending" }),
   ).toBeVisible();
   await expect(page.getByText(description, { exact: true })).toHaveCount(0);
+  await expect(page.locator("html")).toHaveAttribute("data-visual-theme", "playful");
+  await expect(page.locator("html")).toHaveCSS("color-scheme", "dark");
 
   await panel.getByRole("button", { name: "Populated User" }).click();
   await expect(page.getByTestId("local-test-active-user")).toContainText(
@@ -113,6 +119,8 @@ test("switches Users without exposing stale browser data", async ({ page }) => {
     page.getByRole("table").getByText(description, { exact: true }),
   ).toBeVisible();
   expect(created.body).toMatchObject({ description });
+  await expect(page.locator("html")).toHaveAttribute("data-visual-theme", "playful");
+  await expect(page.locator("html")).toHaveCSS("color-scheme", "dark");
 });
 
 test("provisions private Personal Spaces and denies cross-User Space reads", async ({

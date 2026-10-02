@@ -13,8 +13,8 @@ function AuthLoading({ message = "Securing your session" }: AuthLoadingProps) {
     >
       <div className="flex flex-col items-center gap-5">
         <LedgerMark interactive={false} />
-        <span className="size-3 animate-pulse bg-primary" aria-hidden="true" />
-        <span className="font-mono text-xs tracking-wider text-white/70 uppercase">
+        <span className="size-3 animate-pulse bg-inverse-accent" aria-hidden="true" />
+        <span className="font-mono text-xs tracking-wider text-inverse-supporting uppercase">
           {message}
         </span>
       </div>

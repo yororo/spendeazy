@@ -509,7 +509,7 @@ function CategorizeStatement({
 
       <main className="flex flex-1 flex-col gap-4">
         <section
-          className="border border-foreground md:hidden"
+          className="border border-structure md:hidden"
           aria-label="Parsed statement summary"
         >
           <div className="bg-primary p-4 text-primary-foreground">
@@ -523,7 +523,7 @@ function CategorizeStatement({
               {statementSummary.accountType} · {fileName}
             </p>
           </div>
-          <div className="grid grid-cols-3 border-t border-foreground">
+          <div className="grid grid-cols-3 border-t border-structure">
             <MobileSummaryMetric
               label={isEWallet ? "Transaction History Period" : "Date"}
             >
@@ -545,11 +545,11 @@ function CategorizeStatement({
         </section>
 
         <section
-          className="hidden border border-foreground md:grid md:grid-cols-2 xl:grid-cols-[minmax(18rem,1fr)_repeat(3,minmax(10rem,0.45fr))]"
+          className="hidden border border-structure md:grid md:grid-cols-2 xl:grid-cols-[minmax(18rem,1fr)_repeat(3,minmax(10rem,0.45fr))]"
           aria-label="Parsed statement summary"
         >
-          <div className="flex min-h-28 items-center gap-3 border-b border-foreground bg-primary p-4 text-primary-foreground sm:col-span-2 xl:col-span-1 xl:border-r xl:border-b-0">
-            <span className="grid size-10 shrink-0 place-content-center bg-secondary text-primary">
+          <div className="flex min-h-28 items-center gap-3 border-b border-structure bg-primary p-4 text-primary-foreground sm:col-span-2 xl:col-span-1 xl:border-r xl:border-b-0">
+            <span className="grid size-10 shrink-0 place-content-center bg-secondary text-inverse-accent">
               <LandmarkIcon className="size-5" aria-hidden="true" />
             </span>
             <div className="min-w-0">
@@ -588,7 +588,7 @@ function CategorizeStatement({
         </section>
 
         <section
-          className="border border-foreground"
+          className="border border-structure"
           aria-labelledby="transactions-heading"
         >
           <div className="flex gap-2 border-b p-3 md:hidden">
@@ -606,7 +606,7 @@ function CategorizeStatement({
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="Search description"
-                className="h-11 border-foreground pl-9"
+                className="h-11 border-control-border pl-9"
               />
             </div>
             <Sheet>
@@ -615,7 +615,7 @@ function CategorizeStatement({
                   type="button"
                   variant="outline"
                   size="icon"
-                  className="relative size-11 border-foreground"
+                  className="relative size-11 border-structure"
                   aria-label={
                     hasActiveSheetFilters
                       ? "Filter Transactions, filters active"
@@ -625,7 +625,7 @@ function CategorizeStatement({
                   <FilterIcon aria-hidden="true" />
                   {hasActiveFilters && (
                     <span
-                      className="absolute top-1 right-1 size-2 rounded-full bg-primary ring-1 ring-foreground"
+                      className="absolute top-1 right-1 size-2 rounded-full bg-primary ring-1 ring-ring"
                       aria-hidden="true"
                     />
                   )}
@@ -825,7 +825,7 @@ function CategorizeStatement({
                 {visibleTransactions.length} of {transactions.length}{" "}
                 Transactions
               </span>
-              <span className={unmappedCount > 0 ? "text-primary" : undefined}>
+              <span className={unmappedCount > 0 ? "text-inverse-accent" : undefined}>
                 {unmappedCount} need Review
               </span>
             </div>
@@ -1277,7 +1277,7 @@ function CategorizeStatement({
           </div>
         )}
 
-        <div className="mt-auto flex gap-2 border-t border-foreground pt-4 md:gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="mt-auto flex gap-2 border-t border-structure pt-4 md:gap-3 md:flex-row md:items-center md:justify-between">
           <Button
             type="button"
             variant="outline"
@@ -1297,7 +1297,7 @@ function CategorizeStatement({
             disabled={!canReview}
           >
             Review {includedTransactions.length} Transactions
-            <ArrowRightIcon className="text-primary" aria-hidden="true" />
+            <ArrowRightIcon className="text-inverse-accent" aria-hidden="true" />
           </Button>
         </div>
       </main>

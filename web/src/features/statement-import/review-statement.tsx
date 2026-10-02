@@ -311,12 +311,12 @@ function ReviewStatement({
       </header>
 
       <main className="flex flex-1 flex-col gap-4">
-        <div className="sticky top-[calc(4rem+env(safe-area-inset-top,0px))] z-10 lg:top-0 flex flex-wrap justify-between gap-2 border border-foreground bg-background p-3 font-mono text-sm font-bold" aria-label="Included expense total">
+        <div className="sticky top-[calc(4rem+env(safe-area-inset-top,0px))] z-10 lg:top-0 flex flex-wrap justify-between gap-2 border border-structure bg-background p-3 font-mono text-sm font-bold" aria-label="Included expense total">
           <span>{includedTransactions.length} included expenses</span>
           <span>{formatMoney(debitTotal)}</span>
         </div>
         <section
-          className="border border-foreground md:hidden"
+          className="border border-structure md:hidden"
           aria-label="Statement review summary"
         >
           <div className="bg-primary p-4 text-primary-foreground">
@@ -336,7 +336,7 @@ function ReviewStatement({
               File: {fileName}
             </p>
           </div>
-          <div className="grid grid-cols-2 border-t border-foreground">
+          <div className="grid grid-cols-2 border-t border-structure">
             <MobileSummaryMetric
               label={isEWallet ? "Transaction History Period" : "Date"}
               className="border-r border-b"
@@ -368,11 +368,11 @@ function ReviewStatement({
         </section>
 
         <section
-          className="hidden border border-foreground md:grid md:grid-cols-2 xl:grid-cols-[minmax(18rem,1fr)_repeat(4,minmax(9rem,0.42fr))]"
+          className="hidden border border-structure md:grid md:grid-cols-2 xl:grid-cols-[minmax(18rem,1fr)_repeat(4,minmax(9rem,0.42fr))]"
           aria-label="Statement review summary"
         >
-          <div className="flex min-h-28 min-w-0 items-center gap-3 border-b border-foreground bg-primary p-4 text-primary-foreground sm:col-span-2 xl:col-span-1 xl:border-r xl:border-b-0">
-            <span className="grid size-10 shrink-0 place-content-center bg-secondary text-primary">
+          <div className="flex min-h-28 min-w-0 items-center gap-3 border-b border-structure bg-primary p-4 text-primary-foreground sm:col-span-2 xl:col-span-1 xl:border-r xl:border-b-0">
+            <span className="grid size-10 shrink-0 place-content-center bg-secondary text-inverse-accent">
               <LandmarkIcon className="size-5" aria-hidden="true" />
             </span>
             <div className="min-w-0">
@@ -439,7 +439,7 @@ function ReviewStatement({
           />
 
           {excludedTransactions.length > 0 && (
-            <details className="border border-foreground p-3">
+            <details className="border border-structure p-3">
               <summary className="cursor-pointer font-mono text-sm font-bold">Excluded rows ({excludedTransactions.length})</summary>
               <MobileTransactionList transactions={excludedTransactions} getCategoryColor={getCategoryColor} getCategoryLabel={getCategoryLabel} excluded />
             </details>
@@ -448,10 +448,10 @@ function ReviewStatement({
 
         <div className="hidden gap-4 md:grid xl:grid-cols-[minmax(0,1fr)_22.5rem]">
           <Card variant="strong" className="min-w-0 overflow-hidden">
-            <CardHeader className="flex-row flex-wrap items-center justify-between gap-3 border-foreground bg-secondary text-secondary-foreground">
+            <CardHeader className="flex-row flex-wrap items-center justify-between gap-3 border-structure bg-secondary text-secondary-foreground">
               <div>
                 <CardTitle className="uppercase">Transaction summary</CardTitle>
-                <CardDescription className="mt-1 text-border">
+                <CardDescription className="mt-1 text-inverse-muted">
                   Review every parsed Transaction before import.
                 </CardDescription>
               </div>
@@ -520,17 +520,17 @@ function ReviewStatement({
 
           <aside className="flex flex-col gap-4" aria-label="Review insights">
             <Card variant="strong">
-              <CardHeader className="border-foreground bg-secondary text-secondary-foreground">
+              <CardHeader className="border-structure bg-secondary text-secondary-foreground">
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <CardTitle className="uppercase">
                       Expense breakdown
                     </CardTitle>
-                    <CardDescription className="mt-1 text-border">
+                    <CardDescription className="mt-1 text-inverse-muted">
                       Included, categorized debits
                     </CardDescription>
                   </div>
-                  <p className="font-mono text-sm font-bold text-primary tabular-nums">
+                  <p className="font-mono text-sm font-bold text-inverse-accent tabular-nums">
                     {formatMoney(categorizedDebitTotal)}
                   </p>
                 </div>
@@ -586,7 +586,7 @@ function ReviewStatement({
           </aside>
         </div>
 
-        <div className="mt-auto flex flex-row gap-3 border-t border-foreground pt-4 sm:items-center sm:justify-between">
+        <div className="mt-auto flex flex-row gap-3 border-t border-structure pt-4 sm:items-center sm:justify-between">
           <Button
             type="button"
             variant="outline"
@@ -621,7 +621,7 @@ function ReviewStatement({
               ? "Resolve duplicate warning above"
               : `Import ${includedTransactions.length} Transactions`}
             {!isCommitting && !probableDuplicateConflict && (
-              <ArrowRightIcon className="text-primary" aria-hidden="true" />
+              <ArrowRightIcon className="text-inverse-accent" aria-hidden="true" />
             )}
           </Button>
         </div>
@@ -925,7 +925,7 @@ function MobileTransactionList({
 }: MobileTransactionListProps) {
   return (
     <section
-      className="border border-foreground"
+      className="border border-structure"
       aria-label={excluded ? "Excluded row details" : "Included expense details"}
     >
       <div className="flex items-center justify-between gap-3 border-b p-3.5">

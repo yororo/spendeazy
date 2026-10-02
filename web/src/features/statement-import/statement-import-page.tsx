@@ -371,7 +371,7 @@ function StatementImportPage({
           </section>
 
           <section
-            className="flex gap-3 border border-foreground bg-primary p-3.5 text-primary-foreground"
+            className="flex gap-3 border border-structure bg-primary p-3.5 text-primary-foreground"
             aria-label="Import privacy"
           >
             <InfoIcon className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
@@ -382,7 +382,7 @@ function StatementImportPage({
           </section>
 
           <section
-            className="flex min-h-0 flex-1 flex-col border border-foreground"
+            className="flex min-h-0 flex-1 flex-col border border-structure"
             aria-labelledby="recent-committed-statement-imports-heading"
           >
             <div className="flex min-h-12 items-center border-b px-3.5">

@@ -2,9 +2,12 @@ import { expect, test } from "@playwright/test";
 import { authorizationHeaders, createNewLocalTestUser, isRecord, requireEnvironment } from "./test-helpers";
 
 import { statementPdf } from "./fictional-repeat-statement";
+import { expectWorkflowSurvivesThemeChange } from "./theme-helpers";
 
 for (const width of [320, 390, 1440]) {
   test(`previews repeated expenses and commits selected Manual assignments at ${width}px`, async ({ page }) => {
+    test.setTimeout(90_000);
+    await page.clock.install({ time: requireEnvironment("SPENDEAZY_E2E_TEST_CLOCK") });
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/");
     const token = await createNewLocalTestUser(page);
@@ -30,6 +33,10 @@ for (const width of [320, 390, 1440]) {
     await expect(preview.getByRole("status")).toHaveText("1 of 3 matching rows selected");
     await preview.getByRole("combobox").click();
     await page.getByRole("option", { name: category.name as string, exact: true }).click();
+    await expectWorkflowSurvivesThemeChange(page, "Playful", "Light");
+    await expectWorkflowSurvivesThemeChange(page, "Technical", "Dark");
+    await expect(preview.getByRole("status")).toHaveText("1 of 3 matching rows selected");
+    await expect(preview.getByRole("checkbox", { disabled: true })).toHaveCount(1);
     await preview.getByRole("button", { name: "Apply to 1 expenses" }).click();
     await trigger.click();
     preview = page.getByRole("dialog", { name: "Categorize repeated descriptions" });

@@ -13,3 +13,7 @@
     min-height: 0;
   }
 }
+[data-testid="local-test-panel"] {
+  /* Keep the synthetic harness height independent of application Theme fonts. */
+  font-family: "Geist Mono Variable", ui-monospace, monospace;
+}

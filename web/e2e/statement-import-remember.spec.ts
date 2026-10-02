@@ -1,9 +1,12 @@
 import { expect, test } from "@playwright/test";
 import { statementPdf } from "./fictional-repeat-statement";
 import { authorizationHeaders, createNewLocalTestUser, isRecord, requireEnvironment } from "./test-helpers";
+import { expectWorkflowSurvivesThemeChange } from "./theme-helpers";
 
 for (const width of [320, 390, 1440]) {
   test(`Remember survives uncertain completion, retry and draft discard at ${width}px`, async ({ page }) => {
+    test.setTimeout(90_000);
+    await page.clock.install({ time: requireEnvironment("SPENDEAZY_E2E_TEST_CLOCK") });
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/");
     const token = await createNewLocalTestUser(page);
@@ -47,6 +50,8 @@ for (const width of [320, 390, 1440]) {
     });
     await editor.getByRole("button", { name: "Apply & remember", exact: true }).click();
     await expect(editor.getByText(/The save may have completed/)).toBeVisible();
+    await expectWorkflowSurvivesThemeChange(page, "Playful", "Dark");
+    await expect(editor.getByRole("checkbox", { name: "Remember this category" })).toBeChecked();
     await expect(editor.getByRole("combobox", { name: "Category for FICTIONAL REPEAT", exact: true })).toContainText(category.name as string);
     const savedBeforeConfirmation: unknown = await (await page.request.get(`${scoped}/category-rules`, { headers })).json();
     expect(isRecord(savedBeforeConfirmation) && Array.isArray(savedBeforeConfirmation.rules) ? savedBeforeConfirmation.rules.length : null).toBe(1);
@@ -64,6 +69,7 @@ for (const width of [320, 390, 1440]) {
     await remember.check();
     await editor.getByRole("button", { name: "Apply & remember", exact: true }).click();
     await expect(editor.getByRole("alert")).toContainText(`Existing Category: “${category.name as string}”`);
+    await expectWorkflowSurvivesThemeChange(page, "Technical", "Light");
     expect(attempts).toBe(2);
     await editor.getByRole("button", { name: "Apply without remembering" }).click();
     expect(await (await page.request.get(`${scoped}/category-rules`, { headers })).json()).toEqual(savedBeforeConfirmation);
@@ -71,12 +77,16 @@ for (const width of [320, 390, 1440]) {
     await navigation.getByRole("link", { name: "Dashboard", exact: true }).click();
     const leave = page.getByRole("dialog", { name: "Leave Statement Import?" });
     await expect(leave).toContainText("Category Rules already saved remain for future imports");
+    await expectWorkflowSurvivesThemeChange(page, "Playful", "System");
     await leave.getByRole("button", { name: "Leave Categorize", exact: true }).click();
     expect(await (await page.request.get(`${scoped}/category-rules`, { headers })).json()).toEqual(savedBeforeConfirmation);
     const imports: unknown = await (await page.request.get(`${scoped}/statement-imports`, { headers })).json();
     expect(isRecord(imports) ? imports.items : null).toEqual([]);
     const otherToken = await createNewLocalTestUser(page);
-    expect((await page.request.get(`${scoped}/category-rules`, { headers: authorizationHeaders(otherToken) })).status()).toBe(403);
-    expect((await page.request.post(`${scoped}/category-rules`, { headers: authorizationHeaders(otherToken), data: { categoryId: category.id, pattern: "Foreign Rule", matchType: "exact" } })).status()).toBe(403);
+    await expect(page.getByTestId("local-test-active-user")).toContainText("Fresh Local User");
+    await expect(page.getByRole("heading", { name: "Your spending at a glance", exact: true })).toBeVisible();
+    expect((await page.request.get(`${base}/spaces`, { headers: authorizationHeaders(otherToken) })).status()).toBe(200);
+    expect((await page.request.get(`${scoped}/category-rules`, { headers: authorizationHeaders(otherToken) })).status()).toBe(404);
+    expect((await page.request.post(`${scoped}/category-rules`, { headers: authorizationHeaders(otherToken), data: { categoryId: category.id, pattern: "Foreign Rule", matchType: "exact" } })).status()).toBe(404);
   });
 }

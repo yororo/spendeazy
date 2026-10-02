@@ -77,6 +77,9 @@
   --color-chart: var(--chart);
   --color-overlay: var(--overlay);
   --color-control-border: var(--control-border);
+  --color-inverse-accent: var(--inverse-accent);
+  --color-inverse-muted: var(--inverse-muted);
+  --color-upload-action: var(--upload-action);
   --font-sans: var(--ui-font);
   --font-mono: var(--data-font);
   --radius-sm: var(--radius);
@@ -93,6 +96,9 @@
   --chart: var(--primary);
   --overlay: #00000099;
   --control-border: var(--foreground);
+  --inverse-accent: var(--primary);
+  --inverse-muted: var(--border);
+  --upload-action: var(--secondary);
   --card-radius: 0px;
   --metric-radius: 0px;
   --navigation-radius: 0px;
@@ -173,6 +179,8 @@
 }
 
 :root[data-theme="dark"] {
+  --inverse-muted: var(--muted-foreground);
+  --upload-action: var(--background);
   color-scheme: dark;
   --background: #111111;
   --foreground: #ffffff;
@@ -231,6 +239,9 @@
   --ring: #087443;
   --structure: var(--border);
   --control-border: var(--muted-foreground);
+  --inverse-accent: var(--secondary-foreground);
+  --inverse-muted: var(--secondary-foreground);
+  --upload-action: var(--secondary);
   --chart: #24a66a;
   --navigation-selected: #d8f2df;
   --navigation-selected-foreground: #087443;

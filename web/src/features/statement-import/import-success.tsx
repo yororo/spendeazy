@@ -65,9 +65,9 @@ function ImportSuccess({
 
       <main className="grid flex-1 place-content-center">
         <Card variant="strong" className="w-full max-w-2xl">
-          <CardHeader className="border-foreground bg-primary text-primary-foreground">
+          <CardHeader className="border-structure bg-primary text-primary-foreground">
             <div className="flex items-start gap-3">
-              <span className="grid size-10 shrink-0 place-content-center bg-secondary text-primary">
+              <span className="grid size-10 shrink-0 place-content-center bg-secondary text-inverse-accent">
                 <CheckCircle2Icon className="size-5" aria-hidden="true" />
               </span>
               <div>
@@ -171,7 +171,7 @@ function ImportSuccess({
               </Button>
               <Button variant="secondary" onClick={onViewTransactions}>
                 View Transactions
-                <ArrowRightIcon className="text-primary" aria-hidden="true" />
+                <ArrowRightIcon className="text-inverse-accent" aria-hidden="true" />
               </Button>
             </div>
           </CardContent>

@@ -122,7 +122,7 @@ function ArchivedSpaceHistoryPage() {
 
   return (
     <div className="mx-auto w-full max-w-screen-2xl px-4 py-6 sm:px-6 lg:px-9 lg:py-7">
-      <header className="mb-6 flex flex-col gap-5 border-b border-foreground pb-5 md:flex-row md:items-end md:justify-between">
+      <header className="mb-6 flex flex-col gap-5 border-b border-structure pb-5 md:flex-row md:items-end md:justify-between">
         <div>
           <Button asChild variant="ghost" className="mb-3 -ml-3">
             <Link to="/history">
@@ -227,7 +227,7 @@ function ArchivedSpaceList({
 }) {
   return (
     <div className="mx-auto w-full max-w-screen-2xl px-4 py-6 sm:px-6 lg:px-9 lg:py-7">
-      <header className="mb-6 border-b border-foreground pb-5">
+      <header className="mb-6 border-b border-structure pb-5">
         <p className="text-label text-muted-foreground">Space history</p>
         <h1 className="mt-2 font-mono text-2xl font-bold tracking-tight sm:text-3xl">
           Space history

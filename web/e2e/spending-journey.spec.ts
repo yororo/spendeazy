@@ -1,14 +1,14 @@
 import { expect, test } from "@playwright/test";
 import { fileURLToPath } from "node:url";
-import { expectFinancialTokenContrast } from "./financial-accessibility";
-import { changeTheme } from "./theme-helpers";
+import { expectFinancialTokenContrast, expectReadableText } from "./financial-accessibility";
+import { changeTheme, expectWorkflowSurvivesThemeChange } from "./theme-helpers";
 import { authorizationHeaders, createNewLocalTestUser, isRecord, requireEnvironment } from "./test-helpers";
 
 const fixture = fileURLToPath(new URL("./fixtures/spending-journey-encrypted.pdf", import.meta.url));
 
 for (const width of [320, 390, 1440]) {
-  test(`Personal spending journey through encrypted Upload and monthly actions at ${width}px`, async ({ page }) => {
-    test.setTimeout(60_000);
+  test(`Personal spending journey through encrypted Upload and monthly actions at ${width}px`, async ({ page }, testInfo) => {
+    test.setTimeout(120_000);
     await page.clock.install({ time: requireEnvironment("SPENDEAZY_E2E_TEST_CLOCK") });
     await page.setViewportSize({ width, height: 900 });
     await page.emulateMedia({ colorScheme: "light" });
@@ -31,13 +31,33 @@ for (const width of [320, 390, 1440]) {
     const navigation = page.getByRole("navigation", { name: width < 768 ? "Mobile navigation" : "Primary navigation" });
     await page.getByLabel("Reporting period", { exact: true }).fill("2026-06");
     await navigation.getByRole("link", { name: "Imports", exact: true }).click();
+    let releaseWorker!: () => void;
+    const workerReady = new Promise<void>(resolve => { releaseWorker = resolve; });
+    let workerLoads = 0;
+    await page.route("**/assets/pdf.worker.mjs", async route => {
+      workerLoads += 1;
+      await workerReady;
+      await route.continue();
+    });
     await page.locator('input[type="file"]').setInputFiles(fixture);
+    try {
+      await expect(page.getByRole("button", { name: "Processing", exact: true })).toBeDisabled();
+      await expectWorkflowSurvivesThemeChange(page, "Playful", "Light");
+      await expectWorkflowSurvivesThemeChange(page, "Technical", "Dark");
+      await expect(page.getByRole("button", { name: "Processing", exact: true })).toBeDisabled();
+      expect(workerLoads).toBe(1);
+    } finally {
+      releaseWorker();
+    }
     const unlock = page.getByRole("dialog", { name: "PDF password required" });
     await expect(unlock).toBeVisible();
     await unlock.getByLabel("PDF password", { exact: true }).fill("wrong-fictional-password");
     await unlock.getByRole("button", { name: "Open PDF", exact: true }).click();
     await expect(unlock).toContainText("The password you entered is incorrect");
     await unlock.getByLabel("PDF password", { exact: true }).fill("fictional-journey-only");
+    await expectWorkflowSurvivesThemeChange(page, "Playful", "Dark");
+    await expect(unlock.getByLabel("PDF password", { exact: true })).toHaveValue("fictional-journey-only");
+    await page.screenshot({ path: testInfo.outputPath(`password-${width}.png`), fullPage: true });
     await unlock.getByRole("button", { name: "Open PDF", exact: true }).click();
     const rows = width < 768 ? page.getByRole("list", { name: "Transactions to categorize" }) : page.getByRole("table");
     await rows.getByRole("button", { name: "Edit Fictional Separate", exact: true }).click();
@@ -45,6 +65,12 @@ for (const width of [320, 390, 1440]) {
     await editor.getByRole("combobox", { name: "Category for Fictional Separate", exact: true }).click();
     await page.getByRole("option", { name: "Journey expenses", exact: true }).click();
     await editor.getByRole("checkbox", { name: "Remember this category" }).check();
+    await editor.getByLabel("Amount for Fictional Separate", { exact: true }).fill("-200.02");
+    await expectWorkflowSurvivesThemeChange(page, "Technical", "Light");
+    await expectWorkflowSurvivesThemeChange(page, "Playful", "Dark");
+    await expect(editor.getByLabel("Amount for Fictional Separate", { exact: true })).toHaveValue("-200.02");
+    await expect(editor.getByRole("checkbox", { name: "Remember this category" })).toBeChecked();
+    await editor.getByLabel("Amount for Fictional Separate", { exact: true }).fill("-200.01");
     await editor.getByRole("button", { name: "Apply & remember", exact: true }).click();
     await expect(page.getByRole("status").filter({ hasText: "Category Rule saved for future imports" })).toBeVisible();
     const assignRepeats = async () => {
@@ -53,6 +79,10 @@ for (const width of [320, 390, 1440]) {
       await expect(bulk.getByRole("status")).toHaveText("3 of 3 matching rows selected");
       await bulk.getByRole("combobox").click();
       await page.getByRole("option", { name: "Journey expenses", exact: true }).click();
+      await expectWorkflowSurvivesThemeChange(page, "Technical", "Light");
+      await expectWorkflowSurvivesThemeChange(page, "Playful", "Dark");
+      await expect(bulk.getByRole("status")).toHaveText("3 of 3 matching rows selected");
+      await expect(bulk.getByRole("combobox")).toContainText("Journey expenses");
       await bulk.getByRole("button", { name: "Apply to 3 expenses" }).click();
     };
     await assignRepeats();
@@ -64,13 +94,27 @@ for (const width of [320, 390, 1440]) {
     await expect(page.getByRole("checkbox")).toHaveCount(0);
     const total = page.getByLabel("Included expense total", { exact: true });
     await expect(total).toContainText("₱2,000.01");
+    for (const theme of ["Technical", "Playful"] as const) {
+      for (const appearance of ["Light", "Dark", "System"] as const) {
+        await expectWorkflowSurvivesThemeChange(page, theme, appearance);
+        await expectFinancialTokenContrast(page);
+        await expect(total).toContainText("₱2,000.01");
+        const expenseTotal = page.getByRole("complementary", { name: "Review insights" }).getByText("₱2,000.01", { exact: true });
+        if (width >= 768) {
+          await expectReadableText(expenseTotal);
+          await expectReadableText(page.getByRole("complementary", { name: "Review insights" }).getByText("Included, categorized debits", { exact: true }));
+        }
+      }
+    }
     const confirm = page.getByRole("button", { name: "Import 4 Transactions", exact: true });
+    await page.screenshot({ path: testInfo.outputPath(`review-${width}.png`), fullPage: true });
     await confirm.scrollIntoViewIfNeeded();
     await expect(confirm).toBeInViewport();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await confirm.click();
     await expect(page.getByRole("heading", { name: "Statement imported" })).toBeFocused();
     await expect(page.getByRole("status").filter({ hasText: "4 expenses saved" })).toContainText("₱2,000.01");
+    await expectWorkflowSurvivesThemeChange(page, "Technical", "Light");
     await page.getByRole("button", { name: "View Transactions", exact: true }).click();
     expect(new URL(page.url()).searchParams.get("spaceId")).toBe(spaces[0].id);
     const statementId = new URL(page.url()).searchParams.get("statementImportId");
@@ -151,6 +195,9 @@ for (const width of [320, 390, 1440]) {
     await assignRepeats();
     await page.getByRole("button", { name: "Review 4 Transactions", exact: true }).click();
     await page.getByRole("button", { name: "Import 4 Transactions", exact: true }).click();
+    await expect(page.getByText("Statement already imported", { exact: true }).filter({ visible: true })).toBeVisible();
+    await expectWorkflowSurvivesThemeChange(page, "Technical", "Dark");
+    await expectWorkflowSurvivesThemeChange(page, "Playful", "Light");
     await expect(page.getByText("Statement already imported", { exact: true }).filter({ visible: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "Import 4 Transactions", exact: true })).toBeDisabled();
     const imports: unknown = await (await page.request.get(`${scoped}/statement-imports`, { headers })).json();

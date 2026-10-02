@@ -27,9 +27,9 @@ function ImportProgress({ currentStep, className }: ImportProgressProps) {
               "flex min-h-10 min-w-0 flex-1 items-center justify-center gap-2 border px-3 font-mono text-xs sm:flex-none",
               index > 0 && "-ml-px",
               isCurrent
-                ? "relative z-10 border-foreground bg-primary font-bold text-primary-foreground"
+                ? "relative z-10 border-structure bg-primary font-bold text-primary-foreground"
                 : "border-border bg-background text-muted-foreground",
-              isComplete && "border-foreground text-foreground",
+              isComplete && "border-structure text-foreground",
             )}
           >
             <span className="font-bold tabular-nums">

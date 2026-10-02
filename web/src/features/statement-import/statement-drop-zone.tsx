@@ -272,9 +272,9 @@ function StatementDropZone({
     <>
       <div
         className={cn(
-          "flex min-h-[28rem] flex-1 flex-col items-center justify-center border border-foreground bg-muted px-5 py-12 text-center transition-colors sm:min-h-[34rem]",
+          "flex min-h-[28rem] flex-1 flex-col items-center justify-center border border-structure bg-muted px-5 py-12 text-center transition-colors sm:min-h-[34rem]",
           isDragging &&
-            "bg-primary/15 outline-2 outline-offset-[-6px] outline-foreground",
+            "bg-primary/15 outline-2 outline-offset-[-6px] outline-ring",
         )}
         onDragEnter={(event) => {
           event.preventDefault();
@@ -289,7 +289,7 @@ function StatementDropZone({
         onDrop={handleDrop}
         aria-busy={isProcessing}
       >
-        <div className="grid size-16 place-content-center border border-foreground bg-primary text-primary-foreground">
+        <div className="grid size-16 place-content-center border border-structure bg-primary text-primary-foreground">
           <FileUpIcon className="size-7" aria-hidden="true" />
         </div>
 
@@ -315,7 +315,7 @@ function StatementDropZone({
           ref={browseButtonRef}
           type="button"
           variant="secondary"
-          className="mt-4 dark:bg-background dark:hover:bg-background/80"
+          className="mt-4 bg-upload-action hover:bg-upload-action/80"
           disabled={isProcessing}
           onClick={() => {
             if (inputRef.current) {
@@ -326,12 +326,12 @@ function StatementDropZone({
         >
           {isProcessing ? (
             <LoaderCircleIcon
-              className="size-4 animate-spin text-primary"
+              className="size-4 animate-spin text-inverse-accent"
               aria-hidden="true"
             />
           ) : (
             <FolderOpenIcon
-              className="size-4 text-primary"
+              className="size-4 text-inverse-accent"
               aria-hidden="true"
             />
           )}
@@ -347,7 +347,7 @@ function StatementDropZone({
           ) : isProcessing && selectedFile ? (
             <div>
               <div className="font-mono text-xs font-semibold uppercase">
-                <span className="truncate">Processing {selectedFile.name}</span>
+                <span className="wrap-anywhere">Processing {selectedFile.name}</span>
               </div>
             </div>
           ) : (
@@ -376,7 +376,7 @@ function StatementDropZone({
         >
           <DialogHeader>
             <div className="flex items-center gap-2.5">
-              <span className="grid size-7 place-content-center border border-foreground bg-primary text-primary-foreground">
+              <span className="grid size-7 place-content-center border border-structure bg-primary text-primary-foreground">
                 <LockKeyholeIcon className="size-4" aria-hidden="true" />
               </span>
               <DialogTitle className="uppercase">
@@ -398,7 +398,7 @@ function StatementDropZone({
 
               <div className="grid gap-2">
                 <Label htmlFor="pdf-password">PDF password</Label>
-                <div className="flex h-10 items-center border border-foreground bg-background pl-3">
+                <div className="flex h-10 items-center border border-control-border bg-background pl-3">
                   <KeyRoundIcon
                     className="size-4 shrink-0 text-muted-foreground"
                     aria-hidden="true"

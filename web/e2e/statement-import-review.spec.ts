@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { authorizationHeaders, createNewLocalTestUser, isRecord, requireEnvironment } from "./test-helpers";
 import { createFictionalStatementPdf } from "./fictional-repeat-statement";
+import { expectWorkflowSurvivesThemeChange } from "./theme-helpers";
 
 function reviewPdf() {
   return createFictionalStatementPdf([
@@ -20,6 +21,8 @@ function reviewPdf() {
 
 for (const width of [320, 390, 1440]) {
   test(`read-only Review restores correction context and saves only expenses at ${width}px`, async ({ page }) => {
+    test.setTimeout(90_000);
+    await page.clock.install({ time: requireEnvironment("SPENDEAZY_E2E_TEST_CLOCK") });
     await page.setViewportSize({ width, height: 844 });
     await page.goto("/");
     const token = await createNewLocalTestUser(page);
@@ -47,7 +50,22 @@ for (const width of [320, 390, 1440]) {
     if (width < 768) await page.keyboard.press("Escape");
     await expect(categorize.getByText("Fictional purchase 02", { exact: true })).toHaveCount(0);
     const review = page.getByRole("button", { name: "Review 11 Transactions", exact: true });
+    await page.evaluate(() => document.fonts.ready);
     await review.scrollIntoViewIfNeeded();
+    let releaseFonts!: () => void;
+    const fontsReady = new Promise<void>(resolve => { releaseFonts = resolve; });
+    await page.route("**/*nunito*.woff2", async route => {
+      await fontsReady;
+      await route.continue();
+    });
+    const themeChange = expectWorkflowSurvivesThemeChange(page, "Playful", "Light");
+    try {
+      await expect(page.locator("html")).toHaveAttribute("data-visual-theme", "playful");
+      await page.evaluate(() => document.documentElement.scrollHeight);
+    } finally {
+      releaseFonts();
+    }
+    await themeChange;
     const position = await page.evaluate(() => ({ windowTop: scrollY, contentTop: document.getElementById("main-content")?.parentElement?.scrollTop ?? 0 }));
     await review.click();
     await expect(page.getByRole("heading", { name: "Review your imported statement" })).toBeFocused();
@@ -73,6 +91,9 @@ for (const width of [320, 390, 1440]) {
     await expect(excludedRows.nth(0)).toContainText("Fictional refund");
     await expect(excludedRows.nth(1)).toContainText("PAYMENT RECEIVED");
     await expect(excludedRows.nth(2)).toContainText("Fictional purchase 12");
+    await expectWorkflowSurvivesThemeChange(page, "Technical", "Dark");
+    await expectWorkflowSurvivesThemeChange(page, "Playful", "System");
+    await expect(excluded).toContainText("Excluded by you");
     const confirm = page.getByRole("button", { name: "Import 11 Transactions", exact: true });
     await confirm.scrollIntoViewIfNeeded();
     const total = page.getByLabel("Included expense total", { exact: true });

@@ -1,4 +1,12 @@
-import { Controller, Get, HttpStatus, Param, Post, Req } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Post,
+  Req,
+} from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 import {
@@ -42,6 +50,7 @@ export class SpaceNotificationsController {
   }
 
   @Post(':notificationId/read')
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Mark an in-app notification as read.' })
   @ApiParam({ name: 'notificationId', type: String, example: '42' })
   @ApiResponse({ status: HttpStatus.OK, type: SpaceNotificationResponseDto })

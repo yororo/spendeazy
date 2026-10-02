@@ -11,6 +11,7 @@ import {
   isRecord,
   requireEnvironment,
 } from "./test-helpers";
+import { expectWorkflowSurvivesThemeChange } from "./theme-helpers";
 
 const testClock =
   process.env.SPENDEAZY_E2E_TEST_CLOCK ?? "2026-09-19T12:00:00.000Z";
@@ -119,6 +120,9 @@ test("does not commit a Category Suggestion selected only in the unsaved editor"
   await expect(
     page.getByRole("combobox", { name: `Category for ${description}` }),
   ).toContainText(suggestedCategoryName);
+  await expectWorkflowSurvivesThemeChange(page, "Playful", "Dark");
+  await expectWorkflowSurvivesThemeChange(page, "Technical", "Light");
+  await expect(page.getByRole("combobox", { name: `Category for ${description}` })).toContainText(suggestedCategoryName);
   await page
     .getByRole("button", { name: `Cancel changes to ${description}` })
     .click();

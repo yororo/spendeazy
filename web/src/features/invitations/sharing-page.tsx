@@ -340,7 +340,7 @@ function IncomingInvitationRow({
   readonly onDecline: () => void;
 }) {
   return (
-    <div className="border border-border bg-background p-4">
+    <div className="min-w-0 break-words border border-border bg-background p-4">
       <p className="font-semibold">{invitation.senderName}</p>
       <p className="mt-1 text-sm text-muted-foreground">
         Shared Space invitation · {formatInvitationStatus(invitation.status)}

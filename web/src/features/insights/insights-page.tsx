@@ -1,6 +1,7 @@
 import { type BudgetReviewHistory } from "@/shared/budget";
 import { useEffect, useRef, useState } from "react";
 import { capturePageScroll, restorePageScroll, type PageScrollPosition } from "@/shared/ui/page-scroll";
+import { restoreActionFocus } from "@/shared/ui/restore-action-focus";
 
 import {
   FeatureDataError,
@@ -25,12 +26,16 @@ import { useInsightsQuery, type InsightsView } from "./insights-queries";
 import { MonthlySpendingChart } from "./monthly-spending-chart";
 import { SelectedMonthSummary } from "./selected-month-summary";
 import { BudgetReviewEvidence } from "./budget-review-evidence";
-import { SpendingPatternEvidence } from "./spending-pattern-evidence";
+import { CategoryExplorer, type CategoryExplorerState } from "./category-explorer";
+import { MonthComparison } from "./month-comparison";
 
 interface InsightsReturnContext {
   readonly scroll: PageScrollPosition;
   readonly focusId: string;
   readonly view?: InsightsView;
+  readonly explorer?: CategoryExplorerState;
+  readonly period?: ReportingPeriod;
+  readonly spaceId?: string;
 }
 
 interface InsightsPageProps {
@@ -66,12 +71,7 @@ function InsightsPage({ spaceId, onSpaceChange, onManageBudgets, onViewTransacti
     const frame = requestAnimationFrame(() => {
       restoredContext.current = returnContext;
       const target = document.getElementById(returnContext.focusId);
-      let ancestor = target?.parentElement;
-      while (ancestor) {
-        if (ancestor instanceof HTMLDetailsElement) ancestor.open = true;
-        ancestor = ancestor.parentElement;
-      }
-      target?.focus({ preventScroll: true });
+      restoreActionFocus(target);
       restorePageScroll(returnContext.scroll);
     });
     return () => cancelAnimationFrame(frame);
@@ -111,69 +111,11 @@ function InsightsPage({ spaceId, onSpaceChange, onManageBudgets, onViewTransacti
   if (!insightsQuery.data) return null;
 
   const report = insightsQuery.data;
-  function viewTransactions(categoryId: string | undefined, selectedPeriod: ReportingPeriod, focusId = document.activeElement?.id ?? "") {
-    onViewTransactions?.(categoryId, selectedPeriod, effectiveSpaceId, { view, focusId, scroll: capturePageScroll() });
+  function viewTransactions(categoryId: string | undefined, selectedPeriod: ReportingPeriod, focusId = document.activeElement?.id ?? "", explorer?: CategoryExplorerState) {
+    onViewTransactions?.(categoryId, selectedPeriod, effectiveSpaceId, { view, explorer, period: report.period, spaceId: effectiveSpaceId, focusId, scroll: capturePageScroll() });
   }
 
-  return (
-    <div data-insights-view={view} className="mx-auto w-full max-w-screen-2xl px-4 py-6 sm:px-6 lg:px-9 lg:py-7">
-      <header className="mb-6 flex flex-col gap-5 border-b border-structure pb-5 md:flex-row md:items-end md:justify-between">
-        <div>
-          <ActiveSpaceLabel spaceId={effectiveSpaceId} spaces={spacesQuery.data} />
-          <p className="text-label text-muted-foreground">Spending insights</p>
-          <h1 className="mt-2 font-mono text-2xl font-bold tracking-tight md:text-3xl">
-            Insights
-          </h1>
-          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-            {view === "monthly"
-              ? "See spending across the selected month and its previous 11 months."
-              : "See how spending changes across the selected month."}
-          </p>
-        </div>
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <div className="min-w-0 flex-1">
-            <ReportingPeriodFilter id="insights-reporting-period" />
-          </div>
-          <div
-            role="group"
-            aria-label="Insights view"
-            className="flex h-10 shrink-0 items-center gap-1 border border-structure p-1 font-mono text-xs font-semibold tracking-wide"
-          >
-            <button
-              type="button"
-              aria-label="Monthly view"
-              aria-pressed={view === "monthly"}
-              onClick={() => setView("monthly")}
-              className={cn(
-                "focus-ledger h-8 px-3",
-                view === "monthly"
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-muted",
-              )}
-            >
-              Monthly
-            </button>
-            <button
-              type="button"
-              aria-label="Daily view"
-              aria-pressed={view === "daily"}
-              onClick={() => setView("daily")}
-              className={cn(
-                "focus-ledger h-8 px-3",
-                view === "daily"
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-muted",
-              )}
-            >
-              Daily
-            </button>
-          </div>
-        </div>
-      </header>
-
-      {report.view === "monthly" && <SelectedMonthSummary report={report} onViewTransactions={onViewTransactions ? viewTransactions : undefined} onEditBudget={onEditBudget ? (categoryId, selectedPeriod) => onEditBudget(categoryId, selectedPeriod, effectiveSpaceId) : undefined} onManageBudgets={onManageBudgets} />}
-      {report.view === "monthly" && <SpendingPatternEvidence key={report.period} report={report.spendingPatterns} period={report.period} onViewTransactions={onViewTransactions ? viewTransactions : undefined} />}
-      {report.view === "monthly" && <BudgetReviewEvidence reviews={report.budgetReviews} period={report.period} onEditBudget={onEditBudget ? (categoryId, selectedPeriod, evidence) => onEditBudget(categoryId, selectedPeriod, effectiveSpaceId, evidence) : undefined} />}
+  const history = <>
       <section
         aria-label={
           report.view === "monthly"
@@ -256,6 +198,71 @@ function InsightsPage({ spaceId, onSpaceChange, onManageBudgets, onViewTransacti
       {report.view === "monthly" ? (
         <MonthlyCategoryRankings report={report} />
       ) : null}
+
+  </>;
+
+  return (
+    <div data-insights-view={view} className="mx-auto w-full max-w-screen-2xl px-4 py-6 sm:px-6 lg:px-9 lg:py-7">
+      <header className="mb-6 flex flex-col gap-5 border-b border-structure pb-5 md:flex-row md:items-end md:justify-between">
+        <div>
+          <ActiveSpaceLabel spaceId={effectiveSpaceId} spaces={spacesQuery.data} />
+          <p className="text-label text-muted-foreground">Spending insights</p>
+          <h1 className="mt-2 font-mono text-2xl font-bold tracking-tight md:text-3xl">
+            Insights
+          </h1>
+          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+            {view === "monthly"
+              ? "Understand this month, compare spending, and choose what needs attention."
+              : "See how spending changes across the selected month."}
+          </p>
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="min-w-0 flex-1 [&>div]:h-11 [&_input]:min-h-11 [&_button]:min-h-11 [&_button]:min-w-11">
+            <ReportingPeriodFilter id="insights-reporting-period" />
+          </div>
+          <div
+            role="group"
+            aria-label="Insights view"
+            className="flex min-h-13 shrink-0 items-center gap-1 border border-structure p-1 font-mono text-xs font-semibold tracking-wide"
+          >
+            <button
+              type="button"
+              aria-label="Monthly view"
+              aria-pressed={view === "monthly"}
+              onClick={() => setView("monthly")}
+              className={cn(
+                "focus-ledger min-h-11 px-3",
+                view === "monthly"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-muted",
+              )}
+            >
+              Monthly
+            </button>
+            <button
+              type="button"
+              aria-label="Daily view"
+              aria-pressed={view === "daily"}
+              onClick={() => setView("daily")}
+              className={cn(
+                "focus-ledger min-h-11 px-3",
+                view === "daily"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-muted",
+              )}
+            >
+              Daily
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {report.view === "monthly" ? <div className="grid gap-5" aria-busy={insightsQuery.isFetching}>
+        <SelectedMonthSummary report={report} onViewTransactions={onViewTransactions ? viewTransactions : undefined} onManageBudgets={onManageBudgets} />
+        <MonthComparison report={report}>{history}</MonthComparison>
+        <CategoryExplorer key={report.period + effectiveSpaceId} report={report} initialState={returnContext?.period === report.period && returnContext.spaceId === effectiveSpaceId ? returnContext.explorer : undefined} onViewTransactions={onViewTransactions ? (categoryId, selectedPeriod, explorer) => viewTransactions(categoryId, selectedPeriod, undefined, explorer) : undefined} onEditBudget={onEditBudget ? (categoryId, selectedPeriod, evidence) => onEditBudget(categoryId, selectedPeriod, effectiveSpaceId, evidence) : undefined} />
+        <BudgetReviewEvidence reviews={report.budgetReviews} period={report.period} onEditBudget={onEditBudget ? (categoryId, selectedPeriod, evidence) => onEditBudget(categoryId, selectedPeriod, effectiveSpaceId, evidence) : undefined} />
+      </div> : <>{history}</>}
     </div>
   );
 }

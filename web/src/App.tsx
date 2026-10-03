@@ -3,6 +3,7 @@ import { lazy, Suspense, useState, type ReactNode } from "react";
 import { Route, Routes, useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { useReportingPeriod, type ReportingPeriod } from "@/shared/reporting-period";
 import { capturePageScroll } from "@/shared/ui/page-scroll";
+import { restoreActionFocus } from "@/shared/ui/restore-action-focus";
 import type { InsightsReturnContext } from "@/features/insights";
 import { Button } from "@/components/ui/button";
 
@@ -146,8 +147,8 @@ function InsightsRoute() {
     const trigger = budget?.trigger;
     setBudget(null);
     requestAnimationFrame(() => {
-      const target = trigger?.isConnected ? trigger : document.getElementById("insights-recorded-spending");
-      target?.focus({ preventScroll: true });
+      const target = trigger?.isConnected ? trigger : document.getElementById(trigger?.id ?? "") ?? document.getElementById("insights-recorded-spending");
+      restoreActionFocus(target);
     });
   }
 
@@ -161,7 +162,7 @@ function InsightsRoute() {
         if (categoryId === undefined) params.delete("categoryId");
         else params.set("categoryId", categoryId);
         if (destinationSpaceId) params.set("spaceId", destinationSpaceId);
-        const context: InsightsOrigin = { path: `/insights${location.search}`, period: originPeriod, scroll: origin?.scroll ?? capturePageScroll(), focusId: origin?.focusId ?? document.activeElement?.id ?? "", view: origin?.view };
+        const context: InsightsOrigin = { path: `/insights${location.search}`, period: originPeriod, scroll: origin?.scroll ?? capturePageScroll(), focusId: origin?.focusId ?? document.activeElement?.id ?? "", view: origin?.view, explorer: origin?.explorer, spaceId: destinationSpaceId };
         setPeriod(period);
         navigate(`/transactions?${params}`, { state: { insightsOrigin: context } });
       }}

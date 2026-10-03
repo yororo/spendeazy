@@ -18,6 +18,10 @@ test("recorded spending evidence uses real history and restores investigation co
   }
   await page.getByRole("navigation", { name: "Mobile navigation" }).getByRole("link", { name: "Insights", exact: true }).click();
   await page.getByLabel("Reporting period", { exact: true }).fill("2026-09");
+  const explorer = page.getByRole("region", { name: "Category explorer" });
+  await explorer.getByRole("button", { name: /Spending changes/ }).click();
+  await explorer.getByRole("button", { name: "Review Synthetic pattern: No monthly Budget", exact: true }).click();
+  await explorer.getByText("Spending changes & contributing expenses +", { exact: true }).click();
   const evidence = page.getByRole("region", { name: "Potential spending patterns" });
   await evidence.getByText("Synthetic pattern · Potential increase in recorded spending", { exact: true }).click();
   await expect(evidence.getByText(/Median: ₱1,000.00 · Change: ₱500.00/)).toBeVisible();
@@ -40,6 +44,9 @@ test("recorded spending evidence uses real history and restores investigation co
   await expect(page.getByLabel("Reporting period", { exact: true })).toHaveValue("2026-09");
   await expect(comparisonAction).toBeFocused();
   await page.getByLabel("Reporting period", { exact: true }).fill("2026-08");
+  await explorer.getByRole("button", { name: /No monthly Budget/ }).filter({ hasText: "No monthly Budget (" }).click();
+  await explorer.getByRole("button", { name: "Review Synthetic pattern: No monthly Budget", exact: true }).click();
+  await explorer.getByText("Spending changes & contributing expenses +", { exact: true }).click();
   await evidence.getByText("Synthetic pattern · Insufficient recorded history", { exact: true }).click();
   await expect(evidence.getByText(/Insufficient recorded history: 2 of the required 3/)).toBeVisible();
   await expect(evidence.getByText(/Selected recorded amount: ₱10,000.00/)).toBeVisible();

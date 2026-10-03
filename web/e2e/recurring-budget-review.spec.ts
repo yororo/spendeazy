@@ -60,6 +60,8 @@ test("recurring Budget evidence survives cancel and stale failure, then recalcul
   await expect(dialog).toHaveCount(0);
   await expect(evidence.getByText("Synthetic recurring · 0 of 6 eligible months over current limit", { exact: true })).toBeVisible();
   await page.getByLabel("Reporting period", { exact: true }).fill("2026-03");
+  await expect(evidence.getByText("Synthetic recurring · 0 of 3 eligible months over current limit", { exact: true })).toHaveCount(1);
+  await evidence.getByText("Review other Budgets & Categories without monthly limits +", { exact: true }).click();
   await expect(evidence.getByText("Synthetic recurring · 0 of 3 eligible months over current limit", { exact: true })).toBeVisible();
   await evidence.getByText("Synthetic recurring · 0 of 3 eligible months over current limit", { exact: true }).click();
   await expect(evidence.getByText(/current monthly limit of ₱1,500.00/)).toBeVisible();

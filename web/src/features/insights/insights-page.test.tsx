@@ -19,6 +19,7 @@ import { InsightsPage } from "./insights-page";
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 const getToken = vi.fn(async () => "session-token");
@@ -261,10 +262,81 @@ function renderInsights(spaceId = "7") {
 }
 
 describe("InsightsPage", () => {
+  it("compares matching days including Uncategorized spending and explains future and empty history", async () => {
+    vi.setSystemTime(new Date(2026, 2, 19, 12));
+    const catalog = [{ id: "42", name: "Food", description: null, color: "teal", isActive: true, updatedAt: "2026-03-01T00:00:00.000Z" }];
+    const expenses = [
+      { id: "1", categoryId: "42", purchaseDate: "2026-02-10", amount: "200.00" },
+      { id: "2", categoryId: "42", purchaseDate: "2026-02-25", amount: "900.00" },
+      { id: "3", categoryId: "42", purchaseDate: "2026-03-10", amount: "300.00" },
+      { id: "4", categoryId: null, purchaseDate: "2026-03-18", amount: "50.00" },
+      { id: "5", categoryId: "42", purchaseDate: "2026-03-25", amount: "800.00" },
+    ];
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = new URL(String(input));
+      if (url.pathname.endsWith("/categories")) return apiResponse(catalog);
+      if (url.pathname.endsWith("/category-summaries")) return apiResponse({ period: "monthly", year: url.searchParams.get("year"), month: url.searchParams.get("month"), categories: [{ categoryId: "42", name: "Food", isActive: true, totalAmount: "0.00", transactionCount: "0", budgetAmount: "1000.00", remainingAmount: "1000.00" }], uncategorizedTotal: "0.00", uncategorizedCount: "0" });
+      if (url.pathname.endsWith("/transactions")) return apiResponse({ items: expenses.filter(expense => expense.purchaseDate <= url.searchParams.get("toDate")!).map(expense => ({ ...expense, description: "Recorded expense", source: "manual", statementImportId: null })), nextCursor: null });
+      throw new Error(`Unexpected request ${url.pathname}`);
+    }));
+    renderInsights();
+    const comparison = await screen.findByRole("region", { name: "Month comparison" });
+    expect(within(comparison).getByText("₱150.00 more than last month")).toBeTruthy();
+    expect(within(comparison).getByText(/75.0% increase · Through day 19/)).toBeTruthy();
+    expect(within(comparison).getByText("₱350.00")).toBeTruthy();
+    expect(within(comparison).getByText("₱200.00")).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("Reporting period"), { target: { value: "2026-04" } });
+    expect(await screen.findByText("A spending comparison is unavailable for a future month.")).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("Reporting period"), { target: { value: "2026-02" } });
+    expect(await screen.findByText("More recorded history is needed to compare months")).toBeTruthy();
+    const historical = screen.getByRole("region", { name: "Month comparison" });
+    expect(within(within(historical).getByRole("group", { name: "Recorded month comparison amounts" })).getByText("₱1,100.00")).toBeTruthy();
+    expect(within(historical).getByText(/does not establish a zero-spending month/)).toBeTruthy();
+  });
+
+  it("prioritizes monthly questions and keeps fifteen Categories searchable and collapsed", async () => {
+    const period = getCurrentReportingPeriod();
+    const categories = Array.from({ length: 15 }, (_, index) => ({ id: String(index + 1), name: `Category ${String(index + 1).padStart(2, "0")}`, description: null, color: "teal", isActive: true, updatedAt: "2026-09-01T00:00:00.000Z" }));
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = new URL(String(input));
+      if (url.pathname.endsWith("/categories")) return apiResponse(categories);
+      if (url.pathname.endsWith("/category-summaries")) return apiResponse({ period: "monthly", year: period.slice(0, 4), month: period.slice(5), categories: categories.map(category => ({ categoryId: category.id, name: category.name, isActive: true, totalAmount: "0.00", transactionCount: "0", budgetAmount: "100.00", remainingAmount: "100.00" })), uncategorizedTotal: "0.00", uncategorizedCount: "0" });
+      if (url.pathname.endsWith("/transactions")) return apiResponse({ items: categories.slice(0, 8).map(category => ({ id: category.id, categoryId: category.id, purchaseDate: `${period}-01`, amount: "100.01", description: "Recorded expense", source: "manual", statementImportId: null })), nextCursor: null });
+      throw new Error(`Unexpected request ${url.pathname}`);
+    }));
+    renderInsights();
+    const summary = await screen.findByRole("region", { name: "Selected-month recorded spending" });
+    const comparison = screen.getByRole("region", { name: "Month comparison" });
+    const explorer = screen.getByRole("region", { name: "Category explorer" });
+    const review = screen.getByRole("region", { name: "Recurring Budget review" });
+    expect(summary.compareDocumentPosition(comparison) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(comparison.compareDocumentPosition(explorer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(explorer.compareDocumentPosition(review) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(within(summary).getByText("₱699.92 remaining in monthly Budgets")).toBeTruthy();
+    expect(within(explorer).getByRole("button", { name: "Needs attention (8)" }).getAttribute("aria-pressed")).toBe("true");
+    expect(within(explorer).getByRole("status").textContent).toContain("Showing 5 of 8");
+    expect(within(explorer).queryByRole("button", { name: "Close details" })).toBeNull();
+    fireEvent.click(within(explorer).getByRole("button", { name: "Show all 8 matching Categories" }));
+    expect(within(explorer).getByRole("status").textContent).toContain("Showing 8 of 8");
+    fireEvent.click(within(explorer).getByRole("button", { name: "All Categories (15)" }));
+    expect(within(explorer).getByRole("status").textContent).toContain("Showing 5 of 15");
+    fireEvent.change(within(explorer).getByLabelText("Find a Category"), { target: { value: "Category 15" } });
+    expect(within(explorer).getByRole("status").textContent).toContain("Showing 1 of 1");
+    const row = within(explorer).getByRole("button", { name: "Review Category 15: Within Budget" });
+    fireEvent.click(row);
+    expect(within(explorer).getByRole("region", { name: "Category 15 details" })).toBeTruthy();
+    fireEvent.click(within(explorer).getByRole("button", { name: "Close details" }));
+    expect(document.activeElement).toBe(row);
+    fireEvent.click(within(explorer).getByRole("button", { name: "Clear search" }));
+    expect(document.activeElement).toBe(within(explorer).getByLabelText("Find a Category"));
+    expect(within(explorer).getByRole("status").textContent).toContain("Showing 5 of 15");
+  });
+
   it("inspects recorded monthly and daily contributions without selecting a new Reporting Period and restores focus", async () => {
     const period = getCurrentReportingPeriod();
     vi.stubGlobal("fetch", createSuccessfulFetch(period));
     renderInsights();
+    fireEvent.click(await screen.findByText("Explore the last 12 months +"));
     const label = formatReportingPeriod(period);
     const monthly = await screen.findByRole("button", { name: label });
     monthly.focus();
@@ -295,6 +367,7 @@ describe("InsightsPage", () => {
     expect(within(summary).getByText(formatMoney(7.75))).toBeTruthy();
     expect(within(summary).getByText(formatMoney(5.25))).toBeTruthy();
     expect(within(summary).getByText(formatMoney(2.50))).toBeTruthy();
+    fireEvent.click(screen.getByText("Explore the last 12 months +"));
     expect(summary.compareDocumentPosition(screen.getByRole("region", { name: "12-month spending summary" })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.getByText(/Elapsed month/)).toBeTruthy();
   });
@@ -576,6 +649,7 @@ describe("InsightsPage", () => {
     expect(within(summary).getAllByText(formatMoney(0))).toHaveLength(2);
 
     fireEvent.click(screen.getByRole("button", { name: "Monthly view" }));
+    fireEvent.click(await screen.findByText("Explore the last 12 months +"));
     expect(
       await screen.findByText(
         "No monthly-budgeted Categories are available for comparison.",
@@ -637,6 +711,7 @@ describe("InsightsPage", () => {
     expect(
       screen.getByRole("button", { name: "Monthly view" }).getAttribute("aria-pressed"),
     ).toBe("true");
+    fireEvent.click(screen.getByText("Explore the last 12 months +"));
     expect(
       await screen.findByText(
         `No Categories exceeded their current Budget in the 12-month window ending ${formatReportingPeriod(period)}.`,
@@ -702,6 +777,7 @@ describe("InsightsPage", () => {
     expect(monthlyViewButton.getAttribute("aria-pressed")).toBe("true");
     expect(dailyViewButton.getAttribute("aria-pressed")).toBe("false");
 
+    fireEvent.click(screen.getByText("Explore the last 12 months +"));
     const monthlyTable = await screen.findByRole("table", {
       name: /monthly spending values/i,
     });

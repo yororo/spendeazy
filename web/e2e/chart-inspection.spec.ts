@@ -21,6 +21,7 @@ for (const width of [320, 390, 1440]) {
     }
     await page.getByRole("navigation", { name: width < 768 ? "Mobile navigation" : "Primary navigation" }).getByRole("link", { name: "Insights", exact: true }).click();
     await page.getByLabel("Reporting period", { exact: true }).fill("2026-09");
+    await page.getByText("Explore the last 12 months +", { exact: true }).click();
     const selector = page.getByText("Categories to compare · 3 selected", { exact: true });
     await expect(selector).toBeVisible();
     await changeTheme(page, "Playful");

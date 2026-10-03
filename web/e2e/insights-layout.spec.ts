@@ -10,6 +10,7 @@ test("keeps desktop Insights scrolling inside the content pane", async ({
 
   await expect(page.getByRole("heading", { name: "Insights" })).toBeVisible();
   await page.getByRole("button", { name: "Monthly view" }).click();
+  await page.getByText("Explore the last 12 months +", { exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Frequently over Budget" }),
   ).toBeVisible();
@@ -105,6 +106,7 @@ test("fits rolling-month Category trend labels across desktop and mobile plot wi
   await page.goto("/insights");
   await expect(page.getByRole("heading", { name: "Insights" })).toBeVisible();
   await page.getByRole("button", { name: "Monthly view" }).click();
+  await page.getByText("Explore the last 12 months +", { exact: true }).click();
   await expect(
     page.getByRole("table", { name: /category spending values/i }),
   ).toBeVisible();

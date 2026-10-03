@@ -327,6 +327,7 @@ function StatementImportPage({
           aria-label="Upload statement"
         >
           <StatementDropZone
+            key={effectiveSpaceId ?? "personal"}
             categoryRules={activeCategoryRules}
             activeCategoryIds={activeCategoryIds}
             onStatementCategorized={acceptCategorizedStatement}

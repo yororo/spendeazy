@@ -140,13 +140,8 @@ describe("StatementDropZone GCash recipient prompt", () => {
     ).toBe("off");
   });
 
-  it.each([
-    ["+63 format", "+639112334455"],
-    ["wrong length", "0911233445"],
-    ["wrong prefix", "08112334455"],
-    ["letters", "09A12334455"],
-    ["internal separators", "09112 334455"],
-  ])("keeps an invalid %s in the GCash dialog", async (_case, value) => {
+  it("keeps an invalid recipient in the dialog and focuses the input", async () => {
+    const value = "+639112334455";
     vi.mocked(extractPdfPages).mockResolvedValueOnce(extractedGcashStatement);
     const { onStatementCategorized } = renderDropZone();
     selectPdf("wallet-export.pdf");

@@ -1,5 +1,7 @@
 import {
   useEffect,
+  useLayoutEffect,
+  useSyncExternalStore,
   useRef,
   useState,
   type ChangeEvent,
@@ -32,35 +34,9 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
 import { importFileRules } from "./statement-import-data";
-import {
-  categorizeStatement,
-  type CategorizedStatement,
-} from "./statement-categorizer";
-import {
-  applyGcashRecipientExclusion,
-  isGcashStatement,
-  validateGcashMobileNumber,
-} from "./gcash-recipient";
+import type { CategorizedStatement } from "./statement-categorizer";
 import type { CategoryRule } from "./statement-import-service";
-import { PdfExtractionError } from "./statement-parser/pdf-extractor";
-
-const supportedExtensions = new Set(
-  importFileRules.formats.map((format) => `.${format.toLowerCase()}`),
-);
-
-function validateFile(file: File) {
-  const extension = file.name.slice(file.name.lastIndexOf(".")).toLowerCase();
-
-  if (!supportedExtensions.has(extension)) {
-    return `Choose a ${importFileRules.formats.join(", ")} file.`;
-  }
-
-  if (file.size > importFileRules.maxSizeMb * 1024 * 1024) {
-    return `File must be ${importFileRules.maxSizeMb} MB or smaller.`;
-  }
-
-  return null;
-}
+import { createStatementUpload } from "./statement-upload";
 
 interface StatementDropZoneProps {
   categoryRules: readonly CategoryRule[];
@@ -69,11 +45,6 @@ interface StatementDropZoneProps {
     file: File,
     statement: CategorizedStatement,
   ) => void;
-}
-
-interface PendingGcashImport {
-  readonly file: File;
-  readonly statement: CategorizedStatement;
 }
 
 function StatementDropZone({
@@ -86,172 +57,61 @@ function StatementDropZone({
   const passwordInputRef = useRef<HTMLInputElement>(null);
   const gcashMobileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [pendingGcashImport, setPendingGcashImport] =
-    useState<PendingGcashImport | null>(null);
-  const [isGcashPromptReady, setIsGcashPromptReady] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [pdfPassword, setPdfPassword] = useState("");
-  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [upload] = useState(() => createStatementUpload({
+    getCategorizationInputs: () => ({ rules: categoryRules, activeCategoryIds }),
+    onPrepared: onStatementCategorized,
+  }));
+  useLayoutEffect(() => {
+    upload.updateDependencies({
+      getCategorizationInputs: () => ({ rules: categoryRules, activeCategoryIds }),
+      onPrepared: onStatementCategorized,
+    });
+  }, [upload, categoryRules, activeCategoryIds, onStatementCategorized]);
+  const state = useSyncExternalStore(upload.subscribe, upload.getState);
+  useLayoutEffect(() => () => upload.abandon(), [upload]);
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
-  const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
-  const [gcashMobileNumber, setGcashMobileNumber] = useState("");
-  const [gcashRecipientError, setGcashRecipientError] = useState<string | null>(
-    null,
-  );
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [deferRecipientPrompt, setDeferRecipientPrompt] = useState(false);
+  const isProcessing = state.stage === "processing";
+  const selectedFile = state.stage === "idle" ? null : state.file;
+  const error = state.stage === "idle" ? state.error : null;
+  const isPasswordDialogOpen = state.stage === "password" || (state.stage === "processing" && state.challenge);
+  const pdfPassword = state.stage === "password" || state.stage === "processing" ? state.password : "";
+  const passwordError = state.stage === "password" ? state.error : null;
+  const gcashMobileNumber = state.stage === "recipient" ? state.recipient : "";
+  const gcashRecipientError = state.stage === "recipient" ? state.error : null;
 
   useEffect(() => {
     if (isProcessing || !passwordError) return;
-
     passwordInputRef.current?.focus();
     passwordInputRef.current?.select();
   }, [isProcessing, passwordError]);
-
   useEffect(() => {
-    if (!gcashRecipientError) return;
-
-    gcashMobileInputRef.current?.focus();
+    if (gcashRecipientError) gcashMobileInputRef.current?.focus();
   }, [gcashRecipientError]);
 
-  function resetPasswordInput() {
-    setPdfPassword("");
-    setPasswordError(null);
-    setIsPasswordVisible(false);
-  }
-
-  function resetGcashRecipientInput() {
-    setGcashMobileNumber("");
-    setGcashRecipientError(null);
-  }
-
-  function completeCategorization(
-    file: File,
-    statement: CategorizedStatement,
-  ) {
-    setPendingGcashImport(null);
-    setIsGcashPromptReady(false);
-    resetGcashRecipientInput();
-    setSelectedFile(null);
-    onStatementCategorized(file, statement);
-  }
-
-  function completePendingGcashImport(
-    statement = pendingGcashImport?.statement,
-  ) {
-    const pendingImport = pendingGcashImport;
-    if (!pendingImport) return;
-
-    completeCategorization(
-      pendingImport.file,
-      statement ?? pendingImport.statement,
-    );
-  }
-
-  function handleGcashRecipientDialogOpenChange(nextOpen: boolean) {
-    if (!nextOpen) completePendingGcashImport();
-  }
-
-  function submitGcashRecipient(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!pendingGcashImport) return;
-
-    const nextError = validateGcashMobileNumber(gcashMobileNumber);
-    if (nextError) {
-      setGcashRecipientError(nextError);
-      return;
-    }
-
-    const recipient = gcashMobileNumber.trim();
-    const statement = recipient
-      ? applyGcashRecipientExclusion(pendingGcashImport.statement, recipient)
-      : pendingGcashImport.statement;
-    completePendingGcashImport(statement);
-  }
-
   function abandonPasswordChallenge() {
-    setIsPasswordDialogOpen(false);
-    setSelectedFile(null);
-    resetPasswordInput();
+    upload.cancelPassword();
+    setIsPasswordVisible(false);
     if (inputRef.current) inputRef.current.value = "";
   }
-
   function handlePasswordDialogOpenChange(nextOpen: boolean) {
-    if (nextOpen) {
-      setIsPasswordDialogOpen(true);
-      return;
-    }
-
-    if (!isProcessing) abandonPasswordChallenge();
+    if (!nextOpen && !isProcessing) abandonPasswordChallenge();
   }
-
-  async function processFile(file: File, password?: string) {
-    setIsProcessing(true);
-    setError(null);
-    setPasswordError(null);
-
-    try {
-      const statement = await categorizeStatement(
-        file,
-        password,
-        categoryRules,
-        activeCategoryIds,
-      );
-      setIsPasswordDialogOpen(false);
-      resetPasswordInput();
-      setSelectedFile(null);
-      if (isGcashStatement(statement)) {
-        setPendingGcashImport({ file, statement });
-        setIsGcashPromptReady(password === undefined);
-      } else {
-        onStatementCategorized(file, statement);
-      }
-    } catch (cause) {
-      if (cause instanceof PdfExtractionError && cause.code === "password") {
-        if (password !== undefined) {
-          setPasswordError(
-            "The password you entered is incorrect. Please try a different password.",
-          );
-        }
-        setIsPasswordDialogOpen(true);
-        return;
-      }
-
-      if (password !== undefined) abandonPasswordChallenge();
-      setError(
-        cause instanceof Error
-          ? cause.message
-          : "Unable to process this statement.",
-      );
-    } finally {
-      setIsProcessing(false);
-    }
+  function selectFile(file?: File) {
+    if (isProcessing) return;
+    setIsPasswordVisible(false);
+    setDeferRecipientPrompt(false);
+    void upload.selectFile(file);
   }
-
-  async function selectFile(file?: File) {
-    if (!file || isProcessing) return;
-
-    if (pendingGcashImport) {
-      setPendingGcashImport(null);
-      setIsGcashPromptReady(false);
-      resetGcashRecipientInput();
-    }
-
-    const nextError = validateFile(file);
-    setError(nextError);
-    setSelectedFile(nextError ? null : file);
-    resetPasswordInput();
-
-    if (nextError) return;
-
-    await processFile(file);
-  }
-
   function submitPassword(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!selectedFile || !pdfPassword || isProcessing) return;
-
-    void processFile(selectedFile, pdfPassword);
+    if (state.stage !== "password" || !pdfPassword) return;
+    setDeferRecipientPrompt(true);
+    void upload.retryPassword();
+  }
+  function submitGcashRecipient(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    upload.completeRecipient();
   }
 
   function handleChange(event: ChangeEvent<HTMLInputElement>) {
@@ -367,11 +227,9 @@ function StatementDropZone({
           closeButtonDisabled={isProcessing}
           onCloseAutoFocus={(event) => {
             event.preventDefault();
-            if (pendingGcashImport) {
-              setIsGcashPromptReady(true);
-            } else {
-              browseButtonRef.current?.focus();
-            }
+            setIsPasswordVisible(false);
+            setDeferRecipientPrompt(false);
+            if (upload.getState().stage !== "recipient") browseButtonRef.current?.focus();
           }}
         >
           <DialogHeader>
@@ -418,8 +276,7 @@ function StatementDropZone({
                       passwordError ? "pdf-password-error" : undefined
                     }
                     onChange={(event) => {
-                      setPdfPassword(event.target.value);
-                      setPasswordError(null);
+                      upload.setPassword(event.target.value);
                     }}
                   />
                   <Button
@@ -482,8 +339,8 @@ function StatementDropZone({
       </Dialog>
 
       <Dialog
-        open={pendingGcashImport !== null && isGcashPromptReady}
-        onOpenChange={handleGcashRecipientDialogOpenChange}
+        open={state.stage === "recipient" && !deferRecipientPrompt}
+        onOpenChange={(open) => { if (!open) upload.skipRecipient(); }}
       >
         <DialogContent
           onCloseAutoFocus={(event) => {
@@ -522,8 +379,7 @@ function StatementDropZone({
                       : "gcash-mobile-number-hint"
                   }
                   onChange={(event) => {
-                    setGcashMobileNumber(event.target.value);
-                    setGcashRecipientError(null);
+                    upload.setRecipient(event.target.value);
                   }}
                 />
                 <p
@@ -558,7 +414,7 @@ function StatementDropZone({
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => completePendingGcashImport()}
+                onClick={() => upload.skipRecipient()}
               >
                 Skip
               </Button>

@@ -23,6 +23,7 @@ import type { Statement } from "./statement-parser/transformer";
 import gcashFixture from "../../../docs/pdf-parser/gcash-sample-extracted-text.txt?raw";
 import { gcashEwalletTransformer } from "./statement-parser/gcash-ewallet-transformer";
 import { transformStatement } from "./statement-parser/transformer";
+import { extractPdfPages, PdfExtractionError, type ExtractedPdfPage } from "./statement-parser/pdf-extractor";
 import { StatementImportPage } from "./statement-import-page";
 
 vi.mock("./statement-parser/pdf-extractor", async (importOriginal) => {
@@ -478,6 +479,8 @@ function renderStatementImportPage(
   return queryClient;
 }
 
+const defaultExtraction = vi.mocked(extractPdfPages).getMockImplementation()!;
+
 const originalWindowWidth = window.innerWidth;
 
 afterEach(() => {
@@ -487,6 +490,7 @@ afterEach(() => {
     configurable: true,
     value: originalWindowWidth,
   });
+  vi.mocked(extractPdfPages).mockReset().mockImplementation(defaultExtraction);
   restoreDefaultStatement();
 });
 
@@ -2731,5 +2735,65 @@ describe("StatementImportPage pending Category Rule saves", () => {
       );
       await currentResponse.promise;
     });
+  });
+});
+
+
+describe("Upload abandonment on cached destination changes", () => {
+  it.each(["parsing", "password", "retry", "recipient"])("abandons %s when switching Spaces", async (phase) => {
+    vi.stubGlobal("fetch", createFetchMock());
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    function DestinationHost() {
+      const [spaceId, setSpaceId] = useState("1");
+      return <>
+        <button onClick={() => setSpaceId(spaceId === "1" ? "10" : "1")}>Switch destination</button>
+        <StatementImportPage spaceId={spaceId} onViewTransactions={vi.fn()} />
+      </>;
+    }
+    render(
+      <NavigationGuardProvider>
+        <ApiClientProvider config={apiConfig} getToken={async () => "session-token"}>
+          <QueryClientProvider client={queryClient}><DestinationHost /></QueryClientProvider>
+        </ApiClientProvider>
+      </NavigationGuardProvider>,
+    );
+    await screen.findByRole("button", { name: "Browse files" });
+    fireEvent.click(screen.getByRole("button", { name: "Switch destination", hidden: true }));
+    await screen.findByRole("button", { name: "Browse files" });
+    fireEvent.click(screen.getByRole("button", { name: "Switch destination", hidden: true }));
+    await screen.findByRole("button", { name: "Browse files" });
+
+    let settle!: (pages: ExtractedPdfPage[]) => void;
+    const delayed = new Promise<ExtractedPdfPage[]>((resolve) => { settle = resolve; });
+    if (phase === "password" || phase === "retry") {
+      vi.mocked(extractPdfPages).mockRejectedValueOnce(new PdfExtractionError("password", "locked"));
+    } else if (phase === "parsing") {
+      vi.mocked(extractPdfPages).mockReturnValueOnce(delayed);
+    } else {
+      vi.mocked(transformStatement).mockReturnValueOnce(gcashEwalletTransformer.transform(gcashFixture));
+    }
+    fireEvent.change(document.getElementById("statement-file")!, { target: { files: [new File(["pdf"], "old.pdf")] } });
+    if (phase === "password" || phase === "retry") {
+      const password = await screen.findByLabelText("PDF password");
+      fireEvent.change(password, { target: { value: "old secret" } });
+      if (phase === "retry") {
+        vi.mocked(extractPdfPages).mockReturnValueOnce(delayed);
+        fireEvent.click(screen.getByRole("button", { name: "Open PDF" }));
+      }
+    } else if (phase === "recipient") {
+      const recipient = await screen.findByLabelText("GCash mobile number (optional)");
+      fireEvent.change(recipient, { target: { value: "09999999999" } });
+    }
+    // A route change can arrive while a modal makes the shell inaccessible.
+    fireEvent.click(screen.getByText("Switch destination"));
+    expect(screen.getByRole("button", { name: "Browse files" })).toHaveProperty("disabled", false);
+    expect(screen.queryByRole("dialog")).toBeNull();
+    if (phase === "parsing" || phase === "retry") {
+      await act(async () => { settle([{ pageNumber: 1, text: "late statement" }]); await delayed; });
+    }
+    expect(screen.getByRole("heading", { name: "Upload your statement" })).toBeTruthy();
+    expect(screen.queryByRole("dialog")).toBeNull();
+    await uploadStatementFile("new-space.pdf");
+    expect(screen.getByRole("button", { name: "Review 1 Transactions" })).toBeTruthy();
   });
 });

@@ -336,7 +336,7 @@
 }
 
 /* Round standalone surfaces and selection fills as well as shared primitives.
-   The viewport, dividers, and the unchanged logo are not UI surface corners. */
+   The viewport and dividers are not UI surface corners; each Theme uses its own logo geometry. */
 :root[data-visual-theme="playful"] :is(
   button, input:not([type="radio"]), select, textarea,
   [role="option"], [data-slot="progress-indicator"], [data-slot="table-container"],

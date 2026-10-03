@@ -1,4 +1,5 @@
 import spendeazyLogo from "@/assets/spendeazy-site-logo-pixel-icon.svg";
+import playfulLogo from "@/assets/spendeazy-site-logo-playful.svg";
 import { cn } from "@/lib/utils";
 
 interface LedgerMarkProps {
@@ -14,7 +15,14 @@ function LedgerMark({ className, interactive = true }: LedgerMarkProps) {
         alt=""
         width={24}
         height={24}
-        className="size-6 shrink-0"
+        className="size-6 shrink-0 [[data-visual-theme=playful]_&]:hidden"
+      />
+      <img
+        src={playfulLogo}
+        alt=""
+        width={24}
+        height={24}
+        className="hidden size-6 shrink-0 [[data-visual-theme=playful]_&]:block"
       />
       SPENDEAZY
     </>

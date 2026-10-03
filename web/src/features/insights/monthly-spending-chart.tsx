@@ -145,25 +145,34 @@ function MonthlySpendingChart({ report, onInspect }: MonthlySpendingChartProps) 
                         onClick={() => onInspect?.(month.period)}
                         className="relative flex h-full min-w-0 flex-1 cursor-pointer items-end"
                       >
-                        {segments.map((segment) =>
-                          segment === null ? null : (
-                            <div
-                              key={segment.category.id ?? "uncategorized"}
-                              className={cn(
-                                "absolute inset-x-0",
-                                segment.category.color === null
-                                  ? "border-x border-foreground/60 bg-muted-foreground"
-                                  : getCategoryColorClass(
-                                      segment.category.color,
-                                    ),
-                              )}
-                              style={{
-                                bottom: `${(segment.bottom / axisMaximum) * 100}%`,
-                                height: `${(segment.amountCents / axisMaximum) * 100}%`,
-                              }}
-                            />
-                          ),
-                        )}
+                        <div
+                          className="relative w-full overflow-hidden"
+                          style={{
+                            height: `${(month.totalSpendingCents / axisMaximum) * 100}%`,
+                            borderRadius: "var(--radius)",
+                          }}
+                        >
+                          {segments.map((segment) =>
+                            segment === null ? null : (
+                              <div
+                                key={segment.category.id ?? "uncategorized"}
+                                className={cn(
+                                  "absolute inset-x-0",
+                                  segment.category.color === null
+                                    ? "border-x border-foreground/60 bg-muted-foreground"
+                                    : getCategoryColorClass(
+                                        segment.category.color,
+                                      ),
+                                )}
+                                style={{
+                                  bottom: `${(segment.bottom / month.totalSpendingCents) * 100}%`,
+                                  height: `${(segment.amountCents / month.totalSpendingCents) * 100}%`,
+                                  borderRadius: 0,
+                                }}
+                              />
+                            ),
+                          )}
+                        </div>
                         {visibleBudgetComparison && month.isOverBudget ? (
                           <span
                             data-testid="monthly-over-budget-marker"

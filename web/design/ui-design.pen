@@ -107032,7 +107032,8 @@
                   "width": "fill_container",
                   "content": "Classic",
                   "fontFamily": "$playful-font",
-                  "fontSize": 14
+                  "fontSize": 14,
+                  "fontWeight": "normal"
                 }
               ]
             },
@@ -107114,7 +107115,8 @@
                   "width": "fill_container",
                   "content": "Professional",
                   "fontFamily": "$playful-font",
-                  "fontSize": 14
+                  "fontSize": 14,
+                  "fontWeight": "normal"
                 }
               ]
             },
@@ -107149,7 +107151,8 @@
                   "width": "fill_container",
                   "content": "Sunny",
                   "fontFamily": "$playful-font",
-                  "fontSize": 14
+                  "fontSize": 14,
+                  "fontWeight": "normal"
                 }
               ]
             }
@@ -109849,6 +109852,44 @@
               ]
             }
           ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "y7OzX2",
+      "x": 1876,
+      "y": -2085,
+      "name": "Spendeazy Site Logo — Playful — Emerald & Honey",
+      "reusable": true,
+      "clip": true,
+      "width": 128,
+      "height": 128,
+      "fill": "#087443",
+      "cornerRadius": 28,
+      "layout": "none",
+      "children": [
+        {
+          "type": "path",
+          "id": "bA2EB",
+          "x": 51,
+          "y": 39,
+          "name": "Honey upper step",
+          "geometry": "M0 7c0-3.866 3.134-7 7-7l36 0c3.866 0 7 3.134 7 7l0 11c0 3.866-3.134 7-7 7l-36 0c-3.866 0-7 3.866-7 0l0-18z",
+          "fill": "#faf8f1",
+          "width": 50,
+          "height": 26.718219221695804
+        },
+        {
+          "type": "path",
+          "id": "vvF3W",
+          "x": 26,
+          "y": 61.77777932488743,
+          "name": "Cream lower step",
+          "geometry": "M0 7c0-3.866 3.134-7 7-7l36 0c3.866 0 11-5 7 0l0 18c0 3.866-3.134 7-7 7l-36 0c-3.866 0-7-3.134-7-7l0-11z",
+          "fill": "#FAF8F1",
+          "width": 51.18050522071459,
+          "height": 27.222220728094484
         }
       ]
     }

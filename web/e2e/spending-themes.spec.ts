@@ -11,7 +11,7 @@ for (const width of [320, 390, 767, 768, 1023, 1024, 1440]) {
     await page.goto("/");
     const token = await createNewLocalTestUser(page);
     await expect(page.getByTestId("local-test-active-user")).toContainText("Fresh Local User");
-    await expect(page.getByText(/No spending recorded in this Reporting Period/)).toBeVisible();
+    await expect(page.getByText(/No Categories need attention yet/)).toBeVisible();
     const base = `${requireEnvironment("SPENDEAZY_E2E_API_BASE_URL")}/api/v1/users/me`;
     const headers = authorizationHeaders(token);
     const created = await page.request.post(`${base}/categories`, { headers, data: { name: "Theme spending", color: "coral" } });
@@ -77,7 +77,7 @@ for (const [destination, heading] of [["Transactions", "Your spending"], ["Budge
     await page.clock.install({ time: requireEnvironment("SPENDEAZY_E2E_TEST_CLOCK") });
     await page.goto("/");
     await createNewLocalTestUser(page);
-    await expect(page.getByText(/No spending recorded in this Reporting Period/)).toBeVisible();
+    await expect(page.getByText(/No Categories need attention yet/)).toBeVisible();
     let release!: () => void;
     const pending = new Promise<void>(resolve => { release = resolve; });
     await page.route("**/api/v1/users/me/**", async route => {

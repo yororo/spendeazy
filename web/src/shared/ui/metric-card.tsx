@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Progress } from "@/components/ui/progress";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -5,7 +6,7 @@ import { cn } from "@/lib/utils";
 interface MetricCardProps {
   label: string;
   value: string;
-  detail?: string;
+  detail?: ReactNode;
   emphasized?: boolean;
   progress?: number;
   className?: string;
@@ -32,7 +33,9 @@ function MetricCard({
             <p
               className={cn(
                 "mt-1 text-xs wrap-anywhere",
-                emphasized ? "text-primary-foreground/70" : "text-muted-foreground",
+                emphasized
+                  ? "text-primary-foreground/70"
+                  : "text-muted-foreground",
               )}
             >
               {detail}
@@ -43,7 +46,11 @@ function MetricCard({
           <Progress
             value={progress}
             aria-label={`${label}: ${progress}%`}
-            className={emphasized ? "bg-black/20" : undefined}
+            className={
+              emphasized
+                ? "bg-primary-foreground/20 [&_[data-slot=progress-indicator]]:bg-primary-foreground"
+                : undefined
+            }
           />
         ) : null}
       </CardContent>

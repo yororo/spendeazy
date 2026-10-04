@@ -10,7 +10,7 @@ for (const width of [320, 390, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/");
     const token = await createNewLocalTestUser(page);
-    await expect(page.getByText(/No spending recorded in this Reporting Period/)).toBeVisible();
+    await expect(page.getByText(/No Categories need attention yet/)).toBeVisible();
     const headers = authorizationHeaders(token);
     const base = requireEnvironment("SPENDEAZY_E2E_API_BASE_URL") + "/api/v1/users/me";
     for (const [name, amount] of [["Chart A", "900.00"], ["Chart B", "800.00"], ["Chart C", "700.00"], ["Chart D", "600.00"]]) {

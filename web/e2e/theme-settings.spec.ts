@@ -107,7 +107,7 @@ for (const width of [320, 390, 768, 1023, 1024, 1440]) {
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await expect(page.getByRole("heading", { name: "Your spending at a glance" })).toHaveCSS("font-family", /Nunito Variable/);
     await expect(summary.getByText("Total spend", { exact: true }).locator("../..")).toHaveCSS("background-color", "rgb(8, 116, 67)");
-    await expect(page.getByRole("button", { name: "Manage Budgets", exact: true })).toHaveCSS("background-color", "rgb(255, 240, 187)");
+    await expect(summary.getByText("Spending vs Budget", { exact: true }).locator("../..")).toHaveCSS("background-color", "rgb(8, 116, 67)");
     const selectedNavigation = page.getByRole("navigation", { name: width < 768 ? "Mobile navigation" : "Primary navigation" }).getByRole("link", { name: "Dashboard", exact: true });
     if (width < 768 || width >= 1024) await expect(selectedNavigation).toHaveCSS("background-color", "rgb(216, 242, 223)");
     await page.screenshot({ path: testInfo.outputPath(`playful-${width}.png`), fullPage: true, animations: "disabled" });
@@ -225,7 +225,7 @@ test("Theme changes preserve recorded money and exact Category Colors", async ({
   const token = await createNewLocalTestUser(page);
   await expect(page.getByTestId("local-test-active-user")).toContainText("Fresh Local User");
   await expect(page.getByRole("heading", { name: "Your spending at a glance" })).toBeVisible();
-  await expect(page.getByText(/No spending recorded in this Reporting Period/)).toBeVisible();
+  await expect(page.getByText(/No Categories need attention yet/)).toBeVisible();
   const base = `${requireEnvironment("SPENDEAZY_E2E_API_BASE_URL")}/api/v1/users/me`;
   const headers = authorizationHeaders(token);
   const created = await page.request.post(`${base}/categories`, {

@@ -7,7 +7,7 @@ for (const width of [320, 390, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/");
     const token = await createNewLocalTestUser(page);
-    await expect(page.getByText(/No spending recorded in this Reporting Period/)).toBeVisible();
+    await expect(page.getByText(/No Categories need attention yet/)).toBeVisible();
     const headers = authorizationHeaders(token);
     const base = `${requireEnvironment("SPENDEAZY_E2E_API_BASE_URL")}/api/v1/users/me`;
     const date = requireEnvironment("SPENDEAZY_E2E_TEST_DATE");

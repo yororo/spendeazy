@@ -84,7 +84,7 @@ Statement Import, Sharing, and archived history use `structure` for workflow pan
 
 Transactions, Categories, and Insights use `structure` for page dividers, chart baselines, grouped view controls, and activity timelines. The compact Transaction search uses `control-border`, preserving its strong Technical boundary. Keep foreground contrast for meaningful chart Budget guides, selected comparison boundaries, and Category Color swatch outlines; their distinction carries financial or selection meaning. Category series and swatches retain their exact saved colors. Editors, filters, status feedback, and chart inspection reuse the existing shared primitives and document-level roles, including when portaled. No separate component exceptions are required for these workflows.
 
-Dashboard's emphasized Total spend metric uses primary surface/foreground; supporting metrics use card surface. Daily spending uses the chart role, preserving Category Colors in category breakdowns. Manage Budgets uses the restrained honey `budget-action` role. The prototype's reference colors remain design evidence, but its URL variant, floating controls, global shortcuts, forced-light scope, logo filtering, altered sizes/padding, and structural selectors are excluded from application composition.
+Dashboard's Total spend and Spending vs Budget metrics use the primary surface/foreground in equal columns above the supporting metrics, stacking in that order below md. Daily spending stacks saved Category Colors, with muted foreground for Uncategorized, and exposes totals on hover, click, and keyboard focus. Category attention help sits beside its title; Manage Budgets appears as a restrained header action only when Categories need attention. The prototype's reference colors remain design evidence, but its URL variant, floating controls, global shortcuts, forced-light scope, logo filtering, altered sizes/padding, and structural selectors are excluded from application composition.
 
 ### Appearance behavior
 
@@ -142,7 +142,7 @@ Cards have no default shadow. Hierarchy comes from 1px borders, black inverse su
 - Below `md`, authenticated pages show a fixed 64px Mobile Tab Bar with Dashboard, Imports, Transactions, and Insights links. It uses square geometry, solid semantic black/green surfaces, no shadow, 12px labels, and four equal touch targets. The mockup's rounded pill and tiny labels are not implementation rules.
 - The tab bar accounts for bottom and landscape safe areas. The shell reserves its height plus the bottom safe area so page content remains reachable. Modal Sheets and Dialogs appear above it.
 - The header and accessible navigation Sheet remain below `lg`, including on phones for profile and Sign out access. Tablets from 768px to 1023px use the Sheet without a tab bar. The persistent sidebar begins at `lg` (1024px).
-- Dashboard phone metrics show full-width Total spend followed by four metrics in a two-column grid. Wider Dashboard layouts retain two columns, reaching five columns at `xl`.
+- Dashboard phone metrics show full-width Total spend followed by full-width Spending vs Budget, then four supporting metrics in a two-column grid. Wider layouts pair the emphasized metrics equally, with supporting metrics reaching four columns at `xl`.
 - Dense tables retain semantic table markup and scroll horizontally when required.
 - Multi-column analytical panels stack in reading order on narrow screens.
 

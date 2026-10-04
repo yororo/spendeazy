@@ -27,6 +27,20 @@ for (const width of [320, 390, 1440]) {
 
     await page.goto(`/?spaceId=${encodeURIComponent(personal.id)}`);
     await page.getByLabel("Reporting period", { exact: true }).fill("2026-08");
+    await expect(page.getByRole("button", { name: "Manage Budgets", exact: true })).toHaveCount(0);
+    const base = `${requireEnvironment("SPENDEAZY_E2E_API_BASE_URL")}/api/v1/users/me`;
+    const headers = authorizationHeaders(token);
+    const created = await page.request.post(`${base}/categories`, { headers, data: { name: "Navigation attention" } });
+    expect(created.ok()).toBe(true);
+    const category: unknown = await created.json();
+    if (!isRecord(category) || typeof category.id !== "string") throw new Error("Expected Category ID");
+    const recorded = await page.request.post(`${base}/transactions`, { headers, data: { categoryId: category.id, amount: "10.00", purchaseDate: "2026-08-01", description: "Synthetic navigation attention" } });
+    expect(recorded.ok()).toBe(true);
+    await page.clock.fastForward(31_000);
+    const refreshNavigation = page.getByRole("navigation", { name: width < 768 ? "Mobile navigation" : "Primary navigation" });
+    await refreshNavigation.getByRole("link", { name: "Transactions", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Your spending", exact: true })).toBeVisible();
+    await refreshNavigation.getByRole("link", { name: "Dashboard", exact: true }).click();
     const manage = page.getByRole("button", { name: "Manage Budgets", exact: true });
     await manage.focus();
     await expect(manage).toBeFocused();

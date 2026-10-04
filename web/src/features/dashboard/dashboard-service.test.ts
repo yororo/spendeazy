@@ -355,9 +355,9 @@ describe("getDashboard", () => {
         status: "unbudgeted",
       },
     ]);
-    expect(dashboard.spendingPoints[1]).toEqual({ label: "2", amount: 60 });
-    expect(dashboard.spendingPoints[29]).toEqual({ label: "30", amount: 10 });
-    expect(dashboard.spendingPoints[30]).toEqual({ label: "31", amount: 70 });
+    expect(dashboard.spendingPoints[1]).toEqual({ label: "2", amount: 60, categories: [{ id: "42", label: "Housing", color: "teal", amount: 30 }, { id: "43", label: "Groceries", color: "forest", amount: 30 }] });
+    expect(dashboard.spendingPoints[29]).toEqual({ label: "30", amount: 10, categories: [{ id: null, label: "Uncategorized", color: null, amount: 10 }] });
+    expect(dashboard.spendingPoints[30]).toEqual({ label: "31", amount: 70, categories: [{ id: "42", label: "Housing", color: "teal", amount: 70 }] });
     expect(dashboard.recentTransactions).toEqual([
       {
         id: "transaction-10",

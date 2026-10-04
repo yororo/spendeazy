@@ -1,3 +1,5 @@
+import { useRef, useState } from "react";
+import { X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { formatMoney } from "@/shared/money";
@@ -71,6 +73,16 @@ function SpendingChart({
   currentLabel,
   summary,
 }: SpendingChartProps) {
+  const [hover, setHover] = useState<string | null>(null);
+  const [selection, setSelection] = useState<string | null>(null);
+  const suppressHover = useRef(false);
+  const buttons = useRef(new Map<string, HTMLButtonElement>());
+  const active = points.find(point => point.label === (hover ?? selection));
+  function dismiss() {
+    if (selection) buttons.current.get(selection)?.focus({ preventScroll: true });
+    suppressHover.current = true;
+    setSelection(null); setHover(null);
+  }
   const highestAmount = Math.max(0, ...points.map((point) => point.amount));
   const amountAxis = createAmountAxis(highestAmount);
 
@@ -83,7 +95,7 @@ function SpendingChart({
         </div>
         <div className="flex flex-wrap justify-end gap-3 font-mono text-xs">
           <span className="inline-flex items-center gap-2">
-            <span aria-hidden="true" className="size-2 bg-chart" />
+
             {currentLabel}
           </span>
         </div>
@@ -93,12 +105,11 @@ function SpendingChart({
           aria-labelledby="spending-chart-title"
           className="flex min-h-0 flex-1 flex-col"
         >
-          <div className="min-h-0 flex-1 overflow-x-auto pb-2">
+          <div className="relative min-h-0 flex-1 pb-2" onKeyDown={event => { if (event.key === "Escape") dismiss(); }}>
             <div
-              aria-hidden="true"
               className="flex h-48 min-w-0 md:h-full md:min-h-56"
             >
-              <div className="relative mb-5 w-14 shrink-0 font-mono text-[10px] leading-3 text-muted-foreground md:sticky md:left-0 md:z-20 md:bg-card">
+              <div className="relative mb-5 w-14 shrink-0 font-mono text-[10px] leading-3 text-muted-foreground md:sticky md:left-0 md:z-20 md:bg-card" aria-hidden="true">
                 {amountAxis.values.map((value, index) => (
                   <span
                     key={value}
@@ -118,8 +129,8 @@ function SpendingChart({
                   </span>
                 ))}
               </div>
-              <div className="flex min-w-0 flex-1 flex-col md:min-w-2xl">
-                <div className="relative min-h-0 flex-1 border-b border-foreground">
+              <div className="flex min-w-0 flex-1 flex-col ">
+                <div className="relative min-h-0 flex-1 border-b border-structure">
                   {amountAxis.values.map((value) => (
                     <div
                       key={value}
@@ -131,26 +142,42 @@ function SpendingChart({
                   ))}
                   <div className="relative z-10 flex h-full items-end gap-0.5 md:gap-2 md:px-3">
                     {points.map((point) => (
-                      <div
+                      <button
+                        type="button"
+                        ref={element => { if (element) buttons.current.set(point.label, element); else buttons.current.delete(point.label); }}
+                        aria-label={`Day ${point.label}: ${formatMoney(point.amount)}`}
+                        aria-pressed={selection === point.label}
+                        onPointerEnter={event => { if (event.pointerType === "mouse" && !suppressHover.current) setHover(point.label); }}
+                        onPointerMove={event => { if (event.pointerType === "mouse") { suppressHover.current = false; setHover(point.label); } }}
+                        onPointerLeave={() => setHover(null)}
+                        onFocus={() => setHover(point.label)} onBlur={() => setHover(null)}
+                        onClick={() => { setSelection(point.label); setHover(null); }}
+                        onKeyDown={event => {
+                          const index = points.indexOf(point);
+                          const next = event.key === "Home" ? 0 : event.key === "End" ? points.length - 1 : event.key === "ArrowRight" ? Math.min(index + 1, points.length - 1) : event.key === "ArrowLeft" ? Math.max(0, index - 1) : null;
+                          if (next !== null) { event.preventDefault(); buttons.current.get(points[next]!.label)?.focus(); }
+                        }}
                         key={point.label}
-                        className="flex h-full min-w-0 flex-1 items-end md:min-w-4"
+                        className="focus-ledger flex h-full min-w-0 flex-1 items-end "
                       >
                         <div
-                          className="min-h-px w-full rounded-t-[var(--chart-radius)] bg-chart"
+                          aria-hidden="true" className="flex min-h-px w-full flex-col overflow-hidden rounded-t-[var(--chart-radius)]"
                           style={{
                             height: `${(point.amount / amountAxis.maximum) * 100}%`,
                           }}
-                        />
-                      </div>
+                        >
+                          {point.categories.map(category => <span key={category.id ?? "uncategorized"} className="block w-full shrink-0" style={{ height: `${category.amount / point.amount * 100}%`, backgroundColor: category.color === null ? "var(--muted-foreground)" : `var(--category-${category.color})` }} />)}
+                        </div>
+                      </button>
                     ))}
                   </div>
                 </div>
-                <div className="flex h-5 shrink-0 gap-0.5 md:gap-2 md:px-3">
+                <div aria-hidden="true" className="flex h-5 shrink-0 gap-0.5 md:gap-2 md:px-3">
                   {points.map((point, index) => (
                     <span
                       key={point.label}
                       className={cn(
-                        "flex min-w-0 flex-1 justify-center font-mono text-xs text-muted-foreground md:min-w-4",
+                        "flex min-w-0 flex-1 justify-center font-mono text-xs text-muted-foreground ",
                         index % 7 !== 0 && "invisible md:visible",
                       )}
                     >
@@ -160,6 +187,10 @@ function SpendingChart({
                 </div>
               </div>
             </div>
+            {active && <div role="status" className={`absolute top-2 z-30 w-48 max-w-full rounded-md border bg-popover p-3 text-popover-foreground shadow-md ${selection ? "" : "pointer-events-none"}`} style={{ left: `clamp(0px, calc(3.5rem + (100% - 3.5rem) * ${(points.indexOf(active) + 0.5) / points.length} - 6rem), calc(100% - 12rem))` }}>
+              <div className="flex items-start"><p className="flex-1 text-xs">Day {active.label} · {currentLabel}</p>{selection && <button type="button" aria-label="Dismiss chart details" className="focus-ledger -mr-2 -mt-2 flex size-11 items-center justify-center rounded-md" onClick={dismiss}><X size={16} aria-hidden="true" /></button>}</div>
+              <p className="font-mono text-sm font-semibold tabular-nums">{formatMoney(active.amount)}</p>
+            </div>}
           </div>
 
           <div className="sr-only">

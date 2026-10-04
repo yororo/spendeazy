@@ -39,6 +39,7 @@ import {
 } from "@/shared/transaction";
 
 interface SpendingPoint {
+  categories: readonly { id: string | null; label: string; color: CategoryColor | null; amount: number }[];
   label: string;
   amount: number;
 }
@@ -242,7 +243,9 @@ async function loadDashboardResources(
 function createSpendingPoints(
   transactions: readonly TransactionHistoryItem[],
   daysInPeriod: number,
+  categoryById: ReadonlyMap<string, CategoryProjection>,
 ) {
+  const dailyCategories = new Map<number, Map<string | null, number>>();
   const dailyTotals = new Map<number, number>();
 
   transactions.forEach((transaction) => {
@@ -262,12 +265,23 @@ function createSpendingPoints(
         ),
       ),
     );
+    const categories = dailyCategories.get(day) ?? new Map<string | null, number>();
+    const categoryId = transaction.categoryId ?? null;
+    if (categoryId !== null && !categoryById.has(categoryId)) {
+      throw new DashboardDataError(`Category ${categoryId} is missing from the Category catalog.`);
+    }
+    categories.set(categoryId, (categories.get(categoryId) ?? 0) + amountCents);
+    dailyCategories.set(day, categories);
     dailyTotals.set(day, (dailyTotals.get(day) ?? 0) + amountCents);
   });
 
   return Array.from({ length: daysInPeriod }, (_, index) => ({
     label: String(index + 1),
     amount: centsToMoney(dailyTotals.get(index + 1) ?? 0),
+    categories: [...(dailyCategories.get(index + 1) ?? [])].map(([id, amount]) => ({
+      id, label: id === null ? "Uncategorized" : categoryById.get(id)!.label,
+      color: id === null ? null : categoryById.get(id)!.color, amount: centsToMoney(amount),
+    })).sort((a, b) => (a.id ?? "").localeCompare(b.id ?? "")),
   }));
 }
 
@@ -483,6 +497,7 @@ async function getDashboard(
     spendingPoints: createSpendingPoints(
       resources.transactions,
       resources.daysInPeriod,
+      categoryById,
     ),
     categorySpending,
     recentTransactions: createRecentTransactions(

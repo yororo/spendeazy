@@ -8,7 +8,7 @@ for (const width of [390, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/");
     const token = await createNewLocalTestUser(page);
-    await expect(page.getByText(/No spending recorded in this Reporting Period/)).toBeVisible();
+    await expect(page.getByText(/No Categories need attention yet/)).toBeVisible();
     const base = `${requireEnvironment("SPENDEAZY_E2E_API_BASE_URL")}/api/v1/users/me`;
     const headers = authorizationHeaders(token);
     const purchaseDate = requireEnvironment("SPENDEAZY_E2E_TEST_DATE");
@@ -54,7 +54,7 @@ for (const width of [390, 1440]) {
     await expect(summary.getByText("4.6%", { exact: true })).toBeVisible();
     await expect(summary.getByText("₱4,674.99", { exact: true })).toBeVisible();
     await expect(summary.getByText("₱75.00", { exact: true })).toBeVisible();
-    const attention = page.getByRole("region", { name: "Budget attention" });
+    const attention = page.getByRole("region", { name: "Category attention" });
     await expect(attention.getByRole("link", { name: /Below threshold/ })).toHaveCount(0);
     await expect(attention.getByRole("link", { name: /Below limit.*Nearing Budget.*₱0.01 left/ })).toBeVisible();
     await expect(attention.getByRole("link", { name: /At limit.*At Budget Limit.*₱0.00 remaining/ })).toBeVisible();

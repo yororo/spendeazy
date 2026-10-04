@@ -6,7 +6,7 @@ test("recurring Budget evidence survives cancel and stale failure, then recalcul
   await page.setViewportSize({ width: 390, height: 900 });
   await page.goto("/");
   const headers = authorizationHeaders(await createNewLocalTestUser(page));
-  await expect(page.getByText(/No spending recorded in this Reporting Period/)).toBeVisible();
+  await expect(page.getByText(/No Categories need attention yet/)).toBeVisible();
   const base = `${requireEnvironment("SPENDEAZY_E2E_API_BASE_URL")}/api/v1/users/me`;
   const response = await page.request.post(`${base}/categories`, { headers, data: { name: "Synthetic recurring" } });
   expect(response.ok()).toBe(true);

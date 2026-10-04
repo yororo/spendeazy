@@ -6,10 +6,12 @@ import {
   FeatureDataLoading,
 } from "@/shared/ui/feature-data-state";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAccessibleSpacesQuery } from "@/shared/api";
 import { formatMoney, moneyToCents } from "@/shared/money";
 import { budgetStatusLabels, getBudgetStatus } from "@/shared/budget";
+import { CategoryBadge } from "@/shared/category";
 import {
   ReportingPeriodFilter,
   useReportingPeriod,
@@ -236,25 +238,43 @@ function DashboardPage({
               </p>
             ) : (
               <ul className="divide-y">
-                {visibleBudgetAlerts.map((alert) => (
+                {visibleBudgetAlerts.map((alert) => {
+                  const category = categorySpending.find(
+                    (item) => item.id === alert.categoryId,
+                  );
+                  return (
                   <li key={alert.categoryId}>
                     <Link
                       to={`/transactions?categoryId=${encodeURIComponent(alert.categoryId)}`}
                       className="focus-ledger flex min-h-14 items-center justify-between gap-3 px-4 py-3 hover:bg-muted"
                     >
-                      <span className="min-w-0 font-medium">{alert.label}</span>
-                      <span className="text-right font-mono text-sm tabular-nums">
-                        {alert.status === "over"
-                          ? `${budgetStatusLabels.over} · ${formatMoney(Math.abs(alert.remaining ?? 0))} over`
-                          : alert.status === "limit"
-                            ? `${budgetStatusLabels.limit} · ${formatMoney(0)} remaining`
-                            : alert.status === "near"
-                              ? `${budgetStatusLabels.near} · ${alert.usage}% used · ${formatMoney(alert.remaining ?? 0)} left`
-                              : `${formatMoney(alert.spent)} · No Budget`}
+                      {category ? (
+                        <CategoryBadge category={category.category} color={category.color} className="min-w-0 whitespace-normal wrap-anywhere">
+                          {alert.label}
+                        </CategoryBadge>
+                      ) : (
+                        <span className="min-w-0 font-medium">{alert.label}</span>
+                      )}
+                      <span className="flex flex-col items-end gap-1 text-right font-mono text-sm tabular-nums">
+                        {alert.status !== "unbudgeted" && (
+                          <Badge variant="outline" className={alert.status === "over" ? "border-destructive bg-destructive/10 text-destructive normal-case" : "normal-case"}>
+                            {budgetStatusLabels[alert.status]}
+                          </Badge>
+                        )}
+                        <span>
+                          {alert.status === "over"
+                            ? `${formatMoney(Math.abs(alert.remaining ?? 0))} over`
+                            : alert.status === "limit"
+                              ? `${formatMoney(0)} remaining`
+                              : alert.status === "near"
+                                ? `${alert.usage}% used · ${formatMoney(alert.remaining ?? 0)} left`
+                                : `${formatMoney(alert.spent)} · No Budget`}
+                        </span>
                       </span>
                     </Link>
                   </li>
-                ))}
+                  );
+                })}
               </ul>
             )}
           </CardContent>

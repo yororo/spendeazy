@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
-import { Info, X } from "lucide-react";
+import { ChevronDown, Info, X } from "lucide-react";
 
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -48,6 +48,7 @@ const categoryColor = (category: InsightsCategory) => category.color === null
   ? "var(--muted-foreground)"
   : `var(--category-${getCategoryColorOption(category.color).value})`;
 const controlClass = "focus-ledger min-h-11 rounded-md border border-border px-3 text-sm";
+const chartDisclosureClass = `${controlClass} inline-flex cursor-pointer list-none items-center gap-2 bg-muted font-medium transition-colors hover:bg-accent [&::-webkit-details-marker]:hidden`;
 const categoryAmount = (month: InsightsMonth, categoryId: string | null) =>
   month.categories.find(amount => amount.categoryId === categoryId)?.amountCents ?? 0;
 const HelpDismissalContext = createContext(0);
@@ -124,13 +125,14 @@ function ChartHelp({ id, title, children }: { id: string; title: string; childre
   );
 }
 
-function ChartHeading({ id, title, help, budget, enabled, onBudgetChange }: {
+function ChartHeading({ id, title, help, budget, enabled, onBudgetChange, children }: {
   id: string;
   title: string;
   help: string;
   budget: boolean;
   enabled: boolean;
   onBudgetChange: (value: boolean) => void;
+  children?: ReactNode;
 }) {
   return (
     <header className="relative mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
@@ -140,24 +142,33 @@ function ChartHeading({ id, title, help, budget, enabled, onBudgetChange }: {
         </h2>
         <ChartHelp id={`${id}-help`} title={title.toLowerCase()}>{help}</ChartHelp>
       </div>
-      <div className="flex items-center gap-2 rounded-md border border-border px-3">
-        <Checkbox
-          id={`${id}-budget`}
-          checked={budget && enabled}
-          disabled={!enabled}
-          onCheckedChange={value => onBudgetChange(value === true)}
-        />
-        <Label htmlFor={`${id}-budget`} className="flex min-h-11 cursor-pointer items-center text-sm font-normal normal-case tracking-normal">Show budget</Label>
+      <div className="flex max-w-full flex-wrap items-center gap-2">
+        {children}
+        <div className="flex items-center gap-2 rounded-md border border-border px-3">
+          <Checkbox
+            id={`${id}-budget`}
+            checked={budget && enabled}
+            disabled={!enabled}
+            onCheckedChange={value => onBudgetChange(value === true)}
+          />
+          <Label htmlFor={`${id}-budget`} className="flex min-h-11 cursor-pointer items-center text-sm font-normal normal-case tracking-normal">Show budget</Label>
+        </div>
       </div>
     </header>
   );
 }
 
+const chartAmountStepCents = 10_000 * 100;
+const chartMaximum = (amount: number) => Math.max(chartAmountStepCents, Math.ceil(amount * 1.05 / chartAmountStepCents) * chartAmountStepCents);
+
 function ChartScale({ maximum }: { maximum: number }) {
+  const tickStep = Math.ceil(maximum / 4 / chartAmountStepCents) * chartAmountStepCents;
+  const ticks = [maximum];
+  for (let value = Math.floor((maximum - 1) / tickStep) * tickStep; value >= 0; value -= tickStep) ticks.push(value);
   return (
-    <div aria-hidden="true" className="flex w-20 shrink-0 flex-col justify-between text-right font-mono text-xs tabular-nums text-muted-foreground sm:w-24">
-      {[maximum, maximum / 2, 0].map(value => (
-        <span key={value} className="break-all">{money(value)}</span>
+    <div aria-hidden="true" className="relative w-20 shrink-0 text-right font-mono text-xs tabular-nums text-muted-foreground sm:w-24">
+      {ticks.map(value => (
+        <span key={value} className="absolute right-0 break-all" style={{ top: `${(1 - value / maximum) * 100}%`, transform: value === maximum ? undefined : "translateY(-100%)" }}>{money(value)}</span>
       ))}
     </div>
   );
@@ -221,6 +232,7 @@ function keyboardMonth(event: KeyboardEvent, current: number, count: number): nu
 interface MonthPoint {
   readonly index: number;
   readonly y: number;
+  readonly categoryId?: string | null;
   readonly below?: boolean;
 }
 
@@ -230,19 +242,28 @@ function MonthlyTotalChart({ report }: { report: InsightsMonthlyReport }) {
   const [hover, setHover] = useState<MonthPoint | null>(null);
   const plot = useRef<HTMLDivElement>(null);
   const hasBudget = report.monthlyBudgetCents > 0;
-  const maximum = Math.max(100, ...report.months.map(month => month.totalSpendingCents), showBudget && hasBudget ? report.monthlyBudgetCents : 0);
+  const maximum = chartMaximum(Math.max(...report.months.map(month => month.totalSpendingCents), showBudget && hasBudget ? report.monthlyBudgetCents : 0));
   const point = hover ?? selection;
   const index = point?.index ?? report.months.length - 1;
   const month = report.months[index]!;
   const readoutVisible = hover !== null || selection !== null;
+  const inspectedCategory = point?.categoryId === undefined ? undefined : report.categories.find(category => category.id === point.categoryId);
 
   function pointerMonth(clientX: number, clientY: number): MonthPoint {
     const bounds = plot.current!.getBoundingClientRect();
-    return {
-      index: Math.max(0, Math.min(report.months.length - 1, Math.floor((clientX - bounds.left) / bounds.width * report.months.length))),
-      y: Math.max(0, Math.min(1, (clientY - bounds.top) / bounds.height)),
-      below: clientY < window.innerHeight / 2,
-    };
+    const index = Math.max(0, Math.min(report.months.length - 1, Math.floor((clientX - bounds.left) / bounds.width * report.months.length)));
+    const y = Math.max(0, Math.min(1, (clientY - bounds.top) / bounds.height));
+    const column = plot.current!.querySelectorAll("[data-month-column]")[index]?.getBoundingClientRect();
+    const amountAtPointer = (1 - y) * maximum;
+    let cumulative = 0;
+    const category = column && clientX >= column.left && clientX <= column.right
+      ? report.categories.find(category => {
+        const amount = categoryAmount(report.months[index]!, category.id);
+        cumulative += amount;
+        return amount > 0 && amountAtPointer < cumulative;
+      })
+      : undefined;
+    return { index, y, categoryId: category?.id, below: clientY < window.innerHeight / 2 };
   }
 
   function pointForMonth(index: number): MonthPoint {
@@ -263,8 +284,23 @@ function MonthlyTotalChart({ report }: { report: InsightsMonthlyReport }) {
         budget={showBudget}
         enabled={hasBudget}
         onBudgetChange={setShowBudget}
-        help="Twelve months of recorded spending stacked by Category, including Uncategorized and Unbudgeted Spending. Select a bar to see its total. The dashed guide uses current recurring monthly Budgets, not reconstructed historical limits. Over Budget markers compare Budgeted Spending only; equality is At Budget Limit."
-      />
+        help="Twelve months of recorded spending stacked by Category, including Uncategorized and Unbudgeted Spending. Select the space above a bar to see its monthly total, or a Category segment to see its amount. The dashed guide uses current recurring monthly Budgets, not reconstructed historical limits. Over Budget markers compare Budgeted Spending only; equality is At Budget Limit."
+      >
+        <details className="group">
+          <summary className={chartDisclosureClass}>
+            Category legends
+            <ChevronDown aria-hidden="true" size={16} className="shrink-0 transition-transform group-open:rotate-180" />
+          </summary>
+          <ul aria-label="Monthly spending Categories" className="absolute inset-x-0 top-full z-20 flex flex-wrap gap-x-4 gap-y-2 rounded-md border border-border bg-popover p-4 text-popover-foreground shadow-md">
+            {report.categories.map(category => (
+              <li key={category.id ?? "uncategorized"} className="flex min-w-0 max-w-full items-center gap-2 text-sm">
+                <span aria-hidden="true" className="size-3 shrink-0 rounded-sm" style={{ backgroundColor: categoryColor(category) }} />
+                <span className="break-words">{category.label}</span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      </ChartHeading>
       {!hasBudget && <p className="text-sm text-muted-foreground">No current monthly Budget reference is available.</p>}
       {report.totalSpendingCents === 0 && <p role="status" className="text-sm">No spending was recorded in this 12-month window.</p>}
       <p id="insights-monthly-chart-keys" className="sr-only">Use the arrow keys to select a month, Home or End to select the first or last month, and Escape to dismiss details.</p>
@@ -296,7 +332,7 @@ function MonthlyTotalChart({ report }: { report: InsightsMonthlyReport }) {
               <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 z-10 border-t-2 border-dashed border-foreground" style={{ bottom: `${report.monthlyBudgetCents / maximum * 100}%` }} />
             )}
             {report.months.map(point => (
-              <div key={point.period} aria-hidden="true" className="pointer-events-none relative flex min-w-0 flex-col justify-end">
+              <div data-month-column key={point.period} aria-hidden="true" className="pointer-events-none relative flex min-w-0 flex-col justify-end">
                 {showBudget && hasBudget && point.budgetedSpendingCents > report.monthlyBudgetCents && (
                   <span className="absolute top-0 w-full text-center font-bold text-warning">!</span>
                 )}
@@ -313,17 +349,9 @@ function MonthlyTotalChart({ report }: { report: InsightsMonthlyReport }) {
         </div>
         <MonthAxis months={report.months} />
         {readoutVisible && (
-          <ChartPopup label={fullMonth.format(periodDate(month.period))} amountCents={month.totalSpendingCents} x={(index + 0.5) / report.months.length} y={point!.y} below={point?.below} retained={selection !== null} onDismiss={dismiss} />
+          <ChartPopup label={inspectedCategory ? `${inspectedCategory.label} · ${fullMonth.format(periodDate(month.period))}` : fullMonth.format(periodDate(month.period))} amountCents={inspectedCategory ? categoryAmount(month, inspectedCategory.id) : month.totalSpendingCents} x={(index + 0.5) / report.months.length} y={point!.y} below={point?.below} retained={selection !== null} onDismiss={dismiss} />
         )}
       </div>
-      <ul aria-label="Monthly spending Categories" className="mt-4 flex flex-wrap gap-x-4 gap-y-2">
-        {report.categories.map(category => (
-          <li key={category.id ?? "uncategorized"} className="flex min-w-0 max-w-full items-center gap-2 text-sm">
-            <span aria-hidden="true" className="size-3 shrink-0 rounded-sm" style={{ backgroundColor: categoryColor(category) }} />
-            <span className="break-words">{category.label}</span>
-          </li>
-        ))}
-      </ul>
     </section>
   );
 }
@@ -343,10 +371,10 @@ function CategoryTrendChart({ report }: { report: InsightsMonthlyReport }) {
   const selected = selectedIds ?? defaults;
   const trends = categories.filter(category => selected.has(category.id));
   const hasBudget = trends.some(category => category.monthlyBudgetCents !== null);
-  const maximum = Math.max(100, ...trends.flatMap(category => [
+  const maximum = chartMaximum(Math.max(0, ...trends.flatMap(category => [
     ...report.months.map(month => categoryAmount(month, category.id)),
     showBudget ? category.monthlyBudgetCents ?? 0 : 0,
-  ]));
+  ])));
   const point = hover ?? selection;
   const category = trends.find(category => category.id === point?.categoryId);
   const month = point ? report.months[point.index] : undefined;
@@ -406,16 +434,20 @@ function CategoryTrendChart({ report }: { report: InsightsMonthlyReport }) {
         enabled={hasBudget}
         onBudgetChange={setShowBudget}
         help="Monthly Category trends across twelve months. Choose Categories to compare, then select a line to see its Category, month, and amount. Dashed Budget guides use each selected Category’s current recurring monthly Budget, including historical comparisons; past limits are not reconstructed. Spending lines retain Category Colors and use different patterns when colors are shared."
-      />
+      >
+        <details className="group">
+          <summary className={chartDisclosureClass}>
+            Categories to compare · {trends.length} selected
+            <ChevronDown aria-hidden="true" size={16} className="shrink-0 transition-transform group-open:rotate-180" />
+          </summary>
+          <div role="group" aria-label="Categories to compare" className="absolute inset-x-0 top-full z-20 flex flex-wrap gap-2 rounded-md border border-border bg-popover p-4 text-popover-foreground shadow-md">
+            {categories.map(category => (
+              <button type="button" className={`${controlClass} max-w-full break-words`} key={category.id} style={selected.has(category.id) ? { backgroundColor: categoryColor(category), borderColor: "var(--foreground)" } : undefined} aria-pressed={selected.has(category.id)} onClick={() => toggleCategory(category.id)}><span className={selected.has(category.id) ? "rounded-sm bg-background px-1 text-foreground" : undefined}>{category.label}</span></button>
+            ))}
+          </div>
+        </details>
+      </ChartHeading>
       {!hasBudget && <p className="text-sm text-muted-foreground">No selected Category has a current monthly Budget reference.</p>}
-      <details className="my-4">
-        <summary className="focus-ledger flex min-h-11 cursor-pointer items-center text-sm">Categories to compare · {trends.length} selected</summary>
-        <div role="group" aria-label="Categories to compare" className="flex flex-wrap gap-2">
-          {categories.map(category => (
-            <button type="button" className={`${controlClass} max-w-full break-words`} key={category.id} aria-pressed={selected.has(category.id)} onClick={() => toggleCategory(category.id)}>{category.label}</button>
-          ))}
-        </div>
-      </details>
       {trends.length === 0 ? (
         <p role="status" className="text-sm">{categories.length === 0 ? "No Categories are available to compare in this Space." : "Select a Category to see its spending trend."}</p>
       ) : (
@@ -444,7 +476,7 @@ function CategoryTrendChart({ report }: { report: InsightsMonthlyReport }) {
                         fill="none"
                         points={points}
                         stroke="transparent"
-                        strokeWidth={44}
+                        strokeWidth={12}
                         vectorEffect="non-scaling-stroke"
                         className="focus-ledger cursor-pointer"
                         onPointerMove={event => { if (event.pointerType === "mouse") setHover(pointerPoint(category.id, event.clientX, event.clientY)); }}

@@ -891,3 +891,45 @@ describe("InsightsPage", () => {
     expect(screen.queryByRole("heading", { name: "Lowest spending" })).toBeNull();
   });
 });
+
+describe("Insights chart interactions", () => {
+  it("inspects monthly totals, Category segments, and Uncategorized independently", async () => {
+    vi.stubGlobal("fetch", createSuccessfulFetch(getCurrentReportingPeriod()));
+    renderInsights();
+    const chart = await screen.findByRole("slider", { name: "Monthly total spending chart" });
+    vi.spyOn(chart, "getBoundingClientRect").mockReturnValue({ left: 0, top: 0, width: 1200, height: 1000 } as DOMRect);
+    const columns = chart.querySelectorAll("[data-month-column]");
+    columns.forEach((column, index) => vi.spyOn(column, "getBoundingClientRect").mockReturnValue({ left: index * 100, right: index * 100 + 96 } as DOMRect));
+    fireEvent.click(chart, { clientX: 150, clientY: 500 });
+    expect(screen.getByRole("status").textContent).toContain(formatMoney(125.06));
+    fireEvent.click(chart, { clientX: 150, clientY: 995 });
+    expect(screen.getByRole("status").textContent).toContain("Groceries");
+    expect(screen.getByRole("status").textContent).toContain(formatMoney(100.01));
+    fireEvent.click(chart, { clientX: 150, clientY: 988 });
+    expect(screen.getByRole("status").textContent).toContain("Transit");
+    expect(screen.getByRole("status").textContent).toContain(formatMoney(25));
+    fireEvent.click(chart, { clientX: 150, clientY: 987.495 });
+    expect(screen.getByRole("status").textContent).toContain("Uncategorized");
+    expect(screen.getByRole("status").textContent).toContain(formatMoney(0.05));
+    const legend = screen.getByText("Category legends").closest("details")!;
+    expect(legend.open).toBe(false);
+    expect(within(chart.parentElement!).getByText(formatMoney(10_000))).toBeTruthy();
+  });
+
+  it("toggles comparison colors and retains keyboard line inspection", async () => {
+    vi.stubGlobal("fetch", createSuccessfulFetch(getCurrentReportingPeriod()));
+    renderInsights();
+    await screen.findByRole("slider", { name: "Monthly total spending chart" });
+    const group = screen.getByRole("group", { name: "Categories to compare", hidden: true });
+    const button = within(group).getByRole("button", { name: "Groceries", hidden: true });
+    expect(button.style.backgroundColor).toBe("var(--category-teal)");
+    fireEvent.click(button);
+    expect(button.getAttribute("aria-pressed")).toBe("false");
+    expect(button.style.backgroundColor).toBe("");
+    fireEvent.click(button);
+    expect(button.style.backgroundColor).toBe("var(--category-teal)");
+    const line = screen.getByRole("button", { name: "Groceries monthly spending" });
+    fireEvent.keyDown(line, { key: "End" });
+    expect(screen.getByRole("status").textContent).toContain("Groceries");
+  });
+});

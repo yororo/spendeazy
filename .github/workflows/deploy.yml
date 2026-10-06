@@ -60,6 +60,15 @@ jobs:
           test "$GITHUB_REF" = refs/heads/main
           current=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq .object.sha)
           test "$GITHUB_SHA" = "$current"
+      - name: Require the current open pull request for preview
+        if: github.event_name == 'pull_request' && github.event.action != 'closed'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.number }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          current=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" --jq 'select(.state == "open") | .head.sha')
+          test "$PR_HEAD" = "$current"
       - name: Detect unpublished changes
         if: github.event_name == 'push'
         id: release

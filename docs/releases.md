@@ -10,6 +10,8 @@ isolated browser/API/PostgreSQL suite. API lint checks without rewriting source.
 Only a successful validation job permits publication. Failed, canceled, skipped,
 or incomplete validation cannot publish either project. Preview cleanup has no
 validation dependency and runs on PR closure even after web changes are reverted.
+Preview publication also requires the current head of an open PR, so rerunning an
+older PR revision cannot replace a newer preview or recreate a closed preview.
 
 Changed paths select web/API independently. Main pushes compare each project
 against its last successful Azure upload, including uploads in otherwise failed

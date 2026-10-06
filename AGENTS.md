@@ -11,6 +11,12 @@ Spendeazy is one personal-finance product with two independently built npm proje
 | Contracts or behavior spanning browser and server | Both | Read both projects' guidance and inspect the web adapter and API endpoint together |
 | Shared vocabulary or repository workflow | Root | [Domain documentation](docs/agents/domain.md) |
 
+## Find the relevant code
+
+Start with the owning [web task map](web/docs/ARCHITECTURE.md#task-entry-points) or [API task map](api/ARCHITECTURE.md#task-entry-points), then search that feature or infrastructure tree. For example, use `rg --files web/src/features/statement-import` to locate files and `rg -n "commit" web/src/features/statement-import` to locate behavior. Search `web/e2e/` or `api/test/` explicitly for integration coverage; unit tests are colocated with source.
+
+For contracts, locate the affected path/schema in `api/docs/openapi.yaml` and read that section with its referenced schemas. Use the generated JSON only when tooling requires it. Load [historical evidence](docs/archive/README.md) and skill reference files when the task needs their provenance or workflow, rather than including them in ordinary source searches.
+
 ## Working boundaries
 
 - Root guidance applies throughout the repository; project `AGENTS.md` files add local instructions. Paths in project documentation are relative to that project unless stated otherwise.

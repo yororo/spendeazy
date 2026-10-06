@@ -13,7 +13,7 @@ Financial persistence and authorization are Space-scoped, including migrated Per
 
 ## Integration boundary
 
-The browser authenticates with the current Clerk session token. User provisioning and identity use `/api/v1/users/me`; financial workflows use `/api/v1/spaces/:spaceId/...` for the selected Space. Legacy financial `/users/me/...` routes resolve the User's Personal Space. The API resolves the local User and enforces Space membership and write access. Persisted financial data comes from the API; there is no runtime mock-data fallback.
+The browser authenticates with the current Clerk session token. User provisioning and identity use `/api/v1/users/me`; financial workflows use `/api/v1/users/me/spaces/:spaceId/...` for the selected Space. Legacy financial `/users/me/...` routes resolve the User's Personal Space. The API resolves the local User and enforces Space membership and write access. Persisted financial data comes from the API; there is no runtime mock-data fallback.
 
 The web owns PDF extraction, provider reconciliation, temporary Upload/Categorize/Review state, and Category Rule evaluation. The API stores Category Rules, checks duplicates, and atomically saves a Committed Statement Import with its reviewed Transactions. It receives reviewed JSON, not the PDF. Account is a presentation of the import's provider/account type (or Cash for manual Transactions), not a separate persisted financial-account entity. Existing transport fields `bank` and `cardType` carry that provider/account-type metadata, including wallet statements.
 

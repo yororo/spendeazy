@@ -11,4 +11,10 @@ This file supplements [root AGENTS.md](../AGENTS.md) for `api/`. Read [README.md
 
 Run relevant unit and end-to-end tests, `npm run build`, and lint from `api/`. The `npm run lint` script applies fixes; use `npx eslint "{src,apps,libs,test}/**/*.ts"` for a read-only lint check. See `package.json` for scripts and the README for contract checks.
 
+## Focused validation
+
+From `api/`, run `npm test -- --runInBand --runTestsByPath src/statement-imports/application/statement-imports.service.spec.ts` for one colocated Jest file; substitute the affected file. HTTP/PostgreSQL integration lives in `test/`: for example, `npm run test:e2e -- --runInBand --runTestsByPath test/statement-imports.e2e-spec.ts`.
+
+PostgreSQL suites need disposable databases and can skip when their variables are unset; use the [README's test prerequisites](README.md#test), rather than interpreting a skipped suite as coverage. Focused tests support iteration; the project checks above and the root-required isolated suite remain completion checks for code changes.
+
 Shared issue, triage, and domain-documentation guidance is linked from root `AGENTS.md`; keep repository policy there.

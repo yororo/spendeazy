@@ -31,7 +31,7 @@ Enable Google as a social connection in that Clerk instance. Add the deployed `/
 for local development, use the equivalent URL on the Vite development origin.
 No Clerk secret key is used by this client-only application.
 
-`VITE_API_BASE_URL` is the HTTP(S) origin of the Spendeazy API. The current Clerk session authenticates every private API request. User provisioning and identity use `/api/v1/users/me`; financial adapters use `/api/v1/spaces/:spaceId/...` for the selected Space, with legacy Personal Space routes as compatibility fallbacks. The API enforces membership and write access from the authenticated User.
+`VITE_API_BASE_URL` is the HTTP(S) origin of the Spendeazy API. The current Clerk session authenticates every private API request. User provisioning and identity use `/api/v1/users/me`; financial adapters use `/api/v1/users/me/spaces/:spaceId/...` for the selected Space, with legacy Personal Space routes as compatibility fallbacks. The API enforces membership and write access from the authenticated User.
 
 Authenticated Dashboard, Transactions, Categories, and Statement Import data all come from the persisted API—there is no bundled financial-data fallback.
 

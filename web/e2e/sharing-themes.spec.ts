@@ -41,7 +41,12 @@ for (const width of [320, 390, 767, 768, 1023, 1024, 1440]) {
       await recipient.getByLabel("Invite Code", { exact: true }).fill(code);
       await expectWorkflowSurvivesThemeChange(recipient, "Playful", "Dark");
       await expect(recipient.getByLabel("Invite Code", { exact: true })).toHaveValue(code);
+      const savedClaim = recipient.waitForResponse(response =>
+        response.url().endsWith("/api/v1/users/me/invitations/claims") && response.request().method() === "POST",
+      );
       await recipient.getByRole("button", { name: "Save Invitation", exact: true }).click();
+      const claimResponse = await savedClaim;
+      expect(claimResponse.status(), await claimResponse.text()).toBe(201);
       await expect(recipient.getByRole("button", { name: "Join Shared Space", exact: true })).toBeVisible();
       await expectWorkflowSurvivesThemeChange(recipient, "Technical", "Light");
       await recipient.getByRole("button", { name: "Join Shared Space", exact: true }).click();
@@ -61,6 +66,8 @@ for (const width of [320, 390, 767, 768, 1023, 1024, 1440]) {
       await page.getByRole("button", { name: /^Active Space:/ }).filter({ visible: true }).first().click();
       await page.getByRole("menuitemradio", { name: "Shared", exact: true }).click();
       await expect(page).toHaveURL(new RegExp(`spaceId=${spaceId}$`));
+      // URL changes precede the menu's asynchronous focus restoration.
+      await expect(page.getByRole("button", { name: "Active Space: Shared", exact: true }).filter({ visible: true }).first()).toBeFocused();
       await expectWorkflowSurvivesThemeChange(page, "Technical", "Dark");
       await page.getByRole("button", { name: "End sharing", exact: true }).click();
       const archive = page.getByRole("dialog", { name: "End sharing and archive this Space?" });

@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 
 function requireEnvironment(name: string): string {
   const value = process.env[name];
@@ -18,7 +18,14 @@ async function createNewLocalTestUser(page: Page): Promise<string> {
     .getByRole("button", { name: "New User" })
     .click();
 
-  return readSessionToken(await (await sessionResponse).json());
+  const token = readSessionToken(await (await sessionResponse).json());
+  // Issuing a synthetic session precedes the browser's real User provisioning.
+  // Wait at the HTTP boundary so subsequent requests cannot race that process.
+  await expect.poll(async () => (await page.request.get(
+    `${requireEnvironment("SPENDEAZY_E2E_API_BASE_URL")}/api/v1/users/me`,
+    { headers: authorizationHeaders(token) },
+  )).status()).toBe(200);
+  return token;
 }
 
 function authorizationHeaders(token: string): Record<string, string> {

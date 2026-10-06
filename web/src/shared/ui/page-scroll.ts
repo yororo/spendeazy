@@ -31,7 +31,6 @@ function preservePageScrollDuringLayoutChange(change: () => void): () => void {
   const anchors = hosts.map(host => host.style.overflowAnchor);
   hosts.forEach(host => { host.style.overflowAnchor = "none"; });
   let active = true;
-  let listenerTimer: ReturnType<typeof setTimeout> | undefined;
   const events = ["wheel", "touchstart", "pointerdown", "keydown"] as const;
   const cancel = () => {
     if (!active) return;
@@ -42,7 +41,7 @@ function preservePageScrollDuringLayoutChange(change: () => void): () => void {
   };
   cancelPendingRestoration = cancel;
   // The key gesture choosing a preference may still be bubbling to window.
-  listenerTimer = setTimeout(() => {
+  const listenerTimer = setTimeout(() => {
     if (active) events.forEach(event => window.addEventListener(event, cancel, { once: true, passive: true }));
   }, 0);
   change();

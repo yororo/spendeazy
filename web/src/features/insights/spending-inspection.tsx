@@ -20,7 +20,7 @@ interface SpendingInspectionProps {
 function SpendingInspection({ report, point, open, triggerId, onInspect, onDismiss, onViewTransactions, onEditBudget }: SpendingInspectionProps) {
   const { setPeriod } = useReportingPeriod();
   const initialPoint = report.view === "monthly" ? report.period : report.days[0]!.date;
-  const [selected, setSelected] = useState<string>(initialPoint);
+  const [selected, setSelected] = useState<string>(point ?? initialPoint);
   const points = report.view === "monthly" ? report.months.map(month => ({ key: month.period, label: formatReportingPeriod(month.period) })) : report.days.map(day => ({ key: day.date, label: day.date }));
   const chosen = open ? point ?? selected : selected;
   const key = points.some(point => point.key === chosen) ? chosen : initialPoint;

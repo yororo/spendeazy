@@ -9,10 +9,8 @@ test("keeps desktop Insights scrolling inside the content pane", async ({
   await page.goto("/insights");
 
   await expect(page.getByRole("heading", { name: "Insights" })).toBeVisible();
-  await page.getByRole("button", { name: "Monthly view" }).click();
-  await page.getByText("Explore the last 12 months +", { exact: true }).click();
   await expect(
-    page.getByRole("heading", { name: "Frequently over Budget" }),
+    page.getByRole("heading", { name: "Spending by Category" }),
   ).toBeVisible();
 
   const layout = await page.evaluate(() => {
@@ -105,13 +103,11 @@ test("fits rolling-month Category trend labels across desktop and mobile plot wi
 
   await page.goto("/insights");
   await expect(page.getByRole("heading", { name: "Insights" })).toBeVisible();
-  await page.getByRole("button", { name: "Monthly view" }).click();
-  await page.getByText("Explore the last 12 months +", { exact: true }).click();
   await expect(
     page.getByRole("table", { name: /category spending values/i }),
-  ).toBeVisible();
+  ).toBeAttached();
 
-  const axisLabels = page.getByTestId("insights-category-trend-month-labels");
+  const axisLabels = page.getByRole("region", { name: "Spending by Category", exact: true }).locator("div.absolute.bottom-0");
   await expect(axisLabels).toBeVisible();
 
   for (const viewport of [
@@ -122,7 +118,7 @@ test("fits rolling-month Category trend labels across desktop and mobile plot wi
     const layout = await axisLabels.evaluate((element) => {
       const chart = element.parentElement;
       const plot = chart?.querySelector(
-        ":scope > div.absolute > div.relative.min-w-0.flex-1",
+        ":scope > div.absolute > svg",
       );
 
       if (!plot) {

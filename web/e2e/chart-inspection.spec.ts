@@ -21,7 +21,6 @@ for (const width of [320, 390, 1440]) {
     }
     await page.getByRole("navigation", { name: width < 768 ? "Mobile navigation" : "Primary navigation" }).getByRole("link", { name: "Insights", exact: true }).click();
     await page.getByLabel("Reporting period", { exact: true }).fill("2026-09");
-    await page.getByText("Explore the last 12 months +", { exact: true }).click();
     const selector = page.getByText("Categories to compare · 3 selected", { exact: true });
     await expect(selector).toBeVisible();
     await changeTheme(page, "Playful");
@@ -32,7 +31,9 @@ for (const width of [320, 390, 1440]) {
     await options.getByRole("button", { name: "Chart D", exact: true }).click();
     await expect(page.getByText("Categories to compare · 4 selected", { exact: true })).toBeVisible();
     await expect(page.getByRole("list", { name: "Selected Categories in trend chart" }).getByText("Chart B", { exact: true })).toBeVisible();
-    const point = page.getByRole("group", { name: "Inspect chart points" }).getByRole("button", { name: "Aug 2026", exact: true });
+    await page.getByText("Inspect monthly spending", { exact: true }).click();
+    await page.getByLabel("Spending point", { exact: true }).selectOption("2026-08");
+    const point = page.getByRole("button", { name: "Inspect Aug 2026", exact: true });
     await point.focus();
     await page.keyboard.press("Enter");
     const dialog = page.getByRole("dialog");
@@ -53,8 +54,8 @@ for (const width of [320, 390, 1440]) {
     await point.click();
     await dialog.getByRole("button", { name: "View this month", exact: true }).click();
     await expect(page.getByLabel("Reporting period", { exact: true })).toHaveValue("2026-08");
-    await page.getByRole("button", { name: "Daily view" }).click();
-    const day = page.getByRole("group", { name: "Inspect chart points" }).getByRole("button", { name: "2026-08-10", exact: true });
+    await page.getByText("Inspect monthly spending", { exact: true }).click();
+    const day = page.getByRole("button", { name: "Inspect Aug 2026", exact: true });
     await day.tap();
     await expect(dialog.getByText("Total: ₱3,000.00", { exact: true })).toBeVisible();
     await expect(dialog.getByText(/independently of potential-pattern signals/)).toBeVisible();
@@ -67,7 +68,7 @@ for (const width of [320, 390, 1440]) {
     await expect(page).toHaveURL(/categoryId=/);
     await expect(page.getByLabel("Reporting period", { exact: true })).toHaveValue("2026-08");
     await page.getByRole("button", { name: "Return to Insights" }).click();
-    await expect(page.getByRole("button", { name: "Daily view" })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByLabel("Reporting period", { exact: true })).toHaveValue("2026-08");
     await expect(day).toBeFocused();
     await day.click();
     await dialog.getByRole("button", { name: "Close dialog" }).click();

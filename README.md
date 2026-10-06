@@ -29,11 +29,13 @@ For a credential-free browser/API/PostgreSQL environment, see [local synthetic t
 
 ## Deployment
 
-[The root deployment workflow](.github/workflows/deploy.yml) detects changes for each project. Pushes to `main` deploy web for changes under `web/` and API for changes under `api/`; changes to the workflow itself deploy both. Other root-only changes skip both deployment jobs.
+[The root deployment workflow](.github/workflows/deploy.yml) validates the exact checkout through the reusable [CI workflow](.github/workflows/ci.yml) before publication. Pushes to `main` deploy each project when its paths changed since its last successful upload; changes to either workflow or the release scripts deploy both. Other root-only changes skip both deployment jobs when no unpublished project changes remain.
 
 Pull requests targeting `main` build web previews when web or workflow files change. Closing a pull request attempts preview cleanup even if its web changes were later reverted. API deployments only run on pushes to `main` or manual runs. Use **Run workflow** in GitHub Actions to deploy `web`, `api`, or `all` manually.
 
 The workflow uses the existing Azure and registry secrets and web build variables. Web builds from `web/`; the API container builds from `api/Dockerfile` with `api/` as its build context.
+
+When both projects are selected, API publication must succeed before web publication. A shared production concurrency lock prevents releases overlapping; active publication is never canceled by a newer push. Production runs must target the current `main` revision. Manual `web` and `api` selections still validate both projects. See [release guidance](docs/releases.md) for compatibility, enforcement, and safe gate verification.
 
 ## Documentation
 

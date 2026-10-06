@@ -4,7 +4,7 @@ import { ChevronDown, Info, X } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import type { BudgetReviewHistory } from "@/shared/budget";
-import { restorePageScroll, type PageScrollPosition } from "@/shared/ui/page-scroll";
+import { capturePageScroll, restorePageScroll, type PageScrollPosition } from "@/shared/ui/page-scroll";
 import { restoreActionFocus } from "@/shared/ui/restore-action-focus";
 import { FeatureDataError, FeatureDataLoading } from "@/shared/ui/feature-data-state";
 import { ActiveSpaceLabel } from "@/shared/ui";
@@ -19,6 +19,7 @@ import {
 } from "@/shared/reporting-period";
 
 import { useInsightsQuery, type InsightsView } from "./insights-queries";
+import { SpendingInspection } from "./spending-inspection";
 import type { CategoryExplorerState } from "./category-explorer";
 import type { InsightsCategory, InsightsMonth, InsightsMonthlyReport } from "./insights-service";
 
@@ -29,6 +30,7 @@ interface InsightsReturnContext {
   readonly explorer?: CategoryExplorerState;
   readonly period?: ReportingPeriod;
   readonly spaceId?: string;
+  readonly inspectionPoint?: string;
 }
 
 interface InsightsPageProps {
@@ -546,7 +548,7 @@ function LedgerCharts({ report }: { report: InsightsMonthlyReport }) {
   );
 }
 
-function InsightsPage({ spaceId, onSpaceChange, returnContext }: InsightsPageProps = {}) {
+function InsightsPage({ spaceId, onSpaceChange, onViewTransactions, onEditBudget, returnContext }: InsightsPageProps = {}) {
   const [helpDismissal, setHelpDismissal] = useState(0);
   const { period } = useReportingPeriod();
   const shouldResolvePersonalSpace = onSpaceChange !== undefined;
@@ -558,7 +560,10 @@ function InsightsPage({ spaceId, onSpaceChange, returnContext }: InsightsPagePro
     if (!returnContext || !insightsQuery.isSuccess || restoredContext.current === returnContext) return;
     const frame = requestAnimationFrame(() => {
       restoredContext.current = returnContext;
-      restoreActionFocus(document.getElementById(returnContext.focusId) ?? document.getElementById("insights-monthly-spending-title"));
+      const target = document.getElementById(returnContext.focusId) ?? document.getElementById("insights-monthly-spending-title");
+      const disclosure = target?.closest("details");
+      if (disclosure) disclosure.open = true;
+      restoreActionFocus(target);
       restorePageScroll(returnContext.scroll);
     });
     return () => cancelAnimationFrame(frame);
@@ -582,10 +587,34 @@ function InsightsPage({ spaceId, onSpaceChange, returnContext }: InsightsPagePro
       {insightsQuery.isError && <FeatureDataError message={insightsQuery.error.message} onRetry={() => void insightsQuery.refetch()} />}
       <div aria-busy={insightsQuery.isFetching}>
         <LedgerCharts key={`${effectiveSpaceId ?? "personal"}-${period}`} report={insightsQuery.data} />
+        <details key={`inspection-${effectiveSpaceId ?? "personal"}-${period}`} className="mt-4">
+          <summary className={chartDisclosureClass}>Inspect monthly spending</summary>
+          <MonthlyInspection
+            report={insightsQuery.data}
+            initialPoint={returnContext?.period === period && returnContext.spaceId === effectiveSpaceId ? returnContext.inspectionPoint : undefined}
+            onViewTransactions={onViewTransactions ? (categoryId, selectedPeriod, focusId) => onViewTransactions(categoryId, selectedPeriod, effectiveSpaceId, {
+              scroll: capturePageScroll(), focusId: focusId ?? "insights-inspect-spending", period, spaceId: effectiveSpaceId, view: "monthly", inspectionPoint: selectedPeriod,
+            }) : undefined}
+            onEditBudget={onEditBudget ? (categoryId, selectedPeriod, focusId) => onEditBudget(categoryId, selectedPeriod, effectiveSpaceId, undefined, focusId) : undefined}
+          />
+        </details>
       </div>
     </div>
     </HelpDismissalContext.Provider>
   );
+}
+
+function MonthlyInspection({ report, initialPoint, onViewTransactions, onEditBudget }: {
+  report: InsightsMonthlyReport;
+  initialPoint?: string;
+  onViewTransactions?: (categoryId: string | undefined, period: ReportingPeriod, focusId?: string) => void;
+  onEditBudget?: (categoryId: string, period: ReportingPeriod, focusId?: string) => void;
+}) {
+  const [inspection, setInspection] = useState<{ point: string; triggerId: string; open: boolean } | null>(initialPoint ? { point: initialPoint, triggerId: "insights-inspect-spending", open: false } : null);
+  return <SpendingInspection report={report} point={inspection?.point} triggerId={inspection?.triggerId} open={inspection?.open ?? false}
+    onInspect={(point, triggerId) => setInspection({ point, triggerId, open: true })}
+    onDismiss={() => setInspection(current => current ? { ...current, open: false } : null)}
+    onViewTransactions={onViewTransactions} onEditBudget={onEditBudget} />;
 }
 
 export { InsightsPage };

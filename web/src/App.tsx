@@ -162,7 +162,7 @@ function InsightsRoute() {
         if (categoryId === undefined) params.delete("categoryId");
         else params.set("categoryId", categoryId);
         if (destinationSpaceId) params.set("spaceId", destinationSpaceId);
-        const context: InsightsOrigin = { path: `/insights${location.search}`, period: originPeriod, scroll: origin?.scroll ?? capturePageScroll(), focusId: origin?.focusId ?? document.activeElement?.id ?? "", view: origin?.view, explorer: origin?.explorer, spaceId: destinationSpaceId };
+        const context: InsightsOrigin = { path: `/insights${location.search}`, period: originPeriod, scroll: origin?.scroll ?? capturePageScroll(), focusId: origin?.focusId ?? document.activeElement?.id ?? "", inspectionPoint: origin?.inspectionPoint, view: origin?.view, explorer: origin?.explorer, spaceId: destinationSpaceId };
         setPeriod(period);
         navigate(`/transactions?${params}`, { state: { insightsOrigin: context } });
       }}

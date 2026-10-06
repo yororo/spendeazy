@@ -21,9 +21,10 @@ function initializeAppearance() {
   preference = readPreference();
   let cancelRestoration = () => {};
   function apply() {
+    const resolved = preference === "system" ? (system.matches ? "dark" : "light") : preference;
+    if (document.documentElement.dataset.theme === resolved) return;
     cancelRestoration = preservePageScrollDuringLayoutChange(() => {
-      document.documentElement.dataset.theme =
-        preference === "system" ? (system.matches ? "dark" : "light") : preference;
+      document.documentElement.dataset.theme = resolved;
     });
   }
   function syncStorage(event: StorageEvent) {

@@ -19,6 +19,7 @@ function initializeTheme() {
   preference = readPreference();
   let cancelRestoration = () => {};
   function apply() {
+    if (document.documentElement.dataset.visualTheme === preference) return;
     cancelRestoration = preservePageScrollDuringLayoutChange(() => {
       document.documentElement.dataset.visualTheme = preference;
     });

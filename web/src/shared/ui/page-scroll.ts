@@ -12,6 +12,11 @@ function capturePageScroll(): PageScrollPosition {
 }
 
 function restorePageScroll(position: PageScrollPosition): void {
+  cancelPendingRestoration();
+  applyPageScroll(position);
+}
+
+function applyPageScroll(position: PageScrollPosition): void {
   window.scrollTo(0, position.windowTop);
   const host = getPageScrollHost();
   if (host) host.scrollTop = position.contentTop;
@@ -26,28 +31,32 @@ function preservePageScrollDuringLayoutChange(change: () => void): () => void {
   const anchors = hosts.map(host => host.style.overflowAnchor);
   hosts.forEach(host => { host.style.overflowAnchor = "none"; });
   let active = true;
+  let listenerTimer: ReturnType<typeof setTimeout> | undefined;
   const events = ["wheel", "touchstart", "pointerdown", "keydown"] as const;
   const cancel = () => {
     if (!active) return;
     active = false;
+    clearTimeout(listenerTimer);
     hosts.forEach((host, index) => { host.style.overflowAnchor = anchors[index]!; });
     events.forEach(event => window.removeEventListener(event, cancel));
   };
   cancelPendingRestoration = cancel;
-  events.forEach(event => window.addEventListener(event, cancel, { once: true, passive: true }));
+  // The key gesture choosing a preference may still be bubbling to window.
+  listenerTimer = setTimeout(() => {
+    if (active) events.forEach(event => window.addEventListener(event, cancel, { once: true, passive: true }));
+  }, 0);
   change();
   // Resolve fallback-font layout while anchoring is suppressed. Keep suppression
   // until the next interaction: re-enabling it can round a new anchor by a pixel.
   void document.documentElement.offsetHeight;
-  restorePageScroll(scroll);
-  const restored = capturePageScroll();
+  applyPageScroll(scroll);
   void (document.fonts?.ready ?? Promise.resolve()).then(() => {
     if (!active) return;
     requestAnimationFrame(() => {
       if (!active) return;
-      const current = capturePageScroll();
-      // Preserve later intentional/programmatic scrolling rather than overwrite it.
-      if (current.windowTop === restored.windowTop && current.contentTop === restored.contentTop) restorePageScroll(scroll);
+      // Fonts can briefly shorten and then expand a page. Restore the requested
+      // offset after that final layout, rather than retaining an interim clamp.
+      applyPageScroll(scroll);
     });
   });
   return cancel;

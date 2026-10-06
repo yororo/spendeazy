@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from "react";
-import { capturePageScroll, restorePageScroll } from "@/shared/ui/page-scroll";
+import { preservePageScrollDuringLayoutChange } from "@/shared/ui/page-scroll";
 
 type Theme = "technical" | "playful";
 const STORAGE_KEY = "spendeazy.theme";
@@ -19,36 +19,11 @@ function initializeTheme() {
   preference = readPreference();
   let cancelRestoration = () => {};
   function apply() {
-    cancelRestoration();
-    const scroll = capturePageScroll();
-    const hosts = [document.documentElement, document.querySelector<HTMLElement>("[data-page-scroll-host]")].filter((host): host is HTMLElement => host !== null);
-    const anchors = hosts.map(host => host.style.overflowAnchor);
-    hosts.forEach(host => { host.style.overflowAnchor = "none"; });
-    let cancelled = false;
-    const events = ["wheel", "touchstart", "pointerdown", "keydown"] as const;
-    const cleanup = () => {
-      hosts.forEach((host, index) => { host.style.overflowAnchor = anchors[index]!; });
-      events.forEach(event => window.removeEventListener(event, cancel));
-    };
-    const cancel = () => { cancelled = true; cleanup(); };
-    cancelRestoration = cancel;
-    events.forEach(event => window.addEventListener(event, cancel, { once: true, passive: true }));
-    document.documentElement.dataset.visualTheme = preference;
-    // The first layout can use fallback fonts. Keep anchoring disabled until the
-    // selected font finishes loading, unless the User starts another interaction.
-    void document.documentElement.offsetHeight;
-    restorePageScroll(scroll);
-    const restored = capturePageScroll();
-    void (document.fonts?.ready ?? Promise.resolve()).then(() => {
-      if (cancelled) return;
-      requestAnimationFrame(() => {
-        if (cancelled) return;
-        const current = capturePageScroll();
-        if (current.windowTop === restored.windowTop && current.contentTop === restored.contentTop) restorePageScroll(scroll);
-        requestAnimationFrame(() => { if (!cancelled) cleanup(); });
-      });
+    cancelRestoration = preservePageScrollDuringLayoutChange(() => {
+      document.documentElement.dataset.visualTheme = preference;
     });
   }
+
   function syncStorage(event: StorageEvent) {
     if (event.key !== STORAGE_KEY && event.key !== null) return;
     preference = readPreference();

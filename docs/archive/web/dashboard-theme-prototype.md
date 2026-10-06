@@ -1,5 +1,7 @@
 # Dashboard theme prototype — historical design evidence
 
+> Archived prototype evidence. Use the [current design system](../../../web/DESIGN_SYSTEM.md) and [Theme/Appearance ADR](../../../web/docs/adr/0004-independent-theme-and-appearance.md) for implementation.
+
 The executable prototype was retired by issue #90. Use profile Settings to select
 Technical or Playful in the application. The original `.tsx` and `.css` reference
 is preserved in Git at commit `3878a253e1c368d67e7fad546c508a9dc27c1d5d`.

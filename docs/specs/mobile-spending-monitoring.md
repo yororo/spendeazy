@@ -1,8 +1,8 @@
 # Mobile-first spending monitoring and Statement Import UX
 
-Status: agreed design and testing boundaries; published as [specification issue #75](https://github.com/yororo/spendeazy/issues/75), ready for implementation-ticket decomposition.
+Status at export: agreed design and testing boundaries; published as [specification issue #75](https://github.com/yororo/spendeazy/issues/75). Current implementation status belongs to GitHub Issues.
 
-This file is the requested local spec artifact. The corresponding GitHub specification issue is the implementation source of truth; publication details are recorded in Further Notes. No application implementation is included.
+This file preserves the published design; read GitHub issue #75 and its implementation tickets for current requirements and status. [The original review and interview](../archive/README.md) are archived design provenance. Publication details are recorded below.
 
 ## Problem Statement
 

@@ -4,7 +4,7 @@ This document is the implementation source of truth for Spendeazy UI. The Pen fi
 
 ## Code placement
 
-Paths in this document are relative to `web/`. Follow [web architecture](docs/ARCHITECTURE.md) for dependency direction and feature ownership, and [root CONTEXT.md](../CONTEXT.md) for domain language.
+Paths in this document are relative to `web/`. Follow [web architecture](docs/ARCHITECTURE.md) for dependency direction and feature ownership, and [root GLOSSARY.md](../GLOSSARY.md) for domain language.
 
 Semantic tokens live in `src/index.css`; generic accessible primitives live in `src/components/ui`. Feature-specific presentation stays in its owning `src/features/<feature>` directory. Application composition belongs in `src/components/app` and `src/layouts`; proven reusable domain UI belongs in `src/shared`. Business pages live in features, while `src/pages` holds routes such as Not Found.
 
@@ -330,7 +330,7 @@ semantic tokens, exact Budget states, and viewport rules across all references.
 | Neon green used as text on white                                       | Reserve neon for surfaces/indicators; use dark success text                                                                     |
 | Desktop frames and a 390px mobile Dashboard reference                  | Apply the viewport-based responsive rules documented above; the design system takes precedence over illustrative mockup styling |
 | Floating-point artifacts in category amounts                           | Treat them as source-data defects; format currency values at the data boundary                                                  |
-| “Map” and “Confirm” workflow naming                                    | Use Statement Import: Upload → Categorize → Review, as defined in root `CONTEXT.md`                                                  |
+| “Map” and “Confirm” workflow naming                                    | Use Statement Import: Upload → Categorize → Review, as defined in root `GLOSSARY.md`                                                  |
 
 ## Adding a new pattern
 

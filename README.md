@@ -1,10 +1,10 @@
 # Spendeazy
 
-Spendeazy is a private personal-finance application for tracking expenses, managing Budgets, and importing supported account statements. The monorepo contains two projects sharing one [domain glossary](CONTEXT.md).
+Spendeazy is a private personal-finance application for tracking expenses, managing Budgets, and importing supported account statements. The monorepo contains two projects sharing one [domain glossary](GLOSSARY.md).
 
-## Sharing release gate
+## Financial Spaces
 
-Financial persistence and authorization are Space-scoped, including migrated Personal history and actor attribution. Shared Space support remains disabled for production Users until the invitation, membership management, Space switching, and complete browser sharing workflows are implemented and validated.
+Financial persistence and authorization are Space-scoped, including migrated Personal history and actor attribution. Sharing uses Invite Codes: eligible Users save an invitation and explicitly accept it to create a Shared Space. Leaving archives the Space as read-only history for both former members. See the [Space and invitation decisions](docs/agents/domain.md) for ownership and lifecycle rules.
 
 | Project | Responsibility | Development guide |
 | --- | --- | --- |
@@ -13,7 +13,7 @@ Financial persistence and authorization are Space-scoped, including migrated Per
 
 ## Integration boundary
 
-The browser calls self-scoped `/api/v1/users/me` endpoints with the current Clerk session token. The API resolves the local User and enforces ownership. Persisted financial data comes from the API; there is no runtime mock-data fallback.
+The browser authenticates with the current Clerk session token. User provisioning and identity use `/api/v1/users/me`; financial workflows use `/api/v1/spaces/:spaceId/...` for the selected Space. Legacy financial `/users/me/...` routes resolve the User's Personal Space. The API resolves the local User and enforces Space membership and write access. Persisted financial data comes from the API; there is no runtime mock-data fallback.
 
 The web owns PDF extraction, provider reconciliation, temporary Upload/Categorize/Review state, and Category Rule evaluation. The API stores Category Rules, checks duplicates, and atomically saves a Committed Statement Import with its reviewed Transactions. It receives reviewed JSON, not the PDF. Account is a presentation of the import's provider/account type (or Cash for manual Transactions), not a separate persisted financial-account entity. Existing transport fields `bank` and `cardType` carry that provider/account-type metadata, including wallet statements.
 

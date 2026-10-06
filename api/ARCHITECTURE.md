@@ -1,6 +1,6 @@
 # Architecture
 
-Read this document before changing module boundaries, dependency direction, persistence seams, request-wide behavior, or cross-feature workflows. Use [root CONTEXT.md](../CONTEXT.md) for domain language, `docs/adr/` for API decisions, and `docs/DATABASE_DESIGN.md` for the persistence overview and schema sources. Paths are relative to `api/`; the [root integration overview](../README.md) describes the web/API boundary.
+Read this document before changing module boundaries, dependency direction, persistence seams, request-wide behavior, or cross-feature workflows. Use [root GLOSSARY.md](../GLOSSARY.md) for domain language, `docs/adr/` for API decisions, and `docs/DATABASE_DESIGN.md` for the persistence overview and schema sources. Paths are relative to `api/`; the [root integration overview](../README.md) describes the web/API boundary.
 
 ## Shape
 
@@ -34,7 +34,7 @@ Feature modules bind symbolic application tokens such as `USER_STORE` to concret
 
 ## Feature modules
 
-The business features are `users`, `categories`, `category-rules`, `transactions`, and `statement-imports`. A feature normally contains:
+The business features are `users`, `spaces`, `invitations`, `categories`, `category-rules`, `transactions`, and `statement-imports`. [The feature registry](src/api-feature-modules.ts) assembles them; `spaces` is composed through dependent feature modules. A feature normally contains:
 
 - `presentation/`: controllers, request/response DTOs, and HTTP mapping.
 - `application/`: use-case services, errors, records and inputs, and store ports.
@@ -53,6 +53,19 @@ Shared code exists only where the concern is genuinely cross-cutting:
 - `normalization/`: pure canonicalization used by more than one feature.
 - `logging/`: allowlisted exception records, safe framework logging and asynchronous request correlation; see `docs/exception-logging.md`.
 - `docs/` and `health/`: public operational endpoints.
+
+## Task entry points
+
+Start at the named owner, then follow its ports into infrastructure. Paths are relative to `api/`; neighboring `*.spec.ts` files cover application behavior, and `test/` covers HTTP and PostgreSQL integration.
+
+| Task | Behavior owner | HTTP / persistence seam | Integration tests |
+| --- | --- | --- | --- |
+| Statement Import commit and duplicates | [Import service](src/statement-imports/application/statement-imports.service.ts) | [Controller](src/statement-imports/presentation/statement-imports.controller.ts), [unit of work](src/database/unit-of-work.ts) | [HTTP contract](test/statement-imports.e2e-spec.ts), [rollback/duplicates](test/statement-import-rollback-postgres.e2e-spec.ts) |
+| Space authorization and archive lifecycle | [Access service](src/spaces/application/space-access.service.ts), [lifecycle service](src/spaces/application/space-lifecycle.service.ts) | [Spaces controller](src/spaces/presentation/spaces.controller.ts), `src/spaces/infrastructure/` | [Space behavior](test/spaces.e2e-spec.ts), [PostgreSQL](test/spaces-postgres.e2e-spec.ts) |
+| Invite Codes and joining | [Invitation service](src/invitations/application/invitations.service.ts) | [Controller](src/invitations/presentation/invitations.controller.ts), [atomic acceptance](src/invitations/infrastructure/typeorm-invitation-acceptance-store.ts) | [HTTP contract](test/invitations.e2e-spec.ts), [PostgreSQL](test/invitations-postgres.e2e-spec.ts) |
+| Reporting data and Budgets | [Transaction service](src/transactions/application/transactions.service.ts), [Category service](src/categories/application/categories.service.ts) | `src/transactions/presentation/`, `src/categories/presentation/`; Budgets belong to Categories | [Space transactions](test/space-transactions.e2e-spec.ts), [Space categories](test/space-categories.e2e-spec.ts) |
+
+For browser projections and their adapters, use the [web task map](../web/docs/ARCHITECTURE.md#task-entry-points).
 
 ## Request lifecycle
 
@@ -90,7 +103,7 @@ OpenAPI assembly lives under `src/docs/`. When an endpoint contract changes, upd
 
 When adding behavior:
 
-1. Identify the owning feature using the vocabulary in root `CONTEXT.md`.
+1. Identify the owning feature using the vocabulary in root `GLOSSARY.md`.
 2. Put orchestration and business rules in an application service or a focused pure helper beside it.
 3. Express required persistence as a narrow application-owned port.
 4. Implement that port in the feature's infrastructure layer and bind it in the feature module.

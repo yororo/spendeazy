@@ -1,5 +1,7 @@
 # Spendeazy UX/UI review — 30 September 2026
 
+> Archived design provenance. The [local spec export](../../specs/mobile-spending-monitoring.md) supersedes conflicting proposals below; [GitHub issue #75](https://github.com/yororo/spendeazy/issues/75) is the requirements source. Statements about implementation progress describe the original session.
+
 Status: complete for the requested local-browser journey. The supplied statement was unlocked by the User, categorized, reviewed, committed once into Personal, and verified in Transactions and Insights. Findings distinguish observed behavior from proposed enhancements.
 
 ## Scope and evidence
@@ -35,25 +37,25 @@ Merchant-based manual assignments were used for the UX test: groceries/warehouse
 
 Categorize, Review, and Complete display a bright `Shared` badge while the navigation selector and explicit destination say Personal. The success record confirms that the import went into Personal. This is a display inconsistency, not evidence of a cross-Space write.
 
-For financial data, the contradiction undermines confidence precisely when the User is deciding where to save expenses. Derive every Space label from the same destination context and use `Import into Personal` consistently. Keep the destination fixed through the review flow, or require an explicit destination change with a visible consequence. Validate all three stages on both mobile and desktop. [Mobile evidence](mobile-review.jpg), [desktop evidence](desktop-review.jpg).
+For financial data, the contradiction undermines confidence precisely when the User is deciding where to save expenses. Derive every Space label from the same destination context and use `Import into Personal` consistently. Keep the destination fixed through the review flow, or require an explicit destination change with a visible consequence. Validate all three stages on both mobile and desktop. [Mobile evidence](../../ux-review-2026-09-30/mobile-review.jpg), [desktop evidence](../../ux-review-2026-09-30/desktop-review.jpg).
 
 ### B. Make View Transactions show the just-imported statement — P1
 
 After saving 45 May/June expenses, `View Transactions` landed on September, showing 6 old fixture Transactions. All newly imported expenses were invisible until the month was manually changed.
 
-Open a statement-specific Transaction view or preselect the imported date range. Since a statement can span calendar months, choosing only its statement month is insufficient. A useful success panel would offer `View all 45 imported Transactions`, `May: 25`, and `June: 20`, with the saved amount. Preserve ordinary Reporting Period behavior outside this explicit post-import action. [Evidence](post-import-transactions-default.jpg).
+Open a statement-specific Transaction view or preselect the imported date range. Since a statement can span calendar months, choosing only its statement month is insufficient. A useful success panel would offer `View all 45 imported Transactions`, `May: 25`, and `June: 20`, with the saved amount. Preserve ordinary Reporting Period behavior outside this explicit post-import action. [Evidence](../../ux-review-2026-09-30/post-import-transactions-default.jpg).
 
 ### C. Use coherent expense/payment language throughout import — P1
 
 Review labels purchase rows `Credit` in green and accessible text says `Credit. Included in import.` At the same time, desktop summaries say `Total debits` and the Category breakdown says `Included, categorized debits`. The payment is labeled `Debit` during Categorize and excluded. Negative purchase amounts are also shown in the edit form, unlike the domain's positive expense model.
 
-Use user-facing `Expense` and `Payment — excluded` labels. Show an unsigned amount in an expense editor with its type stated clearly, and use a consistent expense sign convention in lists. Explain why the payment does not count as spending. This avoids requiring Users to interpret internal credit/debit conventions and makes inaccuracies easier to recognize. [Evidence](desktop-review.jpg).
+Use user-facing `Expense` and `Payment — excluded` labels. Show an unsigned amount in an expense editor with its type stated clearly, and use a consistent expense sign convention in lists. Explain why the payment does not count as spending. This avoids requiring Users to interpret internal credit/debit conventions and makes inaccuracies easier to recognize. [Evidence](../../ux-review-2026-09-30/desktop-review.jpg).
 
 ### D. Make current Category breaches unmistakable — P1
 
 June Food & Drink is ₱4,024.14 against a ₱1,800 monthly Budget: 223.6% used and ₱2,224.14 over. Yet Dashboard aggregate usage is 58.3% because it compares the same ₱4,024.14 with all ₱6,900 of monthly limits. Monthly Insights lists Food & Drink under `Lowest spending`, alongside four zero-spend Categories, without a Budget-breach label in that list.
 
-Do not present aggregate remaining amounts as evidence that every Category is healthy. Lead with Category status and show `1 Category over Budget` alongside aggregate usage. Replace Lowest spending with a more actionable comparison, or at least label every ranked row's Budget status and exclude over-Budget rows from any implied savings opportunity. Dashboard already calculates the correct over amount; reuse that information in Insights. [Dashboard evidence](post-import-budget-attention.jpg), [ranking evidence](post-import-lowest-spending.jpg).
+Do not present aggregate remaining amounts as evidence that every Category is healthy. Lead with Category status and show `1 Category over Budget` alongside aggregate usage. Replace Lowest spending with a more actionable comparison, or at least label every ranked row's Budget status and exclude over-Budget rows from any implied savings opportunity. Dashboard already calculates the correct over amount; reuse that information in Insights. [Dashboard evidence](../../ux-review-2026-09-30/post-import-budget-attention.jpg), [ranking evidence](../../ux-review-2026-09-30/post-import-lowest-spending.jpg).
 
 ### E. Preserve orientation between import stages and shorten the correction loop — P1
 
@@ -216,16 +218,16 @@ Use brand green for navigation/primary actions consistently, with separate label
 
 ## Screenshots
 
-- [Mobile upload](mobile-upload.jpg)
-- [Mobile Monthly Insights](mobile-monthly-insights.jpg)
-- [Desktop Monthly Insights](desktop-monthly-insights.jpg)
-- [Mobile Review with conflicting Space label](mobile-review.jpg)
-- [Desktop Review with expense/payment terminology](desktop-review.jpg)
-- [Import success](import-success.jpg)
-- [Post-import Transactions defaulting to September](post-import-transactions-default.jpg)
-- [June Budget attention](post-import-budget-attention.jpg)
-- [Over-Budget Category under Lowest spending](post-import-lowest-spending.jpg)
-- [Populated mobile Monthly Insights](post-import-mobile-monthly-insights.jpg)
-- [Populated desktop Monthly Insights](post-import-desktop-monthly-insights.jpg)
+- [Mobile upload](../../ux-review-2026-09-30/mobile-upload.jpg)
+- [Mobile Monthly Insights](../../ux-review-2026-09-30/mobile-monthly-insights.jpg)
+- [Desktop Monthly Insights](../../ux-review-2026-09-30/desktop-monthly-insights.jpg)
+- [Mobile Review with conflicting Space label](../../ux-review-2026-09-30/mobile-review.jpg)
+- [Desktop Review with expense/payment terminology](../../ux-review-2026-09-30/desktop-review.jpg)
+- [Import success](../../ux-review-2026-09-30/import-success.jpg)
+- [Post-import Transactions defaulting to September](../../ux-review-2026-09-30/post-import-transactions-default.jpg)
+- [June Budget attention](../../ux-review-2026-09-30/post-import-budget-attention.jpg)
+- [Over-Budget Category under Lowest spending](../../ux-review-2026-09-30/post-import-lowest-spending.jpg)
+- [Populated mobile Monthly Insights](../../ux-review-2026-09-30/post-import-mobile-monthly-insights.jpg)
+- [Populated desktop Monthly Insights](../../ux-review-2026-09-30/post-import-desktop-monthly-insights.jpg)
 
 Screenshots include the synthetic test harness, which occupies substantial phone height and is excluded from the product layout recommendations. Full-page captures can place fixed navigation across the captured document; that capture behavior is not itself evidence of a layout defect.

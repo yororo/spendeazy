@@ -1,6 +1,6 @@
 # Spendeazy API
 
-The backend for the sibling [web project](../web/README.md) is a NestJS REST API. It manages Users, Categories, Budgets, Transactions, Category Rules, and Committed Statement Imports from supported account statements, using the [shared domain vocabulary](../CONTEXT.md). Versioned API routes are served under `/api/v1` and require Clerk session tokens in an `Authorization: Bearer <token>` header. Health and documentation endpoints are public.
+The backend for the sibling [web project](../web/README.md) is a NestJS REST API. It manages Users, Categories, Budgets, Transactions, Category Rules, and Committed Statement Imports from supported account statements, using the [shared domain vocabulary](../GLOSSARY.md). Versioned API routes are served under `/api/v1` and require Clerk session tokens in an `Authorization: Bearer <token>` header. Health and documentation endpoints are public.
 
 See [architecture](ARCHITECTURE.md) for code placement and [local testing](docs/LOCAL_TESTING.md) for authenticated requests. All commands and paths below are relative to `api/`; change into that directory from the repository root first.
 
@@ -84,6 +84,6 @@ match deterministic regeneration without changing files:
 npm run openapi:check
 ```
 
-The check fails when either artifact is missing or out of date. Run it locally; workflow files currently live under project-local `.github/workflows/` directories rather than the monorepo root.
+The check fails when either artifact is missing or out of date. Run it locally; the [root CI workflow](../.github/workflows/ci.yml) also runs it alongside project validation and the isolated browser suite.
 
 To reset the local database and reload development data, run `npm run db:reset-seed`. This is destructive and removes application data from the configured local database.

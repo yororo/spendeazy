@@ -1,6 +1,8 @@
 # Issue #8 live validation
 
-Historical evidence from before the self-scoped authentication boundary. The explicit User-ID routes below are not current API usage; see [the accepted authentication ADR](../adr/0002-authenticated-self-scoped-api-boundary.md).
+> Archived historical evidence. The observations, commands, and validation results below describe the recorded session; use current guidance and rerun checks for current behavior.
+
+Historical evidence from before the self-scoped authentication boundary. The explicit User-ID routes below are not current API usage; see [the accepted authentication ADR](../../../../web/docs/adr/0002-authenticated-self-scoped-api-boundary.md).
 
 Validation date: 2026-08-30 (UTC)
 

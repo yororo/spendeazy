@@ -1,5 +1,7 @@
 # UX design interview — 30 September 2026
 
+> Archived design provenance. The [local spec export](../../specs/mobile-spending-monitoring.md) supersedes conflicting proposals below; [GitHub issue #75](https://github.com/yororo/spendeazy/issues/75) is the requirements source. Statements about implementation progress describe the original session.
+
 This is a record of the grill-with-docs interview, not an implementation specification. GitHub Issues remain the repository's issue/spec source of truth. Implementation has not started.
 
 ## Settled scope
@@ -110,4 +112,4 @@ All eighteen questions were answered and their recommendations accepted. The des
 
 This session changed documentation only. App implementation, GitHub implementation issues, and runtime validation have not been performed. Implementation should use the repository's GitHub issue workflow, preserve unrelated working-tree changes, and run the required isolated end-to-end suite before completion. No ADR was added: these decisions preserve existing persistence and recurring-Budget boundaries, and the remaining presentation/calculation choices do not warrant a hard-to-reverse architectural decision record.
 
-Settled terms will be added to root CONTEXT.md when they introduce or refine domain vocabulary. ADRs will be reserved for decisions with meaningful reversal costs and a real trade-off.
+Settled terms will be added to root GLOSSARY.md when they introduce or refine domain vocabulary. ADRs will be reserved for decisions with meaningful reversal costs and a real trade-off.

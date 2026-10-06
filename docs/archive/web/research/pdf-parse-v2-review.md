@@ -1,5 +1,7 @@
 # `pdf-parse` v2 implementation review
 
+> Archived research from 2026-08-22. The original target was retired; the [current PDF extractor](../../../../web/src/features/statement-import/statement-parser/pdf-extractor.ts) now uses a local worker and destroys the parser in finally. Findings below are historical, not outstanding defects; verify each against current code.
+
 Research date: 2026-08-22
 
 Target: `src/features/statement-import/pdf-parser/pdf-parse-v2.ts`

@@ -1,6 +1,6 @@
 # Web agent guidance
 
-This file supplements [root AGENTS.md](../AGENTS.md) for `web/`. Read [README.md](README.md) for setup and [the shared glossary](../CONTEXT.md) for domain terms. Paths below are relative to `web/`.
+This file supplements [root AGENTS.md](../AGENTS.md) for `web/`. Read [README.md](README.md) for setup and [the shared glossary](../GLOSSARY.md) for domain terms. Paths below are relative to `web/`.
 
 - For code creation, modification, or review, read [coding standards](docs/CODING_STANDARDS.md).
 - For feature creation, structural refactors, or cross-feature reuse, read [architecture](docs/ARCHITECTURE.md) and relevant [ADRs](docs/adr/).

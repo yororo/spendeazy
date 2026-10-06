@@ -1,6 +1,6 @@
 # Working in Spendeazy
 
-Spendeazy is one personal-finance product with two independently built npm projects. Read [CONTEXT.md](CONTEXT.md) for shared domain language before changing behavior.
+Spendeazy is one personal-finance product with two independently built npm projects. Read [GLOSSARY.md](GLOSSARY.md) for shared domain language before changing behavior.
 
 ## Choose the project
 
@@ -18,7 +18,7 @@ Spendeazy is one personal-finance product with two independently built npm proje
 - The browser calls the API over HTTP; these projects do not share an in-process service or source package. Read [README.md](README.md) for integration and startup links.
 - Before completing any code change, run the isolated browser/API/PostgreSQL suite from the repository root with `node scripts/local-test-launcher.mjs --e2e`. Fix failures before reporting the change complete. See [local synthetic testing](docs/local-testing.md) for prerequisites and troubleshooting; this check also runs in CI on pushes and pull requests to `main`.
 - For contract changes, inspect API DTO/controller metadata and the canonical generated YAML specification at `api/docs/openapi.yaml`, then update affected web adapters and validate both projects. Do not create a web-side OpenAPI copy. Follow the API README for contract generation/checking; `api/docs/openapi.json` is the generated JSON representation for tooling.
-- Keep shared terms in root `CONTEXT.md`, implementation guidance in project docs, and decisions in the owning project's `docs/adr/`. Validation and research notes are historical evidence, not current architecture or proof that today's checks pass.
+- Keep shared terms in root `GLOSSARY.md`, implementation guidance in project docs, and decisions in the owning project's `docs/adr/`. Validation and research notes are historical evidence, not current architecture or proof that today's checks pass.
 
 ## Issue workflow
 

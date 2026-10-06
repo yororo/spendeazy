@@ -1,6 +1,6 @@
 # API agent guidance
 
-This file supplements [root AGENTS.md](../AGENTS.md) for `api/`. Read [README.md](README.md) for setup and [the shared glossary](../CONTEXT.md) for domain terms. Paths below are relative to `api/`.
+This file supplements [root AGENTS.md](../AGENTS.md) for `api/`. Read [README.md](README.md) for setup and [the shared glossary](../GLOSSARY.md) for domain terms. Paths below are relative to `api/`.
 
 - For code creation, modification, or review, read [coding standards](docs/CODING_STANDARDS.md).
 - For module boundaries, dependencies, persistence, request-wide behavior, or cross-feature workflows, read [ARCHITECTURE.md](ARCHITECTURE.md) and relevant [ADRs](docs/adr/).

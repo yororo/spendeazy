@@ -1,5 +1,7 @@
 # Issue #17 live validation
 
+> Archived historical evidence. The observations, commands, and validation results below describe the recorded session; use current guidance and rerun checks for current behavior.
+
 Validation date: 2026-09-06 (Asia/Manila)
 
 ## Scope and safety

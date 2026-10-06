@@ -1,6 +1,6 @@
 # Database design
 
-This document explains the API's persistence model. [Root CONTEXT.md](../../CONTEXT.md) owns domain definitions; [ARCHITECTURE.md](../ARCHITECTURE.md) owns persistence boundaries and the unit of work. Paths below are relative to `api/`.
+This document explains the API's persistence model. [Root GLOSSARY.md](../../GLOSSARY.md) owns domain definitions; [ARCHITECTURE.md](../ARCHITECTURE.md) owns persistence boundaries and the unit of work. Paths below are relative to `api/`.
 
 ## Sources of truth
 
@@ -15,7 +15,7 @@ Read these files for exact columns, lengths, constraints, and transport validati
 | Table | Purpose and relationships |
 | --- | --- |
 | `users` | Local User linked to a unique Clerk identity; email uniqueness is case-insensitive. The optional active Shared Space reference supports lifecycle cleanup for active Shared Spaces. |
-| `spaces` | Personal or Shared financial context with active/archived lifecycle. Personal Spaces have one User as their private owner; Shared Space creation and joining remain unavailable while Invite Codes replace email invitations. |
+| `spaces` | Personal or Shared financial context with active/archived lifecycle. Personal Spaces have one User as their private owner; accepting an Invite Code claim atomically creates a Shared Space and writable memberships for both Users. |
 | `space_memberships` | User access to a Space, with `read` or `write` access. The Personal Space migration creates one writable membership per User. |
 | `categories` | Space-owned classifications with optional description and named color, plus active/inactive status. Names are unique per Space. |
 | `budgets` | At most one monthly or yearly Budget per Category; ownership derives through the Category. |
@@ -30,9 +30,9 @@ Migration `1750000000000-introduce-personal-spaces` creates a Personal Space and
 
 Migration `1850000000000-retain-deleted-transactions` adds nullable `transactions.deleted_at`, an index for retained-history pages, and the `deleted` Transaction activity type. Deleted rows remain available to authorized Space history and activity reads while active lists and spending aggregates exclude them.
 
-The reusable Space authorization boundary resolves accessible memberships from the authenticated local User; a client-supplied Space identifier is never an ownership grant. Read access and writable membership are represented separately so archived read-only history can be supported while Shared Space creation and joining are unavailable.
+The reusable Space authorization boundary resolves accessible memberships from the authenticated local User; a client-supplied Space identifier is never an ownership grant. Read access and writable membership are represented separately; leaving a Shared Space preserves read-only history for both former members.
 
-Invite Codes are generated with high entropy and normalized only for harmless case/grouping differences at future code-entry boundaries. The database stores an HMAC lookup value and authenticated encryption ciphertext rather than the display code. The outgoing code is returned only from the authenticated sender's invitation response; it is never part of a URL or operational log. A partial unique index enforces one pending outgoing invitation per User even when creation requests race. Rotation, revocation, expiry, and claim creation lock the invitation row so a stale code cannot create a claim after its lifecycle changes commit.
+Invite Codes are generated with high entropy and normalized only for harmless case/grouping differences at code-entry boundaries. The database stores an HMAC lookup value and authenticated encryption ciphertext rather than the display code. The outgoing code is returned only from the authenticated sender's invitation response; it is never part of a URL or operational log. A partial unique index enforces one pending outgoing invitation per User even when creation requests race. Rotation, revocation, expiry, and claim creation lock the invitation row so a stale code cannot create a claim after its lifecycle changes commit.
 
 An `invitation_claims` row records only that one authenticated User saved an invitation; it does not reserve membership or disclose the sender's code. Claim ownership is enforced by the `(invitation_id, user_id)` uniqueness boundary and by User-scoped delete operations. Declining deletes only that User's row, while deleting an invitation cascades its claims for later code rotation, revocation, and joining workflows.
 
@@ -44,7 +44,7 @@ Account in the web is derived from import provider/account-type metadata, or Cas
 
 IDs use database-generated `BIGINT` identities and are represented as strings in application records. Monetary amounts use `NUMERIC(15,2)` and normalized decimal strings across the API. Expenses and Budgets are positive and single-currency. Purchase/statement dates are date-only; timestamps are UTC `timestamptz` values.
 
-Category deactivation preserves historical relationships and spending. Category Color is a nullable named palette identifier; the web resolves a stable fallback from Category ID for legacy/unselected colors. Renaming or deactivation retains the saved color. Default Categories are copied during Personal Space provisioning, not synchronized continuously from the catalog. Shared Space defaulting is reserved for the future Invite Code membership flow.
+Category deactivation preserves historical relationships and spending. Category Color is a nullable named palette identifier; the web resolves a stable fallback from Category ID for legacy/unselected colors. Renaming or deactivation retains the saved color. Default Categories are copied during Personal Space provisioning, not synchronized continuously from the catalog. Shared Space creation copies the same default catalog during atomic invitation acceptance.
 
 Actual foreign-key delete behavior is defined in migrations: User references restrict deletion; Category deletion cascades to Budgets and Rules and clears only a Transaction's `category_id`; imported Transactions restrict deletion of their provenance and require `(statement_import_id, space_id)` to match `(id, space_id)` on the Committed Statement Import. These database behaviors do not introduce a product workflow for physical Category or User deletion.
 

@@ -1,5 +1,7 @@
 # Issue #31 live validation
 
+> Archived historical evidence. The observations, commands, and validation results below describe the recorded session; use current guidance and rerun checks for current behavior.
+
 Validation date: 2026-09-10 (Asia/Manila)
 
 ## Automated page validation

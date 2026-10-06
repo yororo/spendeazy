@@ -1,6 +1,6 @@
 # Architecture
 
-The Spendeazy web project uses vertical slices. [Root CONTEXT.md](../../CONTEXT.md) defines shared domain language; this document defines web code placement and dependency direction. Paths are relative to `web/`. See the [root integration overview](../../README.md) for the boundary with the API.
+The Spendeazy web project uses vertical slices. [Root GLOSSARY.md](../../GLOSSARY.md) defines shared domain language; this document defines web code placement and dependency direction. Paths are relative to `web/`. See the [root integration overview](../../README.md) for the boundary with the API.
 
 ## Dependency direction
 
@@ -45,6 +45,19 @@ page -> query hook -> service/endpoint adapter -> shared API client
 
 Dashboard, Transactions, and Categories may project the same underlying data differently because they serve different user tasks. Share stable domain identity and repeated projection logic; keep task-specific queries and presentation inside the feature.
 
+## Task entry points
+
+Paths are relative to `web/`. Feature `index.ts` files remain the public integration boundary; the links below locate private implementation for changes within that feature. Neighboring `*.test.ts(x)` files cover each seam.
+
+| Task | Start here | Behavior / endpoint adapter | API owner / browser acceptance |
+| --- | --- | --- | --- |
+| Statement Import | [Page](../src/features/statement-import/statement-import-page.tsx) | [Workflow hook](../src/features/statement-import/use-statement-import-workflow.ts), [workflow state](../src/features/statement-import/statement-import-workflow.ts), [service](../src/features/statement-import/statement-import-service.ts) | [Statement Imports](../../api/src/statement-imports/); [complete journey](../e2e/spending-journey.spec.ts) |
+| PDF extraction and reconciliation | [Parser dispatch](../src/features/statement-import/statement-parser/transformer.ts) | [PDF extractor](../src/features/statement-import/statement-parser/pdf-extractor.ts), provider transformers in the same directory | Browser-owned; [fictional PDF fixtures](../e2e/fixtures/README.md) |
+| Sharing and Space selection | [Sharing page](../src/features/invitations/sharing-page.tsx), [Space switcher](../src/components/app/space-switcher.tsx) | [Invitation adapter](../src/features/invitations/invitations-service.ts), [Space catalog](../src/shared/api/space.ts), [selection](../src/components/app/space-selection.ts) | [Invitations](../../api/src/invitations/), [Spaces](../../api/src/spaces/); [sharing journey](../e2e/sharing-themes.spec.ts) |
+| Reporting and Budget status | [Dashboard adapter](../src/features/dashboard/dashboard-service.ts), [Insights adapter](../src/features/insights/insights-service.ts) | [Reporting Period](../src/shared/reporting-period/), [Budget status](../src/shared/budget/); Budget editing in [Categories adapter](../src/features/categories/categories-service.ts) | [Transactions](../../api/src/transactions/), [Categories](../../api/src/categories/); [Dashboard](../e2e/dashboard-summary.spec.ts), [Insights actions](../e2e/monthly-insights-actions.spec.ts) |
+
+API service, persistence, and integration-test owners are in the [API task map](../../api/ARCHITECTURE.md#task-entry-points).
+
 ## Shared boundaries
 
 The important shared seams are:
@@ -73,7 +86,7 @@ Use these rules when a placement choice is unclear:
 
 For feature creation or structural refactoring:
 
-1. Use the capability name from root `CONTEXT.md`; update the glossary only after resolving a new domain term.
+1. Use the capability name from root `GLOSSARY.md`; update the glossary only after resolving a new domain term.
 2. Put capability-specific code in `src/features/<feature>` and export the smallest useful interface from its root `index.ts`.
 3. Preserve the dependency direction and the `page -> query -> service -> API client` boundary where applicable.
 4. Before sharing code, name its current callers and apply the deletion test: removing it should scatter meaningful logic.

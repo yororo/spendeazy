@@ -31,6 +31,8 @@ for (const width of [320, 390, 1440]) {
     await options.getByRole("button", { name: "Chart D", exact: true }).click();
     await expect(page.getByText("Categories to compare · 4 selected", { exact: true })).toBeVisible();
     await expect(page.getByRole("list", { name: "Selected Categories in trend chart" }).getByText("Chart B", { exact: true })).toBeVisible();
+    await page.getByText("Categories to compare · 4 selected", { exact: true }).click();
+    await expect(options).toBeHidden();
     await page.getByText("Inspect monthly spending", { exact: true }).click();
     await page.getByLabel("Spending point", { exact: true }).selectOption("2026-08");
     const point = page.getByRole("button", { name: "Inspect Aug 2026", exact: true });

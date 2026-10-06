@@ -27,7 +27,7 @@ permissions:
 
 concurrency:
   # Keep both publications in one release lock; never cancel an active upload.
-  group: release-${{ github.event_name == 'pull_request' && github.event.number || 'production' }}
+  group: release-${{ inputs.verify_only && format('verification-{0}', github.run_id) || github.event_name == 'pull_request' && github.event.number || 'production' }}
   cancel-in-progress: false
 
 jobs:

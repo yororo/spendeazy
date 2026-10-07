@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 
+import { navigateSpending } from "./theme-helpers";
 import { authorizationHeaders, createNewLocalTestUser, isRecord, requireEnvironment } from "./test-helpers";
 
 for (const width of [320, 390, 1440]) {
@@ -25,11 +26,14 @@ for (const width of [320, 390, 1440]) {
       await expect(page.locator("#main-content header").getByText("Shared", { exact: true })).toHaveCount(0);
     }
 
-    await page.goto(`/?spaceId=${encodeURIComponent(personal.id)}`);
+    // Full-page navigation restarts the local synthetic session; mint the fixture identity afterwards.
+    await page.goto("/");
+    const fixtureToken = await createNewLocalTestUser(page);
+    await expect(page.getByRole("heading", { name: "Your spending at a glance" })).toBeVisible();
     await page.getByLabel("Reporting period", { exact: true }).fill("2026-08");
     await expect(page.getByRole("button", { name: "Manage Budgets", exact: true })).toHaveCount(0);
     const base = `${requireEnvironment("SPENDEAZY_E2E_API_BASE_URL")}/api/v1/users/me`;
-    const headers = authorizationHeaders(token);
+    const headers = authorizationHeaders(fixtureToken);
     const created = await page.request.post(`${base}/categories`, { headers, data: { name: "Navigation attention" } });
     expect(created.ok()).toBe(true);
     const category: unknown = await created.json();
@@ -58,9 +62,8 @@ for (const width of [320, 390, 1440]) {
       await page.getByRole("navigation", { name: "Primary navigation" }).getByRole("link", { name: "Insights" }).click();
     }
     await expect(page.getByRole("heading", { name: "Insights", exact: true })).toBeVisible();
-    await page.getByRole("button", { name: "Monthly view", exact: true }).click();
     await expect(page.getByLabel("Reporting period", { exact: true })).toHaveValue("2026-08");
-    await page.getByRole("button", { name: "Manage Budgets", exact: true }).click();
+    await navigateSpending(page, "Budgets");
     await expect(page.getByRole("heading", { name: "Budget overview" })).toBeVisible();
     await expect(page.getByLabel("Reporting period", { exact: true })).toHaveValue("2026-08");
 

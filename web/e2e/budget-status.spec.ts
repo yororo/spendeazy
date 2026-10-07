@@ -66,9 +66,9 @@ for (const width of [390, 1440]) {
     await expect(categories.getByText("Over Budget · ₱0.01 over", { exact: true })).toBeVisible();
     await navigation.getByRole("link", { name: "Insights", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Insights", exact: true })).toBeVisible();
-    const dailyView = page.getByRole("button", { name: "Daily view", exact: true });
-    await (await dailyView.count() > 0 ? dailyView : page.getByRole("button", { name: "Monthly view", exact: true })).click();
-    await expect(page.getByText("Over Budget · ₱0.01 over", { exact: true })).toBeVisible();
+    await page.getByText("Inspect monthly spending", { exact: true }).click();
+    await page.getByRole("button", { name: "Inspect Sep 2026", exact: true }).click();
+    await expect(page.getByRole("dialog").getByText("Over Budget · ₱0.01 over", { exact: true })).toBeVisible();
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
   });
 }

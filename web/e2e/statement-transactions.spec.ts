@@ -103,5 +103,6 @@ test("opens saved statement expenses across months, narrows them, and restores t
 
   const otherToken = await createNewLocalTestUser(page);
   const denied = await page.request.get(`${base}/spaces/${spaceId}/transactions?statementImportId=${statementId}`, { headers: authorizationHeaders(otherToken) });
-  expect(denied.status()).toBe(403);
+  expect(denied.status()).toBe(404);
+  expect(await denied.json()).toMatchObject({ error: { code: "SPACE_NOT_FOUND" } });
 });

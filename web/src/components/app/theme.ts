@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from "react";
-import { capturePageScroll, restorePageScroll } from "@/shared/ui/page-scroll";
+import { preservePageScrollDuringLayoutChange } from "@/shared/ui/page-scroll";
 
 type Theme = "technical" | "playful";
 const STORAGE_KEY = "spendeazy.theme";
@@ -17,12 +17,14 @@ function readPreference(): Theme {
 // Independent of the existing resolved Appearance marker and session lifecycle.
 function initializeTheme() {
   preference = readPreference();
+  let cancelRestoration = () => {};
   function apply() {
-    const scroll = capturePageScroll();
-    document.documentElement.dataset.visualTheme = preference;
-    // Force the new font layout before browser scroll anchoring can move the page.
-    restorePageScroll(scroll);
+    if (document.documentElement.dataset.visualTheme === preference) return;
+    cancelRestoration = preservePageScrollDuringLayoutChange(() => {
+      document.documentElement.dataset.visualTheme = preference;
+    });
   }
+
   function syncStorage(event: StorageEvent) {
     if (event.key !== STORAGE_KEY && event.key !== null) return;
     preference = readPreference();
@@ -32,6 +34,7 @@ function initializeTheme() {
   window.addEventListener(CHANGE_EVENT, apply);
   window.addEventListener("storage", syncStorage);
   return () => {
+    cancelRestoration();
     window.removeEventListener(CHANGE_EVENT, apply);
     window.removeEventListener("storage", syncStorage);
   };

@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+import { preservePageScrollDuringLayoutChange } from "@/shared/ui/page-scroll";
 
 type Appearance = "light" | "system" | "dark";
 const STORAGE_KEY = "spendeazy.appearance";
@@ -18,9 +19,13 @@ function readPreference(): Appearance {
 function initializeAppearance() {
   const system = window.matchMedia("(prefers-color-scheme: dark)");
   preference = readPreference();
+  let cancelRestoration = () => {};
   function apply() {
-    document.documentElement.dataset.theme =
-      preference === "system" ? (system.matches ? "dark" : "light") : preference;
+    const resolved = preference === "system" ? (system.matches ? "dark" : "light") : preference;
+    if (document.documentElement.dataset.theme === resolved) return;
+    cancelRestoration = preservePageScrollDuringLayoutChange(() => {
+      document.documentElement.dataset.theme = resolved;
+    });
   }
   function syncStorage(event: StorageEvent) {
     if (event.key !== STORAGE_KEY && event.key !== null) return;
@@ -32,6 +37,7 @@ function initializeAppearance() {
   window.addEventListener(CHANGE_EVENT, apply);
   window.addEventListener("storage", syncStorage);
   return () => {
+    cancelRestoration();
     system.removeEventListener("change", apply);
     window.removeEventListener(CHANGE_EVENT, apply);
     window.removeEventListener("storage", syncStorage);

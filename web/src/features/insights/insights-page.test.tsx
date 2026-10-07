@@ -261,634 +261,110 @@ function renderInsights(spaceId = "7") {
   };
 }
 
-describe("InsightsPage", () => {
-  it("compares matching days including Uncategorized spending and explains future and empty history", async () => {
-    vi.setSystemTime(new Date(2026, 2, 19, 12));
-    const catalog = [{ id: "42", name: "Food", description: null, color: "teal", isActive: true, updatedAt: "2026-03-01T00:00:00.000Z" }];
-    const expenses = [
-      { id: "1", categoryId: "42", purchaseDate: "2026-02-10", amount: "200.00" },
-      { id: "2", categoryId: "42", purchaseDate: "2026-02-25", amount: "900.00" },
-      { id: "3", categoryId: "42", purchaseDate: "2026-03-10", amount: "300.00" },
-      { id: "4", categoryId: null, purchaseDate: "2026-03-18", amount: "50.00" },
-      { id: "5", categoryId: "42", purchaseDate: "2026-03-25", amount: "800.00" },
-    ];
-    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
-      const url = new URL(String(input));
-      if (url.pathname.endsWith("/categories")) return apiResponse(catalog);
-      if (url.pathname.endsWith("/category-summaries")) return apiResponse({ period: "monthly", year: url.searchParams.get("year"), month: url.searchParams.get("month"), categories: [{ categoryId: "42", name: "Food", isActive: true, totalAmount: "0.00", transactionCount: "0", budgetAmount: "1000.00", remainingAmount: "1000.00" }], uncategorizedTotal: "0.00", uncategorizedCount: "0" });
-      if (url.pathname.endsWith("/transactions")) return apiResponse({ items: expenses.filter(expense => expense.purchaseDate <= url.searchParams.get("toDate")!).map(expense => ({ ...expense, description: "Recorded expense", source: "manual", statementImportId: null })), nextCursor: null });
-      throw new Error(`Unexpected request ${url.pathname}`);
-    }));
-    renderInsights();
-    const comparison = await screen.findByRole("region", { name: "Month comparison" });
-    expect(within(comparison).getByText("₱150.00 more than last month")).toBeTruthy();
-    expect(within(comparison).getByText(/75.0% increase · Through day 19/)).toBeTruthy();
-    expect(within(comparison).getByText("₱350.00")).toBeTruthy();
-    expect(within(comparison).getByText("₱200.00")).toBeTruthy();
-    fireEvent.change(screen.getByLabelText("Reporting period"), { target: { value: "2026-04" } });
-    expect(await screen.findByText("A spending comparison is unavailable for a future month.")).toBeTruthy();
-    fireEvent.change(screen.getByLabelText("Reporting period"), { target: { value: "2026-02" } });
-    expect(await screen.findByText("More recorded history is needed to compare months")).toBeTruthy();
-    const historical = screen.getByRole("region", { name: "Month comparison" });
-    expect(within(within(historical).getByRole("group", { name: "Recorded month comparison amounts" })).getByText("₱1,100.00")).toBeTruthy();
-    expect(within(historical).getByText(/does not establish a zero-spending month/)).toBeTruthy();
-  });
-
-  it("prioritizes monthly questions and keeps fifteen Categories searchable and collapsed", async () => {
-    const period = getCurrentReportingPeriod();
-    const categories = Array.from({ length: 15 }, (_, index) => ({ id: String(index + 1), name: `Category ${String(index + 1).padStart(2, "0")}`, description: null, color: "teal", isActive: true, updatedAt: "2026-09-01T00:00:00.000Z" }));
-    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
-      const url = new URL(String(input));
-      if (url.pathname.endsWith("/categories")) return apiResponse(categories);
-      if (url.pathname.endsWith("/category-summaries")) return apiResponse({ period: "monthly", year: period.slice(0, 4), month: period.slice(5), categories: categories.map(category => ({ categoryId: category.id, name: category.name, isActive: true, totalAmount: "0.00", transactionCount: "0", budgetAmount: "100.00", remainingAmount: "100.00" })), uncategorizedTotal: "0.00", uncategorizedCount: "0" });
-      if (url.pathname.endsWith("/transactions")) return apiResponse({ items: categories.slice(0, 8).map(category => ({ id: category.id, categoryId: category.id, purchaseDate: `${period}-01`, amount: "100.01", description: "Recorded expense", source: "manual", statementImportId: null })), nextCursor: null });
-      throw new Error(`Unexpected request ${url.pathname}`);
-    }));
-    renderInsights();
-    const summary = await screen.findByRole("region", { name: "Selected-month recorded spending" });
-    const comparison = screen.getByRole("region", { name: "Month comparison" });
-    const explorer = screen.getByRole("region", { name: "Category explorer" });
-    const review = screen.getByRole("region", { name: "Recurring Budget review" });
-    expect(summary.compareDocumentPosition(comparison) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(comparison.compareDocumentPosition(explorer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(explorer.compareDocumentPosition(review) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(within(summary).getByText("₱699.92 remaining in monthly Budgets")).toBeTruthy();
-    expect(within(explorer).getByRole("button", { name: "Needs attention (8)" }).getAttribute("aria-pressed")).toBe("true");
-    expect(within(explorer).getByRole("status").textContent).toContain("Showing 5 of 8");
-    expect(within(explorer).queryByRole("button", { name: "Close details" })).toBeNull();
-    fireEvent.click(within(explorer).getByRole("button", { name: "Show all 8 matching Categories" }));
-    expect(within(explorer).getByRole("status").textContent).toContain("Showing 8 of 8");
-    fireEvent.click(within(explorer).getByRole("button", { name: "All Categories (15)" }));
-    expect(within(explorer).getByRole("status").textContent).toContain("Showing 5 of 15");
-    fireEvent.change(within(explorer).getByLabelText("Find a Category"), { target: { value: "Category 15" } });
-    expect(within(explorer).getByRole("status").textContent).toContain("Showing 1 of 1");
-    const row = within(explorer).getByRole("button", { name: "Review Category 15: Within Budget" });
-    fireEvent.click(row);
-    expect(within(explorer).getByRole("region", { name: "Category 15 details" })).toBeTruthy();
-    fireEvent.click(within(explorer).getByRole("button", { name: "Close details" }));
-    expect(document.activeElement).toBe(row);
-    fireEvent.click(within(explorer).getByRole("button", { name: "Clear search" }));
-    expect(document.activeElement).toBe(within(explorer).getByLabelText("Find a Category"));
-    expect(within(explorer).getByRole("status").textContent).toContain("Showing 5 of 15");
-  });
-
-  it("inspects recorded monthly and daily contributions without selecting a new Reporting Period and restores focus", async () => {
+describe("InsightsPage Ledger", () => {
+  it("shows two monthly charts with exact recorded totals and current Budget references", async () => {
     const period = getCurrentReportingPeriod();
     vi.stubGlobal("fetch", createSuccessfulFetch(period));
     renderInsights();
-    fireEvent.click(await screen.findByText("Explore the last 12 months +"));
-    const label = formatReportingPeriod(period);
-    const monthly = await screen.findByRole("button", { name: label });
-    monthly.focus();
-    fireEvent.click(monthly);
-    const dialog = await screen.findByRole("dialog");
-    expect(within(dialog).getByText(/Total:/).textContent).toContain(formatMoney(7.75));
-    expect(within(dialog).getByText(/Within Budget/)).toBeTruthy();
-    expect((screen.getByLabelText("Reporting period") as HTMLInputElement).value).toBe(period);
-    fireEvent.click(within(dialog).getByRole("button", { name: "Close dialog" }));
-    await waitFor(() => expect(document.activeElement).toBe(monthly));
-    fireEvent.click(screen.getByRole("button", { name: "Daily view" }));
-    const dailyInspect = await screen.findByRole("button", { name: "Inspect " + period + "-01" });
-    fireEvent.click(dailyInspect);
-    const dailyDialog = await screen.findByRole("dialog");
-    expect(within(dailyDialog).getByText(/Total:/).textContent).toContain(formatMoney(7.75));
-    fireEvent.click(within(dailyDialog).getByRole("button", { name: "Close dialog" }));
-    await waitFor(() => expect(document.activeElement).toBe(dailyInspect));
-    const day = await screen.findByRole("button", { name: period + "-01" });
-    fireEvent.click(day);
-    expect(await screen.findByRole("dialog")).toBeTruthy();
-    expect(screen.getByText(/independently of potential-pattern signals/)).toBeTruthy();
+    const chart = await screen.findByRole("slider", { name: "Monthly total spending chart" });
+    expect(screen.queryByRole("button", { name: "Daily view" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Monthly view" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "Selected-month recorded spending" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "Month comparison" })).toBeNull();
+    const table = screen.getByRole("table", { name: /Monthly total spending values/ });
+    expect(within(table).getAllByRole("row")).toHaveLength(13);
+    expect(within(table).getByRole("rowheader", { name: formatReportingPeriod(rollingStart(period).slice(0, 7) as ReportingPeriod) })).toBeTruthy();
+    const rows = within(table).getAllByRole("row");
+    expect(rows[2]!.textContent).toContain(formatMoney(125.06));
+    expect(rows[2]!.textContent).toContain(formatMoney(100.01));
+    expect(rows.at(-1)!.textContent).toContain(formatMoney(7.75));
+    fireEvent.keyDown(chart, { key: "End" });
+    expect(screen.getByRole("status").textContent).toContain(formatMoney(7.75));
+    fireEvent.keyDown(chart, { key: "Escape" });
+    const controls = screen.getAllByRole("checkbox", { name: "Show budget" });
+    expect(controls).toHaveLength(2);
+    controls.forEach(control => expect(control.getAttribute("aria-checked")).toBe("true"));
+    fireEvent.click(controls[0]!);
+    expect(controls[0]!.getAttribute("aria-checked")).toBe("false");
+    fireEvent.click(screen.getByRole("button", { name: "About monthly total spending" }));
+    expect(screen.getByRole("dialog", { name: "About monthly total spending" }).textContent).toContain("Budgeted Spending only");
+    fireEvent.click(screen.getByRole("button", { name: "Dismiss help" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 
-  it("leads with selected-month recorded totals before historical spending", async () => {
-    vi.stubGlobal("fetch", createSuccessfulFetch(getCurrentReportingPeriod()));
-    renderInsights();
-    const summary = await screen.findByRole("region", { name: "Selected-month recorded spending" });
-    expect(within(summary).getByText(formatMoney(7.75))).toBeTruthy();
-    expect(within(summary).getByText(formatMoney(5.25))).toBeTruthy();
-    expect(within(summary).getByText(formatMoney(2.50))).toBeTruthy();
-    fireEvent.click(screen.getByText("Explore the last 12 months +"));
-    expect(summary.compareDocumentPosition(screen.getByRole("region", { name: "12-month spending summary" })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(screen.getByText(/Elapsed month/)).toBeTruthy();
-  });
-  it("shows daily totals without monthly rankings and updates when the month changes", async () => {
+  it("updates both charts and clears chart selection when the Reporting Period changes", async () => {
     const period = getCurrentReportingPeriod();
     const fetch = createSuccessfulFetch(period);
     vi.stubGlobal("fetch", fetch);
     renderInsights();
-
-    expect(await screen.findByRole("heading", { name: "Insights" })).toBeTruthy();
-    expect(
-      screen.getByRole("button", { name: "Monthly view" }).getAttribute("aria-pressed"),
-    ).toBe("true");
-    fireEvent.click(screen.getByRole("button", { name: "Daily view" }));
-    const summary = await screen.findByRole("region", {
-      name: "Daily spending summary",
-    });
-    expect(within(summary).getByText("Total spending")).toBeTruthy();
-    expect(within(summary).getByText("Budgeted Spending")).toBeTruthy();
-    expect(within(summary).getByText(formatMoney(7.75))).toBeTruthy();
-    expect(within(summary).getByText(formatMoney(5.25))).toBeTruthy();
-
-    expect(
-      screen.queryByRole("heading", { name: "Frequently over Budget" }),
-    ).toBeNull();
-    expect(
-      screen.queryByRole("heading", { name: "Lowest spending" }),
-    ).toBeNull();
-
-    const chartTable = screen.getByRole("table", {
-      name: /daily spending values/i,
-    });
-    expect(within(chartTable).getAllByRole("row")).toHaveLength(
-      new Date(
-        Date.UTC(Number(period.slice(0, 4)), Number(period.slice(5)), 0),
-      ).getUTCDate() + 1,
-    );
-    expect(within(chartTable).getByRole("rowheader", { name: "1" })).toBeTruthy();
-    expect(within(chartTable).getByRole("columnheader", { name: "Uncategorized" })).toBeTruthy();
-    expect(
-      within(chartTable).getByText(/pace guide, not a daily limit/i),
-    ).toBeTruthy();
-    expect(screen.getByRole("checkbox", { name: "Budget pace" })).toBeTruthy();
-    const trendsTable = screen.getByRole("table", {
-      name: /category spending values/i,
-    });
-    const firstTrendDay = within(trendsTable).getByRole("rowheader", {
-      name: `${period}-01`,
-    });
-    const firstTrendRow = firstTrendDay.closest("tr")!;
-    expect(within(firstTrendRow).getByText(formatMoney(5.25))).toBeTruthy();
-    const initialDayCount = new Date(
-      Date.UTC(Number(period.slice(0, 4)), Number(period.slice(5)), 0),
-    ).getUTCDate();
-    const paceHeaderIndex = within(trendsTable)
-      .getAllByRole("columnheader")
-      .findIndex(
-        (header) => header.textContent === "Groceries daily Budget pace",
-      );
-    expect(paceHeaderIndex).toBeGreaterThan(0);
-    expect(
-      within(firstTrendRow).getAllByRole("cell")[paceHeaderIndex - 1]
-        ?.textContent,
-    ).toBe(formatMoney(100 / initialDayCount));
-
-    fireEvent.change(screen.getByLabelText("Reporting period"), {
-      target: { value: nextMonth(period) },
-    });
-
-    await waitFor(() =>
-      expect(
-        fetch.mock.calls.some(([input]) =>
-          String(input).includes(`fromDate=${rollingStart(nextMonth(period))}`),
-        ),
-      ).toBe(true),
-    );
-    expect(
-      screen.queryByRole("heading", { name: "Frequently over Budget" }),
-    ).toBeNull();
-    const nextSummary = await screen.findByRole("region", {
-      name: "Daily spending summary",
-    });
-    expect(within(nextSummary).getAllByText(formatMoney(3.1))).toHaveLength(2);
-    const nextTrendsTable = await screen.findByRole("table", {
-      name: /category spending values/i,
-    });
-    const nextTrendDay = within(nextTrendsTable).getByRole("rowheader", {
-      name: `${nextMonth(period)}-02`,
-    });
-    expect(
-      within(nextTrendDay.closest("tr")!).getByText(formatMoney(3.1)),
-    ).toBeTruthy();
+    fireEvent.keyDown(await screen.findByRole("slider", { name: "Monthly total spending chart" }), { key: "End" });
+    expect(screen.getByRole("status").textContent).toContain(formatMoney(7.75));
+    fireEvent.change(screen.getByLabelText("Reporting period"), { target: { value: nextMonth(period) } });
+    await waitFor(() => expect(fetch.mock.calls.some(([input]) => String(input).includes("toDate=" + nextMonth(period) + "-"))).toBe(true));
+    await waitFor(() => expect(screen.queryByRole("status")).toBeNull());
+    const table = screen.getByRole("table", { name: /Monthly total spending values/ });
+    expect(within(table).getAllByRole("row").at(-1)!.textContent).toContain(formatMoney(3.1));
+    const categoryTable = screen.getByRole("table", { name: /Monthly Category spending values/ });
+    expect(within(categoryTable).getAllByRole("row").at(-1)!.textContent).toContain(formatMoney(3.1));
   });
 
-  it("filters daily Category trends by identity and shows Budget pace only when available", async () => {
-    const period = getCurrentReportingPeriod();
-    vi.stubGlobal("fetch", createSuccessfulFetch(period));
-    renderInsights();
-
-    fireEvent.click(await screen.findByRole("button", { name: "Daily view" }));
-    const groceries = await screen.findByRole("button", { name: "Groceries" });
-    const transit = screen.getByRole("button", { name: "Transit" });
-    expect(groceries.getAttribute("aria-pressed")).toBe("true");
-    expect(transit.getAttribute("aria-pressed")).toBe("true");
-    fireEvent.click(transit);
-
-    let trendsTable = screen.getByRole("table", {
-      name: /category spending values/i,
-    });
-    expect(
-      within(trendsTable).getByRole("columnheader", {
-        name: "Groceries daily Budget pace",
-      }),
-    ).toBeTruthy();
-    const budgetToggle = screen.getByRole("checkbox", {
-      name: "Category Budgets",
-    });
-    expect(budgetToggle.getAttribute("aria-checked")).toBe("true");
-    fireEvent.click(budgetToggle);
-    expect(budgetToggle.getAttribute("aria-checked")).toBe("false");
-    expect(
-      within(trendsTable).queryByRole("columnheader", {
-        name: "Groceries daily Budget pace",
-      }),
-    ).toBeNull();
-    fireEvent.click(budgetToggle);
-
-    fireEvent.click(transit);
-    expect(transit.getAttribute("aria-pressed")).toBe("true");
-    trendsTable = screen.getByRole("table", {
-      name: /category spending values/i,
-    });
-    const dayCount = new Date(
-      Date.UTC(Number(period.slice(0, 4)), Number(period.slice(5)), 0),
-    ).getUTCDate();
-    expect(within(trendsTable).getAllByRole("row")).toHaveLength(dayCount + 1);
-    const transitHeaderIndex = within(trendsTable)
-      .getAllByRole("columnheader")
-      .findIndex((header) => header.textContent === "Transit spending");
-    expect(transitHeaderIndex).toBeGreaterThan(0);
-    const dailyRows = within(trendsTable).getAllByRole("row").slice(1);
-    expect(
-      dailyRows.every(
-        (row) =>
-          within(row).getAllByRole("cell")[transitHeaderIndex - 1]
-            ?.textContent === formatMoney(0),
-      ),
-    ).toBe(true);
-    expect(
-      within(trendsTable).getByRole("columnheader", {
-        name: "Transit spending",
-      }),
-    ).toBeTruthy();
-    expect(
-      within(trendsTable).queryByRole("columnheader", {
-        name: "Transit daily Budget pace",
-      }),
-    ).toBeNull();
-    fireEvent.click(groceries);
-    expect(groceries.getAttribute("aria-pressed")).toBe("false");
-    expect(transit.getAttribute("aria-pressed")).toBe("true");
-    trendsTable = screen.getByRole("table", {
-      name: /category spending values/i,
-    });
-    expect(
-      within(trendsTable).queryByRole("columnheader", {
-        name: "Groceries spending",
-      }),
-    ).toBeNull();
-    expect(
-      within(trendsTable).getByRole("columnheader", {
-        name: "Transit spending",
-      }),
-    ).toBeTruthy();
-    expect(trendsTable.querySelector("caption")?.textContent).toContain(
-      "No selected Category has a current monthly Budget reference.",
-    );
-
-    fireEvent.click(transit);
-    expect(
-      screen.getByRole("status").textContent,
-    ).toContain("Select a Category to see its spending trend.");
-  });
-
-  it("updates Category trends when the selected Space changes", async () => {
-    const period = getCurrentReportingPeriod();
-    vi.stubGlobal("fetch", createSuccessfulFetch(period));
-    const view = renderInsights("7");
-
-    fireEvent.click(await screen.findByRole("button", { name: "Daily view" }));
-    const groceriesTable = await screen.findByRole("table", {
-      name: /category spending values/i,
-    });
-    expect(
-      within(groceriesTable).getByRole("columnheader", {
-        name: "Groceries spending",
-      }),
-    ).toBeTruthy();
-    expect(
-      screen.queryByRole("heading", { name: "Lowest spending" }),
-    ).toBeNull();
-
+  it("updates Category identity and clears selections when the Space changes", async () => {
+    vi.stubGlobal("fetch", createSuccessfulFetch(getCurrentReportingPeriod()));
+    const view = renderInsights();
+    const line = await screen.findByRole("button", { name: "Groceries monthly spending" });
+    fireEvent.keyDown(line, { key: "End" });
+    expect(screen.getByRole("status").textContent).toContain("Groceries");
     view.rerenderSpace("8");
-
-    const housingTable = await screen.findByRole("table", {
-      name: /category spending values/i,
-    });
-    expect(
-      within(housingTable).getByRole("columnheader", {
-        name: "Housing spending",
-      }),
-    ).toBeTruthy();
-    const housingDay = within(housingTable).getByRole("rowheader", {
-      name: `${period}-03`,
-    });
-    expect(
-      within(housingDay.closest("tr")!).getByText(formatMoney(8.4)),
-    ).toBeTruthy();
-    expect(
-      within(housingTable).queryByRole("columnheader", {
-        name: "Groceries spending",
-      }),
-    ).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Monthly view" }));
-    const housingRanking = await screen.findByRole("list", {
-      name: "Active monthly-budgeted Categories with the lowest spending",
-    });
-    expect(within(housingRanking).getByText("Housing")).toBeTruthy();
-    expect(
-      within(housingRanking).getByText(`${formatMoney(8.4)} spent`),
-    ).toBeTruthy();
-    expect(within(housingRanking).queryByText("Groceries")).toBeNull();
+    await screen.findByRole("button", { name: "Housing monthly spending" });
+    expect(screen.queryByRole("button", { name: "Groceries monthly spending" })).toBeNull();
+    expect(screen.queryByRole("status")).toBeNull();
+    const table = screen.getByRole("table", { name: /Monthly total spending values/ });
+    expect(within(table).getAllByRole("row").at(-1)!.textContent).toContain(formatMoney(8.4));
   });
 
-  it("keeps zero-spend days visible in an empty period", async () => {
-    const period = getCurrentReportingPeriod();
-    const fetch = vi.fn(async (input: RequestInfo | URL) => {
+  it("shows zero recorded spending and unavailable Category references in an empty window", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
       const url = new URL(String(input));
-      const path = url.pathname.replace("/api/v1/users/me", "");
-
-      if (path === "/spaces/7/categories") return apiResponse([]);
-      if (path === "/spaces/7/category-summaries") {
-        return apiResponse({
-          period: "monthly",
-          year: period.slice(0, 4),
-          month: period.slice(5),
-          categories: [],
-          uncategorizedTotal: "0.00",
-          uncategorizedCount: "0",
-        });
-      }
-      if (path === "/spaces/7/transactions") {
-        return apiResponse({ items: [], nextCursor: null });
-      }
-
-      throw new Error(`Unexpected API request to ${url.pathname}${url.search}`);
-    });
-    vi.stubGlobal("fetch", fetch);
+      if (url.pathname.endsWith("/categories")) return apiResponse([]);
+      if (url.pathname.endsWith("/transactions")) return apiResponse({ items: [], nextCursor: null });
+      return apiResponse({ period: "monthly", year: url.searchParams.get("year"), month: url.searchParams.get("month"), categories: [], uncategorizedTotal: "0.00", uncategorizedCount: "0" });
+    }));
     renderInsights();
-
-    fireEvent.click(await screen.findByRole("button", { name: "Daily view" }));
-    expect(
-      await screen.findByText("No spending was recorded for this month."),
-    ).toBeTruthy();
-    expect(
-      screen.queryByRole("heading", { name: "Frequently over Budget" }),
-    ).toBeNull();
-    expect(screen.queryByRole("heading", { name: "Lowest spending" })).toBeNull();
-    const chartTable = screen.getByRole("table", {
-      name: /daily spending values/i,
-    });
-    const summary = await screen.findByRole("region", {
-      name: "Daily spending summary",
-    });
-    const dayCount = new Date(
-      Date.UTC(Number(period.slice(0, 4)), Number(period.slice(5)), 0),
-    ).getUTCDate();
-    expect(within(chartTable).getAllByRole("row")).toHaveLength(dayCount + 1);
-    expect(within(summary).getAllByText(formatMoney(0))).toHaveLength(2);
-
-    fireEvent.click(screen.getByRole("button", { name: "Monthly view" }));
-    fireEvent.click(await screen.findByText("Explore the last 12 months +"));
-    expect(
-      await screen.findByText(
-        "No monthly-budgeted Categories are available for comparison.",
-      ),
-    ).toBeTruthy();
-    expect(
-      screen.getByText("No active Categories have a current monthly Budget."),
-    ).toBeTruthy();
+    expect(await screen.findByText("No spending was recorded in this 12-month window.")).toBeTruthy();
+    expect(screen.getByText("No selected Category has a current monthly Budget reference.")).toBeTruthy();
+    expect(screen.getAllByRole("checkbox", { name: "Show budget" }).every(control => control.hasAttribute("disabled"))).toBe(true);
+    const table = screen.getByRole("table", { name: /Monthly total spending values/ });
+    expect(within(table).getAllByRole("row")).toHaveLength(13);
+    expect(within(table).getAllByRole("cell").every(cell => cell.textContent === formatMoney(0))).toBe(true);
   });
 
-  it("explains when eligible Categories have no Budget breaches and includes zero spending", async () => {
+  it("explicitly inspects a month and restores focus without changing the Reporting Period", async () => {
     const period = getCurrentReportingPeriod();
-    const fetch = vi.fn(async (input: RequestInfo | URL) => {
-      const url = new URL(String(input));
-      const path = url.pathname.replace("/api/v1/users/me", "");
-
-      if (path === "/spaces/7/categories") {
-        return apiResponse([
-          {
-            id: "42",
-            name: "Emergency",
-            description: null,
-            color: "teal",
-            isActive: true,
-            updatedAt: "2026-09-01T00:00:00.000Z",
-          },
-        ]);
-      }
-      if (path === "/spaces/7/category-summaries") {
-        return apiResponse({
-          period: "monthly",
-          year: period.slice(0, 4),
-          month: period.slice(5),
-          categories: [
-            {
-              categoryId: "42",
-              name: "Emergency",
-              isActive: true,
-              totalAmount: "0.00",
-              transactionCount: "0",
-              budgetAmount: "100.00",
-              remainingAmount: "100.00",
-            },
-          ],
-          uncategorizedTotal: "0.00",
-          uncategorizedCount: "0",
-        });
-      }
-      if (path === "/spaces/7/transactions") {
-        return apiResponse({ items: [], nextCursor: null });
-      }
-
-      throw new Error(`Unexpected API request to ${url.pathname}${url.search}`);
-    });
-    vi.stubGlobal("fetch", fetch);
+    vi.stubGlobal("fetch", createSuccessfulFetch(period));
     renderInsights();
-
-    expect(await screen.findByRole("heading", { name: "Insights" })).toBeTruthy();
-    expect(
-      screen.getByRole("button", { name: "Monthly view" }).getAttribute("aria-pressed"),
-    ).toBe("true");
-    fireEvent.click(screen.getByText("Explore the last 12 months +"));
-    expect(
-      await screen.findByText(
-        `No Categories exceeded their current Budget in the 12-month window ending ${formatReportingPeriod(period)}.`,
-      ),
-    ).toBeTruthy();
-    const lowSpendingList = screen.getByRole("list", {
-      name: "Active monthly-budgeted Categories with the lowest spending",
-    });
-    expect(within(lowSpendingList).getByText("Emergency")).toBeTruthy();
-    expect(
-      within(lowSpendingList).getByText(`${formatMoney(0)} spent`),
-    ).toBeTruthy();
-    expect(
-      within(lowSpendingList).getByText(`${formatMoney(100)} Budget`),
-    ).toBeTruthy();
+    await screen.findByRole("slider", { name: "Monthly total spending chart" });
+    fireEvent.click(screen.getByText("Inspect monthly spending"));
+    const button = screen.getByRole("button", { name: "Inspect " + formatReportingPeriod(period) });
+    fireEvent.click(button);
+    const dialog = screen.getByRole("dialog");
+    expect(dialog.textContent).toContain("Total: " + formatMoney(7.75));
+    expect(dialog.textContent).toContain("Groceries");
+    expect((screen.getByLabelText("Reporting period") as HTMLInputElement).value).toBe(period);
+    fireEvent.click(within(dialog).getByRole("button", { name: "Close dialog" }));
+    await waitFor(() => expect(document.activeElement).toBe(button));
   });
 
   it("shows a retryable error when monthly data cannot be loaded", async () => {
-    const fetch = vi.fn(async () =>
-      apiResponse(
-        {
-          error: {
-            code: "INTERNAL_ERROR",
-            message: "Insights are temporarily unavailable.",
-            details: [],
-          },
-        },
-        500,
-      ),
-    );
-    vi.stubGlobal("fetch", fetch);
+    vi.stubGlobal("fetch", vi.fn(async () => apiResponse({ error: { code: "INTERNAL_ERROR", message: "Insights are temporarily unavailable.", details: [] } }, 500)));
     renderInsights();
-
-    expect(
-      await screen.findByRole("heading", { name: "Unable to load this page" }),
-    ).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "Unable to load this page" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Retry" })).toBeTruthy();
   });
 
   it("shows a loading state while monthly data is being fetched", () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(() => new Promise<Response>(() => {})),
-    );
+    vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>(() => {})));
     renderInsights();
-
     expect(screen.getByRole("status").textContent).toContain("Loading Insights");
-  });
-
-  it("shows the default Monthly view with accessible periods and Budget breach status", async () => {
-    const period = getCurrentReportingPeriod();
-    const fetch = createSuccessfulFetch(period);
-    vi.stubGlobal("fetch", fetch);
-    renderInsights();
-
-    expect(await screen.findByRole("heading", { name: "Insights" })).toBeTruthy();
-    const monthlyViewButton = screen.getByRole("button", {
-      name: "Monthly view",
-    });
-    const dailyViewButton = screen.getByRole("button", { name: "Daily view" });
-    expect(monthlyViewButton.textContent).toBe("Monthly");
-    expect(dailyViewButton.textContent).toBe("Daily");
-    expect(monthlyViewButton.getAttribute("aria-pressed")).toBe("true");
-    expect(dailyViewButton.getAttribute("aria-pressed")).toBe("false");
-
-    fireEvent.click(screen.getByText("Explore the last 12 months +"));
-    const monthlyTable = await screen.findByRole("table", {
-      name: /monthly spending values/i,
-    });
-    const breachRanking = screen.getByRole("list", {
-      name: "Categories with the most monthly Budget breaches",
-    });
-    expect(within(breachRanking).getByText("Groceries")).toBeTruthy();
-    const lowSpendingRanking = screen.getByRole("list", {
-      name: "Active monthly-budgeted Categories with the lowest spending",
-    });
-    expect(within(lowSpendingRanking).getByText("Groceries")).toBeTruthy();
-    expect(
-      within(lowSpendingRanking).getByText(`${formatMoney(5.25)} spent`),
-    ).toBeTruthy();
-    const expectedStart = rollingStart(period);
-    expect(within(monthlyTable).getAllByRole("row")).toHaveLength(13);
-    expect(
-      within(monthlyTable).getByRole("rowheader", {
-        name: formatReportingPeriod(expectedStart.slice(0, 7) as ReportingPeriod),
-      }),
-    ).toBeTruthy();
-    expect(within(monthlyTable).getAllByText(/^Over Budget ·/)).toHaveLength(1);
-    expect(within(monthlyTable).getAllByText(/^Within Budget ·/).length).toBeGreaterThan(0);
-    expect(within(monthlyTable).getAllByText("No spending recorded").length).toBeGreaterThan(0);
-    const breachMarker = screen.getByTestId("monthly-over-budget-marker");
-    expect(breachMarker.style.bottom).toBe("100%");
-    expect(breachMarker.style.transform).toBe("translateY(-100%)");
-    expect(within(monthlyTable).getByText(/uncategorized transactions/i)).toBeTruthy();
-    expect(
-      screen.getAllByText(/historical comparisons use current monthly Budgets/i)
-        .length,
-    ).toBeGreaterThan(0);
-    expect(screen.getByRole("region", { name: "Monthly spending" })).toBeTruthy();
-
-    let categoryTrendsTable = await screen.findByRole("table", {
-      name: /category spending values/i,
-    });
-    expect(within(categoryTrendsTable).getAllByRole("row")).toHaveLength(13);
-    expect(
-      within(categoryTrendsTable).getByRole("columnheader", {
-        name: "Groceries monthly Budget",
-      }),
-    ).toBeTruthy();
-    const budgetHeaderIndex = within(categoryTrendsTable)
-      .getAllByRole("columnheader")
-      .findIndex(
-        (header) => header.textContent === "Groceries monthly Budget",
-      );
-    const firstCategoryMonth = within(categoryTrendsTable)
-      .getAllByRole("row")
-      .at(1)!;
-    expect(
-      within(firstCategoryMonth).getAllByRole("cell")[budgetHeaderIndex - 1]
-        ?.textContent,
-    ).toBe(formatMoney(100));
-    const categoryBudgetToggle = screen.getByRole("checkbox", {
-      name: "Category Budgets",
-    });
-    expect(categoryBudgetToggle.getAttribute("aria-checked")).toBe("true");
-    fireEvent.click(categoryBudgetToggle);
-    categoryTrendsTable = screen.getByRole("table", {
-      name: /category spending values/i,
-    });
-    expect(
-      within(categoryTrendsTable).queryByRole("columnheader", {
-        name: "Groceries monthly Budget",
-      }),
-    ).toBeNull();
-    fireEvent.click(categoryBudgetToggle);
-
-    const monthlyBudgetToggle = screen.getByRole("checkbox", {
-      name: "Monthly Budget",
-    });
-    expect(monthlyBudgetToggle.getAttribute("aria-checked")).toBe("true");
-    fireEvent.click(monthlyBudgetToggle);
-    expect(monthlyBudgetToggle.getAttribute("aria-checked")).toBe("false");
-    expect(
-      screen.getByText(/monthly Budget comparison is hidden/i),
-    ).toBeTruthy();
-    fireEvent.click(monthlyBudgetToggle);
-
-    await waitFor(() =>
-      expect(
-        fetch.mock.calls.some(([input]) =>
-          String(input).includes(`toDate=${period}-`),
-        ),
-      ).toBe(true),
-    );
-
-    fireEvent.change(screen.getByLabelText("Reporting period"), {
-      target: { value: nextMonth(period) },
-    });
-    await waitFor(() =>
-      expect(
-        fetch.mock.calls.some(([input]) =>
-          String(input).includes(`toDate=${nextMonth(period)}-`),
-        ),
-      ).toBe(true),
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "Daily view" }));
-    expect(
-      await screen.findByRole("table", { name: /daily spending values/i }),
-    ).toBeTruthy();
-    expect(
-      screen.getByRole("button", { name: "Daily view" }).getAttribute("aria-pressed"),
-    ).toBe("true");
-    expect(
-      screen.queryByRole("heading", { name: "Frequently over Budget" }),
-    ).toBeNull();
-    expect(screen.queryByRole("heading", { name: "Lowest spending" })).toBeNull();
   });
 });
 

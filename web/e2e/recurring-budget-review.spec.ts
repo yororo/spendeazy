@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { authorizationHeaders, createNewLocalTestUser, isRecord, requireEnvironment } from "./test-helpers";
 
-test("recurring Budget evidence survives cancel and stale failure, then recalculates historical comparisons", async ({ page }) => {
+test("monthly inspection Budget editing survives cancel and stale failure, then recalculates historical comparisons", async ({ page }) => {
   await page.clock.install({ time: requireEnvironment("SPENDEAZY_E2E_TEST_CLOCK") });
   await page.setViewportSize({ width: 390, height: 900 });
   await page.goto("/");
@@ -28,17 +28,20 @@ test("recurring Budget evidence survives cancel and stale failure, then recalcul
   }
   await page.getByRole("navigation", { name: "Mobile navigation" }).getByRole("link", { name: "Insights", exact: true }).click();
   await page.getByLabel("Reporting period", { exact: true }).fill("2026-09");
-  const evidence = page.getByRole("region", { name: "Recurring Budget review" });
-  await evidence.getByText("Synthetic recurring · 3 of 6 eligible months over current limit · Review Budget suggested", { exact: true }).click();
-  await expect(evidence.getByText(/Jan 2024: ₱1,000.01/)).toBeVisible();
-  const review = evidence.getByRole("button", { name: "Review Synthetic recurring Budget" });
-  await review.click();
+  await expect(page.getByRole("region", { name: "Recurring Budget review" })).toHaveCount(0);
+  await page.getByText("Inspect monthly spending", { exact: true }).click();
+  const inspect = page.getByRole("button", { name: "Inspect Sep 2026", exact: true });
+  const details = page.getByRole("dialog");
+  const review = async () => {
+    await inspect.click();
+    await details.getByRole("button", { name: "Edit Synthetic recurring Budget" }).click();
+  };
+  await review();
   const dialog = page.getByRole("dialog", { name: "Edit Synthetic recurring" });
-  await expect(dialog.getByLabel("Budget review evidence")).toContainText("3 of 6 eligible recorded months");
   await expect(dialog.getByText(/Saving a new limit also changes historical comparisons/)).toBeVisible();
   await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
-  await expect(review).toBeFocused();
-  await review.click();
+  await expect(inspect).toBeFocused();
+  await review();
   const input = dialog.getByRole("textbox", { name: "Monthly Budget for Synthetic recurring" });
   await expect(input).toHaveValue("1000.00");
   const currentBudget = await page.request.get(budgetUrl, { headers });
@@ -52,37 +55,38 @@ test("recurring Budget evidence survives cancel and stale failure, then recalcul
   await expect(input).toHaveValue("1500.00");
   await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
   await page.getByRole("button", { name: "Discard changes", exact: true }).click();
-  await review.click();
+  await review();
   await expect(input).toHaveValue("1100.00");
-  await expect(dialog.getByLabel("Budget review evidence")).toContainText("1 of 6 eligible recorded months exceeded the current monthly limit of ₱1,100.00");
   await input.fill("1500.00");
   await dialog.getByRole("button", { name: /Save/ }).click();
   await expect(dialog).toHaveCount(0);
-  await expect(evidence.getByText("Synthetic recurring · 0 of 6 eligible months over current limit", { exact: true })).toBeVisible();
+  await expect(inspect).toBeFocused();
+  await inspect.click();
+  await expect(details).toContainText("Over Budget · ₱500.00 over");
+  await page.keyboard.press("Escape");
   await page.getByLabel("Reporting period", { exact: true }).fill("2026-03");
-  await expect(evidence.getByText("Synthetic recurring · 0 of 3 eligible months over current limit", { exact: true })).toHaveCount(1);
-  await evidence.getByText("Review other Budgets & Categories without monthly limits +", { exact: true }).click();
-  await expect(evidence.getByText("Synthetic recurring · 0 of 3 eligible months over current limit", { exact: true })).toBeVisible();
-  await evidence.getByText("Synthetic recurring · 0 of 3 eligible months over current limit", { exact: true }).click();
-  await expect(evidence.getByText(/current monthly limit of ₱1,500.00/)).toBeVisible();
+  await page.getByText("Inspect monthly spending", { exact: true }).click();
+  await page.getByRole("button", { name: "Inspect Mar 2026", exact: true }).click();
+  await expect(details).toContainText("Nearing Budget · ₱300.00 remaining");
+  await page.keyboard.press("Escape");
   expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
   for (const yearly of [false, true]) {
     const name = yearly ? "Synthetic yearly history" : "Synthetic unbudgeted history";
-    const set = evidence.getByRole("button", { name: `Set ${name} Budget from history` });
+    await page.getByRole("button", { name: "Inspect Mar 2026", exact: true }).click();
+    const set = details.getByRole("button", { name: "Set " + name + " Budget", exact: true });
     await set.click();
-    const editor = page.getByRole("dialog", { name: `Edit ${name}` });
-    await expect(editor.getByLabel("Budget review evidence")).toContainText("Mar 2026: ₱100.00");
+    const editor = page.getByRole("dialog", { name: "Edit " + name });
     if (yearly) {
       await expect(editor.getByText("Yearly Budget is preserved; monthly editing is unavailable.")).toBeVisible();
-      await expect(editor.getByRole("textbox", { name: `Monthly Budget for ${name}` })).toHaveCount(0);
+      await expect(editor.getByRole("textbox", { name: "Monthly Budget for " + name })).toHaveCount(0);
+      await editor.getByRole("button", { name: "Cancel", exact: true }).click();
     } else {
-      await editor.getByRole("textbox", { name: `Monthly Budget for ${name}` }).fill("500.00");
+      await editor.getByRole("textbox", { name: "Monthly Budget for " + name }).fill("500.00");
       await editor.getByRole("button", { name: /Save/ }).click();
       await expect(editor).toHaveCount(0);
-      await expect(evidence.getByText(`${name} · 0 of 1 eligible months over current limit`, { exact: true })).toBeVisible();
-      continue;
+      await page.getByRole("button", { name: "Inspect Mar 2026", exact: true }).click();
+      await expect(details).toContainText("Within Budget · ₱400.00 remaining");
+      await page.keyboard.press("Escape");
     }
-    await editor.getByRole("button", { name: "Cancel", exact: true }).click();
-    await expect(set).toBeFocused();
   }
 });

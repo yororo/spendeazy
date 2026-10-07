@@ -13,44 +13,97 @@ on:
         type: choice
         default: all
         options: [all, web, api]
+      verify_only:
+        description: Exercise release gates without publishing to Azure
+        type: boolean
+        default: false
+      fail_validation:
+        description: Deliberately fail validation in verification mode only
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
+concurrency:
+  # Keep both publications in one release lock; never cancel an active upload.
+  group: release-${{ inputs.verify_only && format('verification-{0}', github.run_id) || github.event_name == 'pull_request' && github.event.number || 'production' }}
+  cancel-in-progress: false
+
 jobs:
+  validate:
+    if: github.event_name != 'pull_request' || github.event.action != 'closed'
+    uses: ./.github/workflows/ci.yml
+    with:
+      force_failure: ${{ inputs.verify_only == true && inputs.fail_validation == true }}
+
   changes:
     name: Detect changed projects
     runs-on: ubuntu-latest
     permissions:
       contents: read
       pull-requests: read
+      actions: read
     outputs:
-      web: ${{ steps.filter.outputs.web }}
-      api: ${{ steps.filter.outputs.api }}
+      web: ${{ steps.release.outputs.web || steps.filter.outputs.web }}
+      api: ${{ steps.release.outputs.api || steps.filter.outputs.api }}
     steps:
       - uses: actions/checkout@v4
         if: github.event_name == 'push'
+        with:
+          fetch-depth: 0
+      - name: Require the current main revision for publication
+        if: github.event_name != 'pull_request' && !inputs.verify_only
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$GITHUB_REF" = refs/heads/main
+          current=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq .object.sha)
+          test "$GITHUB_SHA" = "$current"
+      - name: Require the current open pull request for preview
+        if: github.event_name == 'pull_request' && github.event.action != 'closed'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.number }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          current=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" --jq 'select(.state == "open") | .head.sha')
+          test "$PR_HEAD" = "$current"
+      - name: Detect unpublished changes
+        if: github.event_name == 'push'
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/release-plan.mjs
       - uses: dorny/paths-filter@v4
-        if: github.event_name != 'workflow_dispatch'
+        if: github.event_name == 'pull_request'
         id: filter
         with:
-          # Pushes compare with the previous tip; PRs use their changed-file list.
+          # PR previews use their changed-file list.
           base: ${{ github.ref }}
           filters: |
             web:
               - 'web/**'
               - '.github/workflows/deploy.yml'
+              - '.github/workflows/ci.yml'
+              - 'scripts/release-plan.mjs'
+              - 'scripts/verify-release-gates.mjs'
             api:
               - 'api/**'
               - '.github/workflows/deploy.yml'
+              - '.github/workflows/ci.yml'
+              - 'scripts/release-plan.mjs'
+              - 'scripts/verify-release-gates.mjs'
 
   web:
     name: Build and deploy web
-    needs: changes
+    needs: [changes, validate, api]
     if: >-
-      (github.event_name == 'workflow_dispatch' && (inputs.project == 'all' || inputs.project == 'web')) ||
+      always() && !cancelled() && needs.validate.result == 'success' && needs.changes.result == 'success' &&
+      (needs.api.result == 'success' || needs.api.result == 'skipped') &&
+      ((github.event_name == 'workflow_dispatch' && (inputs.project == 'all' || inputs.project == 'web')) ||
       (needs.changes.outputs.web == 'true' &&
-      (github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')))
+      (github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed'))))
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -58,6 +111,7 @@ jobs:
           submodules: true
           lfs: false
       - name: Build and deploy
+        if: ${{ !inputs.verify_only }}
         uses: Azure/static-web-apps-deploy@v1
         env:
           VITE_CLERK_PUBLISHABLE_KEY: ${{ vars.VITE_CLERK_PUBLISHABLE_KEY }}
@@ -69,6 +123,9 @@ jobs:
           app_location: web
           api_location: ""
           output_location: dist
+      - name: Verify web publication gate
+        if: inputs.verify_only
+        run: echo "Web publication permitted for $GITHUB_SHA; Azure upload disabled."
 
   close_web_preview:
     name: Close web pull request preview
@@ -84,10 +141,11 @@ jobs:
 
   api:
     name: Build and deploy API
-    needs: changes
+    needs: [changes, validate]
     if: >-
-      (github.event_name == 'workflow_dispatch' && (inputs.project == 'all' || inputs.project == 'api')) ||
-      (github.event_name == 'push' && needs.changes.outputs.api == 'true')
+      needs.validate.result == 'success' &&
+      ((github.event_name == 'workflow_dispatch' && (inputs.project == 'all' || inputs.project == 'api')) ||
+      (github.event_name == 'push' && needs.changes.outputs.api == 'true'))
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -95,12 +153,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Azure login
+        if: ${{ !inputs.verify_only }}
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.SPENDEAZYAPI2_AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.SPENDEAZYAPI2_AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.SPENDEAZYAPI2_AZURE_SUBSCRIPTION_ID }}
       - name: Build and deploy container image
+        if: ${{ !inputs.verify_only }}
         uses: azure/container-apps-deploy-action@v2
         with:
           appSourcePath: ${{ github.workspace }}/api
@@ -111,3 +171,6 @@ jobs:
           containerAppName: spendeazy-api
           resourceGroup: spendeazy-dev
           imageToBuild: syoro/spendeazy-api:${{ github.sha }}
+      - name: Verify API publication gate
+        if: inputs.verify_only
+        run: echo "API publication permitted for $GITHUB_SHA; Azure upload disabled."

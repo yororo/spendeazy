@@ -26,7 +26,11 @@ export async function changeTheme(page: Page, theme: "Technical" | "Playful", ap
       ? await page.evaluate(() => matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
       : appearance.toLowerCase();
     await expect(page.locator("html")).toHaveAttribute("data-theme", resolved);
-    await page.evaluate(() => document.fonts.ready);
+    await page.evaluate(async () => {
+      await document.fonts.ready;
+      // Font layout and the application's scroll restoration complete on frames.
+      await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+    });
   } finally {
     await preferences.close();
   }

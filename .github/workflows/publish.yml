@@ -98,7 +98,8 @@ jobs:
       id-token: write
       contents: read
     outputs:
-      image: ${{ steps.image.outputs.digest && format('syoro/spendeazy-api@{0}', steps.image.outputs.digest) }}
+      # The image name contains the registry username secret. GitHub drops a job output that includes a secret, so pass only the digest.
+      digest: ${{ steps.image.outputs.digest }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Set up Docker Buildx
@@ -244,7 +245,7 @@ jobs:
           registryPassword: ${{ secrets.SPENDEAZYAPI2_REGISTRY_PASSWORD }}
           containerAppName: spendeazy-api
           resourceGroup: spendeazy-dev
-          imageToDeploy: ${{ needs.migrate.outputs.image }}
+          imageToDeploy: syoro/spendeazy-api@${{ needs.migrate.outputs.digest }}
       - name: Verify API publication gate
         if: inputs.verify_only
         run: echo "API publication permitted for $GITHUB_SHA; Azure upload disabled."

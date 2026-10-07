@@ -60,7 +60,10 @@ compiled migration entry point from that image in a temporary manual Azure
 Container Apps job. The job uses only `DATABASE_URL`; it does not load Clerk,
 web, or other application configuration. It waits for the migration process to
 finish and confirms that TypeORM reports no pending migrations. API deployment
-uses the same image digest that the migration job ran. A failed or timed-out
+uses the same image digest that the migration job ran. The migration job
+exports only that digest; deployment assembles the image reference in the deploy
+job. A job output that includes the registry username is discarded because that
+username is a secret. A failed or timed-out
 migration blocks both API and web publication. The job is removed after the run,
 including after a failed migration; the workflow also retries cleanup if the
 runner is interrupted. A hard cancellation or Azure outage can leave a temporary

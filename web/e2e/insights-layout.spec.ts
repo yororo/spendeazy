@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
-import { requireEnvironment } from "./test-helpers";
+import { createNewLocalTestUser, requireEnvironment } from "./test-helpers";
+import { navigateSpending } from "./theme-helpers";
 
 test("keeps desktop Insights scrolling inside the content pane", async ({
   page,
@@ -56,10 +57,10 @@ test("fits rolling-month Category trend labels across desktop and mobile plot wi
   const purchaseDate =
     process.env.SPENDEAZY_E2E_TEST_DATE ?? testClock.slice(0, 10);
   const apiBaseUrl = requireEnvironment("SPENDEAZY_E2E_API_BASE_URL");
-  const token = requireEnvironment("VITE_LOCAL_TEST_SESSION_TOKEN");
   await page.clock.install({ time: testClock });
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/categories");
+  const token = await createNewLocalTestUser(page);
   await expect(
     page.getByRole("heading", { name: "Budget overview" }),
   ).toBeVisible();
@@ -101,7 +102,7 @@ test("fits rolling-month Category trend labels across desktop and mobile plot wi
     throw new Error("The local test API did not return the chart fixture ID.");
   }
 
-  await page.goto("/insights");
+  await navigateSpending(page, "Insights");
   await expect(page.getByRole("heading", { name: "Insights" })).toBeVisible();
   await expect(
     page.getByRole("table", { name: /category spending values/i }),

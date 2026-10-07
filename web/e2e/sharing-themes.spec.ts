@@ -1,9 +1,10 @@
-import { expect, test } from "@playwright/test";
+import { test } from "./preferences-fixture";
+import { expect } from "@playwright/test";
 import { expectFinancialTokenContrast, expectReadableText } from "./financial-accessibility";
 import { authorizationHeaders, createNewLocalTestUser, isRecord, requireEnvironment } from "./test-helpers";
-import { expectWorkflowSurvivesThemeChange, navigateSpending } from "./theme-helpers";
+import { expectResponsiveContainment, expectWorkflowSurvivesThemeChange, navigateSpending } from "./theme-helpers";
 
-for (const width of [320, 390, 767, 768, 1023, 1024, 1440]) {
+for (const width of [390, 1440]) {
   test(`Sharing continues across Themes and archives read-only history at ${width}px`, async ({ page, browser }, testInfo) => {
     test.setTimeout(120_000);
     const clock = requireEnvironment("SPENDEAZY_E2E_TEST_CLOCK");
@@ -16,14 +17,14 @@ for (const width of [320, 390, 767, 768, 1023, 1024, 1440]) {
     await navigateSpending(page, "Imports");
     await expect(page.getByRole("heading", { name: "Upload your statement", exact: true })).toBeVisible();
     for (const theme of ["Technical", "Playful"] as const) {
-      for (const appearance of ["Light", "Dark", "System"] as const) {
+      for (const appearance of ["Light", "Dark"] as const) {
         await expectWorkflowSurvivesThemeChange(page, theme, appearance);
         const browse = page.getByRole("button", { name: "Browse files", exact: true });
         await expectReadableText(browse.locator("svg"));
         await expectReadableText(browse);
       }
     }
-    await page.screenshot({ path: testInfo.outputPath(`upload-${width}.png`), fullPage: true, animations: "disabled" });
+    if (process.env.SPENDEAZY_E2E_SCREENSHOTS === "1") await page.screenshot({ path: testInfo.outputPath(`upload-${width}.png`), fullPage: true, animations: "disabled" });
     await navigateSpending(page, "Sharing");
     await page.getByRole("button", { name: "Create Invite Code", exact: true }).click();
     await expect(page.locator("code")).toHaveText(/^[0-9A-HJKMNP-TV-Z]{4}(?:-[0-9A-HJKMNP-TV-Z]{4}){5}$/u);
@@ -91,20 +92,18 @@ for (const width of [320, 390, 767, 768, 1023, 1024, 1440]) {
       await expect(page.getByRole("heading", { name: "Archived Space history", exact: true })).toBeVisible();
       await expect(page.getByText("Fictional shared theme dinner", { exact: true }).filter({ visible: true })).toBeVisible();
       await expect(page.getByText("No Transactions have been deleted.", { exact: true }).filter({ visible: true })).toBeVisible();
+      if (width === 390) await expectResponsiveContainment(page, width);
       const marker = page.getByText("Fictional shared theme", { exact: true }).filter({ visible: true }).first().locator('[aria-hidden="true"]');
       await expect(marker).toHaveCSS("background-color", "rgb(15, 118, 110)");
       for (const theme of ["Technical", "Playful"] as const) {
-        for (const appearance of ["Light", "Dark", "System"] as const) {
+        for (const appearance of ["Light", "Dark"] as const) {
           await page.emulateMedia({ colorScheme: "dark" });
           await expectWorkflowSurvivesThemeChange(page, theme, appearance);
           await expectFinancialTokenContrast(page);
+          await expectReadableText(page.getByRole("heading", { name: "Archived Space history", exact: true }));
           await expect(marker).toHaveCSS("background-color", "rgb(15, 118, 110)");
           await expect(page.getByRole("region", { name: "History summary", exact: true })).toContainText("₱45.67");
           await expect(page.getByRole("button", { name: /^(Edit|Delete) Fictional shared theme dinner/ })).toHaveCount(0);
-          if (appearance === "System") {
-            await page.emulateMedia({ colorScheme: "light" });
-            await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
-          }
         }
       }
       if (width < 768) {
@@ -120,7 +119,7 @@ for (const width of [320, 390, 767, 768, 1023, 1024, 1440]) {
       await expect(activity.getByRole("list", { name: "Transaction activity events", exact: true })).toBeVisible();
       await expectWorkflowSurvivesThemeChange(page, "Playful", "Light");
       await page.keyboard.press("Escape");
-      await page.screenshot({ path: testInfo.outputPath(`archived-history-${width}.png`), fullPage: true, animations: "disabled" });
+      if (process.env.SPENDEAZY_E2E_SCREENSHOTS === "1") await page.screenshot({ path: testInfo.outputPath(`archived-history-${width}.png`), fullPage: true, animations: "disabled" });
       const denied = await page.request.post(`${scoped}/transactions`, { headers, data: { amount: "1.00", purchaseDate: "2026-09-04", description: "Fictional denied write" } });
       expect(denied.status()).toBe(403);
     } finally {

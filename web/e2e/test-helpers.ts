@@ -13,18 +13,20 @@ async function createNewLocalTestUser(page: Page): Promise<string> {
       response.request().method() === "POST" &&
       response.status() === 201,
   );
+  const token = sessionResponse.then(async response => readSessionToken(await response.json()));
+  const provisioned = page.waitForResponse(async response =>
+    response.url().endsWith("/api/v1/users/me") &&
+    response.request().method() === "PUT" &&
+    response.request().headers().authorization === `Bearer ${await token}`,
+  );
   await page
     .getByTestId("local-test-panel")
     .getByRole("button", { name: "New User" })
     .click();
 
-  const token = readSessionToken(await (await sessionResponse).json());
-  // Issuing a synthetic session precedes the browser's real User provisioning.
-  // Wait at the HTTP boundary so subsequent requests cannot race that process.
-  await expect.poll(async () => (await page.request.get(
-    `${requireEnvironment("SPENDEAZY_E2E_API_BASE_URL")}/api/v1/users/me`,
-    { headers: authorizationHeaders(token) },
-  )).status()).toBe(200);
+  // GET /me can succeed after the User insert but before Personal Space/default
+  // creation finishes. The browser's authenticated PUT is the complete boundary.
+  expect([200, 201]).toContain((await provisioned).status());
   return token;
 }
 

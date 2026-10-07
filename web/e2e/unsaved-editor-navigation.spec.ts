@@ -1,4 +1,5 @@
-import { expect, test, type Page, type Route } from "@playwright/test";
+import { test } from "./preferences-fixture";
+import { expect, type Page, type Route } from "@playwright/test";
 import { createNewLocalTestUser, requireEnvironment } from "./test-helpers";
 import { changeTheme, navigateSpending } from "./theme-helpers";
 

@@ -1,4 +1,5 @@
-import { expect, test } from "@playwright/test";
+import { test } from "./preferences-fixture";
+import { expect } from "@playwright/test";
 import { authorizationHeaders, createNewLocalTestUser, requireEnvironment } from "./test-helpers";
 import { changeTheme } from "./theme-helpers";
 
@@ -61,7 +62,7 @@ for (const width of [320, 390, 1440]) {
     await day.tap();
     await expect(dialog.getByText("Total: ₱3,000.00", { exact: true })).toBeVisible();
     await expect(dialog.getByText(/independently of potential-pattern signals/)).toBeVisible();
-    await page.screenshot({ path: `test-results/chart-inspection-${width}-light.png` });
+    if (process.env.SPENDEAZY_E2E_SCREENSHOTS === "1") await page.screenshot({ path: test.info().outputPath(`chart-inspection-${width}-light.png`) });
     await dialog.getByRole("button", { name: "Set Chart A Budget", exact: true }).click();
     await page.getByRole("dialog", { name: "Edit Chart A", exact: true }).getByRole("button", { name: "Cancel", exact: true }).click();
     await expect(day).toBeFocused();
@@ -80,6 +81,6 @@ for (const width of [320, 390, 1440]) {
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
     await day.click();
     await expect(dialog.getByRole("button", { name: "View this month" })).toBeVisible();
-    await page.screenshot({ path: `test-results/chart-inspection-${width}-dark.png` });
+    if (process.env.SPENDEAZY_E2E_SCREENSHOTS === "1") await page.screenshot({ path: test.info().outputPath(`chart-inspection-${width}-dark.png`) });
   });
 }

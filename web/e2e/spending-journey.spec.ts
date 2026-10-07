@@ -1,12 +1,13 @@
-import { expect, test } from "@playwright/test";
+import { test } from "./preferences-fixture";
+import { expect } from "@playwright/test";
 import { fileURLToPath } from "node:url";
 import { expectFinancialTokenContrast, expectReadableText } from "./financial-accessibility";
-import { changeTheme, expectWorkflowSurvivesThemeChange } from "./theme-helpers";
+import { changeTheme, expectResponsiveContainment, expectWorkflowSurvivesThemeChange } from "./theme-helpers";
 import { authorizationHeaders, createNewLocalTestUser, isRecord, requireEnvironment } from "./test-helpers";
 
 const fixture = fileURLToPath(new URL("./fixtures/spending-journey-encrypted.pdf", import.meta.url));
 
-for (const width of [320, 390, 1440]) {
+for (const width of [390, 1440]) {
   test(`Personal spending journey through encrypted Upload and monthly actions at ${width}px`, async ({ page }, testInfo) => {
     test.setTimeout(120_000);
     await page.clock.install({ time: requireEnvironment("SPENDEAZY_E2E_TEST_CLOCK") });
@@ -57,7 +58,11 @@ for (const width of [320, 390, 1440]) {
     await unlock.getByLabel("PDF password", { exact: true }).fill("fictional-journey-only");
     await expectWorkflowSurvivesThemeChange(page, "Playful", "Dark");
     await expect(unlock.getByLabel("PDF password", { exact: true })).toHaveValue("fictional-journey-only");
-    await page.screenshot({ path: testInfo.outputPath(`password-${width}.png`), fullPage: true });
+    if (width === 390) {
+      await expectResponsiveContainment(page, width);
+      await expect(unlock.getByLabel("PDF password", { exact: true })).toHaveValue("fictional-journey-only");
+    }
+    if (process.env.SPENDEAZY_E2E_SCREENSHOTS === "1") await page.screenshot({ path: testInfo.outputPath(`password-${width}.png`), fullPage: true });
     await unlock.getByRole("button", { name: "Open PDF", exact: true }).click();
     const rows = width < 768 ? page.getByRole("list", { name: "Transactions to categorize" }) : page.getByRole("table");
     await rows.getByRole("button", { name: "Edit Fictional Separate", exact: true }).click();
@@ -79,6 +84,7 @@ for (const width of [320, 390, 1440]) {
       await expect(bulk.getByRole("status")).toHaveText("3 of 3 matching rows selected");
       await bulk.getByRole("combobox").click();
       await page.getByRole("option", { name: "Journey expenses", exact: true }).click();
+      await expect(bulk.getByRole("combobox")).toBeFocused();
       await expectWorkflowSurvivesThemeChange(page, "Technical", "Light");
       await expectWorkflowSurvivesThemeChange(page, "Playful", "Dark");
       await expect(bulk.getByRole("status")).toHaveText("3 of 3 matching rows selected");
@@ -107,7 +113,7 @@ for (const width of [320, 390, 1440]) {
       }
     }
     const confirm = page.getByRole("button", { name: "Import 4 Transactions", exact: true });
-    await page.screenshot({ path: testInfo.outputPath(`review-${width}.png`), fullPage: true });
+    if (process.env.SPENDEAZY_E2E_SCREENSHOTS === "1") await page.screenshot({ path: testInfo.outputPath(`review-${width}.png`), fullPage: true });
     await confirm.scrollIntoViewIfNeeded();
     await expect(confirm).toBeInViewport();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

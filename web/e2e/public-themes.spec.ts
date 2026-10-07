@@ -1,4 +1,5 @@
-import { expect, test } from "@playwright/test";
+import { test } from "./preferences-fixture";
+import { expect } from "@playwright/test";
 
 import { expectReadableText } from "./financial-accessibility";
 import { changeTheme } from "./theme-helpers";
@@ -44,7 +45,7 @@ for (const width of [320, 390, 768, 1023, 1024, 1440]) {
           }
           await page.evaluate(() => document.fonts.ready);
           expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-          await page.screenshot({ path: testInfo.outputPath(`${title}-${appearance}.png`), fullPage: true });
+          if (process.env.SPENDEAZY_E2E_SCREENSHOTS === "1") await page.screenshot({ path: testInfo.outputPath(`${title}-${appearance}.png`), fullPage: true });
         }
       }
     });
@@ -74,13 +75,13 @@ for (const theme of ["technical", "playful"] as const) {
       await expect(page.locator("html")).toHaveCSS("color-scheme", appearance === "light" ? "light" : "dark");
       await expectReadableText(preparing.getByText("SPENDEAZY"));
       if (theme === "playful") await expectReadableText(preparing.getByText("Preparing your account"));
-      await page.screenshot({ path: testInfo.outputPath("preparing.png"), fullPage: true });
+      if (process.env.SPENDEAZY_E2E_SCREENSHOTS === "1") await page.screenshot({ path: testInfo.outputPath("preparing.png"), fullPage: true });
       release();
       const error = page.getByRole("alert");
       await expect(error).toContainText("Fictional preparation failure");
       await expectReadableText(error.getByText("Unable to prepare your account"));
       await expectReadableText(error.getByRole("button", { name: "Retry", exact: true }));
-      await page.screenshot({ path: testInfo.outputPath("preparation-error.png"), fullPage: true });
+      if (process.env.SPENDEAZY_E2E_SCREENSHOTS === "1") await page.screenshot({ path: testInfo.outputPath("preparation-error.png"), fullPage: true });
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       await page.unroute("**/api/v1/users/me");
       await error.getByRole("button", { name: "Retry", exact: true }).click();
@@ -90,7 +91,7 @@ for (const theme of ["technical", "playful"] as const) {
       await expect(missing).toBeVisible();
       await expectReadableText(missing);
       await expectReadableText(page.getByRole("link", { name: "Back to dashboard" }));
-      await page.screenshot({ path: testInfo.outputPath("not-found.png"), fullPage: true });
+      if (process.env.SPENDEAZY_E2E_SCREENSHOTS === "1") await page.screenshot({ path: testInfo.outputPath("not-found.png"), fullPage: true });
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     });
   }
@@ -141,7 +142,7 @@ test("saved Playful dark Appearance covers public route loading", async ({ page 
     await expect(page.getByRole("status").filter({ hasText: "Loading page" })).toBeVisible();
     await expectReadableText(page.getByText("Loading page", { exact: true }));
     await expect(page.locator("html")).toHaveCSS("color-scheme", "dark");
-    await page.screenshot({ path: testInfo.outputPath("public-route-loading.png") });
+    if (process.env.SPENDEAZY_E2E_SCREENSHOTS === "1") await page.screenshot({ path: testInfo.outputPath("public-route-loading.png") });
   } finally {
     release();
   }

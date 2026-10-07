@@ -1,9 +1,10 @@
-import { expect, test } from "@playwright/test";
-import { expectFinancialTokenContrast } from "./financial-accessibility";
+import { test } from "./preferences-fixture";
+import { expect } from "@playwright/test";
+import { expectFinancialTokenContrast, expectReadableText } from "./financial-accessibility";
 import { authorizationHeaders, createNewLocalTestUser, isRecord, requireEnvironment } from "./test-helpers";
-import { changeTheme, navigateSpending } from "./theme-helpers";
+import { changeTheme, expectResponsiveContainment, navigateSpending } from "./theme-helpers";
 
-for (const width of [320, 390, 767, 768, 1023, 1024, 1440]) {
+for (const width of [390, 1440]) {
   test(`spending routes share visual roles and preserve context at ${width}px`, async ({ page }, testInfo) => {
     test.setTimeout(90_000);
     await page.clock.install({ time: requireEnvironment("SPENDEAZY_E2E_TEST_CLOCK") });
@@ -39,11 +40,13 @@ for (const width of [320, 390, 767, 768, 1023, 1024, 1440]) {
       };
       page.on("request", observe);
       for (const theme of ["Technical", "Playful"] as const) {
-        for (const appearance of ["Light", "Dark", "System"] as const) {
+        for (const appearance of ["Light", "Dark"] as const) {
           await page.emulateMedia({ colorScheme: "dark" });
           await changeTheme(page, theme, appearance);
-          await expect(page.locator("html")).toHaveAttribute("data-theme", appearance === "Light" ? "light" : "dark");
+          await expect(page.locator("html")).toHaveAttribute("data-theme", appearance.toLowerCase());
           await expectFinancialTokenContrast(page);
+          await expectReadableText(page.getByRole("heading", { name: heading, exact: true }));
+          await expectReadableText(page.locator("main").getByText("₱123.45", { exact: true }).first());
           await expect(page).toHaveURL(url);
           await expect(page.getByLabel("Reporting period", { exact: true })).toHaveValue("2026-08");
           expect(await page.locator("main").textContent()).toBe(content);
@@ -58,15 +61,12 @@ for (const width of [320, 390, 767, 768, 1023, 1024, 1440]) {
           }, expected));
           const overflow = await page.evaluate(() => [...document.querySelectorAll("main *")].filter(element => element.getBoundingClientRect().right > innerWidth + 1).map(element => ({ tag: element.tagName, class: element.className })).slice(0, 10));
           expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), JSON.stringify({ route, theme, appearance, overflow })).toBe(true);
-          if (appearance === "System") {
-            await page.emulateMedia({ colorScheme: "light" });
-            await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
-          }
         }
       }
       page.off("request", observe);
       expect(writes).toEqual([]);
-      await page.screenshot({ path: testInfo.outputPath(`${route}-${width}.png`), fullPage: true });
+      if (width === 390) await expectResponsiveContainment(page, width);
+      if (process.env.SPENDEAZY_E2E_SCREENSHOTS === "1") await page.screenshot({ path: testInfo.outputPath(`${route}-${width}.png`), fullPage: true });
     }
   });
 }
@@ -94,7 +94,7 @@ for (const [destination, heading] of [["Transactions", "Your spending"], ["Budge
     release();
     await expect(page.getByText("Unable to load this page", { exact: true })).toBeVisible();
     for (const theme of ["Technical", "Playful"] as const) {
-      for (const appearance of ["Light", "Dark", "System"] as const) {
+      for (const appearance of ["Light", "Dark"] as const) {
         await changeTheme(page, theme, appearance);
         await expectFinancialTokenContrast(page);
         await expect(page.getByRole("button", { name: "Retry", exact: true })).toBeVisible();

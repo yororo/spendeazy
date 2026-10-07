@@ -1,4 +1,5 @@
-import { expect, test } from "@playwright/test";
+import { test } from "./preferences-fixture";
+import { expect } from "@playwright/test";
 import { authorizationHeaders, createNewLocalTestUser, isRecord, requireEnvironment } from "./test-helpers";
 import { createFictionalStatementPdf } from "./fictional-repeat-statement";
 import { expectWorkflowSurvivesThemeChange } from "./theme-helpers";
@@ -31,7 +32,7 @@ for (const width of [320, 390, 1440]) {
     const headers = authorizationHeaders(token);
     const categories: unknown = await (await page.request.get(`${base}/categories`, { headers })).json();
     if (!Array.isArray(categories) || !isRecord(categories[0]) || typeof categories[0].id !== "string" || typeof categories[0].name !== "string") throw new Error("Expected Category");
-    const category = categories[0];
+    const category = { id: categories[0].id, name: categories[0].name };
     expect((await page.request.post(`${base}/category-rules`, { headers, data: { categoryId: category.id, pattern: "Fictional purchase", matchType: "contains" } })).ok()).toBe(true);
     await page.getByRole("navigation", { name: width < 768 ? "Mobile navigation" : "Primary navigation" }).getByRole("link", { name: "Imports", exact: true }).click();
     await page.locator('input[type="file"]').setInputFiles({ name: `fictional-review-${width}.pdf`, mimeType: "application/pdf", buffer: reviewPdf() });

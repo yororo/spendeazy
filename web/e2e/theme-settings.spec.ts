@@ -78,7 +78,7 @@ for (const width of [320, 390, 768, 1023, 1024, 1440]) {
           await expectRoundedSurface(page.getByRole("button", { name: "Theme: Playful" }));
         }
         if (theme === "Playful" && appearance === "Dark") {
-          await page.screenshot({ path: testInfo.outputPath(`playful-dark-settings-${width}.png`), animations: "disabled" });
+          if (process.env.SPENDEAZY_E2E_SCREENSHOTS === "1") await page.screenshot({ path: testInfo.outputPath(`playful-dark-settings-${width}.png`), animations: "disabled" });
         }
         if (appearance === "System") {
           await page.emulateMedia({ colorScheme: "dark" });
@@ -110,7 +110,7 @@ for (const width of [320, 390, 768, 1023, 1024, 1440]) {
     await expect(summary.getByText("Spending vs Budget", { exact: true }).locator("../..")).toHaveCSS("background-color", "rgb(8, 116, 67)");
     const selectedNavigation = page.getByRole("navigation", { name: width < 768 ? "Mobile navigation" : "Primary navigation" }).getByRole("link", { name: "Dashboard", exact: true });
     if (width < 768 || width >= 1024) await expect(selectedNavigation).toHaveCSS("background-color", "rgb(216, 242, 223)");
-    await page.screenshot({ path: testInfo.outputPath(`playful-${width}.png`), fullPage: true, animations: "disabled" });
+    if (process.env.SPENDEAZY_E2E_SCREENSHOTS === "1") await page.screenshot({ path: testInfo.outputPath(`playful-${width}.png`), fullPage: true, animations: "disabled" });
   });
 }
 

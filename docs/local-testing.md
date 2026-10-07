@@ -64,7 +64,7 @@ This keeps atomic confirmation protection active rather than silently skipped
 by the default API suite.
 
 `web/e2e/spending-journey.spec.ts` joins the feature acceptance tests into one
-Personal Space journey at 320px, 390px, and 1440px: real encrypted PDF unlock,
+Personal Space journey at 390px and 1440px: real encrypted PDF unlock,
 individual Remember, bulk assignment, exclusion/re-inclusion, read-only Review,
 confirmation, statement-scoped Transactions across two months, restoration of
 the prior Reporting Period, Insights Transaction/Budget actions and return,
@@ -95,15 +95,19 @@ Shared Space journey should assert the completed invitation lifecycle before
 using its Space ID. This keeps the browser suite deterministic when it runs
 locally and in CI.
 
-The suite uses one worker because its tests share a database and the named
-synthetic Users. A test that creates lasting data for a named User must either
-clean up that data or use a fresh User when later assertions require an empty
-Personal Space or no active Shared Space. Run the full launcher after changing
-tests: running one spec alone cannot expose interactions with other specs.
+The suite defaults to one worker. Set `SPENDEAZY_E2E_WORKERS=2` to benchmark
+bounded concurrency; other values fail configuration. Financial scenarios use
+fresh server-issued Users, and the remaining named-User stale-cache fixture
+cleans up its own Transaction. A test that creates lasting data for a named User
+must clean up or use a fresh User when assertions need an empty Personal Space
+or no active Shared Space. New tabs and full-page navigation restart the local
+synthetic session at the fixed initial User: saved browser authentication state
+does not preserve a fresh identity. Run the full launcher after changing tests:
+running one spec alone cannot expose interactions with other specs.
 
 CI distributes the suite across two jobs, each with its own launcher-owned
 database, API, web server, and session secret. Each shard retains one worker;
-the serial `local-test.spec.ts` group stays together. To reproduce a shard:
+scenarios distribute independently between shards. To reproduce a shard:
 
 ```powershell
 $env:SPENDEAZY_E2E_SHARD = '1/2'
@@ -113,8 +117,37 @@ Remove-Item Env:SPENDEAZY_E2E_SHARD
 
 Use `2/2` for the second shard. Without this variable the launcher runs all
 tests, which remains the required local completion check. CI saves HTML/blob
-reports and failure screenshots/traces for seven days. Shard-specific output
-directories prevent report collisions when testing shards locally.
+reports and failure screenshots/traces for seven days. Reports live under
+`web/e2e-reports/<shard>/<run-id>/`: Playwright JSON records per-test attempts,
+durations, retries and skips; `launcher.json` records infrastructure startup,
+API checks, browser execution, teardown and total wall time. Test artifacts,
+HTML and blob reports share that unique run directory, preventing concurrent
+test or shard runs from overwriting diagnostics. Successful diagnostic captures
+are opt-in with `SPENDEAZY_E2E_SCREENSHOTS=1`; their observable rendering,
+contrast and containment assertions still run by default.
+
+Summarize run/shard timing and the slowest tests:
+
+```powershell
+node scripts/e2e-timing-summary.mjs web/e2e-reports
+```
+
+For a matched benchmark, retain at least three full-run report directories per
+configuration in separate before/after directories, on the same host class with
+the same browser, clock, reporter settings and disposable database initialization.
+The comparison rejects missing reports, failures, skips, inconsistent clock or
+worker settings, and savings accompanied by increased retries or flaky tests:
+
+```powershell
+node scripts/e2e-timing-summary.mjs --compare <before-directory> <after-directory>
+```
+
+The coverage inventory is [issue #110's coverage map](specs/e2e-optimization-coverage.md).
+Settings acceptance owns the exhaustive live preference matrix; financial
+journeys retain targeted cross-tab transitions in fragile workflow states.
+Sharing and spending presentation run at 390/1440px with shorter populated
+surface and navigation checks at 320px, 767/768px and 1023/1024px. The encrypted
+password dialog also retains 320px containment within the mobile journey.
 
 To run Playwright against an already-running dedicated environment, run
 `npm run test:e2e` from `web/` with `SPENDEAZY_E2E_BASE_URL`,

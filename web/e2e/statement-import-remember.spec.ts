@@ -1,4 +1,5 @@
-import { expect, test } from "@playwright/test";
+import { test } from "./preferences-fixture";
+import { expect } from "@playwright/test";
 import { statementPdf } from "./fictional-repeat-statement";
 import { authorizationHeaders, createNewLocalTestUser, isRecord, requireEnvironment } from "./test-helpers";
 import { expectWorkflowSurvivesThemeChange } from "./theme-helpers";

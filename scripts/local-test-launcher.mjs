@@ -1,5 +1,5 @@
 import { createHmac, randomBytes, randomInt } from "node:crypto";
-import { existsSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { spawn } from "node:child_process";
 import { createConnection, createServer } from "node:net";
 import { dirname, resolve } from "node:path";
@@ -26,6 +26,15 @@ const children = new Set();
 let shuttingDown = false;
 let ownsComposeProject = false;
 let configuration;
+const startedAt = performance.now();
+const phases = {};
+let phaseStartedAt = startedAt;
+let activePhase = "startupMs";
+function finishPhase(name) {
+  const now = performance.now();
+  phases[name] = now - phaseStartedAt;
+  phaseStartedAt = now;
+}
 
 async function main() {
   let exitCode = 0;
@@ -151,6 +160,8 @@ async function main() {
     console.log("Press Ctrl+C to stop the API, web server, and test database.");
 
     if (isE2e) {
+      finishPhase("startupMs");
+      activePhase = "apiChecksMs";
       // Exercise failure after a later database write against this run's
       // PostgreSQL instance; the default API suite otherwise skips this seam.
       await run(
@@ -164,23 +175,43 @@ async function main() {
           },
         },
       );
+      finishPhase("apiChecksMs");
+      activePhase = "browserMs";
       await run("npm", npmArguments("run", "test:e2e", ...(e2eShard ? ["--", `--shard=${e2eShard}`] : [])), {
         cwd: webDirectory,
         env: {
           ...webEnvironment,
           SPENDEAZY_E2E_BASE_URL: url,
+          SPENDEAZY_E2E_REPORT_DIR: configuration.reportDirectory,
         },
       });
+      finishPhase("browserMs");
+      activePhase = undefined;
       return;
     }
 
     await openBrowser(url);
     await waitForChildren();
   } catch (error) {
+    if (isE2e && activePhase) finishPhase(activePhase);
     exitCode = 1;
     console.error(`Local test run failed: ${formatError(error)}`);
   } finally {
+    const teardownStartedAt = performance.now();
     await shutdown(exitCode);
+    if (isE2e && configuration) {
+      mkdirSync(configuration.reportDirectory, { recursive: true });
+      writeFileSync(resolve(configuration.reportDirectory, "launcher.json"), JSON.stringify({
+        runId: configuration.projectName,
+        shard: e2eShard ?? "full",
+        clock: configuration.testClock,
+        exitCode: process.exitCode ?? exitCode,
+        phases,
+        teardownMs: performance.now() - teardownStartedAt,
+        wallMs: performance.now() - startedAt,
+      }, null, 2));
+      console.log(`Timing reports: ${configuration.reportDirectory}`);
+    }
   }
 
   if (exitCode !== 0) process.exitCode = exitCode;
@@ -206,6 +237,7 @@ async function createConfiguration() {
   const testDate = parseFixedE2eDate(fixedE2eClock);
   return {
     projectName: `spendeazy-local-test-e2e-${runId}`,
+    reportDirectory: resolve(webDirectory, "e2e-reports", e2eShard?.replaceAll("/", "-") ?? "full", runId),
     databasePort: await findAvailablePort(55432, 59999),
     apiPort: await findAvailablePort(3100, 3999),
     webPort: await findAvailablePort(4100, 4999),
@@ -528,6 +560,7 @@ process.on("SIGINT", () => void shutdown(0));
 process.on("SIGTERM", () => void shutdown(0));
 
 main().catch(async (error) => {
+  process.exitCode = 1;
   console.error(`Local test startup failed: ${formatError(error)}`);
   await shutdown(1);
 });

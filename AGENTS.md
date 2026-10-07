@@ -26,6 +26,12 @@ For contracts, locate the affected path/schema in `api/docs/openapi.yaml` and re
 - For contract changes, inspect API DTO/controller metadata and the canonical generated YAML specification at `api/docs/openapi.yaml`, then update affected web adapters and validate both projects. Do not create a web-side OpenAPI copy. Follow the API README for contract generation/checking; `api/docs/openapi.json` is the generated JSON representation for tooling.
 - Keep shared terms in root `GLOSSARY.md`, implementation guidance in project docs, and decisions in the owning project's `docs/adr/`. Validation and research notes are historical evidence, not current architecture or proof that today's checks pass.
 
+## Cursor Cloud specific instructions
+
+Cloud Agent machines boot Node.js 24.11.1, Docker, and the credential-free local test stack from [local synthetic testing](docs/local-testing.md). After boot, PostgreSQL listens on `127.0.0.1:55432`, the API health check is `http://127.0.0.1:3100/health`, and the web app is `http://127.0.0.1:5174`. That stack uses synthetic sessions and does not need Clerk. `npm run start:dev` in `api/` and `npm run dev` in `web/` still need the secrets named in each project's `.env.example`.
+
+The boot script leaves an already-ready stack in place. A second `node scripts/local-test-launcher.mjs` exits when port `5174`, `3100`, or `55432` is occupied. Stop that stack before starting another copy. The completion check remains `node scripts/local-test-launcher.mjs --e2e` from the repository root.
+
 ## Issue workflow
 
 Issues and specs live in GitHub Issues; use `gh` and [issue-tracker guidance](docs/agents/issue-tracker.md). When triaging, use [the repository's triage labels](docs/agents/triage-labels.md). Run `gh` against this repository; older project-local issue references may refer to pre-monorepo history, so verify their repository before acting.

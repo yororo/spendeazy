@@ -19,7 +19,7 @@ describe('Budget OpenAPI contract', () => {
 
     expect(document.tags).toContainEqual({
       name: 'Budgets',
-      description: 'Recurring category budgets.',
+      description: 'Recurring Category Budgets in a Space.',
     });
     expect(putOperation).toMatchObject({
       operationId: 'Budgets_putBudget',

@@ -76,7 +76,7 @@ const ERROR_DETAIL_CODES = [
 export class ErrorDetailDto {
   @ApiPropertyOptional({
     description:
-      'Conflicting owned Category identifier for a category-rule duplicate.',
+      'Category identifier of the conflicting Category Rule within the destination Space.',
     pattern: '^[1-9]\\d*$',
     example: '42',
   })
@@ -259,7 +259,8 @@ export const API_ERROR_RESPONSE_COMPONENTS = {
   },
   NotFoundError: {
     status: HttpStatus.NOT_FOUND,
-    description: 'The requested resource is absent or owned by another user.',
+    description:
+      'The requested resource is absent or not accessible to the authenticated User.',
     examples: {
       user: {
         value: {
@@ -329,7 +330,7 @@ export const API_ERROR_RESPONSE_COMPONENTS = {
       'Statement import conflicts are stable JSON errors. Exact file duplicates cannot be overridden; probable duplicates require explicit acknowledgement. Internal matching values are never returned.',
     examples: {
       fileAlreadyImported: {
-        summary: 'The same file was already imported for this User.',
+        summary: 'The same file was already imported for this Space.',
         value: {
           error: {
             code: 'STATEMENT_IMPORT_FILE_ALREADY_EXISTS',

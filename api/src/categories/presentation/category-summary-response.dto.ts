@@ -89,7 +89,7 @@ export class CategorySummaryItemResponseDto {
 
 @ApiSchema({
   description:
-    'A complete monthly or yearly Category spending summary owned by the authenticated User.',
+    'A complete monthly or yearly Category spending summary for the authorized Space.',
   additionalProperties: false,
 } as ApiSchemaOptionsWithAdditionalProperties)
 export class CategorySummaryResponseDto {

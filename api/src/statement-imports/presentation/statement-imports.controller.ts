@@ -103,7 +103,7 @@ export class StatementImportsController {
     summary:
       'List statement-import history in statement-date-descending, ID-descending keyset pages.',
     description:
-      'Returns committed Statement imports owned by the authenticated User in statementDate descending, then Statement import ID descending order. fromDate and toDate are inclusive valid calendar-date filters and fromDate must be on or before toDate. pageSize must be between 1 and 100 and defaults to 20. The nextCursor is opaque, binds to the date filters, and must be reused with the same filters; page size is not part of the cursor. Unknown query parameters are rejected.',
+      'Returns committed Statement Imports in the authorized Space in statementDate descending, then Statement Import ID descending order. fromDate and toDate are inclusive valid calendar-date filters and fromDate must be on or before toDate. pageSize must be between 1 and 100 and defaults to 20. The nextCursor is opaque, binds to the date filters, and must be reused with the same filters; page size is not part of the cursor. Unknown query parameters are rejected.',
   })
   @ApiResponse({
     status: HttpStatus.OK,

@@ -169,7 +169,7 @@ paths:
           $ref: '#/components/responses/NotAcceptableError'
         '500':
           $ref: '#/components/responses/InternalError'
-      summary: List all owned categories in ascending ID order.
+      summary: List Categories in the authenticated User's Personal Space in ascending ID order.
       tags:
         - Categories
   /api/v1/users/me/categories/{categoryId}:
@@ -1041,7 +1041,7 @@ paths:
           $ref: '#/components/responses/NotAcceptableError'
         '500':
           $ref: '#/components/responses/InternalError'
-      summary: List all owned category rules in ascending ID order.
+      summary: List Category Rules in the authenticated User's Personal Space in ascending ID order.
       tags:
         - Category rules
   /api/v1/users/me/category-rules/{ruleId}:
@@ -1535,7 +1535,7 @@ paths:
       tags:
         - Transactions
     get:
-      description: Returns manual and imported Transactions owned by the authenticated User in purchaseDate descending, then Transaction ID descending order. fromDate and toDate are inclusive valid calendar-date filters and fromDate must be on or before toDate. pageSize must be between 1 and 100 and defaults to 20. The nextCursor is opaque, binds to every filter except pageSize, and must be reused with the same filters. Unknown query parameters are rejected.
+      description: Returns manual and imported Transactions in the authorized Space in purchaseDate descending, then Transaction ID descending order. fromDate and toDate are inclusive valid calendar-date filters and fromDate must be on or before toDate. pageSize must be between 1 and 100 and defaults to 20. The nextCursor is opaque, binds to every filter except pageSize, and must be reused with the same filters. Unknown query parameters are rejected.
       operationId: Transactions_listTransactions
       parameters:
         - name: fromDate
@@ -1559,7 +1559,7 @@ paths:
         - name: categoryId
           required: false
           in: query
-          description: Only Transactions assigned to this positive bigint Category identifier owned by the authenticated User.
+          description: Only Transactions assigned to this positive bigint Category identifier in the authorized Space.
           schema:
             pattern: ^[1-9]\d*$
             example: '42'
@@ -1577,7 +1577,7 @@ paths:
         - name: statementImportId
           required: false
           in: query
-          description: Only Transactions committed from this positive bigint Statement import identifier owned by the authenticated User.
+          description: Only Transactions committed from this positive bigint Statement Import identifier in the authorized Space.
           schema:
             pattern: ^[1-9]\d*$
             example: '10'
@@ -1679,7 +1679,7 @@ paths:
         - name: categoryId
           required: false
           in: query
-          description: Only Transactions assigned to this positive bigint Category identifier owned by the authenticated User.
+          description: Only Transactions assigned to this positive bigint Category identifier in the authorized Space.
           schema:
             pattern: ^[1-9]\d*$
             example: '42'
@@ -1697,7 +1697,7 @@ paths:
         - name: statementImportId
           required: false
           in: query
-          description: Only Transactions committed from this positive bigint Statement import identifier owned by the authenticated User.
+          description: Only Transactions committed from this positive bigint Statement Import identifier in the authorized Space.
           schema:
             pattern: ^[1-9]\d*$
             example: '10'
@@ -2020,7 +2020,7 @@ paths:
         - name: categoryId
           required: false
           in: query
-          description: Only Transactions assigned to this positive bigint Category identifier owned by the authenticated User.
+          description: Only Transactions assigned to this positive bigint Category identifier in the authorized Space.
           schema:
             pattern: ^[1-9]\d*$
             example: '42'
@@ -2038,7 +2038,7 @@ paths:
         - name: statementImportId
           required: false
           in: query
-          description: Only Transactions committed from this positive bigint Statement import identifier owned by the authenticated User.
+          description: Only Transactions committed from this positive bigint Statement Import identifier in the authorized Space.
           schema:
             pattern: ^[1-9]\d*$
             example: '10'
@@ -2150,7 +2150,7 @@ paths:
         - name: categoryId
           required: false
           in: query
-          description: Only Transactions assigned to this positive bigint Category identifier owned by the authenticated User.
+          description: Only Transactions assigned to this positive bigint Category identifier in the authorized Space.
           schema:
             pattern: ^[1-9]\d*$
             example: '42'
@@ -2168,7 +2168,7 @@ paths:
         - name: statementImportId
           required: false
           in: query
-          description: Only Transactions committed from this positive bigint Statement import identifier owned by the authenticated User.
+          description: Only Transactions committed from this positive bigint Statement Import identifier in the authorized Space.
           schema:
             pattern: ^[1-9]\d*$
             example: '10'
@@ -2475,7 +2475,7 @@ paths:
         - Statement imports
   /api/v1/users/me/statement-imports:
     get:
-      description: Returns committed Statement imports owned by the authenticated User in statementDate descending, then Statement import ID descending order. fromDate and toDate are inclusive valid calendar-date filters and fromDate must be on or before toDate. pageSize must be between 1 and 100 and defaults to 20. The nextCursor is opaque, binds to the date filters, and must be reused with the same filters; page size is not part of the cursor. Unknown query parameters are rejected.
+      description: Returns committed Statement Imports in the authorized Space in statementDate descending, then Statement Import ID descending order. fromDate and toDate are inclusive valid calendar-date filters and fromDate must be on or before toDate. pageSize must be between 1 and 100 and defaults to 20. The nextCursor is opaque, binds to the date filters, and must be reused with the same filters; page size is not part of the cursor. Unknown query parameters are rejected.
       operationId: StatementImports_listStatementImports
       parameters:
         - name: fromDate
@@ -2736,7 +2736,7 @@ paths:
       tags:
         - Statement imports
     post:
-      description: Revalidates reviewed Categories and duplicate state for the destination Space, then commits the Statement Import and all selected Transactions atomically. The importing User is retained as the Statement Import and Transaction contributor.
+      description: Revalidates reviewed Categories and duplicate state for the destination Space, then commits the Statement Import and all selected Transactions atomically. The confirming User is recorded as immutable actor attribution on the Statement Import and its Transactions; those financial records belong to the destination Space.
       operationId: SpaceStatementImports_commitReviewedStatementImport
       parameters:
         - name: spaceId
@@ -3013,29 +3013,29 @@ paths:
       tags:
         - Invitations
 info:
-  title: Expense Tracker REST API
-  description: A user-scoped expense tracker API. Bigint identifiers and counts, decimal money, domain dates, and UTC timestamps use the encodings described by the schemas below.
+  title: Spendeazy REST API
+  description: The Spendeazy REST API serves financial data in authorized Personal and Shared Spaces. Categories, Budgets, Category Rules, Transactions, and Statement Imports belong to a Space. Transaction Added By and Statement Import importer fields preserve actor attribution without changing Space ownership. Bigint identifiers and counts, decimal money, domain dates, and UTC timestamps use the encodings described by the schemas below.
   version: 1.0.0
   contact: {}
 tags:
   - name: Health
     description: Operational readiness.
   - name: Users
-    description: Expense-data owners.
+    description: Authenticated User identities and profile data.
   - name: Spaces
     description: Authorized Personal and Shared financial contexts.
   - name: Categories
-    description: Active and historical categories.
+    description: Active and historical Categories in a Space.
   - name: Budgets
-    description: Recurring category budgets.
+    description: Recurring Category Budgets in a Space.
   - name: Category rules
-    description: Exact-description rules.
+    description: Exact and Contains description-matching rules used during Statement Import categorization.
   - name: Transactions
-    description: Manual and imported expenses.
+    description: Manual and imported expenses in a Space.
   - name: Statement imports
-    description: Reviewed import commits and history.
+    description: Reviewed import commits and history in a Space.
   - name: Category summaries
-    description: Calendar-period spending summaries.
+    description: Calendar-period spending summaries for a Space.
 servers:
   - url: /
 components:
@@ -3194,7 +3194,7 @@ components:
       properties:
         categoryId:
           type: string
-          description: Conflicting owned Category identifier for a category-rule duplicate.
+          description: Category identifier of the conflicting Category Rule within the destination Space.
           pattern: ^[1-9]\d*$
           example: '42'
         field:
@@ -3337,7 +3337,7 @@ components:
           description: UTC timestamp when the Category was last updated.
           format: date-time
           example: '2026-08-29T00:00:00.000Z'
-      description: A Category owned by the authenticated User. Inactive Categories retain their historical relationships.
+      description: A Category in the authorized Space. Inactive Categories retain their historical relationships.
       additionalProperties: false
       required:
         - id
@@ -3488,7 +3488,7 @@ components:
           description: UTC timestamp when the Budget was last updated.
           format: date-time
           example: '2026-08-29T00:00:00.000Z'
-      description: A recurring Budget owned through its Category and the authenticated User.
+      description: A recurring Budget belonging to a Category in the authorized Space.
       additionalProperties: false
       required:
         - id
@@ -3557,7 +3557,7 @@ components:
           description: Non-negative count of Uncategorized Transactions encoded as a string.
           pattern: ^\d+$
           example: '1'
-      description: A complete monthly or yearly Category spending summary owned by the authenticated User.
+      description: A complete monthly or yearly Category spending summary for the authorized Space.
       additionalProperties: false
       required:
         - period
@@ -3765,7 +3765,7 @@ components:
           example: Green   Market
         matchType:
           type: string
-          description: Exact or Contains matching. The normalized pattern is not returned.
+          description: Exact matches the entire normalized Transaction description. Contains matches a literal substring anywhere, including within a word. Matching ignores case and normalizes whitespace; punctuation remains significant. Exact Rules take precedence over Contains Rules during categorization. The frontend evaluates rules; the normalized pattern is not returned.
           enum:
             - exact
             - contains
@@ -3798,7 +3798,7 @@ components:
             - exact
             - contains
           default: exact
-          description: Omission creates an Exact rule, including frontend Remember requests.
+          description: Exact matches the entire normalized Transaction description. Contains matches a literal substring anywhere, including within a word. Matching ignores case and normalizes whitespace; punctuation remains significant. Exact Rules take precedence over Contains Rules during categorization. Omission creates an Exact Rule, including frontend Remember requests.
         pattern:
           type: string
           description: Original rule text. Uniqueness trims surrounding whitespace, collapses repeated whitespace, and ignores case within each match type. Rule evaluation belongs to the frontend.
@@ -3823,7 +3823,7 @@ components:
           enum:
             - exact
             - contains
-          description: Omission preserves the current match type.
+          description: Exact matches the entire normalized Transaction description. Contains matches a literal substring anywhere, including within a word. Matching ignores case and normalizes whitespace; punctuation remains significant. Exact Rules take precedence over Contains Rules during categorization. Omission preserves the current match type.
         pattern:
           type: string
           description: Original rule text. Uniqueness trims surrounding whitespace, collapses repeated whitespace, and ignores case within each match type.
@@ -3856,6 +3856,7 @@ components:
           enum:
             - exact
             - contains
+          description: Exact matches the entire normalized Transaction description. Contains matches a literal substring anywhere, including within a word. Matching ignores case and normalizes whitespace; punctuation remains significant. Exact Rules take precedence over Contains Rules during categorization.
       additionalProperties: false
       required:
         - pattern
@@ -4017,7 +4018,7 @@ components:
           example: manual
         addedByUserId:
           type: string
-          description: Positive bigint identifier of the User who added the Transaction. It is immutable after creation.
+          description: Positive bigint User identifier of the original Added By actor who recorded or confirmed this Transaction. It is immutable attribution and does not determine Space ownership or identify who paid.
           pattern: ^[1-9]\d*$
           example: '7'
         createdAt:
@@ -4030,7 +4031,7 @@ components:
           description: UTC timestamp when the Transaction was last updated.
           format: date-time
           example: '2026-08-29T00:00:00.000Z'
-      description: A manually recorded Transaction owned by the authenticated User.
+      description: A manually recorded Transaction in the authorized Space. The original recorder is retained as Added By attribution.
       additionalProperties: false
       required:
         - id
@@ -4081,7 +4082,7 @@ components:
           example: imported
         addedByUserId:
           type: string
-          description: Positive bigint identifier of the User who added the Transaction. It is immutable after creation.
+          description: Positive bigint User identifier of the original Added By actor who recorded or confirmed this Transaction. It is immutable attribution and does not determine Space ownership or identify who paid.
           pattern: ^[1-9]\d*$
           example: '7'
         createdAt:
@@ -4094,7 +4095,7 @@ components:
           description: UTC timestamp when the Transaction was last updated.
           format: date-time
           example: '2026-08-29T00:00:00.000Z'
-      description: A Transaction committed from a reviewed Statement import and owned by the authenticated User.
+      description: A Transaction committed from a reviewed Statement Import in the authorized Space. The User who confirmed it remains its Added By actor.
       additionalProperties: false
       required:
         - id
@@ -4145,7 +4146,7 @@ components:
           example: manual
         addedByUserId:
           type: string
-          description: Positive bigint identifier of the User who added the Transaction. It is immutable after creation.
+          description: Positive bigint User identifier of the original Added By actor who recorded or confirmed this Transaction. It is immutable attribution and does not determine Space ownership or identify who paid.
           pattern: ^[1-9]\d*$
           example: '7'
         statementImportId:
@@ -4223,7 +4224,7 @@ components:
           example: imported
         addedByUserId:
           type: string
-          description: Positive bigint identifier of the User who added the Transaction. It is immutable after creation.
+          description: Positive bigint User identifier of the original Added By actor who recorded or confirmed this Transaction. It is immutable attribution and does not determine Space ownership or identify who paid.
           pattern: ^[1-9]\d*$
           example: '7'
         statementImportId:
@@ -4630,10 +4631,10 @@ components:
           example: '2026-08-29T00:00:00.000Z'
         importedByUserId:
           type: string
-          description: Positive bigint User identifier for the contributor who imported the Statement, encoded as a string.
+          description: Positive bigint User identifier for the actor who confirmed this Statement Import. It is immutable actor attribution; the Committed Statement Import belongs to its Space.
           pattern: ^[1-9]\d*$
           example: '7'
-      description: A committed Statement import in the destination Space, attributed to the importing User. Client file hashes and persistence fields are not returned.
+      description: A committed Statement Import belonging to the destination Space. The User who confirmed it remains the importer actor. Client file hashes and persistence fields are not returned.
       additionalProperties: false
       required:
         - id
@@ -4709,7 +4710,7 @@ components:
           example: '2026-08-29T00:00:00.000Z'
         importedByUserId:
           type: string
-          description: Positive bigint User identifier for the contributor who imported the Statement, encoded as a string.
+          description: Positive bigint User identifier for the actor who confirmed this Statement Import. It is immutable actor attribution; the Committed Statement Import belongs to its Space.
           pattern: ^[1-9]\d*$
           example: '7'
         transactionCount:
@@ -4933,7 +4934,7 @@ components:
               message: User is not provisioned
               details: []
     NotFoundError:
-      description: The requested resource is absent or owned by another user.
+      description: The requested resource is absent or not accessible to the authenticated User.
       content:
         application/json:
           schema:
@@ -5052,7 +5053,7 @@ components:
             $ref: '#/components/schemas/ErrorEnvelopeDto'
           examples:
             fileAlreadyImported:
-              summary: The same file was already imported for this User.
+              summary: The same file was already imported for this Space.
               value:
                 error:
                   code: STATEMENT_IMPORT_FILE_ALREADY_EXISTS

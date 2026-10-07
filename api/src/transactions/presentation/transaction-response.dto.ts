@@ -11,6 +11,9 @@ import {
 } from '../../http/validation-patterns';
 import { TRANSACTION_DESCRIPTION_MAX_LENGTH } from '../application/transaction-store';
 
+const TRANSACTION_ADDED_BY_DESCRIPTION =
+  'Positive bigint User identifier of the original Added By actor who recorded or confirmed this Transaction. It is immutable attribution and does not determine Space ownership or identify who paid.';
+
 type ApiSchemaOptionsWithAdditionalProperties = {
   name?: string;
   description?: string;
@@ -19,7 +22,7 @@ type ApiSchemaOptionsWithAdditionalProperties = {
 
 @ApiSchema({
   description:
-    'A manually recorded Transaction owned by the authenticated User.',
+    'A manually recorded Transaction in the authorized Space. The original recorder is retained as Added By attribution.',
   additionalProperties: false,
 } as ApiSchemaOptionsWithAdditionalProperties)
 export class ManualTransactionResponseDto {
@@ -73,8 +76,7 @@ export class ManualTransactionResponseDto {
   source!: 'manual';
 
   @ApiPropertyOptional({
-    description:
-      'Positive bigint identifier of the User who added the Transaction. It is immutable after creation.',
+    description: TRANSACTION_ADDED_BY_DESCRIPTION,
     type: String,
     pattern: POSITIVE_INTEGER_ID_PATTERN.source,
     example: '7',
@@ -98,7 +100,7 @@ export class ManualTransactionResponseDto {
 
 @ApiSchema({
   description:
-    'A Transaction committed from a reviewed Statement import and owned by the authenticated User.',
+    'A Transaction committed from a reviewed Statement Import in the authorized Space. The User who confirmed it remains its Added By actor.',
   additionalProperties: false,
 } as ApiSchemaOptionsWithAdditionalProperties)
 export class ImportedTransactionResponseDto {
@@ -153,8 +155,7 @@ export class ImportedTransactionResponseDto {
   source!: 'imported';
 
   @ApiPropertyOptional({
-    description:
-      'Positive bigint identifier of the User who added the Transaction. It is immutable after creation.',
+    description: TRANSACTION_ADDED_BY_DESCRIPTION,
     type: String,
     pattern: POSITIVE_INTEGER_ID_PATTERN.source,
     example: '7',
@@ -232,8 +233,7 @@ export class ManualTransactionHistoryResponseDto {
   source!: 'manual';
 
   @ApiPropertyOptional({
-    description:
-      'Positive bigint identifier of the User who added the Transaction. It is immutable after creation.',
+    description: TRANSACTION_ADDED_BY_DESCRIPTION,
     type: String,
     pattern: POSITIVE_INTEGER_ID_PATTERN.source,
     example: '7',
@@ -331,8 +331,7 @@ export class ImportedTransactionHistoryResponseDto {
   source!: 'imported';
 
   @ApiPropertyOptional({
-    description:
-      'Positive bigint identifier of the User who added the Transaction. It is immutable after creation.',
+    description: TRANSACTION_ADDED_BY_DESCRIPTION,
     type: String,
     pattern: POSITIVE_INTEGER_ID_PATTERN.source,
     example: '7',

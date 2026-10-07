@@ -6,6 +6,7 @@ import {
   CATEGORY_RULE_MATCH_TYPES,
   type CategoryRuleMatchType,
 } from '../application/category-rule-store';
+import { CATEGORY_RULE_MATCH_TYPE_DESCRIPTION } from './category-rule-match-type-description';
 
 type ApiSchemaOptionsWithAdditionalProperties = {
   name?: string;
@@ -45,8 +46,7 @@ export class CategoryRuleResponseDto {
   pattern!: string;
 
   @ApiProperty({
-    description:
-      'Exact or Contains matching. The normalized pattern is not returned.',
+    description: `${CATEGORY_RULE_MATCH_TYPE_DESCRIPTION} The frontend evaluates rules; the normalized pattern is not returned.`,
     enum: CATEGORY_RULE_MATCH_TYPES,
     example: EXACT_CATEGORY_RULE_MATCH_TYPE,
   })

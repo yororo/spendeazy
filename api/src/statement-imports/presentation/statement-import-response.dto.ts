@@ -8,6 +8,9 @@ import {
   type StatementType,
 } from '../application/statement-type';
 
+const STATEMENT_IMPORTER_ACTOR_DESCRIPTION =
+  'Positive bigint User identifier for the actor who confirmed this Statement Import. It is immutable actor attribution; the Committed Statement Import belongs to its Space.';
+
 type ApiSchemaOptionsWithAdditionalProperties = {
   name?: string;
   description?: string;
@@ -102,8 +105,7 @@ export class StatementImportResponseDto {
   importedAt!: string;
 
   @ApiProperty({
-    description:
-      'Positive bigint User identifier for the actor who confirmed this Statement Import. It is immutable actor attribution; the Committed Statement Import belongs to its Space.',
+    description: STATEMENT_IMPORTER_ACTOR_DESCRIPTION,
     pattern: POSITIVE_INTEGER_ID_PATTERN.source,
     example: '7',
   })
@@ -198,8 +200,7 @@ export class StatementImportHistoryResponseDto {
   importedAt!: string;
 
   @ApiProperty({
-    description:
-      'Positive bigint User identifier for the actor who confirmed this Statement Import. It is immutable actor attribution; the Committed Statement Import belongs to its Space.',
+    description: STATEMENT_IMPORTER_ACTOR_DESCRIPTION,
     pattern: POSITIVE_INTEGER_ID_PATTERN.source,
     example: '7',
   })

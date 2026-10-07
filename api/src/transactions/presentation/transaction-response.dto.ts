@@ -11,6 +11,9 @@ import {
 } from '../../http/validation-patterns';
 import { TRANSACTION_DESCRIPTION_MAX_LENGTH } from '../application/transaction-store';
 
+const TRANSACTION_ADDED_BY_DESCRIPTION =
+  'Positive bigint User identifier of the original Added By actor who recorded or confirmed this Transaction. It is immutable attribution and does not determine Space ownership or identify who paid.';
+
 type ApiSchemaOptionsWithAdditionalProperties = {
   name?: string;
   description?: string;
@@ -73,8 +76,7 @@ export class ManualTransactionResponseDto {
   source!: 'manual';
 
   @ApiPropertyOptional({
-    description:
-      'Positive bigint User identifier of the original Added By actor who recorded or confirmed this Transaction. It is immutable attribution and does not determine Space ownership or identify who paid.',
+    description: TRANSACTION_ADDED_BY_DESCRIPTION,
     type: String,
     pattern: POSITIVE_INTEGER_ID_PATTERN.source,
     example: '7',
@@ -153,8 +155,7 @@ export class ImportedTransactionResponseDto {
   source!: 'imported';
 
   @ApiPropertyOptional({
-    description:
-      'Positive bigint User identifier of the original Added By actor who recorded or confirmed this Transaction. It is immutable attribution and does not determine Space ownership or identify who paid.',
+    description: TRANSACTION_ADDED_BY_DESCRIPTION,
     type: String,
     pattern: POSITIVE_INTEGER_ID_PATTERN.source,
     example: '7',
@@ -232,8 +233,7 @@ export class ManualTransactionHistoryResponseDto {
   source!: 'manual';
 
   @ApiPropertyOptional({
-    description:
-      'Positive bigint User identifier of the original Added By actor who recorded or confirmed this Transaction. It is immutable attribution and does not determine Space ownership or identify who paid.',
+    description: TRANSACTION_ADDED_BY_DESCRIPTION,
     type: String,
     pattern: POSITIVE_INTEGER_ID_PATTERN.source,
     example: '7',
@@ -331,8 +331,7 @@ export class ImportedTransactionHistoryResponseDto {
   source!: 'imported';
 
   @ApiPropertyOptional({
-    description:
-      'Positive bigint User identifier of the original Added By actor who recorded or confirmed this Transaction. It is immutable attribution and does not determine Space ownership or identify who paid.',
+    description: TRANSACTION_ADDED_BY_DESCRIPTION,
     type: String,
     pattern: POSITIVE_INTEGER_ID_PATTERN.source,
     example: '7',

@@ -101,6 +101,21 @@ clean up that data or use a fresh User when later assertions require an empty
 Personal Space or no active Shared Space. Run the full launcher after changing
 tests: running one spec alone cannot expose interactions with other specs.
 
+CI distributes the suite across two jobs, each with its own launcher-owned
+database, API, web server, and session secret. Each shard retains one worker;
+the serial `local-test.spec.ts` group stays together. To reproduce a shard:
+
+```powershell
+$env:SPENDEAZY_E2E_SHARD = '1/2'
+node scripts/local-test-launcher.mjs --e2e
+Remove-Item Env:SPENDEAZY_E2E_SHARD
+```
+
+Use `2/2` for the second shard. Without this variable the launcher runs all
+tests, which remains the required local completion check. CI saves HTML/blob
+reports and failure screenshots/traces for seven days. Shard-specific output
+directories prevent report collisions when testing shards locally.
+
 To run Playwright against an already-running dedicated environment, run
 `npm run test:e2e` from `web/` with `SPENDEAZY_E2E_BASE_URL`,
 `SPENDEAZY_E2E_API_BASE_URL`, `SPENDEAZY_E2E_TEST_DATE`,
@@ -126,6 +141,8 @@ npm --prefix web run lint
 npm --prefix web run build
 npm --prefix web test -- --run
 npm --prefix web exec playwright install --with-deps msedge
+node scripts/verify-release-gates.mjs
+node --test scripts/release-plan.test.mjs
 node .\scripts\local-test-launcher.mjs --e2e
 ```
 

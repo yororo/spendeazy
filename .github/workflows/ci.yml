@@ -1,91 +1,159 @@
 name: Validate Spendeazy
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
   workflow_dispatch:
   workflow_call:
     inputs:
       force_failure:
         type: boolean
         default: false
+    outputs:
+      web_artifact_id:
+        description: Immutable web build from this validation run
+        value: ${{ jobs.web.outputs.artifact_id }}
 
 permissions:
   contents: read
 
+env:
+  CI: true
+  SPENDEAZY_E2E_TEST_CLOCK: 2026-09-19T12:00:00.000Z
+
 jobs:
-  validate:
-    name: Validate projects and isolated browser suite
+  preflight:
+    name: Check validation request
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-    env:
-      CI: true
-      SPENDEAZY_E2E_TEST_CLOCK: 2026-09-19T12:00:00.000Z
+    timeout-minutes: 5
     steps:
       - name: Exercise failed-validation gate
-        if: inputs.force_failure
-        run: exit 1
+        env:
+          FORCE_FAILURE: ${{ inputs.force_failure }}
+        run: test "$FORCE_FAILURE" != true
 
-      - name: Check out repository
-        uses: actions/checkout@v4
+  api:
+    needs: [preflight]
+    name: Validate API
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24.11.1
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - run: npm ci
+        working-directory: api
+      - name: Verify release gates and planner
+        run: |
+          node scripts/verify-release-gates.mjs
+          node --test scripts/release-plan.test.mjs
+      - name: Lint API
+        run: npx eslint "{src,apps,libs,test}/**/*.ts"
+        working-directory: api
+      - name: Build API
+        run: npm run build
+        working-directory: api
+      - name: Verify production migration image
+        run: npm run test:migration-image
+        working-directory: api
+      - name: Test API
+        run: npm test -- --runInBand
+        working-directory: api
+      - name: Check API contract artifacts
+        run: npm run openapi:check
+        working-directory: api
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+  web:
+    needs: [preflight]
+    name: Validate and build web artifact
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      artifact_id: ${{ steps.artifact.outputs.artifact-id }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24.11.1
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+        working-directory: web
+      - name: Lint web
+        run: npm run lint
+        working-directory: web
+      - name: Test web
+        run: npm test -- --run
+        working-directory: web
+      - name: Build deployable web
+        run: npm run build
+        working-directory: web
+        env:
+          VITE_CLERK_PUBLISHABLE_KEY: ${{ vars.VITE_CLERK_PUBLISHABLE_KEY }}
+          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+      - name: Verify deployment configuration
+        run: test -s web/dist/index.html && test -s web/dist/staticwebapp.config.json
+      - name: Save validated web artifact
+        id: artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: web-dist-${{ github.sha }}-${{ github.run_attempt }}
+          path: web/dist
+          if-no-files-found: error
+          retention-days: 7
+
+  e2e:
+    needs: [preflight]
+    name: Isolated browser suite (${{ matrix.shard }}/2)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
+    env:
+      SPENDEAZY_E2E_SHARD: ${{ matrix.shard }}/2
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24.11.1
           cache: npm
           cache-dependency-path: |
             api/package-lock.json
             web/package-lock.json
-
-      - name: Install API dependencies
-        run: npm ci
-        working-directory: api
-
-      - name: Install web dependencies
-        run: npm ci
-        working-directory: web
-
-      - name: Verify release gate conditions
-        run: node scripts/verify-release-gates.mjs
-
-      - name: Lint API
-        run: npx eslint "{src,apps,libs,test}/**/*.ts"
-        working-directory: api
-
-      - name: Build API
-        run: npm run build
-        working-directory: api
-
-      - name: Verify production migration image
-        run: npm run test:migration-image
-        working-directory: api
-
-      - name: Test API
-        run: npm test -- --runInBand
-        working-directory: api
-
-      - name: Check API contract artifacts
-        run: npm run openapi:check
-        working-directory: api
-
-      - name: Lint web
-        run: npm run lint
-        working-directory: web
-
-      - name: Build web
-        run: npm run build
-        working-directory: web
-
-      - name: Test web
-        run: npm test -- --run
-        working-directory: web
-
+      - name: Install dependencies
+        run: |
+          npm --prefix api ci
+          npm --prefix web ci
       - name: Install Playwright Microsoft Edge
         run: npx playwright install --with-deps msedge
         working-directory: web
-
       - name: Run isolated browser suite
         run: node scripts/local-test-launcher.mjs --e2e
+      - name: Save browser diagnostics
+        if: always() && !cancelled()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: browser-reports-${{ matrix.shard }}-${{ github.run_attempt }}
+          path: |
+            web/playwright-report
+            web/blob-report
+            web/test-results-*
+          retention-days: 7
+
+  validate:
+    name: All validation passed
+    needs: [preflight, api, web, e2e]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require every validation job to succeed
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+          FORCE_FAILURE: ${{ inputs.force_failure }}
+        run: |
+          test "$FORCE_FAILURE" != true
+          echo "$RESULTS" | jq -e 'all(.[]; .result == "success")'

@@ -14,7 +14,7 @@ function permitted(job, { event = "workflow_dispatch", project = "all", validati
   const needs = {
     validate: { result: validation },
     changes: { result: changes, outputs: { web: webChanged, api: apiChanged } },
-    migrate: { result: migrate, outputs: { image: "syoro/spendeazy-api@sha256:digest" } },
+    migrate: { result: migrate, outputs: { digest: "sha256:digest" } },
     api: { result: api },
   };
   // GitHub applies success() implicitly unless a status function is explicit.
@@ -93,6 +93,10 @@ for (const login of ["dependabot[bot]", "maintainer"]) {
     assert.equal(validationExpression(github), action !== "closed", `${login}: ${action} validation`);
   }
 }
+assert.equal(workflow.jobs.migrate.outputs.digest, "${{ steps.image.outputs.digest }}");
+assert.equal(workflow.jobs.migrate.outputs.image, undefined);
+const apiDeploy = workflow.jobs.api.steps.find(step => step.name === "Deploy migration-tested container image");
+assert.equal(apiDeploy.with.imageToDeploy, "syoro/spendeazy-api@${{ needs.migrate.outputs.digest }}");
 const webUpload = workflow.jobs.web.steps.find(step => step.name === "Build and deploy");
 assert.equal(webUpload.with.skip_app_build, true);
 assert.equal(webUpload.with.app_location, "web/dist");

@@ -29,10 +29,11 @@ against its last successful Azure upload, including uploads in otherwise failed
 runs. Skipped, failed, and verification-only publications do not advance that
 baseline. History is fetched in compact pages to avoid subprocess output-buffer
 failures, and both historical/current upload step names are recognized, including
-jobs nested under the reusable publication workflow. If no publication is found in the latest 100 main runs, publish that
+jobs nested under the reusable publication workflow. If no publication is found
+in the latest 100 main runs, publish that
 project conservatively. This carries unpublished API changes into later web
-releases even when an earlier run was canceled or superseded. Changes to either
-workflow or the release scripts select both. PRs use their changed-file list and
+releases even when an earlier run was canceled or superseded. Changes to workflow
+files or the release scripts select both. PRs use their changed-file list and
 publish only web previews; manual runs select `all`, `web`, or `api`.
 The web job accepts a skipped API job only after validation and change detection
 succeed. An API failure or cancellation blocks web publication.
@@ -53,7 +54,8 @@ Publication still rechecks the current main revision after acquiring the lock.
 ## API schema migrations
 
 Every production API release uses a Docker Buildx container builder with a
-project-scoped GitHub Actions layer cache, builds and pushes one API image, then runs its
+project-scoped GitHub Actions layer cache, builds and pushes one API image, then
+runs its
 compiled migration entry point from that image in a temporary manual Azure
 Container Apps job. The job uses only `DATABASE_URL`; it does not load Clerk,
 web, or other application configuration. It waits for the migration process to

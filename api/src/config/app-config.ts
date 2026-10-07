@@ -36,6 +36,7 @@ export interface AppConfig {
   clerkAuthorizedParties: string[];
   invitationCodeEncryptionKey?: string;
   gcashReferenceHashKey?: string;
+  /** Optional credential from TYPESAFE_API_KEY; without it the API returns no Category Suggestions. */
   typesafeApiKey?: string;
 }
 

@@ -20,6 +20,7 @@ const fixedE2eClock =
 
 const isE2e = process.argv.includes("--e2e");
 const shouldReset = process.argv.includes("--reset");
+const e2eShard = process.env.SPENDEAZY_E2E_SHARD?.trim();
 
 const children = new Set();
 let shuttingDown = false;
@@ -31,6 +32,13 @@ async function main() {
   try {
     if (isE2e && shouldReset) {
       throw new Error("Use either --e2e or --reset, not both.");
+    }
+
+    if (e2eShard) {
+      const match = /^([1-9]\d*)\/([1-9]\d*)$/.exec(e2eShard);
+      if (!isE2e || !match || Number(match[1]) > Number(match[2])) {
+        throw new Error("SPENDEAZY_E2E_SHARD requires --e2e and a shard index/total such as 1/2.");
+      }
     }
 
     if (!existsSync(composeFile)) {
@@ -156,7 +164,7 @@ async function main() {
           },
         },
       );
-      await run("npm", npmArguments("run", "test:e2e"), {
+      await run("npm", npmArguments("run", "test:e2e", ...(e2eShard ? ["--", `--shard=${e2eShard}`] : [])), {
         cwd: webDirectory,
         env: {
           ...webEnvironment,

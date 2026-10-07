@@ -1,0 +1,250 @@
+name: Publish Spendeazy
+
+on:
+  workflow_call:
+    inputs:
+      project:
+        type: string
+        default: all
+      verify_only:
+        type: boolean
+        default: false
+      validated:
+        type: boolean
+        required: true
+      web_artifact_id:
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  # Keep both publications in one release lock; never cancel an active upload.
+  group: release-${{ inputs.verify_only && format('verification-{0}', github.run_id) || github.event_name == 'pull_request' && github.event.number || 'production' }}
+  cancel-in-progress: false
+
+jobs:
+  changes:
+    if: inputs.validated && (github.event_name != 'pull_request' || github.event.action != 'closed')
+    name: Detect changed projects
+    timeout-minutes: 5
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      actions: read
+    outputs:
+      web: ${{ steps.release.outputs.web || steps.filter.outputs.web }}
+      api: ${{ steps.release.outputs.api || steps.filter.outputs.api }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: github.event_name == 'push'
+        with:
+          fetch-depth: 0
+      - name: Require the current main revision for publication
+        if: github.event_name != 'pull_request' && !inputs.verify_only
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$GITHUB_REF" = refs/heads/main
+          current=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq .object.sha)
+          test "$GITHUB_SHA" = "$current"
+      - name: Require the current open pull request for preview
+        if: github.event_name == 'pull_request' && github.event.action != 'closed'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.number }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          current=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" --jq 'select(.state == "open") | .head.sha')
+          test "$PR_HEAD" = "$current"
+      - name: Detect unpublished changes
+        if: github.event_name == 'push'
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/release-plan.mjs
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        if: github.event_name == 'pull_request'
+        id: filter
+        with:
+          # PR previews use their changed-file list.
+          base: ${{ github.ref }}
+          filters: |
+            web:
+              - 'web/**'
+              - '.github/workflows/**'
+              - 'scripts/release-plan.mjs'
+              - 'scripts/verify-release-gates.mjs'
+              - 'scripts/run-api-migration-job.mjs'
+            api:
+              - 'api/**'
+              - '.github/workflows/**'
+              - 'scripts/release-plan.mjs'
+              - 'scripts/verify-release-gates.mjs'
+              - 'scripts/run-api-migration-job.mjs'
+
+  migrate:
+    name: Run API migrations
+    needs: [changes]
+    if: >-
+      inputs.validated && needs.changes.result == 'success' &&
+      ((github.event_name == 'workflow_dispatch' && !inputs.verify_only && (inputs.project == 'all' || inputs.project == 'api')) ||
+      (github.event_name == 'push' && needs.changes.outputs.api == 'true'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      id-token: write
+      contents: read
+    outputs:
+      image: ${{ steps.image.outputs.digest && format('syoro/spendeazy-api@{0}', steps.image.outputs.digest) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Log in to Docker Hub
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          username: ${{ secrets.SPENDEAZYAPI2_REGISTRY_USERNAME }}
+          password: ${{ secrets.SPENDEAZYAPI2_REGISTRY_PASSWORD }}
+      - name: Build and publish API image
+        id: image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: ./api
+          file: ./api/Dockerfile
+          push: true
+          tags: syoro/spendeazy-api:${{ github.sha }}
+          cache-from: type=gha,scope=spendeazy-api
+          cache-to: type=gha,mode=max,scope=spendeazy-api
+      - name: Azure login
+        id: azure_login
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ secrets.SPENDEAZYAPI2_AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.SPENDEAZYAPI2_AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.SPENDEAZYAPI2_AZURE_SUBSCRIPTION_ID }}
+      - name: Run migrations with the published image
+        env:
+          AZURE_RESOURCE_GROUP: spendeazy-dev
+          CONTAINERAPPS_ENVIRONMENT: managedEnvironment-spendeazydev-a6e6
+          MIGRATION_JOB_NAME: spendeazy-mig-${{ github.run_id }}-${{ github.run_attempt }}
+          MIGRATION_IMAGE: syoro/spendeazy-api@${{ steps.image.outputs.digest }}
+          DATABASE_URL: ${{ secrets.SPENDEAZYAPI2_DATABASE_URL }}
+          REGISTRY_USERNAME: ${{ secrets.SPENDEAZYAPI2_REGISTRY_USERNAME }}
+          REGISTRY_PASSWORD: ${{ secrets.SPENDEAZYAPI2_REGISTRY_PASSWORD }}
+        run: node scripts/run-api-migration-job.mjs
+      - name: Remove migration job if the runner was interrupted
+        if: always() && steps.azure_login.outcome == 'success'
+        env:
+          AZURE_RESOURCE_GROUP: spendeazy-dev
+          MIGRATION_JOB_NAME: spendeazy-mig-${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          if az containerapp job show --name "$MIGRATION_JOB_NAME" --resource-group "$AZURE_RESOURCE_GROUP" --only-show-errors --output none; then
+            az containerapp job delete --name "$MIGRATION_JOB_NAME" --resource-group "$AZURE_RESOURCE_GROUP" --yes --output none
+          fi
+
+  web:
+    name: Build and deploy web
+    timeout-minutes: 15
+    needs: [changes, migrate, api]
+    if: >-
+      always() && !cancelled() && inputs.validated && needs.changes.result == 'success' &&
+      (needs.migrate.result == 'success' || needs.migrate.result == 'skipped') &&
+      (needs.api.result == 'success' || needs.api.result == 'skipped') &&
+      ((github.event_name == 'workflow_dispatch' && (inputs.project == 'all' || inputs.project == 'web')) ||
+      (needs.changes.outputs.web == 'true' &&
+      (github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed'))))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          lfs: false
+      - name: Require an immutable validated artifact
+        env:
+          WEB_ARTIFACT_ID: ${{ inputs.web_artifact_id }}
+        run: test -n "$WEB_ARTIFACT_ID"
+      - name: Download validated web artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          artifact-ids: ${{ inputs.web_artifact_id }}
+          path: web/dist
+          merge-multiple: true
+      - name: Verify deployment artifact
+        run: test -s web/dist/index.html && test -s web/dist/staticwebapp.config.json
+      - name: Require the current open pull request before upload
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.number }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          current=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" --jq 'select(.state == "open") | .head.sha')
+          test "$PR_HEAD" = "$current"
+      - name: Build and deploy
+        if: ${{ !inputs.verify_only }}
+        uses: Azure/static-web-apps-deploy@4d27395796ac319302594769cfe812bd207490b1 # v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_VICTORIOUS_FIELD_0CA473A00 }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: upload
+          app_location: web/dist
+          skip_app_build: true
+          api_location: ""
+          output_location: ""
+      - name: Verify web publication gate
+        if: inputs.verify_only
+        run: echo "Web publication permitted for $GITHUB_SHA; Azure upload disabled."
+
+  close_web_preview:
+    name: Close web pull request preview
+    timeout-minutes: 10
+    # Always attempt cleanup on close, even if earlier web changes were reverted.
+    if: github.event_name == 'pull_request' && github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Close pull request
+        uses: Azure/static-web-apps-deploy@4d27395796ac319302594769cfe812bd207490b1 # v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_VICTORIOUS_FIELD_0CA473A00 }}
+          action: close
+
+  api:
+    name: Build and deploy API
+    timeout-minutes: 15
+    needs: [changes, migrate]
+    if: >-
+      always() && !cancelled() && inputs.validated && needs.changes.result == 'success' &&
+      (needs.migrate.result == 'success' || (inputs.verify_only && needs.migrate.result == 'skipped')) &&
+      ((github.event_name == 'workflow_dispatch' && (inputs.project == 'all' || inputs.project == 'api')) ||
+      (github.event_name == 'push' && needs.changes.outputs.api == 'true'))
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Azure login
+        if: ${{ !inputs.verify_only }}
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ secrets.SPENDEAZYAPI2_AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.SPENDEAZYAPI2_AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.SPENDEAZYAPI2_AZURE_SUBSCRIPTION_ID }}
+      - name: Deploy migration-tested container image
+        if: ${{ !inputs.verify_only }}
+        uses: azure/container-apps-deploy-action@8dff69dac3367c32ceb2690d8f13adbeab462703 # v2
+        with:
+          registryUrl: docker.io
+          registryUsername: ${{ secrets.SPENDEAZYAPI2_REGISTRY_USERNAME }}
+          registryPassword: ${{ secrets.SPENDEAZYAPI2_REGISTRY_PASSWORD }}
+          containerAppName: spendeazy-api
+          resourceGroup: spendeazy-dev
+          imageToDeploy: ${{ needs.migrate.outputs.image }}
+      - name: Verify API publication gate
+        if: inputs.verify_only
+        run: echo "API publication permitted for $GITHUB_SHA; Azure upload disabled."

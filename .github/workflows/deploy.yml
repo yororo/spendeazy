@@ -25,212 +25,45 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  # Keep both publications in one release lock; never cancel an active upload.
-  group: release-${{ inputs.verify_only && format('verification-{0}', github.run_id) || github.event_name == 'pull_request' && github.event.number || 'production' }}
-  cancel-in-progress: false
-
 jobs:
   validate:
     if: github.event_name != 'pull_request' || github.event.action != 'closed'
+    # Validation is cancellable and never holds the publication lock.
+    concurrency:
+      group: validation-${{ github.event_name }}-${{ github.event.number || github.ref }}-${{ github.event_name == 'workflow_dispatch' && github.run_id || 'automatic' }}
+      cancel-in-progress: true
     uses: ./.github/workflows/ci.yml
     with:
       force_failure: ${{ inputs.verify_only == true && inputs.fail_validation == true }}
 
-  changes:
-    name: Detect changed projects
+  gate:
+    # Preserve main's existing required status-check identity.
+    name: Validate projects and isolated browser suite
+    needs: [validate]
+    if: always() && (github.event_name != 'pull_request' || github.event.action != 'closed')
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require successful validation
+        env:
+          VALIDATION_RESULT: ${{ needs.validate.result }}
+        run: test "$VALIDATION_RESULT" = success
+
+  publish:
+    needs: [validate, gate]
+    if: >-
+      always() && !cancelled() &&
+      ((github.event_name == 'pull_request' && github.event.action == 'closed') ||
+      (needs.gate.result == 'success' && needs.validate.result == 'success'))
     permissions:
       contents: read
       pull-requests: read
       actions: read
-    outputs:
-      web: ${{ steps.release.outputs.web || steps.filter.outputs.web }}
-      api: ${{ steps.release.outputs.api || steps.filter.outputs.api }}
-    steps:
-      - uses: actions/checkout@v4
-        if: github.event_name == 'push'
-        with:
-          fetch-depth: 0
-      - name: Require the current main revision for publication
-        if: github.event_name != 'pull_request' && !inputs.verify_only
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          test "$GITHUB_REF" = refs/heads/main
-          current=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq .object.sha)
-          test "$GITHUB_SHA" = "$current"
-      - name: Require the current open pull request for preview
-        if: github.event_name == 'pull_request' && github.event.action != 'closed'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ github.event.number }}
-          PR_HEAD: ${{ github.event.pull_request.head.sha }}
-        run: |
-          current=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" --jq 'select(.state == "open") | .head.sha')
-          test "$PR_HEAD" = "$current"
-      - name: Detect unpublished changes
-        if: github.event_name == 'push'
-        id: release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: node scripts/release-plan.mjs
-      - uses: dorny/paths-filter@v4
-        if: github.event_name == 'pull_request'
-        id: filter
-        with:
-          # PR previews use their changed-file list.
-          base: ${{ github.ref }}
-          filters: |
-            web:
-              - 'web/**'
-              - '.github/workflows/deploy.yml'
-              - '.github/workflows/ci.yml'
-              - 'scripts/release-plan.mjs'
-              - 'scripts/verify-release-gates.mjs'
-              - 'scripts/run-api-migration-job.mjs'
-            api:
-              - 'api/**'
-              - '.github/workflows/deploy.yml'
-              - '.github/workflows/ci.yml'
-              - 'scripts/release-plan.mjs'
-              - 'scripts/verify-release-gates.mjs'
-              - 'scripts/run-api-migration-job.mjs'
-
-  migrate:
-    name: Run API migrations
-    needs: [changes, validate]
-    if: >-
-      needs.validate.result == 'success' && needs.changes.result == 'success' &&
-      ((github.event_name == 'workflow_dispatch' && !inputs.verify_only && (inputs.project == 'all' || inputs.project == 'api')) ||
-      (github.event_name == 'push' && needs.changes.outputs.api == 'true'))
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    permissions:
       id-token: write
-      contents: read
-    outputs:
-      image: ${{ steps.image.outputs.digest && format('syoro/spendeazy-api@{0}', steps.image.outputs.digest) }}
-    steps:
-      - uses: actions/checkout@v4
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.SPENDEAZYAPI2_REGISTRY_USERNAME }}
-          password: ${{ secrets.SPENDEAZYAPI2_REGISTRY_PASSWORD }}
-      - name: Build and publish API image
-        id: image
-        uses: docker/build-push-action@v6
-        with:
-          context: ./api
-          file: ./api/Dockerfile
-          push: true
-          tags: syoro/spendeazy-api:${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-      - name: Azure login
-        id: azure_login
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.SPENDEAZYAPI2_AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.SPENDEAZYAPI2_AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.SPENDEAZYAPI2_AZURE_SUBSCRIPTION_ID }}
-      - name: Run migrations with the published image
-        env:
-          AZURE_RESOURCE_GROUP: spendeazy-dev
-          CONTAINERAPPS_ENVIRONMENT: managedEnvironment-spendeazydev-a6e6
-          MIGRATION_JOB_NAME: spendeazy-mig-${{ github.run_id }}-${{ github.run_attempt }}
-          MIGRATION_IMAGE: syoro/spendeazy-api@${{ steps.image.outputs.digest }}
-          DATABASE_URL: ${{ secrets.SPENDEAZYAPI2_DATABASE_URL }}
-          REGISTRY_USERNAME: ${{ secrets.SPENDEAZYAPI2_REGISTRY_USERNAME }}
-          REGISTRY_PASSWORD: ${{ secrets.SPENDEAZYAPI2_REGISTRY_PASSWORD }}
-        run: node scripts/run-api-migration-job.mjs
-      - name: Remove migration job if the runner was interrupted
-        if: always() && steps.azure_login.outcome == 'success'
-        env:
-          AZURE_RESOURCE_GROUP: spendeazy-dev
-          MIGRATION_JOB_NAME: spendeazy-mig-${{ github.run_id }}-${{ github.run_attempt }}
-        run: |
-          if az containerapp job show --name "$MIGRATION_JOB_NAME" --resource-group "$AZURE_RESOURCE_GROUP" --only-show-errors --output none; then
-            az containerapp job delete --name "$MIGRATION_JOB_NAME" --resource-group "$AZURE_RESOURCE_GROUP" --yes --output none
-          fi
-
-  web:
-    name: Build and deploy web
-    needs: [changes, validate, migrate, api]
-    if: >-
-      always() && !cancelled() && needs.validate.result == 'success' && needs.changes.result == 'success' &&
-      (needs.migrate.result == 'success' || needs.migrate.result == 'skipped') &&
-      (needs.api.result == 'success' || needs.api.result == 'skipped') &&
-      ((github.event_name == 'workflow_dispatch' && (inputs.project == 'all' || inputs.project == 'web')) ||
-      (needs.changes.outputs.web == 'true' &&
-      (github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed'))))
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: true
-          lfs: false
-      - name: Build and deploy
-        if: ${{ !inputs.verify_only }}
-        uses: Azure/static-web-apps-deploy@v1
-        env:
-          VITE_CLERK_PUBLISHABLE_KEY: ${{ vars.VITE_CLERK_PUBLISHABLE_KEY }}
-          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
-        with:
-          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_VICTORIOUS_FIELD_0CA473A00 }}
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          action: upload
-          app_location: web
-          api_location: ""
-          output_location: dist
-      - name: Verify web publication gate
-        if: inputs.verify_only
-        run: echo "Web publication permitted for $GITHUB_SHA; Azure upload disabled."
-
-  close_web_preview:
-    name: Close web pull request preview
-    # Always attempt cleanup on close, even if earlier web changes were reverted.
-    if: github.event_name == 'pull_request' && github.event.action == 'closed'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Close pull request
-        uses: Azure/static-web-apps-deploy@v1
-        with:
-          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_VICTORIOUS_FIELD_0CA473A00 }}
-          action: close
-
-  api:
-    name: Build and deploy API
-    needs: [changes, validate, migrate]
-    if: >-
-      always() && !cancelled() && needs.validate.result == 'success' && needs.changes.result == 'success' &&
-      (needs.migrate.result == 'success' || (inputs.verify_only && needs.migrate.result == 'skipped')) &&
-      ((github.event_name == 'workflow_dispatch' && (inputs.project == 'all' || inputs.project == 'api')) ||
-      (github.event_name == 'push' && needs.changes.outputs.api == 'true'))
-    runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
-      - name: Azure login
-        if: ${{ !inputs.verify_only }}
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.SPENDEAZYAPI2_AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.SPENDEAZYAPI2_AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.SPENDEAZYAPI2_AZURE_SUBSCRIPTION_ID }}
-      - name: Deploy migration-tested container image
-        if: ${{ !inputs.verify_only }}
-        uses: azure/container-apps-deploy-action@v2
-        with:
-          registryUrl: docker.io
-          registryUsername: ${{ secrets.SPENDEAZYAPI2_REGISTRY_USERNAME }}
-          registryPassword: ${{ secrets.SPENDEAZYAPI2_REGISTRY_PASSWORD }}
-          containerAppName: spendeazy-api
-          resourceGroup: spendeazy-dev
-          imageToDeploy: ${{ needs.migrate.outputs.image }}
-      - name: Verify API publication gate
-        if: inputs.verify_only
-        run: echo "API publication permitted for $GITHUB_SHA; Azure upload disabled."
+    uses: ./.github/workflows/publish.yml
+    secrets: inherit
+    with:
+      project: ${{ inputs.project || 'all' }}
+      verify_only: ${{ inputs.verify_only == true }}
+      validated: ${{ needs.gate.result == 'success' && needs.validate.result == 'success' }}
+      web_artifact_id: ${{ needs.validate.outputs.web_artifact_id }}

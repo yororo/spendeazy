@@ -4,38 +4,58 @@
 
 Every normal main-push release, manual release, and web PR preview calls
 `.github/workflows/ci.yml` from the same revision as the deployment workflow.
+Only `.github/workflows/deploy.yml` subscribes to PR/main events; CI is reusable
+or manually runnable, avoiding a second automatic validation of the same event.
 All checkouts use the event SHA (the merge revision for PR previews). Validation
 runs API/web lint, builds, unit suites, generated OpenAPI consistency, and the
-isolated browser/API/PostgreSQL suite. API lint checks without rewriting source.
-Only a successful validation job permits publication. Failed, canceled, skipped,
+isolated browser/API/PostgreSQL suite in parallel jobs. Browser coverage uses
+two shards with independent environments and one worker per shard. API lint
+checks without rewriting source. The caller preserves the required check name
+`Validate projects and isolated browser suite`; it succeeds only after every
+validation job and browser shard passes. Failed, canceled, skipped,
 or incomplete validation cannot publish either project. Preview cleanup has no
 validation dependency and runs on PR closure even after web changes are reverted.
 Preview publication also requires the current head of an open PR, so rerunning an
 older PR revision cannot replace a newer preview or recreate a closed preview.
+The preview checks PR state/head again immediately before upload. CI builds web
+with the deployment's public Vite variables and uploads `web/dist`, including
+`staticwebapp.config.json`. Publication downloads the artifact by its immutable
+ID from the same workflow run and skips Azure's frontend build. Artifact digest
+mismatches fail the download. Artifacts and browser diagnostics expire after
+seven days; rerun validation if a retained artifact has expired.
 
 Changed paths select web/API independently. Main pushes compare each project
 against its last successful Azure upload, including uploads in otherwise failed
 runs. Skipped, failed, and verification-only publications do not advance that
-baseline. If no publication is found in the latest 100 main runs, publish that
+baseline. History is fetched in compact pages to avoid subprocess output-buffer
+failures, and both historical/current upload step names are recognized, including
+jobs nested under the reusable publication workflow. If no publication is found
+in the latest 100 main runs, publish that
 project conservatively. This carries unpublished API changes into later web
-releases even when an earlier run was canceled or superseded. Changes to either
-workflow or the release scripts select both. PRs use their changed-file list and
+releases even when an earlier run was canceled or superseded. Changes to workflow
+files or the release scripts select both. PRs use their changed-file list and
 publish only web previews; manual runs select `all`, `web`, or `api`.
 The web job accepts a skipped API job only after validation and change detection
 succeed. An API failure or cancellation blocks web publication.
 
-All production runs share one workflow concurrency group, including manual runs.
-An active run finishes before another starts; pending runs may be replaced by
+All production publications share one concurrency group in
+`.github/workflows/publish.yml`, including manual runs. Validation runs outside
+this lock. New PR/main revisions cancel obsolete validation through a separate
+concurrency group; manual verification runs do not cancel each other. An active
+publication finishes before another starts; pending publications may be replaced by
 newer runs. GitHub does not guarantee queue order, so each production run also
 checks that its SHA is the current `main` tip before it can publish. An old rerun
 or non-main manual publication fails this check. New main commits arriving during
 an active release wait for its lock; they cannot finish publication before it.
 Both-project releases complete API deployment before starting web publication.
-Do not split the jobs into separate production concurrency groups.
+Keep migration, API, and web jobs inside this shared publication workflow/lock.
+Publication still rechecks the current main revision after acquiring the lock.
 
 ## API schema migrations
 
-Every production API release builds and pushes one API image, then runs its
+Every production API release uses a Docker Buildx container builder with a
+project-scoped GitHub Actions layer cache, builds and pushes one API image, then
+runs its
 compiled migration entry point from that image in a temporary manual Azure
 Container Apps job. The job uses only `DATABASE_URL`; it does not load Clerk,
 web, or other application configuration. It waits for the migration process to
@@ -89,7 +109,7 @@ artifact consistency and a same-revision suite do not prove cross-version suppor
 
 ## Main enforcement
 
-Main requires `Validate projects and isolated browser suite`, restricted to the
+Main requires the caller's `Validate projects and isolated browser suite` aggregate check, restricted to the
 GitHub Actions app (ID 15368), with strict up-to-date branch checking.
 Administrator enforcement is enabled; force pushes and branch deletion are
 disabled. This is live repository configuration, not a setting installed by YAML.

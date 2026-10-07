@@ -31,13 +31,13 @@ For a credential-free browser/API/PostgreSQL environment, see [local synthetic t
 
 ## Deployment
 
-[The root deployment workflow](.github/workflows/deploy.yml) validates the exact checkout through the reusable [CI workflow](.github/workflows/ci.yml) before publication. Pushes to `main` deploy each project when its paths changed since its last successful upload; changes to either workflow or the release scripts deploy both. Other root-only changes skip both deployment jobs when no unpublished project changes remain.
+[The root deployment workflow](.github/workflows/deploy.yml) owns automatic PR/main validation and calls the reusable [CI workflow](.github/workflows/ci.yml) once per event. API and web checks run alongside two browser shards, each with its own API and PostgreSQL environment. A required aggregate check gates the reusable [publication workflow](.github/workflows/publish.yml). Pushes to `main` deploy each project when its paths changed since its last successful upload; workflow or release-script changes deploy both. Other root-only changes skip both deployment jobs when no unpublished project changes remain.
 
 Pull requests targeting `main` build web previews when web or workflow files change. Closing a pull request attempts preview cleanup even if its web changes were later reverted. API deployments only run on pushes to `main` or manual runs. Use **Run workflow** in GitHub Actions to deploy `web`, `api`, or `all` manually.
 
-The workflow uses the existing Azure and registry secrets and web build variables. Web builds from `web/`; the API container builds from `api/Dockerfile` with `api/` as its build context.
+The workflow uses the existing Azure and registry secrets and web build variables. Web builds once from `web/` during validation and Azure uploads that immutable artifact; the API container builds from `api/Dockerfile` with `api/` as its build context. Actions are pinned to release commits and Dependabot checks for weekly updates.
 
-When both projects are selected, API publication must succeed before web publication. A shared production concurrency lock prevents releases overlapping; active publication is never canceled by a newer push. Production runs must target the current `main` revision. Manual `web` and `api` selections still validate both projects. See [release guidance](docs/releases.md) for compatibility, enforcement, and safe gate verification.
+When both projects are selected, API publication must succeed before web publication. A shared production concurrency lock prevents publications overlapping; active publication is never canceled by a newer push. Validation runs outside this lock, and newer PR/main revisions cancel obsolete validation. Production publication must target the current `main` revision. Manual `web` and `api` selections still validate both projects. See [release guidance](docs/releases.md) for compatibility, enforcement, and safe gate verification.
 
 ## Documentation
 

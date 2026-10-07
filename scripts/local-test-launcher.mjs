@@ -1,8 +1,8 @@
 import { createHmac, randomBytes, randomInt } from "node:crypto";
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync, realpathSync, statSync } from "node:fs";
 import { spawn } from "node:child_process";
 import { createConnection, createServer } from "node:net";
-import { dirname, resolve } from "node:path";
+import { dirname, resolve, relative, isAbsolute, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const rootDirectory = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -21,9 +21,11 @@ const fixedE2eClock =
 const isE2e = process.argv.includes("--e2e");
 const shouldReset = process.argv.includes("--reset");
 const e2eShard = process.env.SPENDEAZY_E2E_SHARD?.trim();
+let selection;
 
 const children = new Set();
 let shuttingDown = false;
+let shutdownPromise;
 let ownsComposeProject = false;
 let configuration;
 const startedAt = performance.now();
@@ -39,6 +41,12 @@ function finishPhase(name) {
 async function main() {
   let exitCode = 0;
   try {
+    if (process.argv.length === 3 && process.argv[2] === "--help") {
+      console.log("Usage: node scripts/local-test-launcher.mjs [--reset | --e2e]\nFocused: --e2e --diagnostic [--spec e2e/example.spec.ts]... [--grep <title-regexp>]\nDiagnostic mode requires at least one selector. Specs form a union; --grep narrows it.\nUnfiltered --e2e is the completion gate. Diagnostic selections are debugging evidence only.");
+      return;
+    }
+    selection = parseSelection(process.argv.slice(2));
+    if (isE2e) console.log(`Run classification: ${selection.classification}; scope: ${JSON.stringify(selection.selectors)}`);
     if (isE2e && shouldReset) {
       throw new Error("Use either --e2e or --reset, not both.");
     }
@@ -177,12 +185,14 @@ async function main() {
       );
       finishPhase("apiChecksMs");
       activePhase = "browserMs";
-      await run("npm", npmArguments("run", "test:e2e", ...(e2eShard ? ["--", `--shard=${e2eShard}`] : [])), {
+      // Run Node directly so selectors never cross a Windows command shell.
+      await run(process.execPath, [resolve(webDirectory, "node_modules/@playwright/test/cli.js"), "test", ...(e2eShard ? [`--shard=${e2eShard}`] : [])], {
         cwd: webDirectory,
         env: {
           ...webEnvironment,
           SPENDEAZY_E2E_BASE_URL: url,
           SPENDEAZY_E2E_REPORT_DIR: configuration.reportDirectory,
+          SPENDEAZY_E2E_SELECTION: JSON.stringify(selection),
         },
       });
       finishPhase("browserMs");
@@ -205,6 +215,7 @@ async function main() {
         runId: configuration.projectName,
         shard: e2eShard ?? "full",
         clock: configuration.testClock,
+        ...selection,
         exitCode: process.exitCode ?? exitCode,
         phases,
         teardownMs: performance.now() - teardownStartedAt,
@@ -214,7 +225,7 @@ async function main() {
     }
   }
 
-  if (exitCode !== 0) process.exitCode = exitCode;
+  if (exitCode !== 0) process.exitCode = process.exitCode || exitCode;
 }
 
 async function createConfiguration() {
@@ -237,7 +248,7 @@ async function createConfiguration() {
   const testDate = parseFixedE2eDate(fixedE2eClock);
   return {
     projectName: `spendeazy-local-test-e2e-${runId}`,
-    reportDirectory: resolve(webDirectory, "e2e-reports", e2eShard?.replaceAll("/", "-") ?? "full", runId),
+    reportDirectory: resolve(webDirectory, "e2e-reports", selection.classification === "diagnostic" ? "diagnostic" : e2eShard?.replaceAll("/", "-") ?? "full", runId),
     databasePort: await findAvailablePort(55432, 59999),
     apiPort: await findAvailablePort(3100, 3999),
     webPort: await findAvailablePort(4100, 4999),
@@ -247,6 +258,51 @@ async function createConfiguration() {
     databaseVolume: `spendeazy-local-test-e2e-${runId}-data`,
     testClock: fixedE2eClock,
     testDate,
+  };
+}
+
+function parseSelection(args) {
+  const diagnostic = args.includes("--diagnostic");
+  const files = [];
+  let grep;
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    if (["--e2e", "--reset", "--diagnostic"].includes(arg)) continue;
+    if (!["--spec", "--grep"].includes(arg)) throw new Error(`Unknown argument: ${arg}. Use --help.`);
+    const value = args[++index];
+    if (!value || value.startsWith("--")) throw new Error(`Missing value for ${arg}.`);
+    if (arg === "--spec") files.push(value);
+    else {
+      if (grep !== undefined) throw new Error("Use --grep only once.");
+      grep = value;
+    }
+  }
+  if ((diagnostic || files.length || grep !== undefined) && (!isE2e || !diagnostic || shouldReset)) {
+    throw new Error("Selectors require --e2e --diagnostic and cannot use --reset or manual mode.");
+  }
+  if (diagnostic && !files.length && grep === undefined) throw new Error("Diagnostic mode requires at least one selector.");
+  if (diagnostic && process.env.CI) throw new Error("Diagnostic selection is forbidden in required CI.");
+  if (diagnostic && e2eShard) throw new Error("Diagnostic selection cannot combine with CI sharding.");
+  if (grep !== undefined) {
+    try { new RegExp(grep); } catch { throw new Error("Invalid title expression for --grep."); }
+  }
+  const tree = realpathSync(resolve(webDirectory, "e2e"));
+  const specs = files.map(file => {
+    const path = resolve(webDirectory, file);
+    const insideTree = candidate => {
+      const fromTree = relative(tree, candidate);
+      return fromTree && fromTree !== ".." && !fromTree.startsWith(`..${sep}`) && !isAbsolute(fromTree);
+    };
+    if (!insideTree(path)) throw new Error(`Browser spec must stay inside the web/e2e acceptance tree: ${file}`);
+    if (!path.endsWith(".spec.ts")) throw new Error(`Browser selector must name a .spec.ts file: ${file}`);
+    if (!existsSync(path) || !statSync(path).isFile()) throw new Error(`Missing browser spec: ${file}`);
+    if (!insideTree(realpathSync(path))) throw new Error(`Browser spec must stay inside the acceptance tree: ${file}`);
+    return relative(webDirectory, path).split(sep).join("/");
+  });
+  return {
+    classification: diagnostic ? "diagnostic" : e2eShard ? "ci-shard" : "full-acceptance",
+    selectionComplete: !diagnostic && !e2eShard,
+    selectors: { specs: [...new Set(specs)], grep: grep ?? null },
   };
 }
 
@@ -287,14 +343,19 @@ function start(command, argumentsToRun, options) {
 }
 
 function run(command, argumentsToRun, options) {
+  if (shuttingDown && !(command === "docker" && argumentsToRun.includes("down"))) {
+    return Promise.reject(new Error("Local test run interrupted."));
+  }
   return new Promise((resolvePromise, reject) => {
     const child = spawnCommand(command, argumentsToRun, {
       ...options,
       stdio: "inherit",
       windowsHide: true,
     });
-    child.once("error", reject);
+    children.add(child);
+    child.once("error", error => { children.delete(child); reject(error); });
     child.once("exit", (code, signal) => {
+      children.delete(child);
       if ((code ?? 1) === 0) {
         resolvePromise();
         return;
@@ -312,6 +373,7 @@ async function runWithRetries(command, argumentsToRun, options, label) {
       await run(command, argumentsToRun, options);
       return;
     } catch (error) {
+      if (shuttingDown) throw error;
       lastError = error;
       await delay(1000);
     }
@@ -332,7 +394,8 @@ function spawnCommand(command, argumentsToRun, options) {
     );
   }
 
-  return spawn(command, argumentsToRun, options);
+  // A process group lets teardown stop npm's shell and service descendants too.
+  return spawn(command, argumentsToRun, { ...options, detached: process.platform !== "win32" });
 }
 
 function quoteWindowsArgument(value) {
@@ -406,6 +469,7 @@ async function waitForHttp(url, label) {
 
 async function waitUntil(check, label) {
   for (let attempt = 0; attempt < 60; attempt += 1) {
+    if (shuttingDown) throw new Error("Local test run interrupted.");
     if (await check()) return;
     await delay(500);
   }
@@ -449,8 +513,12 @@ async function openBrowser(url) {
   }
 }
 
-async function shutdown(exitCode = 0) {
-  if (shuttingDown) return;
+function shutdown(exitCode = 0) {
+  if (!shutdownPromise) shutdownPromise = performShutdown(exitCode);
+  return shutdownPromise;
+}
+
+async function performShutdown(exitCode) {
   shuttingDown = true;
 
   const stoppingChildren = [...children].map(
@@ -509,7 +577,11 @@ function terminateChild(child) {
     return;
   }
 
-  child.kill("SIGTERM");
+  try {
+    process.kill(-child.pid, "SIGTERM");
+  } catch (error) {
+    if (error.code !== "ESRCH") throw error;
+  }
 }
 
 function createSessionToken(secret, testClock) {
@@ -556,8 +628,8 @@ function formatError(error) {
   return error instanceof Error ? error.message : String(error);
 }
 
-process.on("SIGINT", () => void shutdown(0));
-process.on("SIGTERM", () => void shutdown(0));
+process.on("SIGINT", () => { process.exitCode = 130; void shutdown(130); });
+process.on("SIGTERM", () => { process.exitCode = 143; void shutdown(143); });
 
 main().catch(async (error) => {
   process.exitCode = 1;

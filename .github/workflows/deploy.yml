@@ -88,18 +88,79 @@ jobs:
               - '.github/workflows/ci.yml'
               - 'scripts/release-plan.mjs'
               - 'scripts/verify-release-gates.mjs'
+              - 'scripts/run-api-migration-job.mjs'
             api:
               - 'api/**'
               - '.github/workflows/deploy.yml'
               - '.github/workflows/ci.yml'
               - 'scripts/release-plan.mjs'
               - 'scripts/verify-release-gates.mjs'
+              - 'scripts/run-api-migration-job.mjs'
+
+  migrate:
+    name: Run API migrations
+    needs: [changes, validate]
+    if: >-
+      needs.validate.result == 'success' && needs.changes.result == 'success' &&
+      ((github.event_name == 'workflow_dispatch' && !inputs.verify_only && (inputs.project == 'all' || inputs.project == 'api')) ||
+      (github.event_name == 'push' && needs.changes.outputs.api == 'true'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      id-token: write
+      contents: read
+    outputs:
+      image: ${{ steps.image.outputs.digest && format('syoro/spendeazy-api@{0}', steps.image.outputs.digest) }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.SPENDEAZYAPI2_REGISTRY_USERNAME }}
+          password: ${{ secrets.SPENDEAZYAPI2_REGISTRY_PASSWORD }}
+      - name: Build and publish API image
+        id: image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./api
+          file: ./api/Dockerfile
+          push: true
+          tags: syoro/spendeazy-api:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Azure login
+        id: azure_login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.SPENDEAZYAPI2_AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.SPENDEAZYAPI2_AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.SPENDEAZYAPI2_AZURE_SUBSCRIPTION_ID }}
+      - name: Run migrations with the published image
+        env:
+          AZURE_RESOURCE_GROUP: spendeazy-dev
+          CONTAINERAPPS_ENVIRONMENT: managedEnvironment-spendeazydev-a6e6
+          MIGRATION_JOB_NAME: spendeazy-mig-${{ github.run_id }}-${{ github.run_attempt }}
+          MIGRATION_IMAGE: syoro/spendeazy-api@${{ steps.image.outputs.digest }}
+          DATABASE_URL: ${{ secrets.SPENDEAZYAPI2_DATABASE_URL }}
+          REGISTRY_USERNAME: ${{ secrets.SPENDEAZYAPI2_REGISTRY_USERNAME }}
+          REGISTRY_PASSWORD: ${{ secrets.SPENDEAZYAPI2_REGISTRY_PASSWORD }}
+        run: node scripts/run-api-migration-job.mjs
+      - name: Remove migration job if the runner was interrupted
+        if: always() && steps.azure_login.outcome == 'success'
+        env:
+          AZURE_RESOURCE_GROUP: spendeazy-dev
+          MIGRATION_JOB_NAME: spendeazy-mig-${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          if az containerapp job show --name "$MIGRATION_JOB_NAME" --resource-group "$AZURE_RESOURCE_GROUP" --only-show-errors --output none; then
+            az containerapp job delete --name "$MIGRATION_JOB_NAME" --resource-group "$AZURE_RESOURCE_GROUP" --yes --output none
+          fi
 
   web:
     name: Build and deploy web
-    needs: [changes, validate, api]
+    needs: [changes, validate, migrate, api]
     if: >-
       always() && !cancelled() && needs.validate.result == 'success' && needs.changes.result == 'success' &&
+      (needs.migrate.result == 'success' || needs.migrate.result == 'skipped') &&
       (needs.api.result == 'success' || needs.api.result == 'skipped') &&
       ((github.event_name == 'workflow_dispatch' && (inputs.project == 'all' || inputs.project == 'web')) ||
       (needs.changes.outputs.web == 'true' &&
@@ -141,9 +202,10 @@ jobs:
 
   api:
     name: Build and deploy API
-    needs: [changes, validate]
+    needs: [changes, validate, migrate]
     if: >-
-      needs.validate.result == 'success' &&
+      always() && !cancelled() && needs.validate.result == 'success' && needs.changes.result == 'success' &&
+      (needs.migrate.result == 'success' || (inputs.verify_only && needs.migrate.result == 'skipped')) &&
       ((github.event_name == 'workflow_dispatch' && (inputs.project == 'all' || inputs.project == 'api')) ||
       (github.event_name == 'push' && needs.changes.outputs.api == 'true'))
     runs-on: ubuntu-latest
@@ -159,18 +221,16 @@ jobs:
           client-id: ${{ secrets.SPENDEAZYAPI2_AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.SPENDEAZYAPI2_AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.SPENDEAZYAPI2_AZURE_SUBSCRIPTION_ID }}
-      - name: Build and deploy container image
+      - name: Deploy migration-tested container image
         if: ${{ !inputs.verify_only }}
         uses: azure/container-apps-deploy-action@v2
         with:
-          appSourcePath: ${{ github.workspace }}/api
-          dockerfilePath: Dockerfile
           registryUrl: docker.io
           registryUsername: ${{ secrets.SPENDEAZYAPI2_REGISTRY_USERNAME }}
           registryPassword: ${{ secrets.SPENDEAZYAPI2_REGISTRY_PASSWORD }}
           containerAppName: spendeazy-api
           resourceGroup: spendeazy-dev
-          imageToBuild: syoro/spendeazy-api:${{ github.sha }}
+          imageToDeploy: ${{ needs.migrate.outputs.image }}
       - name: Verify API publication gate
         if: inputs.verify_only
         run: echo "API publication permitted for $GITHUB_SHA; Azure upload disabled."

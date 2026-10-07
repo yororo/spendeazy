@@ -21,7 +21,7 @@ describe('Category OpenAPI contract', () => {
 
     expect(document.tags).toContainEqual({
       name: 'Categories',
-      description: 'Active and historical categories.',
+      description: 'Active and historical Categories in a Space.',
     });
     expect(createOperation).toMatchObject({
       operationId: 'Categories_createCategory',
@@ -33,7 +33,8 @@ describe('Category OpenAPI contract', () => {
     expect(listOperation).toMatchObject({
       operationId: 'Categories_listCategories',
       tags: ['Categories'],
-      summary: 'List all owned categories in ascending ID order.',
+      summary:
+        "List Categories in the authenticated User's Personal Space in ascending ID order.",
     });
     expect(getOperation).toMatchObject({
       operationId: 'Categories_getCategory',

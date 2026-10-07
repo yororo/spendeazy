@@ -18,7 +18,7 @@ describe('Category summary OpenAPI contract', () => {
 
     expect(document.tags).toContainEqual({
       name: 'Category summaries',
-      description: 'Calendar-period spending summaries.',
+      description: 'Calendar-period spending summaries for a Space.',
     });
     expect(operation).toMatchObject({
       operationId: 'CategorySummaries_getCategorySummary',

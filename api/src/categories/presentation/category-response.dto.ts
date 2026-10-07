@@ -17,7 +17,7 @@ type ApiSchemaOptionsWithAdditionalProperties = {
 
 @ApiSchema({
   description:
-    'A Category owned by the authenticated User. Inactive Categories retain their historical relationships.',
+    'A Category in the authorized Space. Inactive Categories retain their historical relationships.',
   additionalProperties: false,
 } as ApiSchemaOptionsWithAdditionalProperties)
 export class CategoryResponseDto {

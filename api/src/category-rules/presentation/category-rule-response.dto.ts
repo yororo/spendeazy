@@ -46,7 +46,7 @@ export class CategoryRuleResponseDto {
 
   @ApiProperty({
     description:
-      'Exact or Contains matching. The normalized pattern is not returned.',
+      'Exact matches the entire normalized Transaction description. Contains matches a literal substring anywhere, including within a word. Matching ignores case and normalizes whitespace; punctuation remains significant. Exact Rules take precedence over Contains Rules during categorization. The frontend evaluates rules; the normalized pattern is not returned.',
     enum: CATEGORY_RULE_MATCH_TYPES,
     example: EXACT_CATEGORY_RULE_MATCH_TYPE,
   })

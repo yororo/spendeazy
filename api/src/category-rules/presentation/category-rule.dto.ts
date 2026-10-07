@@ -53,7 +53,7 @@ export class CreateCategoryRuleDto {
     enum: CATEGORY_RULE_MATCH_TYPES,
     default: 'exact',
     description:
-      'Omission creates an Exact rule, including frontend Remember requests.',
+      'Exact matches the entire normalized Transaction description. Contains matches a literal substring anywhere, including within a word. Matching ignores case and normalizes whitespace; punctuation remains significant. Exact Rules take precedence over Contains Rules during categorization. Omission creates an Exact Rule, including frontend Remember requests.',
   })
   matchType?: CategoryRuleMatchType;
 
@@ -95,7 +95,8 @@ export class UpdateCategoryRuleDto {
   @IsIn(CATEGORY_RULE_MATCH_TYPES)
   @ApiPropertyOptional({
     enum: CATEGORY_RULE_MATCH_TYPES,
-    description: 'Omission preserves the current match type.',
+    description:
+      'Exact matches the entire normalized Transaction description. Contains matches a literal substring anywhere, including within a word. Matching ignores case and normalizes whitespace; punctuation remains significant. Exact Rules take precedence over Contains Rules during categorization. Omission preserves the current match type.',
   })
   matchType?: CategoryRuleMatchType;
 
@@ -169,7 +170,11 @@ export class ReplacementCategoryRuleDto {
   pattern!: string;
 
   @IsIn(CATEGORY_RULE_MATCH_TYPES)
-  @ApiProperty({ enum: CATEGORY_RULE_MATCH_TYPES })
+  @ApiProperty({
+    enum: CATEGORY_RULE_MATCH_TYPES,
+    description:
+      'Exact matches the entire normalized Transaction description. Contains matches a literal substring anywhere, including within a word. Matching ignores case and normalizes whitespace; punctuation remains significant. Exact Rules take precedence over Contains Rules during categorization.',
+  })
   matchType!: CategoryRuleMatchType;
 }
 

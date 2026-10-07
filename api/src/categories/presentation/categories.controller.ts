@@ -95,7 +95,10 @@ export class CategoriesController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'List all owned categories in ascending ID order.' })
+  @ApiOperation({
+    summary:
+      "List Categories in the authenticated User's Personal Space in ascending ID order.",
+  })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Categories.',

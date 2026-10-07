@@ -124,7 +124,7 @@ export class TransactionsController {
     summary:
       'List filtered transactions in date-descending, ID-descending keyset pages.',
     description:
-      'Returns manual and imported Transactions owned by the authenticated User in purchaseDate descending, then Transaction ID descending order. fromDate and toDate are inclusive valid calendar-date filters and fromDate must be on or before toDate. pageSize must be between 1 and 100 and defaults to 20. The nextCursor is opaque, binds to every filter except pageSize, and must be reused with the same filters. Unknown query parameters are rejected.',
+      'Returns manual and imported Transactions in the authorized Space in purchaseDate descending, then Transaction ID descending order. fromDate and toDate are inclusive valid calendar-date filters and fromDate must be on or before toDate. pageSize must be between 1 and 100 and defaults to 20. The nextCursor is opaque, binds to every filter except pageSize, and must be reused with the same filters. Unknown query parameters are rejected.',
   })
   @ApiResponse({
     status: HttpStatus.OK,

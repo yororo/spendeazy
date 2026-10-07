@@ -26,7 +26,7 @@ describe('OpenAPI setup', () => {
       ui: true,
       jsonDocumentUrl: JSON_DOCUMENT_PATH,
       yamlDocumentUrl: YAML_DOCUMENT_PATH,
-      customSiteTitle: 'Expense Tracker REST API',
+      customSiteTitle: 'Spendeazy REST API',
     });
   });
 });

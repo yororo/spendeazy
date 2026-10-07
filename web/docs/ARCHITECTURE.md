@@ -58,6 +58,8 @@ Paths are relative to `web/`. Feature `index.ts` files remain the public integra
 
 API service, persistence, and integration-test owners are in the [API task map](../../api/ARCHITECTURE.md#task-entry-points).
 
+The [API route compatibility guide](../../api/docs/route-compatibility.md) records paired Personal aliases, explicit Space routes, and which first-party web adapters can still select an alias when no Space ID is supplied.
+
 ## Shared boundaries
 
 The important shared seams are:

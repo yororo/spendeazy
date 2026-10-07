@@ -1,5 +1,9 @@
 import SwaggerParser from '@apidevtools/swagger-parser';
-import type { OpenAPIObject, OperationObject } from '@nestjs/swagger';
+import type {
+  OpenAPIObject,
+  OperationObject,
+  SchemaObject,
+} from '@nestjs/swagger';
 import { API_PREFIX } from '../config/app-config';
 import { createOpenApiDocument } from './openapi-document.factory';
 
@@ -52,6 +56,48 @@ describe('OpenAPI document factory', () => {
         database: { type: 'string', enum: ['ready', 'unavailable'] },
       },
     });
+  });
+
+  it('documents Spendeazy branding, Space ownership, attribution, and both Category Rule matches', async () => {
+    const document = await createOpenApiDocument();
+    const categoryRulesTag = document.tags?.find(
+      ({ name }) => name === 'Category rules',
+    );
+    const createRuleSchema = document.components?.schemas
+      ?.CreateCategoryRuleDto as SchemaObject;
+    const matchTypeSchema = createRuleSchema.properties
+      ?.matchType as SchemaObject;
+    const categorySchema = document.components?.schemas
+      ?.CategoryResponseDto as SchemaObject;
+    const transactionSchema = document.components?.schemas
+      ?.ManualTransactionResponseDto as SchemaObject;
+    const addedBySchema = transactionSchema.properties
+      ?.addedByUserId as SchemaObject;
+    const statementImportSchema = document.components?.schemas
+      ?.StatementImportResponseDto as SchemaObject;
+    const importedBySchema = statementImportSchema.properties
+      ?.importedByUserId as SchemaObject;
+    const commitStatementImport =
+      document.paths[
+        `/${API_PREFIX}/users/me/spaces/{spaceId}/statement-imports`
+      ]?.post;
+
+    expect(document.info.title).toBe('Spendeazy REST API');
+    expect(document.info.description).toContain(
+      'authorized Personal and Shared Spaces',
+    );
+    expect(categoryRulesTag?.description).toContain('Exact and Contains');
+    expect(matchTypeSchema.type).toBe('string');
+    expect(matchTypeSchema.enum as unknown).toEqual(['exact', 'contains']);
+    expect(matchTypeSchema.description).toContain('substring');
+    expect(categorySchema.description).toContain('authorized Space');
+    expect(transactionSchema.description).toContain('authorized Space');
+    expect(addedBySchema.description).toContain(
+      'does not determine Space ownership',
+    );
+    expect(importedBySchema.description).toContain('actor attribution');
+    expect(statementImportSchema.description).toContain('destination Space');
+    expect(commitStatementImport?.description).toContain('actor attribution');
   });
 
   it('contains every production controller route in the offline inventory', async () => {

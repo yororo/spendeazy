@@ -106,7 +106,8 @@ export class CategoryRulesController {
 
   @Get()
   @ApiOperation({
-    summary: 'List all owned category rules in ascending ID order.',
+    summary:
+      "List Category Rules in the authenticated User's Personal Space in ascending ID order.",
   })
   @ApiResponse({
     status: HttpStatus.OK,

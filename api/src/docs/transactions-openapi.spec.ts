@@ -37,7 +37,7 @@ describe('Transaction OpenAPI contract', () => {
 
     expect(document.tags).toContainEqual({
       name: 'Transactions',
-      description: 'Manual and imported expenses.',
+      description: 'Manual and imported expenses in a Space.',
     });
     expect(createOperation).toMatchObject({
       operationId: 'Transactions_createManualTransaction',

@@ -16,7 +16,7 @@ type ApiSchemaOptionsWithAdditionalProperties = {
 
 @ApiSchema({
   description:
-    'A committed Statement import in the destination Space, attributed to the importing User. Client file hashes and persistence fields are not returned.',
+    'A committed Statement Import belonging to the destination Space. The User who confirmed it remains the importer actor. Client file hashes and persistence fields are not returned.',
   additionalProperties: false,
 } as ApiSchemaOptionsWithAdditionalProperties)
 export class StatementImportResponseDto {
@@ -103,7 +103,7 @@ export class StatementImportResponseDto {
 
   @ApiProperty({
     description:
-      'Positive bigint User identifier for the contributor who imported the Statement, encoded as a string.',
+      'Positive bigint User identifier for the actor who confirmed this Statement Import. It is immutable actor attribution; the Committed Statement Import belongs to its Space.',
     pattern: POSITIVE_INTEGER_ID_PATTERN.source,
     example: '7',
   })
@@ -199,7 +199,7 @@ export class StatementImportHistoryResponseDto {
 
   @ApiProperty({
     description:
-      'Positive bigint User identifier for the contributor who imported the Statement, encoded as a string.',
+      'Positive bigint User identifier for the actor who confirmed this Statement Import. It is immutable actor attribution; the Committed Statement Import belongs to its Space.',
     pattern: POSITIVE_INTEGER_ID_PATTERN.source,
     example: '7',
   })

@@ -27,7 +27,7 @@ describe('User OpenAPI contract', () => {
     });
     expect(document.tags).toContainEqual({
       name: 'Users',
-      description: 'Expense-data owners.',
+      description: 'Authenticated User identities and profile data.',
     });
     expect(provisionOperation.requestBody).toBeUndefined();
 

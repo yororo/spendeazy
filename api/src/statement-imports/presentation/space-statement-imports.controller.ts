@@ -198,7 +198,7 @@ export class SpaceStatementImportsController {
   @ApiOperation({
     summary: 'Commit a reviewed Statement Import into an authorized Space.',
     description:
-      'Revalidates reviewed Categories and duplicate state for the destination Space, then commits the Statement Import and all selected Transactions atomically. The importing User is retained as the Statement Import and Transaction contributor.',
+      'Revalidates reviewed Categories and duplicate state for the destination Space, then commits the Statement Import and all selected Transactions atomically. The confirming User is recorded as immutable actor attribution on the Statement Import and its Transactions; those financial records belong to the destination Space.',
   })
   @ApiResponse({
     status: HttpStatus.CREATED,

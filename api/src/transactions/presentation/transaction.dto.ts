@@ -110,7 +110,7 @@ export class TransactionCollectionQueryDto {
   @Matches(POSITIVE_INTEGER_ID_PATTERN)
   @ApiPropertyOptional({
     description:
-      'Only Transactions assigned to this positive bigint Category identifier owned by the authenticated User.',
+      'Only Transactions assigned to this positive bigint Category identifier in the authorized Space.',
     type: String,
     pattern: POSITIVE_INTEGER_ID_PATTERN.source,
     example: '42',
@@ -133,7 +133,7 @@ export class TransactionCollectionQueryDto {
   @Matches(POSITIVE_INTEGER_ID_PATTERN)
   @ApiPropertyOptional({
     description:
-      'Only Transactions committed from this positive bigint Statement import identifier owned by the authenticated User.',
+      'Only Transactions committed from this positive bigint Statement Import identifier in the authorized Space.',
     type: String,
     pattern: POSITIVE_INTEGER_ID_PATTERN.source,
     example: '10',

@@ -17,7 +17,7 @@ import { OpenApiModule } from './openapi.module';
 
 export const OPENAPI_VERSION = '3.0.3';
 export const API_CONTRACT_VERSION = '1.0.0';
-const API_TITLE = 'Expense Tracker REST API';
+const API_TITLE = 'Spendeazy REST API';
 
 export async function createOpenApiDocument(): Promise<OpenAPIObject> {
   const app = await NestFactory.create(OpenApiModule, {
@@ -63,20 +63,29 @@ function createDocumentConfig(): Omit<OpenAPIObject, 'paths'> {
   return new DocumentBuilder()
     .setTitle(API_TITLE)
     .setDescription(
-      'A user-scoped expense tracker API. Bigint identifiers and counts, decimal money, domain dates, and UTC timestamps use the encodings described by the schemas below.',
+      'The Spendeazy REST API serves financial data in authorized Personal and Shared Spaces. Categories, Budgets, Category Rules, Transactions, and Statement Imports belong to a Space. Transaction Added By and Statement Import importer fields preserve actor attribution without changing Space ownership. Bigint identifiers and counts, decimal money, domain dates, and UTC timestamps use the encodings described by the schemas below.',
     )
     .setVersion(API_CONTRACT_VERSION)
     .setOpenAPIVersion(OPENAPI_VERSION)
     .addServer('/')
     .addTag('Health', 'Operational readiness.')
-    .addTag('Users', 'Expense-data owners.')
+    .addTag('Users', 'Authenticated User identities and profile data.')
     .addTag('Spaces', 'Authorized Personal and Shared financial contexts.')
-    .addTag('Categories', 'Active and historical categories.')
-    .addTag('Budgets', 'Recurring category budgets.')
-    .addTag('Category rules', 'Exact-description rules.')
-    .addTag('Transactions', 'Manual and imported expenses.')
-    .addTag('Statement imports', 'Reviewed import commits and history.')
-    .addTag('Category summaries', 'Calendar-period spending summaries.')
+    .addTag('Categories', 'Active and historical Categories in a Space.')
+    .addTag('Budgets', 'Recurring Category Budgets in a Space.')
+    .addTag(
+      'Category rules',
+      'Exact and Contains description-matching rules used during Statement Import categorization.',
+    )
+    .addTag('Transactions', 'Manual and imported expenses in a Space.')
+    .addTag(
+      'Statement imports',
+      'Reviewed import commits and history in a Space.',
+    )
+    .addTag(
+      'Category summaries',
+      'Calendar-period spending summaries for a Space.',
+    )
     .addBearerAuth(
       {
         type: 'http',

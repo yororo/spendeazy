@@ -29,7 +29,7 @@ describe('Statement import OpenAPI contract', () => {
 
     expect(document.tags).toContainEqual({
       name: 'Statement imports',
-      description: 'Reviewed import commits and history.',
+      description: 'Reviewed import commits and history in a Space.',
     });
     expect(createOperation).toMatchObject({
       operationId: 'StatementImports_commitReviewedStatementImport',

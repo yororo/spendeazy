@@ -6,7 +6,7 @@ import { createOpenApiDocument } from './openapi-document.factory';
 type SwaggerParserDocument = Parameters<typeof SwaggerParser.validate>[0];
 
 describe('Category Rule OpenAPI contract', () => {
-  it('describes exact matching, category reassignment, and every rule operation', async () => {
+  it('describes Exact and Contains matching, category reassignment, and every rule operation', async () => {
     const document = await createOpenApiDocument();
     const collectionPath =
       document.paths[`/${API_PREFIX}/users/me/category-rules`];
@@ -24,7 +24,8 @@ describe('Category Rule OpenAPI contract', () => {
 
     expect(document.tags).toContainEqual({
       name: 'Category rules',
-      description: 'Exact-description rules.',
+      description:
+        'Exact and Contains description-matching rules used during Statement Import categorization.',
     });
     expect(createOperation).toMatchObject({
       operationId: 'CategoryRules_createCategoryRule',
@@ -36,7 +37,8 @@ describe('Category Rule OpenAPI contract', () => {
     expect(listOperation).toMatchObject({
       operationId: 'CategoryRules_listCategoryRules',
       tags: ['Category rules'],
-      summary: 'List all owned category rules in ascending ID order.',
+      summary:
+        "List Category Rules in the authenticated User's Personal Space in ascending ID order.",
     });
     expect(getOperation).toMatchObject({
       operationId: 'CategoryRules_getCategoryRule',

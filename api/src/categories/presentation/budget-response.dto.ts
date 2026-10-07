@@ -13,7 +13,7 @@ type ApiSchemaOptionsWithAdditionalProperties = {
 
 @ApiSchema({
   description:
-    'A recurring Budget owned through its Category and the authenticated User.',
+    'A recurring Budget belonging to a Category in the authorized Space.',
   additionalProperties: false,
 } as ApiSchemaOptionsWithAdditionalProperties)
 export class BudgetResponseDto {

@@ -79,6 +79,51 @@ automated database starts empty, so provisioning and Default Category creation
 remain real first-time checks; test-created data is deterministic fictional
 data owned by that run.
 
+### Focused browser diagnostics
+
+Use explicit diagnostic mode to select exact specs relative to `web/` and/or a
+Playwright test-title regular expression:
+
+```powershell
+node scripts/local-test-launcher.mjs --e2e --diagnostic --spec e2e/local-test.spec.ts
+node scripts/local-test-launcher.mjs --e2e --diagnostic --spec e2e/local-test.spec.ts --spec e2e/mobile-date-fields.spec.ts
+node scripts/local-test-launcher.mjs --e2e --diagnostic --grep 'first-time provisioning'
+node scripts/local-test-launcher.mjs --e2e --diagnostic --spec e2e/local-test.spec.ts --grep 'provisions|first-time'
+node scripts/local-test-launcher.mjs --help
+npm --prefix web run typecheck:e2e
+```
+
+Repeated specs form a union; the title pattern narrows that union. A title
+pattern alone searches the acceptance tree. Selectors require `--e2e
+--diagnostic`; diagnostics require at least one selector and cannot combine
+with manual/reset mode, CI or sharding. Missing values, malformed patterns,
+unknown arguments, non-spec files and paths outside `web/e2e/` fail before
+service startup. A valid selection with no tests fails when Playwright
+discovers the suite. Browser failures and empty selections return a nonzero
+launcher status.
+
+Diagnostics use the same disposable PostgreSQL, real API, first-time User
+provisioning, fixed clock, readiness checks and required rollback/duplicate
+tests. Success, failure and supported Ctrl+C/SIGTERM interruption stop only
+the run's processes and remove its database volume. Forced operating-system
+termination cannot guarantee cleanup. Screenshots on failure and first-retry
+traces remain under each unique run directory; use the existing bounded
+`SPENDEAZY_E2E_WORKERS` option (1 or 2, default 1).
+
+Reports record `classification` (`full-acceptance`, `ci-shard`, or
+`diagnostic`), effective `selectors` and `selectionComplete`. Diagnostic
+artifacts live under `web/e2e-reports/diagnostic/<run-id>/`. Console output
+identifies their scope. Diagnostic, contradictory and historical unclassified
+reports remain readable but cannot satisfy full acceptance or timing comparison
+validation. Use the ordinary unfiltered `--e2e` command for completion.
+
+`typecheck:e2e` strictly checks all maintained `e2e/**/*.ts` specs/helpers and
+`playwright.config.ts` with no emitted output. It needs only web dependencies,
+without Docker, Edge, services or credentials. Test sources stay separate from
+the application build. Both required browser CI shards run the compiler before
+browser installation and service startup; compiler errors fail the aggregate
+validation gate with their original diagnostics.
+
 ### E2E scenario contract
 
 Treat every `--e2e` invocation as a clean installation. It has no populated
@@ -172,6 +217,7 @@ npm --prefix api test -- --runInBand
 npm --prefix api run openapi:check
 npm --prefix web run lint
 npm --prefix web run build
+npm --prefix web run typecheck:e2e
 npm --prefix web test -- --run
 npm --prefix web exec playwright install --with-deps msedge
 node scripts/verify-release-gates.mjs

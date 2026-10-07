@@ -127,6 +127,11 @@ jobs:
         run: |
           npm --prefix api ci
           npm --prefix web ci
+      - name: Type-check browser acceptance sources
+        run: npm run typecheck:e2e
+        working-directory: web
+      - name: Verify diagnostic tooling
+        run: node --test scripts/local-test-launcher.test.mjs scripts/e2e-selection.test.mjs scripts/e2e-timing-summary.test.mjs scripts/e2e-typecheck.test.mjs
       - name: Install Playwright Microsoft Edge
         run: npx playwright install --with-deps msedge
         working-directory: web

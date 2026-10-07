@@ -18,6 +18,10 @@ React, TypeScript, Tailwind CSS, Vite, and Node.js.
 
 From `web/`, run `npm install`, configure the environment below, then run `npm run dev`. Start the API separately using its README. Use `npm run lint`, `npm run build`, and `npm test` to validate web code changes.
 
+Run `npm run typecheck:e2e` for strict browser-test and Playwright configuration
+checking without services. See [focused browser diagnostics](../docs/local-testing.md#focused-browser-diagnostics)
+for supported spec/title selection and the required unfiltered completion run.
+
 ## Authentication and API setup
 
 Spendeazy uses Clerk SSO. Copy `.env.example` to `.env.local`, then replace the placeholder with the publishable key from your Clerk instance:

@@ -17,9 +17,11 @@ test("reports nested attempts, retries, skipped tests and shard duration", () =>
   assert.equal(run.browserMs, 80);
   assert.equal(run.launcherMs, 100);
   assert.equal(run.slowest[0].attempts.length, 2);
+  assert.equal(run.fullAcceptanceEligible, false);
 });
 
 const run = duration => ({ shard: "full", clock: "fixed", workers: 1, browserMs: duration,
+  classification: "full-acceptance", selectionComplete: true, selectors: { specs: [], grep: null }, scopeConsistent: true, tests: 10,
   launcherMs: duration + 10, retries: 0, flaky: 0, skipped: 0, failed: 0, exitCode: 0 });
 
 test("compares medians and rejects savings accompanied by more retries", () => {
@@ -28,6 +30,33 @@ test("compares medians and rejects savings accompanied by more retries", () => {
   assert.equal(compareRuns(before, after).browserSavedMs, 50);
   assert.equal(compareRuns(before, after).accepted, true);
   assert.equal(compareRuns(before, [{ ...after[0], retries: 1 }, ...after.slice(1)]).accepted, false);
+});
+
+test("successful diagnostics, contradictory scope and historical runs are never benchmark evidence", () => {
+  const runs = [run(100), run(100), run(100)];
+  for (const invalid of [
+    { classification: "diagnostic", selectionComplete: false },
+    { classification: undefined },
+    { selectionComplete: undefined },
+    { selectors: undefined },
+    { selectors: { specs: ["e2e/local-test.spec.ts"], grep: null } },
+    { selectors: { specs: [], grep: "provision" } },
+    { classification: "ci-shard" },
+    { scopeConsistent: false },
+    { tests: 0 },
+  ]) assert.throws(() => compareRuns(runs, [{ ...runs[0], ...invalid }, ...runs.slice(1)]), /unfiltered successful/);
+});
+
+test("full acceptance requires matching browser and launcher scope metadata", () => {
+  const launcher = { ...run(10), runId: "run", wallMs: 10, phases: {}, teardownMs: 0 };
+  const metadata = { classification: "full-acceptance", selectionComplete: true, selectors: { specs: [], grep: null } };
+  const browser = { config: { workers: 1, metadata }, stats: { duration: 10 }, suites: [{ specs: [
+    { title: "passes", file: "one.spec.ts", tests: [{ status: "expected", expectedStatus: "passed", results: [{ retry: 0, status: "passed", duration: 10 }] }] },
+  ] }] };
+  assert.equal(summarizeRun(browser, launcher).fullAcceptanceEligible, true);
+  for (const scope of [undefined, { ...metadata, classification: "diagnostic" }, { ...metadata, selectors: { specs: [], grep: "passes" } }]) {
+    assert.equal(summarizeRun({ ...browser, config: { workers: 1, metadata: scope } }, launcher).fullAcceptanceEligible, false);
+  }
 });
 
 test("rejects incomplete, filtered, skipped or mismatched benchmark runs", () => {

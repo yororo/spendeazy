@@ -21,8 +21,14 @@ export function summarizeRun(browser, launcher) {
     }
   }
   for (const suite of browser.suites) visit(suite);
-  return {
+  const summary = {
     runId: launcher.runId, shard: launcher.shard, clock: launcher.clock,
+    classification: launcher.classification ?? "unclassified",
+    selectionComplete: launcher.selectionComplete,
+    selectors: launcher.selectors,
+    scopeConsistent: browser.config.metadata?.classification === launcher.classification &&
+      browser.config.metadata?.selectionComplete === launcher.selectionComplete &&
+      JSON.stringify(browser.config.metadata?.selectors) === JSON.stringify(launcher.selectors),
     workers: browser.config.workers,
     browserMs: browser.stats.duration, launcherMs: launcher.wallMs,
     phases: { ...launcher.phases, teardownMs: launcher.teardownMs },
@@ -37,6 +43,14 @@ export function summarizeRun(browser, launcher) {
       a.attempts.reduce((total, result) => total + result.durationMs, 0),
     ).slice(0, 10),
   };
+  return { ...summary, fullAcceptanceEligible: qualifiesForFullAcceptance(summary) };
+}
+
+function qualifiesForFullAcceptance(run) {
+  return run.classification === "full-acceptance" && run.selectionComplete === true &&
+    Array.isArray(run.selectors?.specs) && run.selectors.specs.length === 0 && run.selectors.grep === null &&
+    run.scopeConsistent === true && run.shard === "full" && !run.browserReportMissing &&
+    run.exitCode === 0 && run.skipped === 0 && run.failed === 0 && run.tests > 0;
 }
 
 function loadRuns(directory) {
@@ -47,6 +61,8 @@ function loadRuns(directory) {
       const launcher = JSON.parse(readFileSync(join(path, "launcher.json"), "utf8"));
       if (!entries.some(entry => entry.name === "playwright.json")) {
         runs.push({ runId: launcher.runId, shard: launcher.shard, exitCode: launcher.exitCode,
+          classification: launcher.classification ?? "unclassified", selectors: launcher.selectors,
+          selectionComplete: launcher.selectionComplete, fullAcceptanceEligible: false,
           phases: launcher.phases, launcherMs: launcher.wallMs, browserReportMissing: true });
       } else {
         runs.push(summarizeRun(JSON.parse(readFileSync(join(path, "playwright.json"), "utf8")), launcher));
@@ -69,7 +85,7 @@ function median(values) {
 export function compareRuns(before, after) {
   for (const runs of [before, after]) {
     if (runs.length < 3) throw new Error("A matched benchmark requires at least three runs per configuration.");
-    if (runs.some(run => run.shard !== "full" || run.browserReportMissing || run.exitCode || run.skipped || run.failed)) {
+    if (runs.some(run => !qualifiesForFullAcceptance(run))) {
       throw new Error("Benchmark requires unfiltered successful runs without skips or missing reports.");
     }
   }

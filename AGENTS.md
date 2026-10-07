@@ -1,6 +1,6 @@
 # Working in Spendeazy
 
-Spendeazy is one personal-finance product with two independently built npm projects. Read [GLOSSARY.md](GLOSSARY.md) for shared domain language before changing behavior.
+Spendeazy is one personal-finance product with two independently built npm projects. Root guidance applies throughout; project `AGENTS.md` files add local instructions. Paths in project docs are relative to that project unless stated otherwise.
 
 ## Choose the project
 
@@ -11,20 +11,25 @@ Spendeazy is one personal-finance product with two independently built npm proje
 | Contracts or behavior spanning browser and server | Both | Read both projects' guidance and inspect the web adapter and API endpoint together |
 | Shared vocabulary or repository workflow | Root | [Domain documentation](docs/agents/domain.md) |
 
-## Find the relevant code
+## Coding workflow
 
-Start with the owning [web task map](web/docs/ARCHITECTURE.md#task-entry-points) or [API task map](api/ARCHITECTURE.md#task-entry-points), then search that feature or infrastructure tree. For example, use `rg --files web/src/features/statement-import` to locate files and `rg -n "commit" web/src/features/statement-import` to locate behavior. Search `web/e2e/` or `api/test/` explicitly for integration coverage; unit tests are colocated with source.
+1. **Read the requirements.** Use the owning project guidance above, [GLOSSARY.md](GLOSSARY.md) before changing behavior, and the relevant GitHub issue when one exists (see Issue workflow below).
+2. **Create a branch.** Before editing code, create a fresh temporary `codex/<task>-<unique-suffix>` branch for each task. Use a separate worktree when needed to preserve unrelated work; keep only the task's code and supporting changes on its branch.
+3. **Locate the implementation and tests.** Start with the [web task map](web/docs/ARCHITECTURE.md#task-entry-points) or [API task map](api/ARCHITECTURE.md#task-entry-points), then use `rg` within the owning feature or infrastructure tree. Unit tests are colocated; search `web/e2e/` or `api/test/` explicitly for integration coverage.
+4. **Implement across affected boundaries.** The browser calls the API over HTTP; read [README.md](README.md) for integration and startup. For contract changes, inspect API DTO/controller metadata, the affected paths and referenced schemas in `api/docs/openapi.yaml`, and web adapters together. Follow the [API README](api/README.md) for contract generation/checking, update affected adapters, and validate both projects. Keep YAML canonical in the API; use generated `api/docs/openapi.json` only for JSON tooling.
+5. **Update documentation.** Keep shared terms in root `GLOSSARY.md`, implementation guidance in project docs, and decisions in the owning project's `docs/adr/`. Load [historical evidence](docs/archive/README.md) or skill references only when needed for provenance or workflow; historical notes are not current architecture or proof of passing checks.
+6. **Validate, commit, and push.** Run the owning project's required checks, then run `node scripts/local-test-launcher.mjs --e2e` from root. Fix failures; see [local synthetic testing](docs/local-testing.md) for prerequisites and troubleshooting. After checks pass, commit only the task's changes, run `git push -u origin <branch>`, and verify the remote contains the final commit.
+7. **Open the PR as the final step.** Run `gh pr create` and report its URL. Completion requires passing checks, the pushed final commit, and a GitHub PR; report blockers if any step cannot finish.
 
-For contracts, locate the affected path/schema in `api/docs/openapi.yaml` and read that section with its referenced schemas. Use the generated JSON only when tooling requires it. Load [historical evidence](docs/archive/README.md) and skill reference files when the task needs their provenance or workflow, rather than including them in ordinary source searches.
+Run installs, scripts, tests, and builds in the owning project, except the root isolated suite above. Each project has its own package, lockfile, dependencies, and environment; from root, use `npm --prefix web ...` or `npm --prefix api ...`.
 
-## Working boundaries
+Retain the branch during review; delete it locally and on GitHub after merging or explicit abandonment. Merge only when authorized.
 
-- Root guidance applies throughout the repository; project `AGENTS.md` files add local instructions. Paths in project documentation are relative to that project unless stated otherwise.
-- Run installs, scripts, tests, and builds in the owning project. Each has its own `package.json`, lockfile, dependencies, and environment file; there is no root npm workspace or root test/build command. From root, use `npm --prefix web ...` or `npm --prefix api ...` where appropriate.
-- The browser calls the API over HTTP; these projects do not share an in-process service or source package. Read [README.md](README.md) for integration and startup links.
-- Before completing any code change, run the isolated browser/API/PostgreSQL suite from the repository root with `node scripts/local-test-launcher.mjs --e2e`. Fix failures before reporting the change complete. See [local synthetic testing](docs/local-testing.md) for prerequisites and troubleshooting; this check also runs in CI on pushes and pull requests to `main`.
-- For contract changes, inspect API DTO/controller metadata and the canonical generated YAML specification at `api/docs/openapi.yaml`, then update affected web adapters and validate both projects. Do not create a web-side OpenAPI copy. Follow the API README for contract generation/checking; `api/docs/openapi.json` is the generated JSON representation for tooling.
-- Keep shared terms in root `GLOSSARY.md`, implementation guidance in project docs, and decisions in the owning project's `docs/adr/`. Validation and research notes are historical evidence, not current architecture or proof that today's checks pass.
+## Cursor Cloud specific instructions
+
+Cloud Agent machines boot Node.js 24.11.1, Docker, and the credential-free local test stack from [local synthetic testing](docs/local-testing.md). After boot, PostgreSQL listens on `127.0.0.1:55432`, the API health check is `http://127.0.0.1:3100/health`, and the web app is `http://127.0.0.1:5174`. That stack uses synthetic sessions and does not need Clerk. `npm run start:dev` in `api/` and `npm run dev` in `web/` still need the secrets named in each project's `.env.example`.
+
+The boot script leaves an already-ready stack in place. A second `node scripts/local-test-launcher.mjs` exits when port `5174`, `3100`, or `55432` is occupied. Stop that stack before starting another copy. The completion check remains `node scripts/local-test-launcher.mjs --e2e` from the repository root.
 
 ## Issue workflow
 

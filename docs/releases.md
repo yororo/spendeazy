@@ -33,6 +33,48 @@ an active release wait for its lock; they cannot finish publication before it.
 Both-project releases complete API deployment before starting web publication.
 Do not split the jobs into separate production concurrency groups.
 
+## API schema migrations
+
+Every production API release builds and pushes one API image, then runs its
+compiled migration entry point from that image in a temporary manual Azure
+Container Apps job. The job uses only `DATABASE_URL`; it does not load Clerk,
+web, or other application configuration. It waits for the migration process to
+finish and confirms that TypeORM reports no pending migrations. API deployment
+uses the same image digest that the migration job ran. A failed or timed-out
+migration blocks both API and web publication. The job is removed after the run,
+including after a failed migration; the workflow also retries cleanup if the
+runner is interrupted. A hard cancellation or Azure outage can leave a temporary
+job to remove manually. Application startup never applies migrations.
+
+The runner obtains a PostgreSQL session advisory lock before applying migrations
+and releases it after checking schema readiness. The production workflow also
+serializes releases, so API and schema changes cannot pass each other in the
+release queue. Keep migrations additive and preserve compatibility with the
+currently running API until the new API rollout succeeds.
+
+Before enabling API publication, configure the `SPENDEAZYAPI2_DATABASE_URL`
+GitHub Actions secret with the API database connection string, including the
+same TLS options used by the API Container App. The migration job receives this
+as a job-scoped secret and exposes only `DATABASE_URL` to the container. The
+`SPENDEAZYAPI2_AZURE_CLIENT_ID` federated identity must be allowed to create,
+read, start, and delete Container Apps jobs in resource group `spendeazy-dev`,
+and to use environment `managedEnvironment-spendeazydev-a6e6`. It also needs
+the existing Docker Hub image pull credentials. These are deployment
+prerequisites; verification-only runs do not use them.
+
+If migration fails, inspect the Container Apps job execution logs and
+`typeorm_migrations` before rerunning the release. Migrations currently run in
+one transaction, but the database may have committed before a job failed to
+report success. Keep recovery migrations safe to retry. Do not roll back the
+database to match an older API; keep the additive schema and restore the old API
+image if needed, then release a forward-fix migration. A rerun uses the same
+schema history and skips already applied migrations. If a canceled workflow
+leaves its temporary job behind, remove it with:
+
+```sh
+az containerapp job delete --name <job-name> --resource-group spendeazy-dev --yes
+```
+
 ## Contract compatibility
 
 API-first ordering does not make a breaking contract safe. Already-open browser
@@ -78,6 +120,8 @@ gh workflow run deploy.yml --ref <review-branch> -f project=api -F verify_only=t
 
 Confirm the failed run skips both publication jobs; the successful `all` run
 starts web after API finishes; and the single-project runs skip the other job
-without suppressing the selected job. Verification logs name the source SHA.
+without suppressing the selected job. Migration is skipped in verification
+mode, while an actual API release must complete it before API publication.
+Verification logs name the source SHA.
 These runs demonstrate orchestration, not an Azure deployment. Report live
 validation, verification, preview, and production results separately.

@@ -1,4 +1,5 @@
 import { createPublicKey } from 'node:crypto';
+import { parseDatabaseUrl } from './database-url';
 
 export const API_PREFIX = 'api/v1';
 export const MAX_REQUEST_BODY_SIZE = 1024 * 1024;
@@ -45,7 +46,7 @@ export function loadAppConfig(
 ): AppConfig {
   const currentEnvironment = processEnv.NODE_ENV?.trim() || DEFAULT_ENVIRONMENT;
   const port = parsePort(processEnv.PORT);
-  const databaseUrl = readDatabaseUrl(processEnv.DATABASE_URL);
+  const databaseUrl = parseDatabaseUrl(processEnv.DATABASE_URL);
   const corsOrigins = readCorsOrigins(processEnv.CORS_ORIGINS);
   const clerkJwtKey = readClerkJwtKey(processEnv.CLERK_JWT_KEY);
   const clerkSecretKey = readClerkSecretKey(processEnv.CLERK_SECRET_KEY);
@@ -113,30 +114,6 @@ function parsePort(value: string | undefined): number {
   }
 
   return port;
-}
-
-function readDatabaseUrl(value: string | undefined): string | undefined {
-  const databaseUrl = value?.trim();
-  if (!databaseUrl) {
-    return undefined;
-  }
-
-  let parsedUrl: URL;
-  try {
-    parsedUrl = new URL(databaseUrl);
-  } catch {
-    throw new Error('DATABASE_URL must be a PostgreSQL connection URL');
-  }
-
-  if (
-    !['postgres:', 'postgresql:'].includes(parsedUrl.protocol) ||
-    !parsedUrl.hostname ||
-    parsedUrl.pathname === '/'
-  ) {
-    throw new Error('DATABASE_URL must be a PostgreSQL connection URL');
-  }
-
-  return databaseUrl;
 }
 
 function readCorsOrigins(value: string | undefined): string[] {

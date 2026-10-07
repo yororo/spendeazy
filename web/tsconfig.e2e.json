@@ -11,5 +11,5 @@
     "resolveJsonModule": true
   },
   "include": ["e2e/**/*.ts", "playwright.config.ts"],
-  "exclude": ["node_modules", "dist", "e2e-reports", "playwright-report", "test-results*", "e2e/**/diagnostic-copy/**"]
+  "exclude": ["node_modules", "dist", "e2e-reports", "playwright-report", "test-results*"]
 }

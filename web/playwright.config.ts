@@ -1,16 +1,39 @@
 import { defineConfig, devices } from "@playwright/test";
 import { resolve } from "node:path";
 
-const selection: {
-  classification: string;
+type Selection = {
+  classification: "diagnostic" | "full-acceptance" | "ci-shard" | "unclassified";
   selectionComplete: boolean;
   selectors: { specs: string[]; grep: string | null };
-} = process.env.SPENDEAZY_E2E_SELECTION
-  ? JSON.parse(process.env.SPENDEAZY_E2E_SELECTION)
-  : { classification: "unclassified", selectionComplete: false, selectors: { specs: [], grep: null } };
-if (selection.classification === "diagnostic" && (process.env.CI || process.env.SPENDEAZY_E2E_SHARD)) {
-  throw new Error("Diagnostic selection cannot run in CI or with sharding.");
+};
+
+function readSelection(): Selection {
+  if (!process.env.SPENDEAZY_E2E_SELECTION) {
+    return { classification: "unclassified", selectionComplete: false, selectors: { specs: [], grep: null } };
+  }
+  const value: unknown = JSON.parse(process.env.SPENDEAZY_E2E_SELECTION);
+  const isRecord = (data: unknown): data is Record<string, unknown> =>
+    data !== null && typeof data === "object" && !Array.isArray(data);
+  if (!isRecord(value) || !isRecord(value.selectors)) throw new Error("Invalid E2E selection metadata.");
+  const { classification, selectionComplete, selectors } = value;
+  const { specs, grep } = selectors;
+  if ((classification !== "diagnostic" && classification !== "full-acceptance" && classification !== "ci-shard" && classification !== "unclassified") ||
+      !Array.isArray(specs) || !specs.every((file): file is string => typeof file === "string") ||
+      (grep !== null && typeof grep !== "string") ||
+      selectionComplete !== (classification === "full-acceptance")) {
+    throw new Error("Invalid E2E selection metadata.");
+  }
+  const filtered = specs.length > 0 || grep !== null;
+  if (filtered !== (classification === "diagnostic") ||
+      (classification === "full-acceptance" && process.env.SPENDEAZY_E2E_SHARD)) {
+    throw new Error("E2E selection metadata contradicts the effective scope.");
+  }
+  if (filtered && (process.env.CI || process.env.SPENDEAZY_E2E_SHARD)) {
+    throw new Error("Diagnostic selection cannot run in CI or with sharding.");
+  }
+  return { classification, selectionComplete, selectors: { specs, grep } };
 }
+const selection = readSelection();
 const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 const shardSuffix = process.env.SPENDEAZY_E2E_SHARD?.replaceAll("/", "-") ?? "full";

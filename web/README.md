@@ -4,7 +4,7 @@ React/TypeScript browser application using Vite and Tailwind, backed by the sibl
 
 ## Setup and run
 
-Requires Node.js and npm. Install dependencies and copy `.env.example` to `.env.local`:
+Requires Node.js and npm.
 
 ```bash
 npm install
@@ -22,8 +22,8 @@ Enable Google as a social connection in Clerk. Add the deployed `/sso-callback` 
 
 Start the API using [its setup guide](../api/README.md#setup-and-run), then run `npm run dev` here. Use the same Clerk instance in both projects. `VITE_API_BASE_URL` must be the API's HTTP(S) origin; its CORS and Clerk authorized-party settings must allow the exact frontend origin (normally `http://localhost:5173`). `../api/src/config/app-config.ts` owns allowed methods/headers; `../api/src/bootstrap.ts` applies preflight, response, and CORS behavior.
 
-[Root integration](../README.md#integration-boundary) owns authentication, selected-Space routing, financial-data ownership, and project responsibilities. [Route compatibility](../api/docs/route-compatibility.md) describes optional Personal alias selection.
+See [browser/API integration](../README.md#integration-boundary) and [Personal route compatibility](../api/docs/route-compatibility.md).
 
 ## Validation
 
-[Web guidance](AGENTS.md#validation) owns required checks and focused unit tests. `npm run typecheck:e2e` checks browser tests/Playwright configuration without services. [Synthetic testing](../docs/local-testing.md#focused-browser-diagnostics) owns browser setup, diagnostic selectors, and the unfiltered completion run.
+See [required checks and focused unit tests](AGENTS.md#validation). `npm run typecheck:e2e` checks browser tests/Playwright configuration without services. [Synthetic testing](../docs/local-testing.md#focused-browser-diagnostics) owns browser setup, diagnostic selectors, and the unfiltered completion run.

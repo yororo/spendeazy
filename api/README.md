@@ -4,7 +4,7 @@ NestJS REST backend for [Spendeazy Web](../web/README.md). Private routes use `/
 
 ## Setup and run
 
-Requires Node.js, npm, and PostgreSQL. Install dependencies and create the local configuration:
+Requires Node.js, npm, and PostgreSQL.
 
 ```bash
 npm install

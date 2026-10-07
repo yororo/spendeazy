@@ -49,7 +49,7 @@ The existing helper creates an active session for a development User and mints i
 export CLERK_SESSION_TOKEN="$(./get-clerk-session-token.sh SECRET_KEY TEST_USER_ID)"
 ```
 
-The helper writes only the token to stdout. Supply credentials locally; regenerate when the token expires.
+The helper writes only the token to stdout.
 
 ## 3. Provision and verify the User
 
@@ -77,7 +77,7 @@ Initial provisioning returns `201`; later synchronization returns `200`. The Cle
 | `406` during provisioning | Primary verified email is usable |
 | `503` during provisioning | `CLERK_SECRET_KEY` and Clerk connectivity |
 
-Tests intentionally calling real Clerk stay separate from default suites: create a development User/session/token, send Bearer authentication, keep credentials outside the repository, and refresh expired tokens.
+Keep tests calling real Clerk in a separate suite.
 
 ## Clerk references
 

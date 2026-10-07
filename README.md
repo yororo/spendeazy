@@ -15,7 +15,7 @@ The web owns PDF extraction/reconciliation, temporary Upload/Categorize/Review s
 
 Financial data is Space-scoped. Invite Code acceptance creates a Shared Space; leaving preserves read-only history for both former members. [Domain decisions](docs/agents/domain.md) govern ownership and lifecycle. Account is derived from import provider/account type (Cash for manual Transactions), not a persisted Account entity; transport fields `bank` and `cardType` carry this metadata, including wallets.
 
-Optional [Category Suggestions](docs/category-suggestions.md) send descriptions and scoped Category/history context through the API to TypeSafe. Manual selection remains available when the integration is disabled or unavailable. Read that reference before changing external data, caching, or request limits.
+Optional [Category Suggestions](docs/category-suggestions.md) send descriptions and scoped Category/history context through the API to TypeSafe. Manual selection remains available when the integration is disabled or unavailable.
 
 API DTO/controller metadata defines the HTTP contract. Web services validate/adapt responses into feature-owned read models; contract changes can affect both projects. [API contract guidance](api/README.md#openapi-contract) owns generated artifacts and consistency checks.
 
@@ -34,4 +34,4 @@ Root GitHub workflows validate PR/main revisions and gate web previews and produ
 
 ## Documentation
 
-[AGENTS.md](AGENTS.md) routes tasks and owns repository workflow. READMEs own setup, architecture owns code placement, coding standards own implementation conventions, and [domain guidance](docs/agents/domain.md) owns glossary/ADR placement.
+Start at [AGENTS.md](AGENTS.md) for task routing and workflow; use [domain guidance](docs/agents/domain.md) for glossary/ADR placement.

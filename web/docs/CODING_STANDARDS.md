@@ -6,7 +6,7 @@ Apply to web code changes and reviews. Existing local patterns govern general pr
 
 - Make the smallest complete change; keep names/behavior explicit and focused.
 - Introduce abstractions for proven reuse or a clearer boundary; otherwise keep code local. Give each behavior one authority, reusable UI a component, and reusable behavior a hook.
-- Separate business logic/presentation when it clarifies either boundary. Name non-obvious values and keep configuration in configuration.
+- Prefer feature-owned helpers for domain rules needing independent tests or multiple UI callers. Replace unexplained literals with named constants; keep environment settings in the existing configuration module.
 - Comments explain rationale/constraints. Remove obsolete, unused, and commented-out code; expose expected failures visibly.
 
 ## React

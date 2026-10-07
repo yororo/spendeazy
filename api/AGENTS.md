@@ -1,6 +1,6 @@
 # API agent guidance
 
-Supplements [root guidance](../AGENTS.md). Paths below are relative to `api/`. Start at the [task map](ARCHITECTURE.md#task-entry-points), then read the sections required by the change.
+Supplements [root guidance](../AGENTS.md). Paths below are relative to `api/`. Start at the [task map](ARCHITECTURE.md#task-entry-points).
 
 | Change | Read |
 | --- | --- |
@@ -24,4 +24,4 @@ npm test -- --runInBand --runTestsByPath src/statement-imports/application/state
 npm run test:e2e -- --runInBand --runTestsByPath test/statement-imports.e2e-spec.ts
 ```
 
-[PostgreSQL prerequisites](README.md#test) require disposable databases. Unset variables can skip suites; skips provide no coverage. Focused tests support iteration; project checks and the root-required unfiltered isolated suite remain completion gates.
+[PostgreSQL prerequisites](README.md#test) require disposable databases. Unset variables can skip suites; skips provide no coverage. Project checks and the root-required unfiltered isolated suite remain completion gates.

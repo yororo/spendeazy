@@ -53,11 +53,11 @@ Feature modules bind symbolic application tokens such as `USER_STORE` to concret
 The business features are `users`, `spaces`, `invitations`, `categories`, `category-rules`, `transactions`, and `statement-imports`. [The feature registry](src/api-feature-modules.ts) assembles them; `spaces` is composed through dependent feature modules. A feature normally contains:
 
 - `presentation/`: controllers, request/response DTOs, and HTTP mapping.
-- `application/`: use-case services, errors, records and inputs, and store ports.
+- `application/`: use-case services and pure rule helpers, errors, records and inputs, and store ports.
 - `infrastructure/`: TypeORM adapters implementing application ports.
 - `<feature>.module.ts`: dependency wiring.
 
-Keep a capability with the feature that owns its meaning. A feature may define a narrow read port for data owned elsewhere when that capability is specific to its workflow; for example, transaction categorization and category-rule validation use feature-owned category ports. This avoids coupling application services to another feature's adapter or to TypeORM.
+A feature may define a narrow read port for data owned elsewhere when that capability is specific to its workflow; for example, transaction categorization and category-rule validation use feature-owned category ports. This avoids coupling application services to another feature's adapter or to TypeORM.
 
 Shared code exists only where the concern is genuinely cross-cutting:
 
@@ -106,17 +106,9 @@ DTO validation protects the transport boundary. Application services still valid
 
 OpenAPI assembly lives under `src/docs/`. Contract changes update DTO/controller metadata and contract tests, then follow [generation/checking](README.md#openapi-contract).
 
-## Change placement
+## Testing seams
 
-When adding behavior:
-
-1. Identify the owning feature using the vocabulary in root `GLOSSARY.md`.
-2. Put orchestration and business rules in an application service or a focused pure helper beside it.
-3. Express required persistence as a narrow application-owned port.
-4. Implement that port in the feature's infrastructure layer and bind it in the feature module.
-5. Keep the controller limited to authenticated context, transport mapping, and response semantics.
-6. Use the unit of work only when the complete operation must commit or roll back across stores.
-7. Test pure rules and services with fakes, adapters against a database-capable test setup, controllers at the HTTP boundary, and critical assembled flows in `test/`.
+Test pure rules and application services with fakes, adapters against a database-capable setup, controllers at the HTTP boundary, and critical assembled flows in `test/`.
 
 Completion: inward dependencies; authorized Space-scoped writes with required actor attribution; one transaction context for atomic work; stable public error codes; passing affected unit, controller, adapter, and end-to-end contracts. [API guidance](AGENTS.md#validation) and root guidance own validation commands.
 

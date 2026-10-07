@@ -55,16 +55,16 @@ Keep small or coincidentally similar code feature-local. Before sharing, name cu
 page -> query hook -> service/endpoint adapter -> shared API client
 ```
 
-The service validates transport data and projects feature-owned read models; pages consume query hooks rather than transport records. The API is the runtime source of financial data. Share transport mechanics, while keeping endpoint contracts and task-specific queries/presentation feature-owned. Dashboard, Transactions, and Categories can project the same data differently.
+The service validates transport data and projects feature-owned read models; pages consume query hooks rather than transport records. The API is the runtime source of financial data. Share transport mechanics; Dashboard, Transactions, and Categories can project the same data differently.
 
 ## Shared boundaries
 
 | Module | Owns |
 | --- | --- |
 | `shared/api` | Validated configuration, authenticated user scope, HTTP transport/cancellation, response validation, structured errors |
-| `shared/category`, `shared/account`, `shared/transaction` | Multi-feature domain identity/projections; task-specific behavior stays in features |
+| `shared/category`, `shared/account`, `shared/transaction` | Multi-feature domain identity/projections |
 | `shared/money` | Currency formatting and exact cents arithmetic; add a currency-bearing value object only when multi-currency behavior requires it |
-| `shared/budget` | Exact monthly Budget status and amount descriptions for Dashboard, Categories, Insights; queries/editing stay feature-owned |
+| `shared/budget` | Exact monthly Budget status and amount descriptions for Dashboard, Categories, Insights |
 | `shared/reporting-period` | One browser-local calendar-month selection and inclusive reporting bounds |
 | `shared/query` | Common cache, freshness, retry policy |
 | `shared/ui` | Proven shared presentation: loading/error/empty states, auth loading, branding; generic primitives stay in `components/ui` |
@@ -79,4 +79,4 @@ Composition marks its scrolling pane with `data-page-scroll-host`. [Shared scrol
 
 `eslint.config.js` enables `eslint/architecture.js` to enforce the dependency rules above. It resolves aliases/relative paths in static imports, re-exports, literal dynamic imports, and TypeScript import types. Colocated tests follow the same rules and may exercise their own feature's private implementation. Computed dynamic paths cannot be checked; use literal paths for application modules.
 
-Update the lint rule/configuration, its fixture matrix in `eslint/architecture.test.js`, and this document together when boundaries change. [Web guidance](../AGENTS.md#validation) owns validation commands; structural changes must preserve dependency direction and keep transport records at service adapters.
+Update the lint rule/configuration, its fixture matrix in `eslint/architecture.test.js`, and this document together when boundaries change. See [web validation commands](../AGENTS.md#validation).

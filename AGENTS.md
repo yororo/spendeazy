@@ -13,9 +13,9 @@ One product, two independently built npm projects. This file owns repository pol
 
 ## Workflow
 
-1. Read the owning project's guidance and relevant GitHub issue. Read the glossary before changing domain behavior or names. Start at the task map; use `rg` within the owner. Unit tests are colocated; integration tests are in `api/test/` and `web/e2e/`.
+1. Read the owning project's guidance and relevant GitHub issue. Read the glossary before changing domain behavior or names. Use `rg` within the owner. Unit tests are colocated; integration tests are in `api/test/` and `web/e2e/`.
 2. Before editing, create a fresh `codex/<task>-<unique-suffix>` branch. Use a separate worktree when needed to preserve unrelated work; commit only task changes.
-3. Implement across affected boundaries. For HTTP changes, follow [API contract generation/checking](api/README.md#openapi-contract), inspect affected paths/schemas and web adapters, and validate both projects. Read [integration](README.md#integration-boundary) when changing browser/server responsibilities.
+3. For HTTP changes, follow [API contract generation/checking](api/README.md#openapi-contract), inspect affected paths/schemas and web adapters, and validate both projects. Read [integration](README.md#integration-boundary) when changing browser/server responsibilities.
 4. Update the owning documentation: shared terms in the glossary, implementation guidance in project docs, decisions in the owning ADR directory. Read [historical evidence](docs/archive/README.md) only for provenance; it is not current architecture or proof of passing checks.
 5. Run project-required checks and `node scripts/local-test-launcher.mjs --e2e` from root; fix failures. [Synthetic testing](docs/local-testing.md) owns prerequisites and troubleshooting. Commit, `git push -u origin <branch>`, and verify the remote contains the final commit.
 6. Open the PR last with `gh pr create`; report its URL. Completion requires passing checks, the pushed final commit, and a PR. Report any blocked step. Retain the branch during review; delete locally/remotely after merging or explicit abandonment. Merge only when authorized.

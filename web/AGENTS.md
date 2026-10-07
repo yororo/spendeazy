@@ -1,6 +1,6 @@
 # Web agent guidance
 
-Supplements [root guidance](../AGENTS.md). Paths below are relative to `web/`. Start at the [task map](docs/ARCHITECTURE.md#task-entry-points), then read the sections required by the change.
+Supplements [root guidance](../AGENTS.md). Paths below are relative to `web/`. Start at the [task map](docs/ARCHITECTURE.md#task-entry-points).
 
 | Change | Read |
 | --- | --- |
@@ -18,4 +18,4 @@ For code changes, run `npm run lint`, `npm run build`, and `npm test`. For authe
 
 During iteration, run `npm test -- src/features/statement-import/statement-import-workflow.test.ts`, substituting the affected colocated Vitest file. Browser acceptance lives in `e2e/`; [synthetic testing](../docs/local-testing.md#focused-browser-diagnostics) owns focused invocation and environment setup. `npm run typecheck:e2e` checks browser-test/configuration types without services.
 
-Focused tests support iteration; project checks and the root-required unfiltered isolated suite remain completion gates.
+Project checks and the root-required unfiltered isolated suite remain completion gates.

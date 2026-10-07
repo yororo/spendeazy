@@ -1,7 +1,5 @@
 # Category Suggestions integration
 
-Read for changes to Category Suggestions, external financial-data processing, suggestion caching, or request limits. This reference owns the browser/API/TypeSafe integration; [root integration](../README.md#integration-boundary) owns general project responsibilities.
-
 ## Implementation entry points
 
 | Boundary | Owner / coverage |
@@ -13,26 +11,28 @@ Read for changes to Category Suggestions, external financial-data processing, su
 
 ## Flow and fallback
 
-The optional Category Suggestion integration is called by the API during the Categorize stage. The browser requests suggestions for included Unmapped Transactions. Within a mounted browser coordinator, descriptions are deduplicated after trimming, collapsing whitespace, and ignoring letter case; the first description value is sent. Results are keyed in memory by destination Space, Category catalog, and normalized description. The API endpoint requires an authenticated User with write access to the route's destination Space, and the catalog and history queries use that same authorized Space.
+During Categorize, the browser requests suggestions for included Unmapped Transactions. The API requires an authenticated User with write access to the destination Space; catalog/history queries use that authorized Space.
 
-Set the optional **TYPESAFE_API_KEY** in the API environment to enable TypeSafe requests. When the key is unset, a TypeSafe call fails, or its response fails validation, the endpoint returns zero suggestions and the ordinary Category selector remains available.
+Set **TYPESAFE_API_KEY** in the API environment to enable TypeSafe. An unset key, failed calls, or invalid responses return zero suggestions; manual Category selection remains available.
+
+## Deduplication and cache
+
+The browser coordinator deduplicates descriptions by trimming, collapsing whitespace, and ignoring case; it sends the first description value. Results are keyed by destination Space, Category catalog, and normalized description in memory for one coordinator instance, without time-based expiry. Recreating the coordinator or changing Space/catalog can cause new requests. There is no shared or persistent API-side cache. These rules do not establish measured latency/cost savings; TypeSafe retention policies have not been verified.
 
 ## Data sent to TypeSafe
 
-The request builder sends these fields:
+The request contains:
 
-- The submitted Transaction description, trimmed by the API.
-- Active Category IDs and names, plus each Category description when one is present.
-- Up to 16 selected historical Transaction descriptions, each paired with its Category ID.
+- The Transaction description, trimmed by the API.
+- Active Category IDs/names and optional descriptions.
+- Selected historical Transaction descriptions paired with Category IDs.
 
-The TypeSafe request builder omits statement PDFs, amounts, dates, explicit User IDs, and explicit Space IDs. Category IDs are included as model choices and on selected examples. Descriptive text can still reveal financial activity even without those other fields.
+PDFs, amounts, dates, explicit User IDs, and explicit Space IDs are omitted. Descriptive text can still reveal financial activity.
 
-The API considers at most 254 active Categories; the TypeSafe choice has 255 options including the no-category outcome. If the Space has no active Categories or exceeds that bound, it returns no suggestions. For context, the API reads at most the four most recent non-deleted Transactions per active Category, ordered by purchase date and then Transaction ID. The application then selects at most 16 relevant examples in total, with no more than one example per Category. Relevance comes from shared normalized description tokens, with rarer shared terms ranked more strongly. Only selected descriptions and Category IDs leave the API; the full Transaction history and the query's ordering dates are not sent.
-
-The browser cache is in memory for one coordinator instance and has no time-based expiry. Repeated descriptions in that coordinator reuse a result; recreating it, changing Space, or changing the Category catalog can cause requests for those descriptions again. There is no API-side shared or persistent suggestion cache. Request count therefore follows the distinct included Unmapped descriptions presented within each coordinator and can rise when imports or catalog changes recreate it. This is an inference from request construction, not a measured latency or vendor-charge estimate; TypeSafe retention policies have not been verified.
+The API allows at most 254 active Categories (255 choices including no-category); an empty or oversized catalog returns no suggestions. It reads at most the four most recent non-deleted Transactions per active Category, ordered by purchase date then Transaction ID. Selection retains at most 16 examples in total and one per Category, ranking shared normalized description tokens more strongly when rare.
 
 ## Validation and request limits
 
-The TypeSafe question tells the model to treat all state text as untrusted data and ignore directions embedded in it. This is prompt guidance, not proof of prompt-injection prevention. The API accepts only a choice from the current Category IDs or the no-category outcome, validates the exact probability keys and distribution, applies its display thresholds, and rechecks each returned Category as active in the same Space. A suggestion never assigns a Category: the User chooses it during Categorize.
+The TypeSafe question instructs the model to treat state text as untrusted and ignore embedded directions; this guidance does not prove prompt-injection prevention. The API accepts only current Category IDs or no-category, validates exact probability keys/distribution, applies display thresholds, and rechecks that returned Categories are active in the same Space. Suggestions do not assign a Category; the User chooses during Categorize.
 
-Each TypeSafe SDK request has a 2.5-second timeout and zero retries. The browser coordinator gives its API request a 10-second timeout and allows at most three concurrent suggestion requests per coordinator. These limits apply only to those SDK calls and that browser coordinator. The three-request cap is per coordinator, not an API-wide limit; neither limit establishes a global backend quota or bounds Space authorization, database work, or the full API HTTP request.
+TypeSafe SDK requests use a 2.5-second timeout and zero retries. Browser API requests use a 10-second timeout and at most three concurrent requests per coordinator. These establish neither an API-wide quota/concurrency limit nor a bound on the complete backend request, including authorization/database work.

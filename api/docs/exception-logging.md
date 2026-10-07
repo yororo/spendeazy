@@ -1,6 +1,6 @@
 # Exception logging
 
-Read for logging changes or unexpected 5xx diagnosis. [Implementation](../src/logging/exception-logger.ts) owns the reporter, framework logger, and request correlation; [colocated tests](../src/logging/exception-logger.spec.ts) cover safe fields and deduplication.
+[Reporter, framework logger, and request correlation](../src/logging/exception-logger.ts); [safe-field and deduplication tests](../src/logging/exception-logger.spec.ts).
 
 The running API writes one JSON object per line to stderr for unexpected HTTP
 5xx failures, recovered default-category and database-readiness failures,

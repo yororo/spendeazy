@@ -77,7 +77,16 @@ for (const result of ["failure", "cancelled", "skipped", "pending", "in_progress
     assert.equal(publicationExpression({ event_name: "push", event: {} }, { validate: { result: validation }, gate: { result: gate } }, () => true, () => false), false);
   }
 }
-assert.equal(publicationExpression({ event_name: "pull_request", event: { action: "closed" } }, { validate: { result: "skipped" }, gate: { result: "skipped" } }, () => true, () => false), true);
+assert.equal(publicationExpression({ event_name: "pull_request", event: { action: "closed", pull_request: { user: { login: "maintainer" } } } }, { validate: { result: "skipped" }, gate: { result: "skipped" } }, () => true, () => false), true);
+for (const login of ["dependabot[bot]", "maintainer"]) {
+  for (const action of ["opened", "synchronize", "reopened", "closed"]) {
+    const github = { event_name: "pull_request", event: { action, pull_request: { user: { login } } } };
+    const result = action === "closed" ? "skipped" : "success";
+    assert.equal(publicationExpression(github, { validate: { result }, gate: { result } }, () => true, () => false), login !== "dependabot[bot]", `${login}: ${action} publication`);
+    const validationExpression = new Function("github", `return (${entry.jobs.validate.if});`);
+    assert.equal(validationExpression(github), action !== "closed", `${login}: ${action} validation`);
+  }
+}
 const webUpload = workflow.jobs.web.steps.find(step => step.name === "Build and deploy");
 assert.equal(webUpload.with.skip_app_build, true);
 assert.equal(webUpload.with.app_location, "web/dist");

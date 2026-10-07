@@ -51,8 +51,10 @@ jobs:
 
   publish:
     needs: [validate, gate]
+    # Dependabot PRs validate normally but have no Actions deployment secrets.
     if: >-
       always() && !cancelled() &&
+      (github.event_name != 'pull_request' || github.event.pull_request.user.login != 'dependabot[bot]') &&
       ((github.event_name == 'pull_request' && github.event.action == 'closed') ||
       (needs.gate.result == 'success' && needs.validate.result == 'success'))
     permissions:

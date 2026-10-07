@@ -1,5 +1,6 @@
 import type { DataSourceOptions } from 'typeorm';
 import type { AppConfig } from '../config/app-config';
+import { requireDatabaseUrl } from '../config/database-url';
 import { CategoryEntity } from './entities/category.entity';
 import { BudgetEntity } from './entities/budget.entity';
 import { CategoryRuleEntity } from './entities/category-rule.entity';
@@ -81,15 +82,21 @@ export const DATABASE_ENTITIES = [
   InvitationClaimEntity,
 ];
 
-export function createTypeOrmOptions(config: AppConfig): DataSourceOptions {
-  if (!config.databaseUrl) {
-    throw new Error('DATABASE_URL is required for TypeORM');
-  }
+export function createTypeOrmOptions(
+  config: Pick<AppConfig, 'databaseUrl'>,
+): DataSourceOptions {
+  return {
+    ...createMigrationTypeOrmOptions(requireDatabaseUrl(config.databaseUrl)),
+    entities: DATABASE_ENTITIES,
+  };
+}
 
+export function createMigrationTypeOrmOptions(
+  value: string,
+): DataSourceOptions {
   return {
     type: 'postgres',
-    url: config.databaseUrl,
-    entities: DATABASE_ENTITIES,
+    url: requireDatabaseUrl(value),
     migrations: DATABASE_MIGRATIONS,
     migrationsTableName: 'typeorm_migrations',
     migrationsTransactionMode: 'all',

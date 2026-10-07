@@ -119,6 +119,7 @@ After installing dependencies and a Playwright browser, the checks used by
 ```powershell
 npm --prefix api run lint
 npm --prefix api run build
+npm --prefix api run test:migration-image
 npm --prefix api test -- --runInBand
 npm --prefix api run openapi:check
 npm --prefix web run lint

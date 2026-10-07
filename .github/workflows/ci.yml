@@ -59,6 +59,10 @@ jobs:
         run: npm run build
         working-directory: api
 
+      - name: Verify production migration image
+        run: npm run test:migration-image
+        working-directory: api
+
       - name: Test API
         run: npm test -- --runInBand
         working-directory: api

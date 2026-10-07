@@ -14,6 +14,7 @@ import {
 } from 'class-validator';
 import { POSITIVE_INTEGER_ID_PATTERN } from '../../http/validation-patterns';
 import { requireAtLeastOneField } from '../../http/require-at-least-one-field';
+import { CATEGORY_RULE_MATCH_TYPE_DESCRIPTION } from './category-rule-match-type-description';
 import {
   CATEGORY_RULE_PATTERN_MAX_LENGTH,
   CATEGORY_RULE_MATCH_TYPES,
@@ -52,8 +53,7 @@ export class CreateCategoryRuleDto {
   @ApiPropertyOptional({
     enum: CATEGORY_RULE_MATCH_TYPES,
     default: 'exact',
-    description:
-      'Exact matches the entire normalized Transaction description. Contains matches a literal substring anywhere, including within a word. Matching ignores case and normalizes whitespace; punctuation remains significant. Exact Rules take precedence over Contains Rules during categorization. Omission creates an Exact Rule, including frontend Remember requests.',
+    description: `${CATEGORY_RULE_MATCH_TYPE_DESCRIPTION} Omission creates an Exact Rule, including frontend Remember requests.`,
   })
   matchType?: CategoryRuleMatchType;
 
@@ -95,8 +95,7 @@ export class UpdateCategoryRuleDto {
   @IsIn(CATEGORY_RULE_MATCH_TYPES)
   @ApiPropertyOptional({
     enum: CATEGORY_RULE_MATCH_TYPES,
-    description:
-      'Exact matches the entire normalized Transaction description. Contains matches a literal substring anywhere, including within a word. Matching ignores case and normalizes whitespace; punctuation remains significant. Exact Rules take precedence over Contains Rules during categorization. Omission preserves the current match type.',
+    description: `${CATEGORY_RULE_MATCH_TYPE_DESCRIPTION} Omission preserves the current match type.`,
   })
   matchType?: CategoryRuleMatchType;
 
@@ -172,8 +171,7 @@ export class ReplacementCategoryRuleDto {
   @IsIn(CATEGORY_RULE_MATCH_TYPES)
   @ApiProperty({
     enum: CATEGORY_RULE_MATCH_TYPES,
-    description:
-      'Exact matches the entire normalized Transaction description. Contains matches a literal substring anywhere, including within a word. Matching ignores case and normalizes whitespace; punctuation remains significant. Exact Rules take precedence over Contains Rules during categorization.',
+    description: CATEGORY_RULE_MATCH_TYPE_DESCRIPTION,
   })
   matchType!: CategoryRuleMatchType;
 }

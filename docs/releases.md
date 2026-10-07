@@ -51,6 +51,12 @@ Both-project releases complete API deployment before starting web publication.
 Keep migration, API, and web jobs inside this shared publication workflow/lock.
 Publication still rechecks the current main revision after acquiring the lock.
 
+## Deployment entry points and packaging
+
+Use **Run workflow** on the root deployment workflow for manual `web`, `api`, or `all` publication; manual selections still validate both projects. PRs targeting `main` select web previews for web/workflow changes; API publication runs only on main pushes or manual runs. Root-only changes skip project publication when no unpublished project changes remain.
+
+The workflows use existing Azure/registry secrets and web build variables. Web validation builds from `web/` and Azure uploads that immutable artifact; the API image uses `api/Dockerfile` with `api/` as its build context. Actions are pinned to release commits; Dependabot checks weekly for updates.
+
 ## API schema migrations
 
 Every production API release uses a Docker Buildx container builder with a

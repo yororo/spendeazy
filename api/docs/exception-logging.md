@@ -1,5 +1,7 @@
 # Exception logging
 
+Read for logging changes or unexpected 5xx diagnosis. [Implementation](../src/logging/exception-logger.ts) owns the reporter, framework logger, and request correlation; [colocated tests](../src/logging/exception-logger.spec.ts) cover safe fields and deduplication.
+
 The running API writes one JSON object per line to stderr for unexpected HTTP
 5xx failures, recovered default-category and database-readiness failures,
 framework errors, startup failures and fatal process exceptions. Routine 4xx
@@ -23,6 +25,5 @@ patterns. TypeORM query logging is explicitly disabled.
 
 In Azure Container Apps, inspect the container's console logs and filter by
 `event`, `status` or `requestId`. Fatal process failures exit with status 1 after
-synchronously writing their safe record. This change does not configure Azure
-retention, alerts or a monitoring service. Development seed and OpenAPI CLI
+synchronously writing their safe record. Configure Azure retention, alerts, and monitoring separately. Development seed and OpenAPI CLI
 output are outside the running API's logging policy.

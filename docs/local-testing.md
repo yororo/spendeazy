@@ -9,6 +9,12 @@ The local test launcher starts the real Spendeazy web app and API against a dedi
 - Dependencies installed in both projects (`npm ci` from `api/` and `web/`)
 - Microsoft Edge installed for Playwright (`npm --prefix web exec playwright install msedge` from the repository root)
 
+## Cloud boot environment
+
+Cursor Cloud machines boot Node.js 24.11.1, Docker, and the credential-free synthetic stack. PostgreSQL listens on `127.0.0.1:55432`, API health on `http://127.0.0.1:3100/health`, and web on `http://127.0.0.1:5174`. Synthetic sessions need no Clerk credentials; ordinary API/web development commands still require their `.env.example` settings.
+
+The boot script preserves an already-ready stack. A second manual launcher exits if any of those ports is occupied; stop the existing stack before replacing it. The completion command remains the unfiltered `node scripts/local-test-launcher.mjs --e2e` from root.
+
 ## Start the manual environment
 
 From the repository root:
@@ -187,7 +193,7 @@ worker settings, and savings accompanied by increased retries or flaky tests:
 node scripts/e2e-timing-summary.mjs --compare <before-directory> <after-directory>
 ```
 
-The coverage inventory is [issue #110's coverage map](specs/e2e-optimization-coverage.md).
+Coverage preservation requirements are recorded in [issue #110](https://github.com/yororo/spendeazy/issues/110).
 Settings acceptance owns the exhaustive live preference matrix; financial
 journeys retain targeted cross-tab transitions in fragile workflow states.
 Sharing and spending presentation run at 390/1440px with shorter populated

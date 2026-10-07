@@ -1,6 +1,22 @@
 # Architecture
 
-Read this document before changing module boundaries, dependency direction, persistence seams, request-wide behavior, or cross-feature workflows. Use [root GLOSSARY.md](../GLOSSARY.md) for domain language, `docs/adr/` for API decisions, and `docs/DATABASE_DESIGN.md` for the persistence overview and schema sources. Paths are relative to `api/`; the [root integration overview](../README.md) describes the web/API boundary.
+API code placement and dependency rules. Paths are relative to `api/`. Use the task map to locate owners; read the affected boundary sections and relevant [ADRs](docs/adr/). [Database design](docs/DATABASE_DESIGN.md) owns schema relationships; [root integration](../README.md#integration-boundary) owns browser/server responsibilities.
+
+## Task entry points
+
+Start at the named owner, then follow its ports into infrastructure. Paths are relative to `api/`; neighboring `*.spec.ts` files cover application behavior, and `test/` covers HTTP and PostgreSQL integration.
+
+| Task | Behavior owner | HTTP / persistence seam | Integration tests |
+| --- | --- | --- | --- |
+| Statement Import commit and duplicates | [Import service](src/statement-imports/application/statement-imports.service.ts) | [Controller](src/statement-imports/presentation/statement-imports.controller.ts), [unit of work](src/database/unit-of-work.ts) | [HTTP contract](test/statement-imports.e2e-spec.ts), [rollback/duplicates](test/statement-import-rollback-postgres.e2e-spec.ts) |
+| Space authorization and archive lifecycle | [Access service](src/spaces/application/space-access.service.ts), [lifecycle service](src/spaces/application/space-lifecycle.service.ts) | [Spaces controller](src/spaces/presentation/spaces.controller.ts), `src/spaces/infrastructure/` | [Space behavior](test/spaces.e2e-spec.ts), [PostgreSQL](test/spaces-postgres.e2e-spec.ts) |
+| Invite Codes and joining | [Invitation service](src/invitations/application/invitations.service.ts) | [Controller](src/invitations/presentation/invitations.controller.ts), [atomic acceptance](src/invitations/infrastructure/typeorm-invitation-acceptance-store.ts) | [HTTP contract](test/invitations.e2e-spec.ts), [PostgreSQL](test/invitations-postgres.e2e-spec.ts) |
+| TypeSafe Category Suggestions | [Suggestion service](src/statement-imports/application/statement-category-suggestions.service.ts), [request builder](src/statement-imports/infrastructure/typesafe-category-suggestion-request.ts) | [Space endpoint](src/statement-imports/presentation/space-statement-imports.controller.ts), [scoped catalog](src/statement-imports/infrastructure/typeorm-statement-category-suggestion-catalog.ts) | [service tests](src/statement-imports/application/statement-category-suggestions.service.spec.ts), [SDK tests](src/statement-imports/infrastructure/typesafe-category-suggestion-evaluator.spec.ts) |
+| Reporting data and Budgets | [Transaction service](src/transactions/application/transactions.service.ts), [Category service](src/categories/application/categories.service.ts) | `src/transactions/presentation/`, `src/categories/presentation/`; Budgets belong to Categories | [Space transactions](test/space-transactions.e2e-spec.ts), [Space categories](test/space-categories.e2e-spec.ts) |
+| Category Rule storage/replacement | [Rule service](src/category-rules/application/category-rules.service.ts) | `src/category-rules/presentation/`, `src/category-rules/infrastructure/`; matching belongs to the web | [PostgreSQL](test/category-rules-postgres.e2e-spec.ts), [storage ADR](docs/adr/0003-category-rule-storage-and-replacement.md) |
+| Manual Transactions, history, attribution | [Transaction service](src/transactions/application/transactions.service.ts) | `src/transactions/presentation/`, `src/transactions/infrastructure/` | [Space transactions](test/space-transactions.e2e-spec.ts), [provenance constraint](test/transaction-statement-import-space-postgres.e2e-spec.ts) |
+
+For browser projections and their adapters, use the [web task map](../web/docs/ARCHITECTURE.md#task-entry-points).
 
 ## Shape
 
@@ -54,57 +70,21 @@ Shared code exists only where the concern is genuinely cross-cutting:
 - `logging/`: allowlisted exception records, safe framework logging and asynchronous request correlation; see `docs/exception-logging.md`.
 - `docs/` and `health/`: public operational endpoints.
 
-## Task entry points
-
-Start at the named owner, then follow its ports into infrastructure. Paths are relative to `api/`; neighboring `*.spec.ts` files cover application behavior, and `test/` covers HTTP and PostgreSQL integration.
-
-| Task | Behavior owner | HTTP / persistence seam | Integration tests |
-| --- | --- | --- | --- |
-| Statement Import commit and duplicates | [Import service](src/statement-imports/application/statement-imports.service.ts) | [Controller](src/statement-imports/presentation/statement-imports.controller.ts), [unit of work](src/database/unit-of-work.ts) | [HTTP contract](test/statement-imports.e2e-spec.ts), [rollback/duplicates](test/statement-import-rollback-postgres.e2e-spec.ts) |
-| Space authorization and archive lifecycle | [Access service](src/spaces/application/space-access.service.ts), [lifecycle service](src/spaces/application/space-lifecycle.service.ts) | [Spaces controller](src/spaces/presentation/spaces.controller.ts), `src/spaces/infrastructure/` | [Space behavior](test/spaces.e2e-spec.ts), [PostgreSQL](test/spaces-postgres.e2e-spec.ts) |
-| Invite Codes and joining | [Invitation service](src/invitations/application/invitations.service.ts) | [Controller](src/invitations/presentation/invitations.controller.ts), [atomic acceptance](src/invitations/infrastructure/typeorm-invitation-acceptance-store.ts) | [HTTP contract](test/invitations.e2e-spec.ts), [PostgreSQL](test/invitations-postgres.e2e-spec.ts) |
-| TypeSafe Category Suggestions | [Suggestion service](src/statement-imports/application/statement-category-suggestions.service.ts), [request builder](src/statement-imports/infrastructure/typesafe-category-suggestion-request.ts) | [Space endpoint](src/statement-imports/presentation/space-statement-imports.controller.ts), [scoped catalog](src/statement-imports/infrastructure/typeorm-statement-category-suggestion-catalog.ts) | [service tests](src/statement-imports/application/statement-category-suggestions.service.spec.ts), [SDK tests](src/statement-imports/infrastructure/typesafe-category-suggestion-evaluator.spec.ts) |
-| Reporting data and Budgets | [Transaction service](src/transactions/application/transactions.service.ts), [Category service](src/categories/application/categories.service.ts) | `src/transactions/presentation/`, `src/categories/presentation/`; Budgets belong to Categories | [Space transactions](test/space-transactions.e2e-spec.ts), [Space categories](test/space-categories.e2e-spec.ts) |
-
-For browser projections and their adapters, use the [web task map](../web/docs/ARCHITECTURE.md#task-entry-points).
-
 ## Optional TypeSafe Category Suggestions
 
-The optional Category Suggestion integration is called by the API during the Categorize stage. The browser requests suggestions for included Unmapped Transactions. Within a mounted browser coordinator, descriptions are deduplicated after trimming, collapsing whitespace, and ignoring letter case; the first description value is sent. Results are keyed in memory by destination Space, Category catalog, and normalized description. The API endpoint requires an authenticated User with write access to the route's destination Space, and the catalog and history queries use that same authorized Space.
-
-Set the optional **TYPESAFE_API_KEY** in the API environment to enable TypeSafe requests. When the key is unset, a TypeSafe call fails, or its response fails validation, the endpoint returns zero suggestions and the ordinary Category selector remains available.
-
-### Data sent to TypeSafe
-
-The request builder sends these fields:
-
-- The submitted Transaction description, trimmed by the API.
-- Active Category IDs and names, plus each Category description when one is present.
-- Up to 16 selected historical Transaction descriptions, each paired with its Category ID.
-
-The TypeSafe request builder omits statement PDFs, amounts, dates, explicit User IDs, and explicit Space IDs. Category IDs are included as model choices and on selected examples. Descriptive text can still reveal financial activity even without those other fields.
-
-The API considers at most 254 active Categories; the TypeSafe choice has 255 options including the no-category outcome. If the Space has no active Categories or exceeds that bound, it returns no suggestions. For context, the API reads at most the four most recent non-deleted Transactions per active Category, ordered by purchase date and then Transaction ID. The application then selects at most 16 relevant examples in total, with no more than one example per Category. Relevance comes from shared normalized description tokens, with rarer shared terms ranked more strongly. Only selected descriptions and Category IDs leave the API; the full Transaction history and the query's ordering dates are not sent.
-
-The browser cache is in memory for one coordinator instance and has no time-based expiry. Repeated descriptions in that coordinator reuse a result; recreating it, changing Space, or changing the Category catalog can cause requests for those descriptions again. There is no API-side shared or persistent suggestion cache. Request count therefore follows the distinct included Unmapped descriptions presented within each coordinator and can rise when imports or catalog changes recreate it. This is an inference from request construction, not a measured latency or vendor-charge estimate; TypeSafe retention policies have not been verified.
-
-### Validation and request limits
-
-The TypeSafe question tells the model to treat all state text as untrusted data and ignore directions embedded in it. This is prompt guidance, not proof of prompt-injection prevention. The API accepts only a choice from the current Category IDs or the no-category outcome, validates the exact probability keys and distribution, applies its display thresholds, and rechecks each returned Category as active in the same Space. A suggestion never assigns a Category: the User chooses it during review.
-
-Each TypeSafe SDK request has a 2.5-second timeout and zero retries. The browser coordinator gives its API request a 10-second timeout and allows at most three concurrent suggestion requests per coordinator. These limits apply only to those SDK calls and that browser coordinator. The three-request cap is per coordinator, not an API-wide limit; neither limit establishes a global backend quota or bounds Space authorization, database work, or the full API HTTP request.
+Read [suggestion integration](../docs/category-suggestions.md) for the external data boundary, fallback, cache lifetime, validation, and request limits.
 
 ## Request lifecycle
 
-`configureApp` defines the global order and contract:
+`configureApp` installs the request-wide contract:
 
-1. Request correlation generates an `X-Request-ID`, then Express parsers apply body-size limits while preserving raw input handling.
-2. Nest validation transforms DTOs, strips no unknown fields silently, and converts failures to `RequestValidationError`.
-3. `ClerkAuthenticationGuard` verifies the bearer session unless the route is public.
-4. `ProvisionedUserGuard` resolves the Clerk identity to the local `User` and places its ID on the request. `PUT /api/v1/users/me` is the provisioning exception.
-5. `JsonContractGuard` enforces the JSON transport contract.
-6. A feature controller obtains the authenticated local User ID, maps the DTO, and calls an application service. Space-aware features must pass that trusted ID through the reusable `SpaceAccessService`; a client-supplied Space ID is only a lookup key and never an ownership grant.
-7. `ApiExceptionFilter` translates application, HTTP, parser, and database failures to the common error envelope.
+- Request correlation generates an `X-Request-ID`, then Express parsers apply body-size limits while preserving raw input handling.
+- Nest validation transforms DTOs, rejects unknown fields, and converts failures to `RequestValidationError`.
+- `ClerkAuthenticationGuard` verifies the bearer session unless the route is public.
+- `ProvisionedUserGuard` resolves the Clerk identity to the local `User` and places its ID on the request. `PUT /api/v1/users/me` is the provisioning exception.
+- `JsonContractGuard` enforces the JSON transport contract.
+- A feature controller obtains the authenticated local User ID, maps the DTO, and calls an application service. Space-aware features must pass that trusted ID through the reusable `SpaceAccessService`; a client-supplied Space ID is only a lookup key and never an ownership grant.
+- `ApiExceptionFilter` translates application, HTTP, parser, and database failures to the common error envelope.
 
 Health and documentation routes are public and excluded from the `/api/v1` prefix. Financial features expose authorized Space routes, and the older `/users/me` routes resolve the authenticated User's Personal Space before calling the same Space-scoped application methods. Space IDs in requests are lookup keys; authenticated membership determines access. Financial persistence stores ownership only by `space_id`; actor columns preserve Transaction and Statement Import attribution. Cross-feature references are constrained by Space.
 
@@ -120,11 +100,11 @@ Add a store to an atomic workflow context only for a real cross-feature workflow
 
 ## Errors and contracts
 
-Expected failures are application errors with stable codes. Application services raise them; `ApiExceptionFilter` owns HTTP status and envelope translation. Infrastructure adapters may translate database-specific failures into application errors when they can identify the business meaning precisely. Unrecognized database and programming failures remain internal errors.
+For logging changes, follow the [safe logging policy](docs/exception-logging.md). Expected failures are application errors with stable codes. Application services raise them; `ApiExceptionFilter` owns HTTP status and envelope translation. Infrastructure adapters may translate database-specific failures into application errors when they can identify the business meaning precisely. Unrecognized database and programming failures remain internal errors.
 
 DTO validation protects the transport boundary. Application services still validate invariants that must hold regardless of caller. Monetary amounts cross API and application boundaries as normalized decimal strings, not floating-point numbers. Domain dates use `YYYY-MM-DD` strings where time-of-day has no meaning.
 
-OpenAPI assembly lives under `src/docs/`. When an endpoint contract changes, update its DTO/controller metadata and the associated contract tests.
+OpenAPI assembly lives under `src/docs/`. Contract changes update DTO/controller metadata and contract tests, then follow [generation/checking](README.md#openapi-contract).
 
 ## Change placement
 
@@ -138,7 +118,7 @@ When adding behavior:
 6. Use the unit of work only when the complete operation must commit or roll back across stores.
 7. Test pure rules and services with fakes, adapters against a database-capable test setup, controllers at the HTTP boundary, and critical assembled flows in `test/`.
 
-A change is architecturally complete when dependency direction remains inward, every financial write is scoped to an authorized Space and carries actor attribution where required, atomic work uses one transaction context, expected failures retain stable public codes, and affected unit, controller, adapter, and end-to-end contracts pass.
+Completion: inward dependencies; authorized Space-scoped writes with required actor attribution; one transaction context for atomic work; stable public error codes; passing affected unit, controller, adapter, and end-to-end contracts. [API guidance](AGENTS.md#validation) and root guidance own validation commands.
 
 ## Decision records
 

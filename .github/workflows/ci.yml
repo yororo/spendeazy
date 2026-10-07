@@ -132,15 +132,16 @@ jobs:
         working-directory: web
       - name: Run isolated browser suite
         run: node scripts/local-test-launcher.mjs --e2e
+      - name: Report shard durations and attempts
+        if: always() && !cancelled()
+        run: node scripts/e2e-timing-summary.mjs web/e2e-reports
       - name: Save browser diagnostics
         if: always() && !cancelled()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: browser-reports-${{ matrix.shard }}-${{ github.run_attempt }}
           path: |
-            web/playwright-report
-            web/blob-report
-            web/test-results-*
+            web/e2e-reports
           retention-days: 7
 
   validate:

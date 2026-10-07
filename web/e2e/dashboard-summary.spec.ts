@@ -58,6 +58,6 @@ for (const width of [320, 390, 1440]) {
     await expect(page.getByRole("status")).toHaveCount(0);
     await expect(page.getByRole("link", { name: "View all transactions" })).toBeVisible();
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
-    await page.screenshot({ path: test.info().outputPath(`dashboard-${width}.png`), fullPage: true });
+    if (process.env.SPENDEAZY_E2E_SCREENSHOTS === "1") await page.screenshot({ path: test.info().outputPath(`dashboard-${width}.png`), fullPage: true });
   });
 }

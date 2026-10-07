@@ -1,4 +1,5 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
+import { navigateSpending } from "./theme-helpers";
 
 import {
   authorizationHeaders,
@@ -10,8 +11,6 @@ import {
 const testClock =
   process.env.SPENDEAZY_E2E_TEST_CLOCK ?? "2026-09-19T12:00:00.000Z";
 
-test.describe.configure({ mode: "serial" });
-
 test.beforeEach(async ({ page }) => {
   await page.clock.install({ time: testClock });
 });
@@ -19,7 +18,11 @@ test.beforeEach(async ({ page }) => {
 test("provisions the fixed fictional User with Default Categories", async ({
   page,
 }) => {
+  const provisioned = page.waitForResponse(response =>
+    response.url().endsWith("/api/v1/users/me") && response.request().method() === "PUT",
+  );
   await page.goto("/categories");
+  expect([200, 201]).toContain((await provisioned).status());
 
   await expect(page.getByTestId("local-test-panel")).toContainText(
     "LOCAL TEST",
@@ -94,33 +97,41 @@ test("switches Users without exposing stale browser data", async ({ page }) => {
   });
   expect(created.status).toBe(201);
 
-  await page.reload();
-  await expect(
-    page.getByRole("table").getByText(description, { exact: true }),
-  ).toBeVisible();
+  const transactionId = readStringId(created.body);
+  try {
+    await page.reload();
+    await expect(
+      page.getByRole("table").getByText(description, { exact: true }),
+    ).toBeVisible();
 
-  const panel = page.getByTestId("local-test-panel");
-  await panel.getByRole("button", { name: "Second User" }).click();
-  await expect(page.getByTestId("local-test-active-user")).toContainText(
-    "Local Test Companion",
-  );
-  await expect(
-    page.getByRole("heading", { name: "Your spending" }),
-  ).toBeVisible();
-  await expect(page.getByText(description, { exact: true })).toHaveCount(0);
-  await expect(page.locator("html")).toHaveAttribute("data-visual-theme", "playful");
-  await expect(page.locator("html")).toHaveCSS("color-scheme", "dark");
+    const panel = page.getByTestId("local-test-panel");
+    await panel.getByRole("button", { name: "Second User" }).click();
+    await expect(page.getByTestId("local-test-active-user")).toContainText(
+      "Local Test Companion",
+    );
+    await expect(
+      page.getByRole("heading", { name: "Your spending" }),
+    ).toBeVisible();
+    await expect(page.getByText(description, { exact: true })).toHaveCount(0);
+    await expect(page.locator("html")).toHaveAttribute("data-visual-theme", "playful");
+    await expect(page.locator("html")).toHaveCSS("color-scheme", "dark");
 
-  await panel.getByRole("button", { name: "Populated User" }).click();
-  await expect(page.getByTestId("local-test-active-user")).toContainText(
-    "Local Test User",
-  );
-  await expect(
-    page.getByRole("table").getByText(description, { exact: true }),
-  ).toBeVisible();
-  expect(created.body).toMatchObject({ description });
-  await expect(page.locator("html")).toHaveAttribute("data-visual-theme", "playful");
-  await expect(page.locator("html")).toHaveCSS("color-scheme", "dark");
+    await panel.getByRole("button", { name: "Populated User" }).click();
+    await expect(page.getByTestId("local-test-active-user")).toContainText(
+      "Local Test User",
+    );
+    await expect(
+      page.getByRole("table").getByText(description, { exact: true }),
+    ).toBeVisible();
+    expect(created.body).toMatchObject({ description });
+    await expect(page.locator("html")).toHaveAttribute("data-visual-theme", "playful");
+    await expect(page.locator("html")).toHaveCSS("color-scheme", "dark");
+  } finally {
+    const removed = await page.request.delete(`${apiBaseUrl}/api/v1/users/me/transactions/${transactionId}`, {
+      headers: authorizationHeaders(primaryToken),
+    });
+    expect(removed.status()).toBe(204);
+  }
 });
 
 test("provisions private Personal Spaces and denies cross-User Space reads", async ({
@@ -172,6 +183,7 @@ test("provisions private Personal Spaces and denies cross-User Space reads", asy
   expect(secondarySpacesResponse.status()).toBe(200);
   const secondarySpaces = (await secondarySpacesResponse.json()) as {
     id?: unknown;
+    kind?: unknown;
   }[];
   const secondaryPersonalSpace = secondarySpaces.find(
     (space) => space.kind === "personal",
@@ -284,21 +296,8 @@ test("revokes a session, clears private data, and allows deliberate re-entry", a
   const purchaseDate = requireEnvironment("SPENDEAZY_E2E_TEST_DATE");
 
   await page.goto("/transactions");
-  const secondarySessionResponse = page.waitForResponse(
-    (response) =>
-      response.url().endsWith("/api/v1/users/me/local-test/sessions") &&
-      response.status() === 201,
-  );
-  await page
-    .getByTestId("local-test-panel")
-    .getByRole("button", {
-      name: "Second User",
-    })
-    .click();
-  const secondaryToken = readSessionToken(
-    await (await secondarySessionResponse).json(),
-  );
-  const privateDescription = "Revoked session private fixture";
+  const secondaryToken = await createNewLocalTestUser(page);
+  const privateDescription = `Revoked session private fixture ${test.info().testId}-${test.info().retry}`;
   const created = await createTransactionWithRequest(request, apiBaseUrl, {
     token: secondaryToken,
     purchaseDate,
@@ -306,22 +305,13 @@ test("revokes a session, clears private data, and allows deliberate re-entry", a
   });
   expect(created.status()).toBe(201);
 
-  const refreshedSecondaryResponse = page.waitForResponse(
-    (response) =>
-      response.url().endsWith("/api/v1/users/me/local-test/sessions") &&
-      response.status() === 201,
-  );
-  await page
-    .getByTestId("local-test-panel")
-    .getByRole("button", {
-      name: "Second User",
-    })
-    .click();
-  const activeSecondaryToken = readSessionToken(
-    await (await refreshedSecondaryResponse).json(),
-  );
+  // Expire the cached empty list before returning to this fresh User's route.
+  await page.clock.fastForward(31_000);
+  await navigateSpending(page, "Budgets");
+  await navigateSpending(page, "Transactions");
+  const activeSecondaryToken = secondaryToken;
   await expect(page.getByTestId("local-test-active-user")).toContainText(
-    "Local Test Companion",
+    "Fresh Local User",
   );
   await expect(
     page.getByRole("heading", { name: "Your spending" }),
@@ -383,14 +373,19 @@ test("proves ownership isolation through authenticated API requests", async ({
   request,
 }) => {
   const apiBaseUrl = requireEnvironment("SPENDEAZY_E2E_API_BASE_URL");
-  const primaryToken = requireEnvironment("VITE_LOCAL_TEST_SESSION_TOKEN");
+  const primaryToken = (await issueSession(request, apiBaseUrl, requireEnvironment("VITE_LOCAL_TEST_SESSION_TOKEN"), "new")).token;
   const purchaseDate = requireEnvironment("SPENDEAZY_E2E_TEST_DATE");
   const secondarySession = await issueSession(
     request,
     apiBaseUrl,
     primaryToken,
-    "secondary",
+    "new",
   );
+  for (const token of [primaryToken, secondarySession.token]) {
+    expect((await request.put(`${apiBaseUrl}/api/v1/users/me`, {
+      headers: authorizationHeaders(token),
+    })).ok()).toBe(true);
+  }
   const primaryDescription = "Ownership boundary primary fixture";
   const secondaryDescription = "Ownership boundary secondary fixture";
 
@@ -474,28 +469,25 @@ test("completes the two-member Shared Space financial journey through an Invite 
   request,
 }) => {
   const apiBaseUrl = requireEnvironment("SPENDEAZY_E2E_API_BASE_URL");
-  const primaryToken = requireEnvironment("VITE_LOCAL_TEST_SESSION_TOKEN");
+
   const purchaseDate = requireEnvironment("SPENDEAZY_E2E_TEST_DATE");
   const secondaryContext = await browser.newContext();
   const secondaryPage = await secondaryContext.newPage();
 
   try {
     await page.goto("/sharing");
+    const primaryToken = await createNewLocalTestUser(page);
     await expect(page.getByTestId("local-test-active-user")).toContainText(
-      "Local Test User",
+      "Fresh Local User",
     );
     await secondaryPage.clock.install({ time: testClock });
-    await secondaryPage.goto("/sharing?localTestScenario=secondary");
+    await secondaryPage.goto("/sharing");
+    const secondarySession = { token: await createNewLocalTestUser(secondaryPage) };
     await expect(
       secondaryPage.getByTestId("local-test-active-user"),
-    ).toContainText("Local Test Companion");
+    ).toContainText("Fresh Local User");
+    await expect(secondaryPage.getByRole("heading", { name: "Invite someone you trust", exact: true })).toBeVisible();
 
-    const secondarySession = await issueSession(
-      request,
-      apiBaseUrl,
-      primaryToken,
-      "secondary",
-    );
     const sharedSpaceId = await createSharedSpace(
       page,
       secondaryPage,
@@ -1157,13 +1149,13 @@ test("completes the two-member Shared Space financial journey through an Invite 
     expect(secondaryPersonalRead.status).toBe(404);
     expect(primaryPersonalRead.status).toBe(404);
 
-    await page.goto(`/categories?spaceId=${sharedSpaceId}`);
+    await navigateSpending(page, "Budgets");
+    await selectSharedSpace(page, sharedSpaceId);
     await expect(
       page.getByRole("heading", { name: "Budget overview" }),
     ).toBeVisible();
-    await secondaryPage.goto(
-      `/transactions?spaceId=${sharedSpaceId}&localTestScenario=secondary`,
-    );
+    await navigateSpending(secondaryPage, "Transactions");
+    await selectSharedSpace(secondaryPage, sharedSpaceId);
     await expect(
       secondaryPage.getByRole("heading", { name: "Your spending" }),
     ).toBeVisible();
@@ -1321,6 +1313,12 @@ async function issueSession(
   }
 
   return { token: body.token };
+}
+
+async function selectSharedSpace(page: Page, spaceId: string) {
+  await page.getByRole("button", { name: /^Active Space:/ }).filter({ visible: true }).first().click();
+  await page.getByRole("menuitemradio", { name: "Shared", exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`spaceId=${spaceId}$`));
 }
 
 async function createSharedSpace(

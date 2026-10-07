@@ -12,6 +12,8 @@ test-results
 test-results-*
 playwright-report
 blob-report
+e2e-reports
+.tmp
 dist
 dist-ssr
 *.local

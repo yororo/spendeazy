@@ -1,6 +1,6 @@
+import { test } from "./preferences-fixture";
 import {
   expect,
-  test,
   type APIRequestContext,
   type Page,
 } from "@playwright/test";

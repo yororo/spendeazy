@@ -1,8 +1,9 @@
 import { expect, test, type Locator } from "@playwright/test";
+import { authorizationHeaders, createNewLocalTestUser, requireEnvironment } from "./test-helpers";
+import { navigateSpending } from "./theme-helpers";
 
 test.use({
   viewport: { width: 390, height: 844 },
-  screen: { width: 390, height: 844 },
   isMobile: true,
   hasTouch: true,
   userAgent:
@@ -87,7 +88,16 @@ test("keeps mobile date fields contained and shows their picker affordance", asy
   page,
 }) => {
   await page.clock.install({ time: new Date(process.env.SPENDEAZY_E2E_TEST_CLOCK ?? "2026-09-19T12:00:00.000Z") });
-  await page.goto("/transactions?spaceId=1");
+  await page.goto("/transactions");
+  const token = await createNewLocalTestUser(page);
+  const created = await page.request.post(`${requireEnvironment("SPENDEAZY_E2E_API_BASE_URL")}/api/v1/users/me/transactions`, {
+    headers: authorizationHeaders(token),
+    data: { amount: "1.25", description: "Synthetic mobile date-field fixture", purchaseDate: requireEnvironment("SPENDEAZY_E2E_TEST_DATE") },
+  });
+  expect(created.status()).toBe(201);
+  await page.clock.fastForward(31_000);
+  await navigateSpending(page, "Budgets");
+  await navigateSpending(page, "Transactions");
   await expect(
     page.getByRole("heading", { name: "Your spending" }),
   ).toBeVisible();
@@ -116,7 +126,7 @@ test("keeps mobile date fields contained and shows their picker affordance", asy
   );
   await editDialog.getByRole("button", { name: "Cancel" }).click();
 
-  await page.goto("/imports?spaceId=1");
+  await navigateSpending(page, "Imports");
   await expect(
     page.getByRole("heading", { name: "Upload your statement" }),
   ).toBeVisible();

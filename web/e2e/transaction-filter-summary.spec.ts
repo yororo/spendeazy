@@ -18,11 +18,14 @@ test("filtered Transaction summaries cover every page and clear together", async
   expect(categoryResponse.ok(), await categoryResponse.text()).toBe(true);
   const category: unknown = await categoryResponse.json();
   if (!isRecord(category) || typeof category.id !== "string") throw new Error("Expected Category ID");
-  for (let index = 0; index < 101; index++) {
-    const response = await page.request.post(`${base}/transactions`, { headers, data: {
-      categoryId: category.id, purchaseDate, description: `Synthetic coffee ${index}`, amount: "1.25",
-    } });
-    expect(response.ok()).toBe(true);
+  // Independent rows belong to this fresh User; cap outstanding writes at five.
+  for (let start = 0; start < 101; start += 5) {
+    const responses = await Promise.all(Array.from({ length: Math.min(5, 101 - start) }, (_, offset) =>
+      page.request.post(`${base}/transactions`, { headers, data: {
+        categoryId: category.id, purchaseDate, description: `Synthetic coffee ${start + offset}`, amount: "1.25",
+      } }),
+    ));
+    for (const response of responses) expect(response.ok()).toBe(true);
   }
   const other = await page.request.post(`${base}/transactions`, { headers, data: { purchaseDate, description: "Synthetic other expense", amount: "50.00" } });
   expect(other.ok()).toBe(true);

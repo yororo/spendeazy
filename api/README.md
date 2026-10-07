@@ -30,6 +30,8 @@ Set `GCASH_REFERENCE_HASH_KEY` to a separate, stable 32-byte hexadecimal secret 
 
 Optionally set `TYPESAFE_API_KEY` to enable server-side Category Suggestions during Statement Import. Without it, the suggestion endpoint returns no suggestion and the ordinary Category selector remains available.
 
+The TypeSafe request data, bounds, cache lifetime, and controls are described in [API architecture](ARCHITECTURE.md#optional-typesafe-category-suggestions).
+
 Shared Space archive notifications are stored and shown in-app. No email provider configuration is required.
 
 Optionally load deterministic development data with `npm run db:seed`. The seed commands are restricted to non-production environments and local databases.

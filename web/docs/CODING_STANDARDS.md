@@ -1,34 +1,30 @@
-# Coding Standards
+# Coding standards
 
-Apply these rules to every code change. Prefer the existing local pattern when it conflicts with a general preference.
+Apply to web code changes and reviews. Existing local patterns govern general preferences; [architecture](ARCHITECTURE.md) and [design guidance](../DESIGN_SYSTEM.md) own boundaries and UI conventions.
 
 ## Design
 
-- Make the smallest complete change. Keep code explicit, focused, and named for its intent.
-- Introduce an abstraction only for proven reuse or a clearer boundary; otherwise keep code local.
-- Keep each behavior in one authoritative place. Extract reusable UI into components and reusable behavior into hooks.
-- Keep business logic separate from presentation when this makes either boundary clearer.
-- Name non-obvious values; put configuration in configuration. Comments record rationale or constraints, not narration.
-- Handle expected failures visibly. Remove obsolete, unused, and commented-out code.
+- Make the smallest complete change; keep names/behavior explicit and focused.
+- Introduce abstractions for proven reuse or a clearer boundary; otherwise keep code local. Give each behavior one authority, reusable UI a component, and reusable behavior a hook.
+- Prefer feature-owned helpers for domain rules needing independent tests or multiple UI callers. Replace unexplained literals with named constants; keep environment settings in the existing configuration module.
+- Comments explain rationale/constraints. Remove obsolete, unused, and commented-out code; expose expected failures visibly.
 
 ## React
 
-- Use functional components and hooks. Prefer composition to inheritance and broad configuration APIs.
-- Keep state at its narrowest useful scope. Derive values instead of storing duplicates; add global state only when it is genuinely shared.
-- Use `useEffect` only to synchronize with an external system, with complete dependencies.
-- Use stable keys that identify the item; use an index only when identity and order cannot change.
+- Use functional components/hooks and composition; keep configuration APIs narrow.
+- Keep state at its narrowest useful scope. Derive values instead of duplicating state; global state requires actual sharing.
+- Effects synchronize external systems with complete dependencies.
+- Keys identify items; index keys require stable identity/order.
 
 ## TypeScript and data
 
-- Model the domain with strict, meaningful types. Make invalid states unrepresentable where practical.
-- Use `unknown` for untrusted or genuinely unknown values; do not introduce `any`.
-- Infer obvious implementation-local types. Explicitly type shared contracts and public APIs; minimize assertions.
-- Keep server state separate from client/UI state. Centralize API access and common request/error handling.
-- Validate all untrusted external data.
+- Use strict domain types; make invalid states unrepresentable where practical. Use `unknown` rather than `any` for untrusted/unknown data and validate it.
+- Infer obvious local types; explicitly type public/shared contracts and minimize assertions.
+- Separate server state from UI state; use centralized API transport/error handling with feature-owned endpoint adapters.
 
 ## UI, performance, and tests
 
-- Implement loading, empty, error, and success states for data-dependent UI.
-- Use semantic, accessible HTML with correct keyboard interaction and focus management.
-- Measure or identify a concrete bottleneck before adding performance optimizations or memoization.
-- Test observable behavior, critical flows, edge cases, and failure paths. Tests must be deterministic and independent.
+- Data-dependent UI includes loading, empty, error, and success states.
+- Use semantic HTML, keyboard interaction, and focus management.
+- Identify/measure a bottleneck before optimizing or memoizing.
+- Test observable behavior, critical flows, edge cases, and failure paths with deterministic, independent tests.

@@ -17,8 +17,7 @@ or incomplete validation cannot publish either project. Preview cleanup has no
 validation dependency and runs on PR closure even after web changes are reverted.
 Preview publication also requires the current head of an open PR, so rerunning an
 older PR revision cannot replace a newer preview or recreate a closed preview.
-The preview checks PR state/head again immediately before upload. CI builds web
-with the deployment's public Vite variables and uploads `web/dist`, including
+The preview checks PR state/head again immediately before upload. CI builds web from `web/` with the deployment's public Vite variables and uploads `web/dist`, including
 `staticwebapp.config.json`. Publication downloads the artifact by its immutable
 ID from the same workflow run and skips Azure's frontend build. Artifact digest
 mismatches fail the download. Artifacts and browser diagnostics expire after
@@ -33,8 +32,7 @@ jobs nested under the reusable publication workflow. If no publication is found
 in the latest 100 main runs, publish that
 project conservatively. This carries unpublished API changes into later web
 releases even when an earlier run was canceled or superseded. Changes to workflow
-files or the release scripts select both. PRs use their changed-file list and
-publish only web previews; manual runs select `all`, `web`, or `api`.
+files or the release scripts select both. PRs targeting `main` use their changed-file list to select web previews for web/workflow changes.
 The web job accepts a skipped API job only after validation and change detection
 succeed. An API failure or cancellation blocks web publication.
 
@@ -43,13 +41,15 @@ All production publications share one concurrency group in
 this lock. New PR/main revisions cancel obsolete validation through a separate
 concurrency group; manual verification runs do not cancel each other. An active
 publication finishes before another starts; pending publications may be replaced by
-newer runs. GitHub does not guarantee queue order, so each production run also
-checks that its SHA is the current `main` tip before it can publish. An old rerun
-or non-main manual publication fails this check. New main commits arriving during
-an active release wait for its lock; they cannot finish publication before it.
+newer runs. GitHub does not guarantee queue order: after acquiring the publication lock, recheck that the source SHA is the current `main` tip. An old rerun or non-main manual publication fails this check.
 Both-project releases complete API deployment before starting web publication.
 Keep migration, API, and web jobs inside this shared publication workflow/lock.
-Publication still rechecks the current main revision after acquiring the lock.
+
+## Deployment entry points and packaging
+
+Use **Run workflow** on the root deployment workflow for manual `web`, `api`, or `all` publication; manual selections still validate both projects. API publication runs only on main pushes or manual runs. Root-only changes skip project publication when no unpublished project changes remain.
+
+Deployment uses existing Azure/registry secrets. The API image uses `api/Dockerfile` with `api/` as its build context. Actions are pinned to release commits; Dependabot checks weekly for updates.
 
 ## API schema migrations
 
@@ -69,16 +69,12 @@ including after a failed migration; the workflow also retries cleanup if the
 runner is interrupted. A hard cancellation or Azure outage can leave a temporary
 job to remove manually. Application startup never applies migrations.
 
-The runner obtains a PostgreSQL session advisory lock before applying migrations
-and releases it after checking schema readiness. The production workflow also
-serializes releases, so API and schema changes cannot pass each other in the
-release queue. Keep migrations additive and preserve compatibility with the
+The migration runner acquires a PostgreSQL session advisory lock before migrations and releases it after the schema-readiness check. Keep migrations additive and preserve compatibility with the
 currently running API until the new API rollout succeeds.
 
 Before enabling API publication, configure the `SPENDEAZYAPI2_DATABASE_URL`
 GitHub Actions secret with the API database connection string, including the
-same TLS options used by the API Container App. The migration job receives this
-as a job-scoped secret and exposes only `DATABASE_URL` to the container. The
+same TLS options used by the API Container App. The migration job receives this as a job-scoped secret. The
 `SPENDEAZYAPI2_AZURE_CLIENT_ID` federated identity must be allowed to create,
 read, start, and delete Container Apps jobs in resource group `spendeazy-dev`,
 and to use environment `managedEnvironment-spendeazydev-a6e6`. It also needs

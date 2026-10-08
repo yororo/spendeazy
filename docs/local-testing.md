@@ -9,6 +9,12 @@ The local test launcher starts the real Spendeazy web app and API against a dedi
 - Dependencies installed in both projects (`npm ci` from `api/` and `web/`)
 - Microsoft Edge installed for Playwright (`npm --prefix web exec playwright install msedge` from the repository root)
 
+## Cloud boot environment
+
+Cursor Cloud machines boot Node.js 24.11.1, Docker, and the credential-free synthetic stack. PostgreSQL listens on `127.0.0.1:55432`, API health on `http://127.0.0.1:3100/health`, and web on `http://127.0.0.1:5174`. Synthetic sessions need no Clerk credentials; ordinary API/web development commands still require their `.env.example` settings.
+
+The boot script preserves an already-ready stack. A second manual launcher exits if any of those ports is occupied; stop the existing stack before replacing it. The completion command remains the unfiltered `node scripts/local-test-launcher.mjs --e2e` from root.
+
 ## Start the manual environment
 
 From the repository root:
@@ -17,7 +23,7 @@ From the repository root:
 node .\scripts\local-test-launcher.mjs
 ```
 
-The same command works from a Windows PowerShell terminal. The launcher checks the three loopback ports before starting, starts PostgreSQL, validates and migrates the dedicated database, starts the API and web server on loopback, and opens the browser at `http://127.0.0.1:5174/`.
+The launcher checks the three loopback ports before starting, starts PostgreSQL, validates and migrates the dedicated database, starts the API and web server on loopback, and opens the browser at `http://127.0.0.1:5174/`.
 
 The synthetic sessions use the normal authentication guard, User provisioning service, self-scoped HTTP client, and PostgreSQL stores. The browser shows a `LOCAL TEST` panel so this mode is unmistakable. The panel can select the populated User, a second populated User with distinct fictional data, or a fresh User. Selecting `New User` always creates a new synthetic identity and exercises real first-time provisioning, including Default Category creation.
 
@@ -74,10 +80,7 @@ fictional PDFs and reconciliation ledger live in `web/e2e/fixtures/`.
 The automated clock is fixed at `2026-09-19T12:00:00.000Z` by default. Set
 `SPENDEAZY_E2E_TEST_CLOCK` to another explicit ISO-8601 UTC timestamp when
 debugging; the launcher derives the transaction date and browser reporting
-period from that value. No scenario depends on the host's current date. The
-automated database starts empty, so provisioning and Default Category creation
-remain real first-time checks; test-created data is deterministic fictional
-data owned by that run.
+period from that value. No scenario depends on the host's current date.
 
 ### Focused browser diagnostics
 
@@ -126,8 +129,7 @@ validation gate with their original diagnostics.
 
 ### E2E scenario contract
 
-Treat every `--e2e` invocation as a clean installation. It has no populated
-User, fixture Transaction, or pre-existing Shared Space. A User provisioned by
+Every `--e2e` run starts with an empty database: no populated User, fixture Transaction, or Shared Space. Test-created data is deterministic, fictional, and owned by the run. Provisioning and Default Category creation remain real first-time checks. A User provisioned by
 the test has exactly one active Personal Space until two eligible Users complete
 the Invite Code flow: create a code, save a claim with the code, then explicitly
 accept the claim. Tests that need a Shared Space must establish it within the
@@ -137,8 +139,7 @@ fixtures, another test's data, or Playwright worker order.
 Keep the assertion focused on the behavior being tested: Personal Space
 provisioning should assert the Personal Space and Default Categories, while a
 Shared Space journey should assert the completed invitation lifecycle before
-using its Space ID. This keeps the browser suite deterministic when it runs
-locally and in CI.
+using its Space ID.
 
 The suite defaults to one worker. Set `SPENDEAZY_E2E_WORKERS=2` to benchmark
 bounded concurrency; other values fail configuration. Financial scenarios use
@@ -187,7 +188,7 @@ worker settings, and savings accompanied by increased retries or flaky tests:
 node scripts/e2e-timing-summary.mjs --compare <before-directory> <after-directory>
 ```
 
-The coverage inventory is [issue #110's coverage map](specs/e2e-optimization-coverage.md).
+Coverage preservation requirements are recorded in [issue #110](https://github.com/yororo/spendeazy/issues/110).
 Settings acceptance owns the exhaustive live preference matrix; financial
 journeys retain targeted cross-tab transitions in fragile workflow states.
 Sharing and spending presentation run at 390/1440px with shorter populated
@@ -200,7 +201,7 @@ To run Playwright against an already-running dedicated environment, run
 `SPENDEAZY_E2E_TEST_CLOCK`, and `VITE_LOCAL_TEST_SESSION_TOKEN` set to that
 environment's loopback URLs, fixed clock/date, and temporary token.
 
-The automated run intentionally starts with an empty database so the initial provisioning smoke test remains a real first-time provisioning check. The browser suite then creates a fresh User, switches Users, verifies sign-out/re-entry, observes bounded expiration recovery and revocation failure, checks that expired and revoked credentials are rejected directly by the API while replacement credentials work, and makes direct authenticated API requests to prove that cross-User reads and mutations remain blocked. The persistent two-User fictional scenario is the ordinary manual-startup and explicit-reset fixture.
+The browser suite creates a fresh User, switches Users, verifies sign-out/re-entry, observes bounded expiration recovery and revocation failure, checks that expired and revoked credentials are rejected directly by the API while replacement credentials work, and makes direct authenticated API requests to prove that cross-User reads and mutations remain blocked.
 
 The `--e2e` API process injects a deterministic Category Suggestion evaluator at the API's Jev integration boundary. It returns the test Category for eligible imports, simulates an unavailable service for one fixture description, and leaves another fixture request pending so the browser can prove the active Category selector still works. The normal API entrypoint and manual local-test environment do not register this evaluator, and the stub stores no suggestion or acceptance data.
 

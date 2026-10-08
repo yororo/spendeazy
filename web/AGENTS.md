@@ -1,18 +1,21 @@
 # Web agent guidance
 
-This file supplements [root AGENTS.md](../AGENTS.md) for `web/`. Read [README.md](README.md) for setup and [the shared glossary](../GLOSSARY.md) for domain terms. Paths below are relative to `web/`.
+Supplements [root guidance](../AGENTS.md). Paths below are relative to `web/`. Start at the [task map](docs/ARCHITECTURE.md#task-entry-points).
 
-- For code creation, modification, or review, read [coding standards](docs/CODING_STANDARDS.md).
-- For feature creation, structural refactors, or cross-feature reuse, read [architecture](docs/ARCHITECTURE.md) and relevant [ADRs](docs/adr/).
-- For UI/UX changes, read [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md), then its task-specific references. It routes to visual tokens, interaction and accessibility rules; architecture owns code placement. `design/ui-design.pen` is the visual reference.
-- For endpoint changes, also inspect the [API guidance](../api/AGENTS.md) and canonical generated YAML specification at `../api/docs/openapi.yaml`. It is the repository's single OpenAPI YAML source of truth; do not maintain an OpenAPI copy under `web/`. The sibling `../api/docs/openapi.json` is generated from the same API document for JSON tooling.
+| Change | Read |
+| --- | --- |
+| Code creation, modification, or review | [Coding standards](docs/CODING_STANDARDS.md) |
+| Feature creation, structural refactors, cross-feature reuse | [Dependency direction](docs/ARCHITECTURE.md#dependency-direction), [placement](docs/ARCHITECTURE.md#placement), [feature contract](docs/ARCHITECTURE.md#feature-contract), relevant [ADRs](docs/adr/) |
+| UI/UX | [Design system](DESIGN_SYSTEM.md) and its task-specific references; `design/ui-design.pen` is the visual reference |
+| Endpoint contracts | [API guidance](../api/AGENTS.md), [OpenAPI procedure](../api/README.md#openapi-contract), affected specification paths/schemas |
+| Category Suggestions, external data, caching, request limits | [Suggestion integration](../docs/category-suggestions.md) |
+| Theme/Appearance or scroll restoration | [Composition/scroll mechanics](docs/ARCHITECTURE.md#composition-and-scroll-restoration), [visual behavior](docs/design-system/foundations.md#theme-and-appearance) |
+| Setup/startup | [Web README](README.md) |
 
-Run `npm run lint`, `npm run build`, and `npm test` from `web/` for code changes. For authenticated financial workflows, validate the affected browser/API flow and report any live validation that could not run. See `package.json` for available scripts.
+## Validation
 
-## Focused validation
+For code changes, run `npm run lint`, `npm run build`, and `npm test`. For authenticated financial workflows, validate the affected browser/API flow and report any live validation that could not run.
 
-From `web/`, run `npm test -- src/features/statement-import/statement-import-workflow.test.ts` for one colocated Vitest file; substitute the affected file. Browser acceptance lives in `e2e/` and uses the real services. Its environment and invocation are owned by [local synthetic testing](../docs/local-testing.md#run-the-isolated-browser-suite).
+During iteration, run `npm test -- src/features/statement-import/statement-import-workflow.test.ts`, substituting the affected colocated Vitest file. Browser acceptance lives in `e2e/`; [synthetic testing](../docs/local-testing.md#focused-browser-diagnostics) owns focused invocation and environment setup. `npm run typecheck:e2e` checks browser-test/configuration types without services.
 
-Use focused tests during implementation; the project checks above and the root-required isolated suite remain completion checks for code changes.
-
-Shared issue, triage, and domain-documentation guidance is linked from root `AGENTS.md`; keep repository policy there.
+Project checks and the root-required unfiltered isolated suite remain completion gates.

@@ -2,9 +2,7 @@
 
 Part of the [Spendeazy design system](../../DESIGN_SYSTEM.md). Code paths are relative to `web/`; Markdown links are relative to this file.
 
-## Foundations
-
-### Color
+## Color
 
 The implemented palette reflects the colors used by the nine Pen screens. An unused orange shadcn-like palette found in the Pen file was intentionally not carried into the application.
 
@@ -48,17 +46,19 @@ Category colors are application tokens, not generic UI states. Categories persis
 
 Legacy category-key tokens remain available for non-persisted labels such as Uncategorized. A `CategoryBadge` rendered for an API Category ID requires its resolved named swatch.
 
-### Theme and Appearance
+## Theme and Appearance
 
 Theme is the browser-wide visual style: **Technical** (default) or **Playful**. Appearance independently selects Light, Dark, or System. Both use the same routes, components, query/session composition, and financial data. Category Color swatches are invariant across both dimensions. See the accepted [Independent Theme and Appearance ADR](../adr/0004-independent-theme-and-appearance.md).
 
-Settings sits beside the User's name in the shared sidebar/profile composition, including the phone/tablet navigation Sheet. It starts collapsed on profile mount, announces expansion and its controlled inline section, and exposes a labelled Theme dropdown followed by the Appearance selector. The Theme dropdown displays the current choice and uses the shared Dropdown Menu's checked options, arrow-key navigation, Enter/Space selection, Escape dismissal, and focus restoration. Its compact composition accommodates future Theme choices; the current choices remain Technical and Playful. Selecting either preference leaves Settings open; Sign out remains below.
+Theme and Appearance changes preserve current phone-window and desktop-pane scroll positions through font loading and delayed browser anchoring. The next interaction releases restoration suppression; subsequent intentional scrolling is retained. [Architecture](../ARCHITECTURE.md#composition-and-scroll-restoration) owns the shared operation and shell integration.
+
+Settings sits beside the User's name in the shared sidebar/profile composition, including the phone/tablet navigation Sheet. It starts collapsed on profile mount, announces expansion and its controlled inline section, and exposes a labelled Theme dropdown followed by the Appearance selector. The Theme dropdown displays the current choice and uses the shared Dropdown Menu's checked options, arrow-key navigation, Enter/Space selection, Escape dismissal, and focus restoration. Selecting either preference leaves Settings open; Sign out remains below.
 
 `components/app/theme.ts` owns the browser preference `spendeazy.theme`; existing `spendeazy.appearance` storage and System defaults remain compatible. Both initialize before React renders, persist across reloads/sign-outs, and synchronize storage changes across tabs. Missing, invalid, removed, or cleared Theme values resolve to Technical. Storage failures still permit current-visit selection. Preferences do not belong to a User or Space and have no server persistence. The document's `data-visual-theme` selects Theme, while the existing `data-theme` marker records resolved light/dark Appearance and native `color-scheme`.
 
 Technical retains the palette above, Geist/Geist Mono, and square edges. Playful uses the approved Emerald and Honey treatment, with locally bundled Nunito headings/metrics and Nunito Sans body/navigation/controls/tables. Data typography remains tabular. Colors and edge/font roles change without altering text sizes, spacing, control dimensions, breakpoints, safe areas, wording, icons, or component order; natural font wrapping is permitted.
 
-**Playful has no hard UI corners.** Round every standalone surface and control, including Space labels, Space identity icons, profile initials, selected menu options, status panels, checkboxes, progress fills, charts, and overlays. Both desktop and compact/drawer compositions follow this rule in Light and Dark. Use the shared edge roles rather than leaving a new component square or adding page-specific patches. Preserve larger card/profile radii when applying the control/small-surface radius. The viewport boundary and straight dividers are structural geometry. Technical uses the pixel logo; Playful uses the rounded emerald and cream “Spendeazy Site Logo — Playful — Emerald & Honey” from `design/ui-design.pen`, preserving its geometry and colors in both Appearances. The shared `LedgerMark` switches the logo with the document Theme marker.
+Round every standalone Playful surface and control, including Space labels, Space identity icons, profile initials, selected menu options, status panels, checkboxes, progress fills, charts, and overlays. Both desktop and compact/drawer compositions follow this rule in Light and Dark. Use the shared edge roles rather than leaving a new component square or adding page-specific patches. Preserve larger card/profile radii when applying the control/small-surface radius. The viewport boundary and straight dividers are structural geometry. Technical uses the pixel logo; Playful uses the rounded emerald and cream “Spendeazy Site Logo — Playful — Emerald & Honey” from `design/ui-design.pen`, preserving its geometry and colors in both Appearances. The shared `LedgerMark` switches the logo with the document Theme marker.
 
 | Playful role | Light | Dark |
 | --- | --- | --- |
@@ -72,17 +72,17 @@ Technical retains the palette above, Geist/Geist Mono, and square edges. Playful
 | Navigation selected / foreground | `#D8F2DF` / `#087443` | `#244A35` / `#A0E8BD` |
 | Honey surface / border / text | `#FFF0BB` / `#C68A16` / `#67450A` | `#43351A` / `#BC9649` / `#FFE0A0` |
 
-Global semantic success, warning, info, destructive, focus, and overlay roles include readable light/dark Playful values in `src/index.css`. Portaled primitives inherit document tokens. `structure` resolves to Technical foreground or Playful decorative border; `control-border` uses foreground in Technical and muted foreground in Playful so unchecked checkboxes retain a contrasting boundary. `chart` is reserved for non-category series. Font roles are `ui-font`, `data-font`, and `heading-font`. Edge roles normalize controls/overlays to 12px, cards to 24px, metrics/profiles to 20px, navigation to 16px, and chart-bar tops to 6px in Playful; all resolve to square in Technical. No separate Theme components or parallel pages are needed.
+Global semantic success, warning, info, destructive, focus, and overlay roles include readable light/dark Playful values in `src/index.css`. `structure` resolves to Technical foreground or Playful decorative border; `control-border` uses foreground in Technical and muted foreground in Playful so unchecked checkboxes retain a contrasting boundary. `chart` is reserved for non-category series. Font roles are `ui-font`, `data-font`, and `heading-font`. Edge roles normalize controls/overlays to 12px, cards to 24px, metrics/profiles to 20px, navigation to 16px, and chart-bar tops to 6px in Playful; all resolve to square in Technical. Apply Theme/Appearance through document tokens in existing components/pages, including portaled primitives.
 
-Statement Import, Sharing, and archived history use `structure` for workflow panels and dividers. `inverse-accent` identifies emphasized totals and icons on secondary surfaces: Technical retains neon primary accents, while Playful uses secondary foreground so emerald surfaces never hide emerald content. `inverse-muted` keeps supporting copy readable on those surfaces, including Technical Dark. `upload-action` preserves Technical's existing dark Upload button surface and gives Playful a secondary action surface. Form boundaries and focus retain the input/control and ring roles. Upload, password entry, Categorize editors, bulk assignment, Review, confirmation, invitation forms, and archived activity dialogs reuse their existing components and document-level tokens. Theme changes preserve draft state, selections, exclusions, review context, and read-only permissions; they perform no financial action.
+Statement Import, Sharing, and archived history use `structure` for workflow panels and dividers. `inverse-accent` identifies emphasized totals and icons on secondary surfaces: Technical retains neon primary accents, while Playful uses secondary foreground so emerald surfaces never hide emerald content. `inverse-muted` keeps supporting copy readable on those surfaces, including Technical Dark. `upload-action` preserves Technical's existing dark Upload button surface and gives Playful a secondary action surface. Form boundaries and focus retain the input/control and ring roles. Theme changes preserve draft state, selections, exclusions, review context, and read-only permissions; they perform no financial action.
 
-Transactions, Categories, and Insights use `structure` for page dividers, chart baselines, grouped view controls, and activity timelines. The compact Transaction search uses `control-border`, preserving its strong Technical boundary. Keep foreground contrast for meaningful chart Budget guides, selected comparison boundaries, and Category Color swatch outlines; their distinction carries financial or selection meaning. Category series and swatches retain their exact saved colors. Editors, filters, status feedback, and chart inspection reuse the existing shared primitives and document-level roles, including when portaled. No separate component exceptions are required for these workflows.
+Transactions, Categories, and Insights use `structure` for page dividers, chart baselines, grouped view controls, and activity timelines. The compact Transaction search uses `control-border`, preserving its strong Technical boundary. Keep foreground contrast for meaningful chart Budget guides, selected comparison boundaries, and Category Color swatch outlines; their distinction carries financial or selection meaning. Category series and swatches retain their exact saved colors.
 
 Dashboard's Total spend and Spending vs Budget metrics use the primary surface/foreground in equal columns above the supporting metrics, stacking in that order below md. Daily spending stacks saved Category Colors, with muted foreground for Uncategorized, and exposes totals on hover, click, and keyboard focus. Category attention help sits beside its title; Manage Budgets appears as a restrained header action only when Categories need attention. The prototype's reference colors remain design evidence, but its URL variant, floating controls, global shortcuts, forced-light scope, logo filtering, altered sizes/padding, and structural selectors are excluded from application composition.
 
-### Appearance behavior
+## Appearance behavior
 
-Appearance applies across all routes. The initial preference is System; Light and Dark override the operating system. System follows live OS appearance changes. The preference is remembered in this browser across reloads and sign-outs, and synchronized between tabs. If browser storage is unavailable, the choice lasts for the current visit.
+Appearance defaults to System, which follows live OS appearance changes; Light and Dark override it across all routes.
 
 The `Dashboard — Monthly Expenses — Dark` frame supplies the dark palette: background `#111111`, foreground `#FFFFFF`, card/popover `#1A1A1A`, secondary/muted/border/input `#2E2E2E`, and muted foreground `#B8B9B6`. Brand green stays `#00FF00` with `#111111` foreground. Navigation uses dedicated `sidebar` (`#18181B`), `sidebar-foreground` (`#FAFAFA`), and `sidebar-border` (`#FFFFFF1A`) tokens; light navigation retains black/white with a 25% white border. Focus uses white in dark mode. Native controls use the resolved color scheme.
 
@@ -90,7 +90,7 @@ Status colors are normalized for dark readability: destructive `#FF9999`, succes
 
 `AppearanceSelector` is a 32px bordered icon button in the expanded inline Settings section of `PrimarySidebar`, including the mobile/tablet navigation Sheet. Its menu opens upward to stay inside the viewport and exposes Light, System, and Dark as checked radio menu items. The trigger announces the current preference. Keyboard navigation, Escape dismissal, and focus restoration use the shared Dropdown Menu. The phone tab bar retains its four navigation destinations.
 
-### Typography
+## Typography
 
 Geist and Geist Mono are bundled locally through Fontsource.
 
@@ -110,7 +110,7 @@ Accessibility normalization:
 
 The Pen source contains 8–11px text. Those sizes were treated as visual-density cues rather than literal implementation values.
 
-### Spacing
+## Spacing
 
 Use Tailwind's 4px-derived spacing scale. A 2px micro-step is allowed for tightly related content. Common compositions use:
 
@@ -122,13 +122,13 @@ Use Tailwind's 4px-derived spacing scale. A 2px micro-step is allowed for tightl
 
 Do not reproduce source values such as 5px, 7px, 9px, or 11px unless a new documented token is justified.
 
-### Radius and elevation
+## Radius and elevation
 
 Technical's `--radius` is `0px`; its cards, inputs, buttons, badges, and panels remain square. Playful uses the Theme edge roles above. Circular geometry is reserved for semantic shapes such as status dots.
 
 Cards have no default shadow. Hierarchy comes from 1px borders, black inverse surfaces, and spacing. The Pen file's single green processing glow is a workflow-specific effect, not a general elevation token.
 
-### Layout and breakpoints
+## Layout and breakpoints
 
 - Authenticated desktop pages use a 224px (`w-56`) sidebar.
 - Page content is fluid and constrained by `max-w-screen-2xl`.

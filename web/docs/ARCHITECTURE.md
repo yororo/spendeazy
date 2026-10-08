@@ -1,6 +1,25 @@
 # Architecture
 
-The Spendeazy web project uses vertical slices. [Root GLOSSARY.md](../../GLOSSARY.md) defines shared domain language; this document defines web code placement and dependency direction. Paths are relative to `web/`. See the [root integration overview](../../README.md) for the boundary with the API.
+Web code uses vertical slices. Paths are relative to `web/`. This document owns code placement and dependencies; [root integration](../../README.md#integration-boundary) owns browser/server responsibilities. Use the task map first, then read the affected boundaries.
+
+## Task entry points
+
+Start at the owner below; neighboring `*.test.ts(x)` files cover each seam. These links locate private implementation for changes within a feature; external callers still use its root interface.
+
+| Task | Start here | Behavior / endpoint adapter | API owner / browser acceptance |
+| --- | --- | --- | --- |
+| Statement Import | [Page](../src/features/statement-import/statement-import-page.tsx) | [Workflow hook](../src/features/statement-import/use-statement-import-workflow.ts), [workflow state](../src/features/statement-import/statement-import-workflow.ts), [service](../src/features/statement-import/statement-import-service.ts) | [Statement Imports](../../api/src/statement-imports/); [complete journey](../e2e/spending-journey.spec.ts) |
+| PDF extraction and reconciliation | [Parser dispatch](../src/features/statement-import/statement-parser/transformer.ts) | [PDF extractor](../src/features/statement-import/statement-parser/pdf-extractor.ts), provider transformers in the same directory | Browser-owned; [fictional PDF fixtures](../e2e/fixtures/README.md) |
+| Sharing and Space selection | [Sharing page](../src/features/invitations/sharing-page.tsx), [Space switcher](../src/components/app/space-switcher.tsx) | [Invitation adapter](../src/features/invitations/invitations-service.ts), [Space catalog](../src/shared/api/space.ts), [selection](../src/components/app/space-selection.ts) | [Invitations](../../api/src/invitations/), [Spaces](../../api/src/spaces/); [sharing journey](../e2e/sharing-themes.spec.ts) |
+| Reporting and Budget status | [Dashboard adapter](../src/features/dashboard/dashboard-service.ts), [Insights adapter](../src/features/insights/insights-service.ts) | [Reporting Period](../src/shared/reporting-period/), [Budget status](../src/shared/budget/); Budget editing in [Categories adapter](../src/features/categories/categories-service.ts) | [Transactions](../../api/src/transactions/), [Categories](../../api/src/categories/); [Dashboard](../e2e/dashboard-summary.spec.ts), [Insights actions](../e2e/monthly-insights-actions.spec.ts) |
+| Category Rule matching and editing | [Matching](../src/features/statement-import/category-rule-matching.ts), [categorizer](../src/features/statement-import/statement-categorizer.ts) | [Rule adapter](../src/features/categories/category-rules-service.ts), [editor](../src/features/categories/category-rules-dialog.tsx) | [Category Rules](../../api/src/category-rules/); [Remember](../e2e/statement-import-remember.spec.ts) |
+| Manual Transactions and retained history | [Transactions page](../src/features/transactions/transactions-page.tsx) | [Adapter](../src/features/transactions/transactions-service.ts), [editor](../src/features/transactions/transaction-editor-dialog.tsx), [archived history](../src/features/transactions/archived-space-history-page.tsx) | [Transactions](../../api/src/transactions/); [history](../e2e/space-history.spec.ts) |
+| Theme, Appearance, Settings | [Theme](../src/components/app/theme.ts), [Appearance](../src/components/app/appearance.ts) | [Sidebar](../src/components/app/primary-sidebar.tsx), [scroll operations](../src/shared/ui/page-scroll.ts) | Browser-owned; [Settings acceptance](../e2e/theme-settings.spec.ts) |
+| Category Suggestions | [Coordinator](../src/features/statement-import/use-statement-category-suggestions.ts) | [Integration rules](../../docs/category-suggestions.md) | [Suggestion acceptance](../e2e/statement-import-category-suggestions.spec.ts) |
+
+API service, persistence, and integration-test owners are in the [API task map](../../api/ARCHITECTURE.md#task-entry-points).
+
+The [API route compatibility guide](../../api/docs/route-compatibility.md) records paired Personal aliases, explicit Space routes, and which first-party web adapters can still select an alias when no Space ID is supplied.
 
 ## Dependency direction
 
@@ -12,100 +31,52 @@ src/App.tsx and application composition
   -> src/components/ui/*
 ```
 
-Dependencies point down this diagram. A feature never imports another feature. Application composition connects features through their public root interfaces. Features and shared modules do not import application composition (`components/app`, `layouts`, `pages`, `App.tsx`, or `main.tsx`); reusable presentation belongs in `shared/ui`.
+- External callers import only `@/features/<feature>`; each feature exposes its smallest useful interface through `index.ts` (currently its page for route-owned features).
+- Feature implementation uses relative imports and cannot import another feature. Application composition connects features through their root interfaces.
+- Shared modules cannot import features. Features and shared modules cannot import application composition (`components/app`, `layouts`, `pages`, `App.tsx`, `main.tsx`).
 
 ## Placement
 
-| Location                 | Owns                                                                                                                             |
-| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
-| `src/features/<feature>` | Everything specific to one user capability, including its endpoint adapter, query keys, read models, behavior, and presentation. |
-| `src/shared`             | Domain or infrastructure code with concrete leverage across multiple features.                                                   |
-| `src/components/ui`      | Generic design-system primitives.                                                                                                |
-| `src/components/app`     | Application-wide composition UI such as authentication boundaries, navigation, and route loading.                               |
-| `src/layouts`            | Application page structure.                                                                                                      |
-| `src/pages`              | Route-level pages that are not business capabilities, such as Not Found.                                                         |
-| `src/App.tsx`            | Composition root: routing, layouts, providers, and feature assembly.                                                             |
+| Location | Owns |
+| --- | --- |
+| `src/features/<feature>` | One capability's UI, behavior, queries/keys, endpoint adapters, and read models |
+| `src/shared` | Domain/infrastructure logic with meaningful reuse across current features |
+| `src/components/ui` | Generic design-system primitives |
+| `src/components/app` | Authentication boundaries, navigation, route loading, provider lifecycle |
+| `src/layouts` | Application page structure |
+| `src/pages` | Non-capability route pages, such as Not Found |
+| `src/App.tsx` | Routing, layouts, providers, feature assembly |
 
-Keep small or coincidentally similar code in its owning feature. Move code to `src/shared` only when removing the shared module would scatter meaningful logic across multiple current callers. Cross-cutting infrastructure required by every authenticated feature may begin at the composition seam before every feature adopts it.
+Keep small or coincidentally similar code feature-local. Before sharing, name current callers: deleting the shared module should scatter meaningful logic. Cross-cutting infrastructure needed by every authenticated feature may begin at composition before all features adopt it. Prefer task-specific views to broadly configurable shared components; share stable identity, projections, and lower-level primitives.
 
 ## Feature contract
-
-Each feature exposes its smallest useful public interface from `src/features/<feature>/index.ts`; route-owned features currently export their page. Feature implementation uses relative imports. External callers import only `@/features/<feature>`.
-
-Within an endpoint-backed feature:
 
 ```text
 page -> query hook -> service/endpoint adapter -> shared API client
 ```
 
-- The service validates transport data and projects it into a feature-owned read model.
-- The page consumes the query hook, never an API transport record.
-- The feature owns its endpoint contract, query keys, read model, and presentation.
-- The API is the runtime source of financial data.
-
-Dashboard, Transactions, and Categories may project the same underlying data differently because they serve different user tasks. Share stable domain identity and repeated projection logic; keep task-specific queries and presentation inside the feature.
-
-## Task entry points
-
-Paths are relative to `web/`. Feature `index.ts` files remain the public integration boundary; the links below locate private implementation for changes within that feature. Neighboring `*.test.ts(x)` files cover each seam.
-
-| Task | Start here | Behavior / endpoint adapter | API owner / browser acceptance |
-| --- | --- | --- | --- |
-| Statement Import | [Page](../src/features/statement-import/statement-import-page.tsx) | [Workflow hook](../src/features/statement-import/use-statement-import-workflow.ts), [workflow state](../src/features/statement-import/statement-import-workflow.ts), [service](../src/features/statement-import/statement-import-service.ts) | [Statement Imports](../../api/src/statement-imports/); [complete journey](../e2e/spending-journey.spec.ts) |
-| PDF extraction and reconciliation | [Parser dispatch](../src/features/statement-import/statement-parser/transformer.ts) | [PDF extractor](../src/features/statement-import/statement-parser/pdf-extractor.ts), provider transformers in the same directory | Browser-owned; [fictional PDF fixtures](../e2e/fixtures/README.md) |
-| Sharing and Space selection | [Sharing page](../src/features/invitations/sharing-page.tsx), [Space switcher](../src/components/app/space-switcher.tsx) | [Invitation adapter](../src/features/invitations/invitations-service.ts), [Space catalog](../src/shared/api/space.ts), [selection](../src/components/app/space-selection.ts) | [Invitations](../../api/src/invitations/), [Spaces](../../api/src/spaces/); [sharing journey](../e2e/sharing-themes.spec.ts) |
-| Reporting and Budget status | [Dashboard adapter](../src/features/dashboard/dashboard-service.ts), [Insights adapter](../src/features/insights/insights-service.ts) | [Reporting Period](../src/shared/reporting-period/), [Budget status](../src/shared/budget/); Budget editing in [Categories adapter](../src/features/categories/categories-service.ts) | [Transactions](../../api/src/transactions/), [Categories](../../api/src/categories/); [Dashboard](../e2e/dashboard-summary.spec.ts), [Insights actions](../e2e/monthly-insights-actions.spec.ts) |
-
-API service, persistence, and integration-test owners are in the [API task map](../../api/ARCHITECTURE.md#task-entry-points).
-
-The [API route compatibility guide](../../api/docs/route-compatibility.md) records paired Personal aliases, explicit Space routes, and which first-party web adapters can still select an alias when no Space ID is supplied.
+The service validates transport data and projects feature-owned read models; pages consume query hooks rather than transport records. The API is the runtime source of financial data. Share transport mechanics; Dashboard, Transactions, and Categories can project the same data differently.
 
 ## Shared boundaries
 
-The important shared seams are:
+| Module | Owns |
+| --- | --- |
+| `shared/api` | Validated configuration, authenticated user scope, HTTP transport/cancellation, response validation, structured errors |
+| `shared/category`, `shared/account`, `shared/transaction` | Multi-feature domain identity/projections |
+| `shared/money` | Currency formatting and exact cents arithmetic; add a currency-bearing value object only when multi-currency behavior requires it |
+| `shared/budget` | Exact monthly Budget status and amount descriptions for Dashboard, Categories, Insights |
+| `shared/reporting-period` | One browser-local calendar-month selection and inclusive reporting bounds |
+| `shared/query` | Common cache, freshness, retry policy |
+| `shared/ui` | Proven shared presentation: loading/error/empty states, auth loading, branding; generic primitives stay in `components/ui` |
 
-- `shared/api`: validated configuration, authenticated user scope, HTTP transport, cancellation, response validation, and structured errors. Endpoint-specific adapters stay in features.
-- `shared/category`, `shared/account`, and `shared/transaction`: domain identity or projections used by multiple features. Feature-specific Budget and Transaction behavior stays with its feature.
-- `shared/money`: currency formatting and exact cents arithmetic. It is not a currency-bearing Money value object; introduce one only when multi-currency behavior requires it.
-- `shared/budget`: exact monthly Budget status and amount descriptions used by Dashboard attention, Category summaries, and Insights chart details. Feature queries and Budget editing remain feature-owned.
-- `shared/reporting-period`: one browser-local calendar-month selection and inclusive bounds shared by reporting features.
-- `shared/query`: common cache, freshness, and retry policy.
-- `shared/ui`: composed UI with proven cross-feature behavior, including feature loading/error/empty states, authentication loading presentation, and branding. Authentication lifecycle stays in application composition; generic primitives remain in `components/ui`. Application composition marks its scrolling pane with `data-page-scroll-host`; shared page-scroll operations capture and restore phone-window and desktop-pane positions without feature code depending on the shell DOM hierarchy. Theme and Appearance use the same layout-change operation to preserve offsets through font loading and delayed browser anchoring; the next interaction releases suppression, and later intentional scrolling is retained.
+## Composition and scroll restoration
 
-The authenticated composition boundary owns the TanStack Query client and remounts it for each session identity so cached financial data cannot cross a session switch. Route queries load on demand.
+The authenticated composition owns TanStack Query and remounts its client for each session identity, preventing cached financial data crossing session switches. Route queries load on demand; authentication lifecycle stays in composition.
 
-## Decision rules
-
-Use these rules when a placement choice is unclear:
-
-- Prefer feature ownership over a shared API-shaped repository. Share transport mechanics, not endpoint contracts.
-- Prefer separate task-specific views over a broadly configurable shared component. Share lower-level primitives and stable projections.
-- Prefer current, named multi-feature callers over hypothetical reuse when creating a shared module.
-- Prefer a feature-root interface over imports from feature internals; the root is the feature's integration and test seam.
-- Keep layout, routing, authentication boundaries, navigation, and provider lifecycle in application composition.
-
-## Change checklist
-
-For feature creation or structural refactoring:
-
-1. Use the capability name from root `GLOSSARY.md`; update the glossary only after resolving a new domain term.
-2. Put capability-specific code in `src/features/<feature>` and export the smallest useful interface from its root `index.ts`.
-3. Preserve the dependency direction and the `page -> query -> service -> API client` boundary where applicable.
-4. Before sharing code, name its current callers and apply the deletion test: removing it should scatter meaningful logic.
-5. Update `eslint.config.js` when a new architectural seam needs executable enforcement.
-6. Run `npm run lint`, `npm run build`, and `npm test`. For authenticated financial flows, also record the relevant live API or browser validation.
-
-The change is complete when external callers respect feature-root imports, features use relative imports for their own implementation, features and shared modules respect dependency direction, transport records stop at service adapters, and the required automated and live checks pass.
+Composition marks its scrolling pane with `data-page-scroll-host`. [Shared scroll operations](../src/shared/ui/page-scroll.ts) capture/restore phone-window and desktop-pane offsets without feature code depending on the shell DOM hierarchy. Theme and Appearance use the same layout-change operation across font loading and delayed browser anchoring. [Design foundations](design-system/foundations.md#theme-and-appearance) owns the visible preservation/interaction behavior.
 
 ## Enforcement
 
-`eslint.config.js` enables the dependency rule in `eslint/architecture.js`. It checks static imports, re-exports, literal dynamic imports, and TypeScript import types, resolving aliases and relative paths before enforcing that:
+`eslint.config.js` enables `eslint/architecture.js` to enforce the dependency rules above. It resolves aliases/relative paths in static imports, re-exports, literal dynamic imports, and TypeScript import types. Colocated tests follow the same rules and may exercise their own feature's private implementation. Computed dynamic paths cannot be checked; use literal paths for application modules.
 
-- imports from outside a feature use `@/features/<feature>` rather than a feature-internal path;
-- a feature uses relative imports for its own implementation and cannot import another feature;
-- shared modules cannot import features;
-- features and shared modules cannot import application composition.
-
-Colocated tests follow the same rules and can exercise their feature's private implementation. Computed dynamic import paths cannot be resolved by this rule; use literal paths for application modules so the dependency remains checkable. The fixture matrix in `eslint/architecture.test.js` tests the configured rule through ESLint.
-
-Update the lint rules and this document together when dependency boundaries change.
+Update the lint rule/configuration, its fixture matrix in `eslint/architecture.test.js`, and this document together when boundaries change. See [web validation commands](../AGENTS.md#validation).

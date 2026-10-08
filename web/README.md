@@ -1,42 +1,29 @@
 # Spendeazy Web
 
-The browser application for Spendeazy, backed by the sibling [API project](../api/README.md). Read the [shared glossary](../GLOSSARY.md) for domain terms and [architecture](docs/ARCHITECTURE.md) for code placement. All commands and paths below are relative to `web/`.
-
-## Main Features
-
-- Dashboard for quick overview of expenses and budgets
-- Importing supported account statements in PDF format, including BDO AMEX, EastWest Visa, and GCash E-Wallet
-- Automatic parsing and categorization of imported statements to extract transactions and categorize them
-- Budget management with the ability to set budgets for different categories and track spending against them
-- SSO integration for secure and convenient user authentication
-
-## Tech stack
-
-React, TypeScript, Tailwind CSS, Vite, and Node.js.
+React/TypeScript browser application using Vite and Tailwind, backed by the sibling API. Commands and paths below are relative to `web/`; [architecture](docs/ARCHITECTURE.md#task-entry-points) locates feature owners.
 
 ## Setup and run
 
-From `web/`, run `npm install`, configure the environment below, then run `npm run dev`. Start the API separately using its README. Use `npm run lint`, `npm run build`, and `npm test` to validate web code changes.
+Requires Node.js and npm.
 
-Run `npm run typecheck:e2e` for strict browser-test and Playwright configuration
-checking without services. See [focused browser diagnostics](../docs/local-testing.md#focused-browser-diagnostics)
-for supported spec/title selection and the required unfiltered completion run.
+```bash
+npm install
+cp .env.example .env.local
+```
 
-## Authentication and API setup
-
-Spendeazy uses Clerk SSO. Copy `.env.example` to `.env.local`, then replace the placeholder with the publishable key from your Clerk instance:
+Configure your Clerk instance and API origin:
 
 ```text
 VITE_CLERK_PUBLISHABLE_KEY=pk_test_...
 VITE_API_BASE_URL=http://localhost:3000
 ```
 
-Enable Google as a social connection in that Clerk instance. Add the deployed `/sso-callback` URL to Google's allowed OAuth redirect URLs;
-for local development, use the equivalent URL on the Vite development origin.
-No Clerk secret key is used by this client-only application.
+Enable Google as a social connection in Clerk. Add the deployed `/sso-callback` URL to Google's allowed OAuth redirect URLs; use the equivalent Vite-origin URL locally. The client uses only the publishable key; keep the Clerk backend secret in the API.
 
-`VITE_API_BASE_URL` is the HTTP(S) origin of the Spendeazy API. The current Clerk session authenticates every private API request. User provisioning and identity use `/api/v1/users/me`; financial adapters use `/api/v1/users/me/spaces/:spaceId/...` for the selected Space, with legacy Personal Space routes as compatibility fallbacks. The API enforces membership and write access from the authenticated User.
+Start the API using [its setup guide](../api/README.md#setup-and-run), then run `npm run dev` here. Use the same Clerk instance in both projects. `VITE_API_BASE_URL` must be the API's HTTP(S) origin; its CORS and Clerk authorized-party settings must allow the exact frontend origin (normally `http://localhost:5173`). `../api/src/config/app-config.ts` owns allowed methods/headers; `../api/src/bootstrap.ts` applies preflight, response, and CORS behavior.
 
-Authenticated Dashboard, Transactions, Categories, and Statement Import data all come from the persisted API—there is no bundled financial-data fallback.
+See [browser/API integration](../README.md#integration-boundary) and [Personal route compatibility](../api/docs/route-compatibility.md).
 
-The browser calls this API origin directly. Configure the API's CORS policy to allow each exact frontend origin (including the local Vite origin, normally `http://localhost:5173`), the `GET`, `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE`, and `OPTIONS` methods, and the `Accept`, `Authorization`, and `Content-Type` request headers. The API must answer the corresponding `OPTIONS` preflight and return JSON responses with an appropriate `Content-Type`.
+## Validation
+
+See [required checks and focused unit tests](AGENTS.md#validation). `npm run typecheck:e2e` checks browser tests/Playwright configuration without services. [Synthetic testing](../docs/local-testing.md#focused-browser-diagnostics) owns browser setup, diagnostic selectors, and the unfiltered completion run.

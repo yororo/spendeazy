@@ -1,20 +1,27 @@
 # API agent guidance
 
-This file supplements [root AGENTS.md](../AGENTS.md) for `api/`. Read [README.md](README.md) for setup and [the shared glossary](../GLOSSARY.md) for domain terms. Paths below are relative to `api/`.
+Supplements [root guidance](../AGENTS.md). Paths below are relative to `api/`. Start at the [task map](ARCHITECTURE.md#task-entry-points).
 
-- For code creation, modification, or review, read [coding standards](docs/CODING_STANDARDS.md).
-- For module boundaries, dependencies, persistence, request-wide behavior, or cross-feature workflows, read [ARCHITECTURE.md](ARCHITECTURE.md) and relevant [ADRs](docs/adr/).
-- For schema changes, read [database design](docs/DATABASE_DESIGN.md) and existing migrations under `src/database/migrations/`.
-- For error handling or operational logging, read [exception logging](docs/exception-logging.md).
-- For authenticated live testing, follow [local testing](docs/LOCAL_TESTING.md).
-- For HTTP contract changes, follow the README's OpenAPI generation/check steps and inspect affected [web adapters](../web/docs/ARCHITECTURE.md).
+| Change | Read |
+| --- | --- |
+| Code creation, modification, or review | [Coding standards](docs/CODING_STANDARDS.md) |
+| Module placement/dependencies | [Shape](ARCHITECTURE.md#shape), [feature modules](ARCHITECTURE.md#feature-modules), relevant [ADRs](docs/adr/) |
+| Authentication, authorization, request-wide behavior | [Request lifecycle](ARCHITECTURE.md#request-lifecycle) |
+| Persistence, atomic workflows, schema | [Persistence/transactions](ARCHITECTURE.md#persistence-and-transactions); for schema changes also [database design](docs/DATABASE_DESIGN.md) and `src/database/migrations/` |
+| Errors or operational logging | [Errors/contracts](ARCHITECTURE.md#errors-and-contracts), [safe logging policy and implementation](docs/exception-logging.md) |
+| HTTP contracts | [OpenAPI procedure](README.md#openapi-contract), affected [web adapters](../web/docs/ARCHITECTURE.md#task-entry-points) |
+| Category Suggestions, external data, caching, request limits | [Suggestion integration](../docs/category-suggestions.md) |
+| Setup/startup or real Clerk validation | [Setup](README.md#setup-and-run); for authenticated requests, [Clerk testing](docs/LOCAL_TESTING.md) |
 
-Run relevant unit and end-to-end tests, `npm run build`, and lint from `api/`. The `npm run lint` script applies fixes; use `npx eslint "{src,apps,libs,test}/**/*.ts"` for a read-only lint check. See `package.json` for scripts and the README for contract checks.
+## Validation
 
-## Focused validation
+For code changes, run relevant unit and HTTP/PostgreSQL integration tests, `npm run build`, and lint. `npm run lint` applies fixes; use `npx eslint "{src,apps,libs,test}/**/*.ts"` for a read-only check.
 
-From `api/`, run `npm test -- --runInBand --runTestsByPath src/statement-imports/application/statement-imports.service.spec.ts` for one colocated Jest file; substitute the affected file. HTTP/PostgreSQL integration lives in `test/`: for example, `npm run test:e2e -- --runInBand --runTestsByPath test/statement-imports.e2e-spec.ts`.
+During iteration, substitute the affected file in:
 
-PostgreSQL suites need disposable databases and can skip when their variables are unset; use the [README's test prerequisites](README.md#test), rather than interpreting a skipped suite as coverage. Focused tests support iteration; the project checks above and the root-required isolated suite remain completion checks for code changes.
+```bash
+npm test -- --runInBand --runTestsByPath src/statement-imports/application/statement-imports.service.spec.ts
+npm run test:e2e -- --runInBand --runTestsByPath test/statement-imports.e2e-spec.ts
+```
 
-Shared issue, triage, and domain-documentation guidance is linked from root `AGENTS.md`; keep repository policy there.
+[PostgreSQL prerequisites](README.md#test) require disposable databases. Unset variables can skip suites; skips provide no coverage. Project checks and the root-required unfiltered isolated suite remain completion gates.

@@ -1,36 +1,29 @@
 # Working in Spendeazy
 
-Spendeazy is one personal-finance product with two independently built npm projects. Root guidance applies throughout; project `AGENTS.md` files add local instructions. Paths in project docs are relative to that project unless stated otherwise.
+One product, two independently built npm projects. This file owns repository policy; project `AGENTS.md` files add local guidance. Project-document paths are relative to that project unless stated otherwise.
 
 ## Choose the project
 
-| Work | Start here | Guidance |
-| --- | --- | --- |
-| Browser UI, routing, client queries, PDF parsing/reconciliation, Statement Import review and Category Rule matching | `web/` | [web/AGENTS.md](web/AGENTS.md) |
-| REST endpoints, authentication/ownership enforcement, persistence, migrations, duplicate checks and atomic import commits | `api/` | [api/AGENTS.md](api/AGENTS.md) |
-| Contracts or behavior spanning browser and server | Both | Read both projects' guidance and inspect the web adapter and API endpoint together |
-| Shared vocabulary or repository workflow | Root | [Domain documentation](docs/agents/domain.md) |
+| Task | Guidance / implementation map |
+| --- | --- |
+| Browser UI, routing, queries, PDF parsing/reconciliation, import review, Category Rule matching | [Web guidance](web/AGENTS.md), [web task map](web/docs/ARCHITECTURE.md#task-entry-points) |
+| REST, authentication/authorization, persistence, migrations, duplicates, atomic import commits | [API guidance](api/AGENTS.md), [API task map](api/ARCHITECTURE.md#task-entry-points) |
+| HTTP contracts or behavior spanning browser/server | Read both project guides; inspect the web adapter and API endpoint together |
+| Domain naming or durable decisions | [GLOSSARY.md](GLOSSARY.md), [domain/ADR ownership](docs/agents/domain.md) |
 
-## Coding workflow
+## Workflow
 
-1. **Read the requirements.** Use the owning project guidance above, [GLOSSARY.md](GLOSSARY.md) before changing behavior, and the relevant GitHub issue when one exists (see Issue workflow below).
-2. **Create a branch.** Before editing code, create a fresh temporary `codex/<task>-<unique-suffix>` branch for each task. Use a separate worktree when needed to preserve unrelated work; keep only the task's code and supporting changes on its branch.
-3. **Locate the implementation and tests.** Start with the [web task map](web/docs/ARCHITECTURE.md#task-entry-points) or [API task map](api/ARCHITECTURE.md#task-entry-points), then use `rg` within the owning feature or infrastructure tree. Unit tests are colocated; search `web/e2e/` or `api/test/` explicitly for integration coverage.
-4. **Implement across affected boundaries.** The browser calls the API over HTTP; read [README.md](README.md) for integration and startup. For contract changes, inspect API DTO/controller metadata, the affected paths and referenced schemas in `api/docs/openapi.yaml`, and web adapters together. Follow the [API README](api/README.md) for contract generation/checking, update affected adapters, and validate both projects. Keep YAML canonical in the API; use generated `api/docs/openapi.json` only for JSON tooling.
-5. **Update documentation.** Keep shared terms in root `GLOSSARY.md`, implementation guidance in project docs, and decisions in the owning project's `docs/adr/`. Load [historical evidence](docs/archive/README.md) or skill references only when needed for provenance or workflow; historical notes are not current architecture or proof of passing checks.
-6. **Validate, commit, and push.** Run the owning project's required checks, then run `node scripts/local-test-launcher.mjs --e2e` from root. Fix failures; see [local synthetic testing](docs/local-testing.md) for prerequisites and troubleshooting. After checks pass, commit only the task's changes, run `git push -u origin <branch>`, and verify the remote contains the final commit.
-7. **Open the PR as the final step.** Run `gh pr create` and report its URL. Completion requires passing checks, the pushed final commit, and a GitHub PR; report blockers if any step cannot finish.
+1. Read the owning project's guidance and relevant GitHub issue. Read the glossary before changing domain behavior or names. Use `rg` within the owner. Unit tests are colocated; integration tests are in `api/test/` and `web/e2e/`.
+2. Before editing, create a fresh `codex/<task>-<unique-suffix>` branch. Use a separate worktree when needed to preserve unrelated work; commit only task changes.
+3. For HTTP changes, follow [API contract generation/checking](api/README.md#openapi-contract), inspect affected paths/schemas and web adapters, and validate both projects. Read [integration](README.md#integration-boundary) when changing browser/server responsibilities.
+4. Update the owning documentation: shared terms in the glossary, implementation guidance in project docs, decisions in the owning ADR directory. Read [historical evidence](docs/archive/README.md) only for provenance; it is not current architecture or proof of passing checks.
+5. Run project-required checks and `node scripts/local-test-launcher.mjs --e2e` from root; fix failures. [Synthetic testing](docs/local-testing.md) owns prerequisites and troubleshooting. Commit, `git push -u origin <branch>`, and verify the remote contains the final commit.
+6. Open the PR last with `gh pr create`; report its URL. Completion requires passing checks, the pushed final commit, and a PR. Report any blocked step. Retain the branch during review; delete locally/remotely after merging or explicit abandonment. Merge only when authorized.
 
-Run installs, scripts, tests, and builds in the owning project, except the root isolated suite above. Each project has its own package, lockfile, dependencies, and environment; from root, use `npm --prefix web ...` or `npm --prefix api ...`.
+Run installs/scripts in the owning project (`npm --prefix api ...` or `npm --prefix web ...` from root), except the root isolated suite. Packages, lockfiles, dependencies, and environments are project-local.
 
-Retain the branch during review; delete it locally and on GitHub after merging or explicit abandonment. Merge only when authorized.
+## Conditional references
 
-## Cursor Cloud specific instructions
-
-Cloud Agent machines boot Node.js 24.11.1, Docker, and the credential-free local test stack from [local synthetic testing](docs/local-testing.md). After boot, PostgreSQL listens on `127.0.0.1:55432`, the API health check is `http://127.0.0.1:3100/health`, and the web app is `http://127.0.0.1:5174`. That stack uses synthetic sessions and does not need Clerk. `npm run start:dev` in `api/` and `npm run dev` in `web/` still need the secrets named in each project's `.env.example`.
-
-The boot script leaves an already-ready stack in place. A second `node scripts/local-test-launcher.mjs` exits when port `5174`, `3100`, or `55432` is occupied. Stop that stack before starting another copy. The completion check remains `node scripts/local-test-launcher.mjs --e2e` from the repository root.
-
-## Issue workflow
-
-Issues and specs live in GitHub Issues; use `gh` and [issue-tracker guidance](docs/agents/issue-tracker.md). When triaging, use [the repository's triage labels](docs/agents/triage-labels.md). Run `gh` against this repository; older project-local issue references may refer to pre-monorepo history, so verify their repository before acting.
+- **Issues/specs:** use `gh` against this repository and [issue-tracker guidance](docs/agents/issue-tracker.md). Verify project-local historical issue references belong to this repository.
+- **Triage:** use [triage labels](docs/agents/triage-labels.md).
+- **Cursor Cloud:** read [cloud boot guidance](docs/local-testing.md#cloud-boot-environment) before starting or replacing the prebooted synthetic stack.

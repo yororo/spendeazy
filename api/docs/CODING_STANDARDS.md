@@ -1,32 +1,24 @@
-# Coding Standards
+# Coding standards
 
-Write code that is clear, safe, testable, and easy to change. Follow established project conventions unless a change has a concrete benefit.
+Apply to API code changes and reviews. Follow established local conventions for general implementation choices.
 
-## General
+## Implementation
 
-- Prefer simple, explicit code; use intention-revealing names.
-- Give each function, class, and module one clear responsibility and one abstraction level. Use guard clauses to keep control flow shallow.
-- Represent business and configuration values with named constants, enums, or configuration.
-- Add abstractions or dependencies only for a clear architectural or testability benefit. Keep changes scoped; avoid unrelated refactors.
-- Prefer explicit dependencies and dependency injection. Minimize shared mutable state and unintended side effects.
+- Give functions/classes/modules one responsibility and abstraction level; use intent-revealing names and guard clauses.
+- Replace unexplained business literals with named constants; put environment settings in the existing configuration module. Add abstractions/dependencies to enforce a dependency boundary or test application rules independently; keep changes scoped.
+- Inject dependencies explicitly; minimize shared mutable state.
+- Expose only operations current callers need. Remove unused/commented-out code; comments explain rationale or constraints.
 
-## REST API
+## HTTP and application boundaries
 
-- Keep endpoints thin: map and validate input → call application logic → return an HTTP response.
-- Keep business logic out of transport and persistence layers. Separate API, domain, and persistence models where their responsibilities differ.
-- Validate external input and enforce authorization and ownership on the server.
-- Use appropriate status codes and the established error format. Keep exceptions, stack traces, database details, secrets, and other sensitive data out of responses.
-- Centralize error handling. Use async I/O and propagate cancellation where supported.
+- Follow the [controller/application boundary](../ARCHITECTURE.md#shape); separate transport, application, and persistence models where responsibilities differ.
+- Validate external input and enforce authenticated authorization/ownership on the server. [Architecture](../ARCHITECTURE.md#request-lifecycle) owns trusted identity and Space access.
+- Use established status codes/error envelopes; responses exclude internal exceptions, stacks, database details, and secrets.
+- Use async I/O and propagate cancellation where supported.
 
-## Errors & Logging
+## Errors, logging, and tests
 
-- Model expected failures with domain or application errors.
-- Catch exceptions only to handle, recover, enrich, or translate them; otherwise let them propagate. Never swallow errors.
-- Log actionable operational context once, without sensitive data.
-
-## Maintainability
-
-- Keep public interfaces small and explicit.
-- Delete unused code instead of commenting it out.
-- Comment on why, constraints, or non-obvious decisions—not self-evident code.
-- Add or update tests when observable behavior changes.
+- Follow the [application-error contract](../ARCHITECTURE.md#errors-and-contracts) for expected failures.
+- Catch only to handle, recover, enrich, or translate; otherwise propagate failures.
+- Use the existing `ExceptionReporter`/logger and [logging allowlist](exception-logging.md) for operational failures. Keep sensitive data out of both responses and logs; preserve single-record reporting.
+- Add/update tests when observable behavior changes.

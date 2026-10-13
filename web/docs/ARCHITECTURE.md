@@ -19,6 +19,17 @@ Start at the owner below; neighboring `*.test.ts(x)` files cover each seam. Thes
 
 API service, persistence, and integration-test owners are in the [API task map](../../api/ARCHITECTURE.md#task-entry-points).
 
+Category editors share their authoritative Budget readiness decision in
+[`category-budget-readiness.ts`](../src/features/categories/category-budget-readiness.ts),
+while dialog and inline presentation stay separate. Daily and monthly Insights
+share private loading/validation in `insights-service.ts` but retain explicit
+history bounds and independent projections. Statement Import keeps suggestion
+feedback in [`category-suggestion-feedback.ts`](../src/features/statement-import/category-suggestion-feedback.ts),
+Rule help presentation in [`category-rule-help.tsx`](../src/features/statement-import/category-rule-help.tsx),
+and pure Review calculations in [`statement-review-data.ts`](../src/features/statement-import/statement-review-data.ts).
+`review-statement.tsx` owns Review page effects and its transaction-table component.
+These are feature-private seams, not additions to the feature root interfaces.
+
 The [API route compatibility guide](../../api/docs/route-compatibility.md) records paired Personal aliases, explicit Space routes, and which first-party web adapters can still select an alias when no Space ID is supplied.
 
 ## Dependency direction

@@ -31,6 +31,7 @@ import {
 
 import { useCategoryEditor } from "./category-editor";
 import { useCategoryBudgetQuery } from "./categories-queries";
+import { getCategoryBudgetReadiness } from "./category-budget-readiness";
 import {
   CategoryEditorActions,
   CategoryEditorDiscardDialog,
@@ -139,25 +140,24 @@ function EditCategoryDialogContent({
 }: EditCategoryDialogContentProps) {
   const budgetQuery = useCategoryBudgetQuery(category.id, spaceId);
 
-  if (!budgetQuery.isFetchedAfterMount) {
-    if (budgetQuery.isError) {
-      return (
-        <EditCategoryDialogStatus
-          category={category}
-          onCancel={onCancel}
-          onCloseAutoFocus={onCloseAutoFocus}
-        >
-          <EditCategoryBudgetError
-            message={
-              budgetQuery.error?.message ??
-              "Try again to load Budget details."
-            }
-            onRetry={() => void budgetQuery.refetch()}
-          />
-        </EditCategoryDialogStatus>
-      );
-    }
+  const readiness = getCategoryBudgetReadiness(budgetQuery);
 
+  if (readiness.status === "error") {
+    return (
+      <EditCategoryDialogStatus
+        category={category}
+        onCancel={onCancel}
+        onCloseAutoFocus={onCloseAutoFocus}
+      >
+        <EditCategoryBudgetError
+          message={readiness.message}
+          onRetry={() => void budgetQuery.refetch()}
+        />
+      </EditCategoryDialogStatus>
+    );
+  }
+
+  if (readiness.status === "loading") {
     return (
       <EditCategoryDialogStatus
         ariaBusy
@@ -179,25 +179,10 @@ function EditCategoryDialogContent({
     );
   }
 
-  if (budgetQuery.data === undefined) {
-    return (
-      <EditCategoryDialogStatus
-        category={category}
-        onCancel={onCancel}
-        onCloseAutoFocus={onCloseAutoFocus}
-      >
-        <EditCategoryBudgetError
-          message="Try again to load Budget details."
-          onRetry={() => void budgetQuery.refetch()}
-        />
-      </EditCategoryDialogStatus>
-    );
-  }
-
   return (
     <ReadyEditCategoryDialog
       evidence={evidence}
-      authoritativeBudget={budgetQuery.data}
+      authoritativeBudget={readiness.budget}
       category={category}
       spaceId={spaceId}
       onCancel={onCancel}

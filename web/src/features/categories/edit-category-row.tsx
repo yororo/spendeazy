@@ -8,6 +8,7 @@ import { useUnsavedChangesNavigationGuard } from "@/shared/navigation";
 
 import { useCategoryEditor } from "./category-editor";
 import { useCategoryBudgetQuery } from "./categories-queries";
+import { getCategoryBudgetReadiness } from "./category-budget-readiness";
 import {
   CategoryEditorActions,
   CategoryEditorBudgetField,
@@ -191,38 +192,27 @@ function EditCategoryRow({
 }: EditCategoryRowProps) {
   const budgetQuery = useCategoryBudgetQuery(category.id, spaceId);
 
-  if (!budgetQuery.isFetchedAfterMount && budgetQuery.isError) {
+  const readiness = getCategoryBudgetReadiness(budgetQuery);
+
+  if (readiness.status === "error") {
     return (
       <CategoryBudgetErrorRow
         category={category}
-        message={
-          budgetQuery.error?.message ?? "Try again to load Budget details."
-        }
+        message={readiness.message}
         onRetry={() => void budgetQuery.refetch()}
         onCancel={onCancel}
       />
     );
   }
 
-  if (!budgetQuery.isFetchedAfterMount) {
+  if (readiness.status === "loading") {
     return <CategoryBudgetLoadingRow category={category} />;
-  }
-
-  if (budgetQuery.data === undefined) {
-    return (
-      <CategoryBudgetErrorRow
-        category={category}
-        message="Try again to load Budget details."
-        onRetry={() => void budgetQuery.refetch()}
-        onCancel={onCancel}
-      />
-    );
   }
 
   return (
     <ReadyEditCategoryRow
       category={category}
-      authoritativeBudget={budgetQuery.data}
+      authoritativeBudget={readiness.budget}
       spaceId={spaceId}
       onCancel={onCancel}
       onSaved={onSaved}

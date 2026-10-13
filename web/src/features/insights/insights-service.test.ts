@@ -6,6 +6,7 @@ import type { ReportingPeriod } from "@/shared/reporting-period";
 import {
   getDailyInsights,
   getMonthlyInsights,
+  InsightsDataError,
   type InsightsApiClient,
 } from "./insights-service";
 
@@ -107,6 +108,48 @@ function createApiClient(responses: ReadonlyMap<string, unknown>) {
 
   return { apiClient: { get } as unknown as InsightsApiClient, get };
 }
+
+describe.each([
+  { name: "daily", load: getDailyInsights, historyPath: transactionPath },
+  { name: "monthly", load: getMonthlyInsights, historyPath: "/spaces/7/transactions?toDate=2024-02-29&pageSize=100" },
+])("$name Insights loading failures", ({ load, historyPath }) => {
+  it.each([
+    { missingPath: categoryPath, message: "The API returned no Category catalog." },
+    { missingPath: summaryPath, message: "The API returned no monthly Category Summary." },
+  ])("preserves the error for $missingPath", async ({ missingPath, message }) => {
+    const responses = new Map<string, unknown>([
+      [categoryPath, categoryCatalog()],
+      [summaryPath, monthlySummary()],
+      [historyPath, { items: [], nextCursor: null }],
+    ]);
+    responses.set(missingPath, undefined);
+    const { apiClient } = createApiClient(responses);
+
+    await expect(load(apiClient, leapMonth, undefined, "7"))
+      .rejects.toEqual(new InsightsDataError(message));
+  });
+
+  it("propagates cancellation and inactive Budget failures", async () => {
+    const controller = new AbortController();
+    const failure = new Error("Budget unavailable");
+    const summary = { ...monthlySummary(), categories: [] };
+    const { apiClient, get } = createApiClient(new Map<string, unknown>([
+      [categoryPath, categoryCatalog()],
+      [summaryPath, summary],
+      [historyPath, { items: [], nextCursor: null }],
+      ["/spaces/7/categories/43/budget", failure],
+    ]));
+
+    await expect(load(apiClient, leapMonth, controller.signal, "7"))
+      .rejects.toBe(failure);
+    expect(get).toHaveBeenCalledWith(categoryPath, { signal: controller.signal });
+    expect(get).toHaveBeenCalledWith(summaryPath, { signal: controller.signal });
+    expect(get).toHaveBeenCalledWith(historyPath, { signal: controller.signal });
+    expect(get).toHaveBeenCalledWith("/spaces/7/categories/43/budget", {
+      signal: controller.signal, expectedStatuses: [200],
+    });
+  });
+});
 
 describe("getDailyInsights", () => {
   it("aggregates exact daily spending across pages in the selected Space", async () => {

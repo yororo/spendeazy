@@ -62,7 +62,10 @@ import {
 } from "@/shared/category";
 import { formatMoney } from "@/shared/money";
 
+import { getCategorySuggestionFeedback, type CategorySuggestionFeedback } from "./category-suggestion-feedback";
+
 import { ImportProgress } from "./import-progress";
+import { CategoryRuleHelp } from "./category-rule-help";
 import { BulkCategoryPreview } from "./bulk-category-preview";
 import {
   formatImportDate,
@@ -97,7 +100,6 @@ import {
 } from "./use-statement-category-suggestions";
 
 type CategoryFilter = "all" | "unmapped" | string;
-type CategorySuggestionFeedback = "loading" | "none" | "unavailable" | null;
 const MOBILE_EDITOR_BREAKPOINT_PX = 768;
 
 interface CategorizeStatementProps {
@@ -230,18 +232,10 @@ function CategorizeStatement({
       return category ? [category] : [];
     },
   );
-  const categorySuggestionFeedback: CategorySuggestionFeedback =
-    !categorySuggestionResult
-      ? null
-      : categorySuggestionResult.status === "loading"
-        ? "loading"
-        : categorySuggestionResult.status === "unavailable"
-          ? "unavailable"
-          : categorySuggestionResult.status === "none" ||
-              (categorySuggestionResult.status === "suggested" &&
-                suggestedCategories.length === 0)
-            ? "none"
-            : null;
+  const categorySuggestionFeedback = getCategorySuggestionFeedback(
+    categorySuggestionResult,
+    suggestedCategories.length,
+  );
   function currentCategorySuggestionCount(transaction: CategorizedTransaction) {
     if (
       transaction.assignment !== "unmapped" ||
@@ -356,27 +350,6 @@ function CategorizeStatement({
   async function applyWithoutRemembering() {
     if (onChangeRememberRule(false)) await onSaveEdit();
   }
-
-  const ruleHelp = (layout: "mobile" | "table") => <div className="grid min-w-0 gap-2 text-sm">
-    <p>{equivalentRule
-      ? "An equivalent Rule already remembers this Category for future imports."
-      : "Remember to categorize matching descriptions in future imports. Rules are saved immediately, before this import is confirmed."}</p>
-    {rememberRule && <>
-      <p>{rememberedMatchType === "exact"
-        ? "Exact matches the entire description, ignoring case and repeated whitespace."
-        : "Contains matches anywhere in a description, even within a word. Punctuation matters. Exact Rules take precedence."}</p>
-      <p>{previewRows.length} matching {previewRows.length === 1 ? "row" : "rows"} in this statement</p>
-      <ul className="max-h-32 overflow-y-auto wrap-anywhere">
-        {previewRows.map((row) => <li key={row.id}>{row.id === editingId ? draft?.description : row.description}{row.isExcluded ? " · Excluded" : row.categoryId ? " · Reviewed assignment retained" : " · Unmapped; existing Rule precedence applies"}</li>)}
-      </ul>
-      <p>Preview shows description matches only. Other reviewed assignments remain unchanged.</p>
-      {draftError && <p>The save may have completed if the connection was lost. Retry safely reuses an equivalent Rule. Applying without remembering does not undo a Rule already saved.</p>}
-      <div className="flex flex-wrap gap-2">
-        {(draftError || layout === "table") && <Button type="button" disabled={isSaving} onClick={saveAssignment}>{draftError ? "Retry" : "Apply & remember"}</Button>}
-        {draftError && <Button type="button" variant="outline" disabled={isSaving} onClick={applyWithoutRemembering}>Apply without remembering</Button>}
-      </div>
-    </>}
-  </div>;
 
   async function applyAndNext() {
     const rememberedFeedback = rememberRule ? "Category Rule saved for future imports. " : "";
@@ -1047,7 +1020,21 @@ function CategorizeStatement({
                           transaction={transaction}
                           draft={draft}
                           error={draftError}
-                          ruleHelp={ruleHelp("table")}
+                          ruleHelp={
+                            <CategoryRuleHelp
+                              layout="table"
+                              equivalentRule={equivalentRule}
+                              rememberRule={rememberRule}
+                              matchType={rememberedMatchType}
+                              previewRows={previewRows}
+                              editingId={editingId}
+                              draftDescription={draft?.description}
+                              draftError={draftError}
+                              isSaving={isSaving}
+                              onSave={saveAssignment}
+                              onApplyWithoutRemembering={applyWithoutRemembering}
+                            />
+                          }
                           rememberRule={rememberRule}
                           rememberedMatchType={rememberedMatchType}
                           rememberedPattern={rememberedPattern}
@@ -1235,7 +1222,21 @@ function CategorizeStatement({
                   transaction={editingTransaction}
                   draft={draft}
                   error={draftError}
-                          ruleHelp={ruleHelp("mobile")}
+                  ruleHelp={
+                    <CategoryRuleHelp
+                      layout="mobile"
+                      equivalentRule={equivalentRule}
+                      rememberRule={rememberRule}
+                      matchType={rememberedMatchType}
+                      previewRows={previewRows}
+                      editingId={editingId}
+                      draftDescription={draft?.description}
+                      draftError={draftError}
+                      isSaving={isSaving}
+                      onSave={saveAssignment}
+                      onApplyWithoutRemembering={applyWithoutRemembering}
+                    />
+                  }
                   rememberRule={rememberRule}
                   rememberedMatchType={rememberedMatchType}
                   rememberedPattern={rememberedPattern}

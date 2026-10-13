@@ -149,6 +149,60 @@ async function getDailyInsights(
   const bounds = getReportingPeriodBounds(period);
   const periods = getRollingPeriods(period);
   const firstPeriod = periods[0]!;
+  const { catalog, summary, inactiveCategoryBudgets, transactions } =
+    await loadInsightsData(
+      apiClient,
+      period,
+      { fromDate: `${firstPeriod}-01`, toDate: bounds.toDate },
+      signal,
+      spaceId,
+    );
+
+  return createDailyInsightsReport(
+    period,
+    periods,
+    bounds.daysInPeriod,
+    catalog,
+    summary,
+    inactiveCategoryBudgets,
+    transactions,
+  );
+}
+
+async function getMonthlyInsights(
+  apiClient: InsightsApiClient,
+  period: ReportingPeriod,
+  signal?: AbortSignal,
+  spaceId?: string,
+): Promise<InsightsMonthlyReport> {
+  const periods = getRollingPeriods(period);
+  const { toDate } = getReportingPeriodBounds(period);
+  const { catalog, summary, inactiveCategoryBudgets, transactions } =
+    await loadInsightsData(
+      apiClient,
+      period,
+      { fromDate: undefined, toDate },
+      signal,
+      spaceId,
+    );
+
+  return createMonthlyInsightsReport(
+    period,
+    periods,
+    catalog,
+    summary,
+    inactiveCategoryBudgets,
+    transactions,
+  );
+}
+
+async function loadInsightsData(
+  apiClient: InsightsApiClient,
+  period: ReportingPeriod,
+  bounds: { readonly fromDate: string | undefined; readonly toDate: string },
+  signal?: AbortSignal,
+  spaceId?: string,
+) {
   const [categoryResponse, summaryResponse, transactions] = await Promise.all([
     apiClient.get<readonly CategoryCatalogItem[]>(
       buildCategoryCollectionPath(spaceId),
@@ -160,7 +214,7 @@ async function getDailyInsights(
     ),
     loadAllTransactions(
       apiClient,
-      `${firstPeriod}-01`,
+      bounds.fromDate,
       bounds.toDate,
       signal,
       spaceId,
@@ -186,70 +240,7 @@ async function getDailyInsights(
     spaceId,
   );
 
-  return createDailyInsightsReport(
-    period,
-    periods,
-    bounds.daysInPeriod,
-    catalog,
-    summary,
-    inactiveCategoryBudgets,
-    transactions,
-  );
-}
-
-async function getMonthlyInsights(
-  apiClient: InsightsApiClient,
-  period: ReportingPeriod,
-  signal?: AbortSignal,
-  spaceId?: string,
-): Promise<InsightsMonthlyReport> {
-  const periods = getRollingPeriods(period);
-  const { toDate } = getReportingPeriodBounds(period);
-  const [categoryResponse, summaryResponse, transactions] = await Promise.all([
-    apiClient.get<readonly CategoryCatalogItem[]>(
-      buildCategoryCollectionPath(spaceId),
-      { signal },
-    ),
-    apiClient.get<CategorySummaryResponse>(
-      buildMonthlyCategorySummaryPath(period, spaceId),
-      { signal },
-    ),
-    loadAllTransactions(
-      apiClient,
-      undefined,
-      toDate,
-      signal,
-      spaceId,
-    ),
-  ]);
-
-  const catalog = requireCategoryCatalog(
-    requireApiResponse(categoryResponse, "Category catalog", createInsightsDataError),
-  );
-  const summary = requireMonthlyCategorySummary(
-    requireApiResponse(
-      summaryResponse,
-      "monthly Category Summary",
-      createInsightsDataError,
-    ),
-    createInsightsDataError,
-  );
-  const inactiveCategoryBudgets = await loadInactiveCategoryBudgets(
-    apiClient,
-    catalog,
-    summary,
-    signal,
-    spaceId,
-  );
-
-  return createMonthlyInsightsReport(
-    period,
-    periods,
-    catalog,
-    summary,
-    inactiveCategoryBudgets,
-    transactions,
-  );
+  return { catalog, summary, inactiveCategoryBudgets, transactions };
 }
 
 async function loadAllTransactions(

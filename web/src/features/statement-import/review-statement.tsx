@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { compareStatementRows, type StatementSort } from "./statement-review-order";
+import type { StatementSort } from "./statement-review-order";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -26,7 +26,7 @@ import {
   getDefaultCategoryColor,
   type CategoryColor,
 } from "@/shared/category";
-import { centsToMoney, moneyToCents, formatMoney } from "@/shared/money";
+import { formatMoney } from "@/shared/money";
 import { ActiveSpaceLabel, scrollPageToTop } from "@/shared/ui";
 import {
   AlertTriangleIcon,
@@ -37,6 +37,7 @@ import {
   LoaderCircleIcon,
 } from "lucide-react";
 
+import { createStatementReviewData, type CategoryBreakdownItem } from "./statement-review-data";
 import { ImportProgress } from "./import-progress";
 import {
   formatImportDate,
@@ -131,6 +132,78 @@ function formatCategoryEligibilityDetail(
   return `${submittedTransactions} uses Category ${detail.categoryId}, which is no longer active.`;
 }
 
+interface ReviewTransactionTableProps {
+  readonly rows: readonly CategorizedTransaction[];
+  readonly caption: string;
+  readonly getCategoryColor: (categoryId: string) => CategoryColor;
+  readonly getCategoryLabel: (categoryId: string) => string;
+}
+
+function ReviewTransactionTable({
+  rows,
+  caption,
+  getCategoryColor,
+  getCategoryLabel,
+}: ReviewTransactionTableProps) {
+  return (
+    <Table className="min-w-[56rem]">
+      <TableCaption className="sr-only">
+        {caption}
+      </TableCaption>
+      <TableHeader>
+        <TableRow>
+          <TableHead className="w-32">Date</TableHead>
+          <TableHead>Description</TableHead>
+          <TableHead className="w-36 text-right">Amount</TableHead>
+          <TableHead className="w-44">Category</TableHead>
+          <TableHead className="w-28 text-center">Assignment</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {rows.map((transaction) => {
+          const activityDescriptionId = `review-${transaction.id}-activity-description`;
+          return (
+            <TableRow
+              key={transaction.id}
+              className={
+                transaction.isExcluded
+                  ? "bg-muted/70 text-muted-foreground hover:bg-muted"
+                  : undefined
+              }
+            >
+              <TableCell className="font-mono text-xs font-semibold tabular-nums uppercase">
+                {formatShortDate(transaction.transactionDate)}
+              </TableCell>
+              <TableCell className="font-medium whitespace-normal">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span>{transaction.description}</span>
+                  <TransactionIndicators
+                    transaction={transaction}
+                    activityDescriptionId={activityDescriptionId}
+                  />
+                </div>
+              </TableCell>
+              <TableCell className="text-right font-mono font-bold tabular-nums">
+                {formatMoney(Math.abs(transaction.amount))}
+              </TableCell>
+              <TableCell>
+                <TransactionCategoryMatch
+                  transaction={transaction}
+                  getCategoryColor={getCategoryColor}
+                  getCategoryLabel={getCategoryLabel}
+                />
+              </TableCell>
+              <TableCell className="text-center">
+                <AssignmentBadge assignment={transaction.assignment} />
+              </TableCell>
+            </TableRow>
+          );
+        })}
+      </TableBody>
+    </Table>
+  );
+}
+
 function ReviewStatement({
   sort = "date-desc",
   categoryOptions,
@@ -169,125 +242,32 @@ function ReviewStatement({
     );
   }
 
-  const orderedTransactions = [...transactions].sort((a, b) => compareStatementRows(a, b, sort));
-  const excludedTransactions = orderedTransactions.filter((row) => row.isExcluded);
-  const includedTransactions = orderedTransactions.filter(
-    isIncludedStatementTransaction,
+  const {
+    includedTransactions,
+    excludedTransactions,
+    unmappedTransactions,
+    ambiguousTransactions,
+    categorizedTransactions,
+    ruleCount,
+    manualCount,
+    excludedCount,
+    debitTotal,
+    averageDebit,
+    categoryBreakdown,
+    categorizedDebitTotal,
+    largestCategoryAmount,
+    hasUnmappedTransactions,
+  } = createStatementReviewData(
+    transactions,
+    sort,
+    getCategoryLabel,
+    getCategoryColor,
   );
-  const unmappedTransactions = includedTransactions.filter(
-    (transaction) => transaction.categoryId === null,
-  );
-  const ambiguousTransactions = includedTransactions.filter(
-    (transaction) => transaction.assignment === "ambiguous",
-  );
-  const categorizedTransactions = includedTransactions.filter(
-    (transaction) => transaction.categoryId !== null,
-  );
-  const ruleCount = categorizedTransactions.filter(
-    (transaction) => transaction.assignment === "rule",
-  ).length;
-  const manualCount = categorizedTransactions.filter(
-    (transaction) => transaction.assignment === "manual",
-  ).length;
-  const excludedCount = transactions.length - includedTransactions.length;
-  const debitTotal = centsToMoney(includedTransactions.reduce(
-    (total, transaction) => total + moneyToCents(Math.abs(transaction.amount)),
-    0,
-  ));
-  const averageDebit =
-    includedTransactions.length > 0
-      ? debitTotal / includedTransactions.length
-      : 0;
-
-  const categoryTotals = new Map<string, number>();
-  includedTransactions.forEach((transaction) => {
-    if (!transaction.categoryId) return;
-
-    categoryTotals.set(
-      transaction.categoryId,
-      (categoryTotals.get(transaction.categoryId) ?? 0) +
-        Math.abs(transaction.amount),
-    );
-  });
-  const categoryBreakdown = [...categoryTotals.entries()]
-    .map(([categoryId, amount]) => ({
-      categoryId,
-      amount,
-      label: getCategoryLabel(categoryId),
-      color: getCategoryColor(categoryId),
-      share: debitTotal > 0 ? (amount / debitTotal) * 100 : 0,
-    }))
-    .sort((left, right) => right.amount - left.amount);
-  const categorizedDebitTotal = categoryBreakdown.reduce(
-    (total, category) => total + category.amount,
-    0,
-  );
-  const largestCategoryAmount = categoryBreakdown[0]?.amount ?? 0;
-  const hasUnmappedTransactions = unmappedTransactions.length > 0;
   const isEWallet = statementSummary.statementType === "e_wallet";
   const statementHistoryPeriod = formatTransactionHistoryPeriod(
     statementSummary.transactionHistoryStartDate,
     statementSummary.statementDate,
   );
-  function renderTransactionTable(rows: readonly CategorizedTransaction[], caption: string) {
-    return (
-      <Table className="min-w-[56rem]">
-        <TableCaption className="sr-only">
-          {caption}
-        </TableCaption>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-32">Date</TableHead>
-            <TableHead>Description</TableHead>
-            <TableHead className="w-36 text-right">Amount</TableHead>
-            <TableHead className="w-44">Category</TableHead>
-            <TableHead className="w-28 text-center">Assignment</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((transaction) => {
-            const activityDescriptionId = `review-${transaction.id}-activity-description`;
-            return (
-              <TableRow
-                key={transaction.id}
-                className={
-                  transaction.isExcluded
-                    ? "bg-muted/70 text-muted-foreground hover:bg-muted"
-                    : undefined
-                }
-              >
-                <TableCell className="font-mono text-xs font-semibold tabular-nums uppercase">
-                  {formatShortDate(transaction.transactionDate)}
-                </TableCell>
-                <TableCell className="font-medium whitespace-normal">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span>{transaction.description}</span>
-                    <TransactionIndicators
-                      transaction={transaction}
-                      activityDescriptionId={activityDescriptionId}
-                    />
-                  </div>
-                </TableCell>
-                <TableCell className="text-right font-mono font-bold tabular-nums">
-                  {formatMoney(Math.abs(transaction.amount))}
-                </TableCell>
-                <TableCell>
-                  <TransactionCategoryMatch
-                    transaction={transaction}
-                    getCategoryColor={getCategoryColor}
-                    getCategoryLabel={getCategoryLabel}
-                  />
-                </TableCell>
-                <TableCell className="text-center">
-                  <AssignmentBadge assignment={transaction.assignment} />
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
-    );
-  }
 
   return (
     <div className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-screen-2xl flex-col gap-6 px-4 py-6 sm:px-6 lg:min-h-screen lg:px-9 lg:py-7">
@@ -509,11 +489,21 @@ function ReviewStatement({
               />
             </div>
 
-            {renderTransactionTable(includedTransactions, `Included expenses from ${fileName}`)}
+            <ReviewTransactionTable
+              rows={includedTransactions}
+              caption={`Included expenses from ${fileName}`}
+              getCategoryColor={getCategoryColor}
+              getCategoryLabel={getCategoryLabel}
+            />
             {excludedTransactions.length > 0 && (
               <details className="border-t p-4">
                 <summary className="cursor-pointer font-mono text-sm font-bold">Excluded rows ({excludedTransactions.length})</summary>
-                {renderTransactionTable(excludedTransactions, `Excluded rows from ${fileName}`)}
+                <ReviewTransactionTable
+                  rows={excludedTransactions}
+                  caption={`Excluded rows from ${fileName}`}
+                  getCategoryColor={getCategoryColor}
+                  getCategoryLabel={getCategoryLabel}
+                />
               </details>
             )}
           </Card>
@@ -790,14 +780,6 @@ function ReviewStatus({
       </div>
     </Card>
   );
-}
-
-interface CategoryBreakdownItem {
-  readonly categoryId: string;
-  readonly amount: number;
-  readonly label: string;
-  readonly color: CategoryColor;
-  readonly share: number;
 }
 
 interface MobileCategoryBreakdownProps {

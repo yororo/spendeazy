@@ -5,6 +5,7 @@ import type { ComponentProps } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { CategoryRuleHelp } from "./category-rule-help";
+import type { CategorizedTransaction } from "./statement-categorizer";
 
 const props: ComponentProps<typeof CategoryRuleHelp> = {
   layout: "table",
@@ -26,6 +27,32 @@ afterEach(() => {
 });
 
 describe("Category Rule help actions", () => {
+  it("preserves preview order, edited descriptions, and row annotations", () => {
+    const row: CategorizedTransaction = {
+      id: "edited", transactionDate: new Date("2026-10-01T00:00:00.000Z"),
+      postingDate: new Date("2026-10-02T00:00:00.000Z"),
+      description: "Original description", amount: -10, categoryId: null,
+      assignment: "unmapped", matchedCategoryIds: [], isExcluded: false,
+    };
+    render(<CategoryRuleHelp
+      {...props}
+      editingId="edited"
+      draftDescription="Changed description"
+      previewRows={[
+        row,
+        { ...row, id: "excluded", description: "Excluded expense", isExcluded: true },
+        { ...row, id: "reviewed", description: "Reviewed expense", categoryId: "42", assignment: "manual" },
+      ]}
+    />);
+    expect(screen.getAllByRole("listitem").map((item) => item.textContent)).toEqual([
+      "Changed description · Unmapped; existing Rule precedence applies",
+      "Excluded expense · Excluded",
+      "Reviewed expense · Reviewed assignment retained",
+    ]);
+    expect(screen.getByText("3 matching rows in this statement")).toBeTruthy();
+    expect(screen.queryByText("Original description")).toBeNull();
+  });
+
   it.each(["mobile", "table"] as const)("hides persistence actions until remembering is enabled on %s", (layout) => {
     render(<CategoryRuleHelp {...props} layout={layout} rememberRule={false} draftError="Lost connection" />);
     expect(screen.queryAllByRole("button")).toHaveLength(0);

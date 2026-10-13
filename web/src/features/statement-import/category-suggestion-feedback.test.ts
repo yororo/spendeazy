@@ -9,8 +9,8 @@ describe("Category Suggestion feedback", () => {
     { result: { status: "loading" }, count: 0, feedback: "loading" },
     { result: { status: "unavailable" }, count: 0, feedback: "unavailable" },
     { result: { status: "none" }, count: 0, feedback: "none" },
-    { result: { status: "suggested", suggestions: [] }, count: 0, feedback: "none" },
-    { result: { status: "suggested", suggestions: [] }, count: 1, feedback: null },
+    { result: { status: "suggested", suggestions: [{ categoryId: "removed", categoryName: "Retired" }] }, count: 0, feedback: "none" },
+    { result: { status: "suggested", suggestions: [{ categoryId: "42", categoryName: "Groceries" }] }, count: 1, feedback: null },
   ])("maps $result with $count available options to $feedback", ({ result, count, feedback }) => {
     expect(getCategorySuggestionFeedback(result, count)).toBe(feedback);
   });

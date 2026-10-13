@@ -34,9 +34,14 @@ describe("authoritative Budget readiness", () => {
     })).toEqual({ status: "error", message: "Try again to load Budget details." });
   });
 
-  it.each([null, budget])("accepts fetched %j even alongside a query error", (data) => {
+  it.each([
+    { data: null, isError: false },
+    { data: null, isError: true },
+    { data: budget, isError: false },
+    { data: budget, isError: true },
+  ])("accepts fetched $data with isError=$isError", ({ data, isError }) => {
     expect(getCategoryBudgetReadiness({
-      isFetchedAfterMount: true, isError: true, error: new Error("Refetch failed"), data,
+      isFetchedAfterMount: true, isError, error: isError ? new Error("Refetch failed") : null, data,
     })).toEqual({ status: "ready", budget: data });
   });
 });

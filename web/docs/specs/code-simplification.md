@@ -253,3 +253,21 @@ and file splits can be settled during a later approved planning phase.
 
 The User approved the spec and authorized implementation. S1-S5 are independent
 refactoring slices and will be verified in that order using the checks above.
+
+## Implementation validation
+
+Completed on 2026-10-13. S1-S5 are implemented with feature-local helpers and
+components; the implementation map is recorded in `docs/ARCHITECTURE.md`.
+
+- Web lint, production build, and browser-test type checking passed.
+- The full Vitest suite passed: 706 tests across 66 files.
+- The unfiltered isolated suite passed: 103 Playwright tests and 3 PostgreSQL
+  Statement Import rollback/duplicate tests. The first attempt timed out during
+  API startup before browser execution; the standalone retry passed.
+- Independent code review found a remaining duplicate Budget readiness guard;
+  it was removed, and the reviewer confirmed the finding was resolved.
+- A temporary-copy mutation check inverted the fetched-after-mount condition;
+  10 readiness assertions failed as expected. Production files were not mutated.
+
+The build still reports a large Statement Import bundle. Bundle splitting is
+outside this behavior-preserving refactor.

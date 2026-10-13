@@ -150,14 +150,22 @@ async function getDailyInsights(
   const periods = getRollingPeriods(period);
   const firstPeriod = periods[0]!;
   const { catalog, summary, inactiveCategoryBudgets, transactions } =
-    await loadInsightsData(apiClient, period, {
-      fromDate: `${firstPeriod}-01`,
-      toDate: bounds.toDate,
-    }, signal, spaceId);
+    await loadInsightsData(
+      apiClient,
+      period,
+      { fromDate: `${firstPeriod}-01`, toDate: bounds.toDate },
+      signal,
+      spaceId,
+    );
 
   return createDailyInsightsReport(
-    period, periods, bounds.daysInPeriod, catalog, summary,
-    inactiveCategoryBudgets, transactions,
+    period,
+    periods,
+    bounds.daysInPeriod,
+    catalog,
+    summary,
+    inactiveCategoryBudgets,
+    transactions,
   );
 }
 
@@ -170,10 +178,21 @@ async function getMonthlyInsights(
   const periods = getRollingPeriods(period);
   const { toDate } = getReportingPeriodBounds(period);
   const { catalog, summary, inactiveCategoryBudgets, transactions } =
-    await loadInsightsData(apiClient, period, { fromDate: undefined, toDate }, signal, spaceId);
+    await loadInsightsData(
+      apiClient,
+      period,
+      { fromDate: undefined, toDate },
+      signal,
+      spaceId,
+    );
 
   return createMonthlyInsightsReport(
-    period, periods, catalog, summary, inactiveCategoryBudgets, transactions,
+    period,
+    periods,
+    catalog,
+    summary,
+    inactiveCategoryBudgets,
+    transactions,
   );
 }
 

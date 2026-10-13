@@ -100,7 +100,6 @@ import {
 } from "./use-statement-category-suggestions";
 
 type CategoryFilter = "all" | "unmapped" | string;
-
 const MOBILE_EDITOR_BREAKPOINT_PX = 768;
 
 interface CategorizeStatementProps {
@@ -1022,20 +1021,20 @@ function CategorizeStatement({
                           draft={draft}
                           error={draftError}
                           ruleHelp={
-                    <CategoryRuleHelp
-                      layout="table"
-                      equivalentRule={equivalentRule}
-                      rememberRule={rememberRule}
-                      matchType={rememberedMatchType}
-                      previewRows={previewRows}
-                      editingId={editingId}
-                      draftDescription={draft?.description}
-                      draftError={draftError}
-                      isSaving={isSaving}
-                      onSave={saveAssignment}
-                      onApplyWithoutRemembering={applyWithoutRemembering}
-                    />
-                  }
+                            <CategoryRuleHelp
+                              layout="table"
+                              equivalentRule={equivalentRule}
+                              rememberRule={rememberRule}
+                              matchType={rememberedMatchType}
+                              previewRows={previewRows}
+                              editingId={editingId}
+                              draftDescription={draft?.description}
+                              draftError={draftError}
+                              isSaving={isSaving}
+                              onSave={saveAssignment}
+                              onApplyWithoutRemembering={applyWithoutRemembering}
+                            />
+                          }
                           rememberRule={rememberRule}
                           rememberedMatchType={rememberedMatchType}
                           rememberedPattern={rememberedPattern}
@@ -1223,7 +1222,7 @@ function CategorizeStatement({
                   transaction={editingTransaction}
                   draft={draft}
                   error={draftError}
-                          ruleHelp={
+                  ruleHelp={
                     <CategoryRuleHelp
                       layout="mobile"
                       equivalentRule={equivalentRule}

@@ -192,19 +192,6 @@ function EditCategoryRow({
 }: EditCategoryRowProps) {
   const budgetQuery = useCategoryBudgetQuery(category.id, spaceId);
 
-  if (!budgetQuery.isFetchedAfterMount && budgetQuery.isError) {
-    return (
-      <CategoryBudgetErrorRow
-        category={category}
-        message={
-          budgetQuery.error?.message ?? "Try again to load Budget details."
-        }
-        onRetry={() => void budgetQuery.refetch()}
-        onCancel={onCancel}
-      />
-    );
-  }
-
   const readiness = getCategoryBudgetReadiness(budgetQuery);
 
   if (readiness.status === "error") {

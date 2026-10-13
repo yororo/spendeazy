@@ -8,6 +8,7 @@ import { useUnsavedChangesNavigationGuard } from "@/shared/navigation";
 
 import { useCategoryEditor } from "./category-editor";
 import { useCategoryBudgetQuery } from "./categories-queries";
+import { getCategoryBudgetReadiness } from "./category-budget-readiness";
 import {
   CategoryEditorActions,
   CategoryEditorBudgetField,
@@ -204,25 +205,27 @@ function EditCategoryRow({
     );
   }
 
-  if (!budgetQuery.isFetchedAfterMount) {
-    return <CategoryBudgetLoadingRow category={category} />;
-  }
+  const readiness = getCategoryBudgetReadiness(budgetQuery);
 
-  if (budgetQuery.data === undefined) {
+  if (readiness.status === "error") {
     return (
       <CategoryBudgetErrorRow
         category={category}
-        message="Try again to load Budget details."
+        message={readiness.message}
         onRetry={() => void budgetQuery.refetch()}
         onCancel={onCancel}
       />
     );
   }
 
+  if (readiness.status === "loading") {
+    return <CategoryBudgetLoadingRow category={category} />;
+  }
+
   return (
     <ReadyEditCategoryRow
       category={category}
-      authoritativeBudget={budgetQuery.data}
+      authoritativeBudget={readiness.budget}
       spaceId={spaceId}
       onCancel={onCancel}
       onSaved={onSaved}

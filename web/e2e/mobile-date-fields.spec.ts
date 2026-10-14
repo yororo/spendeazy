@@ -88,37 +88,37 @@ test("keeps mobile date fields contained and shows their picker affordance", asy
   page,
 }) => {
   await page.clock.install({ time: new Date(process.env.SPENDEAZY_E2E_TEST_CLOCK ?? "2026-09-19T12:00:00.000Z") });
-  await page.goto("/transactions");
+  await page.goto("/expenses");
   const token = await createNewLocalTestUser(page);
-  const created = await page.request.post(`${requireEnvironment("SPENDEAZY_E2E_API_BASE_URL")}/api/v1/users/me/transactions`, {
+  const created = await page.request.post(`${requireEnvironment("SPENDEAZY_E2E_API_BASE_URL")}/api/v1/users/me/expenses`, {
     headers: authorizationHeaders(token),
     data: { amount: "1.25", description: "Synthetic mobile date-field fixture", purchaseDate: requireEnvironment("SPENDEAZY_E2E_TEST_DATE") },
   });
   expect(created.status()).toBe(201);
   await page.clock.fastForward(31_000);
   await navigateSpending(page, "Budgets");
-  await navigateSpending(page, "Transactions");
+  await navigateSpending(page, "Expenses");
   await expect(
     page.getByRole("heading", { name: "Your spending" }),
   ).toBeVisible();
 
-  await page.getByRole("button", { name: "Record Transaction" }).click();
-  const transactionDialog = page.getByRole("dialog", {
-    name: "Record Transaction",
+  await page.getByRole("button", { name: "Record Expense" }).click();
+  const expenseDialog = page.getByRole("dialog", {
+    name: "Record Expense",
   });
   await expectMobileDateField(
-    transactionDialog.getByLabel("Purchase date"),
-    transactionDialog,
+    expenseDialog.getByLabel("Purchase date"),
+    expenseDialog,
   );
-  await transactionDialog.getByRole("button", { name: "Cancel" }).click();
+  await expenseDialog.getByRole("button", { name: "Cancel" }).click();
 
   await page
-    .getByRole("list", { name: "All transactions" })
+    .getByRole("list", { name: "All expenses" })
     .getByRole("button", { name: /More actions for/u })
     .first()
     .click();
   await page.getByRole("menuitem", { name: "Edit" }).click();
-  const editDialog = page.getByRole("dialog", { name: "Edit Transaction" });
+  const editDialog = page.getByRole("dialog", { name: "Edit Expense" });
   await expect(editDialog).toBeVisible();
   await expectMobileDateField(
     editDialog.getByLabel("Purchase date"),
@@ -136,24 +136,24 @@ test("keeps mobile date fields contained and shows their picker affordance", asy
     buffer: createStatementPdf(),
   });
 
-  const transactions = page.getByRole("list", {
-    name: "Transactions to categorize",
+  const expenses = page.getByRole("list", {
+    name: "Statement Entries to categorize",
   });
-  await expect(transactions).toBeVisible();
+  await expect(expenses).toBeVisible();
 
-  await page.getByRole("button", { name: "Filter Transactions" }).click();
+  await page.getByRole("button", { name: "Filter Statement Entries" }).click();
   const filterDialog = page.getByRole("dialog", {
-    name: "Filter Transactions",
+    name: "Filter Statement Entries",
   });
   await expectMobileDateField(filterDialog.getByLabel("From"), filterDialog);
   await expectMobileDateField(filterDialog.getByLabel("To"), filterDialog);
   await filterDialog.getByRole("button", { name: "Close" }).click();
 
-  await transactions
+  await expenses
     .getByRole("button", { name: "Edit Green Market Cafe", exact: true })
     .click();
   const categorizeDialog = page.getByRole("dialog", {
-    name: "Edit Transaction",
+    name: "Edit Statement Entry",
   });
   await expectMobileDateField(
     categorizeDialog.getByLabel("Date for Green Market Cafe"),

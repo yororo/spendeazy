@@ -9,7 +9,7 @@ test("navigation and financial routes fit responsive boundary widths", async ({ 
   for (const width of [320, 767, 768, 1023, 1024]) {
     await page.setViewportSize({ width, height: 900 });
     for (const [destination, heading] of [
-      ["Transactions", "Your spending"], ["Budgets", "Budget overview"],
+      ["Expenses", "Your spending"], ["Budgets", "Budget overview"],
       ["Insights", "Insights"], ["Imports", "Upload your statement"],
       ["Sharing", "Invite someone you trust"],
     ] as const) {

@@ -81,34 +81,34 @@ for (const width of [320, 390]) {
     await page.locator('input[type="file"]').setInputFiles({
       name: "layout-statement.pdf", mimeType: "application/pdf", buffer: createStatementPdf(),
     });
-    const transactions = page.getByRole("list", { name: "Transactions to categorize" });
-    await expect(transactions).toBeVisible();
-    const transaction = transactions.getByRole("listitem");
-    const edit = transaction.getByRole("button", { name: "Edit Green Market Cafe", exact: true });
-    const exclude = transaction.getByRole("button", { name: "Exclude Green Market Cafe", exact: true });
-    const category = transaction.getByRole("button", { name: "Edit Category for Green Market Cafe" });
-    const description = transaction.getByText("Green Market Cafe", { exact: true });
+    const expenses = page.getByRole("list", { name: "Statement Entries to categorize" });
+    await expect(expenses).toBeVisible();
+    const expense = expenses.getByRole("listitem");
+    const edit = expense.getByRole("button", { name: "Edit Green Market Cafe", exact: true });
+    const exclude = expense.getByRole("button", { name: "Exclude Green Market Cafe", exact: true });
+    const category = expense.getByRole("button", { name: "Edit Category for Green Market Cafe" });
+    const description = expense.getByText("Green Market Cafe", { exact: true });
     await expect(edit).toBeVisible();
     await expect(exclude).toBeVisible();
 
     // Compare visible controls, not CSS classes or incidental DOM containers.
     await expect.poll(async () => {
-      const [transactionBox, descriptionBox, editBox, excludeBox, categoryBox] = await Promise.all([
-        transaction.boundingBox(),
+      const [expenseBox, descriptionBox, editBox, excludeBox, categoryBox] = await Promise.all([
+        expense.boundingBox(),
         description.boundingBox(),
         edit.boundingBox(),
         exclude.boundingBox(),
         category.boundingBox(),
       ]);
-      if (!transactionBox || !descriptionBox || !editBox || !excludeBox || !categoryBox) return false;
+      if (!expenseBox || !descriptionBox || !editBox || !excludeBox || !categoryBox) return false;
       return Math.abs(editBox.y - descriptionBox.y) <= 1 &&
         Math.abs(excludeBox.y - categoryBox.y) <= 1 &&
         categoryBox.x + categoryBox.width <= excludeBox.x + 1 &&
-        Math.abs(excludeBox.x + excludeBox.width - (transactionBox.x + transactionBox.width - 16)) <= 1;
+        Math.abs(excludeBox.x + excludeBox.width - (expenseBox.x + expenseBox.width - 16)) <= 1;
     }).toBe(true);
 
     await category.click();
-    const categoryEditor = page.getByRole("dialog", { name: "Edit Transaction" });
+    const categoryEditor = page.getByRole("dialog", { name: "Edit Statement Entry" });
     const categoryInput = categoryEditor.getByRole("combobox", {
       name: "Category for Green Market Cafe",
     });
@@ -119,7 +119,7 @@ for (const width of [320, 390]) {
     await categoryEditor.getByRole("button", { name: "Cancel", exact: true }).click();
 
     await edit.click();
-    const editor = page.getByRole("dialog", { name: "Edit Transaction" });
+    const editor = page.getByRole("dialog", { name: "Edit Statement Entry" });
     const date = editor.getByLabel("Date for Green Market Cafe", { exact: true });
     await expect(date).toBeVisible();
     await expect.poll(async () => {
@@ -168,7 +168,7 @@ test("keeps recent Statement Import history inside its card on desktop", async (
           totalDebit: null,
           importedAt: "2026-09-18T00:00:00.000Z",
           importedByUserId: "10",
-          transactionCount: "66",
+          expenseCount: "66",
         })),
         nextCursor: null,
       };

@@ -16,7 +16,7 @@ interface SignInLocationState {
 }
 
 const benefits = [
-  "Import transactions",
+  "Import expenses",
   "Automatic categorization",
   "Privacy first",
 ];

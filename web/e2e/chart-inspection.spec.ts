@@ -18,7 +18,7 @@ for (const width of [320, 390, 1440]) {
       const response = await page.request.post(base + "/categories", { headers, data: { name, color: "teal" } });
       expect(response.ok(), await response.text()).toBe(true);
       const category = await response.json();
-      expect((await page.request.post(base + "/transactions", { headers, data: { categoryId: category.id, purchaseDate: "2026-08-10", amount, description: "Synthetic " + name + " contribution" } })).ok()).toBe(true);
+      expect((await page.request.post(base + "/expenses", { headers, data: { categoryId: category.id, purchaseDate: "2026-08-10", amount, description: "Synthetic " + name + " contribution" } })).ok()).toBe(true);
     }
     await page.getByRole("navigation", { name: width < 768 ? "Mobile navigation" : "Primary navigation" }).getByRole("link", { name: "Insights", exact: true }).click();
     await page.getByLabel("Reporting period", { exact: true }).fill("2026-09");
@@ -49,7 +49,7 @@ for (const width of [320, 390, 1440]) {
     await page.keyboard.press("Escape");
     await expect(point).toBeFocused();
     await point.tap();
-    await dialog.getByRole("button", { name: "View full month’s Transactions", exact: true }).click();
+    await dialog.getByRole("button", { name: "View full month’s Expenses", exact: true }).click();
     await expect(page.getByLabel("Reporting period", { exact: true })).toHaveValue("2026-08");
     await page.getByRole("button", { name: "Return to Insights" }).click();
     await expect(page.getByLabel("Reporting period", { exact: true })).toHaveValue("2026-09");
@@ -67,7 +67,7 @@ for (const width of [320, 390, 1440]) {
     await page.getByRole("dialog", { name: "Edit Chart A", exact: true }).getByRole("button", { name: "Cancel", exact: true }).click();
     await expect(day).toBeFocused();
     await day.click();
-    await dialog.getByRole("button", { name: "View Chart A month’s Transactions", exact: true }).click();
+    await dialog.getByRole("button", { name: "View Chart A month’s Expenses", exact: true }).click();
     await expect(page).toHaveURL(/categoryId=/);
     await expect(page.getByLabel("Reporting period", { exact: true })).toHaveValue("2026-08");
     await page.getByRole("button", { name: "Return to Insights" }).click();

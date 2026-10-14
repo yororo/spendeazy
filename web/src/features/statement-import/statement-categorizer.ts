@@ -1,5 +1,5 @@
 import {
-  categorizeTransactions,
+  categorizeStatementEntries,
   type AssignmentProvenance,
   type CategoryRule,
 } from "./statement-import-service";
@@ -7,11 +7,11 @@ import { extractPdfPages } from "./statement-parser/pdf-extractor";
 import { centsToMoney, moneyToCents } from "@/shared/money";
 import {
   type StatementSummary,
-  type Transaction,
+  type StatementEntry,
   transformStatement,
 } from "./statement-parser/transformer";
 
-interface CategorizedTransaction extends Transaction {
+interface CategorizedStatementEntry extends StatementEntry {
   readonly activityKind?: "expense" | "payment" | "other_credit";
   readonly id: string;
   readonly categoryId: string | null;
@@ -22,18 +22,18 @@ interface CategorizedTransaction extends Transaction {
 
 interface CategorizedStatement {
   summary: StatementSummary;
-  transactions: CategorizedTransaction[];
+  entries: CategorizedStatementEntry[];
 }
 
 function getActivityKind(
-  transaction: Transaction,
+  expense: StatementEntry,
   summary: StatementSummary,
-): NonNullable<CategorizedTransaction["activityKind"]> {
-  if (transaction.amount >= 0) return "expense";
+): NonNullable<CategorizedStatementEntry["activityKind"]> {
+  if (expense.amount >= 0) return "expense";
   // Only recognized card payment descriptions distinguish payments from other credits.
   if (
     summary.statementType === "credit_card" &&
-    /^(?:PAYMENT RECEIVED\b|INTERNET PAYMENT$)/i.test(transaction.description)
+    /^(?:PAYMENT RECEIVED\b|INTERNET PAYMENT$)/i.test(expense.description)
   ) {
     return "payment";
   }
@@ -50,16 +50,16 @@ async function categorizeStatement(
   const statementText = pages.map(({ text }) => text).join("\n");
   console.log("Extracted statement text:", statementText);
   const transformedStatement = transformStatement(statementText);
-  const extractedTransactions = transformedStatement.transactions;
+  const extractedExpenses = transformedStatement.entries;
 
   // Statement providers use the opposite sign convention from the ledger.
-  const normalizedTransactions = extractedTransactions.map((transaction) => ({
-    ...transaction,
-    amount: -transaction.amount,
-    activityKind: getActivityKind(transaction, transformedStatement.summary),
+  const normalizedExpenses = extractedExpenses.map((expense) => ({
+    ...expense,
+    amount: -expense.amount,
+    activityKind: getActivityKind(expense, transformedStatement.summary),
   }));
-  const normalizedExtractedCents = normalizedTransactions.reduce(
-    (total, transaction) => total + moneyToCents(transaction.amount),
+  const normalizedExtractedCents = normalizedExpenses.reduce(
+    (total, expense) => total + moneyToCents(expense.amount),
     0,
   );
   const summary = {
@@ -67,22 +67,22 @@ async function categorizeStatement(
     totalExtractedAmount: centsToMoney(normalizedExtractedCents),
   };
 
-  const categorizations = categorizeTransactions(
-    normalizedTransactions,
+  const categorizations = categorizeStatementEntries(
+    normalizedExpenses,
     rules,
     activeCategoryIds,
   );
-  const transactions = normalizedTransactions.map((transaction, index) => ({
-    ...transaction,
-    id: `transaction-${index + 1}`,
+  const expenses = normalizedExpenses.map((expense, index) => ({
+    ...expense,
+    id: `expense-${index + 1}`,
     categoryId: categorizations[index]?.categoryId ?? null,
     assignment: categorizations[index]?.assignment ?? "unmapped",
     matchedCategoryIds: categorizations[index]?.matchedCategoryIds ?? [],
-    isExcluded: transaction.amount > 0,
+    isExcluded: expense.amount > 0,
   }));
 
-  return { summary, transactions };
+  return { summary, entries: expenses };
 }
 
 export { categorizeStatement };
-export type { CategorizedStatement, CategorizedTransaction };
+export type { CategorizedStatement, CategorizedStatementEntry };

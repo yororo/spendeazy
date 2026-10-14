@@ -103,7 +103,7 @@ const PAGINATION_QUERY_SCHEMAS = {
   },
 } as const;
 
-const TRANSACTION_QUERY_SCHEMAS = {
+const EXPENSE_QUERY_SCHEMAS = {
   fromDate: DATE_QUERY_SCHEMA,
   toDate: DATE_QUERY_SCHEMA,
   description: { type: 'string', minLength: 1, maxLength: 500 },
@@ -539,14 +539,14 @@ const OPERATION_EXPECTATIONS = [
     },
   },
   {
-    operationId: 'Transactions_createManualTransaction',
-    tag: 'Transactions',
-    requestSchemaRef: 'CreateManualTransactionDto',
+    operationId: 'Expenses_createManualExpense',
+    tag: 'Expenses',
+    requestSchemaRef: 'CreateManualExpenseDto',
     bodyResponses: [
       {
         status: '201',
-        schemaRef: 'ManualTransactionResponseDto',
-        location: `/${API_PREFIX}/users/me/transactions/42`,
+        schemaRef: 'ManualExpenseResponseDto',
+        location: `/${API_PREFIX}/users/me/expenses/42`,
       },
     ],
     errorResponses: {
@@ -557,8 +557,8 @@ const OPERATION_EXPECTATIONS = [
     },
   },
   {
-    operationId: 'Transactions_listTransactions',
-    tag: 'Transactions',
+    operationId: 'Expenses_listExpenses',
+    tag: 'Expenses',
     queryParameters: [
       'fromDate',
       'toDate',
@@ -572,15 +572,15 @@ const OPERATION_EXPECTATIONS = [
       'pageSize',
       'cursor',
     ],
-    queryParameterSchemas: TRANSACTION_QUERY_SCHEMAS,
+    queryParameterSchemas: EXPENSE_QUERY_SCHEMAS,
     bodyResponses: [
-      { status: '200', schemaRef: 'TransactionHistoryPageResponseDto' },
+      { status: '200', schemaRef: 'ExpenseHistoryPageResponseDto' },
     ],
     errorResponses: { ...PROTECTED_ERRORS, ...VALIDATION_ERROR },
   },
   {
-    operationId: 'Transactions_listDeletedTransactions',
-    tag: 'Transactions',
+    operationId: 'Expenses_listDeletedExpenses',
+    tag: 'Expenses',
     queryParameters: [
       'fromDate',
       'toDate',
@@ -594,41 +594,41 @@ const OPERATION_EXPECTATIONS = [
       'pageSize',
       'cursor',
     ],
-    queryParameterSchemas: TRANSACTION_QUERY_SCHEMAS,
+    queryParameterSchemas: EXPENSE_QUERY_SCHEMAS,
     bodyResponses: [
-      { status: '200', schemaRef: 'TransactionHistoryPageResponseDto' },
+      { status: '200', schemaRef: 'ExpenseHistoryPageResponseDto' },
     ],
     errorResponses: { ...PROTECTED_ERRORS, ...VALIDATION_ERROR },
   },
   {
-    operationId: 'Transactions_getManualTransaction',
-    tag: 'Transactions',
-    pathParameter: 'transactionId',
+    operationId: 'Expenses_getManualExpense',
+    tag: 'Expenses',
+    pathParameter: 'expenseId',
     bodyResponses: [
-      { status: '200', schemaRef: 'ManualTransactionResponseDto' },
+      { status: '200', schemaRef: 'ManualExpenseResponseDto' },
     ],
     errorResponses: { ...PROTECTED_ERRORS, ...VALIDATED_PATH_ERRORS },
   },
   {
-    operationId: 'Transactions_listTransactionActivity',
-    tag: 'Transactions',
-    pathParameter: 'transactionId',
+    operationId: 'Expenses_listExpenseActivity',
+    tag: 'Expenses',
+    pathParameter: 'expenseId',
     bodyResponses: [
-      { status: '200', arrayItemSchemaRef: 'TransactionActivityResponseDto' },
+      { status: '200', arrayItemSchemaRef: 'ExpenseActivityResponseDto' },
     ],
     errorResponses: { ...PROTECTED_ERRORS, ...VALIDATED_PATH_ERRORS },
   },
   {
-    operationId: 'Transactions_updateTransaction',
-    tag: 'Transactions',
-    requestSchemaRef: 'UpdateManualTransactionDto',
-    pathParameter: 'transactionId',
+    operationId: 'Expenses_updateExpense',
+    tag: 'Expenses',
+    requestSchemaRef: 'UpdateManualExpenseDto',
+    pathParameter: 'expenseId',
     bodyResponses: [
       {
         status: '200',
         unionSchemaRefs: [
-          'ManualTransactionResponseDto',
-          'ImportedTransactionResponseDto',
+          'ManualExpenseResponseDto',
+          'ImportedExpenseResponseDto',
         ],
       },
     ],
@@ -640,9 +640,9 @@ const OPERATION_EXPECTATIONS = [
     },
   },
   {
-    operationId: 'Transactions_deleteManualTransaction',
-    tag: 'Transactions',
-    pathParameter: 'transactionId',
+    operationId: 'Expenses_deleteManualExpense',
+    tag: 'Expenses',
+    pathParameter: 'expenseId',
     headerParameters: ['if-match'],
     bodyResponses: [{ status: '204' }],
     errorResponses: {
@@ -652,15 +652,15 @@ const OPERATION_EXPECTATIONS = [
     },
   },
   {
-    operationId: 'SpaceTransactions_createTransaction',
-    tag: 'Transactions',
-    requestSchemaRef: 'CreateManualTransactionDto',
+    operationId: 'SpaceExpenses_createExpense',
+    tag: 'Expenses',
+    requestSchemaRef: 'CreateManualExpenseDto',
     pathParameters: ['spaceId'],
     bodyResponses: [
       {
         status: '201',
-        schemaRef: 'ManualTransactionResponseDto',
-        location: `/${API_PREFIX}/users/me/spaces/7/transactions/42`,
+        schemaRef: 'ManualExpenseResponseDto',
+        location: `/${API_PREFIX}/users/me/spaces/7/expenses/42`,
       },
     ],
     errorResponses: {
@@ -671,8 +671,8 @@ const OPERATION_EXPECTATIONS = [
     },
   },
   {
-    operationId: 'SpaceTransactions_listTransactions',
-    tag: 'Transactions',
+    operationId: 'SpaceExpenses_listExpenses',
+    tag: 'Expenses',
     pathParameters: ['spaceId'],
     queryParameters: [
       'fromDate',
@@ -687,9 +687,9 @@ const OPERATION_EXPECTATIONS = [
       'pageSize',
       'cursor',
     ],
-    queryParameterSchemas: TRANSACTION_QUERY_SCHEMAS,
+    queryParameterSchemas: EXPENSE_QUERY_SCHEMAS,
     bodyResponses: [
-      { status: '200', schemaRef: 'TransactionHistoryPageResponseDto' },
+      { status: '200', schemaRef: 'ExpenseHistoryPageResponseDto' },
     ],
     errorResponses: {
       ...PROTECTED_ERRORS,
@@ -697,8 +697,8 @@ const OPERATION_EXPECTATIONS = [
     },
   },
   {
-    operationId: 'SpaceTransactions_listDeletedTransactions',
-    tag: 'Transactions',
+    operationId: 'SpaceExpenses_listDeletedExpenses',
+    tag: 'Expenses',
     pathParameters: ['spaceId'],
     queryParameters: [
       'fromDate',
@@ -713,9 +713,9 @@ const OPERATION_EXPECTATIONS = [
       'pageSize',
       'cursor',
     ],
-    queryParameterSchemas: TRANSACTION_QUERY_SCHEMAS,
+    queryParameterSchemas: EXPENSE_QUERY_SCHEMAS,
     bodyResponses: [
-      { status: '200', schemaRef: 'TransactionHistoryPageResponseDto' },
+      { status: '200', schemaRef: 'ExpenseHistoryPageResponseDto' },
     ],
     errorResponses: {
       ...PROTECTED_ERRORS,
@@ -723,34 +723,34 @@ const OPERATION_EXPECTATIONS = [
     },
   },
   {
-    operationId: 'SpaceTransactions_getTransaction',
-    tag: 'Transactions',
-    pathParameters: ['spaceId', 'transactionId'],
+    operationId: 'SpaceExpenses_getExpense',
+    tag: 'Expenses',
+    pathParameters: ['spaceId', 'expenseId'],
     bodyResponses: [
-      { status: '200', schemaRef: 'ManualTransactionResponseDto' },
+      { status: '200', schemaRef: 'ManualExpenseResponseDto' },
     ],
     errorResponses: { ...PROTECTED_ERRORS, ...VALIDATED_PATH_ERRORS },
   },
   {
-    operationId: 'SpaceTransactions_listTransactionActivity',
-    tag: 'Transactions',
-    pathParameters: ['spaceId', 'transactionId'],
+    operationId: 'SpaceExpenses_listExpenseActivity',
+    tag: 'Expenses',
+    pathParameters: ['spaceId', 'expenseId'],
     bodyResponses: [
-      { status: '200', arrayItemSchemaRef: 'TransactionActivityResponseDto' },
+      { status: '200', arrayItemSchemaRef: 'ExpenseActivityResponseDto' },
     ],
     errorResponses: { ...PROTECTED_ERRORS, ...VALIDATED_PATH_ERRORS },
   },
   {
-    operationId: 'SpaceTransactions_updateTransaction',
-    tag: 'Transactions',
-    requestSchemaRef: 'UpdateSpaceTransactionDto',
-    pathParameters: ['spaceId', 'transactionId'],
+    operationId: 'SpaceExpenses_updateExpense',
+    tag: 'Expenses',
+    requestSchemaRef: 'UpdateSpaceExpenseDto',
+    pathParameters: ['spaceId', 'expenseId'],
     bodyResponses: [
       {
         status: '200',
         unionSchemaRefs: [
-          'ManualTransactionResponseDto',
-          'ImportedTransactionResponseDto',
+          'ManualExpenseResponseDto',
+          'ImportedExpenseResponseDto',
         ],
       },
     ],
@@ -762,9 +762,9 @@ const OPERATION_EXPECTATIONS = [
     },
   },
   {
-    operationId: 'SpaceTransactions_deleteTransaction',
-    tag: 'Transactions',
-    pathParameters: ['spaceId', 'transactionId'],
+    operationId: 'SpaceExpenses_deleteExpense',
+    tag: 'Expenses',
+    pathParameters: ['spaceId', 'expenseId'],
     headerParameters: ['if-match'],
     requiredHeaderParameters: ['if-match'],
     bodyResponses: [{ status: '204' }],
@@ -867,12 +867,12 @@ const PUBLIC_RESPONSE_SCHEMA_NAMES = [
   'CategorySummaryItemResponseDto',
   'CategoryRuleResponseDto',
   'CategoryRuleCollectionResponseDto',
-  'ManualTransactionResponseDto',
-  'ImportedTransactionResponseDto',
-  'ManualTransactionHistoryResponseDto',
-  'ImportedTransactionHistoryResponseDto',
-  'TransactionHistoryPageResponseDto',
-  'TransactionActivityResponseDto',
+  'ManualExpenseResponseDto',
+  'ImportedExpenseResponseDto',
+  'ManualExpenseHistoryResponseDto',
+  'ImportedExpenseHistoryResponseDto',
+  'ExpenseHistoryPageResponseDto',
+  'ExpenseActivityResponseDto',
   'StatementImportResponseDto',
   'StatementImportHistoryResponseDto',
   'StatementImportHistoryPageResponseDto',
@@ -919,12 +919,12 @@ const REQUEST_SCHEMA_SHAPES = {
     optional: [],
     nullable: [],
   },
-  CreateManualTransactionDto: {
+  CreateManualExpenseDto: {
     required: ['purchaseDate', 'description', 'amount'],
     optional: ['categoryId'],
     nullable: ['categoryId'],
   },
-  UpdateManualTransactionDto: {
+  UpdateManualExpenseDto: {
     required: [],
     optional: [
       'purchaseDate',
@@ -935,12 +935,12 @@ const REQUEST_SCHEMA_SHAPES = {
     ],
     nullable: ['categoryId'],
   },
-  UpdateSpaceTransactionDto: {
+  UpdateSpaceExpenseDto: {
     required: ['updatedAt'],
     optional: ['purchaseDate', 'description', 'amount', 'categoryId'],
     nullable: ['categoryId'],
   },
-  ReviewedStatementTransactionDto: {
+  ReviewedStatementExpenseDto: {
     required: ['purchaseDate', 'description', 'amount'],
     optional: ['categoryId', 'categoryMatchConfidence', 'reference'],
     nullable: ['categoryId', 'categoryMatchConfidence', 'reference'],
@@ -952,7 +952,7 @@ const REQUEST_SCHEMA_SHAPES = {
       'statementDate',
       'statementType',
       'bank',
-      'transactions',
+      'expenses',
     ],
     optional: [
       'cardType',
@@ -1020,7 +1020,7 @@ const REQUEST_PROPERTY_ASSERTIONS: Readonly<
       items: { $ref: '#/components/schemas/ReplacementCategoryRuleDto' },
     },
   },
-  CreateManualTransactionDto: {
+  CreateManualExpenseDto: {
     purchaseDate: {
       type: 'string',
       format: 'date',
@@ -1038,26 +1038,7 @@ const REQUEST_PROPERTY_ASSERTIONS: Readonly<
     },
     categoryId: { type: 'string', pattern: '^[1-9]\\d*$', nullable: true },
   },
-  UpdateManualTransactionDto: {
-    purchaseDate: {
-      type: 'string',
-      format: 'date',
-      pattern: '^\\d{4}-\\d{2}-\\d{2}$',
-    },
-    description: {
-      type: 'string',
-      minLength: 1,
-      maxLength: 500,
-      pattern: '\\S',
-    },
-    amount: {
-      type: 'string',
-      pattern: '^(?=.*[1-9])\\d{1,13}\\.\\d{2}$',
-    },
-    categoryId: { type: 'string', pattern: '^[1-9]\\d*$', nullable: true },
-    updatedAt: { type: 'string', format: 'date-time' },
-  },
-  UpdateSpaceTransactionDto: {
+  UpdateManualExpenseDto: {
     purchaseDate: {
       type: 'string',
       format: 'date',
@@ -1076,7 +1057,26 @@ const REQUEST_PROPERTY_ASSERTIONS: Readonly<
     categoryId: { type: 'string', pattern: '^[1-9]\\d*$', nullable: true },
     updatedAt: { type: 'string', format: 'date-time' },
   },
-  ReviewedStatementTransactionDto: {
+  UpdateSpaceExpenseDto: {
+    purchaseDate: {
+      type: 'string',
+      format: 'date',
+      pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+    },
+    description: {
+      type: 'string',
+      minLength: 1,
+      maxLength: 500,
+      pattern: '\\S',
+    },
+    amount: {
+      type: 'string',
+      pattern: '^(?=.*[1-9])\\d{1,13}\\.\\d{2}$',
+    },
+    categoryId: { type: 'string', pattern: '^[1-9]\\d*$', nullable: true },
+    updatedAt: { type: 'string', format: 'date-time' },
+  },
+  ReviewedStatementExpenseDto: {
     purchaseDate: {
       type: 'string',
       format: 'date',
@@ -1134,9 +1134,9 @@ const REQUEST_PROPERTY_ASSERTIONS: Readonly<
       pattern: '^\\d{1,13}\\.\\d{2}$',
       nullable: true,
     },
-    transactions: {
+    expenses: {
       type: 'array',
-      items: { $ref: '#/components/schemas/ReviewedStatementTransactionDto' },
+      items: { $ref: '#/components/schemas/ReviewedStatementExpenseDto' },
     },
     acknowledgeProbableDuplicates: { type: 'boolean' },
   },
@@ -1303,7 +1303,7 @@ describe('complete generated OpenAPI contract', () => {
       'minProperties',
       1,
     );
-    expect(schema(document, 'UpdateManualTransactionDto')).toHaveProperty(
+    expect(schema(document, 'UpdateManualExpenseDto')).toHaveProperty(
       'minProperties',
       1,
     );

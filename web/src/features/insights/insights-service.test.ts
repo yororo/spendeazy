@@ -14,13 +14,13 @@ const leapMonth = "2024-02" as ReportingPeriod;
 const categoryPath = "/spaces/7/categories";
 const summaryPath =
   "/spaces/7/category-summaries?period=monthly&year=2024&month=02";
-const transactionPath =
-  "/spaces/7/transactions?fromDate=2023-03-01&toDate=2024-02-29&pageSize=100";
-const nextTransactionPath = `${transactionPath}&cursor=next-page`;
+const expensePath =
+  "/spaces/7/expenses?fromDate=2023-03-01&toDate=2024-02-29&pageSize=100";
+const nextExpensePath = `${expensePath}&cursor=next-page`;
 const monthlySummaryPath =
   "/spaces/7/category-summaries?period=monthly&year=2026&month=01";
-const monthlyTransactionPath =
-  "/spaces/7/transactions?toDate=2026-01-31&pageSize=100";
+const monthlyExpensePath =
+  "/spaces/7/expenses?toDate=2026-01-31&pageSize=100";
 
 function categoryCatalog() {
   return [
@@ -70,7 +70,7 @@ function monthlySummary() {
         name: "Groceries",
         isActive: true,
         totalAmount: "0.31",
-        transactionCount: "3",
+        expenseCount: "3",
         budgetAmount: "100.00",
         remainingAmount: "99.69",
       },
@@ -79,7 +79,7 @@ function monthlySummary() {
         name: "Archived Category",
         isActive: false,
         totalAmount: "1.00",
-        transactionCount: "1",
+        expenseCount: "1",
         budgetAmount: null,
         remainingAmount: null,
       },
@@ -88,7 +88,7 @@ function monthlySummary() {
         name: "Transit",
         isActive: true,
         totalAmount: "0.40",
-        transactionCount: "1",
+        expenseCount: "1",
         budgetAmount: "20.00",
         remainingAmount: "19.60",
       },
@@ -110,8 +110,8 @@ function createApiClient(responses: ReadonlyMap<string, unknown>) {
 }
 
 describe.each([
-  { name: "daily", load: getDailyInsights, historyPath: transactionPath },
-  { name: "monthly", load: getMonthlyInsights, historyPath: "/spaces/7/transactions?toDate=2024-02-29&pageSize=100" },
+  { name: "daily", load: getDailyInsights, historyPath: expensePath },
+  { name: "monthly", load: getMonthlyInsights, historyPath: "/spaces/7/expenses?toDate=2024-02-29&pageSize=100" },
 ])("$name Insights loading failures", ({ load, historyPath }) => {
   it.each([
     { missingPath: categoryPath, message: "The API returned no Category catalog." },
@@ -158,7 +158,7 @@ describe("getDailyInsights", () => {
         [categoryPath, categoryCatalog()],
         [summaryPath, monthlySummary()],
         [
-          transactionPath,
+          expensePath,
           {
             items: [
               {
@@ -193,7 +193,7 @@ describe("getDailyInsights", () => {
           },
         ],
         [
-          nextTransactionPath,
+          nextExpensePath,
           {
             items: [
               {
@@ -234,8 +234,8 @@ describe("getDailyInsights", () => {
 
     expect(get).toHaveBeenCalledWith(categoryPath, { signal: undefined });
     expect(get).toHaveBeenCalledWith(summaryPath, { signal: undefined });
-    expect(get).toHaveBeenCalledWith(transactionPath, { signal: undefined });
-    expect(get).toHaveBeenCalledWith(nextTransactionPath, {
+    expect(get).toHaveBeenCalledWith(expensePath, { signal: undefined });
+    expect(get).toHaveBeenCalledWith(nextExpensePath, {
       signal: undefined,
     });
     expect(report.view).toBe("daily");
@@ -304,8 +304,8 @@ describe("getDailyInsights", () => {
     const period = "2026-01" as ReportingPeriod;
     const monthlySummaryPath =
       "/spaces/7/category-summaries?period=monthly&year=2026&month=01";
-    const monthlyTransactionsPath =
-      "/spaces/7/transactions?fromDate=2025-02-01&toDate=2026-01-31&pageSize=100";
+    const monthlyExpensesPath =
+      "/spaces/7/expenses?fromDate=2025-02-01&toDate=2026-01-31&pageSize=100";
     const catalog = [
       { ...categoryCatalog()[0]!, name: "Groceries" },
       { ...categoryCatalog()[1]!, name: "Archived", isActive: false },
@@ -338,14 +338,14 @@ describe("getDailyInsights", () => {
         name,
         isActive,
         totalAmount: "0.00",
-        transactionCount: "0",
+        expenseCount: "0",
         budgetAmount,
         remainingAmount: budgetAmount,
       })),
       uncategorizedTotal: "0.00",
       uncategorizedCount: "0",
     };
-    const transactions = [
+    const expenses = [
       ["boundary", "42", "2025-02-10", "10.00"],
       ["grocery-over-1", "42", "2025-03-10", "10.01"],
       ["grocery-over-2", "42", "2025-04-10", "10.01"],
@@ -355,7 +355,7 @@ describe("getDailyInsights", () => {
       ["transit-over", "47", "2025-08-10", "30.01"],
       ["boundary-only", "51", "2025-09-10", "50.00"],
       ["beyond-top-five", "52", "2025-10-10", "1.01"],
-      // Only one selected-month transaction is present, as for a partial month.
+      // Only one selected-month expense is present, as for a partial month.
       ["current-month-over", "42", "2026-01-05", "10.01"],
     ].map(([id, categoryId, purchaseDate, amount]) => ({
       id,
@@ -377,7 +377,7 @@ describe("getDailyInsights", () => {
           period: "monthly",
           updatedAt: "2026-01-01T00:00:00.000Z",
         }],
-        [monthlyTransactionsPath, { items: transactions, nextCursor: null }],
+        [monthlyExpensesPath, { items: expenses, nextCursor: null }],
       ]),
     );
 
@@ -420,7 +420,7 @@ describe("getDailyInsights", () => {
           },
         ],
         [
-          "/transactions?fromDate=2025-09-01&toDate=2026-08-31&pageSize=100",
+          "/expenses?fromDate=2025-09-01&toDate=2026-08-31&pageSize=100",
           { items: [], nextCursor: null },
         ],
       ]),
@@ -455,7 +455,7 @@ describe("getDailyInsights", () => {
                 name: "Groceries",
                 isActive: true,
                 totalAmount: "9.99",
-                transactionCount: "1",
+                expenseCount: "1",
                 budgetAmount: "10.00",
                 remainingAmount: "0.01",
               },
@@ -464,7 +464,7 @@ describe("getDailyInsights", () => {
                 name: "Transit",
                 isActive: true,
                 totalAmount: "0.00",
-                transactionCount: "0",
+                expenseCount: "0",
                 budgetAmount: null,
                 remainingAmount: null,
               },
@@ -479,7 +479,7 @@ describe("getDailyInsights", () => {
           code: "BUDGET_NOT_FOUND",
         })],
         [
-          monthlyTransactionPath,
+          monthlyExpensePath,
           {
             items: [
               {
@@ -550,7 +550,7 @@ describe("getDailyInsights", () => {
           },
         ],
         [
-          `${monthlyTransactionPath}&cursor=last-page`,
+          `${monthlyExpensePath}&cursor=last-page`,
           {
             items: [
               {
@@ -577,11 +577,11 @@ describe("getDailyInsights", () => {
     );
 
     expect(get).toHaveBeenCalledWith(monthlySummaryPath, { signal: undefined });
-    expect(get).toHaveBeenCalledWith(monthlyTransactionPath, {
+    expect(get).toHaveBeenCalledWith(monthlyExpensePath, {
       signal: undefined,
     });
     expect(get).toHaveBeenCalledWith(
-      `${monthlyTransactionPath}&cursor=last-page`,
+      `${monthlyExpensePath}&cursor=last-page`,
       { signal: undefined },
     );
     expect(report.view).toBe("monthly");

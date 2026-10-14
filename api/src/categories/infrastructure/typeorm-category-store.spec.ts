@@ -138,15 +138,15 @@ describe('TypeOrmCategoryStore', () => {
         ? { createQueryBuilder: () => spaceQuery }
         : categoryRepository,
     );
-    const transactionManager = {
+    const expenseManager = {
       getRepository,
     } as unknown as EntityManager;
-    const transaction = jest.fn(
+    const expense = jest.fn(
       async (work: (manager: EntityManager) => Promise<unknown>) =>
-        work(transactionManager),
+        work(expenseManager),
     );
     const entityManager = {
-      transaction,
+      expense,
     } as unknown as EntityManager;
     const store = new TypeOrmCategoryStore(entityManager);
 
@@ -157,7 +157,7 @@ describe('TypeOrmCategoryStore', () => {
       }),
     ).resolves.toMatchObject({ isActive: false });
 
-    expect(transaction).toHaveBeenCalledTimes(1);
+    expect(expense).toHaveBeenCalledTimes(1);
     expect(getRepository).toHaveBeenCalledWith(SpaceEntity);
     expect(spaceQuery.setLock).toHaveBeenCalledWith('pessimistic_write');
     expect(getRepository).toHaveBeenCalledWith(CategoryEntity);

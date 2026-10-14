@@ -8,10 +8,10 @@ import { transformStatement } from "./statement-parser/transformer";
 import bdoFixture from "../../../docs/pdf-parser/bdo-amex-sample-extracted-text.txt?raw";
 import gcashFixture from "../../../docs/pdf-parser/gcash-sample-extracted-text.txt?raw";
 
-const card: CategorizedStatement = { summary: transformStatement(bdoFixture).summary, transactions: [] };
-const wallet: CategorizedStatement = { summary: transformStatement(gcashFixture).summary, transactions: [
-  { id: "incoming", transactionDate: new Date("2026-09-01"), postingDate: new Date("2026-09-01"), description: "Transfer from 09111111111 to 09999999999", amount: -100, categoryId: null, assignment: "unmapped", matchedCategoryIds: [], isExcluded: false },
-  { id: "outgoing", transactionDate: new Date("2026-09-01"), postingDate: new Date("2026-09-01"), description: "Transfer from 09999999999 to 09111111111", amount: -200, categoryId: null, assignment: "unmapped", matchedCategoryIds: [], isExcluded: false },
+const card: CategorizedStatement = { summary: transformStatement(bdoFixture).summary, entries: [] };
+const wallet: CategorizedStatement = { summary: transformStatement(gcashFixture).summary, entries: [
+  { id: "incoming", entryDate: new Date("2026-09-01"), postingDate: new Date("2026-09-01"), description: "Transfer from 09111111111 to 09999999999", amount: -100, categoryId: null, assignment: "unmapped", matchedCategoryIds: [], isExcluded: false },
+  { id: "outgoing", entryDate: new Date("2026-09-01"), postingDate: new Date("2026-09-01"), description: "Transfer from 09999999999 to 09111111111", amount: -200, categoryId: null, assignment: "unmapped", matchedCategoryIds: [], isExcluded: false },
 ] };
 const file = () => new File(["pdf"], "statement.pdf");
 function deferred() {
@@ -122,7 +122,7 @@ it("keeps invalid recipient input pending, then excludes only recognized incomin
   expect(onPrepared).not.toHaveBeenCalled();
   upload.setRecipient(" 09999999999 ");
   upload.completeRecipient();
-  expect(onPrepared.mock.calls[0][1].transactions).toMatchObject([
+  expect(onPrepared.mock.calls[0][1].entries).toMatchObject([
     { id: "incoming", amount: 100, isExcluded: true },
     { id: "outgoing", amount: -200, isExcluded: false },
   ]);

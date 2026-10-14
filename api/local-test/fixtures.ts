@@ -5,8 +5,8 @@ import { BudgetEntity } from '../src/database/entities/budget.entity';
 import { CategoryRuleEntity } from '../src/database/entities/category-rule.entity';
 import { CategoryEntity } from '../src/database/entities/category.entity';
 import { StatementImportEntity } from '../src/database/entities/statement-import.entity';
-import { TransactionEntity } from '../src/database/entities/transaction.entity';
-import { TransactionActivityEntity } from '../src/database/entities/transaction-activity.entity';
+import { ExpenseEntity } from '../src/database/entities/expense.entity';
+import { ExpenseActivityEntity } from '../src/database/entities/expense-activity.entity';
 import { UserEntity } from '../src/database/entities/user.entity';
 import { SpaceEntity } from '../src/database/entities/space.entity';
 import { SpaceMembershipEntity } from '../src/database/entities/space-membership.entity';
@@ -133,15 +133,15 @@ export interface LocalTestFixtureDefinition {
   readonly categories: typeof LOCAL_TEST_FIXTURE_CATEGORIES;
   readonly budgets: typeof LOCAL_TEST_FIXTURE_BUDGETS;
   readonly categoryRules: typeof LOCAL_TEST_FIXTURE_CATEGORY_RULES;
-  readonly transactions: readonly LocalTestFixtureTransaction[];
+  readonly expenses: readonly LocalTestFixtureExpense[];
   readonly secondaryUser: typeof LOCAL_TEST_SECONDARY_FIXTURE_USER;
   readonly secondaryCategories: typeof LOCAL_TEST_SECONDARY_FIXTURE_CATEGORIES;
   readonly secondaryBudgets: typeof LOCAL_TEST_SECONDARY_FIXTURE_BUDGETS;
   readonly secondaryCategoryRules: typeof LOCAL_TEST_SECONDARY_FIXTURE_CATEGORY_RULES;
-  readonly secondaryTransactions: readonly LocalTestFixtureTransaction[];
+  readonly secondaryExpenses: readonly LocalTestFixtureExpense[];
 }
 
-export interface LocalTestFixtureTransaction {
+export interface LocalTestFixtureExpense {
   readonly categoryName: string | null;
   readonly purchaseDate: string;
   readonly description: string;
@@ -153,7 +153,7 @@ export interface LocalTestFixtureCounts {
   readonly categories: number;
   readonly budgets: number;
   readonly categoryRules: number;
-  readonly transactions: number;
+  readonly expenses: number;
 }
 
 export interface LocalTestFixtureSeedResult {
@@ -170,7 +170,7 @@ export function createLocalTestFixtureDefinition(
     categories: LOCAL_TEST_FIXTURE_CATEGORIES,
     budgets: LOCAL_TEST_FIXTURE_BUDGETS,
     categoryRules: LOCAL_TEST_FIXTURE_CATEGORY_RULES,
-    transactions: [
+    expenses: [
       {
         categoryName: 'Food & Drink',
         purchaseDate: dateInCurrentMonth(3, now),
@@ -212,7 +212,7 @@ export function createLocalTestFixtureDefinition(
     secondaryCategories: LOCAL_TEST_SECONDARY_FIXTURE_CATEGORIES,
     secondaryBudgets: LOCAL_TEST_SECONDARY_FIXTURE_BUDGETS,
     secondaryCategoryRules: LOCAL_TEST_SECONDARY_FIXTURE_CATEGORY_RULES,
-    secondaryTransactions: [
+    secondaryExpenses: [
       {
         categoryName: 'Companion Dining',
         purchaseDate: dateInCurrentMonth(4, now),
@@ -279,7 +279,7 @@ export async function ensureLocalTestFixtures(
         categories: fixture.secondaryCategories,
         budgets: fixture.secondaryBudgets,
         categoryRules: fixture.secondaryCategoryRules,
-        transactions: fixture.secondaryTransactions,
+        expenses: fixture.secondaryExpenses,
       });
       const insertedSecondaryUser = await userRepository.findOneBy({
         clerkUserId: fixture.secondaryUser.clerkUserId,
@@ -315,12 +315,12 @@ export async function resetLocalTestFixtures(
     await manager
       .createQueryBuilder()
       .delete()
-      .from(TransactionActivityEntity)
+      .from(ExpenseActivityEntity)
       .execute();
     await manager
       .createQueryBuilder()
       .delete()
-      .from(TransactionEntity)
+      .from(ExpenseEntity)
       .execute();
     await manager
       .createQueryBuilder()
@@ -358,14 +358,14 @@ async function insertLocalTestFixtures(
     categories: fixture.categories,
     budgets: fixture.budgets,
     categoryRules: fixture.categoryRules,
-    transactions: fixture.transactions,
+    expenses: fixture.expenses,
   });
   const secondary = await insertLocalTestFixture(manager, {
     user: fixture.secondaryUser,
     categories: fixture.secondaryCategories,
     budgets: fixture.secondaryBudgets,
     categoryRules: fixture.secondaryCategoryRules,
-    transactions: fixture.secondaryTransactions,
+    expenses: fixture.secondaryExpenses,
   });
   await ensureLocalTestSharedSpace(manager, primary.userId, secondary.userId);
 
@@ -392,7 +392,7 @@ interface LocalTestFixtureScenario {
     readonly pattern: string;
     readonly matchType: 'exact' | 'contains';
   }[];
-  readonly transactions: readonly LocalTestFixtureTransaction[];
+  readonly expenses: readonly LocalTestFixtureExpense[];
 }
 
 async function insertLocalTestFixture(
@@ -440,18 +440,18 @@ async function insertLocalTestFixture(
   );
 
   await manager.save(
-    fixture.transactions.map((transaction) =>
-      manager.create(TransactionEntity, {
+    fixture.expenses.map((expense) =>
+      manager.create(ExpenseEntity, {
         spaceId,
         addedByUserId: user.id,
         categoryId:
-          transaction.categoryName === null
+          expense.categoryName === null
             ? null
-            : requireCategory(categoriesByName, transaction.categoryName).id,
+            : requireCategory(categoriesByName, expense.categoryName).id,
         statementImportId: null,
-        purchaseDate: transaction.purchaseDate,
-        description: transaction.description,
-        amount: transaction.amount,
+        purchaseDate: expense.purchaseDate,
+        description: expense.description,
+        amount: expense.amount,
         categoryMatchConfidence: null,
         importFingerprint: null,
       }),
@@ -521,8 +521,8 @@ function fixtureCounts(
     budgets: fixture.budgets.length + fixture.secondaryBudgets.length,
     categoryRules:
       fixture.categoryRules.length + fixture.secondaryCategoryRules.length,
-    transactions:
-      fixture.transactions.length + fixture.secondaryTransactions.length,
+    expenses:
+      fixture.expenses.length + fixture.secondaryExpenses.length,
   };
 }
 

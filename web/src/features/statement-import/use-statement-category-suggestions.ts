@@ -6,8 +6,8 @@ import type {
   CategorySuggestion,
   CategorySuggestionFetcher,
 } from "./statement-import-service";
-import type { CategorizedTransaction } from "./statement-categorizer";
-import { isIncludedStatementTransaction, normalizeDescription } from "./statement-import-utils";
+import type { CategorizedStatementEntry } from "./statement-categorizer";
+import { isIncludedStatementEntry, normalizeDescription } from "./statement-import-utils";
 
 const MAX_CONCURRENT_SUGGESTION_REQUESTS = 3;
 const CATEGORY_SUGGESTION_TIMEOUT_MS = 10_000;
@@ -282,8 +282,8 @@ class CategorySuggestionCoordinator {
 }
 
 interface UseStatementCategorySuggestionsOptions {
-  readonly transactions: readonly CategorizedTransaction[];
-  readonly editingTransaction: CategorizedTransaction | undefined;
+  readonly entries: readonly CategorizedStatementEntry[];
+  readonly editingExpense: CategorizedStatementEntry | undefined;
   readonly editingDescription: string | null;
   readonly categoryOptions: readonly CategoryColorOption[];
   readonly categoryLabels: readonly CategoryCatalogOption[];
@@ -292,8 +292,8 @@ interface UseStatementCategorySuggestionsOptions {
 }
 
 function useStatementCategorySuggestions({
-  transactions,
-  editingTransaction,
+  entries: expenses,
+  editingExpense,
   editingDescription,
   categoryOptions,
   categoryLabels,
@@ -326,11 +326,11 @@ function useStatementCategorySuggestions({
   const candidateDescriptions = useMemo(
     () =>
       getCandidateDescriptions(
-        transactions,
-        editingTransaction,
+        expenses,
+        editingExpense,
         editingDescription,
       ),
-    [transactions, editingTransaction, editingDescription],
+    [expenses, editingExpense, editingDescription],
   );
   const results = useSyncExternalStore(
     coordinator.subscribe,
@@ -354,24 +354,24 @@ function useStatementCategorySuggestions({
 }
 
 function getCandidateDescriptions(
-  transactions: readonly CategorizedTransaction[],
-  editingTransaction: CategorizedTransaction | undefined,
+  entries: readonly CategorizedStatementEntry[],
+  editingExpense: CategorizedStatementEntry | undefined,
   editingDescription: string | null,
 ): Map<string, string> {
   const descriptions = new Map<string, string>();
-  for (const transaction of transactions) {
+  for (const expense of entries) {
     if (
-      transaction.assignment !== "unmapped" ||
-      !isIncludedStatementTransaction(transaction)
+      expense.assignment !== "unmapped" ||
+      !isIncludedStatementEntry(expense)
     ) {
       continue;
     }
-    addDescription(descriptions, transaction.description);
+    addDescription(descriptions, expense.description);
   }
 
   if (
-    editingTransaction?.assignment === "unmapped" &&
-    isIncludedStatementTransaction(editingTransaction) &&
+    editingExpense?.assignment === "unmapped" &&
+    isIncludedStatementEntry(editingExpense) &&
     editingDescription
   ) {
     addDescription(descriptions, editingDescription);

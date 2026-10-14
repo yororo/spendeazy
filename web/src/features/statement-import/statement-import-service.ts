@@ -19,7 +19,7 @@ import { centsToMoney, moneyToCents } from "@/shared/money";
 
 import type {
   CategorizedStatement,
-  CategorizedTransaction,
+  CategorizedStatementEntry,
 } from "./statement-categorizer";
 import {
   requireCategoryRule,
@@ -34,12 +34,12 @@ import {
 import { parseApiMoney } from "@/shared/api";
 import {
   cleanDescription,
-  isIncludedStatementTransaction,
+  isIncludedStatementEntry,
   normalizeDescription,
 } from "./statement-import-utils";
 import type {
   StatementSummary,
-  Transaction,
+  StatementEntry,
 } from "./statement-parser/transformer";
 import type { StatementType } from "./statement-type";
 
@@ -86,7 +86,7 @@ interface CategorizationResult {
 interface CommittedStatementImportSummary {
   readonly id: string;
   readonly fileName: string;
-  readonly transactionCount: number;
+  readonly expenseCount: number;
   readonly statementDate: string;
   readonly provider: string;
   readonly accountType: string | null;
@@ -129,7 +129,7 @@ interface CommittedStatementImport {
   readonly transactionHistoryStartDate: string | null;
   readonly totalDebit: number | null;
   readonly importedAt: string;
-  readonly transactionCount: number;
+  readonly expenseCount: number;
   readonly importedByUserId: string;
 }
 
@@ -307,9 +307,9 @@ function projectCommittedStatementImportSummary(
   return {
     id: item.id,
     fileName: item.fileName,
-    transactionCount: parseApiCount(
-      item.transactionCount,
-      `Statement Import ${item.id} transactionCount`,
+    expenseCount: parseApiCount(
+      item.expenseCount,
+      `Statement Import ${item.id} expenseCount`,
       createStatementImportDataError,
     ),
     statementDate: statementDateFormatter
@@ -360,8 +360,8 @@ async function getRecentCommittedStatementImports(
   return response.items.map(projectCommittedStatementImportSummary);
 }
 
-function categorizeTransactions(
-  transactions: readonly Transaction[],
+function categorizeStatementEntries(
+  entries: readonly StatementEntry[],
   rules: readonly CategoryRule[],
   activeCategoryIds?: ReadonlySet<string>,
 ): readonly CategorizationResult[] {
@@ -377,13 +377,13 @@ function categorizeTransactions(
   );
 
   function getMatchedCategoryIds(
-    transaction: Transaction,
+    expense: StatementEntry,
     matchingRules: readonly CategoryRule[],
   ) {
     const matchedCategoryIds = new Set<string>();
 
     matchingRules.forEach((rule) => {
-      if (matchesRuleDescription(transaction.description, rule)) {
+      if (matchesRuleDescription(expense.description, rule)) {
         matchedCategoryIds.add(rule.categoryId);
       }
     });
@@ -391,16 +391,16 @@ function categorizeTransactions(
     return [...matchedCategoryIds];
   }
 
-  return transactions.map((transaction) => {
+  return entries.map((expense) => {
     const exactCategoryIds = getMatchedCategoryIds(
-      transaction,
+      expense,
       exactRules,
     );
     const matchedCategoryIds =
       exactCategoryIds.length > 0
         ? exactCategoryIds
         : getMatchedCategoryIds(
-            transaction,
+            expense,
             containsRules,
           );
 
@@ -597,10 +597,10 @@ function formatNonNegativeAmountForApi(value: number, description: string) {
   return centsToMoney(cents).toFixed(2);
 }
 
-function getIncludedTransactions(
-  transactions: readonly CategorizedTransaction[],
+function getIncludedExpenses(
+  entries: readonly CategorizedStatementEntry[],
 ) {
-  return transactions.filter(isIncludedStatementTransaction);
+  return entries.filter(isIncludedStatementEntry);
 }
 
 function buildCommitPayload(
@@ -615,15 +615,15 @@ function buildCommitPayload(
     );
   }
 
-  const includedTransactions = getIncludedTransactions(statement.transactions);
-  const missingCategory = includedTransactions.find(
-    (transaction) =>
-      transaction.categoryId === null ||
-      transaction.categoryId.trim().length === 0,
+  const includedExpenses = getIncludedExpenses(statement.entries);
+  const missingCategory = includedExpenses.find(
+    (expense) =>
+      expense.categoryId === null ||
+      expense.categoryId.trim().length === 0,
   );
   if (missingCategory) {
     throw new StatementImportValidationError(
-      `Included Transaction ${missingCategory.id} must have a Category before import.`,
+      `Included Expense ${missingCategory.id} must have a Category before import.`,
     );
   }
 
@@ -651,20 +651,20 @@ function buildCommitPayload(
     statementType: summary.statementType,
     transactionHistoryStartDate,
     totalDebit,
-    transactions: includedTransactions.map((transaction) => ({
-      categoryId: transaction.categoryId,
+    expenses: includedExpenses.map((expense) => ({
+      categoryId: expense.categoryId,
       purchaseDate: formatDateForApi(
-        transaction.transactionDate,
-        "transaction date",
+        expense.entryDate,
+        "purchase date",
       ),
-      description: cleanDescription(transaction.description),
+      description: cleanDescription(expense.description),
       amount: formatPositiveAmountForApi(
-        transaction.amount,
-        `Transaction ${transaction.id}`,
+        expense.amount,
+        `Expense ${expense.id}`,
       ),
-      ...(transaction.reference === undefined
+      ...(expense.reference === undefined
         ? {}
-        : { reference: cleanDescription(transaction.reference) }),
+        : { reference: cleanDescription(expense.reference) }),
     })),
     acknowledgeProbableDuplicates,
   };
@@ -732,7 +732,7 @@ async function commitStatementImport(
             createStatementImportDataError,
           ),
     importedAt: response.importedAt,
-    transactionCount: payload.transactions.length,
+    expenseCount: payload.expenses.length,
     importedByUserId: response.importedByUserId,
   };
 }
@@ -741,13 +741,13 @@ export {
   StatementImportDataError,
   StatementImportValidationError,
   buildCommitPayload,
-  categorizeTransactions,
+  categorizeStatementEntries,
   commitStatementImport,
   getCategoryCatalogOptions,
   getCategoryOptions,
   getCategoryRules,
   getStatementCategorySuggestion,
-  getIncludedTransactions,
+  getIncludedExpenses,
   getRecentCommittedStatementImports,
   hashStatementFile,
   rememberCategoryRule,

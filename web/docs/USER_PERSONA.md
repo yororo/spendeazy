@@ -11,21 +11,21 @@ They are financially conscious and regularly monitor monthly spending, but do no
 - Quickly understand where money is being spent.
 - Identify categories that are approaching or exceeding budget.
 - Review spending patterns across the month.
-- Consolidate transactions from credit cards, e-wallets, and other financial statements.
+- Consolidate expenses from credit cards, e-wallets, and other financial statements.
 
 ## Behaviors
 
 - Uses credit cards and e-wallets for many household purchases.
-- Reviews expenses periodically rather than recording every transaction manually.
+- Reviews expenses periodically rather than recording every expense manually.
 - Sets monthly budgets for important spending categories.
 - Pays more attention when spending becomes unusually high or exceeds expectations.
-- Prefers importing existing transaction records instead of manually encoding expenses.
+- Prefers importing existing expense records instead of manually encoding expenses.
 
 ## Pain Points
 
-- Manually entering transactions takes too much time.
+- Manually entering expenses takes too much time.
 - Configuring complex budgeting apps feels like unnecessary work.
-- Transactions from different financial sources are difficult to consolidate.
+- Expenses from different financial sources are difficult to consolidate.
 - It can be difficult to immediately determine which categories caused overspending.
 - Financial reports can contain too much information instead of highlighting what actually needs attention.
 
@@ -34,7 +34,7 @@ They are financially conscious and regularly monitor monthly spending, but do no
 The user needs a budgeting tool that:
 
 - Makes importing credit card and e-wallet statements fast and reliable.
-- Automatically organizes transactions with minimal manual intervention.
+- Automatically organizes expenses with minimal manual intervention.
 - Clearly shows monthly spending against the allocated budget.
 - Highlights categories that are near or over budget.
 - Makes unusual spending patterns easy to identify.

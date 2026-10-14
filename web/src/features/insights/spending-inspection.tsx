@@ -13,11 +13,11 @@ interface SpendingInspectionProps {
   readonly triggerId?: string;
   readonly onInspect: (point: string, triggerId: string) => void;
   readonly onDismiss: () => void;
-  readonly onViewTransactions?: (categoryId: string | undefined, period: ReportingPeriod, focusId?: string) => void;
+  readonly onViewExpenses?: (categoryId: string | undefined, period: ReportingPeriod, focusId?: string) => void;
   readonly onEditBudget?: (categoryId: string, period: ReportingPeriod, focusId?: string) => void;
 }
 
-function SpendingInspection({ report, point, open, triggerId, onInspect, onDismiss, onViewTransactions, onEditBudget }: SpendingInspectionProps) {
+function SpendingInspection({ report, point, open, triggerId, onInspect, onDismiss, onViewExpenses, onEditBudget }: SpendingInspectionProps) {
   const { setPeriod } = useReportingPeriod();
   const initialPoint = report.view === "monthly" ? report.period : report.days[0]!.date;
   const [selected, setSelected] = useState<string>(point ?? initialPoint);
@@ -25,10 +25,10 @@ function SpendingInspection({ report, point, open, triggerId, onInspect, onDismi
   const chosen = open ? point ?? selected : selected;
   const key = points.some(point => point.key === chosen) ? chosen : initialPoint;
   const period = parseReportingPeriod(key.slice(0, 7))!;
-  const transactions = report.transactions.filter(transaction => report.view === "monthly" ? transaction.date.slice(0, 7) === key : transaction.date.slice(0, 10) === key);
+  const expenses = report.expenses.filter(expense => report.view === "monthly" ? expense.date.slice(0, 7) === key : expense.date.slice(0, 10) === key);
   const budgetedIds = new Set(report.selectableCategories.filter(category => category.monthlyBudgetCents !== null).map(category => category.id));
-  const budgeted = transactions.filter(transaction => budgetedIds.has(transaction.categoryId)).reduce((sum, transaction) => sum + transaction.amountCents, 0);
-  const total = transactions.reduce((sum, transaction) => sum + transaction.amountCents, 0);
+  const budgeted = expenses.filter(expense => budgetedIds.has(expense.categoryId)).reduce((sum, expense) => sum + expense.amountCents, 0);
+  const total = expenses.reduce((sum, expense) => sum + expense.amountCents, 0);
   const categories = [...report.selectableCategories, ...report.categories.filter(category => category.id === null)];
   return <div className="mt-4 grid gap-3 border-t border-border pt-4">
     <label className="grid gap-2 text-sm">Inspect recorded spending
@@ -46,20 +46,20 @@ function SpendingInspection({ report, point, open, triggerId, onInspect, onDismi
           <p className="font-mono">Unbudgeted Spending: {formatMoney(centsToMoney(total - budgeted))}</p>
           <p className="text-sm text-muted-foreground">Budget states compare the full inspected month with current monthly Budgets; they are not daily limits.</p>
           {categories.map(category => {
-            const contributions = transactions.filter(transaction => transaction.categoryId === category.id);
+            const contributions = expenses.filter(expense => expense.categoryId === category.id);
             if (!contributions.length) return null;
-            const monthAmount = report.transactions.filter(transaction => transaction.categoryId === category.id && transaction.date.slice(0, 7) === period).reduce((sum, transaction) => sum + transaction.amountCents, 0);
+            const monthAmount = report.expenses.filter(expense => expense.categoryId === category.id && expense.date.slice(0, 7) === period).reduce((sum, expense) => sum + expense.amountCents, 0);
             return <section key={category.id ?? "uncategorized"} className="grid gap-2 border-t border-border pt-3">
-              <h3 className="break-words font-semibold">{category.label} · {formatMoney(centsToMoney(contributions.reduce((sum, transaction) => sum + transaction.amountCents, 0)))}</h3>
+              <h3 className="break-words font-semibold">{category.label} · {formatMoney(centsToMoney(contributions.reduce((sum, expense) => sum + expense.amountCents, 0)))}</h3>
               <p className="text-sm">{category.monthlyBudgetCents === null ? "No monthly Budget" : describeBudget(monthAmount, category.monthlyBudgetCents)}</p>
-              <ul className="grid gap-2 text-sm">{contributions.map(transaction => <li key={transaction.id} className="break-words">{transaction.date.slice(0, 10)} · {transaction.description} · {formatMoney(centsToMoney(transaction.amountCents))}</li>)}</ul>
-              {onViewTransactions && <Button variant="outline" onClick={() => onViewTransactions(category.id ?? "uncategorized", period, triggerId)}>View {category.label} month’s Transactions</Button>}
+              <ul className="grid gap-2 text-sm">{contributions.map(expense => <li key={expense.id} className="break-words">{expense.date.slice(0, 10)} · {expense.description} · {formatMoney(centsToMoney(expense.amountCents))}</li>)}</ul>
+              {onViewExpenses && <Button variant="outline" onClick={() => onViewExpenses(category.id ?? "uncategorized", period, triggerId)}>View {category.label} month’s Expenses</Button>}
               {onEditBudget && category.id && <Button variant="outline" onClick={() => { onDismiss(); onEditBudget(category.id!, period, triggerId); }}>{category.monthlyBudgetCents === null ? "Set" : "Edit"} {category.label} Budget</Button>}
             </section>;
           })}
-          {!transactions.length && <p>No spending recorded for this point.</p>}
+          {!expenses.length && <p>No spending recorded for this point.</p>}
           <Button onClick={() => { onDismiss(); setPeriod(period); }}>View this month</Button>
-          {onViewTransactions && <Button variant="outline" onClick={() => onViewTransactions(undefined, period, triggerId)}>View full month’s Transactions</Button>}
+          {onViewExpenses && <Button variant="outline" onClick={() => onViewExpenses(undefined, period, triggerId)}>View full month’s Expenses</Button>}
         </div>
       </DialogContent>
     </Dialog>

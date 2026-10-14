@@ -10,8 +10,8 @@ import { CategoryRuleEntity } from '../src/database/entities/category-rule.entit
 import { SpaceEntity } from '../src/database/entities/space.entity';
 import { SpaceMembershipEntity } from '../src/database/entities/space-membership.entity';
 import { StatementImportEntity } from '../src/database/entities/statement-import.entity';
-import { TransactionEntity } from '../src/database/entities/transaction.entity';
-import { TransactionActivityEntity } from '../src/database/entities/transaction-activity.entity';
+import { ExpenseEntity } from '../src/database/entities/expense.entity';
+import { ExpenseActivityEntity } from '../src/database/entities/expense-activity.entity';
 import { UserEntity } from '../src/database/entities/user.entity';
 import { TypeOrmCategoryStore } from '../src/categories/infrastructure/typeorm-category-store';
 import { TypeOrmCategorySummaryStore } from '../src/categories/infrastructure/typeorm-category-summary-store';
@@ -19,9 +19,9 @@ import { DefaultCategoriesService } from '../src/categories/application/default-
 import { DEFAULT_CATEGORY_CATALOG } from '../src/categories/application/default-category-catalog';
 import { TypeOrmSpaceStore } from '../src/spaces/infrastructure/typeorm-space-store';
 import { SpaceAccessService } from '../src/spaces/application/space-access.service';
-import { TransactionsService } from '../src/transactions/application/transactions.service';
-import { TypeOrmTransactionCategoryStore } from '../src/transactions/infrastructure/typeorm-transaction-category-store';
-import { TypeOrmTransactionStore } from '../src/transactions/infrastructure/typeorm-transaction-store';
+import { ExpensesService } from '../src/expenses/application/expenses.service';
+import { TypeOrmExpenseCategoryStore } from '../src/expenses/infrastructure/typeorm-expense-category-store';
+import { TypeOrmExpenseStore } from '../src/expenses/infrastructure/typeorm-expense-store';
 import { TypeOrmUserStore } from '../src/users/infrastructure/typeorm-user-store';
 import { UsersService } from '../src/users/application/users.service';
 import type {
@@ -139,10 +139,10 @@ describeDatabase('Spaces with PostgreSQL', () => {
     });
   });
 
-  it('keeps shared Transaction ownership, same-Space Categories, and stale writes isolated', async () => {
-    const owner = await createUser('transaction-space-owner');
-    const member = await createUser('transaction-space-member');
-    const outsider = await createUser('transaction-space-outsider');
+  it('keeps shared Expense ownership, same-Space Categories, and stale writes isolated', async () => {
+    const owner = await createUser('expense-space-owner');
+    const member = await createUser('expense-space-member');
+    const outsider = await createUser('expense-space-outsider');
     const spaceStore = new TypeOrmSpaceStore(database.manager);
     const ownerPersonalSpaceId = await spaceStore.ensurePersonalSpace(owner.id);
     const memberPersonalSpaceId = await spaceStore.ensurePersonalSpace(
@@ -209,13 +209,13 @@ describeDatabase('Spaces with PostgreSQL', () => {
       access.requireReadAccess(outsider.id, sharedSpace.id),
     ).rejects.toMatchObject({ code: 'SPACE_NOT_FOUND' });
 
-    const transactionStore = new TypeOrmTransactionStore(database.manager);
-    const transactions = new TransactionsService(
-      new TypeOrmTransactionCategoryStore(database.manager),
-      transactionStore,
+    const expenseStore = new TypeOrmExpenseStore(database.manager);
+    const expenses = new ExpensesService(
+      new TypeOrmExpenseCategoryStore(database.manager),
+      expenseStore,
       undefined,
     );
-    const created = await transactions.createManualTransactionInSpace(
+    const created = await expenses.createManualExpenseInSpace(
       member.id,
       sharedSpace.id,
       {
@@ -231,20 +231,20 @@ describeDatabase('Spaces with PostgreSQL', () => {
       addedByUserId: member.id,
     });
     await expect(
-      database.getRepository(TransactionActivityEntity).findBy({
+      database.getRepository(ExpenseActivityEntity).findBy({
         spaceId: sharedSpace.id,
-        transactionId: created.id,
+        expenseId: created.id,
       }),
     ).resolves.toEqual([
       expect.objectContaining({
-        transactionId: created.id,
+        expenseId: created.id,
         actorUserId: member.id,
         type: 'created',
         occurredAt: created.createdAt,
       }),
     ]);
     await expect(
-      transactions.createManualTransactionInSpace(owner.id, sharedSpace.id, {
+      expenses.createManualExpenseInSpace(owner.id, sharedSpace.id, {
         categoryId: ownerPersonalCategory.id,
         purchaseDate: '2026-09-20',
         description: 'Private Category rejected',
@@ -253,13 +253,13 @@ describeDatabase('Spaces with PostgreSQL', () => {
     ).rejects.toMatchObject({ code: 'CATEGORY_NOT_FOUND' });
 
     await expect(
-      transactions.listTransactionsInSpace(sharedSpace.id, {}),
+      expenses.listExpensesInSpace(sharedSpace.id, {}),
     ).resolves.toMatchObject({
       items: [expect.objectContaining({ id: created.id })],
       nextCursor: null,
     });
 
-    const updated = await transactions.updateManualTransactionInSpace(
+    const updated = await expenses.updateManualExpenseInSpace(
       owner.id,
       sharedSpace.id,
       created.id,
@@ -273,9 +273,9 @@ describeDatabase('Spaces with PostgreSQL', () => {
       addedByUserId: member.id,
     });
     await expect(
-      database.getRepository(TransactionActivityEntity).findBy({
+      database.getRepository(ExpenseActivityEntity).findBy({
         spaceId: sharedSpace.id,
-        transactionId: created.id,
+        expenseId: created.id,
       }),
     ).resolves.toEqual(
       expect.arrayContaining([
@@ -298,7 +298,7 @@ describeDatabase('Spaces with PostgreSQL', () => {
       ]),
     );
     await expect(
-      transactions.updateManualTransactionInSpace(
+      expenses.updateManualExpenseInSpace(
         owner.id,
         sharedSpace.id,
         created.id,
@@ -310,22 +310,22 @@ describeDatabase('Spaces with PostgreSQL', () => {
     ).rejects.toMatchObject({ code: 'STALE_EDIT' });
 
     await expect(
-      transactions.deleteManualTransactionInSpace(
+      expenses.deleteManualExpenseInSpace(
         owner.id,
         sharedSpace.id,
         created.id,
         updated.updatedAt.toISOString(),
       ),
     ).resolves.toBeUndefined();
-    const retainedTransaction = await database
-      .getRepository(TransactionEntity)
+    const retainedExpense = await database
+      .getRepository(ExpenseEntity)
       .findOneBy({ id: created.id });
-    expect(retainedTransaction).toMatchObject({ id: created.id });
-    expect(retainedTransaction?.deletedAt).toBeInstanceOf(Date);
+    expect(retainedExpense).toMatchObject({ id: created.id });
+    expect(retainedExpense?.deletedAt).toBeInstanceOf(Date);
     await expect(
-      transactions.listTransactionsInSpace(sharedSpace.id, {}),
+      expenses.listExpensesInSpace(sharedSpace.id, {}),
     ).resolves.toMatchObject({ items: [], nextCursor: null });
-    const deletedPage = await transactions.listDeletedTransactionsInSpace(
+    const deletedPage = await expenses.listDeletedExpensesInSpace(
       sharedSpace.id,
       {},
     );
@@ -344,16 +344,16 @@ describeDatabase('Spaces with PostgreSQL', () => {
         expect.objectContaining({
           categoryId: sharedCategory.id,
           totalAmount: '0',
-          transactionCount: '0',
+          expenseCount: '0',
         }),
       ],
       uncategorizedAmount: '0',
       uncategorizedCount: '0',
     });
     await expect(
-      database.getRepository(TransactionActivityEntity).findBy({
+      database.getRepository(ExpenseActivityEntity).findBy({
         spaceId: sharedSpace.id,
-        transactionId: created.id,
+        expenseId: created.id,
         type: 'deleted',
       }),
     ).resolves.toEqual([
@@ -378,10 +378,10 @@ describeDatabase('Spaces with PostgreSQL', () => {
       .findBy({ userId });
     const spaceIds = memberships.map((membership) => membership.spaceId);
     if (spaceIds.length > 0) {
-      await database.getRepository(TransactionActivityEntity).delete({
+      await database.getRepository(ExpenseActivityEntity).delete({
         spaceId: In(spaceIds),
       });
-      await database.getRepository(TransactionEntity).delete({
+      await database.getRepository(ExpenseEntity).delete({
         spaceId: In(spaceIds),
       });
       await database.getRepository(CategoryRuleEntity).delete({

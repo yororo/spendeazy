@@ -95,19 +95,19 @@ covered. Tests must verify behavior rather than the helper's implementation.
 ## S2: Deduplicate Insights loading and validation
 
 **Problem:** Daily and monthly Insights repeat catalog and summary requests,
-transaction loading, response validation, and inactive-Category Budget loading.
+expense loading, response validation, and inactive-Category Budget loading.
 
 **Requirement:** Extract the common sequence into a private loader with explicit
-transaction bounds. Keep daily and monthly report calculations separate and
+expense bounds. Keep daily and monthly report calculations separate and
 retain their existing public signatures and result types.
 
 **Acceptance criteria:**
 
-- Catalog, selected-month summary, and transaction loading still begin through
+- Catalog, selected-month summary, and expense loading still begin through
   the same concurrent request group.
 - Daily loading retains the first rolling period's start date through the
   selected period's end date. Monthly loading retains an absent start bound so
-  older recorded Transactions remain available.
+  older recorded Expenses remain available.
 - Pagination, paths, Space selection, and `AbortSignal` propagation are unchanged.
 - Catalog and summary validation retain their order, labels, error types, and
   messages. Inactive-Category Budgets load after successful validation, as today.
@@ -181,12 +181,12 @@ combination without weakening current assertions.
 breakdown construction, and a nested desktop table renderer with page assembly.
 
 **Requirement:** Extract pure Review data preparation and a feature-local
-transaction-table component. Keep page-level focus, scrolling, and confirmation
+expense-table component. Keep page-level focus, scrolling, and confirmation
 actions with the page. Keep extraction limited to these responsibilities.
 
 **Acceptance criteria:**
 
-- Sorting still uses `compareStatementRows` without mutating input Transactions.
+- Sorting still uses `compareStatementRows` without mutating input Expenses.
   Included and excluded groups retain their chosen ordering.
 - Unmapped, Ambiguous, Rule, and Manual counts retain their current definitions.
   Excluded rows do not contribute to included totals or the Category breakdown.

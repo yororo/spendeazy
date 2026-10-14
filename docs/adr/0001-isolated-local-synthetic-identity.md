@@ -8,7 +8,7 @@ This mode must be rejected in production and must never connect to the real fina
 
 Manual test data persists across runs and has an explicit reset command; automated E2E runs use fresh, isolated data. A dedicated PostgreSQL container, managed by the test launcher with separate credentials and storage, is an accepted prerequisite. Ordinary development database settings are not used by this mode.
 
-Initial scenarios include a populated User, a new User for first-time provisioning, a second User with distinct data for ownership checks, and signed-out and expired-session states. Initial delivery includes one-command startup and a small Playwright suite covering provisioning, saving and reloading a Transaction, and User isolation, alongside manual and agent-driven browser testing.
+Initial scenarios include a populated User, a new User for first-time provisioning, a second User with distinct data for ownership checks, and signed-out and expired-session states. Initial delivery includes one-command startup and a small Playwright suite covering provisioning, saving and reloading an Expense, and User isolation, alongside manual and agent-driven browser testing.
 
 This introduces an explicit testing exception to the Clerk-only identity source in [the web authentication ADR](../../web/docs/adr/0002-authenticated-self-scoped-api-boundary.md), while retaining its session-cache isolation, centralized provisioning and recovery, and self-scoped API rules. Production continues to use Clerk.
 

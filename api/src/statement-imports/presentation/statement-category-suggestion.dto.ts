@@ -12,7 +12,7 @@ type ApiSchemaOptionsWithAdditionalProperties = {
 } as ApiSchemaOptionsWithAdditionalProperties)
 export class StatementCategorySuggestionRequestDto {
   @ApiProperty({
-    description: 'The reviewed Transaction description to categorize.',
+    description: 'The reviewed Statement Entry description to categorize.',
     minLength: 1,
     maxLength: 500,
     pattern: '\\S',

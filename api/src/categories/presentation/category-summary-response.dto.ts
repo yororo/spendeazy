@@ -51,7 +51,7 @@ export class CategorySummaryItemResponseDto {
 
   @ApiProperty({
     description:
-      'Non-negative exact two-decimal aggregate spending amount encoded as a string. Aggregate totals are not limited by per-Transaction numeric precision.',
+      'Non-negative exact two-decimal aggregate spending amount encoded as a string. Aggregate totals are not limited by per-Expense numeric precision.',
     type: String,
     pattern: AGGREGATE_TOTAL_PATTERN.source,
     example: '1250.00',
@@ -59,12 +59,12 @@ export class CategorySummaryItemResponseDto {
   totalAmount!: string;
 
   @ApiProperty({
-    description: 'Non-negative Transaction count encoded as a string.',
+    description: 'Non-negative Expense count encoded as a string.',
     type: String,
     pattern: COUNT_PATTERN.source,
     example: '12',
   })
-  transactionCount!: string;
+  expenseCount!: string;
 
   @ApiProperty({
     description:
@@ -127,7 +127,7 @@ export class CategorySummaryResponseDto {
 
   @ApiProperty({
     description:
-      'Non-negative exact two-decimal spending total for Uncategorized Transactions, encoded as a string and zero when none exist. Aggregate totals are not limited by per-Transaction numeric precision.',
+      'Non-negative exact two-decimal spending total for Uncategorized Expenses, encoded as a string and zero when none exist. Aggregate totals are not limited by per-Expense numeric precision.',
     type: String,
     pattern: AGGREGATE_TOTAL_PATTERN.source,
     example: '4.50',
@@ -136,7 +136,7 @@ export class CategorySummaryResponseDto {
 
   @ApiProperty({
     description:
-      'Non-negative count of Uncategorized Transactions encoded as a string.',
+      'Non-negative count of Uncategorized Expenses encoded as a string.',
     type: String,
     pattern: COUNT_PATTERN.source,
     example: '1',

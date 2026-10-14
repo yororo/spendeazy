@@ -563,7 +563,7 @@ function CategoryRulesDialog({
                 <>
                   <div className="border border-border bg-muted p-4">
                     <p className="font-mono text-sm font-semibold">
-                      Automatically categorize matching Transactions
+                      Automatically categorize matching Expenses
                     </p>
                     <p className="mt-1 text-sm text-muted-foreground">
                       Exact rules are evaluated before Contains rules. A rule

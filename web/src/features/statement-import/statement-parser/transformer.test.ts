@@ -23,11 +23,11 @@ const transformedStatement: Statement = {
     accountType: "Test Account",
     transactionHistoryStartDate: null,
     totalDebit: null,
-    totalTransactions: 1,
+    entryCount: 1,
     totalAmountDue: 1,
     totalExtractedAmount: 1,
   },
-  transactions: [],
+  entries: [],
 };
 
 function createTransformer(matches: boolean): StatementTransformer {
@@ -125,7 +125,7 @@ TOTAL 150.00`;
 
     expect(bdoAmexTransformer.transform(statementText).summary).toMatchObject({
       totalAmountDue: 150,
-      totalTransactions: 2,
+      entryCount: 2,
       totalExtractedAmount: 50,
     });
   });

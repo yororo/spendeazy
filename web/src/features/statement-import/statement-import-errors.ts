@@ -3,7 +3,7 @@ import { ApiError, type ApiErrorDetail } from "@/shared/api";
 interface CategoryEligibilityDetail extends ApiErrorDetail {
   readonly code: "category_inactive";
   readonly categoryId: string;
-  readonly transactionIndexes: readonly number[];
+  readonly expenseIndexes: readonly number[];
 }
 
 interface CategoryEligibilityConflict {
@@ -13,8 +13,8 @@ interface CategoryEligibilityConflict {
 
 interface ProbableDuplicateDetail extends ApiErrorDetail {
   readonly code: "probable_duplicate";
-  readonly transactionIndexes: readonly number[];
-  readonly committedTransactionIds: readonly string[];
+  readonly expenseIndexes: readonly number[];
+  readonly committedExpenseIds: readonly string[];
 }
 
 interface ProbableDuplicateConflict {
@@ -27,12 +27,12 @@ function isProbableDuplicateDetail(
 ): value is ProbableDuplicateDetail {
   return (
     value.code === "probable_duplicate" &&
-    Array.isArray(value.transactionIndexes) &&
-    value.transactionIndexes.every(
+    Array.isArray(value.expenseIndexes) &&
+    value.expenseIndexes.every(
       (index) => Number.isInteger(index) && index >= 0,
     ) &&
-    Array.isArray(value.committedTransactionIds) &&
-    value.committedTransactionIds.every((id) => typeof id === "string")
+    Array.isArray(value.committedExpenseIds) &&
+    value.committedExpenseIds.every((id) => typeof id === "string")
   );
 }
 
@@ -59,9 +59,9 @@ function isCategoryEligibilityDetail(
     value.code === "category_inactive" &&
     typeof value.categoryId === "string" &&
     /^[1-9]\d*$/u.test(value.categoryId) &&
-    Array.isArray(value.transactionIndexes) &&
-    value.transactionIndexes.length > 0 &&
-    value.transactionIndexes.every(
+    Array.isArray(value.expenseIndexes) &&
+    value.expenseIndexes.length > 0 &&
+    value.expenseIndexes.every(
       (index): index is number => Number.isInteger(index) && index >= 0,
     )
   );

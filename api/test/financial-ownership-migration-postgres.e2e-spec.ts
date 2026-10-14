@@ -16,8 +16,8 @@ interface MigratedFinancialRow {
   budget_amount: string;
   import_id: string;
   imported_by_user_id: string;
-  transaction_id: string;
-  transaction_amount: string;
+  expense_id: string;
+  expense_amount: string;
   added_by_user_id: string;
   import_fingerprint: string;
   rule_id: string;
@@ -130,13 +130,13 @@ describeDatabase(
         `SELECT c.id AS category_id, c.space_id, c.color,
               b.id AS budget_id, b.amount AS budget_amount,
               si.id AS import_id, si.imported_by_user_id,
-              t.id AS transaction_id, t.amount AS transaction_amount,
+              t.id AS expense_id, t.amount AS expense_amount,
               t.added_by_user_id, t.import_fingerprint,
               cr.id AS rule_id, cr.space_id AS rule_space_id
          FROM categories c
          JOIN budgets b ON b.category_id = c.id
          JOIN statement_imports si ON si.space_id = c.space_id
-         JOIN transactions t ON t.category_id = c.id AND t.statement_import_id = si.id
+         JOIN expenses t ON t.category_id = c.id AND t.statement_import_id = si.id
          JOIN category_rules cr ON cr.category_id = c.id
         WHERE c.id = $1`,
         [category.id],
@@ -148,8 +148,8 @@ describeDatabase(
         budget_amount: '125.50',
         import_id: statementImport.id,
         imported_by_user_id: owner.id,
-        transaction_id: transaction.id,
-        transaction_amount: '42.75',
+        expense_id: transaction.id,
+        expense_amount: '42.75',
         added_by_user_id: owner.id,
         import_fingerprint: fingerprint,
         rule_id: rule.id,
@@ -165,7 +165,7 @@ describeDatabase(
         space_id: string;
         matches: string;
       }>(
-        'SELECT space_id, COUNT(*)::text AS matches FROM transactions WHERE import_fingerprint = $1 GROUP BY space_id',
+        'SELECT space_id, COUNT(*)::text AS matches FROM expenses WHERE import_fingerprint = $1 GROUP BY space_id',
         [fingerprint],
       );
       expect(fingerprintScopes).toEqual(
@@ -189,7 +189,7 @@ describeDatabase(
       ).rejects.toMatchObject({ driverError: { code: '23505' } });
       await expect(
         database.query(
-          'INSERT INTO transactions (space_id, added_by_user_id, category_id, purchase_date, description, amount) VALUES ($1, $2, $3, $4, $5, $6)',
+          'INSERT INTO expenses (space_id, added_by_user_id, category_id, purchase_date, description, amount) VALUES ($1, $2, $3, $4, $5, $6)',
           [
             otherSaved.space_id,
             other.id,
@@ -202,7 +202,7 @@ describeDatabase(
       ).rejects.toMatchObject({ driverError: { code: '23503' } });
       await expect(
         database.query(
-          `INSERT INTO transactions
+          `INSERT INTO expenses
              (space_id, added_by_user_id, statement_import_id, purchase_date, description, amount)
            VALUES ($1, $2, $3, '2026-02-02', 'Cross-Space import provenance', '2.00')`,
           [otherSaved.space_id, other.id, statementImport.id],
@@ -210,16 +210,16 @@ describeDatabase(
       ).rejects.toMatchObject({
         driverError: {
           code: '23503',
-          constraint: 'fk_transactions_statement_import_space',
+          constraint: 'fk_expenses_statement_import_space',
         },
       });
       const [manualTransaction] = await rows<{
         id: string;
         statement_import_id: string | null;
       }>(
-        `INSERT INTO transactions
+        `INSERT INTO expenses
            (space_id, added_by_user_id, purchase_date, description, amount)
-         VALUES ($1, $2, '2026-02-03', 'Manual transaction', '3.00')
+         VALUES ($1, $2, '2026-02-03', 'Manual expense', '3.00')
          RETURNING id, statement_import_id`,
         [saved.space_id, owner.id],
       );
@@ -246,7 +246,7 @@ describeDatabase(
         FROM information_schema.columns
         WHERE table_schema = 'public'
           AND column_name = 'user_id'
-          AND table_name IN ('categories', 'category_rules', 'statement_imports', 'transactions')
+          AND table_name IN ('categories', 'category_rules', 'statement_imports', 'expenses')
       `);
       expect(legacyOwnershipColumns).toEqual([]);
 
@@ -257,7 +257,7 @@ describeDatabase(
       ).rejects.toMatchObject({ driverError: { code: '23502' } });
       await expect(
         database.query(
-          `INSERT INTO transactions
+          `INSERT INTO expenses
              (space_id, purchase_date, description, amount)
            VALUES ($1, '2026-02-01', 'Missing actor', '1.00')`,
           [personalSpaceId],

@@ -52,7 +52,7 @@ describe('TypeSafeCategorySuggestionEvaluator', () => {
     };
     expect(request.model).toBe('jev-1.13.0');
     expect(request.state).toEqual({
-      transactionDescription: 'Market purchase',
+      expenseDescription: 'Market purchase',
       activeCategories: [
         {
           id: '42',
@@ -74,7 +74,7 @@ describe('TypeSafeCategorySuggestionEvaluator', () => {
     expect(suggestionQuestion.criteria['43']).toBeNull();
     expect(typeof suggestionQuestion.criteria.none_of_the_above).toBe('string');
     expect(JSON.stringify(request)).not.toMatch(
-      /amount|date|account|reference|statement text|transactionId|statementImportId|purchaseDate/iu,
+      /amount|date|account|reference|statement text|expenseId|statementImportId|purchaseDate/iu,
     );
   });
 

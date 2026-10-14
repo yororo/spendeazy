@@ -46,15 +46,15 @@ export class TypeOrmStatementCategorySuggestionCatalog implements CategorySugges
         FROM categories AS category
         CROSS JOIN LATERAL (
           SELECT
-            transaction.category_id,
-            transaction.description,
-            transaction.purchase_date,
-            transaction.id
-          FROM transactions AS transaction
-          WHERE transaction.space_id = category.space_id
-            AND transaction.category_id = category.id
-            AND transaction.deleted_at IS NULL
-          ORDER BY transaction.purchase_date DESC, transaction.id DESC
+            expense.category_id,
+            expense.description,
+            expense.purchase_date,
+            expense.id
+          FROM expenses AS expense
+          WHERE expense.space_id = category.space_id
+            AND expense.category_id = category.id
+            AND expense.deleted_at IS NULL
+          ORDER BY expense.purchase_date DESC, expense.id DESC
           LIMIT $3
         ) AS history
         WHERE category.space_id = $1

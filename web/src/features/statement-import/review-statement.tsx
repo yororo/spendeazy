@@ -41,7 +41,7 @@ import { createStatementReviewData, type CategoryBreakdownItem } from "./stateme
 import { ImportProgress } from "./import-progress";
 import {
   formatImportDate,
-  formatTransactionHistoryPeriod,
+  formatExpenseHistoryPeriod,
 } from "./statement-import-date-formatting";
 import { formatStatementType } from "./statement-type";
 import type { CategoryColorOption } from "./statement-import-service";
@@ -50,10 +50,10 @@ import type {
   ProbableDuplicateConflict,
   ProbableDuplicateDetail,
 } from "./statement-import-errors";
-import { getStatementActivityLabel, isIncludedStatementTransaction } from "./statement-import-utils";
+import { getStatementActivityLabel, isIncludedStatementEntry } from "./statement-import-utils";
 import type {
   CategorizedStatement,
-  CategorizedTransaction,
+  CategorizedStatementEntry,
 } from "./statement-categorizer";
 import { AssignmentBadge, CategoryMatchCell } from "./statement-category-match";
 
@@ -64,7 +64,7 @@ interface ReviewStatementProps {
   spaceId?: string;
   fileName: string;
   statementSummary: CategorizedStatement["summary"];
-  transactions: readonly CategorizedTransaction[];
+  entries: readonly CategorizedStatementEntry[];
   commitError: Error | null;
   categoryEligibilityConflict: CategoryEligibilityConflict | null;
   probableDuplicateConflict: ProbableDuplicateConflict | null;
@@ -87,64 +87,64 @@ function formatShortDate(value: Date) {
 }
 
 function formatPeriod(
-  transactions: readonly CategorizedTransaction[],
+  entries: readonly CategorizedStatementEntry[],
 ) {
-  if (transactions.length === 0) return "No included Transactions";
+  if (entries.length === 0) return "No included Expenses";
 
-  const dates = transactions
-    .map((transaction) => transaction.transactionDate)
+  const dates = entries
+    .map((expense) => expense.entryDate)
     .sort((left, right) => left.getTime() - right.getTime());
   return `${formatShortDate(dates[0])} – ${formatShortDate(dates.at(-1) ?? dates[0])}`;
 }
 
 function formatDuplicateDetail(
   detail: ProbableDuplicateDetail,
-  submittedRows: readonly CategorizedTransaction[],
+  submittedRows: readonly CategorizedStatementEntry[],
 ) {
-  const submittedTransactions = detail.transactionIndexes
+  const submittedExpenses = detail.expenseIndexes
     .map((index) => {
       const row = submittedRows[index];
       return row
-        ? `Transaction ${index + 1} (“${row.description}”)`
-        : `Transaction ${index + 1}`;
+        ? `Expense ${index + 1} (“${row.description}”)`
+        : `Expense ${index + 1}`;
     })
     .join(", ");
-  const committedTransactions = detail.committedTransactionIds.length
-    ? ` Existing Transaction IDs: ${detail.committedTransactionIds.join(", ")}.`
+  const committedExpenses = detail.committedExpenseIds.length
+    ? ` Existing Expense IDs: ${detail.committedExpenseIds.join(", ")}.`
     : " These rows duplicate one another within this submission.";
 
-  return `${submittedTransactions} may already exist.${committedTransactions}`;
+  return `${submittedExpenses} may already exist.${committedExpenses}`;
 }
 
 function formatCategoryEligibilityDetail(
   detail: CategoryEligibilityConflict["details"][number],
-  submittedRows: readonly CategorizedTransaction[],
+  submittedRows: readonly CategorizedStatementEntry[],
 ) {
-  const submittedTransactions = detail.transactionIndexes
+  const submittedExpenses = detail.expenseIndexes
     .map((index) => {
       const row = submittedRows[index];
       return row
-        ? `Transaction ${index + 1} (“${row.description}”)`
-        : `Transaction ${index + 1}`;
+        ? `Expense ${index + 1} (“${row.description}”)`
+        : `Expense ${index + 1}`;
     })
     .join(", ");
 
-  return `${submittedTransactions} uses Category ${detail.categoryId}, which is no longer active.`;
+  return `${submittedExpenses} uses Category ${detail.categoryId}, which is no longer active.`;
 }
 
-interface ReviewTransactionTableProps {
-  readonly rows: readonly CategorizedTransaction[];
+interface ReviewExpenseTableProps {
+  readonly rows: readonly CategorizedStatementEntry[];
   readonly caption: string;
   readonly getCategoryColor: (categoryId: string) => CategoryColor;
   readonly getCategoryLabel: (categoryId: string) => string;
 }
 
-function ReviewTransactionTable({
+function ReviewExpenseTable({
   rows,
   caption,
   getCategoryColor,
   getCategoryLabel,
-}: ReviewTransactionTableProps) {
+}: ReviewExpenseTableProps) {
   return (
     <Table className="min-w-[56rem]">
       <TableCaption className="sr-only">
@@ -160,41 +160,41 @@ function ReviewTransactionTable({
         </TableRow>
       </TableHeader>
       <TableBody>
-        {rows.map((transaction) => {
-          const activityDescriptionId = `review-${transaction.id}-activity-description`;
+        {rows.map((expense) => {
+          const activityDescriptionId = `review-${expense.id}-activity-description`;
           return (
             <TableRow
-              key={transaction.id}
+              key={expense.id}
               className={
-                transaction.isExcluded
+                expense.isExcluded
                   ? "bg-muted/70 text-muted-foreground hover:bg-muted"
                   : undefined
               }
             >
               <TableCell className="font-mono text-xs font-semibold tabular-nums uppercase">
-                {formatShortDate(transaction.transactionDate)}
+                {formatShortDate(expense.entryDate)}
               </TableCell>
               <TableCell className="font-medium whitespace-normal">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span>{transaction.description}</span>
-                  <TransactionIndicators
-                    transaction={transaction}
+                  <span>{expense.description}</span>
+                  <ExpenseIndicators
+                    expense={expense}
                     activityDescriptionId={activityDescriptionId}
                   />
                 </div>
               </TableCell>
               <TableCell className="text-right font-mono font-bold tabular-nums">
-                {formatMoney(Math.abs(transaction.amount))}
+                {formatMoney(Math.abs(expense.amount))}
               </TableCell>
               <TableCell>
-                <TransactionCategoryMatch
-                  transaction={transaction}
+                <ExpenseCategoryMatch
+                  expense={expense}
                   getCategoryColor={getCategoryColor}
                   getCategoryLabel={getCategoryLabel}
                 />
               </TableCell>
               <TableCell className="text-center">
-                <AssignmentBadge assignment={transaction.assignment} />
+                <AssignmentBadge assignment={expense.assignment} />
               </TableCell>
             </TableRow>
           );
@@ -211,7 +211,7 @@ function ReviewStatement({
   spaceId,
   fileName,
   statementSummary,
-  transactions,
+  entries: expenses,
   commitError,
   categoryEligibilityConflict,
   probableDuplicateConflict,
@@ -243,11 +243,11 @@ function ReviewStatement({
   }
 
   const {
-    includedTransactions,
-    excludedTransactions,
-    unmappedTransactions,
-    ambiguousTransactions,
-    categorizedTransactions,
+    includedExpenses,
+    excludedExpenses,
+    unmappedExpenses,
+    ambiguousExpenses,
+    categorizedExpenses,
     ruleCount,
     manualCount,
     excludedCount,
@@ -256,15 +256,15 @@ function ReviewStatement({
     categoryBreakdown,
     categorizedDebitTotal,
     largestCategoryAmount,
-    hasUnmappedTransactions,
+    hasUnmappedExpenses,
   } = createStatementReviewData(
-    transactions,
+    expenses,
     sort,
     getCategoryLabel,
     getCategoryColor,
   );
   const isEWallet = statementSummary.statementType === "e_wallet";
-  const statementHistoryPeriod = formatTransactionHistoryPeriod(
+  const statementHistoryPeriod = formatExpenseHistoryPeriod(
     statementSummary.transactionHistoryStartDate,
     statementSummary.statementDate,
   );
@@ -292,7 +292,7 @@ function ReviewStatement({
 
       <main className="flex flex-1 flex-col gap-4">
         <div className="sticky top-[calc(4rem+env(safe-area-inset-top,0px))] z-10 lg:top-0 flex flex-wrap justify-between gap-2 border border-structure bg-background p-3 font-mono text-sm font-bold" aria-label="Included expense total">
-          <span>{includedTransactions.length} included expenses</span>
+          <span>{includedExpenses.length} included expenses</span>
           <span>{formatMoney(debitTotal)}</span>
         </div>
         <section
@@ -302,7 +302,7 @@ function ReviewStatement({
           <div className="bg-primary p-4 text-primary-foreground">
             <p className="text-label">
               Statement /{" "}
-              {hasUnmappedTransactions ? "Needs Categories" : "Ready to import"}
+              {hasUnmappedExpenses ? "Needs Categories" : "Ready to import"}
             </p>
             <p className="mt-1 text-base font-bold wrap-anywhere">
               {statementSummary.provider}
@@ -336,13 +336,13 @@ function ReviewStatement({
               )}
             </MobileSummaryMetric>
             <MobileSummaryMetric
-              label="Transactions included"
+              label="Expenses included"
               className="border-r"
             >
-              {includedTransactions.length}
+              {includedExpenses.length}
             </MobileSummaryMetric>
             <MobileSummaryMetric label="Categorization status">
-              {categorizedTransactions.length} / {includedTransactions.length}
+              {categorizedExpenses.length} / {includedExpenses.length}
             </MobileSummaryMetric>
           </div>
         </section>
@@ -358,7 +358,7 @@ function ReviewStatement({
             <div className="min-w-0">
               <p className="text-label">
                 Statement /{" "}
-                {hasUnmappedTransactions
+                {hasUnmappedExpenses
                   ? "Needs Categories"
                   : "Ready to import"}
               </p>
@@ -386,11 +386,11 @@ function ReviewStatement({
                 : statementSummary.totalAmountDue,
             )}
           </ReviewMetric>
-          <ReviewMetric label="Transactions included">
-            {includedTransactions.length}
+          <ReviewMetric label="Expenses included">
+            {includedExpenses.length}
           </ReviewMetric>
           <ReviewMetric label="Categorization status">
-            {categorizedTransactions.length} / {includedTransactions.length}
+            {categorizedExpenses.length} / {includedExpenses.length}
           </ReviewMetric>
         </section>
 
@@ -402,26 +402,26 @@ function ReviewStatement({
             canImportAnyway={canImportAnyway}
             isCommitting={isCommitting}
             hasFileDuplicate={hasFileDuplicate}
-            hasUnmappedTransactions={hasUnmappedTransactions}
-            unmappedTransactions={unmappedTransactions}
-            ambiguousTransactions={ambiguousTransactions}
-            includedTransactions={transactions.filter(isIncludedStatementTransaction)}
+            hasUnmappedExpenses={hasUnmappedExpenses}
+            unmappedExpenses={unmappedExpenses}
+            ambiguousExpenses={ambiguousExpenses}
+            includedExpenses={expenses.filter(isIncludedStatementEntry)}
             onCommit={onCommit}
           />
           <MobileCategoryBreakdown
             categoryBreakdown={categoryBreakdown}
             categorizedDebitTotal={categorizedDebitTotal}
           />
-          <MobileTransactionList
-            transactions={includedTransactions}
+          <MobileExpenseList
+            entries={includedExpenses}
             getCategoryColor={getCategoryColor}
             getCategoryLabel={getCategoryLabel}
           />
 
-          {excludedTransactions.length > 0 && (
+          {excludedExpenses.length > 0 && (
             <details className="border border-structure p-3">
-              <summary className="cursor-pointer font-mono text-sm font-bold">Excluded rows ({excludedTransactions.length})</summary>
-              <MobileTransactionList transactions={excludedTransactions} getCategoryColor={getCategoryColor} getCategoryLabel={getCategoryLabel} excluded />
+              <summary className="cursor-pointer font-mono text-sm font-bold">Excluded rows ({excludedExpenses.length})</summary>
+              <MobileExpenseList entries={excludedExpenses} getCategoryColor={getCategoryColor} getCategoryLabel={getCategoryLabel} excluded />
             </details>
           )}
         </div>
@@ -430,9 +430,9 @@ function ReviewStatement({
           <Card variant="strong" className="min-w-0 overflow-hidden">
             <CardHeader className="flex-row flex-wrap items-center justify-between gap-3 border-structure bg-secondary text-secondary-foreground">
               <div>
-                <CardTitle className="uppercase">Transaction summary</CardTitle>
+                <CardTitle className="uppercase">Expense summary</CardTitle>
                 <CardDescription className="mt-1 text-inverse-muted">
-                  Review every parsed Transaction before import.
+                  Review every parsed Statement Entry before import.
                 </CardDescription>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -440,20 +440,20 @@ function ReviewStatement({
                 {manualCount > 0 && (
                   <Badge variant="muted">{manualCount} Manual</Badge>
                 )}
-                {hasUnmappedTransactions && (
+                {hasUnmappedExpenses && (
                   <Badge
                     variant="outline"
                     className="border-warning bg-warning-surface text-warning"
                   >
-                    {unmappedTransactions.length} Unmapped
+                    {unmappedExpenses.length} Unmapped
                   </Badge>
                 )}
-                {ambiguousTransactions.length > 0 && (
+                {ambiguousExpenses.length > 0 && (
                   <Badge
                     variant="outline"
                     className="border-warning bg-warning-surface text-warning"
                   >
-                    {ambiguousTransactions.length} Ambiguous
+                    {ambiguousExpenses.length} Ambiguous
                   </Badge>
                 )}
                 {excludedCount > 0 && (
@@ -484,22 +484,22 @@ function ReviewStatement({
                 value={
                   isEWallet
                     ? statementHistoryPeriod
-                    : formatPeriod(includedTransactions)
+                    : formatPeriod(includedExpenses)
                 }
               />
             </div>
 
-            <ReviewTransactionTable
-              rows={includedTransactions}
+            <ReviewExpenseTable
+              rows={includedExpenses}
               caption={`Included expenses from ${fileName}`}
               getCategoryColor={getCategoryColor}
               getCategoryLabel={getCategoryLabel}
             />
-            {excludedTransactions.length > 0 && (
+            {excludedExpenses.length > 0 && (
               <details className="border-t p-4">
-                <summary className="cursor-pointer font-mono text-sm font-bold">Excluded rows ({excludedTransactions.length})</summary>
-                <ReviewTransactionTable
-                  rows={excludedTransactions}
+                <summary className="cursor-pointer font-mono text-sm font-bold">Excluded rows ({excludedExpenses.length})</summary>
+                <ReviewExpenseTable
+                  rows={excludedExpenses}
                   caption={`Excluded rows from ${fileName}`}
                   getCategoryColor={getCategoryColor}
                   getCategoryLabel={getCategoryLabel}
@@ -567,10 +567,10 @@ function ReviewStatement({
               canImportAnyway={canImportAnyway}
               isCommitting={isCommitting}
               hasFileDuplicate={hasFileDuplicate}
-              hasUnmappedTransactions={hasUnmappedTransactions}
-              unmappedTransactions={unmappedTransactions}
-              ambiguousTransactions={ambiguousTransactions}
-              includedTransactions={transactions.filter(isIncludedStatementTransaction)}
+              hasUnmappedExpenses={hasUnmappedExpenses}
+              unmappedExpenses={unmappedExpenses}
+              ambiguousExpenses={ambiguousExpenses}
+              includedExpenses={expenses.filter(isIncludedStatementEntry)}
                   onCommit={onCommit}
             />
           </aside>
@@ -598,7 +598,7 @@ function ReviewStatement({
             onClick={() => onCommit(false)}
             disabled={
               !canConfirm ||
-              hasUnmappedTransactions ||
+              hasUnmappedExpenses ||
               isCommitting ||
               Boolean(probableDuplicateConflict) ||
               hasFileDuplicate
@@ -609,7 +609,7 @@ function ReviewStatement({
             )}
             {probableDuplicateConflict && canImportAnyway
               ? "Resolve duplicate warning above"
-              : `Import ${includedTransactions.length} Transactions`}
+              : `Import ${includedExpenses.length} Expenses`}
             {!isCommitting && !probableDuplicateConflict && (
               <ArrowRightIcon className="text-inverse-accent" aria-hidden="true" />
             )}
@@ -628,10 +628,10 @@ interface ReviewStatusProps {
   canImportAnyway: boolean;
   isCommitting: boolean;
   hasFileDuplicate: boolean;
-  hasUnmappedTransactions: boolean;
-  unmappedTransactions: readonly CategorizedTransaction[];
-  ambiguousTransactions: readonly CategorizedTransaction[];
-  includedTransactions: readonly CategorizedTransaction[];
+  hasUnmappedExpenses: boolean;
+  unmappedExpenses: readonly CategorizedStatementEntry[];
+  ambiguousExpenses: readonly CategorizedStatementEntry[];
+  includedExpenses: readonly CategorizedStatementEntry[];
   onCommit: (acknowledgeProbableDuplicates: boolean) => void;
 }
 
@@ -643,29 +643,29 @@ function ReviewStatus({
   canImportAnyway,
   isCommitting,
   hasFileDuplicate,
-  hasUnmappedTransactions,
-  unmappedTransactions,
-  ambiguousTransactions,
-  includedTransactions,
+  hasUnmappedExpenses,
+  unmappedExpenses,
+  ambiguousExpenses,
+  includedExpenses,
   onCommit,
 }: ReviewStatusProps) {
-  if (hasUnmappedTransactions) {
+  if (hasUnmappedExpenses) {
     return (
       <Alert variant="warning" className={className}>
         <AlertTriangleIcon aria-hidden="true" />
-        <AlertTitle className="uppercase">Unmapped Transactions</AlertTitle>
+        <AlertTitle className="uppercase">Unmapped Expenses</AlertTitle>
         <AlertDescription>
-          {unmappedTransactions.length} included{" "}
-          {unmappedTransactions.length === 1
-            ? "Transaction needs"
-            : "Transactions need"}{" "}
+          {unmappedExpenses.length} included{" "}
+          {unmappedExpenses.length === 1
+            ? "Statement Entry needs"
+            : "Statement Entries need"}{" "}
           a Category before import.
-          {ambiguousTransactions.length > 0 && (
+          {ambiguousExpenses.length > 0 && (
             <p className="mt-2">
-              {ambiguousTransactions.length}{" "}
-              {ambiguousTransactions.length === 1
-                ? "Transaction has"
-                : "Transactions have"}{" "}
+              {ambiguousExpenses.length}{" "}
+              {ambiguousExpenses.length === 1
+                ? "Statement Entry has"
+                : "Statement Entries have"}{" "}
               multiple categories matched. Choose a Category to resolve the
               ambiguity.
             </p>
@@ -681,14 +681,14 @@ function ReviewStatus({
       <Alert variant="warning" className={className}>
         <AlertTriangleIcon aria-hidden="true" />
         <AlertTitle className="uppercase">
-          Probable duplicate Transactions
+          Probable duplicate Expenses
         </AlertTitle>
         <AlertDescription>
           <p>{probableDuplicateConflict.message}</p>
           <ul className="mt-3 space-y-2 border-t border-warning pt-3">
             {probableDuplicateConflict.details.map((detail) => (
               <li key={detail.field}>
-                {formatDuplicateDetail(detail, includedTransactions)}
+                {formatDuplicateDetail(detail, includedExpenses)}
               </li>
             ))}
           </ul>
@@ -724,8 +724,8 @@ function ReviewStatus({
           <p>{categoryEligibilityConflict.message}</p>
           <ul className="mt-3 space-y-2 border-t border-warning pt-3">
             {categoryEligibilityConflict.details.map((detail) => (
-              <li key={`${detail.categoryId}-${detail.transactionIndexes.join("-")}`}>
-                {formatCategoryEligibilityDetail(detail, includedTransactions)}
+              <li key={`${detail.categoryId}-${detail.expenseIndexes.join("-")}`}>
+                {formatCategoryEligibilityDetail(detail, includedExpenses)}
               </li>
             ))}
           </ul>
@@ -771,7 +771,7 @@ function ReviewStatus({
             Ready to import
           </p>
           <p className="mt-1 text-sm">
-            Every included Transaction has a Category.
+            Every included Statement Entry has a Category.
           </p>
           <p className="mt-2 text-sm">
             Importing saves these details and cannot be undone.
@@ -844,67 +844,67 @@ function MobileCategoryBreakdown({
   );
 }
 
-interface MobileTransactionListProps {
+interface MobileExpenseListProps {
   excluded?: boolean;
-  transactions: readonly CategorizedTransaction[];
+  entries: readonly CategorizedStatementEntry[];
   getCategoryColor: (categoryId: string) => CategoryColor;
   getCategoryLabel: (categoryId: string) => string;
 }
 
-interface TransactionIndicatorsProps {
-  transaction: CategorizedTransaction;
+interface ExpenseIndicatorsProps {
+  expense: CategorizedStatementEntry;
   activityDescriptionId: string;
 }
 
-function TransactionIndicators({
-  transaction,
+function ExpenseIndicators({
+  expense,
   activityDescriptionId,
-}: TransactionIndicatorsProps) {
+}: ExpenseIndicatorsProps) {
   return (
     <>
-      <Badge variant="muted" aria-describedby={transaction.isExcluded ? activityDescriptionId : undefined}>
-        {getStatementActivityLabel(transaction)}
+      <Badge variant="muted" aria-describedby={expense.isExcluded ? activityDescriptionId : undefined}>
+        {getStatementActivityLabel(expense)}
       </Badge>
-      {transaction.isExcluded && (
+      {expense.isExcluded && (
         <span id={activityDescriptionId} className="text-xs text-muted-foreground">
-          {transaction.amount <= 0 ? "Excluded by you" : `${getStatementActivityLabel(transaction)} — not an expense`}
+          {expense.amount <= 0 ? "Excluded by you" : `${getStatementActivityLabel(expense)} — not an expense`}
         </span>
       )}
     </>
   );
 }
 
-interface TransactionCategoryMatchProps {
-  transaction: CategorizedTransaction;
+interface ExpenseCategoryMatchProps {
+  expense: CategorizedStatementEntry;
   className?: string;
   getCategoryColor: (categoryId: string) => CategoryColor;
   getCategoryLabel: (categoryId: string) => string;
 }
 
-function TransactionCategoryMatch({
-  transaction,
+function ExpenseCategoryMatch({
+  expense,
   className,
   getCategoryColor,
   getCategoryLabel,
-}: TransactionCategoryMatchProps) {
+}: ExpenseCategoryMatchProps) {
   return (
     <CategoryMatchCell
-      assignment={transaction.assignment}
-      categoryId={transaction.categoryId}
+      assignment={expense.assignment}
+      categoryId={expense.categoryId}
       className={className}
       getCategoryColor={getCategoryColor}
       getCategoryLabel={getCategoryLabel}
-      matchedCategoryIds={transaction.matchedCategoryIds}
+      matchedCategoryIds={expense.matchedCategoryIds}
     />
   );
 }
 
-function MobileTransactionList({
+function MobileExpenseList({
   excluded = false,
-  transactions,
+  entries: expenses,
   getCategoryColor,
   getCategoryLabel,
-}: MobileTransactionListProps) {
+}: MobileExpenseListProps) {
   return (
     <section
       className="border border-structure"
@@ -917,22 +917,22 @@ function MobileTransactionList({
           {excluded ? "Excluded row details" : "Included expenses"}
         </h2>
         <p className="shrink-0 font-mono text-xs font-semibold text-muted-foreground uppercase">
-          {transactions.length} Transactions
+          {expenses.length} Expenses
         </p>
       </div>
-      <ul className="divide-y" aria-label={excluded ? "Excluded rows to review" : "Transactions to review"}>
-        {transactions.map((transaction) => {
-          const activityDescriptionId = `mobile-review-${transaction.id}-activity-description`;
-          const markerClass = transaction.categoryId
-            ? getCategoryColorClass(getCategoryColor(transaction.categoryId))
+      <ul className="divide-y" aria-label={excluded ? "Excluded Statement Entries" : "Statement Entries to review"}>
+        {expenses.map((expense) => {
+          const activityDescriptionId = `mobile-review-${expense.id}-activity-description`;
+          const markerClass = expense.categoryId
+            ? getCategoryColorClass(getCategoryColor(expense.categoryId))
             : "bg-warning";
 
           return (
             <li
-              key={transaction.id}
+              key={expense.id}
               className={cn(
                 "flex items-start gap-3 p-4",
-                transaction.isExcluded && "bg-muted/70 text-muted-foreground",
+                expense.isExcluded && "bg-muted/70 text-muted-foreground",
               )}
             >
               <span
@@ -944,29 +944,29 @@ function MobileTransactionList({
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="min-w-0 font-semibold wrap-anywhere">
-                        {transaction.description}
+                        {expense.description}
                       </p>
-                      <TransactionIndicators
-                        transaction={transaction}
+                      <ExpenseIndicators
+                        expense={expense}
                         activityDescriptionId={activityDescriptionId}
                       />
                     </div>
                     <p className="mt-1 font-mono text-xs font-semibold uppercase text-muted-foreground">
-                      {formatImportDate(transaction.transactionDate)}
+                      {formatImportDate(expense.entryDate)}
                     </p>
                   </div>
                   <p className="max-w-[45%] shrink-0 text-right font-mono text-sm font-bold tabular-nums wrap-anywhere">
-                    {formatMoney(Math.abs(transaction.amount))}
+                    {formatMoney(Math.abs(expense.amount))}
                   </p>
                 </div>
                 <div className="mt-2 flex min-w-0 flex-wrap items-center gap-2">
-                  <TransactionCategoryMatch
-                    transaction={transaction}
+                  <ExpenseCategoryMatch
+                    expense={expense}
                     className="max-w-full whitespace-normal wrap-anywhere"
                     getCategoryColor={getCategoryColor}
                     getCategoryLabel={getCategoryLabel}
                   />
-                  <AssignmentBadge assignment={transaction.assignment} />
+                  <AssignmentBadge assignment={expense.assignment} />
                 </div>
               </div>
             </li>

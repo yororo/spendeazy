@@ -13,7 +13,7 @@ import type { InsightsMonthlyReport } from "./insights-service";
 
 interface SelectedMonthSummaryProps {
   readonly report: InsightsMonthlyReport;
-  readonly onViewTransactions?: (
+  readonly onViewExpenses?: (
     categoryId: string | undefined,
     period: ReportingPeriod,
   ) => void;
@@ -24,7 +24,7 @@ const money = (cents: number) => formatMoney(centsToMoney(cents));
 
 function SelectedMonthSummary({
   report,
-  onViewTransactions,
+  onViewExpenses,
   onManageBudgets,
 }: SelectedMonthSummaryProps) {
   const month = report.months.find(({ period }) => period === report.period)!;
@@ -153,7 +153,7 @@ function SelectedMonthSummary({
           )}
           {month.totalSpendingCents === 0 && (
             <p className="text-sm">
-              No spending recorded for this month. View Transactions to record
+              No spending recorded for this month. View Expenses to record
               an expense.
             </p>
           )}
@@ -167,15 +167,15 @@ function SelectedMonthSummary({
                 Manage Budgets
               </Button>
             )}
-            {onViewTransactions && (
+            {onViewExpenses && (
               <Button
                 className="min-h-11"
-                id="insights-transactions-all"
+                id="insights-expenses-all"
                 variant="outline"
-                aria-label="View selected-month Transactions"
-                onClick={() => onViewTransactions(undefined, report.period)}
+                aria-label="View selected-month Expenses"
+                onClick={() => onViewExpenses(undefined, report.period)}
               >
-                View Transactions
+                View Expenses
               </Button>
             )}
           </div>

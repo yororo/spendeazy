@@ -29,7 +29,7 @@ export class TypeOrmSpaceLifecycleStore implements SpaceLifecycleStore {
     archivedAt: Date,
   ): Promise<ArchivedSpaceRecord> {
     return this.entityManager.transaction((entityManager) =>
-      archiveSharedSpaceInTransaction(
+      archiveSharedSpaceInExpense(
         entityManager,
         userId,
         spaceId,
@@ -43,12 +43,12 @@ export class TypeOrmSpaceLifecycleStore implements SpaceLifecycleStore {
     deletedAt: Date,
   ): Promise<IdentityDeletionResult> {
     return this.entityManager.transaction((entityManager) =>
-      deleteIdentityInTransaction(entityManager, userId, deletedAt),
+      deleteIdentityInExpense(entityManager, userId, deletedAt),
     );
   }
 }
 
-async function archiveSharedSpaceInTransaction(
+async function archiveSharedSpaceInExpense(
   entityManager: EntityManager,
   userId: string,
   spaceId: string,
@@ -112,7 +112,7 @@ async function archiveSharedSpaceInTransaction(
   };
 }
 
-async function deleteIdentityInTransaction(
+async function deleteIdentityInExpense(
   entityManager: EntityManager,
   userId: string,
   deletedAt: Date,

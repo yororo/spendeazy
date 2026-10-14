@@ -2,16 +2,16 @@ import { describe, expect, it, vi } from "vitest";
 
 import type {
   StatementSummary,
-  Transaction,
+  StatementEntry,
 } from "./statement-parser/transformer";
 import {
   buildCommitPayload,
-  categorizeTransactions,
+  categorizeStatementEntries,
   commitStatementImport,
   getCategoryOptions,
   getStatementCategorySuggestion,
   getCategoryRules,
-  getIncludedTransactions,
+  getIncludedExpenses,
   getRecentCommittedStatementImports,
   hashStatementFile,
   rememberCategoryRule,
@@ -26,13 +26,13 @@ import type { CategorizedStatement } from "./statement-categorizer";
 import { applyGcashRecipientExclusion } from "./gcash-recipient";
 import { getProbableDuplicateConflict } from "./statement-import-errors";
 import {
-  applyManualTransactionEdit,
-  isIncludedStatementTransaction,
+  applyManualStatementEntryEdit,
+  isIncludedStatementEntry,
 } from "./statement-import-utils";
 
-function createTransaction(overrides: Partial<Transaction> = {}): Transaction {
+function createExpense(overrides: Partial<StatementEntry> = {}): StatementEntry {
   return {
-    transactionDate: new Date("2026-08-29T00:00:00.000Z"),
+    entryDate: new Date("2026-08-29T00:00:00.000Z"),
     postingDate: new Date("2026-08-30T00:00:00.000Z"),
     description: "Green   Market",
     amount: 25.5,
@@ -58,7 +58,7 @@ function createSummary(): StatementSummary {
     accountType: "AMEX",
     transactionHistoryStartDate: null,
     totalDebit: null,
-    totalTransactions: 3,
+    entryCount: 3,
     totalAmountDue: 100,
     totalExtractedAmount: 90,
   };
@@ -67,26 +67,26 @@ function createSummary(): StatementSummary {
 function createCategorizedStatement(): CategorizedStatement {
   return {
     summary: createSummary(),
-    transactions: [
+    entries: [
       {
-        ...createTransaction({ description: "Green   Market", amount: -25.5 }),
-        id: "transaction-1",
+        ...createExpense({ description: "Green   Market", amount: -25.5 }),
+        id: "expense-1",
         categoryId: "42",
         assignment: "rule",
         matchedCategoryIds: [],
         isExcluded: false,
       },
       {
-        ...createTransaction({ description: "Refund", amount: 10 }),
-        id: "transaction-2",
+        ...createExpense({ description: "Refund", amount: 10 }),
+        id: "expense-2",
         categoryId: null,
         assignment: "unmapped",
         matchedCategoryIds: [],
         isExcluded: true,
       },
       {
-        ...createTransaction({ description: "Excluded purchase", amount: 5 }),
-        id: "transaction-3",
+        ...createExpense({ description: "Excluded purchase", amount: 5 }),
+        id: "expense-3",
         categoryId: "43",
         assignment: "manual",
         matchedCategoryIds: [],
@@ -97,7 +97,7 @@ function createCategorizedStatement(): CategorizedStatement {
 }
 
 describe("Statement Import categorization", () => {
-  it("requests up to three ordered Category Suggestions from the destination Space using only the Transaction description", async () => {
+  it("requests up to three ordered Category Suggestions from the destination Space using only the Expense description", async () => {
     const post = vi.fn(async () => ({
       suggestions: [
         { categoryId: "42", categoryName: "Groceries" },
@@ -154,11 +154,11 @@ describe("Statement Import categorization", () => {
     expect(normalizeDescription("  Green   Market ")).toBe("GREEN MARKET");
 
     expect(
-      categorizeTransactions(
+      categorizeStatementEntries(
         [
-          createTransaction(),
-          createTransaction({ description: "Green Market Cafe" }),
-          createTransaction({ description: "Parent rent" }),
+          createExpense(),
+          createExpense({ description: "Green Market Cafe" }),
+          createExpense({ description: "Parent rent" }),
         ],
         [
           createRule(),
@@ -186,10 +186,10 @@ describe("Statement Import categorization", () => {
 
   it("allows same-Category Contains overlap", () => {
     expect(
-      categorizeTransactions(
+      categorizeStatementEntries(
         [
-          createTransaction({ description: "ACME, INC." }),
-          createTransaction({ description: "ACME INC" }),
+          createExpense({ description: "ACME, INC." }),
+          createExpense({ description: "ACME INC" }),
         ],
         [
           createRule({ pattern: "ACME, INC.", matchType: "contains" }),
@@ -209,15 +209,15 @@ describe("Statement Import categorization", () => {
     ];
 
     expect(
-      categorizeTransactions(
-        [createTransaction({ description: "ACME, INC." })],
+      categorizeStatementEntries(
+        [createExpense({ description: "ACME, INC." })],
         rules,
         new Set(["42"]),
       ),
     ).toEqual([{ categoryId: "42", assignment: "rule" }]);
     expect(
-      categorizeTransactions(
-        [createTransaction({ description: "ACME INC" })],
+      categorizeStatementEntries(
+        [createExpense({ description: "ACME INC" })],
         rules,
         new Set(["42"]),
       ),
@@ -226,8 +226,8 @@ describe("Statement Import categorization", () => {
 
   it("does not assign a Rule whose Category is inactive", () => {
     expect(
-      categorizeTransactions(
-        [createTransaction()],
+      categorizeStatementEntries(
+        [createExpense()],
         [createRule({ categoryId: "43" })],
         new Set(["42"]),
       ),
@@ -236,8 +236,8 @@ describe("Statement Import categorization", () => {
 
   it("reports distinct matching Categories as an unresolved ambiguity", () => {
     expect(
-      categorizeTransactions(
-        [createTransaction()],
+      categorizeStatementEntries(
+        [createExpense()],
         [
           createRule({ categoryId: "42" }),
           createRule({ id: "2", categoryId: "43", pattern: " green market " }),
@@ -657,7 +657,7 @@ describe("Statement Import categorization", () => {
           totalDebit: null,
           importedAt: "2026-09-01T00:00:00.000Z",
           importedByUserId: "7",
-          transactionCount: "12",
+          expenseCount: "12",
         },
       ],
       nextCursor: null,
@@ -668,7 +668,7 @@ describe("Statement Import categorization", () => {
       {
         id: "100",
         fileName: "august.pdf",
-        transactionCount: 12,
+        expenseCount: 12,
         statementDate: "AUG 31",
         provider: "BDO",
         accountType: "AMEX",
@@ -698,7 +698,7 @@ describe("Statement Import categorization", () => {
           bank: "BDO",
           cardType: "AMEX",
           importedAt: "2026-09-01T00:00:00.000Z",
-          transactionCount: "12",
+          expenseCount: "12",
           ...attribution,
         },
       ],
@@ -733,7 +733,7 @@ describe("Statement Import categorization", () => {
           totalDebit: "26696.92",
           importedAt: "2026-09-01T00:00:00.000Z",
           importedByUserId: "7",
-          transactionCount: "12",
+          expenseCount: "12",
           ...override,
         },
       ],
@@ -749,28 +749,28 @@ describe("Statement Import categorization", () => {
 });
 
 describe("Statement Import commit", () => {
-  it("includes negative Transactions and keeps excluded rows out of imported Transactions", () => {
-    const transactions = createCategorizedStatement().transactions;
+  it("includes negative Expenses and keeps excluded rows out of imported Expenses", () => {
+    const expenses = createCategorizedStatement().entries;
 
-    expect(getIncludedTransactions(transactions)).toEqual([
-      expect.objectContaining({ id: "transaction-1" }),
+    expect(getIncludedExpenses(expenses)).toEqual([
+      expect.objectContaining({ id: "expense-1" }),
     ]);
-    expect(isIncludedStatementTransaction(transactions[1])).toBe(false);
-    expect(isIncludedStatementTransaction(transactions[2])).toBe(false);
+    expect(isIncludedStatementEntry(expenses[1])).toBe(false);
+    expect(isIncludedStatementEntry(expenses[2])).toBe(false);
   });
 
-  it("marks an edited Transaction Manual and permanently excludes a positive edit", () => {
-    const transactions = createCategorizedStatement().transactions.map(
-      (transaction, index) =>
+  it("marks an edited Expense Manual and permanently excludes a positive edit", () => {
+    const expenses = createCategorizedStatement().entries.map(
+      (expense, index) =>
         index === 0
-          ? { ...transaction, reference: "5043775892919" }
-          : transaction,
+          ? { ...expense, reference: "5043775892919" }
+          : expense,
     );
 
     expect(
-      applyManualTransactionEdit(transactions, {
-        transactionId: "transaction-1",
-        transactionDate: new Date("2026-08-30T00:00:00.000Z"),
+      applyManualStatementEntryEdit(expenses, {
+        expenseId: "expense-1",
+        entryDate: new Date("2026-08-30T00:00:00.000Z"),
         description: "  Updated   purchase ",
         amount: 1.005,
         categoryId: "99",
@@ -795,7 +795,7 @@ describe("Statement Import commit", () => {
     );
   });
 
-  it("builds a commit payload with only included negative Transactions", () => {
+  it("builds a commit payload with only included negative Expenses", () => {
     expect(
       buildCommitPayload(
         "  august   statement.pdf ",
@@ -811,7 +811,7 @@ describe("Statement Import commit", () => {
       statementType: "credit_card",
       transactionHistoryStartDate: null,
       totalDebit: null,
-      transactions: [
+      expenses: [
         {
           categoryId: "42",
           purchaseDate: "2026-08-29",
@@ -833,13 +833,13 @@ describe("Statement Import commit", () => {
           statementType: "e_wallet",
           transactionHistoryStartDate: new Date("2026-08-01T00:00:00.000Z"),
           totalDebit: 4025,
-          totalTransactions: 2,
+          entryCount: 2,
           totalAmountDue: 4025,
           totalExtractedAmount: -4025,
         },
-        transactions: [
+        entries: [
           {
-            ...createTransaction({
+            ...createExpense({
               description:
                 "Transfer from 09111111111 to 09999999999 [Ref. #: 1]",
               amount: -4000,
@@ -851,7 +851,7 @@ describe("Statement Import commit", () => {
             isExcluded: false,
           },
           {
-            ...createTransaction({
+            ...createExpense({
               description: "Payment to merchant",
               amount: -25,
             }),
@@ -866,14 +866,14 @@ describe("Statement Import commit", () => {
       "09999999999",
     );
 
-    expect(statement.transactions[0]).toMatchObject({
+    expect(statement.entries[0]).toMatchObject({
       amount: 4000,
       isExcluded: true,
       description: "Transfer from 09111111111 to 09999999999 [Ref. #: 1]",
     });
     expect(buildCommitPayload("wallet.pdf", "a".repeat(64), statement)).toEqual(
       expect.objectContaining({
-        transactions: [
+        expenses: [
           {
             categoryId: "42",
             purchaseDate: "2026-08-29",
@@ -885,10 +885,10 @@ describe("Statement Import commit", () => {
     );
   });
 
-  it("requires a Category for every included Transaction", () => {
+  it("requires a Category for every included Expense", () => {
     const statement = createCategorizedStatement();
-    statement.transactions[0] = {
-      ...statement.transactions[0],
+    statement.entries[0] = {
+      ...statement.entries[0],
       categoryId: null,
       assignment: "unmapped",
     };
@@ -898,10 +898,10 @@ describe("Statement Import commit", () => {
     ).toThrow("must have a Category before import");
   });
 
-  it("rejects an empty Category identifier for an included Transaction", () => {
+  it("rejects an empty Category identifier for an included Expense", () => {
     const statement = createCategorizedStatement();
-    statement.transactions[0] = {
-      ...statement.transactions[0],
+    statement.entries[0] = {
+      ...statement.entries[0],
       categoryId: "",
       assignment: "unmapped",
     };
@@ -913,8 +913,8 @@ describe("Statement Import commit", () => {
 
   it("rejects reviewed amounts that are not exact cents", () => {
     const statement = createCategorizedStatement();
-    statement.transactions[0] = {
-      ...statement.transactions[0],
+    statement.entries[0] = {
+      ...statement.entries[0],
       amount: -1.005,
     };
 
@@ -950,7 +950,7 @@ describe("Statement Import commit", () => {
       }),
     ).resolves.toMatchObject({
       id: "100",
-      transactionCount: 1,
+      expenseCount: 1,
       provider: "BDO",
       accountType: "AMEX",
     });
@@ -960,7 +960,7 @@ describe("Statement Import commit", () => {
         fileHash:
           "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
         acknowledgeProbableDuplicates: true,
-        transactions: [
+        entries: [
           expect.objectContaining({ categoryId: "42", amount: "25.50" }),
         ],
       }),
@@ -1064,11 +1064,11 @@ describe("Statement Import commit", () => {
       code: "STATEMENT_IMPORT_PROBABLE_DUPLICATES",
       details: [
         {
-          field: "/transactions/0",
+          field: "/expenses/0",
           code: "probable_duplicate",
           message: "Duplicate row",
-          transactionIndexes: [0, 2],
-          committedTransactionIds: ["12"],
+          expenseIndexes: [0, 2],
+          committedExpenseIds: ["12"],
         },
       ],
     });
@@ -1077,11 +1077,11 @@ describe("Statement Import commit", () => {
       message: "Probable duplicates",
       details: [
         {
-          field: "/transactions/0",
+          field: "/expenses/0",
           code: "probable_duplicate",
           message: "Duplicate row",
-          transactionIndexes: [0, 2],
-          committedTransactionIds: ["12"],
+          expenseIndexes: [0, 2],
+          committedExpenseIds: ["12"],
         },
       ],
     });

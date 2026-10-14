@@ -4,7 +4,7 @@ import { StatementTransformationError } from "./statement-transformation-error";
 import type {
   Statement,
   StatementTransformer,
-  Transaction,
+  StatementEntry,
 } from "./transformer";
 import {
   MONEY_AMOUNT_PATTERN_SOURCE,
@@ -15,13 +15,13 @@ import {
 } from "./statement-parser-utils";
 
 const EASTWEST_PROVIDER = "EastWest Visa";
-const TRANSACTION_PATTERN = new RegExp(
+const EXPENSE_PATTERN = new RegExp(
   `^([A-Za-z]{3})\\s+(\\d{1,2})\\s+([A-Za-z]{3})\\s+(\\d{1,2})\\s+(.+?)\\s+(${MONEY_AMOUNT_PATTERN_SOURCE})$`,
   "iu",
 );
-const TRANSACTION_PREFIX_PATTERN =
+const EXPENSE_PREFIX_PATTERN =
   /^[A-Za-z]{3}\s+\d{1,2}\s+[A-Za-z]{3}\s+\d{1,2}(?:\s|$)/iu;
-const NUMERIC_TRANSACTION_PREFIX_PATTERN =
+const NUMERIC_EXPENSE_PREFIX_PATTERN =
   /^\d{1,2}\/\d{1,2}(?:\/\d{2,4})?\s+\d{1,2}\/\d{1,2}(?:\/\d{2,4})?(?:\s|$)/u;
 const STATEMENT_DATE_PATTERN =
   /^Statement Date\s+([A-Za-z]{3})\s+(\d{1,2})\s+(\d{4})$/iu;
@@ -54,14 +54,14 @@ interface EastWestControls {
 }
 
 interface ParsedActivity {
-  readonly transactions: Transaction[];
+  readonly entries: StatementEntry[];
   readonly positiveActivityCents: number;
   readonly negativeActivityCents: number;
   readonly totalExtractedCents: number;
 }
 
-interface ParsedTransaction {
-  readonly transaction: Transaction;
+interface ParsedStatementEntry {
+  readonly expense: StatementEntry;
   readonly amountCents: number;
 }
 
@@ -134,7 +134,7 @@ function extractFirstLabeledCents(
   return parseCents(amountText, label);
 }
 
-function inferTransactionDate(
+function inferExpenseDate(
   monthText: string,
   dayText: string,
   statementDate: Date,
@@ -157,25 +157,25 @@ function inferTransactionDate(
   return validationError(`invalid calendar date for ${context}.`);
 }
 
-function parseTransaction(
+function parseExpense(
   line: string,
   lineNumber: number,
   statementDate: Date,
-): ParsedTransaction {
-  const match = line.match(TRANSACTION_PATTERN);
+): ParsedStatementEntry {
+  const match = line.match(EXPENSE_PATTERN);
   if (!match) {
-    return validationError(`malformed transaction row on line ${lineNumber}.`);
+    return validationError(`malformed statement entry on line ${lineNumber}.`);
   }
 
   const [, saleMonth, saleDay, postingMonth, postingDay, description, amountText] =
     match;
-  const transactionDate = inferTransactionDate(
+  const entryDate = inferExpenseDate(
     saleMonth,
     saleDay,
     statementDate,
-    `transaction date on line ${lineNumber}`,
+    `statement entry date on line ${lineNumber}`,
   );
-  const postingDate = inferTransactionDate(
+  const postingDate = inferExpenseDate(
     postingMonth,
     postingDay,
     statementDate,
@@ -183,16 +183,16 @@ function parseTransaction(
   );
   const amountCents = parseCents(
     amountText,
-    `transaction on line ${lineNumber}`,
+    `statement entry on line ${lineNumber}`,
   );
 
   if (!description.trim()) {
-    return validationError(`transaction on line ${lineNumber} has no description.`);
+    return validationError(`statement entry on line ${lineNumber} has no description.`);
   }
 
   return {
-    transaction: {
-      transactionDate,
+    expense: {
+      entryDate,
       postingDate,
       description: description.trim(),
       amount: centsToMoney(amountCents),
@@ -205,7 +205,7 @@ function parseActivity(
   lines: readonly string[],
   statementDate: Date,
 ): ParsedActivity {
-  const transactions: Transaction[] = [];
+  const entries: StatementEntry[] = [];
   let activitySectionCount = 0;
   let activityStarted = false;
   let positiveActivityCents = 0;
@@ -224,34 +224,34 @@ function parseActivity(
     }
 
     if (!activityStarted) return;
-    if (NUMERIC_TRANSACTION_PREFIX_PATTERN.test(trimmedLine)) {
-      validationError(`unsupported numeric transaction row on line ${lineNumber}.`);
+    if (NUMERIC_EXPENSE_PREFIX_PATTERN.test(trimmedLine)) {
+      validationError(`unsupported numeric statement entry on line ${lineNumber}.`);
     }
-    if (!TRANSACTION_PREFIX_PATTERN.test(trimmedLine)) return;
+    if (!EXPENSE_PREFIX_PATTERN.test(trimmedLine)) return;
 
-    const parsedTransaction = parseTransaction(
+    const parsedExpense = parseExpense(
       trimmedLine,
       lineNumber,
       statementDate,
     );
-    transactions.push(parsedTransaction.transaction);
-    totalExtractedCents += parsedTransaction.amountCents;
-    if (parsedTransaction.amountCents > 0) {
-      positiveActivityCents += parsedTransaction.amountCents;
+    entries.push(parsedExpense.expense);
+    totalExtractedCents += parsedExpense.amountCents;
+    if (parsedExpense.amountCents > 0) {
+      positiveActivityCents += parsedExpense.amountCents;
     } else {
-      negativeActivityCents -= parsedTransaction.amountCents;
+      negativeActivityCents -= parsedExpense.amountCents;
     }
   });
 
   if (activitySectionCount === 0) {
     validationError("no card activity sections were found.");
   }
-  if (transactions.length === 0) {
-    validationError("no Transactions were extracted from the card activity sections.");
+  if (entries.length === 0) {
+    validationError("no Statement Entries were extracted from the card activity sections.");
   }
 
   return {
-    transactions,
+    entries,
     positiveActivityCents,
     negativeActivityCents,
     totalExtractedCents,
@@ -333,11 +333,11 @@ const eastwestVisaTransformer: StatementTransformer = {
         accountType: "Visa",
         transactionHistoryStartDate: null,
         totalDebit: null,
-        totalTransactions: activity.transactions.length,
+        entryCount: activity.entries.length,
         totalAmountDue: centsToMoney(controls.totalStatementBalanceCents),
         totalExtractedAmount: centsToMoney(activity.totalExtractedCents),
       },
-      transactions: activity.transactions,
+      entries: activity.entries,
     };
   },
 };

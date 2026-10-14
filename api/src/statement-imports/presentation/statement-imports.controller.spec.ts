@@ -73,7 +73,7 @@ describe('StatementImportsController', () => {
           transactionHistoryStartDate:
             statementImport.transactionHistoryStartDate,
           totalDebit: statementImport.totalDebit,
-          transactions: [],
+          expenses: [],
         },
         response,
       ),
@@ -126,7 +126,7 @@ describe('StatementImportsController', () => {
           totalDebit: null,
           importedAt: '2026-08-29T00:00:00.000Z',
           importedByUserId: '7',
-          transactionCount: '2',
+          expenseCount: '2',
         },
       ],
       nextCursor: 'next-page',
@@ -181,6 +181,6 @@ function statementImportHistoryRecord(): StatementImportHistoryRecord {
     transactionHistoryStartDate: null,
     totalDebit: null,
     importedAt: new Date('2026-08-29T00:00:00.000Z'),
-    transactionCount: '2',
+    expenseCount: '2',
   };
 }

@@ -1,7 +1,7 @@
 import { expect, type Page } from "@playwright/test";
 import { preferencesPage } from "./preferences-fixture";
 
-export async function navigateSpending(page: Page, destination: "Transactions" | "Budgets" | "Insights" | "Imports" | "Sharing" | "History") {
+export async function navigateSpending(page: Page, destination: "Expenses" | "Budgets" | "Insights" | "Imports" | "Sharing" | "History") {
   const link = page.getByRole("link", { name: destination, exact: true }).filter({ visible: true });
   const drawer = page.getByRole("button", { name: "Open navigation", exact: true });
   // Fresh session provisioning can temporarily replace the shell. Decide which

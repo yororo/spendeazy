@@ -343,7 +343,7 @@ function expectCommitRequestSchema(document: OpenAPIObject): void {
       'statementDate',
       'statementType',
       'bank',
-      'transactions',
+      'expenses',
     ],
     properties: {
       fileName: {
@@ -389,10 +389,10 @@ function expectCommitRequestSchema(document: OpenAPIObject): void {
         pattern: '^\\d{1,13}\\.\\d{2}$',
         nullable: true,
       },
-      transactions: {
+      expenses: {
         type: 'array',
         items: {
-          $ref: '#/components/schemas/ReviewedStatementTransactionDto',
+          $ref: '#/components/schemas/ReviewedStatementExpenseDto',
         },
       },
       acknowledgeProbableDuplicates: {
@@ -402,8 +402,8 @@ function expectCommitRequestSchema(document: OpenAPIObject): void {
     },
   });
 
-  const transactionSchema = schema(document, 'ReviewedStatementTransactionDto');
-  expect(transactionSchema).toMatchObject({
+  const expenseSchema = schema(document, 'ReviewedStatementExpenseDto');
+  expect(expenseSchema).toMatchObject({
     type: 'object',
     additionalProperties: false,
     required: ['purchaseDate', 'description', 'amount'],
@@ -517,10 +517,10 @@ function expectResponseSchemas(document: OpenAPIObject): void {
       'totalDebit',
       'importedAt',
       'importedByUserId',
-      'transactionCount',
+      'expenseCount',
     ],
     properties: {
-      transactionCount: {
+      expenseCount: {
         type: 'string',
         pattern: '^\\d+$',
       },

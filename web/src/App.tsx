@@ -63,13 +63,13 @@ const StatementImportPage = lazy(() =>
     default: StatementImportPage,
   })),
 );
-const TransactionsPage = lazy(() =>
-  import("@/features/transactions").then(({ TransactionsPage }) => ({
-    default: TransactionsPage,
+const ExpensesPage = lazy(() =>
+  import("@/features/expenses").then(({ ExpensesPage }) => ({
+    default: ExpensesPage,
   })),
 );
 const ArchivedSpaceHistoryPage = lazy(() =>
-  import("@/features/transactions").then(
+  import("@/features/expenses").then(
     ({ ArchivedSpaceHistoryPage }) => ({
       default: ArchivedSpaceHistoryPage,
     }),
@@ -102,14 +102,14 @@ function StatementImportRoute() {
         }
         setSearchParams(nextParams);
       }}
-      onViewTransactions={(destinationSpaceId, statementImportId) => {
+      onViewExpenses={(destinationSpaceId, statementImportId) => {
         const nextParams = new URLSearchParams();
         nextParams.set("statementImportId", statementImportId);
         if (destinationSpaceId !== undefined) {
           nextParams.set("spaceId", destinationSpaceId);
         }
         const query = nextParams.toString();
-        navigate(`/transactions${query ? `?${query}` : ""}`);
+        navigate(`/expenses${query ? `?${query}` : ""}`);
       }}
     />
   );
@@ -157,14 +157,14 @@ function InsightsRoute() {
       spaceId={spaceId}
       returnContext={returned?.insightsReturn}
       onEditBudget={(categoryId, period, destinationSpaceId, evidence, returnFocusId) => setBudget({ categoryId, period, spaceId: destinationSpaceId, evidence, trigger: document.getElementById(returnFocusId ?? "") ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null) })}
-      onViewTransactions={(categoryId, period, destinationSpaceId, origin) => {
+      onViewExpenses={(categoryId, period, destinationSpaceId, origin) => {
         const params = new URLSearchParams(searchParams);
         if (categoryId === undefined) params.delete("categoryId");
         else params.set("categoryId", categoryId);
         if (destinationSpaceId) params.set("spaceId", destinationSpaceId);
         const context: InsightsOrigin = { path: `/insights${location.search}`, period: originPeriod, scroll: origin?.scroll ?? capturePageScroll(), focusId: origin?.focusId ?? document.activeElement?.id ?? "", inspectionPoint: origin?.inspectionPoint, view: origin?.view, explorer: origin?.explorer, spaceId: destinationSpaceId };
         setPeriod(period);
-        navigate(`/transactions?${params}`, { state: { insightsOrigin: context } });
+        navigate(`/expenses?${params}`, { state: { insightsOrigin: context } });
       }}
       onManageBudgets={() => navigate(getNavigationTarget("/categories", spaceId))}
       onSpaceChange={(nextSpaceId) => {
@@ -202,7 +202,7 @@ function DashboardRoute() {
   );
 }
 
-function TransactionsRoute() {
+function ExpensesRoute() {
   const navigate = useNavigate();
   const location = useLocation();
   const { setPeriod } = useReportingPeriod();
@@ -213,7 +213,7 @@ function TransactionsRoute() {
   const spaceId = searchParams.get("spaceId") ?? undefined;
 
   return (
-    <>{origin && <div className="px-4 pt-4"><Button variant="outline" onClick={() => { setPeriod(origin.period); navigate(origin.path, { state: { insightsReturn: origin } }); }}>Return to Insights</Button></div>}<TransactionsPage
+    <>{origin && <div className="px-4 pt-4"><Button variant="outline" onClick={() => { setPeriod(origin.period); navigate(origin.path, { state: { insightsReturn: origin } }); }}>Return to Insights</Button></div>}<ExpensesPage
       spaceId={spaceId}
       onSpaceChange={(nextSpaceId) => {
         const nextParams = new URLSearchParams(searchParams);
@@ -245,8 +245,8 @@ function App({ signInElement }: AppProps = {}) {
             element={lazyRoute(<StatementImportRoute />)}
           />
           <Route
-            path="transactions"
-            element={lazyRoute(<TransactionsRoute />)}
+            path="expenses"
+            element={lazyRoute(<ExpensesRoute />)}
           />
           <Route path="categories" element={lazyRoute(<CategoriesRoute />)} />
           <Route path="insights" element={lazyRoute(<InsightsRoute />)} />

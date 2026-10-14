@@ -15,7 +15,7 @@ function formatImportDate(value: StatementDateValue) {
   return dateFormatter.format(date);
 }
 
-function formatTransactionHistoryPeriod(
+function formatExpenseHistoryPeriod(
   startDate: StatementDateValue | null,
   endDate: StatementDateValue,
 ) {
@@ -24,4 +24,4 @@ function formatTransactionHistoryPeriod(
   return `${formatImportDate(startDate)} – ${formattedEndDate}`;
 }
 
-export { formatImportDate, formatTransactionHistoryPeriod };
+export { formatImportDate, formatExpenseHistoryPeriod };

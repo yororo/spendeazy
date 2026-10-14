@@ -1,9 +1,9 @@
 import type { CategoryColor } from "@/shared/category";
 import { centsToMoney, moneyToCents } from "@/shared/money";
 
-import type { CategorizedTransaction } from "./statement-categorizer";
+import type { CategorizedStatementEntry } from "./statement-categorizer";
 import { compareStatementRows, type StatementSort } from "./statement-review-order";
-import { isIncludedStatementTransaction } from "./statement-import-utils";
+import { isIncludedStatementEntry } from "./statement-import-utils";
 
 interface CategoryBreakdownItem {
   readonly categoryId: string;
@@ -14,11 +14,11 @@ interface CategoryBreakdownItem {
 }
 
 interface StatementReviewData {
-  readonly includedTransactions: readonly CategorizedTransaction[];
-  readonly excludedTransactions: readonly CategorizedTransaction[];
-  readonly unmappedTransactions: readonly CategorizedTransaction[];
-  readonly ambiguousTransactions: readonly CategorizedTransaction[];
-  readonly categorizedTransactions: readonly CategorizedTransaction[];
+  readonly includedExpenses: readonly CategorizedStatementEntry[];
+  readonly excludedExpenses: readonly CategorizedStatementEntry[];
+  readonly unmappedExpenses: readonly CategorizedStatementEntry[];
+  readonly ambiguousExpenses: readonly CategorizedStatementEntry[];
+  readonly categorizedExpenses: readonly CategorizedStatementEntry[];
   readonly ruleCount: number;
   readonly manualCount: number;
   readonly excludedCount: number;
@@ -27,53 +27,53 @@ interface StatementReviewData {
   readonly categoryBreakdown: readonly CategoryBreakdownItem[];
   readonly categorizedDebitTotal: number;
   readonly largestCategoryAmount: number;
-  readonly hasUnmappedTransactions: boolean;
+  readonly hasUnmappedExpenses: boolean;
 }
 
 function createStatementReviewData(
-  transactions: readonly CategorizedTransaction[],
+  entries: readonly CategorizedStatementEntry[],
   sort: StatementSort,
   getCategoryLabel: (categoryId: string) => string,
   getCategoryColor: (categoryId: string) => CategoryColor,
 ): StatementReviewData {
-  const orderedTransactions = [...transactions].sort((a, b) => compareStatementRows(a, b, sort));
-  const excludedTransactions = orderedTransactions.filter((row) => row.isExcluded);
-  const includedTransactions = orderedTransactions.filter(
-    isIncludedStatementTransaction,
+  const orderedExpenses = [...entries].sort((a, b) => compareStatementRows(a, b, sort));
+  const excludedExpenses = orderedExpenses.filter((row) => row.isExcluded);
+  const includedExpenses = orderedExpenses.filter(
+    isIncludedStatementEntry,
   );
-  const unmappedTransactions = includedTransactions.filter(
-    (transaction) => transaction.categoryId === null,
+  const unmappedExpenses = includedExpenses.filter(
+    (expense) => expense.categoryId === null,
   );
-  const ambiguousTransactions = includedTransactions.filter(
-    (transaction) => transaction.assignment === "ambiguous",
+  const ambiguousExpenses = includedExpenses.filter(
+    (expense) => expense.assignment === "ambiguous",
   );
-  const categorizedTransactions = includedTransactions.filter(
-    (transaction) => transaction.categoryId !== null,
+  const categorizedExpenses = includedExpenses.filter(
+    (expense) => expense.categoryId !== null,
   );
-  const ruleCount = categorizedTransactions.filter(
-    (transaction) => transaction.assignment === "rule",
+  const ruleCount = categorizedExpenses.filter(
+    (expense) => expense.assignment === "rule",
   ).length;
-  const manualCount = categorizedTransactions.filter(
-    (transaction) => transaction.assignment === "manual",
+  const manualCount = categorizedExpenses.filter(
+    (expense) => expense.assignment === "manual",
   ).length;
-  const excludedCount = transactions.length - includedTransactions.length;
-  const debitTotal = centsToMoney(includedTransactions.reduce(
-    (total, transaction) => total + moneyToCents(Math.abs(transaction.amount)),
+  const excludedCount = entries.length - includedExpenses.length;
+  const debitTotal = centsToMoney(includedExpenses.reduce(
+    (total, expense) => total + moneyToCents(Math.abs(expense.amount)),
     0,
   ));
   const averageDebit =
-    includedTransactions.length > 0
-      ? debitTotal / includedTransactions.length
+    includedExpenses.length > 0
+      ? debitTotal / includedExpenses.length
       : 0;
 
   const categoryTotals = new Map<string, number>();
-  includedTransactions.forEach((transaction) => {
-    if (!transaction.categoryId) return;
+  includedExpenses.forEach((expense) => {
+    if (!expense.categoryId) return;
 
     categoryTotals.set(
-      transaction.categoryId,
-      (categoryTotals.get(transaction.categoryId) ?? 0) +
-        Math.abs(transaction.amount),
+      expense.categoryId,
+      (categoryTotals.get(expense.categoryId) ?? 0) +
+        Math.abs(expense.amount),
     );
   });
   const categoryBreakdown = [...categoryTotals.entries()]
@@ -90,14 +90,14 @@ function createStatementReviewData(
     0,
   );
   const largestCategoryAmount = categoryBreakdown[0]?.amount ?? 0;
-  const hasUnmappedTransactions = unmappedTransactions.length > 0;
+  const hasUnmappedExpenses = unmappedExpenses.length > 0;
 
   return {
-    includedTransactions,
-    excludedTransactions,
-    unmappedTransactions,
-    ambiguousTransactions,
-    categorizedTransactions,
+    includedExpenses,
+    excludedExpenses,
+    unmappedExpenses,
+    ambiguousExpenses,
+    categorizedExpenses,
     ruleCount,
     manualCount,
     excludedCount,
@@ -106,7 +106,7 @@ function createStatementReviewData(
     categoryBreakdown,
     categorizedDebitTotal,
     largestCategoryAmount,
-    hasUnmappedTransactions,
+    hasUnmappedExpenses,
   };
 }
 

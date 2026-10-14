@@ -211,7 +211,7 @@ function createFetchMock(options: FetchOptions = {}) {
             name: category.name,
             isActive: category.isActive,
             totalAmount: spent,
-            transactionCount: category.id === "42" ? "1" : "0",
+            expenseCount: category.id === "42" ? "1" : "0",
             budgetAmount: budget,
             remainingAmount:
               budget === null
@@ -1403,7 +1403,7 @@ describe("CategoriesPage", () => {
 
     await screen.findByRole("heading", { name: "Budget overview" });
     queryClient.setQueryData(["dashboard", null, null, "2026-08"], { stale: false });
-    queryClient.setQueryData(["transactions", null, null, "2026-08"], { stale: false });
+    queryClient.setQueryData(["expenses", null, null, "2026-08"], { stale: false });
     queryClient.setQueryData(["statement-import", "categories", null, null], {
       stale: false,
     });
@@ -1424,7 +1424,7 @@ describe("CategoriesPage", () => {
       queryClient.getQueryState(["dashboard", null, null, "2026-08"])?.isInvalidated,
     ).toBe(true);
     expect(
-      queryClient.getQueryState(["transactions", null, null, "2026-08"])?.isInvalidated,
+      queryClient.getQueryState(["expenses", null, null, "2026-08"])?.isInvalidated,
     ).toBe(true);
     expect(
       queryClient.getQueryState(["statement-import", "categories", null, null])
@@ -1677,7 +1677,7 @@ describe("CategoriesPage", () => {
 
     await screen.findByRole("heading", { name: "Budget overview" });
     queryClient.setQueryData(["dashboard", null, null, "2026-09"], { stale: false });
-    queryClient.setQueryData(["transactions", null, null, "2026-09"], { stale: false });
+    queryClient.setQueryData(["expenses", null, null, "2026-09"], { stale: false });
     queryClient.setQueryData(["statement-import", "categories", null, null], {
       stale: false,
     });
@@ -1722,7 +1722,7 @@ describe("CategoriesPage", () => {
       queryClient.getQueryState(["dashboard", null, null, "2026-09"])?.isInvalidated,
     ).toBe(true);
     expect(
-      queryClient.getQueryState(["transactions", null, null, "2026-09"])?.isInvalidated,
+      queryClient.getQueryState(["expenses", null, null, "2026-09"])?.isInvalidated,
     ).toBe(true);
     expect(
       queryClient.getQueryState(["statement-import", "categories", null, null])
@@ -2199,7 +2199,7 @@ describe("CategoriesPage", () => {
 
     await screen.findByRole("heading", { name: "Budget overview" });
     queryClient.setQueryData(["dashboard", null, null, "2026-09"], { stale: false });
-    queryClient.setQueryData(["transactions", null, null, "2026-09"], { stale: false });
+    queryClient.setQueryData(["expenses", null, null, "2026-09"], { stale: false });
     queryClient.setQueryData(["statement-import", "categories", null, null], {
       stale: false,
     });
@@ -2217,7 +2217,7 @@ describe("CategoriesPage", () => {
     ).toBeTruthy();
     expect(
       screen.getByText(
-        "Historical Transactions and spending will remain, but Housing will stop being available for future Category assignments.",
+        "Historical Expenses and spending will remain, but Housing will stop being available for future Category assignments.",
       ),
     ).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
@@ -2255,7 +2255,7 @@ describe("CategoriesPage", () => {
       queryClient.getQueryState(["dashboard", null, null, "2026-09"])?.isInvalidated,
     ).toBe(true);
     expect(
-      queryClient.getQueryState(["transactions", null, null, "2026-09"])?.isInvalidated,
+      queryClient.getQueryState(["expenses", null, null, "2026-09"])?.isInvalidated,
     ).toBe(true);
     expect(
       queryClient.getQueryState(["statement-import", "categories", null, null])

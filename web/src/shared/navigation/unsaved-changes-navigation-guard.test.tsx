@@ -21,13 +21,13 @@ function DirtyEditor({ onNavigate }: { readonly onNavigate: () => void }) {
     enabled: open && draft.length > 0,
     focusScope: () =>
       document
-        .querySelector<HTMLInputElement>('input[aria-label="Transaction draft"]')
+        .querySelector<HTMLInputElement>('input[aria-label="Expense draft"]')
         ?.closest<HTMLElement>("label") ?? null,
     focusTarget: () =>
       document.querySelector<HTMLInputElement>(
-        'input[aria-label="Transaction draft"]',
+        'input[aria-label="Expense draft"]',
       ),
-    label: "Transaction",
+    label: "Expense",
     onDiscard: () => {
       setDraft("");
       setOpen(false);
@@ -38,9 +38,9 @@ function DirtyEditor({ onNavigate }: { readonly onNavigate: () => void }) {
     <>
       {open && (
         <label>
-          Transaction draft
+          Expense draft
           <input
-            aria-label="Transaction draft"
+            aria-label="Expense draft"
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
           />
@@ -71,20 +71,20 @@ describe("useUnsavedChangesNavigationGuard", () => {
       </NavigationGuardProvider>,
     );
 
-    const draft = screen.getByRole("textbox", { name: "Transaction draft" });
+    const draft = screen.getByRole("textbox", { name: "Expense draft" });
     fireEvent.change(draft, { target: { value: "Unsaved dinner" } });
     draft.focus();
     fireEvent.click(screen.getByRole("button", { name: "Switch Space" }));
 
     expect(onNavigate).not.toHaveBeenCalled();
     expect(
-      screen.getByRole("dialog", { name: "Leave Transaction editor?" }),
+      screen.getByRole("dialog", { name: "Leave Expense editor?" }),
     ).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Stay in editor" }));
     expect(onNavigate).not.toHaveBeenCalled();
     expect(
-      screen.getByRole("textbox", { name: "Transaction draft" }),
+      screen.getByRole("textbox", { name: "Expense draft" }),
     ).toHaveProperty("value", "Unsaved dinner");
     expect(document.activeElement).toBe(draft);
 
@@ -93,7 +93,7 @@ describe("useUnsavedChangesNavigationGuard", () => {
 
     expect(onNavigate).toHaveBeenCalledTimes(1);
     expect(
-      screen.queryByRole("textbox", { name: "Transaction draft" }),
+      screen.queryByRole("textbox", { name: "Expense draft" }),
     ).toBeNull();
   });
 
@@ -109,7 +109,7 @@ describe("useUnsavedChangesNavigationGuard", () => {
     expect(cleanEvent.defaultPrevented).toBe(false);
 
     fireEvent.change(
-      screen.getByRole("textbox", { name: "Transaction draft" }),
+      screen.getByRole("textbox", { name: "Expense draft" }),
       { target: { value: "Unsaved dinner" } },
     );
     const dirtyEvent = new Event("beforeunload", { cancelable: true });

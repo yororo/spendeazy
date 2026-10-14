@@ -27,7 +27,7 @@ The launcher checks the three loopback ports before starting, starts PostgreSQL,
 
 The synthetic sessions use the normal authentication guard, User provisioning service, self-scoped HTTP client, and PostgreSQL stores. The browser shows a `LOCAL TEST` panel so this mode is unmistakable. The panel can select the populated User, a second populated User with distinct fictional data, or a fresh User. Selecting `New User` always creates a new synthetic identity and exercises real first-time provisioning, including Default Category creation.
 
-On the first startup, the launcher migrates the empty dedicated database and creates two small fictional current-month scenarios: Categories, monthly Budgets, Category Rules, and manual Transactions whose descriptions are marked as demo or fixture data. Subsequent ordinary startups detect both local-test Users and only run migrations; they preserve manual edits and newly created data. A database retained from the previous one-User fixture is upgraded by adding only the missing second fictional User; the existing User's data is not overwritten.
+On the first startup, the launcher migrates the empty dedicated database and creates two small fictional current-month scenarios: Categories, monthly Budgets, Category Rules, and manual Expenses whose descriptions are marked as demo or fixture data. Subsequent ordinary startups detect both local-test Users and only run migrations; they preserve manual edits and newly created data. A database retained from the previous one-User fixture is upgraded by adding only the missing second fictional User; the existing User's data is not overwritten.
 
 Press `Ctrl+C` to stop the API and web processes and remove the PostgreSQL container. The named database volume is retained for ordinary manual restarts. If a port is already occupied, the launcher reports the exact loopback port and exits without attaching to or stopping the unrelated process.
 
@@ -72,14 +72,14 @@ by the default API suite.
 `web/e2e/spending-journey.spec.ts` joins the feature acceptance tests into one
 Personal Space journey at 390px and 1440px: real encrypted PDF unlock,
 individual Remember, bulk assignment, exclusion/re-inclusion, read-only Review,
-confirmation, statement-scoped Transactions across two months, restoration of
-the prior Reporting Period, Insights Transaction/Budget actions and return,
+confirmation, statement-scoped Expenses across two months, restoration of
+the prior Reporting Period, Insights Expense/Budget actions and return,
 keyboard chart details, and repeated-file confirmation rejection. Its committed
 fictional PDFs and reconciliation ledger live in `web/e2e/fixtures/`.
 
 The automated clock is fixed at `2026-09-19T12:00:00.000Z` by default. Set
 `SPENDEAZY_E2E_TEST_CLOCK` to another explicit ISO-8601 UTC timestamp when
-debugging; the launcher derives the transaction date and browser reporting
+debugging; the launcher derives the expense date and browser reporting
 period from that value. No scenario depends on the host's current date.
 
 ### Focused browser diagnostics
@@ -129,7 +129,7 @@ validation gate with their original diagnostics.
 
 ### E2E scenario contract
 
-Every `--e2e` run starts with an empty database: no populated User, fixture Transaction, or Shared Space. Test-created data is deterministic, fictional, and owned by the run. Provisioning and Default Category creation remain real first-time checks. A User provisioned by
+Every `--e2e` run starts with an empty database: no populated User, fixture Expense, or Shared Space. Test-created data is deterministic, fictional, and owned by the run. Provisioning and Default Category creation remain real first-time checks. A User provisioned by
 the test has exactly one active Personal Space until two eligible Users complete
 the Invite Code flow: create a code, save a claim with the code, then explicitly
 accept the claim. Tests that need a Shared Space must establish it within the
@@ -144,7 +144,7 @@ using its Space ID.
 The suite defaults to one worker. Set `SPENDEAZY_E2E_WORKERS=2` to benchmark
 bounded concurrency; other values fail configuration. Financial scenarios use
 fresh server-issued Users, and the remaining named-User stale-cache fixture
-cleans up its own Transaction. A test that creates lasting data for a named User
+cleans up its own Expense. A test that creates lasting data for a named User
 must clean up or use a fresh User when assertions need an empty Personal Space
 or no active Shared Space. New tabs and full-page navigation restart the local
 synthetic session at the fixed initial User: saved browser authentication state

@@ -54,13 +54,13 @@ vi.mock("./statement-parser/transformer", () => ({
       accountType: "AMEX",
       transactionHistoryStartDate: null,
       totalDebit: null,
-      totalTransactions: 1,
+      entryCount: 1,
       totalAmountDue: 25.5,
       totalExtractedAmount: 25.5,
     },
-    transactions: [
+    entries: [
       {
-        transactionDate: new Date("2026-08-29T00:00:00.000Z"),
+        entryDate: new Date("2026-08-29T00:00:00.000Z"),
         postingDate: new Date("2026-08-30T00:00:00.000Z"),
         description: "Green Market Cafe",
         amount: 25.5,
@@ -282,7 +282,7 @@ async function openReadyStatementImportReview(
   renderStatementImportPage(fetchMock, options);
   await screen.findByRole("heading", { name: "Upload your statement" });
   await uploadStatementFile("statement.pdf");
-  fireEvent.click(screen.getByRole("button", { name: "Review 1 Transactions" }));
+  fireEvent.click(screen.getByRole("button", { name: "Review 1 Expenses" }));
   await screen.findByRole("heading", { name: "Review your imported statement" });
 }
 
@@ -313,14 +313,14 @@ function NavigationProbe({ onNavigate }: { readonly onNavigate: () => void }) {
 
 async function beginRememberedRuleSave({
   fileName,
-  transactionDescription,
+  expenseDescription,
   categoryLabel,
   editedDescription,
   amount,
   pattern,
 }: {
   readonly fileName: string;
-  readonly transactionDescription: string;
+  readonly expenseDescription: string;
   readonly categoryLabel: string;
   readonly editedDescription: string;
   readonly amount: string;
@@ -330,38 +330,38 @@ async function beginRememberedRuleSave({
   const table = isPhone
     ? null
     : screen.getByRole("table", {
-        name: `Transactions parsed from ${fileName}`,
+        name: `Statement Entries parsed from ${fileName}`,
       });
   const list = isPhone
-    ? screen.getByRole("list", { name: "Transactions to categorize" })
+    ? screen.getByRole("list", { name: "Statement Entries to categorize" })
     : null;
-  const transactionList = table ?? list;
-  if (!transactionList) throw new Error("Categorize Transaction list is missing.");
+  const expenseList = table ?? list;
+  if (!expenseList) throw new Error("Categorize Expense list is missing.");
 
   fireEvent.click(
-    within(transactionList).getByRole("button", {
-      name: `Edit ${transactionDescription}`,
+    within(expenseList).getByRole("button", {
+      name: `Edit ${expenseDescription}`,
     }),
   );
 
   const editor = isPhone
-    ? screen.getByRole("dialog", { name: "Edit Transaction" })
-    : transactionList;
+    ? screen.getByRole("dialog", { name: "Edit Statement Entry" })
+    : expenseList;
   fireEvent.change(
     within(editor).getByRole("textbox", {
-      name: `Description for ${transactionDescription}`,
+      name: `Description for ${expenseDescription}`,
     }),
     { target: { value: editedDescription } },
   );
   fireEvent.change(
     within(editor).getByRole("spinbutton", {
-      name: `Amount for ${transactionDescription}`,
+      name: `Amount for ${expenseDescription}`,
     }),
     { target: { value: amount } },
   );
   fireEvent.click(
     within(editor).getByRole("combobox", {
-      name: `Category for ${transactionDescription}`,
+      name: `Category for ${expenseDescription}`,
     }),
   );
   fireEvent.click(screen.getByRole("option", { name: categoryLabel }));
@@ -370,17 +370,17 @@ async function beginRememberedRuleSave({
       name: "Remember this category",
     }),
   );
-  fireEvent.click(within(editor).getByRole("combobox", { name: `Match type for ${transactionDescription}` }));
+  fireEvent.click(within(editor).getByRole("combobox", { name: `Match type for ${expenseDescription}` }));
   fireEvent.click(screen.getByRole("option", { name: "Contains" }));
   fireEvent.change(
     within(editor).getByRole("textbox", {
-      name: `Pattern for ${transactionDescription}`,
+      name: `Pattern for ${expenseDescription}`,
     }),
     { target: { value: pattern } },
   );
   fireEvent.click(
     within(editor).getByRole("button", {
-      name: isPhone ? "Apply & remember" : `Save changes to ${transactionDescription}`,
+      name: isPhone ? "Apply & remember" : `Save changes to ${expenseDescription}`,
     }),
   );
 }
@@ -391,18 +391,18 @@ async function reenterCategorizeWithPendingSave(
   fireEvent.click(screen.getByRole("button", { name: "Back to Upload" }));
   fireEvent.click(screen.getByRole("button", { name: "Leave Categorize" }));
   await screen.findByRole("heading", { name: "Upload your statement" });
-  setStatementTransactions([
+  setStatementEntries([
     {
-      transactionDate: new Date("2026-08-29T00:00:00.000Z"),
+      entryDate: new Date("2026-08-29T00:00:00.000Z"),
       postingDate: new Date("2026-08-30T00:00:00.000Z"),
-      description: "Fresh statement Transaction",
+      description: "Fresh statement Expense",
       amount: 25.5,
     },
   ]);
   await uploadStatementFile("reimported.pdf");
   await beginRememberedRuleSave({
     fileName: "reimported.pdf",
-    transactionDescription: "Fresh statement Transaction",
+    expenseDescription: "Fresh statement Expense",
     categoryLabel: "Groceries",
     editedDescription: "Current editor draft",
     amount: "42.00",
@@ -411,7 +411,7 @@ async function reenterCategorizeWithPendingSave(
   await waitFor(() => expect(categoryRulePostCount(fetchMock)).toBe(2));
 }
 
-function setStatementTransactions(transactions: Statement["transactions"]) {
+function setStatementEntries(entries: Statement["entries"]) {
   vi.mocked(transformStatement).mockReturnValue({
     summary: {
       statementType: "credit_card",
@@ -420,18 +420,18 @@ function setStatementTransactions(transactions: Statement["transactions"]) {
       accountType: "AMEX",
       transactionHistoryStartDate: null,
       totalDebit: null,
-      totalTransactions: transactions.length,
+      entryCount: entries.length,
       totalAmountDue: 25.5,
       totalExtractedAmount: 25.5,
     },
-    transactions,
+    entries,
   });
 }
 
 function restoreDefaultStatement() {
-  setStatementTransactions([
+  setStatementEntries([
     {
-      transactionDate: new Date("2026-08-29T00:00:00.000Z"),
+      entryDate: new Date("2026-08-29T00:00:00.000Z"),
       postingDate: new Date("2026-08-30T00:00:00.000Z"),
       description: "Green Market Cafe",
       amount: 25.5,
@@ -466,7 +466,7 @@ function renderStatementImportPage(
           <StatementImportPage
             spaceId={options.spaceId}
             onSpaceChange={options.onSpaceChange}
-            onViewTransactions={vi.fn()}
+            onViewExpenses={vi.fn()}
           />
           {options.navigationAction && (
             <NavigationProbe onNavigate={options.navigationAction} />
@@ -520,7 +520,7 @@ describe("StatementImportPage Space destination", () => {
       const [spaceId, setSpaceId] = useState("1");
       return <>
         <button onClick={() => setSpaceId("10")}>Change route Space</button>
-        <StatementImportPage spaceId={spaceId} onSpaceChange={vi.fn()} onViewTransactions={vi.fn()} />
+        <StatementImportPage spaceId={spaceId} onSpaceChange={vi.fn()} onViewExpenses={vi.fn()} />
       </>;
     }
     render(
@@ -543,11 +543,11 @@ describe("StatementImportPage Space destination", () => {
     ).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Change route Space" }));
     expect(screen.getByText("Personal", { exact: true })).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Review 1 Transactions" }));
+    fireEvent.click(screen.getByRole("button", { name: "Review 1 Expenses" }));
     await screen.findByRole("heading", { name: "Review your imported statement" });
     expect(screen.getByText("Personal", { exact: true })).toBeTruthy();
     expect(screen.getByText("Destination: Personal Space · Ada Lovelace")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Import 1 Transactions" }));
+    fireEvent.click(screen.getByRole("button", { name: "Import 1 Expenses" }));
     await screen.findByRole("heading", { name: "Statement imported" });
     expect(screen.getByText("Personal", { exact: true })).toBeTruthy();
     expect(fetchMock).toHaveBeenCalledWith(
@@ -619,12 +619,12 @@ describe("StatementImportPage Space destination", () => {
     expect(
       screen.getByText("Destination: Shared Space · Ada Lovelace & Grace Hopper"),
     ).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Review 1 Transactions" }));
+    fireEvent.click(screen.getByRole("button", { name: "Review 1 Expenses" }));
     await screen.findByRole("heading", { name: "Review your imported statement" });
     expect(
       screen.getByText("Destination: Shared Space · Ada Lovelace & Grace Hopper"),
     ).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Import 1 Transactions" }));
+    fireEvent.click(screen.getByRole("button", { name: "Import 1 Expenses" }));
     await screen.findByRole("heading", { name: "Statement imported" });
     expect(screen.getByText("Shared Space · Ada Lovelace & Grace Hopper")).toBeTruthy();
 
@@ -668,7 +668,7 @@ describe("StatementImportPage Space destination", () => {
           cardType: "AMEX",
           importedAt: "2026-09-01T00:00:00.000Z",
           importedByUserId: "10",
-          transactionCount: "1",
+          expenseCount: "1",
         },
         {
           id: "100",
@@ -678,7 +678,7 @@ describe("StatementImportPage Space destination", () => {
           cardType: "AMEX",
           importedAt: "2026-08-31T00:00:00.000Z",
           importedByUserId: "11",
-          transactionCount: "2",
+          expenseCount: "2",
         },
       ],
     });
@@ -707,7 +707,7 @@ describe("StatementImportPage Space destination", () => {
           totalDebit: null,
           importedAt: "2026-08-08T00:00:00.000Z",
           importedByUserId: "1",
-          transactionCount: "2",
+          expenseCount: "2",
         },
         {
           id: "102",
@@ -720,7 +720,7 @@ describe("StatementImportPage Space destination", () => {
           totalDebit: "26696.92",
           importedAt: "2026-09-08T00:00:00.000Z",
           importedByUserId: "1",
-          transactionCount: "3",
+          expenseCount: "3",
         },
       ],
     });
@@ -733,12 +733,12 @@ describe("StatementImportPage Space destination", () => {
     });
     expect(
       within(history).getByText(
-        "3 Transactions · GCash · E-Wallet · Transaction History AUG 09 – SEP 07 · Total Debit ₱26,696.92",
+        "3 Expenses · GCash · E-Wallet · Transaction History AUG 09 – SEP 07 · Total Debit ₱26,696.92",
       ),
     ).toBeTruthy();
     expect(
       within(history).getByText(
-        "2 Transactions · GCash · E-Wallet · Transaction History start unavailable – AUG 07 · Total Debit unavailable",
+        "2 Expenses · GCash · E-Wallet · Transaction History start unavailable – AUG 07 · Total Debit unavailable",
       ),
     ).toBeTruthy();
   });
@@ -768,7 +768,7 @@ describe("StatementImportPage Space destination", () => {
           cardType: "AMEX",
           importedAt: "2026-08-31T00:00:00.000Z",
           importedByUserId: "12",
-          transactionCount: "1",
+          expenseCount: "1",
         },
       ],
     });
@@ -805,7 +805,7 @@ describe("StatementImportPage Space destination", () => {
           cardType: "AMEX",
           importedAt: "2026-08-31T00:00:00.000Z",
           importedByUserId: "99",
-          transactionCount: "1",
+          expenseCount: "1",
         },
       ],
     });
@@ -845,7 +845,7 @@ describe("StatementImportPage Space destination", () => {
           cardType: "AMEX",
           importedAt: "2026-08-31T00:00:00.000Z",
           importedByUserId: "99",
-          transactionCount: "1",
+          expenseCount: "1",
         },
       ],
     });
@@ -871,7 +871,7 @@ describe("StatementImportPage GCash recipient flow", () => {
     const firstTransferReference = "5043775892919";
     const secondTransfer = "Transfer from 09222222222 to 09676769174";
     const secondTransferReference = "5044211321443";
-    const parsedPhoneDescription = "Buy Load Transaction for 09676769174";
+    const parsedPhoneDescription = "Buy Load Expense for 09676769174";
     const parsedPhoneReference = "5000073058896";
     const fixtureStatement = gcashEwalletTransformer.transform(
       gcashFixture.replace(
@@ -881,11 +881,11 @@ describe("StatementImportPage GCash recipient flow", () => {
     );
     const parsedStatement: Statement = {
       summary: fixtureStatement.summary,
-      transactions: fixtureStatement.transactions.filter(
-        (transaction) =>
-          transaction.reference === firstTransferReference ||
-          transaction.reference === secondTransferReference ||
-          transaction.reference === parsedPhoneReference,
+      entries: fixtureStatement.entries.filter(
+        (expense) =>
+          expense.reference === firstTransferReference ||
+          expense.reference === secondTransferReference ||
+          expense.reference === parsedPhoneReference,
       ),
     };
     vi.mocked(transformStatement).mockReturnValueOnce(parsedStatement);
@@ -919,7 +919,7 @@ describe("StatementImportPage GCash recipient flow", () => {
 
     await screen.findByRole("heading", { name: "Categorize and update" });
     const categorizeTable = screen.getByRole("table", {
-      name: "Transactions parsed from wallet-export.pdf",
+      name: "Statement Entries parsed from wallet-export.pdf",
     });
     for (const description of [firstTransfer, secondTransfer]) {
       const row = within(categorizeTable).getByText(description).closest("tr");
@@ -934,7 +934,7 @@ describe("StatementImportPage GCash recipient flow", () => {
     }
 
     fireEvent.click(
-      screen.getByRole("button", { name: "Review 1 Transactions" }),
+      screen.getByRole("button", { name: "Review 1 Expenses" }),
     );
     await screen.findByRole("heading", {
       name: "Review your imported statement",
@@ -943,17 +943,17 @@ describe("StatementImportPage GCash recipient flow", () => {
       name: "Statement review summary",
     })[0];
     const includedMetric = within(mobileReviewSummary as HTMLElement).getByText(
-      "Transactions included",
+      "Expenses included",
     ).parentElement;
     expect(includedMetric?.textContent).toContain("1");
     const totalDebitsMetric = screen.getByText("Included debits").parentElement;
     expect(totalDebitsMetric?.textContent).toContain("₱151.00");
     expect(
-      screen.getByRole("button", { name: "Import 1 Transactions" }),
+      screen.getByRole("button", { name: "Import 1 Expenses" }),
     ).toBeTruthy();
 
     fireEvent.click(
-      screen.getByRole("button", { name: "Import 1 Transactions" }),
+      screen.getByRole("button", { name: "Import 1 Expenses" }),
     );
     await waitFor(() => {
       expect(
@@ -971,25 +971,25 @@ describe("StatementImportPage GCash recipient flow", () => {
         new URL(input.toString()).pathname.endsWith("/statement-imports"),
     );
     const payload = JSON.parse(String(commitRequest?.[1]?.body)) as {
-      readonly transactions: readonly {
+      readonly expenses: readonly {
         readonly description: string;
         readonly reference?: string;
       }[];
       readonly [key: string]: unknown;
     };
     expect(payload).not.toHaveProperty("gcashMobileNumber");
-    expect(payload.transactions).toEqual([
+    expect(payload.expenses).toEqual([
       expect.objectContaining({
         description: parsedPhoneDescription,
         reference: parsedPhoneReference,
       }),
     ]);
     expect(
-      payload.transactions.some(({ description }) =>
+      payload.expenses.some(({ description }) =>
         description.includes("Transfer from "),
       ),
     ).toBe(false);
-    expect(payload.transactions[0]?.description).toContain(recipient);
+    expect(payload.expenses[0]?.description).toContain(recipient);
   });
 });
 
@@ -1008,7 +1008,7 @@ describe("StatementImportPage confirmation lifecycle", () => {
     await openReadyStatementImportReview(fetchMock);
 
     fireEvent.click(
-      screen.getByRole("button", { name: "Import 1 Transactions" }),
+      screen.getByRole("button", { name: "Import 1 Expenses" }),
     );
     await screen.findByRole("heading", { name: "Statement imported" });
     expect(screen.getByText("Import complete")).toBeTruthy();
@@ -1020,10 +1020,10 @@ describe("StatementImportPage confirmation lifecycle", () => {
     );
     const payload = JSON.parse(String(commitRequest?.[1]?.body)) as {
       readonly acknowledgeProbableDuplicates: boolean;
-      readonly transactions: readonly { readonly description: string }[];
+      readonly expenses: readonly { readonly description: string }[];
     };
     expect(payload.acknowledgeProbableDuplicates).toBe(false);
-    expect(payload.transactions).toEqual([
+    expect(payload.expenses).toEqual([
       expect.objectContaining({ description: "Green Market Cafe" }),
     ]);
 
@@ -1070,13 +1070,13 @@ describe("StatementImportPage confirmation lifecycle", () => {
     await openReadyStatementImportReview(fetchMock);
 
     fireEvent.click(
-      screen.getByRole("button", { name: "Import 1 Transactions" }),
+      screen.getByRole("button", { name: "Import 1 Expenses" }),
     );
     await waitFor(() => {
       expect(screen.getAllByText("The API is unavailable.")).toHaveLength(2);
     });
     const retryButton = screen.getByRole("button", {
-      name: "Import 1 Transactions",
+      name: "Import 1 Expenses",
     });
     expect(retryButton).toHaveProperty("disabled", false);
 
@@ -1091,14 +1091,14 @@ describe("StatementImportPage confirmation lifecycle", () => {
         {
           error: {
             code: "STATEMENT_IMPORT_PROBABLE_DUPLICATES",
-            message: "Probable duplicate Transactions found.",
+            message: "Probable duplicate Expenses found.",
             details: [
               {
                 field: "description",
                 code: "probable_duplicate",
-                message: "Description matched an existing Transaction.",
-                transactionIndexes: [0],
-                committedTransactionIds: ["existing-transaction"],
+                message: "Description matched an existing Expense.",
+                expenseIndexes: [0],
+                committedExpenseIds: ["existing-expense"],
               },
             ],
           },
@@ -1112,11 +1112,11 @@ describe("StatementImportPage confirmation lifecycle", () => {
     await openReadyStatementImportReview(probableFetchMock);
 
     fireEvent.click(
-      screen.getByRole("button", { name: "Import 1 Transactions" }),
+      screen.getByRole("button", { name: "Import 1 Expenses" }),
     );
     await waitFor(() => {
       expect(
-        screen.getAllByText("Probable duplicate Transactions found."),
+        screen.getAllByText("Probable duplicate Expenses found."),
       ).toHaveLength(2);
     });
     expect(
@@ -1133,7 +1133,7 @@ describe("StatementImportPage confirmation lifecycle", () => {
     fireEvent.click(importAnyway);
     await waitFor(() => {
       expect(
-        screen.getAllByText("Probable duplicate Transactions found."),
+        screen.getAllByText("Probable duplicate Expenses found."),
       ).toHaveLength(2);
       expect(screen.queryByRole("button", { name: "Import anyway" })).toBeNull();
     });
@@ -1154,11 +1154,11 @@ describe("StatementImportPage confirmation lifecycle", () => {
     fireEvent.click(probableBack);
     await screen.findByRole("heading", { name: "Categorize and update" });
     fireEvent.click(
-      screen.getByRole("button", { name: "Review 1 Transactions" }),
+      screen.getByRole("button", { name: "Review 1 Expenses" }),
     );
     await screen.findByRole("heading", { name: "Review your imported statement" });
     expect(
-      screen.queryByText("Probable duplicate Transactions found."),
+      screen.queryByText("Probable duplicate Expenses found."),
     ).toBeNull();
 
     const exactFetchMock = createFetchMock({
@@ -1178,19 +1178,19 @@ describe("StatementImportPage confirmation lifecycle", () => {
     cleanup();
     await openReadyStatementImportReview(exactFetchMock);
     fireEvent.click(
-      screen.getByRole("button", { name: "Import 1 Transactions" }),
+      screen.getByRole("button", { name: "Import 1 Expenses" }),
     );
     await waitFor(() => {
       expect(screen.getAllByText("Statement already imported")).toHaveLength(2);
     });
     expect(
-      screen.getByRole("button", { name: "Import 1 Transactions" }),
+      screen.getByRole("button", { name: "Import 1 Expenses" }),
     ).toHaveProperty("disabled", true);
   });
 });
 
 describe("StatementImportPage Categorize lifecycle", () => {
-  it("confirms before leaving Categorize even when no transactions changed", async () => {
+  it("confirms before leaving Categorize even when no expenses changed", async () => {
     const fetchMock = createFetchMock();
     renderStatementImportPage(fetchMock);
     await screen.findByRole("heading", { name: "Upload your statement" });
@@ -1234,7 +1234,7 @@ describe("StatementImportPage Categorize lifecycle", () => {
     await screen.findByRole("heading", { name: "Upload your statement" });
   });
 
-  it("guards Review navigation and preserves reviewed Transactions when canceled", async () => {
+  it("guards Review navigation and preserves reviewed Expenses when canceled", async () => {
     const fetchMock = createFetchMock({
       categoryRules: [
         {
@@ -1292,7 +1292,7 @@ describe("StatementImportPage Categorize lifecycle", () => {
     const navigationAction = vi.fn();
     await openReadyStatementImportReview(fetchMock, { navigationAction });
 
-    fireEvent.click(screen.getByRole("button", { name: "Import 1 Transactions" }));
+    fireEvent.click(screen.getByRole("button", { name: "Import 1 Expenses" }));
     await screen.findByRole("heading", { name: "Statement imported" });
     fireEvent.click(screen.getByRole("button", { name: "Attempt Space switch" }));
 
@@ -1316,7 +1316,7 @@ describe("StatementImportPage Categorize lifecycle", () => {
     const navigationAction = vi.fn();
     await openReadyStatementImportReview(fetchMock, { navigationAction });
 
-    fireEvent.click(screen.getByRole("button", { name: "Import 1 Transactions" }));
+    fireEvent.click(screen.getByRole("button", { name: "Import 1 Expenses" }));
     await waitFor(() => {
       expect(
         fetchMock.mock.calls.some(
@@ -1327,7 +1327,7 @@ describe("StatementImportPage Categorize lifecycle", () => {
       ).toBe(true);
     });
     expect(
-      screen.getByRole("button", { name: "Import 1 Transactions" }),
+      screen.getByRole("button", { name: "Import 1 Expenses" }),
     ).toHaveProperty("disabled", true);
 
     fireEvent.click(screen.getByRole("button", { name: "Attempt Space switch" }));
@@ -1378,7 +1378,7 @@ describe("StatementImportPage Categorize lifecycle", () => {
     await uploadStatementFile("statement.pdf");
 
     const table = screen.getByRole("table", {
-      name: "Transactions parsed from statement.pdf",
+      name: "Statement Entries parsed from statement.pdf",
     });
     fireEvent.click(
       within(table).getByRole("button", {
@@ -1413,7 +1413,7 @@ describe("StatementImportPage Categorize lifecycle", () => {
 
     expect(
       within(screen.getByRole("table", {
-        name: "Transactions parsed from statement.pdf",
+        name: "Statement Entries parsed from statement.pdf",
       })).queryByText("Unsaved query-error draft"),
     ).toBeNull();
     expect(
@@ -1477,7 +1477,7 @@ describe("StatementImportPage Categorize lifecycle", () => {
     await screen.findByRole("heading", { name: "Categorize and update" });
     expect(
       within(screen.getByRole("table", {
-        name: "Transactions parsed from statement.pdf",
+        name: "Statement Entries parsed from statement.pdf",
       })).getByText("Green Market Cafe"),
     ).toBeTruthy();
   });
@@ -1519,7 +1519,7 @@ describe("StatementImportPage Categorize lifecycle", () => {
     });
     expect(screen.getByText("1 persisted Rules")).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: "Review 1 Transactions" }));
+    fireEvent.click(screen.getByRole("button", { name: "Review 1 Expenses" }));
     await screen.findByRole("heading", { name: "Review your imported statement" });
     fireEvent.click(screen.getByRole("button", { name: "Back to Categorize" }));
     await screen.findByRole("heading", { name: "Categorize and update" });
@@ -1545,7 +1545,7 @@ describe("StatementImportPage rule resolution", () => {
 
     await screen.findByRole("heading", { name: "Categorize and update" });
     const desktopTable = screen.getByRole("table", {
-      name: "Transactions parsed from statement.pdf",
+      name: "Statement Entries parsed from statement.pdf",
     });
     expect(
       within(desktopTable).getByText("Multiple categories matched"),
@@ -1553,12 +1553,12 @@ describe("StatementImportPage rule resolution", () => {
     expect(within(desktopTable).getByText("Housing, Groceries")).toBeTruthy();
     expect(screen.getAllByText("1 Ambiguous")).toHaveLength(2);
     expect(
-      screen.getByRole("button", { name: "Review 1 Transactions" }),
+      screen.getByRole("button", { name: "Review 1 Expenses" }),
     ).toHaveProperty("disabled", true);
 
     fireEvent.click(screen.getByRole("combobox", { name: "Category" }));
     fireEvent.click(screen.getByRole("option", { name: "Unmapped" }));
-    expect(screen.getAllByText("1 of 1 Transactions")).toHaveLength(2);
+    expect(screen.getAllByText("1 of 1 Expenses")).toHaveLength(2);
 
     fireEvent.click(
       within(desktopTable).getByRole("button", {
@@ -1591,7 +1591,7 @@ describe("StatementImportPage rule resolution", () => {
       ).toBeNull();
     });
     expect(
-      screen.getByRole("button", { name: "Review 1 Transactions" }),
+      screen.getByRole("button", { name: "Review 1 Expenses" }),
     ).toHaveProperty("disabled", false);
 
     fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
@@ -1658,7 +1658,7 @@ describe("StatementImportPage rule resolution", () => {
 
     await screen.findByRole("heading", { name: "Categorize and update" });
     const desktopTable = screen.getByRole("table", {
-      name: "Transactions parsed from statement.pdf",
+      name: "Statement Entries parsed from statement.pdf",
     });
     fireEvent.click(
       within(desktopTable).getByRole("button", {
@@ -1733,7 +1733,7 @@ describe("StatementImportPage rule resolution", () => {
 
     await screen.findByRole("heading", { name: "Categorize and update" });
     const mobileList = screen.getByRole("list", {
-      name: "Transactions to categorize",
+      name: "Statement Entries to categorize",
     });
     fireEvent.click(
       within(mobileList).getByRole("button", {
@@ -1741,7 +1741,7 @@ describe("StatementImportPage rule resolution", () => {
       }),
     );
 
-    const editor = screen.getByRole("dialog", { name: "Edit Transaction" });
+    const editor = screen.getByRole("dialog", { name: "Edit Statement Entry" });
     fireEvent.click(
       within(editor).getByRole("combobox", {
         name: "Category for Green Market Cafe",
@@ -1771,7 +1771,7 @@ describe("StatementImportPage rule resolution", () => {
 
     await waitFor(() => {
       expect(
-        screen.queryByRole("dialog", { name: "Edit Transaction" }),
+        screen.queryByRole("dialog", { name: "Edit Statement Entry" }),
       ).toBeNull();
     });
 
@@ -1788,15 +1788,15 @@ describe("StatementImportPage rule resolution", () => {
 
 describe("StatementImportPage pending Category Rule saves", () => {
   it("locks the shared Categorize edit until one pending save applies", async () => {
-    setStatementTransactions([
+    setStatementEntries([
       {
-        transactionDate: new Date("2026-08-29T00:00:00.000Z"),
+        entryDate: new Date("2026-08-29T00:00:00.000Z"),
         postingDate: new Date("2026-08-30T00:00:00.000Z"),
         description: "Green Market Cafe",
         amount: 25.5,
       },
       {
-        transactionDate: new Date("2026-08-27T00:00:00.000Z"),
+        entryDate: new Date("2026-08-27T00:00:00.000Z"),
         postingDate: new Date("2026-08-28T00:00:00.000Z"),
         description: "Green Grocer",
         amount: 8.25,
@@ -1815,7 +1815,7 @@ describe("StatementImportPage pending Category Rule saves", () => {
     await openStatementImportCategorize(fetchMock);
 
     const table = screen.getByRole("table", {
-      name: "Transactions parsed from statement.pdf",
+      name: "Statement Entries parsed from statement.pdf",
     });
     fireEvent.click(
       within(table).getByRole("button", {
@@ -1888,7 +1888,7 @@ describe("StatementImportPage pending Category Rule saves", () => {
       within(table).getByRole("button", { name: "Edit Green Grocer" }),
     ).toHaveProperty("disabled", true);
     expect(
-      screen.getByRole("button", { name: /Review 2 Transactions/ }),
+      screen.getByRole("button", { name: /Review 2 Expenses/ }),
     ).toHaveProperty("disabled", true);
     expect(screen.getByRole("button", { name: "Back to Upload" })).toHaveProperty(
       "disabled",
@@ -1958,7 +1958,7 @@ describe("StatementImportPage pending Category Rule saves", () => {
     await openStatementImportCategorize(fetchMock);
 
     const table = screen.getByRole("table", {
-      name: "Transactions parsed from statement.pdf",
+      name: "Statement Entries parsed from statement.pdf",
     });
     fireEvent.click(
       within(table).getByRole("button", {
@@ -2079,7 +2079,7 @@ describe("StatementImportPage pending Category Rule saves", () => {
     await openStatementImportCategorize(fetchMock);
 
     const table = screen.getByRole("table", {
-      name: "Transactions parsed from statement.pdf",
+      name: "Statement Entries parsed from statement.pdf",
     });
     fireEvent.click(
       within(table).getByRole("button", {
@@ -2114,7 +2114,7 @@ describe("StatementImportPage pending Category Rule saves", () => {
     });
     fireEvent(window, new Event("resize"));
     await screen.findByRole("dialog", {
-      name: "Edit Transaction",
+      name: "Edit Statement Entry",
     });
 
     failedResponse.resolve(
@@ -2133,7 +2133,7 @@ describe("StatementImportPage pending Category Rule saves", () => {
       await screen.findByText("The Category Rule could not be saved."),
     ).toBeTruthy();
     const recoveredDialog = screen.getByRole("dialog", {
-      name: "Edit Transaction",
+      name: "Edit Statement Entry",
     });
     expect(
       within(recoveredDialog).getByRole("textbox", {
@@ -2166,7 +2166,7 @@ describe("StatementImportPage pending Category Rule saves", () => {
     fireEvent(window, new Event("resize"));
     await waitFor(() => {
       expect(
-        screen.queryByRole("dialog", { name: "Edit Transaction" }),
+        screen.queryByRole("dialog", { name: "Edit Statement Entry" }),
       ).toBeNull();
     });
     expect(
@@ -2182,7 +2182,7 @@ describe("StatementImportPage pending Category Rule saves", () => {
     );
     await waitFor(() => expect(categoryRulePostCount(fetchMock)).toBe(2));
     await waitFor(() => {
-      expect(screen.queryByRole("dialog", { name: "Edit Transaction" })).toBeNull();
+      expect(screen.queryByRole("dialog", { name: "Edit Statement Entry" })).toBeNull();
     });
   });
 
@@ -2224,7 +2224,7 @@ describe("StatementImportPage pending Category Rule saves", () => {
     await openStatementImportCategorize(fetchMock);
 
     const table = screen.getByRole("table", {
-      name: "Transactions parsed from statement.pdf",
+      name: "Statement Entries parsed from statement.pdf",
     });
     fireEvent.click(
       within(table).getByRole("button", {
@@ -2295,14 +2295,14 @@ describe("StatementImportPage pending Category Rule saves", () => {
     await openStatementImportCategorize(fetchMock);
 
     const mobileList = screen.getByRole("list", {
-      name: "Transactions to categorize",
+      name: "Statement Entries to categorize",
     });
     fireEvent.click(
       within(mobileList).getByRole("button", {
         name: "Edit Green Market Cafe",
       }),
     );
-    const dialog = screen.getByRole("dialog", { name: "Edit Transaction" });
+    const dialog = screen.getByRole("dialog", { name: "Edit Statement Entry" });
     fireEvent.click(
       within(dialog).getByRole("combobox", {
         name: "Category for Green Market Cafe",
@@ -2325,7 +2325,7 @@ describe("StatementImportPage pending Category Rule saves", () => {
     await waitFor(() => expect(categoryRulePostCount(fetchMock)).toBe(1));
     expect(screen.getByRole("status").textContent).toContain("Saving…");
     const pendingDialog = screen.getByRole("dialog", {
-      name: "Edit Transaction",
+      name: "Edit Statement Entry",
     });
     const pendingPattern = within(pendingDialog).getByRole("textbox", {
       name: "Pattern for Green Market Cafe",
@@ -2356,13 +2356,13 @@ describe("StatementImportPage pending Category Rule saves", () => {
 
     fireEvent.keyDown(document, { key: "Escape" });
     fireEvent.pointerDown(document.body);
-    expect(screen.getByRole("dialog", { name: "Edit Transaction" })).toBeTruthy();
+    expect(screen.getByRole("dialog", { name: "Edit Statement Entry" })).toBeTruthy();
     const search = screen.getByRole("textbox", {
-      name: "Search Transactions",
+      name: "Search Statement Entries",
     });
-    fireEvent.change(search, { target: { value: "no matching Transaction" } });
-    expect(search).toHaveProperty("value", "no matching Transaction");
-    expect(screen.getByRole("dialog", { name: "Edit Transaction" })).toBeTruthy();
+    fireEvent.change(search, { target: { value: "no matching Expense" } });
+    expect(search).toHaveProperty("value", "no matching Expense");
+    expect(screen.getByRole("dialog", { name: "Edit Statement Entry" })).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Back to Upload" }));
     fireEvent.click(screen.getByRole("button", { name: "Leave Categorize" }));
@@ -2393,7 +2393,7 @@ describe("StatementImportPage pending Category Rule saves", () => {
     { presentation: "desktop", width: 1024 },
     { presentation: "phone", width: 390 },
   ])(
-    "keeps reimported Transactions unchanged when an abandoned save succeeds on $presentation",
+    "keeps reimported Expenses unchanged when an abandoned save succeeds on $presentation",
     async ({ width }) => {
       Object.defineProperty(window, "innerWidth", {
         configurable: true,
@@ -2407,7 +2407,7 @@ describe("StatementImportPage pending Category Rule saves", () => {
 
       await beginRememberedRuleSave({
         fileName: "statement.pdf",
-        transactionDescription: "Green Market Cafe",
+        expenseDescription: "Green Market Cafe",
         categoryLabel: "Housing",
         editedDescription: "Abandoned draft",
         amount: "91.00",
@@ -2418,21 +2418,21 @@ describe("StatementImportPage pending Category Rule saves", () => {
       fireEvent.click(screen.getByRole("button", { name: "Back to Upload" }));
       fireEvent.click(screen.getByRole("button", { name: "Leave Categorize" }));
       await screen.findByRole("heading", { name: "Upload your statement" });
-      setStatementTransactions([
+      setStatementEntries([
         {
-          transactionDate: new Date("2026-08-29T00:00:00.000Z"),
+          entryDate: new Date("2026-08-29T00:00:00.000Z"),
           postingDate: new Date("2026-08-30T00:00:00.000Z"),
-          description: "Fresh statement Transaction",
+          description: "Fresh statement Expense",
           amount: 25.5,
         },
       ]);
       await uploadStatementFile("reimported.pdf");
 
-      const transactions =
+      const expenses =
         width < 768
-          ? screen.getByRole("list", { name: "Transactions to categorize" })
+          ? screen.getByRole("list", { name: "Statement Entries to categorize" })
           : screen.getByRole("table", {
-              name: "Transactions parsed from reimported.pdf",
+              name: "Statement Entries parsed from reimported.pdf",
             });
 
       await act(async () => {
@@ -2451,15 +2451,15 @@ describe("StatementImportPage pending Category Rule saves", () => {
       });
 
       expect(
-        within(transactions).getByText("Fresh statement Transaction"),
+        within(expenses).getByText("Fresh statement Expense"),
       ).toBeTruthy();
-      expect(within(transactions).getByText("₱25.50")).toBeTruthy();
+      expect(within(expenses).getByText("₱25.50")).toBeTruthy();
       expect(
-        within(transactions).getAllByText("Unmapped").length,
+        within(expenses).getAllByText("Unmapped").length,
       ).toBeGreaterThan(0);
-      expect(within(transactions).queryByText("Abandoned draft")).toBeNull();
-      expect(within(transactions).queryByText("Housing")).toBeNull();
-      expect(within(transactions).queryByText("₱91.00")).toBeNull();
+      expect(within(expenses).queryByText("Abandoned draft")).toBeNull();
+      expect(within(expenses).queryByText("Housing")).toBeNull();
+      expect(within(expenses).queryByText("₱91.00")).toBeNull();
     },
   );
 
@@ -2467,7 +2467,7 @@ describe("StatementImportPage pending Category Rule saves", () => {
     { presentation: "desktop", width: 1024 },
     { presentation: "phone", width: 390 },
   ])(
-    "does not apply an old save to a reimported Transaction while its $presentation editor is saving",
+    "does not apply an old save to a reimported Expense while its $presentation editor is saving",
     async ({ width }) => {
       Object.defineProperty(window, "innerWidth", {
         configurable: true,
@@ -2488,7 +2488,7 @@ describe("StatementImportPage pending Category Rule saves", () => {
 
       await beginRememberedRuleSave({
         fileName: "statement.pdf",
-        transactionDescription: "Green Market Cafe",
+        expenseDescription: "Green Market Cafe",
         categoryLabel: "Housing",
         editedDescription: "Abandoned draft",
         amount: "91.00",
@@ -2515,20 +2515,20 @@ describe("StatementImportPage pending Category Rule saves", () => {
 
       expect(screen.getByRole("status").textContent).toContain("Saving…");
       const table = screen.getByRole("table", {
-        name: "Transactions parsed from reimported.pdf",
+        name: "Statement Entries parsed from reimported.pdf",
       });
       const currentEditor =
         width < 768
-          ? screen.getByRole("dialog", { name: "Edit Transaction" })
+          ? screen.getByRole("dialog", { name: "Edit Statement Entry" })
           : table;
       expect(
         within(currentEditor).getByRole("textbox", {
-          name: "Description for Fresh statement Transaction",
+          name: "Description for Fresh statement Expense",
         }),
       ).toHaveProperty("value", "Current editor draft");
       expect(
         within(currentEditor).getByRole("spinbutton", {
-          name: "Amount for Fresh statement Transaction",
+          name: "Amount for Fresh statement Expense",
         }),
       ).toHaveProperty("value", "42.00");
       expect(categoryRulePostCount(fetchMock)).toBe(2);
@@ -2549,7 +2549,7 @@ describe("StatementImportPage pending Category Rule saves", () => {
       });
       expect(
         width < 768
-          ? screen.queryByRole("dialog", { name: "Edit Transaction" })
+          ? screen.queryByRole("dialog", { name: "Edit Statement Entry" })
           : within(table).queryByRole("button", {
               name: "Save changes to Current editor draft",
             }),
@@ -2598,7 +2598,7 @@ describe("StatementImportPage pending Category Rule saves", () => {
 
       await beginRememberedRuleSave({
         fileName: "statement.pdf",
-        transactionDescription: "Green Market Cafe",
+        expenseDescription: "Green Market Cafe",
         categoryLabel: "Housing",
         editedDescription: "Abandoned draft",
         amount: "91.00",
@@ -2636,11 +2636,11 @@ describe("StatementImportPage pending Category Rule saves", () => {
         screen.queryByText(/Category Rule for “abandoned rule”/iu),
       ).toBeNull();
       const table = screen.getByRole("table", {
-        name: "Transactions parsed from reimported.pdf",
+        name: "Statement Entries parsed from reimported.pdf",
       });
       expect(
         within(table).getByRole("textbox", {
-          name: "Description for Fresh statement Transaction",
+          name: "Description for Fresh statement Expense",
         }),
       ).toHaveProperty("value", "Current editor draft");
 
@@ -2676,7 +2676,7 @@ describe("StatementImportPage pending Category Rule saves", () => {
     await openStatementImportCategorize(fetchMock);
     await beginRememberedRuleSave({
       fileName: "statement.pdf",
-      transactionDescription: "Green Market Cafe",
+      expenseDescription: "Green Market Cafe",
       categoryLabel: "Housing",
       editedDescription: "Previous page draft",
       amount: "91.00",
@@ -2688,7 +2688,7 @@ describe("StatementImportPage pending Category Rule saves", () => {
     await openStatementImportCategorize(fetchMock);
     await beginRememberedRuleSave({
       fileName: "statement.pdf",
-      transactionDescription: "Green Market Cafe",
+      expenseDescription: "Green Market Cafe",
       categoryLabel: "Groceries",
       editedDescription: "Remounted page draft",
       amount: "42.00",
@@ -2713,7 +2713,7 @@ describe("StatementImportPage pending Category Rule saves", () => {
 
     expect(screen.getByRole("status").textContent).toContain("Saving…");
     const table = screen.getByRole("table", {
-      name: "Transactions parsed from statement.pdf",
+      name: "Statement Entries parsed from statement.pdf",
     });
     expect(
       within(table).getByRole("textbox", {
@@ -2747,7 +2747,7 @@ describe("Upload abandonment on cached destination changes", () => {
       const [spaceId, setSpaceId] = useState("1");
       return <>
         <button onClick={() => setSpaceId(spaceId === "1" ? "10" : "1")}>Switch destination</button>
-        <StatementImportPage spaceId={spaceId} onViewTransactions={vi.fn()} />
+        <StatementImportPage spaceId={spaceId} onViewExpenses={vi.fn()} />
       </>;
     }
     render(
@@ -2794,6 +2794,6 @@ describe("Upload abandonment on cached destination changes", () => {
     expect(screen.getByRole("heading", { name: "Upload your statement" })).toBeTruthy();
     expect(screen.queryByRole("dialog")).toBeNull();
     await uploadStatementFile("new-space.pdf");
-    expect(screen.getByRole("button", { name: "Review 1 Transactions" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Review 1 Expenses" })).toBeTruthy();
   });
 });

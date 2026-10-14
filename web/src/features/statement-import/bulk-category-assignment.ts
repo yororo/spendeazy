@@ -1,18 +1,18 @@
-import type { CategorizedTransaction } from "./statement-categorizer";
+import type { CategorizedStatementEntry } from "./statement-categorizer";
 import { normalizeDescription } from "./statement-import-utils";
 
-function isBulkAssignableExpense(transaction: CategorizedTransaction) {
-  return !transaction.isExcluded && transaction.amount < 0;
+function isBulkAssignableExpense(expense: CategorizedStatementEntry) {
+  return !expense.isExcluded && expense.amount < 0;
 }
 
-function getRepeatedStatementTransactions(
-  transactions: readonly CategorizedTransaction[],
-  source: CategorizedTransaction,
+function getRepeatedStatementEntries(
+  entries: readonly CategorizedStatementEntry[],
+  source: CategorizedStatementEntry,
 ) {
   const description = normalizeDescription(source.description);
-  return transactions.filter(
-    (transaction) => normalizeDescription(transaction.description) === description,
+  return entries.filter(
+    (expense) => normalizeDescription(expense.description) === description,
   );
 }
 
-export { getRepeatedStatementTransactions, isBulkAssignableExpense };
+export { getRepeatedStatementEntries, isBulkAssignableExpense };

@@ -38,7 +38,7 @@ import {
 const pageTitles: Record<string, string> = {
   "/": "Dashboard · Spendeazy",
   "/imports": "Statement Import · Spendeazy",
-  "/transactions": "Transactions · Spendeazy",
+  "/expenses": "Expenses · Spendeazy",
   "/insights": "Insights · Spendeazy",
   "/categories": "Budget overview · Spendeazy",
   "/history": "Space history · Spendeazy",

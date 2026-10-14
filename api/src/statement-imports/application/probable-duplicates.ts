@@ -1,7 +1,7 @@
 export const MAX_COMMITTED_MATCHES_PER_GROUP = 100;
 
-export interface FingerprintedTransaction {
-  transactionIndex: number;
+export interface FingerprintedExpense {
+  expenseIndex: number;
   fingerprint: string;
 }
 
@@ -11,29 +11,29 @@ export interface CommittedDuplicateMatch {
 
 export interface ProbableDuplicateGroup {
   fingerprint: string;
-  incomingTransactionIndexes: number[];
+  incomingExpenseIndexes: number[];
   committedMatches: CommittedDuplicateMatch[];
 }
 
 export function findProbableDuplicateGroups(
-  incomingTransactions: readonly FingerprintedTransaction[],
+  incomingExpenses: readonly FingerprintedExpense[],
   committedMatchesByFingerprint: ReadonlyMap<
     string,
     readonly CommittedDuplicateMatch[]
   >,
 ): ProbableDuplicateGroup[] {
-  const incomingByFingerprint = groupIncomingTransactions(incomingTransactions);
+  const incomingByFingerprint = groupIncomingExpenses(incomingExpenses);
 
   return [...incomingByFingerprint.entries()]
-    .filter(([fingerprint, transactionIndexes]) => {
+    .filter(([fingerprint, expenseIndexes]) => {
       const committedMatches = committedMatchesByFingerprint.get(fingerprint);
       return (
-        transactionIndexes.length > 1 || (committedMatches?.length ?? 0) > 0
+        expenseIndexes.length > 1 || (committedMatches?.length ?? 0) > 0
       );
     })
-    .map(([fingerprint, transactionIndexes]) => ({
+    .map(([fingerprint, expenseIndexes]) => ({
       fingerprint,
-      incomingTransactionIndexes: [...transactionIndexes].sort(
+      incomingExpenseIndexes: [...expenseIndexes].sort(
         (left, right) => left - right,
       ),
       committedMatches: [
@@ -45,20 +45,20 @@ export function findProbableDuplicateGroups(
     .sort(compareGroups);
 }
 
-function groupIncomingTransactions(
-  incomingTransactions: readonly FingerprintedTransaction[],
+function groupIncomingExpenses(
+  incomingExpenses: readonly FingerprintedExpense[],
 ): Map<string, number[]> {
   const incomingByFingerprint = new Map<string, number[]>();
 
-  for (const transaction of incomingTransactions) {
-    const transactionIndexes = incomingByFingerprint.get(
-      transaction.fingerprint,
+  for (const expense of incomingExpenses) {
+    const expenseIndexes = incomingByFingerprint.get(
+      expense.fingerprint,
     );
-    if (transactionIndexes) {
-      transactionIndexes.push(transaction.transactionIndex);
+    if (expenseIndexes) {
+      expenseIndexes.push(expense.expenseIndex);
     } else {
-      incomingByFingerprint.set(transaction.fingerprint, [
-        transaction.transactionIndex,
+      incomingByFingerprint.set(expense.fingerprint, [
+        expense.expenseIndex,
       ]);
     }
   }
@@ -71,7 +71,7 @@ function compareGroups(
   right: ProbableDuplicateGroup,
 ): number {
   const firstIndexDifference =
-    left.incomingTransactionIndexes[0] - right.incomingTransactionIndexes[0];
+    left.incomingExpenseIndexes[0] - right.incomingExpenseIndexes[0];
   return (
     firstIndexDifference || left.fingerprint.localeCompare(right.fingerprint)
   );

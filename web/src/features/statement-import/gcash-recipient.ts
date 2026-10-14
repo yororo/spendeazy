@@ -40,18 +40,18 @@ function applyGcashRecipientExclusion(
 
   return {
     ...statement,
-    transactions: statement.transactions.map((transaction) => {
+    entries: statement.entries.map((expense) => {
       if (
         !transferToRecipientPattern.test(
-          normalizeDescription(transaction.description),
+          normalizeDescription(expense.description),
         )
       ) {
-        return transaction;
+        return expense;
       }
 
       return {
-        ...transaction,
-        amount: Math.abs(transaction.amount),
+        ...expense,
+        amount: Math.abs(expense.amount),
         isExcluded: true,
       };
     }),

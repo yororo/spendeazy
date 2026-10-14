@@ -149,13 +149,13 @@ export class StatementImportCollectionQueryDto {
 @ApiSchema({
   additionalProperties: false,
 } as ApiSchemaOptionsWithAdditionalProperties)
-export class ReviewedStatementTransactionDto {
+export class ReviewedStatementExpenseDto {
   @ValidateIf((_, value) => value !== undefined && value !== null)
   @IsString()
   @Matches(POSITIVE_INTEGER_ID_PATTERN)
   @ApiPropertyOptional({
     description:
-      'Positive bigint Category identifier encoded as a string. Omit or set to null to leave the imported Transaction Uncategorized.',
+      'Positive bigint Category identifier encoded as a string. Omit or set to null to leave the imported Expense Uncategorized.',
     type: String,
     pattern: POSITIVE_INTEGER_ID_PATTERN.source,
     nullable: true,
@@ -179,7 +179,7 @@ export class ReviewedStatementTransactionDto {
   @Length(1, 500)
   @Transform(trimValue)
   @ApiProperty({
-    description: 'Transaction description, trimmed before storage.',
+    description: 'Expense description, trimmed before storage.',
     minLength: 1,
     maxLength: 500,
     pattern: '\\S',
@@ -191,7 +191,7 @@ export class ReviewedStatementTransactionDto {
   @Matches(POSITIVE_TWO_DECIMAL_AMOUNT_PATTERN)
   @ApiProperty({
     description:
-      'Positive exact two-decimal Transaction amount encoded as a string, normalized to remove redundant leading zeroes before storage.',
+      'Positive exact two-decimal Expense amount encoded as a string, normalized to remove redundant leading zeroes before storage.',
     pattern: POSITIVE_TWO_DECIMAL_AMOUNT_PATTERN.source,
     example: '4.50',
   })
@@ -332,14 +332,14 @@ export class CommitReviewedStatementImportDto {
 
   @IsArray()
   @ValidateNested({ each: true })
-  @Type(() => ReviewedStatementTransactionDto)
+  @Type(() => ReviewedStatementExpenseDto)
   @ApiProperty({
     description:
-      'Reviewed Transactions to commit. The array may be empty; each row is normalized and validated before it is stored.',
+      'Reviewed Expenses to commit. The array may be empty; each row is normalized and validated before it is stored.',
     type: 'array',
-    items: { $ref: getSchemaPath(ReviewedStatementTransactionDto) },
+    items: { $ref: getSchemaPath(ReviewedStatementExpenseDto) },
   })
-  transactions!: ReviewedStatementTransactionDto[];
+  expenses!: ReviewedStatementExpenseDto[];
 
   @ValidateIf((_, value) => value !== undefined)
   @IsBoolean()

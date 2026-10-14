@@ -36,12 +36,12 @@ for (const width of [320, 390, 1440]) {
     expect((await page.request.post(`${base}/category-rules`, { headers, data: { categoryId: category.id, pattern: "Fictional purchase", matchType: "contains" } })).ok()).toBe(true);
     await page.getByRole("navigation", { name: width < 768 ? "Mobile navigation" : "Primary navigation" }).getByRole("link", { name: "Imports", exact: true }).click();
     await page.locator('input[type="file"]').setInputFiles({ name: `fictional-review-${width}.pdf`, mimeType: "application/pdf", buffer: reviewPdf() });
-    const categorize = width < 768 ? page.getByRole("list", { name: "Transactions to categorize" }) : page.getByRole("table");
+    const categorize = width < 768 ? page.getByRole("list", { name: "Statement Entries to categorize" }) : page.getByRole("table");
     await categorize.getByRole("button", { name: "Exclude Fictional purchase 12", exact: true }).click();
     await categorize.getByRole("button", { name: "Include Fictional purchase 12", exact: true }).click();
     await categorize.getByRole("button", { name: "Exclude Fictional purchase 12", exact: true }).click();
-    await page.getByRole("textbox", { name: /^Search (Transactions|descriptions)$/ }).filter({ visible: true }).fill("purchase 01");
-    if (width < 768) await page.getByRole("button", { name: "Filter Transactions", exact: true }).click();
+    await page.getByRole("textbox", { name: /^Search (Expenses|descriptions)$/ }).filter({ visible: true }).fill("purchase 01");
+    if (width < 768) await page.getByRole("button", { name: "Filter Statement Entries", exact: true }).click();
     await page.getByLabel("From", { exact: true }).filter({ visible: true }).fill("2026-08-01");
     await page.getByLabel("To", { exact: true }).filter({ visible: true }).fill("2026-08-11");
     await page.getByRole("combobox", { name: "Category", exact: true }).filter({ visible: true }).click();
@@ -50,7 +50,7 @@ for (const width of [320, 390, 1440]) {
     await page.getByRole("option", { name: "Amount: lowest first", exact: true }).click();
     if (width < 768) await page.keyboard.press("Escape");
     await expect(categorize.getByText("Fictional purchase 02", { exact: true })).toHaveCount(0);
-    const review = page.getByRole("button", { name: "Review 11 Transactions", exact: true });
+    const review = page.getByRole("button", { name: "Review 11 Expenses", exact: true });
     await page.evaluate(() => document.fonts.ready);
     await review.scrollIntoViewIfNeeded();
     let releaseFonts!: () => void;
@@ -70,7 +70,7 @@ for (const width of [320, 390, 1440]) {
     const position = await page.evaluate(() => ({ windowTop: scrollY, contentTop: document.getElementById("main-content")?.parentElement?.scrollTop ?? 0 }));
     await review.click();
     await expect(page.getByRole("heading", { name: "Review your imported statement" })).toBeFocused();
-    const included = width < 768 ? page.getByRole("list", { name: "Transactions to review" }) : page.getByRole("table", { name: /Included expenses/ });
+    const included = width < 768 ? page.getByRole("list", { name: "Expenses to review" }) : page.getByRole("table", { name: /Included expenses/ });
     const includedRows = included.getByRole(width < 768 ? "listitem" : "row").filter({ hasText: "Fictional purchase" });
     await expect(includedRows).toHaveCount(11);
     await expect(includedRows.first()).toContainText("Fictional purchase 01");
@@ -95,7 +95,7 @@ for (const width of [320, 390, 1440]) {
     await expectWorkflowSurvivesThemeChange(page, "Technical", "Dark");
     await expectWorkflowSurvivesThemeChange(page, "Playful", "System");
     await expect(excluded).toContainText("Excluded by you");
-    const confirm = page.getByRole("button", { name: "Import 11 Transactions", exact: true });
+    const confirm = page.getByRole("button", { name: "Import 11 Expenses", exact: true });
     await confirm.scrollIntoViewIfNeeded();
     const total = page.getByLabel("Included expense total", { exact: true });
     await expect(total).toBeVisible();
@@ -111,8 +111,8 @@ for (const width of [320, 390, 1440]) {
     await expect(review).toBeFocused();
     await expect.poll(() => page.evaluate(() => scrollY)).toBe(position.windowTop);
     await expect.poll(() => page.evaluate(() => document.getElementById("main-content")?.parentElement?.scrollTop ?? 0)).toBe(position.contentTop);
-    await expect(page.getByRole("textbox", { name: /^Search (Transactions|descriptions)$/ }).filter({ visible: true })).toHaveValue("purchase 01");
-    if (width < 768) await page.getByRole("button", { name: "Filter Transactions, filters active" }).click();
+    await expect(page.getByRole("textbox", { name: /^Search (Expenses|descriptions)$/ }).filter({ visible: true })).toHaveValue("purchase 01");
+    if (width < 768) await page.getByRole("button", { name: "Filter Statement Entries, filters active" }).click();
     await expect(page.getByLabel("From", { exact: true }).filter({ visible: true })).toHaveValue("2026-08-01");
     await expect(page.getByLabel("To", { exact: true }).filter({ visible: true })).toHaveValue("2026-08-11");
     await expect(page.getByRole("combobox", { name: "Sort by", exact: true }).filter({ visible: true })).toContainText("Amount: lowest first");
@@ -121,8 +121,8 @@ for (const width of [320, 390, 1440]) {
     await review.click();
     await confirm.click();
     await expect(page.getByRole("status").filter({ hasText: "11 expenses saved" })).toContainText("₱66.00");
-    await page.getByRole("button", { name: "View Transactions", exact: true }).click();
-    await expect(page.getByRole("region", { name: "Transaction summary" })).toContainText("₱66.00");
+    await page.getByRole("button", { name: "View Expenses", exact: true }).click();
+    await expect(page.getByRole("region", { name: "Expense summary" })).toContainText("₱66.00");
     await expect(page.getByText("PAYMENT RECEIVED", { exact: true })).toHaveCount(0);
     await expect(page.getByText("Fictional refund", { exact: true })).toHaveCount(0);
   });

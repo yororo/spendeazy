@@ -44,12 +44,12 @@ describe("SignInPage", () => {
         const disposeAppearance = initializeAppearance();
         try {
           clerk.isLoaded = false;
-          const view = render(<MemoryRouter initialEntries={["/sign-in?returnTo=%2Ftransactions"]}><SignInPage /></MemoryRouter>);
+          const view = render(<MemoryRouter initialEntries={["/sign-in?returnTo=%2Fexpenses"]}><SignInPage /></MemoryRouter>);
           expect(screen.getByRole("status").textContent).toContain("Securing your session");
           clerk.isLoaded = true;
           view.rerender(<MemoryRouter><SignInPage /></MemoryRouter>);
           fireEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
-          expect(clerk.sso).toHaveBeenCalledWith({ strategy: "oauth_google", redirectUrl: "/transactions", redirectCallbackUrl: "/sso-callback" });
+          expect(clerk.sso).toHaveBeenCalledWith({ strategy: "oauth_google", redirectUrl: "/expenses", redirectCallbackUrl: "/sso-callback" });
           clerk.errors = { global: [{ message: "Fictional sign-in failure" }] };
           view.rerender(<MemoryRouter><SignInPage /></MemoryRouter>);
           expect(screen.getByRole("alert").textContent).toBe("Fictional sign-in failure");

@@ -85,7 +85,7 @@ function toCategorySummaryItemResponse(
     name: item.name,
     isActive: item.isActive,
     totalAmount: item.totalAmount,
-    transactionCount: item.transactionCount,
+    expenseCount: item.expenseCount,
     budgetAmount: item.budgetAmount,
     remainingAmount: item.remainingAmount,
   };

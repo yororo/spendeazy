@@ -14,7 +14,7 @@ test("recorded spending evidence uses real history and restores investigation co
   const category: unknown = await response.json();
   if (!isRecord(category) || typeof category.id !== "string") throw new Error("Expected Category ID");
   for (const [purchaseDate, amount] of [["2026-06-10", "1000.00"], ["2026-07-10", "1000.00"], ["2026-08-10", "1000.00"], ["2026-09-10", "1500.00"], ["2026-08-25", "9000.00"]]) {
-    expect((await page.request.post(`${base}/transactions`, { headers, data: { categoryId: category.id, purchaseDate, amount, description: `Synthetic pattern ${purchaseDate}` } })).ok()).toBe(true);
+    expect((await page.request.post(`${base}/expenses`, { headers, data: { categoryId: category.id, purchaseDate, amount, description: `Synthetic pattern ${purchaseDate}` } })).ok()).toBe(true);
   }
   await page.getByRole("navigation", { name: "Mobile navigation" }).getByRole("link", { name: "Insights", exact: true }).click();
   await page.getByLabel("Reporting period", { exact: true }).fill("2026-09");
@@ -25,18 +25,18 @@ test("recorded spending evidence uses real history and restores investigation co
   const evidence = page.getByRole("dialog");
   await expect(evidence).toContainText("Total: ₱1,500.00");
   await expect(evidence).toContainText("Synthetic pattern 2026-09-10");
-  await evidence.getByRole("button", { name: "View Synthetic pattern month’s Transactions" }).click();
+  await evidence.getByRole("button", { name: "View Synthetic pattern month’s Expenses" }).click();
   await expect(page).toHaveURL(new RegExp("categoryId=" + category.id));
-  await expect(page.getByRole("region", { name: "Transaction summary" }).getByText("₱1,500.00", { exact: true })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Expense summary" }).getByText("₱1,500.00", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Return to Insights" }).click();
   await expect(inspect).toBeFocused();
   await page.getByLabel("Spending point", { exact: true }).selectOption("2026-06");
   const june = page.getByRole("button", { name: "Inspect Jun 2026", exact: true });
   await june.click();
   await expect(evidence).toContainText("Total: ₱1,000.00");
-  await evidence.getByRole("button", { name: "View Synthetic pattern month’s Transactions" }).click();
+  await evidence.getByRole("button", { name: "View Synthetic pattern month’s Expenses" }).click();
   await expect(page.getByLabel("Reporting period", { exact: true })).toHaveValue("2026-06");
-  await expect(page.getByRole("region", { name: "Transaction summary" }).getByText("₱1,000.00", { exact: true })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Expense summary" }).getByText("₱1,000.00", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Return to Insights" }).click();
   await expect(page.getByLabel("Reporting period", { exact: true })).toHaveValue("2026-09");
   await expect(june).toBeFocused();

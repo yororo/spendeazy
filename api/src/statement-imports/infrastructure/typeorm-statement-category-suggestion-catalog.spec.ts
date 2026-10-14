@@ -46,9 +46,9 @@ describe('TypeOrmStatementCategorySuggestionCatalog', () => {
       ['7', ['42'], 4],
     );
     const [sql] = query.mock.calls[0] as [string, unknown[]];
-    expect(sql).toContain('transaction.space_id = category.space_id');
+    expect(sql).toContain('expense.space_id = category.space_id');
     expect(sql).toContain('category.is_active = TRUE');
-    expect(sql).toContain('transaction.deleted_at IS NULL');
+    expect(sql).toContain('expense.deleted_at IS NULL');
     expect(sql).toContain('LIMIT $3');
     expect(sql).toContain('category.id = ANY($2::bigint[])');
     expect(sql).toContain(
@@ -56,7 +56,7 @@ describe('TypeOrmStatementCategorySuggestionCatalog', () => {
     );
   });
 
-  it('does not query Transaction history when there are no active Categories', async () => {
+  it('does not query Expense history when there are no active Categories', async () => {
     const categoryRepository = {
       find: jest.fn().mockResolvedValue([]),
     } as unknown as Repository<CategoryEntity>;

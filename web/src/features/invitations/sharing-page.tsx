@@ -348,7 +348,7 @@ function IncomingInvitationRow({
       <p className="mt-2 text-sm text-muted-foreground">
         Joining creates a separate Shared Space with {invitation.senderName}.
         Your Personal Space stays private, and the new Shared Space starts with
-        Default Categories but no Transactions, Budgets, or learned Category
+        Default Categories but no Expenses, Budgets, or learned Category
         Rules.
       </p>
       <p className="mt-2 text-sm text-muted-foreground">

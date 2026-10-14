@@ -23,9 +23,9 @@ for (const width of [320, 390, 1440]) {
     const navigation = page.getByRole("navigation", { name: width < 768 ? "Mobile navigation" : "Primary navigation" });
     await navigation.getByRole("link", { name: "Imports", exact: true }).click();
     await page.locator('input[type="file"]').setInputFiles({ name: "fictional-remember.pdf", mimeType: "application/pdf", buffer: statementPdf() });
-    const rows = width < 768 ? page.getByRole("list", { name: "Transactions to categorize" }) : page.getByRole("table");
+    const rows = width < 768 ? page.getByRole("list", { name: "Statement Entries to categorize" }) : page.getByRole("table");
     await rows.getByRole("button", { name: "Edit FICTIONAL REPEAT", exact: true }).click();
-    const editor = width < 768 ? page.getByRole("dialog", { name: "Edit Transaction" }) : rows;
+    const editor = width < 768 ? page.getByRole("dialog", { name: "Edit Statement Entry" }) : rows;
     await editor.getByRole("combobox", { name: "Category for FICTIONAL REPEAT", exact: true }).click();
     await page.getByRole("option", { name: category.name as string, exact: true }).click();
     const remember = editor.getByRole("checkbox", { name: "Remember this category" });

@@ -17,7 +17,7 @@ function CurrentLocation() {
 describe("MobileTabBar", () => {
   it("replaces Categories with Insights and preserves the selected Space", () => {
     render(
-      <MemoryRouter initialEntries={["/transactions?spaceId=shared-7"]}>
+      <MemoryRouter initialEntries={["/expenses?spaceId=shared-7"]}>
         <MobileTabBar />
         <CurrentLocation />
       </MemoryRouter>,

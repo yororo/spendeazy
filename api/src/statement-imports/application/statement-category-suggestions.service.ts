@@ -27,9 +27,9 @@ export class StatementCategorySuggestionsService {
 
   async suggestInSpace(
     spaceId: string,
-    transactionDescription: string,
+    expenseDescription: string,
   ): Promise<readonly CategorySuggestion[]> {
-    const description = transactionDescription.trim();
+    const description = expenseDescription.trim();
     if (!description) return [];
 
     const targetTokens = descriptionTokens(description);

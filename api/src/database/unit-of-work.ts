@@ -2,10 +2,10 @@ import { InjectDataSource } from '@nestjs/typeorm';
 import { Injectable } from '@nestjs/common';
 import { DataSource, type EntityManager } from 'typeorm';
 import { TypeOrmStatementImportStore } from '../statement-imports/infrastructure/typeorm-statement-import-store';
-import { TypeOrmImportedTransactionStore } from '../transactions/infrastructure/typeorm-imported-transaction-store';
-import { TypeOrmTransactionCategoryStore } from '../transactions/infrastructure/typeorm-transaction-category-store';
+import { TypeOrmImportedExpenseStore } from '../expenses/infrastructure/typeorm-imported-expense-store';
+import { TypeOrmExpenseCategoryStore } from '../expenses/infrastructure/typeorm-expense-category-store';
 import { TypeOrmUserStore } from '../users/infrastructure/typeorm-user-store';
-import { TypeOrmTransactionActivityStore } from '../transactions/infrastructure/typeorm-transaction-activity-store';
+import { TypeOrmExpenseActivityStore } from '../expenses/infrastructure/typeorm-expense-activity-store';
 
 import {
   type StatementImportConfirmationContext,
@@ -19,10 +19,10 @@ function createStatementImportConfirmationContext(
 
   return {
     users: new TypeOrmUserStore(entityManager),
-    categories: new TypeOrmTransactionCategoryStore(entityManager, true),
+    categories: new TypeOrmExpenseCategoryStore(entityManager, true),
     statementImports,
-    importedTransactions: new TypeOrmImportedTransactionStore(entityManager),
-    transactionActivities: new TypeOrmTransactionActivityStore(entityManager),
+    importedExpenses: new TypeOrmImportedExpenseStore(entityManager),
+    expenseActivities: new TypeOrmExpenseActivityStore(entityManager),
     spaces: statementImports,
   };
 }

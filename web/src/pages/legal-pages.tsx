@@ -42,7 +42,7 @@ const privacySections: readonly LegalSection[] = [
       <>
         <p>
           Spendeazy is designed to help you understand spending, import
-          statement details, and organize Transactions and Budgets. The{" "}
+          statement details, and organize Expenses and Budgets. The{" "}
           <Link className={inlineLinkClassName} to="/terms">
             Terms of Service
           </Link>{" "}
@@ -67,7 +67,7 @@ const privacySections: readonly LegalSection[] = [
           <li>
             <strong className="text-foreground">Financial information</strong>{" "}
             that you enter or choose to commit, including Categories, Budgets,
-            transaction descriptions, dates, amounts, account details, and
+            expense descriptions, dates, amounts, account details, and
             Statement Import metadata such as a bank, card type, last four
             digits, and file name.
           </li>
@@ -76,7 +76,7 @@ const privacySections: readonly LegalSection[] = [
               Derived import information
             </strong>
             , including a file hash used to help identify duplicate imports and
-            the parsed statement and transaction details you choose to save.
+            the parsed statement and expense details you choose to save.
           </li>
           <li>
             <strong className="text-foreground">Support information</strong>{" "}
@@ -102,7 +102,7 @@ const privacySections: readonly LegalSection[] = [
         </p>
         <p>
           When you choose to commit a Statement Import, the app sends only the
-          selected parsed statement details and Transactions, the file name, and
+          selected parsed statement details and Expenses, the file name, and
           a derived SHA-256 file hash used to help detect duplicate imports.
           Those derived records may be stored in the Expense Tracker API as your
           financial data. The PDF itself is not sent to that API.
@@ -120,7 +120,7 @@ const privacySections: readonly LegalSection[] = [
           <li>authenticate you and maintain your signed-in session;</li>
           <li>create and maintain your private Spendeazy account;</li>
           <li>
-            provide the Dashboard, Transactions, Categories, Budgets, and
+            provide the Dashboard, Expenses, Categories, Budgets, and
             Statement Import features;
           </li>
           <li>identify probable duplicate Statement Imports;</li>
@@ -367,7 +367,7 @@ const termsSections: readonly LegalSection[] = [
       <>
         <p>
           Spendeazy provides tools for personal expense organization, including
-          a Dashboard, Transactions, Categories, Budgets, and a Statement Import
+          a Dashboard, Expenses, Categories, Budgets, and a Statement Import
           workflow. We may add, change, suspend, or remove features as the
           service develops.
         </p>
@@ -391,7 +391,7 @@ const termsSections: readonly LegalSection[] = [
         </p>
         <p>
           When you review and commit an import, the parsed statement details and
-          selected Transactions become part of your Spendeazy account. You are
+          selected Expenses become part of your Spendeazy account. You are
           responsible for reviewing imported information before committing it
           and for having the right to use the statement information you provide.
         </p>
@@ -472,7 +472,7 @@ const termsSections: readonly LegalSection[] = [
           decision.
         </p>
         <p>
-          You are responsible for checking Transactions and totals against your
+          You are responsible for checking Expenses and totals against your
           original records and for obtaining professional advice when needed.
         </p>
       </>

@@ -77,18 +77,18 @@ Use [web architecture](../ARCHITECTURE.md#placement) for component ownership and
 - `SpendingChart` — replaceable spending visualization
 - `CategoryBadge` — category identity mapped to application tokens
 - `CategoryBreakdown` — category-share visualization
-- `TransactionTable` — transaction-specific table composition
+- `ExpenseTable` — expense-specific table composition
 - `ReportingPeriodFilter` — shared native month control for period-scoped financial views
 
-`SpaceSwitcher` persistently appears above primary navigation in `PrimarySidebar` and directly in the compact mobile header. It lists every authorized active Space with only a "Personal" or "Shared" label, plus semantic single-person or multiple-person icons; it preserves the current page and other URL parameters while changing the active Space, and navigation guards still apply. The same switcher appears in the narrow-screen navigation Sheet. Each Dashboard, Transactions, Categories, and Statement Import stage places a compact, non-interactive Personal or Shared label above its title.
+`SpaceSwitcher` persistently appears above primary navigation in `PrimarySidebar` and directly in the compact mobile header. It lists every authorized active Space with only a "Personal" or "Shared" label, plus semantic single-person or multiple-person icons; it preserves the current page and other URL parameters while changing the active Space, and navigation guards still apply. The same switcher appears in the narrow-screen navigation Sheet. Each Dashboard, Expenses, Categories, and Statement Import stage places a compact, non-interactive Personal or Shared label above its title.
 
 Space labels resolve from the accessible Space's actual kind, including explicit Personal Space IDs. An unresolved explicit ID displays neutral `Space` text instead of guessing Shared. Application composition supplies the accessible identities; Statement Import keeps its accepted destination ID for Categorize, Review, success, and commit even if the route changes.
 
-The sidebar and navigation Sheet call the existing `/categories` destination **Budgets**. It retains Budget overview, Add Category, editing, Matching Rules, and Category lifecycle management. The four phone tabs remain Dashboard, Imports, Transactions, and Insights. Dashboard's Budget attention and Monthly Insights' current Budget summary expose **Manage Budgets** through keyboard-accessible buttons. These actions retain the selected Space and shared Reporting Period and use the existing Budget overview route. Daily Insights retains its own chart controls.
+The sidebar and navigation Sheet call the existing `/categories` destination **Budgets**. It retains Budget overview, Add Category, editing, Matching Rules, and Category lifecycle management. The four phone tabs remain Dashboard, Imports, Expenses, and Insights. Dashboard's Budget attention and Monthly Insights' current Budget summary expose **Manage Budgets** through keyboard-accessible buttons. These actions retain the selected Space and shared Reporting Period and use the existing Budget overview route. Daily Insights retains its own chart controls.
 
-Statement Import completion scrolls to and focuses the confirmation heading, with an announced destination, saved expense count, and total. View Transactions carries the destination Space and Committed Statement Import identity. In statement scope, a visible statement context and Return to monthly view action replace the month picker. Recorded expense activity dates and complete filtered count/total span all statement months; additional filters only narrow this scope. Activity dates do not establish complete statement or Space coverage. Returning clears narrowing filters and restores the unchanged prior Reporting Period. Loading, failure, and empty states retain statement context and recovery actions.
+Statement Import completion scrolls to and focuses the confirmation heading, with an announced destination, saved expense count, and total. View Expenses carries the destination Space and Committed Statement Import identity. In statement scope, a visible statement context and Return to monthly view action replace the month picker. Recorded expense activity dates and complete filtered count/total span all statement months; additional filters only narrow this scope. Activity dates do not establish complete statement or Space coverage. Returning clears narrowing filters and restores the unchanged prior Reporting Period. Loading, failure, and empty states retain statement context and recovery actions.
 
-The supplemental [statement browsing reference](../../design/statement-transactions.pen) records the completion and statement-view compositions; the existing main Pen reference remains the source for shared components and tokens.
+The supplemental [statement browsing reference](../../design/statement-expenses.pen) records the completion and statement-view compositions; the existing main Pen reference remains the source for shared components and tokens.
 
 ### SpendingChart interface
 
@@ -116,7 +116,7 @@ Correct:
 ```tsx
 <Card variant="strong">
   <CardHeader>
-    <CardTitle>Recent transactions</CardTitle>
+    <CardTitle>Recent expenses</CardTitle>
   </CardHeader>
   <CardContent>...</CardContent>
 </Card>

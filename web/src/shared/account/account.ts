@@ -1,7 +1,7 @@
 import { isRecord } from "../api/api-response";
 import { isAbortError, type ApiGetClient } from "../api/api-client";
 
-interface AccountTransactionReference {
+interface AccountExpenseReference {
   readonly id: string;
   readonly source: "manual" | "imported";
   readonly statementImportId: string | null;
@@ -13,12 +13,12 @@ interface StatementImportAccount {
   readonly cardType: string | null;
 }
 
-interface TransactionAccount {
+interface ExpenseAccount {
   readonly key: string;
   readonly label: string;
 }
 
-interface AccountOption extends TransactionAccount {
+interface AccountOption extends ExpenseAccount {
   readonly bank: string | null;
   readonly cardType: string | null;
 }
@@ -58,24 +58,24 @@ function requireStatementImport(
   };
 }
 
-function getStatementImportId(transaction: AccountTransactionReference) {
-  if (!transaction.statementImportId) {
+function getStatementImportId(expense: AccountExpenseReference) {
+  if (!expense.statementImportId) {
     throw new AccountResolutionError(
-      `Imported Transaction ${transaction.id} is missing its Statement Import ID.`,
+      `Imported Expense ${expense.id} is missing its Statement Import ID.`,
     );
   }
 
-  return transaction.statementImportId;
+  return expense.statementImportId;
 }
 
 function getStatementImportIds(
-  transactions: readonly AccountTransactionReference[],
+  expenses: readonly AccountExpenseReference[],
 ) {
   const statementImportIds = new Set<string>();
 
-  transactions.forEach((transaction) => {
-    if (transaction.source === "imported") {
-      statementImportIds.add(getStatementImportId(transaction));
+  expenses.forEach((expense) => {
+    if (expense.source === "imported") {
+      statementImportIds.add(getStatementImportId(expense));
     }
   });
 
@@ -118,12 +118,12 @@ async function loadStatementImport(
 
 async function loadStatementImports(
   apiClient: ApiGetClient,
-  transactions: readonly AccountTransactionReference[],
+  expenses: readonly AccountExpenseReference[],
   signal?: AbortSignal,
   spaceId?: string,
 ) {
   const entries = await Promise.all(
-    [...getStatementImportIds(transactions)].map(
+    [...getStatementImportIds(expenses)].map(
       async (statementImportId) =>
         [
           statementImportId,
@@ -157,25 +157,25 @@ function formatAccount(statementImport: StatementImportAccount) {
     .join(" \u00b7 ");
 }
 
-function resolveTransactionAccount(
-  transaction: AccountTransactionReference,
+function resolveExpenseAccount(
+  expense: AccountExpenseReference,
   statementImports: ReadonlyMap<string, StatementImportAccount>,
-): TransactionAccount {
-  if (transaction.source === "manual") {
+): ExpenseAccount {
+  if (expense.source === "manual") {
     return { key: CASH_ACCOUNT_KEY, label: "Cash" };
   }
 
-  if (transaction.source !== "imported") {
+  if (expense.source !== "imported") {
     throw new AccountResolutionError(
-      `Transaction ${transaction.id} has an unsupported source.`,
+      `Expense ${expense.id} has an unsupported source.`,
     );
   }
 
-  const statementImportId = getStatementImportId(transaction);
+  const statementImportId = getStatementImportId(expense);
   const statementImport = statementImports.get(statementImportId);
   if (!statementImport) {
     throw new AccountResolutionError(
-      `Transaction ${transaction.id} references unavailable Statement Import ${statementImportId}.`,
+      `Expense ${expense.id} references unavailable Statement Import ${statementImportId}.`,
     );
   }
 
@@ -186,13 +186,13 @@ function resolveTransactionAccount(
 }
 
 function countDistinctAccounts(
-  transactions: readonly AccountTransactionReference[],
+  expenses: readonly AccountExpenseReference[],
   statementImports: ReadonlyMap<string, StatementImportAccount>,
 ) {
   return new Set(
-    transactions.map(
-      (transaction) =>
-        resolveTransactionAccount(transaction, statementImports).key,
+    expenses.map(
+      (expense) =>
+        resolveExpenseAccount(expense, statementImports).key,
     ),
   ).size;
 }
@@ -242,11 +242,11 @@ export {
   countDistinctAccounts,
   loadStatementImports,
   loadAvailableAccounts,
-  resolveTransactionAccount,
+  resolveExpenseAccount,
 };
 export type {
-  AccountTransactionReference,
+  AccountExpenseReference,
   StatementImportAccount,
-  TransactionAccount,
+  ExpenseAccount,
   AccountOption,
 };

@@ -17,5 +17,6 @@ Research, validation reports, and specification notes describe their recorded sc
 | Synthetic identity or isolated test environment | [Isolated local synthetic identity](../adr/0001-isolated-local-synthetic-identity.md) | Current |
 | Space ownership, membership, or archival | [Personal and Shared Spaces](../adr/0002-personal-and-shared-spaces.md) | Ownership/lifecycle current; email invitations and notifications superseded by Invite Codes |
 | Invitation lifecycle or joining | [Invite Codes](../adr/0003-invite-codes-for-shared-space-invitations.md) | Current |
+| Expense and Statement Entry names | [Expense and Statement Entry terminology](../adr/0004-expense-and-statement-entry-terminology.md) | Current |
 
 Historical research and design evidence live in [the archive](../archive/README.md); load them when investigating provenance.

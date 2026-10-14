@@ -31,7 +31,7 @@ import { StatementCategorySuggestionsService } from '../application/statement-ca
 import { StatementImportsService } from '../application/statement-imports.service';
 import {
   CommitReviewedStatementImportDto,
-  ReviewedStatementTransactionDto,
+  ReviewedStatementExpenseDto,
   StatementImportCollectionQueryDto,
 } from './statement-import.dto';
 import {
@@ -55,7 +55,7 @@ import { SpaceStatementImportParamsDto } from './space-statement-import.dto';
 @ApiTags('Statement imports')
 @ApiExtraModels(
   CommitReviewedStatementImportDto,
-  ReviewedStatementTransactionDto,
+  ReviewedStatementExpenseDto,
   StatementImportCollectionQueryDto,
   SpaceStatementImportParamsDto,
   StatementImportResponseDto,
@@ -84,9 +84,9 @@ export class SpaceStatementImportsController {
   @Post('category-suggestions')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Suggest up to three ranked Categories for a Transaction.',
+    summary: 'Suggest up to three ranked Categories for a Statement Entry.',
     description:
-      'Evaluates the submitted Transaction description against active Categories in the authorized destination Space. Returns zero to three ordered suggestions and never assigns a Category or commits a Statement Import.',
+      'Evaluates the submitted Expense description against active Categories in the authorized destination Space. Returns zero to three ordered suggestions and never assigns a Category or commits a Statement Import.',
   })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -198,7 +198,7 @@ export class SpaceStatementImportsController {
   @ApiOperation({
     summary: 'Commit a reviewed Statement Import into an authorized Space.',
     description:
-      'Revalidates reviewed Categories and duplicate state for the destination Space, then commits the Statement Import and all selected Transactions atomically. The confirming User is recorded as immutable actor attribution on the Statement Import and its Transactions; those financial records belong to the destination Space.',
+      'Revalidates reviewed Categories and duplicate state for the destination Space, then commits the Statement Import and all selected Expenses atomically. The confirming User is recorded as immutable actor attribution on the Statement Import and its Expenses; those financial records belong to the destination Space.',
   })
   @ApiResponse({
     status: HttpStatus.CREATED,

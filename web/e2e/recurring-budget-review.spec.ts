@@ -15,7 +15,7 @@ test("monthly inspection Budget editing survives cancel and stale failure, then 
   const budgetUrl = `${base}/categories/${category.id}/budget`;
   expect((await page.request.put(budgetUrl, { headers, data: { amount: "1000.00", period: "monthly" } })).ok()).toBe(true);
   for (const [purchaseDate, amount] of [["2024-01-10", "1000.01"], ["2025-02-10", "1100.00"], ["2026-03-10", "1200.00"], ["2026-05-10", "1000.00"], ["2026-06-10", "900.00"], ["2026-08-10", "800.00"], ["2026-09-10", "2000.00"]]) {
-    expect((await page.request.post(`${base}/transactions`, { headers, data: { categoryId: category.id, purchaseDate, amount, description: "Synthetic recurring expense" } })).ok()).toBe(true);
+    expect((await page.request.post(`${base}/expenses`, { headers, data: { categoryId: category.id, purchaseDate, amount, description: "Synthetic recurring expense" } })).ok()).toBe(true);
   }
   for (const yearly of [false, true]) {
     const name = yearly ? "Synthetic yearly history" : "Synthetic unbudgeted history";
@@ -24,7 +24,7 @@ test("monthly inspection Budget editing survives cancel and stale failure, then 
     const item: unknown = await created.json();
     if (!isRecord(item) || typeof item.id !== "string") throw new Error("Expected Category ID");
     if (yearly) expect((await page.request.put(`${base}/categories/${item.id}/budget`, { headers, data: { amount: "12000.00", period: "yearly" } })).ok()).toBe(true);
-    expect((await page.request.post(`${base}/transactions`, { headers, data: { categoryId: item.id, purchaseDate: "2026-03-10", amount: "100.00", description: "Synthetic no monthly Budget" } })).ok()).toBe(true);
+    expect((await page.request.post(`${base}/expenses`, { headers, data: { categoryId: item.id, purchaseDate: "2026-03-10", amount: "100.00", description: "Synthetic no monthly Budget" } })).ok()).toBe(true);
   }
   await page.getByRole("navigation", { name: "Mobile navigation" }).getByRole("link", { name: "Insights", exact: true }).click();
   await page.getByLabel("Reporting period", { exact: true }).fill("2026-09");

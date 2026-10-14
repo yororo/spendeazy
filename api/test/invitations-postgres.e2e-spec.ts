@@ -28,8 +28,8 @@ import { SpaceEntity } from '../src/database/entities/space.entity';
 import { SpaceMembershipEntity } from '../src/database/entities/space-membership.entity';
 import { SpaceNotificationEntity } from '../src/database/entities/space-notification.entity';
 import { StatementImportEntity } from '../src/database/entities/statement-import.entity';
-import { TransactionActivityEntity } from '../src/database/entities/transaction-activity.entity';
-import { TransactionEntity } from '../src/database/entities/transaction.entity';
+import { ExpenseActivityEntity } from '../src/database/entities/expense-activity.entity';
+import { ExpenseEntity } from '../src/database/entities/expense.entity';
 import { UserEntity } from '../src/database/entities/user.entity';
 
 const databaseUrl = process.env.TEST_INVITATIONS_DATABASE_URL;
@@ -101,10 +101,10 @@ describeDatabase('Invite Codes with PostgreSQL', () => {
         });
       }
       await database
-        .getRepository(TransactionActivityEntity)
+        .getRepository(ExpenseActivityEntity)
         .delete({ spaceId: In(spaceIds) });
       await database
-        .getRepository(TransactionEntity)
+        .getRepository(ExpenseEntity)
         .delete({ spaceId: In(spaceIds) });
       await database
         .getRepository(CategoryRuleEntity)
@@ -781,7 +781,7 @@ describeDatabase('Invite Codes with PostgreSQL', () => {
       }),
     ).toBe(0);
     expect(
-      await database.getRepository(TransactionEntity).countBy({
+      await database.getRepository(ExpenseEntity).countBy({
         spaceId: joinedBody.id,
       }),
     ).toBe(0);

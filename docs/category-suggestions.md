@@ -11,7 +11,7 @@
 
 ## Flow and fallback
 
-During Categorize, the browser requests suggestions for included Unmapped Transactions. The API requires an authenticated User with write access to the destination Space; catalog/history queries use that authorized Space.
+During Categorize, the browser requests suggestions for included Unmapped Expenses. The API requires an authenticated User with write access to the destination Space; catalog/history queries use that authorized Space.
 
 Set **TYPESAFE_API_KEY** in the API environment to enable TypeSafe. An unset key, failed calls, or invalid responses return zero suggestions; manual Category selection remains available.
 
@@ -23,13 +23,13 @@ The browser coordinator deduplicates descriptions by trimming, collapsing whites
 
 The request contains:
 
-- The Transaction description, trimmed by the API.
+- The Statement Entry description, trimmed by the API.
 - Active Category IDs/names and optional descriptions.
-- Selected historical Transaction descriptions paired with Category IDs.
+- Selected historical Expense descriptions paired with Category IDs.
 
 PDFs, amounts, dates, explicit User IDs, and explicit Space IDs are omitted. Descriptive text can still reveal financial activity.
 
-The API allows at most 254 active Categories (255 choices including no-category); an empty or oversized catalog returns no suggestions. It reads at most the four most recent non-deleted Transactions per active Category, ordered by purchase date then Transaction ID. Selection retains at most 16 examples in total and one per Category, ranking shared normalized description tokens more strongly when rare.
+The API allows at most 254 active Categories (255 choices including no-category); an empty or oversized catalog returns no suggestions. It reads at most the four most recent non-deleted Expenses per active Category, ordered by purchase date then Expense ID. Selection retains at most 16 examples in total and one per Category, ranking shared normalized description tokens more strongly when rare.
 
 ## Validation and request limits
 

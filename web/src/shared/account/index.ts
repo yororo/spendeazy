@@ -3,11 +3,11 @@ export {
   countDistinctAccounts,
   loadStatementImports,
   loadAvailableAccounts,
-  resolveTransactionAccount,
+  resolveExpenseAccount,
 } from "./account";
 export type {
-  AccountTransactionReference,
+  AccountExpenseReference,
   StatementImportAccount,
-  TransactionAccount,
+  ExpenseAccount,
   AccountOption,
 } from "./account";

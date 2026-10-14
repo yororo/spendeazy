@@ -72,7 +72,7 @@ test("shows archived Shared history separately and read-only", async ({
     },
   );
   await page.route(
-    "**/api/v1/users/me/spaces/77/transactions**",
+    "**/api/v1/users/me/spaces/77/expenses**",
     async (route) => {
       const pathname = new URL(route.request().url()).pathname;
       if (pathname.endsWith("/activity")) {
@@ -81,7 +81,7 @@ test("shows archived Shared history separately and read-only", async ({
           body: JSON.stringify([
             {
               id: "activity-701",
-              transactionId: "701",
+              expenseId: "701",
               type: "deleted",
               actorUserId: "12",
               occurredAt: "2026-09-05T00:00:00.000Z",
@@ -149,12 +149,12 @@ test("shows archived Shared history separately and read-only", async ({
   ).toBeVisible();
   await expect(
     page
-      .getByRole("table", { name: "All transactions" })
+      .getByRole("table", { name: "All expenses" })
       .getByText("Archived dinner", { exact: true }),
   ).toBeVisible();
   await expect(
     page
-      .getByRole("table", { name: "All transactions" })
+      .getByRole("table", { name: "All expenses" })
       .getByText("Added by Deleted user"),
   ).toBeVisible();
   await expect(page.getByText("Read-only history").first()).toBeVisible();
@@ -165,11 +165,11 @@ test("shows archived Shared history separately and read-only", async ({
     page.getByRole("button", { name: /Delete Archived dinner/u }),
   ).toHaveCount(0);
   await expect(
-    page.getByRole("heading", { name: "Deleted Transactions" }),
+    page.getByRole("heading", { name: "Deleted Expenses" }),
   ).toBeVisible();
   await expect(
     page
-      .getByRole("table", { name: "Deleted transactions" })
+      .getByRole("table", { name: "Deleted expenses" })
       .getByText("Deleted dinner", { exact: true }),
   ).toBeVisible();
   await expect(

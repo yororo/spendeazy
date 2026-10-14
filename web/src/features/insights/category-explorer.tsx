@@ -38,7 +38,7 @@ interface CategoryExplorerState {
 interface CategoryExplorerProps {
   readonly report: InsightsMonthlyReport;
   readonly initialState?: CategoryExplorerState;
-  readonly onViewTransactions?: (
+  readonly onViewExpenses?: (
     categoryId: string | undefined,
     period: ReportingPeriod,
     state: CategoryExplorerState,
@@ -63,7 +63,7 @@ const priority = (category: InsightsCategory) =>
 function CategoryExplorer({
   report,
   initialState,
-  onViewTransactions,
+  onViewExpenses,
   onEditBudget,
 }: CategoryExplorerProps) {
   const [state, setState] = useState<CategoryExplorerState>(
@@ -374,21 +374,21 @@ function CategoryExplorer({
                         )}
                   </p>
                   <div className="flex flex-wrap gap-2">
-                    {onViewTransactions && (
+                    {onViewExpenses && (
                       <Button
-                        id={`insights-transactions-${category.id}`}
+                        id={`insights-expenses-${category.id}`}
                         className="min-h-11 max-w-full h-auto whitespace-normal py-2"
                         variant="outline"
-                        aria-label={`View ${category.label} Transactions`}
+                        aria-label={`View ${category.label} Expenses`}
                         onClick={() =>
-                          onViewTransactions(
+                          onViewExpenses(
                             category.id ?? undefined,
                             report.period,
                             state,
                           )
                         }
                       >
-                        View Transactions
+                        View Expenses
                       </Button>
                     )}
                     {onEditBudget && category.id !== null && (
@@ -418,10 +418,10 @@ function CategoryExplorer({
                           categories: [pattern],
                         }}
                         period={report.period}
-                        onViewTransactions={
-                          onViewTransactions
+                        onViewExpenses={
+                          onViewExpenses
                             ? (id, period) =>
-                                onViewTransactions(id, period, state)
+                                onViewExpenses(id, period, state)
                             : undefined
                         }
                       />

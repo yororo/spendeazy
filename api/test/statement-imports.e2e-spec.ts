@@ -173,9 +173,7 @@ describe('authenticated statement-import routes', () => {
       .set('Accept', 'application/json')
       .send({
         ...statementImportInput(),
-        expenses: [
-          { ...statementImportInput().expenses[0], userId: '8' },
-        ],
+        expenses: [{ ...statementImportInput().expenses[0], userId: '8' }],
       });
 
     expect(listResponse.status).toBe(400);
@@ -494,9 +492,9 @@ describe('statement-import ownership through authenticated routes', () => {
       actorUserId: '42',
       type: 'created',
     });
-    expect(
-      typeof fixture.expenseActivities.createdInputs[0]?.expenseId,
-    ).toBe('string');
+    expect(typeof fixture.expenseActivities.createdInputs[0]?.expenseId).toBe(
+      'string',
+    );
   });
 
   it('requires categories to belong to the authenticated User and commits expenses in that scope', async () => {
@@ -571,9 +569,9 @@ describe('statement-import ownership through authenticated routes', () => {
       actorUserId: '42',
       type: 'created',
     });
-    expect(
-      typeof fixture.expenseActivities.createdInputs[0]?.expenseId,
-    ).toBe('string');
+    expect(typeof fixture.expenseActivities.createdInputs[0]?.expenseId).toBe(
+      'string',
+    );
   });
 });
 
@@ -1102,8 +1100,7 @@ class HttpImportedExpenseStore implements SpaceImportedExpenseStore {
   ): Promise<ImportedExpenseRecord | null> {
     return Promise.resolve(
       this.expenses.find(
-        (expense) =>
-          expense.spaceId === spaceId && expense.id === id,
+        (expense) => expense.spaceId === spaceId && expense.id === id,
       ) ?? null,
     );
   }

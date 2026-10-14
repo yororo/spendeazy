@@ -160,9 +160,7 @@ describe('TypeOrmStatementImportStore', () => {
 
   it('joins expense counts within the requested Space', async () => {
     const entities = [statementImportEntity({ id: '3', spaceId: '55' })];
-    const query = statementImportPageQuery(entities, [
-      { expenseCount: '2' },
-    ]);
+    const query = statementImportPageQuery(entities, [{ expenseCount: '2' }]);
     const repository = {
       createQueryBuilder: jest.fn().mockReturnValue(query),
     };

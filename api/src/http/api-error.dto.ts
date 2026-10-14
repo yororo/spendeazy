@@ -144,8 +144,7 @@ export class CategoryEligibilityDetailDto {
   categoryId!: string;
 
   @ApiProperty({
-    description:
-      'Zero-based reviewed Expense indexes requiring correction.',
+    description: 'Zero-based reviewed Expense indexes requiring correction.',
     type: 'array',
     items: { type: 'integer', minimum: 0 },
   })

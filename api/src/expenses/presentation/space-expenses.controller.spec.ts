@@ -25,11 +25,7 @@ describe('SpaceExpensesController', () => {
     );
 
     await expect(
-      controller.listExpenses(
-        authenticatedRequest('7'),
-        { spaceId: '10' },
-        {},
-      ),
+      controller.listExpenses(authenticatedRequest('7'), { spaceId: '10' }, {}),
     ).resolves.toEqual({
       items: [
         expect.objectContaining({
@@ -47,10 +43,7 @@ describe('SpaceExpensesController', () => {
       '7',
       '10',
     );
-    expect(expensesService.listExpensesInSpace).toHaveBeenCalledWith(
-      '10',
-      {},
-    );
+    expect(expensesService.listExpensesInSpace).toHaveBeenCalledWith('10', {});
   });
 
   it('checks membership before listing retained deleted Expenses', async () => {
@@ -85,9 +78,10 @@ describe('SpaceExpensesController', () => {
       '7',
       '10',
     );
-    expect(
-      expensesService.listDeletedExpensesInSpace,
-    ).toHaveBeenCalledWith('10', {});
+    expect(expensesService.listDeletedExpensesInSpace).toHaveBeenCalledWith(
+      '10',
+      {},
+    );
   });
 
   it('uses equal Space write access for creation and maps the scoped Location', async () => {
@@ -125,14 +119,16 @@ describe('SpaceExpensesController', () => {
       '7',
       '10',
     );
-    expect(
-      expensesService.createManualExpenseInSpace,
-    ).toHaveBeenCalledWith('7', '10', {
-      purchaseDate: '2026-08-01',
-      description: 'Coffee',
-      amount: '4.50',
-      categoryId: '42',
-    });
+    expect(expensesService.createManualExpenseInSpace).toHaveBeenCalledWith(
+      '7',
+      '10',
+      {
+        purchaseDate: '2026-08-01',
+        description: 'Coffee',
+        amount: '4.50',
+        categoryId: '42',
+      },
+    );
     expect(setHeader).toHaveBeenCalledWith(
       'Location',
       '/api/v1/users/me/spaces/10/expenses/100',
@@ -172,9 +168,10 @@ describe('SpaceExpensesController', () => {
       '7',
       '10',
     );
-    expect(
-      expensesService.listExpenseActivityInSpace,
-    ).toHaveBeenCalledWith('10', '100');
+    expect(expensesService.listExpenseActivityInSpace).toHaveBeenCalledWith(
+      '10',
+      '100',
+    );
   });
 
   it('passes the authoritative version for edits and If-Match for deletes', async () => {
@@ -207,12 +204,15 @@ describe('SpaceExpensesController', () => {
       `W/"${expense.updatedAt.toISOString()}"`,
     );
 
-    expect(
-      expensesService.updateSharedExpenseInSpace,
-    ).toHaveBeenCalledWith('7', '10', '100', {
-      description: 'Dinner',
-      expectedUpdatedAt: expense.updatedAt.toISOString(),
-    });
+    expect(expensesService.updateSharedExpenseInSpace).toHaveBeenCalledWith(
+      '7',
+      '10',
+      '100',
+      {
+        description: 'Dinner',
+        expectedUpdatedAt: expense.updatedAt.toISOString(),
+      },
+    );
     expect(expensesService.deleteExpenseInSpace).toHaveBeenCalledWith(
       '7',
       '10',
@@ -262,17 +262,13 @@ describe('SpaceExpensesController', () => {
         expectedUpdatedAt: expense.updatedAt.toISOString(),
       },
     );
-    expect(
-      expensesService.deleteManualExpenseInSpace,
-    ).toHaveBeenCalledWith(
+    expect(expensesService.deleteManualExpenseInSpace).toHaveBeenCalledWith(
       '7',
       '10',
       '100',
       expense.updatedAt.toISOString(),
     );
-    expect(
-      expensesService.updateSharedExpenseInSpace,
-    ).not.toHaveBeenCalled();
+    expect(expensesService.updateSharedExpenseInSpace).not.toHaveBeenCalled();
     expect(expensesService.deleteExpenseInSpace).not.toHaveBeenCalled();
   });
 
@@ -317,9 +313,7 @@ describe('SpaceExpensesController', () => {
         }),
       ],
     });
-    expect(
-      expensesService.updateSharedExpenseInSpace,
-    ).not.toHaveBeenCalled();
+    expect(expensesService.updateSharedExpenseInSpace).not.toHaveBeenCalled();
     expect(expensesService.deleteExpenseInSpace).not.toHaveBeenCalled();
   });
 });

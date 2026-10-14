@@ -62,9 +62,7 @@ describe('ExpensesService imported expenses', () => {
         '1',
         null,
       ),
-    ).rejects.toEqual(
-      expect.objectContaining({ code: 'EXPENSE_NOT_FOUND' }),
-    );
+    ).rejects.toEqual(expect.objectContaining({ code: 'EXPENSE_NOT_FOUND' }));
     expect(imported.updatedInput).toBeUndefined();
   });
 
@@ -168,9 +166,7 @@ function createService(
 
 class ImportedExpenseStoreFake implements SpaceImportedExpenseStore {
   updatedInput:
-    | UpdateImportedExpenseCategory
-    | UpdateImportedExpenseInput
-    | undefined;
+    UpdateImportedExpenseCategory | UpdateImportedExpenseInput | undefined;
   updatedActorUserId: string | undefined;
   deletedActorUserId: string | undefined;
   constructor(private readonly expense: ImportedExpenseRecord) {}

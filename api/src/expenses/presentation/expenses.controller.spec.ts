@@ -128,9 +128,10 @@ describe('ExpensesController', () => {
       totalCount: '1',
     });
 
-    expect(
-      expensesService.listDeletedExpensesInSpace,
-    ).toHaveBeenCalledWith('9', {});
+    expect(expensesService.listDeletedExpensesInSpace).toHaveBeenCalledWith(
+      '9',
+      {},
+    );
   });
 
   it('maps imported expense history with its statement relationship and nullable category', async () => {

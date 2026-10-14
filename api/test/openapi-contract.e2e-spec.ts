@@ -224,11 +224,8 @@ describe('runtime responses against the generated OpenAPI contract', () => {
         invoke(expensesService.listDeletedExpenses, '7', query),
       getManualExpenseInSpace: (_spaceId: string, id: string) =>
         invoke(expensesService.getManualExpense, '7', id),
-      updateExpenseInSpace: (
-        _spaceId: string,
-        id: string,
-        input: unknown,
-      ) => invoke(expensesService.updateExpense, '7', id, input),
+      updateExpenseInSpace: (_spaceId: string, id: string, input: unknown) =>
+        invoke(expensesService.updateExpense, '7', id, input),
       deleteManualExpenseInSpace: (
         _actorUserId: string,
         _spaceId: string,

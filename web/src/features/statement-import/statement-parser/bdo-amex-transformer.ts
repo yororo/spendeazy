@@ -296,7 +296,7 @@ function parseActivity(lines: readonly string[]): ParsedActivity {
       const subtotalCents = parseCents(subtotalText, "SUBTOTAL");
       if (activeSection.expenseCount === 0) {
         validationError(
-          `card activity section on line ${lineNumber} has no Expenses.`,
+          `card activity section on line ${lineNumber} has no Statement Entries.`,
         );
       }
       if (activeSection.balanceCents !== subtotalCents) {
@@ -347,7 +347,7 @@ function parseActivity(lines: readonly string[]): ParsedActivity {
     if (EXPENSE_PREFIX_PATTERN.test(trimmedLine)) {
       if (!activeSection) {
         validationError(
-          `expense row on line ${lineNumber} is outside card activity.`,
+          `statement entry on line ${lineNumber} is outside card activity.`,
         );
       }
 

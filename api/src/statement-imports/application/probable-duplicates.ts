@@ -27,9 +27,7 @@ export function findProbableDuplicateGroups(
   return [...incomingByFingerprint.entries()]
     .filter(([fingerprint, expenseIndexes]) => {
       const committedMatches = committedMatchesByFingerprint.get(fingerprint);
-      return (
-        expenseIndexes.length > 1 || (committedMatches?.length ?? 0) > 0
-      );
+      return expenseIndexes.length > 1 || (committedMatches?.length ?? 0) > 0;
     })
     .map(([fingerprint, expenseIndexes]) => ({
       fingerprint,
@@ -51,15 +49,11 @@ function groupIncomingExpenses(
   const incomingByFingerprint = new Map<string, number[]>();
 
   for (const expense of incomingExpenses) {
-    const expenseIndexes = incomingByFingerprint.get(
-      expense.fingerprint,
-    );
+    const expenseIndexes = incomingByFingerprint.get(expense.fingerprint);
     if (expenseIndexes) {
       expenseIndexes.push(expense.expenseIndex);
     } else {
-      incomingByFingerprint.set(expense.fingerprint, [
-        expense.expenseIndex,
-      ]);
+      incomingByFingerprint.set(expense.fingerprint, [expense.expenseIndex]);
     }
   }
 

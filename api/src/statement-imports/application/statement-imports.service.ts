@@ -290,9 +290,7 @@ async function findProbableDuplicates(
   }[],
 ) {
   const duplicateKeys = [
-    ...new Set(
-      preparedExpenses.map((expense) => expense.duplicateKey),
-    ),
+    ...new Set(preparedExpenses.map((expense) => expense.duplicateKey)),
   ];
   const committedMatchesByDuplicateKey = new Map<string, { id: string }[]>();
 
@@ -336,9 +334,7 @@ async function ensureCategoriesAreActive(
       return;
     }
 
-    expenseIndexesByCategory.set(expense.categoryId, [
-      expenseIndex,
-    ]);
+    expenseIndexesByCategory.set(expense.categoryId, [expenseIndex]);
   });
 
   const inactiveCategories: CategoryEligibilityConflict[] = [];

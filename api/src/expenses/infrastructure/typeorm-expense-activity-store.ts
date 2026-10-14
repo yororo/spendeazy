@@ -17,12 +17,8 @@ export class TypeOrmExpenseActivityStore implements ExpenseActivityStore {
     public readonly entityManager: EntityManager,
   ) {}
 
-  async create(
-    input: NewExpenseActivity,
-  ): Promise<ExpenseActivityRecord> {
-    const repository = this.entityManager.getRepository(
-      ExpenseActivityEntity,
-    );
+  async create(input: NewExpenseActivity): Promise<ExpenseActivityRecord> {
+    const repository = this.entityManager.getRepository(ExpenseActivityEntity);
     const entity = repository.create({
       expenseId: input.expenseId,
       spaceId: input.spaceId,
@@ -92,9 +88,7 @@ export function recordDeletedExpenseActivity(
     .then(() => undefined);
 }
 
-function toRecord(
-  entity: ExpenseActivityEntity,
-): ExpenseActivityRecord {
+function toRecord(entity: ExpenseActivityEntity): ExpenseActivityRecord {
   return {
     id: entity.id,
     expenseId: entity.expenseId,

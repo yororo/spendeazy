@@ -262,7 +262,7 @@ describe("StatementDropZone GCash recipient prompt", () => {
         }),
         expect.objectContaining({
           description:
-            "Buy Load Expense for 09999999999",
+            "Buy Load Transaction for 09999999999",
           reference: "5000073058896",
           amount: -151,
           isExcluded: false,
@@ -743,20 +743,20 @@ describe("StatementDropZone PDF password challenge", () => {
 
   it.each([
     [
-      "a malformed EastWest expense",
+      "a malformed EastWest statement entry",
       eastwestFixture.replace(
         "JUN 23 JUN 24 PETRON SERVICE STATION TAGUIG PHL 4,673.08",
         "JUN 23 JUN 24 malformed statement entry",
       ),
-      /EastWest Visa statement validation failed:.*malformed expense/i,
+      /EastWest Visa statement validation failed:.*malformed statement entry/i,
     ],
     [
-      "an empty EastWest activity section",
+      "an empty EastWest Statement Entry section",
       eastwestFixture.replace(
         /^[A-Z]{3}\s+\d{1,2}\s+[A-Z]{3}\s+\d{1,2}\s+.+$/gmu,
         "",
       ),
-      /EastWest Visa statement validation failed:.*no Expenses/i,
+      /EastWest Visa statement validation failed:.*no Statement Entries/i,
     ],
     [
       "an unreconciled EastWest control",

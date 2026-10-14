@@ -29,9 +29,7 @@ describe('TypeOrmCategorySummaryStore', () => {
     const entityManager = {
       getRepository: jest.fn(
         (entity: typeof CategoryEntity | typeof ExpenseEntity) =>
-          entity === CategoryEntity
-            ? categoryRepository
-            : expenseRepository,
+          entity === CategoryEntity ? categoryRepository : expenseRepository,
       ),
     } as unknown as EntityManager;
     const store = new TypeOrmCategorySummaryStore(entityManager);

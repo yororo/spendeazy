@@ -3,10 +3,7 @@ import {
   ApplicationError,
   type ErrorDetail,
 } from '../../errors/application-error';
-import type {
-  ExpenseCursorPosition,
-  ExpenseFilters,
-} from './expense-store';
+import type { ExpenseCursorPosition, ExpenseFilters } from './expense-store';
 
 const CURSOR_VERSION = 2;
 const CURSOR_ORDERING = 'purchaseDate:desc,id:desc' as const;

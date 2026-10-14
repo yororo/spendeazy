@@ -29,12 +29,7 @@ export class TypeOrmSpaceLifecycleStore implements SpaceLifecycleStore {
     archivedAt: Date,
   ): Promise<ArchivedSpaceRecord> {
     return this.entityManager.transaction((entityManager) =>
-      archiveSharedSpaceInExpense(
-        entityManager,
-        userId,
-        spaceId,
-        archivedAt,
-      ),
+      archiveSharedSpaceInExpense(entityManager, userId, spaceId, archivedAt),
     );
   }
 

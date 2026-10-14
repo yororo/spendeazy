@@ -9,9 +9,7 @@ describe('TypeOrmExpenseActivityStore', () => {
       create: jest.fn().mockReturnValue(entity),
       save: jest.fn().mockResolvedValue(entity),
     };
-    const store = new TypeOrmExpenseActivityStore(
-      entityManagerFor(repository),
-    );
+    const store = new TypeOrmExpenseActivityStore(entityManagerFor(repository));
 
     await expect(
       store.create({
@@ -55,9 +53,7 @@ describe('TypeOrmExpenseActivityStore', () => {
     const repository = {
       find: jest.fn().mockResolvedValue(entities),
     };
-    const store = new TypeOrmExpenseActivityStore(
-      entityManagerFor(repository),
-    );
+    const store = new TypeOrmExpenseActivityStore(entityManagerFor(repository));
 
     await expect(store.findByExpenseInSpace('7', '100')).resolves.toEqual(
       entities.map((entity) => ({
@@ -95,9 +91,7 @@ describe('TypeOrmExpenseActivityStore', () => {
     const repository = {
       find: jest.fn().mockResolvedValue([entity]),
     };
-    const store = new TypeOrmExpenseActivityStore(
-      entityManagerFor(repository),
-    );
+    const store = new TypeOrmExpenseActivityStore(entityManagerFor(repository));
 
     await expect(store.findByExpenseInSpace('7', '100')).resolves.toEqual([
       {

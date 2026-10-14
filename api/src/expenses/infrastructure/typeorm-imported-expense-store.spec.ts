@@ -26,7 +26,7 @@ describe('TypeOrmImportedExpenseStore', () => {
       save: jest.fn().mockResolvedValue({}),
     };
     const store = new TypeOrmImportedExpenseStore(
-      expensealEntityManager(
+      transactionalEntityManager(
         expenseRepository,
         categoryQuery,
         activityRepository,
@@ -83,7 +83,7 @@ describe('TypeOrmImportedExpenseStore', () => {
       save: jest.fn().mockResolvedValue({}),
     };
     const store = new TypeOrmImportedExpenseStore(
-      expensealEntityManager(
+      transactionalEntityManager(
         expenseRepository,
         categoryQuery,
         activityRepository,
@@ -152,7 +152,7 @@ describe('TypeOrmImportedExpenseStore', () => {
       save: jest.fn().mockResolvedValue({}),
     };
     const store = new TypeOrmImportedExpenseStore(
-      expensealEntityManager(expenseRepository, {}, activityRepository),
+      transactionalEntityManager(expenseRepository, {}, activityRepository),
     );
 
     await expect(
@@ -181,7 +181,7 @@ describe('TypeOrmImportedExpenseStore', () => {
   });
 });
 
-function expensealEntityManager(
+function transactionalEntityManager(
   expenseRepository: object,
   categoryQuery: object,
   activityRepository: object,
@@ -189,7 +189,7 @@ function expensealEntityManager(
   const categoryRepository = {
     createQueryBuilder: jest.fn().mockReturnValue(categoryQuery),
   };
-  const expensealManager = {
+  const transactionalManager = {
     getRepository: jest.fn((entity: unknown) => {
       if (entity === ExpenseEntity) return expenseRepository;
       if (entity === ExpenseActivityEntity) return activityRepository;
@@ -199,8 +199,8 @@ function expensealEntityManager(
   } as unknown as EntityManager;
 
   return {
-    expense: jest.fn((work: (manager: EntityManager) => unknown) =>
-      work(expensealManager),
+    transaction: jest.fn((work: (manager: EntityManager) => unknown) =>
+      work(transactionalManager),
     ),
   } as unknown as EntityManager;
 }

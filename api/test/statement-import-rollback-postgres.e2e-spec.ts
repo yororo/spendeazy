@@ -201,14 +201,12 @@ describeDatabase('Statement Import rollback with PostgreSQL', () => {
     const attemptedImport = await database
       .getRepository(StatementImportEntity)
       .findOneBy({ spaceId: personalSpaceId, fileHash: targetFileHash });
-    const attemptedExpenses = await database
-      .getRepository(ExpenseEntity)
-      .find({
-        where: [
-          { spaceId: personalSpaceId, description: firstDescription },
-          { spaceId: personalSpaceId, description: failureDescription },
-        ],
-      });
+    const attemptedExpenses = await database.getRepository(ExpenseEntity).find({
+      where: [
+        { spaceId: personalSpaceId, description: firstDescription },
+        { spaceId: personalSpaceId, description: failureDescription },
+      ],
+    });
     const persistedImport = await database
       .getRepository(StatementImportEntity)
       .findOneByOrFail({ id: existingImport.id, spaceId: personalSpaceId });

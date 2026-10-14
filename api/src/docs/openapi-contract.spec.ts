@@ -604,9 +604,7 @@ const OPERATION_EXPECTATIONS = [
     operationId: 'Expenses_getManualExpense',
     tag: 'Expenses',
     pathParameter: 'expenseId',
-    bodyResponses: [
-      { status: '200', schemaRef: 'ManualExpenseResponseDto' },
-    ],
+    bodyResponses: [{ status: '200', schemaRef: 'ManualExpenseResponseDto' }],
     errorResponses: { ...PROTECTED_ERRORS, ...VALIDATED_PATH_ERRORS },
   },
   {
@@ -726,9 +724,7 @@ const OPERATION_EXPECTATIONS = [
     operationId: 'SpaceExpenses_getExpense',
     tag: 'Expenses',
     pathParameters: ['spaceId', 'expenseId'],
-    bodyResponses: [
-      { status: '200', schemaRef: 'ManualExpenseResponseDto' },
-    ],
+    bodyResponses: [{ status: '200', schemaRef: 'ManualExpenseResponseDto' }],
     errorResponses: { ...PROTECTED_ERRORS, ...VALIDATED_PATH_ERRORS },
   },
   {

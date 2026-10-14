@@ -52,7 +52,7 @@ describe('TypeSafeCategorySuggestionEvaluator', () => {
     };
     expect(request.model).toBe('jev-1.13.0');
     expect(request.state).toEqual({
-      expenseDescription: 'Market purchase',
+      transactionDescription: 'Market purchase',
       activeCategories: [
         {
           id: '42',

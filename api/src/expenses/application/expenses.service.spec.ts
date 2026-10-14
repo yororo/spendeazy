@@ -251,9 +251,7 @@ class ExpenseStoreFake implements SpaceExpenseStore {
     return Promise.resolve(createdExpense);
   }
 
-  findPageInSpace(
-    query: SpaceExpensePageQuery,
-  ): Promise<ExpenseRecord[]> {
+  findPageInSpace(query: SpaceExpensePageQuery): Promise<ExpenseRecord[]> {
     this.spacePageQuery = query;
     return Promise.resolve(
       this.pageResults.filter(
@@ -333,8 +331,7 @@ class ExpenseStoreFake implements SpaceExpenseStore {
   ): Promise<ManualExpenseRecord | null> {
     return Promise.resolve(
       this.expenses.find(
-        (expense) =>
-          expense.spaceId === spaceId && expense.id === id,
+        (expense) => expense.spaceId === spaceId && expense.id === id,
       ) ?? null,
     );
   }
@@ -374,8 +371,7 @@ class ExpenseActivityStoreFake implements ExpenseActivityStore {
     return Promise.resolve(
       this.activities.filter(
         (activity) =>
-          activity.spaceId === spaceId &&
-          activity.expenseId === expenseId,
+          activity.spaceId === spaceId && activity.expenseId === expenseId,
       ),
     );
   }

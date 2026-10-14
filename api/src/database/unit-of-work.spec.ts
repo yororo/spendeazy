@@ -5,11 +5,11 @@ describe('TypeOrmStatementImportConfirmationUnitOfWork', () => {
   it('executes confirmation work in one transaction without exposing the manager', async () => {
     const entityManager = {} as EntityManager;
     const expectedResult = { imported: true };
-    const expense = jest.fn(
+    const transaction = jest.fn(
       (callback: (manager: EntityManager) => Promise<unknown>) =>
         callback(entityManager),
     );
-    const dataSource = { expense } as unknown as DataSource;
+    const dataSource = { transaction } as unknown as DataSource;
     const unitOfWork = new TypeOrmStatementImportConfirmationUnitOfWork(
       dataSource,
     );
@@ -19,16 +19,16 @@ describe('TypeOrmStatementImportConfirmationUnitOfWork', () => {
         expect(context).not.toHaveProperty('entityManager');
         expect(Object.keys(context).sort()).toEqual([
           'categories',
+          'expenseActivities',
           'importedExpenses',
           'spaces',
           'statementImports',
-          'expenseActivities',
           'users',
         ]);
         return Promise.resolve(expectedResult);
       }),
     ).resolves.toBe(expectedResult);
 
-    expect(expense).toHaveBeenCalledTimes(1);
+    expect(transaction).toHaveBeenCalledTimes(1);
   });
 });

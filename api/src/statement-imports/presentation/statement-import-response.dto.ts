@@ -207,8 +207,7 @@ export class StatementImportHistoryResponseDto {
   importedByUserId!: string;
 
   @ApiProperty({
-    description:
-      'Non-negative committed Expense count encoded as a string.',
+    description: 'Non-negative committed Expense count encoded as a string.',
     type: String,
     pattern: '^\\d+$',
     example: '12',

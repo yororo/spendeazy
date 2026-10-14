@@ -21,10 +21,7 @@ import {
   type ImportedExpenseRecord,
   type SpaceImportedExpenseStore,
 } from './imported-expense-store';
-import {
-  decodeExpenseCursor,
-  encodeExpenseCursor,
-} from './expense-cursor';
+import { decodeExpenseCursor, encodeExpenseCursor } from './expense-cursor';
 import {
   SPACE_EXPENSE_STORE,
   type ManualExpenseRecord,
@@ -129,10 +126,7 @@ export class ExpensesService {
     spaceId: string,
     id: string,
   ): Promise<ManualExpenseRecord> {
-    const expense = await this.spaceExpenseStore.findByIdInSpace(
-      spaceId,
-      id,
-    );
+    const expense = await this.spaceExpenseStore.findByIdInSpace(spaceId, id);
     if (!expense) {
       throw new ExpenseNotFoundError();
     }
@@ -144,18 +138,12 @@ export class ExpensesService {
     spaceId: string,
     expenseId: string,
   ): Promise<ExpenseActivityRecord[]> {
-    const expense = await this.findExpenseInHistoryInSpace(
-      spaceId,
-      expenseId,
-    );
+    const expense = await this.findExpenseInHistoryInSpace(spaceId, expenseId);
     if (!expense) {
       throw new ExpenseNotFoundError();
     }
 
-    return this.expenseActivityStore.findByExpenseInSpace(
-      spaceId,
-      expenseId,
-    );
+    return this.expenseActivityStore.findByExpenseInSpace(spaceId, expenseId);
   }
 
   async listExpensesInSpace(
@@ -178,15 +166,9 @@ export class ExpensesService {
     id: string,
     input: UpdateManualExpense,
   ): Promise<ManualExpenseRecord> {
-    const currentExpense = await this.getManualExpenseInSpace(
-      spaceId,
-      id,
-    );
+    const currentExpense = await this.getManualExpenseInSpace(spaceId, id);
     const changes = normalizeUpdate(input);
-    assertCurrentVersion(
-      currentExpense.updatedAt,
-      changes.expectedUpdatedAt,
-    );
+    assertCurrentVersion(currentExpense.updatedAt, changes.expectedUpdatedAt);
 
     if (
       changes.categoryId !== undefined &&
@@ -224,12 +206,7 @@ export class ExpensesService {
       id,
     );
     if (manualExpense) {
-      return this.updateManualExpenseInSpace(
-        actorUserId,
-        spaceId,
-        id,
-        input,
-      );
+      return this.updateManualExpenseInSpace(actorUserId, spaceId, id, input);
     }
 
     const importedExpense =
@@ -267,20 +244,10 @@ export class ExpensesService {
       id,
     );
     if (manualExpense) {
-      return this.updateManualExpenseInSpace(
-        actorUserId,
-        spaceId,
-        id,
-        input,
-      );
+      return this.updateManualExpenseInSpace(actorUserId, spaceId, id, input);
     }
 
-    return this.updateImportedExpenseInSpace(
-      actorUserId,
-      spaceId,
-      id,
-      input,
-    );
+    return this.updateImportedExpenseInSpace(actorUserId, spaceId, id, input);
   }
 
   async updateImportedExpenseInSpace(
@@ -296,10 +263,7 @@ export class ExpensesService {
     }
 
     const changes = normalizeUpdate(input);
-    assertCurrentVersion(
-      importedExpense.updatedAt,
-      changes.expectedUpdatedAt,
-    );
+    assertCurrentVersion(importedExpense.updatedAt, changes.expectedUpdatedAt);
 
     if (
       changes.categoryId !== undefined &&
@@ -313,13 +277,12 @@ export class ExpensesService {
       return importedExpense;
     }
 
-    const updatedExpense =
-      await this.spaceImportedExpenseStore.updateInSpace(
-        spaceId,
-        id,
-        changes,
-        actorUserId,
-      );
+    const updatedExpense = await this.spaceImportedExpenseStore.updateInSpace(
+      spaceId,
+      id,
+      changes,
+      actorUserId,
+    );
     if (!updatedExpense) {
       throw new ExpenseNotFoundError();
     }
@@ -333,10 +296,7 @@ export class ExpensesService {
     id: string,
     expectedUpdatedAt?: string,
   ): Promise<void> {
-    const currentExpense = await this.getManualExpenseInSpace(
-      spaceId,
-      id,
-    );
+    const currentExpense = await this.getManualExpenseInSpace(spaceId, id);
     assertCurrentVersion(currentExpense.updatedAt, expectedUpdatedAt);
 
     const deleted = await this.spaceExpenseStore.deleteInSpace(
@@ -481,11 +441,10 @@ export class ExpensesService {
     spaceId: string,
     expenseId: string,
   ): Promise<ManualExpenseRecord | ImportedExpenseRecord | null> {
-    const manualExpense =
-      await this.spaceExpenseStore.findByIdInHistoryInSpace(
-        spaceId,
-        expenseId,
-      );
+    const manualExpense = await this.spaceExpenseStore.findByIdInHistoryInSpace(
+      spaceId,
+      expenseId,
+    );
     if (manualExpense) {
       return manualExpense;
     }
@@ -497,9 +456,7 @@ export class ExpensesService {
   }
 }
 
-function normalizeUpdate(
-  input: UpdateManualExpense,
-): UpdateManualExpense {
+function normalizeUpdate(input: UpdateManualExpense): UpdateManualExpense {
   return {
     ...(input.categoryId !== undefined ? { categoryId: input.categoryId } : {}),
     ...(input.purchaseDate !== undefined
@@ -535,8 +492,7 @@ function isNoOp(
       changes.purchaseDate === currentExpense.purchaseDate) &&
     (changes.description === undefined ||
       changes.description === currentExpense.description) &&
-    (changes.amount === undefined ||
-      changes.amount === currentExpense.amount)
+    (changes.amount === undefined || changes.amount === currentExpense.amount)
   );
 }
 

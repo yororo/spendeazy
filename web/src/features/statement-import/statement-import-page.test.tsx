@@ -871,7 +871,7 @@ describe("StatementImportPage GCash recipient flow", () => {
     const firstTransferReference = "5043775892919";
     const secondTransfer = "Transfer from 09222222222 to 09676769174";
     const secondTransferReference = "5044211321443";
-    const parsedPhoneDescription = "Buy Load Expense for 09676769174";
+    const parsedPhoneDescription = "Buy Load Transaction for 09676769174";
     const parsedPhoneReference = "5000073058896";
     const fixtureStatement = gcashEwalletTransformer.transform(
       gcashFixture.replace(

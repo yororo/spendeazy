@@ -77,9 +77,7 @@ export interface SpaceExpenseStore {
     spaceId: string,
     id: string,
   ): Promise<ManualExpenseRecord | null>;
-  findPageInSpace(
-    query: SpaceExpensePageQuery,
-  ): Promise<ExpenseRecord[]>;
+  findPageInSpace(query: SpaceExpensePageQuery): Promise<ExpenseRecord[]>;
   countInSpace(query: SpaceExpensePageQuery): Promise<number>;
   createInSpace(input: NewManualExpense): Promise<ManualExpenseRecord>;
   updateInSpace(

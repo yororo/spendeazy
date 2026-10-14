@@ -8,8 +8,7 @@ export class ExpenseNotFoundError extends ApplicationError {
   }
 }
 
-export const IMPORTED_EXPENSE_IMMUTABLE_CODE =
-  'IMPORTED_EXPENSE_IMMUTABLE';
+export const IMPORTED_EXPENSE_IMMUTABLE_CODE = 'IMPORTED_EXPENSE_IMMUTABLE';
 
 export class ImportedExpenseImmutableError extends ApplicationError {
   constructor() {

@@ -144,8 +144,7 @@ export class ExpenseCollectionQueryDto {
   @IsString()
   @IsIn(['manual', 'imported'])
   @ApiPropertyOptional({
-    description:
-      'Whether to return manually recorded or imported Expenses.',
+    description: 'Whether to return manually recorded or imported Expenses.',
     enum: ['manual', 'imported'],
     example: 'imported',
   })
@@ -156,8 +155,7 @@ export class ExpenseCollectionQueryDto {
   @Length(1, EXPENSE_DESCRIPTION_MAX_LENGTH)
   @Transform(trimDescription)
   @ApiPropertyOptional({
-    description:
-      'Case-insensitive text contained in the Expense description.',
+    description: 'Case-insensitive text contained in the Expense description.',
     minLength: 1,
     maxLength: EXPENSE_DESCRIPTION_MAX_LENGTH,
     example: 'groceries',

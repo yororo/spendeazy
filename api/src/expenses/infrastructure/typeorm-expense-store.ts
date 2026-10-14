@@ -139,10 +139,9 @@ export class TypeOrmExpenseStore implements SpaceExpenseStore {
       expenseQuery.andWhere('expense.categoryId IS NULL');
     }
     if (query.filters.statementImportId !== undefined) {
-      expenseQuery.andWhere(
-        'expense.statementImportId = :statementImportId',
-        { statementImportId: query.filters.statementImportId },
-      );
+      expenseQuery.andWhere('expense.statementImportId = :statementImportId', {
+        statementImportId: query.filters.statementImportId,
+      });
     }
     if (query.filters.source === 'manual') {
       expenseQuery.andWhere('expense.statementImportId IS NULL');
@@ -169,9 +168,7 @@ export class TypeOrmExpenseStore implements SpaceExpenseStore {
     }
   }
 
-  async createInSpace(
-    input: NewManualExpense,
-  ): Promise<ManualExpenseRecord> {
+  async createInSpace(input: NewManualExpense): Promise<ManualExpenseRecord> {
     return this.entityManager.transaction(async (entityManager) => {
       if (input.categoryId !== null) {
         await ensureActiveCategoryInSpace(
@@ -407,9 +404,7 @@ async function saveManualExpense(
   }
 }
 
-function toManualExpenseRecord(
-  entity: ExpenseEntity,
-): ManualExpenseRecord {
+function toManualExpenseRecord(entity: ExpenseEntity): ManualExpenseRecord {
   return {
     ...toExpenseFields(entity),
     source: 'manual',

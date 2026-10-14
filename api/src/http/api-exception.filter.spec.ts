@@ -210,8 +210,7 @@ describe('ApiExceptionFilter', () => {
     expect(response.json).toHaveBeenCalledWith({
       error: {
         code: 'STATEMENT_IMPORT_PROBABLE_DUPLICATES',
-        message:
-          'Probable duplicate imported expenses require acknowledgement',
+        message: 'Probable duplicate imported expenses require acknowledgement',
         details: [
           {
             field: '/expenses/0',

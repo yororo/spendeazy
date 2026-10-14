@@ -124,12 +124,11 @@ export class SpaceExpensesController {
   ): Promise<ManualExpenseResponseDto> {
     const userId = requireAuthenticatedUserId(request);
     await this.spaceAccessService.requireWriteAccess(userId, params.spaceId);
-    const expense =
-      await this.expensesService.createManualExpenseInSpace(
-        userId,
-        params.spaceId,
-        input,
-      );
+    const expense = await this.expensesService.createManualExpenseInSpace(
+      userId,
+      params.spaceId,
+      input,
+    );
     response.status(HttpStatus.CREATED);
     response.setHeader(
       'Location',
@@ -241,11 +240,10 @@ export class SpaceExpensesController {
   ): Promise<ExpenseActivityResponseDto[]> {
     const userId = requireAuthenticatedUserId(request);
     await this.spaceAccessService.requireReadAccess(userId, params.spaceId);
-    const activity =
-      await this.expensesService.listExpenseActivityInSpace(
-        params.spaceId,
-        params.expenseId,
-      );
+    const activity = await this.expensesService.listExpenseActivityInSpace(
+      params.spaceId,
+      params.expenseId,
+    );
     return activity.map(toExpenseActivityResponse);
   }
 
@@ -459,9 +457,6 @@ function requireScopedExpenseVersion(
   return normalized;
 }
 
-function spaceExpenseLocation(
-  spaceId: string,
-  expenseId: string,
-): string {
+function spaceExpenseLocation(spaceId: string, expenseId: string): string {
   return `/${API_PREFIX}/users/me/spaces/${spaceId}/expenses/${expenseId}`;
 }

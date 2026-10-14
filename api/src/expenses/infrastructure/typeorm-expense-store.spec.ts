@@ -34,7 +34,7 @@ describe('TypeOrmExpenseStore', () => {
       }),
     };
     const categoryQuery = categoryQueryBuilder({ isActive: true });
-    const entityManager = expensealEntityManager(
+    const entityManager = transactionalEntityManager(
       expenseRepository,
       categoryQuery,
       activityRepository,
@@ -83,7 +83,7 @@ describe('TypeOrmExpenseStore', () => {
     };
     const categoryQuery = categoryQueryBuilder({ isActive: false });
     const store = new TypeOrmExpenseStore(
-      expensealEntityManager(expenseRepository, categoryQuery),
+      transactionalEntityManager(expenseRepository, categoryQuery),
     );
 
     await expect(
@@ -110,7 +110,7 @@ describe('TypeOrmExpenseStore', () => {
     };
     const categoryQuery = categoryQueryBuilder({ isActive: true });
     const store = new TypeOrmExpenseStore(
-      expensealEntityManager(
+      transactionalEntityManager(
         expenseRepository,
         categoryQuery,
         activityRepository,
@@ -176,7 +176,7 @@ describe('TypeOrmExpenseStore', () => {
       save: jest.fn().mockResolvedValue({}),
     };
     const store = new TypeOrmExpenseStore(
-      expensealEntityManager(
+      transactionalEntityManager(
         expenseRepository,
         categoryQueryBuilder({ isActive: true }),
         activityRepository,
@@ -232,7 +232,7 @@ describe('TypeOrmExpenseStore', () => {
       save: jest.fn(),
     };
     const store = new TypeOrmExpenseStore(
-      expensealEntityManager(
+      transactionalEntityManager(
         expenseRepository,
         categoryQueryBuilder({ isActive: true }),
         activityRepository,
@@ -293,9 +293,7 @@ describe('TypeOrmExpenseStore', () => {
     expect(query.where).toHaveBeenCalledWith('expense.spaceId = :spaceId', {
       spaceId: '7',
     });
-    expect(query.andWhere).toHaveBeenCalledWith(
-      'expense.deletedAt IS NULL',
-    );
+    expect(query.andWhere).toHaveBeenCalledWith('expense.deletedAt IS NULL');
     expect(query.andWhere).toHaveBeenCalledWith(
       'expense.purchaseDate >= :fromDate',
       { fromDate: '2026-08-01' },
@@ -330,10 +328,7 @@ describe('TypeOrmExpenseStore', () => {
       '(expense.purchaseDate < :cursorDate OR (expense.purchaseDate = :cursorDate AND expense.id < :cursorId))',
       { cursorDate: '2026-08-15', cursorId: '100' },
     );
-    expect(query.orderBy).toHaveBeenCalledWith(
-      'expense.purchaseDate',
-      'DESC',
-    );
+    expect(query.orderBy).toHaveBeenCalledWith('expense.purchaseDate', 'DESC');
     expect(query.addOrderBy).toHaveBeenCalledWith('expense.id', 'DESC');
     expect(query.take).toHaveBeenCalledWith(3);
   });
@@ -364,7 +359,7 @@ describe('TypeOrmExpenseStore', () => {
   });
 });
 
-function expensealEntityManager(
+function transactionalEntityManager(
   expenseRepository: object,
   categoryQuery: object,
   activityRepository: object = {
@@ -375,7 +370,7 @@ function expensealEntityManager(
   const categoryRepository = {
     createQueryBuilder: jest.fn().mockReturnValue(categoryQuery),
   };
-  const expensealManager = {
+  const transactionalManager = {
     getRepository: jest.fn((entity: typeof ExpenseEntity) => {
       if (entity === ExpenseEntity) return expenseRepository;
       if (entity === ExpenseActivityEntity) return activityRepository;
@@ -384,8 +379,8 @@ function expensealEntityManager(
   } as unknown as EntityManager;
 
   return {
-    expense: jest.fn((work: (manager: EntityManager) => unknown) =>
-      work(expensealManager),
+    transaction: jest.fn((work: (manager: EntityManager) => unknown) =>
+      work(transactionalManager),
     ),
   } as unknown as EntityManager;
 }

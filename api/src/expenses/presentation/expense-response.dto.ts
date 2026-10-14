@@ -147,8 +147,7 @@ export class ImportedExpenseResponseDto {
   amount!: string;
 
   @ApiProperty({
-    description:
-      'The Expense was committed from a reviewed Statement import.',
+    description: 'The Expense was committed from a reviewed Statement import.',
     enum: ['imported'],
     example: 'imported',
   })
@@ -241,8 +240,7 @@ export class ManualExpenseHistoryResponseDto {
   addedByUserId?: string;
 
   @ApiProperty({
-    description:
-      'Manual Expenses are not associated with a Statement import.',
+    description: 'Manual Expenses are not associated with a Statement import.',
     enum: [null],
     pattern: POSITIVE_INTEGER_ID_PATTERN.source,
     nullable: true,
@@ -323,8 +321,7 @@ export class ImportedExpenseHistoryResponseDto {
   amount!: string;
 
   @ApiProperty({
-    description:
-      'The Expense was committed from a reviewed Statement import.',
+    description: 'The Expense was committed from a reviewed Statement import.',
     enum: ['imported'],
     example: 'imported',
   })
@@ -370,8 +367,7 @@ export class ImportedExpenseHistoryResponseDto {
 }
 
 @ApiSchema({
-  description:
-    'The editable Expense values captured before or after an edit.',
+  description: 'The editable Expense values captured before or after an edit.',
   additionalProperties: false,
 } as ApiSchemaOptionsWithAdditionalProperties)
 export class ExpenseActivitySnapshotDto {

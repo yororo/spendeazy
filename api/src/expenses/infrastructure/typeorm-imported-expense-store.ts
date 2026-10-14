@@ -61,9 +61,7 @@ export class TypeOrmImportedExpenseStore implements SpaceImportedExpenseStore {
     return entities.map(toRecord);
   }
 
-  async create(
-    input: NewImportedExpense,
-  ): Promise<ImportedExpenseRecord> {
+  async create(input: NewImportedExpense): Promise<ImportedExpenseRecord> {
     const entity = this.entityManager.getRepository(ExpenseEntity).create({
       spaceId: input.spaceId,
       addedByUserId: input.addedByUserId,

@@ -43,7 +43,7 @@ async function extractPdfPages(
     parser = new PDFParse({
       data: new Uint8Array(await file.arrayBuffer()),
       password,
-      // Partial extraction could silently omit Expenses.
+      // Partial extraction could silently omit Statement Entries.
       stopAtErrors: true,
     });
     const result = await parser.getText({ pageJoiner: "" });

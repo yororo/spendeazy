@@ -184,11 +184,13 @@ describeDatabase('expense rename migration with PostgreSQL', () => {
       actorUserId: users[0].id,
       deletingActorId: users[1].id,
     });
-    await expect(database.undoLastMigration()).resolves.toEqual([
-      expect.objectContaining({
-        name: 'RenameTransactionsToExpenses1960000000000',
-      }),
-    ]);
+    await database.undoLastMigration();
+    const [latestMigration] = await rows<{ name: string }>(
+      'SELECT name FROM typeorm_migrations ORDER BY id DESC LIMIT 1',
+    );
+    expect(latestMigration).toEqual({
+      name: 'ClassifyStatementImports1950000000000',
+    });
     await expectPreservedTransactionSchema(manual.id, imported.id);
     await database.runMigrations();
     await expectPreservedExpenseSchema({

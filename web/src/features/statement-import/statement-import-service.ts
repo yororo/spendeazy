@@ -677,10 +677,12 @@ async function hashStatementFile(file: File): Promise<string> {
     );
   }
 
-  const digest = await globalThis.crypto.subtle.digest(
-    "SHA-256",
-    await file.arrayBuffer(),
-  );
+  const sourceBytes = new Uint8Array(await file.arrayBuffer());
+  // Copy into a locally allocated view. jsdom File bytes can come from
+  // another ArrayBuffer realm, which SubtleCrypto rejects.
+  const fileBytes = new Uint8Array(sourceBytes.byteLength);
+  fileBytes.set(sourceBytes);
+  const digest = await globalThis.crypto.subtle.digest("SHA-256", fileBytes);
 
   return Array.from(new Uint8Array(digest), (byte) =>
     byte.toString(16).padStart(2, "0"),

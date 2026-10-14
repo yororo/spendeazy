@@ -13,16 +13,13 @@ type SwaggerParserDocument = Parameters<typeof SwaggerParser.validate>[0];
 describe('Expense OpenAPI contract', () => {
   it('describes source-specific responses, pagination, and expense constraints', async () => {
     const document = await createOpenApiDocument();
-    const collectionPath =
-      document.paths[`/${API_PREFIX}/users/me/expenses`];
+    const collectionPath = document.paths[`/${API_PREFIX}/users/me/expenses`];
     const historyPath =
       document.paths[`/${API_PREFIX}/users/me/expenses/history`];
     const itemPath =
       document.paths[`/${API_PREFIX}/users/me/expenses/{expenseId}`];
     const activityPath =
-      document.paths[
-        `/${API_PREFIX}/users/me/expenses/{expenseId}/activity`
-      ];
+      document.paths[`/${API_PREFIX}/users/me/expenses/{expenseId}/activity`];
     const createOperation = collectionPath?.post as OperationObject;
     const listOperation = collectionPath?.get as OperationObject;
     const historyOperation = historyPath?.get as OperationObject;
@@ -74,8 +71,7 @@ describe('Expense OpenAPI contract', () => {
     expect(updateOperation).toMatchObject({
       operationId: 'Expenses_updateExpense',
       tags: ['Expenses'],
-      summary:
-        'Update a manual expense or recategorize an imported expense.',
+      summary: 'Update a manual expense or recategorize an imported expense.',
     });
     expect(deleteOperation).toMatchObject({
       operationId: 'Expenses_deleteManualExpense',
@@ -339,10 +335,7 @@ describe('Expense OpenAPI contract', () => {
       '500': 'InternalError',
     });
 
-    const manualResponseSchema = schema(
-      document,
-      'ManualExpenseResponseDto',
-    );
+    const manualResponseSchema = schema(document, 'ManualExpenseResponseDto');
     expect(manualResponseSchema).toMatchObject({
       type: 'object',
       additionalProperties: false,
@@ -460,8 +453,7 @@ describe('Expense OpenAPI contract', () => {
             discriminator: {
               propertyName: 'source',
               mapping: {
-                manual:
-                  '#/components/schemas/ManualExpenseHistoryResponseDto',
+                manual: '#/components/schemas/ManualExpenseHistoryResponseDto',
                 imported:
                   '#/components/schemas/ImportedExpenseHistoryResponseDto',
               },
@@ -507,9 +499,7 @@ describe('Expense OpenAPI contract', () => {
       },
     });
 
-    expect(
-      document.components?.schemas?.CreateManualExpenseDto,
-    ).toMatchObject({
+    expect(document.components?.schemas?.CreateManualExpenseDto).toMatchObject({
       type: 'object',
       additionalProperties: false,
       required: ['purchaseDate', 'description', 'amount'],
@@ -532,9 +522,7 @@ describe('Expense OpenAPI contract', () => {
         },
       },
     });
-    expect(
-      document.components?.schemas?.UpdateManualExpenseDto,
-    ).toMatchObject({
+    expect(document.components?.schemas?.UpdateManualExpenseDto).toMatchObject({
       type: 'object',
       additionalProperties: false,
       minProperties: 1,

@@ -134,10 +134,7 @@ describe('Space expense API routes', () => {
       '42',
       '10',
     );
-    expect(expensesService.listExpensesInSpace).toHaveBeenCalledWith(
-      '10',
-      {},
-    );
+    expect(expensesService.listExpensesInSpace).toHaveBeenCalledWith('10', {});
 
     const deletedHistoryResponse = await request(
       application.getHttpServer() as Server,
@@ -156,9 +153,10 @@ describe('Space expense API routes', () => {
       ],
       nextCursor: null,
     });
-    expect(
-      expensesService.listDeletedExpensesInSpace,
-    ).toHaveBeenCalledWith('10', {});
+    expect(expensesService.listDeletedExpensesInSpace).toHaveBeenCalledWith(
+      '10',
+      {},
+    );
 
     const activityResponse = await request(
       application.getHttpServer() as Server,
@@ -196,9 +194,10 @@ describe('Space expense API routes', () => {
         },
       },
     ]);
-    expect(
-      expensesService.listExpenseActivityInSpace,
-    ).toHaveBeenCalledWith('10', '100');
+    expect(expensesService.listExpenseActivityInSpace).toHaveBeenCalledWith(
+      '10',
+      '100',
+    );
 
     const createResponse = await request(application.getHttpServer() as Server)
       .post('/api/v1/users/me/spaces/10/expenses')
@@ -215,14 +214,16 @@ describe('Space expense API routes', () => {
     expect(createResponse.headers.location).toBe(
       '/api/v1/users/me/spaces/10/expenses/100',
     );
-    expect(
-      expensesService.createManualExpenseInSpace,
-    ).toHaveBeenCalledWith('42', '10', {
-      purchaseDate: '2026-08-01',
-      description: 'Coffee',
-      amount: '4.50',
-      categoryId: '42',
-    });
+    expect(expensesService.createManualExpenseInSpace).toHaveBeenCalledWith(
+      '42',
+      '10',
+      {
+        purchaseDate: '2026-08-01',
+        description: 'Coffee',
+        amount: '4.50',
+        categoryId: '42',
+      },
+    );
 
     const updateResponse = await request(application.getHttpServer() as Server)
       .patch('/api/v1/users/me/spaces/10/expenses/100')
@@ -231,12 +232,15 @@ describe('Space expense API routes', () => {
       .send({ description: 'Dinner', updatedAt: EXPENSE_TIMESTAMP });
 
     expect(updateResponse.status).toBe(200);
-    expect(
-      expensesService.updateSharedExpenseInSpace,
-    ).toHaveBeenCalledWith('42', '10', '100', {
-      description: 'Dinner',
-      expectedUpdatedAt: EXPENSE_TIMESTAMP,
-    });
+    expect(expensesService.updateSharedExpenseInSpace).toHaveBeenCalledWith(
+      '42',
+      '10',
+      '100',
+      {
+        description: 'Dinner',
+        expectedUpdatedAt: EXPENSE_TIMESTAMP,
+      },
+    );
 
     const deleteResponse = await request(application.getHttpServer() as Server)
       .delete('/api/v1/users/me/spaces/10/expenses/100')
@@ -292,9 +296,7 @@ describe('Space expense API routes', () => {
         details: [],
       },
     });
-    expect(
-      expensesService.listExpenseActivityInSpace,
-    ).not.toHaveBeenCalled();
+    expect(expensesService.listExpenseActivityInSpace).not.toHaveBeenCalled();
   });
 
   it('does not disclose retained history for an inaccessible Space', async () => {
@@ -315,9 +317,7 @@ describe('Space expense API routes', () => {
         details: [],
       },
     });
-    expect(
-      expensesService.listDeletedExpensesInSpace,
-    ).not.toHaveBeenCalled();
+    expect(expensesService.listDeletedExpensesInSpace).not.toHaveBeenCalled();
   });
 });
 

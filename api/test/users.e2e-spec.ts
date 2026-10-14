@@ -168,9 +168,7 @@ describe('authenticated User routes', () => {
         .mockResolvedValue(expenseRecord({ id: '300', userId: '99' })),
       updateExpense: jest
         .fn()
-        .mockResolvedValue(
-          importedExpenseRecord({ id: '301', userId: '99' }),
-        ),
+        .mockResolvedValue(importedExpenseRecord({ id: '301', userId: '99' })),
       deleteManualExpense: jest.fn().mockResolvedValue(undefined),
     };
     Object.assign(categoriesService, {
@@ -673,15 +671,12 @@ describe('authenticated User routes', () => {
     expect(getResponse.status).toBe(200);
     expect(updateResponse.status).toBe(200);
     expect(deleteResponse.status).toBe(204);
-    expect(expensesService.createManualExpense).toHaveBeenCalledWith(
-      userId,
-      {
-        categoryId: '100',
-        purchaseDate: '2026-08-01',
-        description: 'Coffee',
-        amount: '4.50',
-      },
-    );
+    expect(expensesService.createManualExpense).toHaveBeenCalledWith(userId, {
+      categoryId: '100',
+      purchaseDate: '2026-08-01',
+      description: 'Coffee',
+      amount: '4.50',
+    });
     expect(expensesService.listExpenses).toHaveBeenCalledWith(userId, {
       fromDate: '2026-08-01',
       pageSize: 10,
@@ -690,11 +685,9 @@ describe('authenticated User routes', () => {
       userId,
       '300',
     );
-    expect(expensesService.updateExpense).toHaveBeenCalledWith(
-      userId,
-      '301',
-      { categoryId: '100' },
-    );
+    expect(expensesService.updateExpense).toHaveBeenCalledWith(userId, '301', {
+      categoryId: '100',
+    });
     expect(expensesService.deleteManualExpense).toHaveBeenCalledWith(
       userId,
       '300',
@@ -840,8 +833,7 @@ describe('authenticated User routes', () => {
     const originalCreate = expensesService.createManualExpense;
     const originalUpdate = expensesService.updateExpense;
     const categoryNotFound = () => Promise.reject(new CategoryNotFoundError());
-    const expenseNotFound = () =>
-      Promise.reject(new ExpenseNotFoundError());
+    const expenseNotFound = () => Promise.reject(new ExpenseNotFoundError());
     expensesService.createManualExpense = jest.fn(
       (requestUserId: string, input: { categoryId?: string | null }) =>
         requestUserId !== userId || input.categoryId === '8'
@@ -894,18 +886,13 @@ describe('authenticated User routes', () => {
       expect(crossUserCategoryOnImported.status).toBe(404);
       expect(errorCode(crossUserCategoryOnImported)).toBe('CATEGORY_NOT_FOUND');
       expect(crossUserImportedExpense.status).toBe(404);
-      expect(errorCode(crossUserImportedExpense)).toBe(
-        'EXPENSE_NOT_FOUND',
-      );
-      expect(expensesService.createManualExpense).toHaveBeenCalledWith(
-        userId,
-        {
-          categoryId: '8',
-          purchaseDate: '2026-08-01',
-          description: 'Coffee',
-          amount: '4.50',
-        },
-      );
+      expect(errorCode(crossUserImportedExpense)).toBe('EXPENSE_NOT_FOUND');
+      expect(expensesService.createManualExpense).toHaveBeenCalledWith(userId, {
+        categoryId: '8',
+        purchaseDate: '2026-08-01',
+        description: 'Coffee',
+        amount: '4.50',
+      });
       expect(expensesService.updateExpense).toHaveBeenNthCalledWith(
         1,
         userId,
@@ -1165,24 +1152,14 @@ describe('authenticated User routes', () => {
       '/api/v1/users/8/categories',
       undefined,
     ],
-    [
-      'expense collection read',
-      'GET',
-      '/api/v1/users/8/expenses',
-      undefined,
-    ],
+    ['expense collection read', 'GET', '/api/v1/users/8/expenses', undefined],
     [
       'expense collection write',
       'POST',
       '/api/v1/users/8/expenses',
       { purchaseDate: '2026-08-01', description: 'Coffee', amount: '4.50' },
     ],
-    [
-      'expense item read',
-      'GET',
-      '/api/v1/users/8/expenses/300',
-      undefined,
-    ],
+    ['expense item read', 'GET', '/api/v1/users/8/expenses/300', undefined],
     [
       'expense item write',
       'PATCH',
@@ -1557,24 +1534,14 @@ describe('authenticated User routes', () => {
       '/api/v1/users/me/category-rules/200',
       undefined,
     ],
-    [
-      'expense collection read',
-      'GET',
-      '/api/v1/users/me/expenses',
-      undefined,
-    ],
+    ['expense collection read', 'GET', '/api/v1/users/me/expenses', undefined],
     [
       'expense collection write',
       'POST',
       '/api/v1/users/me/expenses',
       { purchaseDate: '2026-08-01', description: 'Coffee', amount: '4.50' },
     ],
-    [
-      'expense item read',
-      'GET',
-      '/api/v1/users/me/expenses/300',
-      undefined,
-    ],
+    ['expense item read', 'GET', '/api/v1/users/me/expenses/300', undefined],
     [
       'expense item write',
       'PATCH',

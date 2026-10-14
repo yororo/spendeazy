@@ -53,9 +53,7 @@ describe('expense cursors', () => {
   });
 
   it('rejects malformed cursors with a stable validation error', () => {
-    const error = captureError(() =>
-      decodeExpenseCursor('not-a-cursor', {}),
-    );
+    const error = captureError(() => decodeExpenseCursor('not-a-cursor', {}));
 
     expect(error).toBeInstanceOf(ApplicationError);
     if (error instanceof ApplicationError) {

@@ -128,9 +128,7 @@ describe('StatementImportsService', () => {
       users: userStore(),
       statementImports,
       importedExpenses,
-      categories: new ExpenseCategoryStoreFake([
-        categoryRecord({ id: '42' }),
-      ]),
+      categories: new ExpenseCategoryStoreFake([categoryRecord({ id: '42' })]),
       expenseActivities: new ExpenseActivityStoreFake(),
     });
     const referenceHasher = {
@@ -159,9 +157,7 @@ describe('StatementImportsService', () => {
       cardType: 'E-Wallet',
       transactionHistoryStartDate: '2026-08-09',
       totalDebit: '26696.92',
-      expenses: [
-        { ...statementInput().expenses[0], reference: '123456789' },
-      ],
+      expenses: [{ ...statementInput().expenses[0], reference: '123456789' }],
     });
 
     expect(statementImports.createdInput).toMatchObject({
@@ -172,9 +168,7 @@ describe('StatementImportsService', () => {
     expect(importedExpenses.createdInputs[0]).toMatchObject({
       referenceHash: 'digest:7:GCash:123456789',
     });
-    expect(importedExpenses.createdInputs[0]).not.toHaveProperty(
-      'reference',
-    );
+    expect(importedExpenses.createdInputs[0]).not.toHaveProperty('reference');
     expect(referenceHasher.hash).toHaveBeenCalledWith({
       spaceId: '7',
       provider: 'GCash',
@@ -242,9 +236,7 @@ describe('StatementImportsService', () => {
       users: userStore(),
       statementImports,
       importedExpenses,
-      categories: new ExpenseCategoryStoreFake([
-        categoryRecord({ id: '42' }),
-      ]),
+      categories: new ExpenseCategoryStoreFake([categoryRecord({ id: '42' })]),
       expenseActivities: new ExpenseActivityStoreFake(),
     });
     const service = new StatementImportsService(statementImports, unitOfWork, {
@@ -291,9 +283,7 @@ describe('StatementImportsService', () => {
       users: userStore(),
       statementImports,
       importedExpenses,
-      categories: new ExpenseCategoryStoreFake([
-        categoryRecord({ id: '42' }),
-      ]),
+      categories: new ExpenseCategoryStoreFake([categoryRecord({ id: '42' })]),
       expenseActivities: new ExpenseActivityStoreFake(),
     });
     const service = new StatementImportsService(statementImports, unitOfWork, {
@@ -414,9 +404,7 @@ describe('StatementImportsService', () => {
       users: userStore(),
       statementImports,
       importedExpenses,
-      categories: new ExpenseCategoryStoreFake([
-        categoryRecord({ id: '42' }),
-      ]),
+      categories: new ExpenseCategoryStoreFake([categoryRecord({ id: '42' })]),
       expenseActivities: new ExpenseActivityStoreFake(),
     });
     const service = new StatementImportsService(statementImports, unitOfWork);
@@ -467,9 +455,7 @@ describe('StatementImportsService', () => {
       users: userStore(),
       statementImports,
       importedExpenses,
-      categories: new ExpenseCategoryStoreFake([
-        categoryRecord({ id: '42' }),
-      ]),
+      categories: new ExpenseCategoryStoreFake([categoryRecord({ id: '42' })]),
       expenseActivities: new ExpenseActivityStoreFake(),
     });
     const service = new StatementImportsService(statementImports, unitOfWork);
@@ -626,9 +612,7 @@ describe('StatementImportsService', () => {
       users: userStore(),
       statementImports,
       importedExpenses,
-      categories: new ExpenseCategoryStoreFake([
-        categoryRecord({ id: '42' }),
-      ]),
+      categories: new ExpenseCategoryStoreFake([categoryRecord({ id: '42' })]),
       expenseActivities: new ExpenseActivityStoreFake(),
     });
     const service = new StatementImportsService(statementImports, unitOfWork);

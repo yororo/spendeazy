@@ -192,33 +192,33 @@ describe("categorizeStatement", () => {
       /orphan Reference/i,
     ],
     [
-      "a malformed expense-prefixed line",
+      "a malformed statement-entry line",
       bdoFixture.replace(
         "05/18/26 05/21/26 LAZADA PH MAKATI PH 1,590.00",
         "05/18/26 malformed statement entry",
       ),
-      /malformed expense/i,
+      /malformed statement entry/i,
     ],
     [
-      "a expense-prefixed line outside card activity",
+      "a statement-entry line outside card activity",
       bdoFixture.replace(
         "TOTAL 56,040.04",
         "TOTAL 56,040.04\n06/31/26 malformed statement entry",
       ),
-      /expense row.*outside card activity/i,
+      /statement entry.*outside card activity/i,
     ],
   ])("rejects %s", async (_case, text, error) => {
     await expect(categorizeFixture(text)).rejects.toThrow(error);
   });
 
-  it("rejects a BDO fixture without any extracted Expenses", async () => {
+  it("rejects a BDO fixture without any extracted Statement Entries", async () => {
     const withoutExpenses = bdoFixture.replace(
       /^\d{2}\/\d{2}\/\d{2}\s+\d{2}\/\d{2}\/\d{2}\s+.+$/gmu,
       "",
     );
 
     await expect(categorizeFixture(withoutExpenses)).rejects.toThrow(
-      /Expenses|subtotal/i,
+      /Statement Entries|subtotal/i,
     );
   });
 
@@ -243,7 +243,7 @@ describe("categorizeStatement", () => {
           isExcluded: false,
         }),
         expect.objectContaining({
-          description: "QUASI CASH EXPENSE FEE",
+          description: "QUASI CASH TRANSACTION FEE",
           amount: -300,
           isExcluded: false,
         }),
@@ -317,7 +317,7 @@ Total Statement Balance 200.00`;
       /missing Credits control/i,
     ],
     [
-      "no Expenses",
+      "no Statement Entries",
       eastwestFixture.replace(
         /^[A-Z]{3}\s+\d{1,2}\s+[A-Z]{3}\s+\d{1,2}\s+.+$/gmu,
         "",
@@ -338,7 +338,7 @@ Total Statement Balance 200.00`;
         "JUN 23 JUN 24 PETRON SERVICE STATION TAGUIG PHL 4,673.08",
         "JUN 23 JUN 24 PETRON SERVICE STATION TAGUIG PHL 4,673.0",
       ),
-      /malformed expense|invalid amount/i,
+      /malformed statement entry|invalid amount/i,
     ],
     [
       "a doubly signed control amount",
@@ -349,12 +349,12 @@ Total Statement Balance 200.00`;
       /invalid amount/i,
     ],
     [
-      "a malformed expense-prefixed line",
+      "a malformed statement-entry line",
       eastwestFixture.replace(
         "JUN 23 JUN 24 PETRON SERVICE STATION TAGUIG PHL 4,673.08",
         "JUN 23 JUN 24 malformed statement entry",
       ),
-      /malformed expense/i,
+      /malformed statement entry/i,
     ],
     [
       "a positive activity reconciliation mismatch",
@@ -400,7 +400,7 @@ Total Statement Balance 200.00`;
       );
 
     await expect(categorizeFixture(numericDateFixture)).rejects.toThrow(
-      /numeric expense/i,
+      /unsupported numeric statement entry/i,
     );
   });
 

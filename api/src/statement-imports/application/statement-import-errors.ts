@@ -85,10 +85,7 @@ export class StatementImportCategoryEligibilityError extends CategoryInactiveErr
   constructor(conflicts: readonly CategoryEligibilityConflict[]) {
     super(
       conflicts.map(
-        ({
-          categoryId,
-          expenseIndexes,
-        }): CategoryEligibilityErrorDetail => ({
+        ({ categoryId, expenseIndexes }): CategoryEligibilityErrorDetail => ({
           field: `/expenses/${expenseIndexes[0]}/categoryId`,
           code: 'category_inactive',
           message: 'The reviewed expense uses an inactive Category',

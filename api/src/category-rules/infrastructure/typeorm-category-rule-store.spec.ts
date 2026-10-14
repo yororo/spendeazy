@@ -69,7 +69,7 @@ function entityManagerFor(repository: object): EntityManager {
       }),
     }),
   };
-  const expensealManager = {
+  const transactionalManager = {
     getRepository: jest.fn((entity: typeof CategoryEntity) =>
       entity === CategoryEntity || entity === SpaceEntity
         ? categoryRepository
@@ -78,8 +78,8 @@ function entityManagerFor(repository: object): EntityManager {
   } as unknown as EntityManager;
 
   return {
-    expense: jest.fn((work: (manager: EntityManager) => unknown) =>
-      work(expensealManager),
+    transaction: jest.fn((work: (manager: EntityManager) => unknown) =>
+      work(transactionalManager),
     ),
   } as unknown as EntityManager;
 }

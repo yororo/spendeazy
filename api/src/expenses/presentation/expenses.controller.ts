@@ -108,12 +108,11 @@ export class ExpensesController {
     const userId = requireAuthenticatedUserId(request);
     const personalSpace =
       await this.spaceAccessService.requirePersonalWriteSpace(userId);
-    const expense =
-      await this.expensesService.createManualExpenseInSpace(
-        userId,
-        personalSpace.id,
-        input,
-      );
+    const expense = await this.expensesService.createManualExpenseInSpace(
+      userId,
+      personalSpace.id,
+      input,
+    );
     response.status(HttpStatus.CREATED);
     response.setHeader('Location', expenseLocation(expense.id));
     return toManualExpenseResponse(expense);
@@ -220,11 +219,10 @@ export class ExpensesController {
     const userId = requireAuthenticatedUserId(request);
     const personalSpace =
       await this.spaceAccessService.requirePersonalSpace(userId);
-    const activity =
-      await this.expensesService.listExpenseActivityInSpace(
-        personalSpace.id,
-        params.expenseId,
-      );
+    const activity = await this.expensesService.listExpenseActivityInSpace(
+      personalSpace.id,
+      params.expenseId,
+    );
     return activity.map(toExpenseActivityResponse);
   }
 
@@ -269,8 +267,7 @@ export class ExpensesController {
 
   @Patch(':expenseId')
   @ApiOperation({
-    summary:
-      'Update a manual expense or recategorize an imported expense.',
+    summary: 'Update a manual expense or recategorize an imported expense.',
     description:
       'Manual Expenses may be patched with any supplied fields. Imported Expenses may only change categoryId; their statement facts are immutable and any other field causes a 409 Conflict.',
   })

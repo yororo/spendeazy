@@ -22,14 +22,8 @@ import {
 ])
 @Index('ix_expenses_added_by_user', ['addedByUserId'])
 @Index('ix_expenses_statement_import', ['statementImportId'])
-@Index('ix_expenses_statement_import_space', [
-  'statementImportId',
-  'spaceId',
-])
-@Index('ix_expenses_space_import_fingerprint', [
-  'spaceId',
-  'importFingerprint',
-])
+@Index('ix_expenses_statement_import_space', ['statementImportId', 'spaceId'])
+@Index('ix_expenses_space_import_fingerprint', ['spaceId', 'importFingerprint'])
 @Index('ix_expenses_space_reference_hash', ['spaceId', 'referenceHash'])
 export class ExpenseEntity {
   @PrimaryGeneratedColumn('identity', {

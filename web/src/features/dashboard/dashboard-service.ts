@@ -10,13 +10,13 @@ import {
   parseApiMoney,
   requireApiResponse,
   requireMonthlyCategorySummary,
-  requireTransactionHistoryPage,
+  requireExpenseHistoryPage,
   type ApiGetClient,
   type CategorySummaryItem,
   type CategorySummaryResponse,
   type CategorySummaryTotals,
-  type TransactionHistoryItem,
-  type TransactionHistoryPage,
+  type ExpenseHistoryItem,
+  type ExpenseHistoryPage,
 } from "@/shared/api";
 import {
   isCategoryCatalog,
@@ -34,9 +34,9 @@ import {
   type ReportingPeriod,
 } from "@/shared/reporting-period";
 import {
-  projectTransactionHistoryItem,
-  type TransactionProjection,
-} from "@/shared/transaction";
+  projectExpenseHistoryItem,
+  type ExpenseProjection,
+} from "@/shared/expense";
 
 interface SpendingPoint {
   categories: readonly { id: string | null; label: string; color: CategoryColor | null; amount: number }[];
@@ -53,12 +53,12 @@ interface CategorySpend {
   share: number;
 }
 
-type Transaction = TransactionProjection;
+type Expense = ExpenseProjection;
 
 interface DashboardSummary {
   period: string;
   totalSpend: number;
-  transactionCount: number;
+  expenseCount: number;
   recordedDayCount: number;
   accountCount: number;
   topCategory: string;
@@ -85,7 +85,7 @@ interface DashboardData {
   summary: DashboardSummary;
   spendingPoints: readonly SpendingPoint[];
   categorySpending: readonly CategorySpend[];
-  recentTransactions: readonly Transaction[];
+  recentExpenses: readonly Expense[];
   budgetAlerts: readonly BudgetAlert[];
 }
 
@@ -94,8 +94,8 @@ type DashboardApiClient = ApiGetClient;
 interface DashboardResources {
   readonly categorySummary: CategorySummaryResponse;
   readonly categoryById: ReadonlyMap<string, CategoryProjection>;
-  readonly transactions: readonly TransactionHistoryItem[];
-  readonly recentTransactions: readonly TransactionHistoryItem[];
+  readonly expenses: readonly ExpenseHistoryItem[];
+  readonly recentExpenses: readonly ExpenseHistoryItem[];
   readonly statementImports: ReadonlyMap<string, StatementImportAccount>;
   readonly daysInPeriod: number;
 }
@@ -122,67 +122,67 @@ function requireCategoryCatalog(response: unknown): readonly CategoryCatalogItem
   return response;
 }
 
-const FULL_TRANSACTION_PAGE_SIZE = 100;
-const RECENT_TRANSACTION_PAGE_SIZE = 5;
+const FULL_EXPENSE_PAGE_SIZE = 100;
+const RECENT_EXPENSE_PAGE_SIZE = 5;
 
-async function loadAllTransactions(
+async function loadAllExpenses(
   apiClient: DashboardApiClient,
   fromDate: string,
   toDate: string,
   signal?: AbortSignal,
   spaceId?: string,
 ) {
-  const transactions: TransactionHistoryItem[] = [];
+  const expenses: ExpenseHistoryItem[] = [];
   const seenCursors = new Set<string>();
   let cursor: string | null = null;
 
   do {
-    const path = buildApiPath(buildTransactionCollectionPath(spaceId), {
+    const path = buildApiPath(buildExpenseCollectionPath(spaceId), {
       fromDate,
       toDate,
-      pageSize: String(FULL_TRANSACTION_PAGE_SIZE),
+      pageSize: String(FULL_EXPENSE_PAGE_SIZE),
       cursor: cursor ?? undefined,
     });
-    const response = requireTransactionHistoryPage(
+    const response = requireExpenseHistoryPage(
       requireApiResponse(
-        await apiClient.get<TransactionHistoryPage>(path, { signal }),
-        "Transaction history page",
+        await apiClient.get<ExpenseHistoryPage>(path, { signal }),
+        "Expense history page",
         createDashboardDataError,
       ),
       createDashboardDataError,
     );
 
-    transactions.push(...response.items);
+    expenses.push(...response.items);
     cursor = response.nextCursor;
     if (cursor !== null) {
       if (seenCursors.has(cursor)) {
         throw new DashboardDataError(
-          "The API returned a repeated Transaction history cursor.",
+          "The API returned a repeated Expense history cursor.",
         );
       }
       seenCursors.add(cursor);
     }
   } while (cursor !== null);
 
-  return transactions;
+  return expenses;
 }
 
-async function loadRecentTransactions(
+async function loadRecentExpenses(
   apiClient: DashboardApiClient,
   fromDate: string,
   toDate: string,
   signal?: AbortSignal,
   spaceId?: string,
 ) {
-  const path = buildApiPath(buildTransactionCollectionPath(spaceId), {
+  const path = buildApiPath(buildExpenseCollectionPath(spaceId), {
     fromDate,
     toDate,
-    pageSize: String(RECENT_TRANSACTION_PAGE_SIZE),
+    pageSize: String(RECENT_EXPENSE_PAGE_SIZE),
   });
-  const response = requireTransactionHistoryPage(
+  const response = requireExpenseHistoryPage(
     requireApiResponse(
-      await apiClient.get<TransactionHistoryPage>(path, { signal }),
-      "recent Transaction history page",
+      await apiClient.get<ExpenseHistoryPage>(path, { signal }),
+      "recent Expense history page",
       createDashboardDataError,
     ),
     createDashboardDataError,
@@ -219,13 +219,13 @@ async function loadDashboardResources(
     ),
     createDashboardDataError,
   );
-  const [transactions, recentTransactions] = await Promise.all([
-    loadAllTransactions(apiClient, fromDate, toDate, signal, spaceId),
-    loadRecentTransactions(apiClient, fromDate, toDate, signal, spaceId),
+  const [expenses, recentExpenses] = await Promise.all([
+    loadAllExpenses(apiClient, fromDate, toDate, signal, spaceId),
+    loadRecentExpenses(apiClient, fromDate, toDate, signal, spaceId),
   ]);
   const statementImports = await loadStatementImports(
     apiClient,
-    [...transactions, ...recentTransactions],
+    [...expenses, ...recentExpenses],
     signal,
     spaceId,
   );
@@ -233,40 +233,40 @@ async function loadDashboardResources(
   return {
     categorySummary,
     categoryById: projectCategoryCatalog(categoryCatalog),
-    transactions,
-    recentTransactions,
+    expenses,
+    recentExpenses,
     statementImports,
     daysInPeriod,
   };
 }
 
 function createSpendingPoints(
-  transactions: readonly TransactionHistoryItem[],
+  expenses: readonly ExpenseHistoryItem[],
   daysInPeriod: number,
   categoryById: ReadonlyMap<string, CategoryProjection>,
 ) {
   const dailyCategories = new Map<number, Map<string | null, number>>();
   const dailyTotals = new Map<number, number>();
 
-  transactions.forEach((transaction) => {
-    const day = Number(transaction.purchaseDate.slice(-2));
+  expenses.forEach((expense) => {
+    const day = Number(expense.purchaseDate.slice(-2));
     if (!Number.isInteger(day) || day < 1 || day > daysInPeriod) {
       throw new DashboardDataError(
-        `Transaction ${transaction.id} has a purchase date outside the selected Reporting Period.`,
+        `Expense ${expense.id} has a purchase date outside the selected Reporting Period.`,
       );
     }
 
     const amountCents = Math.abs(
       moneyToCents(
         parseApiMoney(
-          transaction.amount,
-          `Transaction ${transaction.id}`,
+          expense.amount,
+          `Expense ${expense.id}`,
           createDashboardDataError,
         ),
       ),
     );
     const categories = dailyCategories.get(day) ?? new Map<string | null, number>();
-    const categoryId = transaction.categoryId ?? null;
+    const categoryId = expense.categoryId ?? null;
     if (categoryId !== null && !categoryById.has(categoryId)) {
       throw new DashboardDataError(`Category ${categoryId} is missing from the Category catalog.`);
     }
@@ -324,14 +324,14 @@ function createCategorySpending(
     .sort((left, right) => right.amount - left.amount);
 }
 
-function createRecentTransactions(
-  transactions: readonly TransactionHistoryItem[],
+function createRecentExpenses(
+  expenses: readonly ExpenseHistoryItem[],
   categoryById: ReadonlyMap<string, CategoryProjection>,
   statementImports: ReadonlyMap<string, StatementImportAccount>,
 ) {
-  return transactions.map((transaction) =>
-    projectTransactionHistoryItem(
-      transaction,
+  return expenses.map((expense) =>
+    projectExpenseHistoryItem(
+      expense,
       categoryById,
       statementImports,
       createDashboardDataError,
@@ -431,7 +431,7 @@ function createBudgetAlerts(
 function createDashboardSummary(
   categorySummary: CategorySummaryResponse,
   categorySummaryTotals: CategorySummaryTotals,
-  transactions: readonly TransactionHistoryItem[],
+  expenses: readonly ExpenseHistoryItem[],
   statementImports: ReadonlyMap<string, StatementImportAccount>,
   categorySpending: readonly CategorySpend[],
   period: ReportingPeriod,
@@ -443,11 +443,11 @@ function createDashboardSummary(
   return {
     period: formatReportingPeriod(period),
     totalSpend: categorySummaryTotals.totalAmount,
-    transactionCount: categorySummaryTotals.transactionCount,
+    expenseCount: categorySummaryTotals.expenseCount,
     recordedDayCount: new Set(
-      transactions.map((transaction) => transaction.purchaseDate),
+      expenses.map((expense) => expense.purchaseDate),
     ).size,
-    accountCount: countDistinctAccounts(transactions, statementImports),
+    accountCount: countDistinctAccounts(expenses, statementImports),
     topCategory: topCategory?.label ?? "None",
     topCategoryAmount: topCategory?.amount ?? 0,
     averagePerDay: roundMoney(categorySummaryTotals.totalAmount / daysInPeriod),
@@ -488,20 +488,20 @@ async function getDashboard(
     summary: createDashboardSummary(
       resources.categorySummary,
       categorySummaryTotals,
-      resources.transactions,
+      resources.expenses,
       resources.statementImports,
       categorySpending,
       period,
       resources.daysInPeriod,
     ),
     spendingPoints: createSpendingPoints(
-      resources.transactions,
+      resources.expenses,
       resources.daysInPeriod,
       categoryById,
     ),
     categorySpending,
-    recentTransactions: createRecentTransactions(
-      resources.recentTransactions,
+    recentExpenses: createRecentExpenses(
+      resources.recentExpenses,
       categoryById,
       resources.statementImports,
     ),
@@ -515,10 +515,10 @@ function buildCategoryCollectionPath(spaceId?: string): string {
     : `/spaces/${encodeURIComponent(spaceId)}/categories`;
 }
 
-function buildTransactionCollectionPath(spaceId?: string): string {
+function buildExpenseCollectionPath(spaceId?: string): string {
   return spaceId === undefined
-    ? "/transactions"
-    : `/spaces/${encodeURIComponent(spaceId)}/transactions`;
+    ? "/expenses"
+    : `/spaces/${encodeURIComponent(spaceId)}/expenses`;
 }
 
 export { DashboardDataError, getDashboard };
@@ -529,5 +529,5 @@ export type {
   DashboardData,
   DashboardSummary,
   SpendingPoint,
-  Transaction,
+  Expense,
 };

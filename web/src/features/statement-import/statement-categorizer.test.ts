@@ -39,12 +39,12 @@ describe("categorizeStatement", () => {
     expect(statement.summary).toMatchObject({
       provider: "BDO",
       accountType: "AMEX",
-      totalTransactions: 46,
+      entryCount: 46,
       totalAmountDue: 56040.04,
       totalExtractedAmount: 113212.94,
     });
-    expect(statement.transactions).toHaveLength(46);
-    expect(statement.transactions).toEqual(
+    expect(statement.entries).toHaveLength(46);
+    expect(statement.entries).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           description: "FIX ONE AYALA MAKATI MAKATI PH",
@@ -60,7 +60,7 @@ describe("categorizeStatement", () => {
         }),
       ]),
     );
-    expect(statement.transactions).not.toEqual(
+    expect(statement.entries).not.toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           description: expect.stringContaining("Reference:"),
@@ -83,7 +83,7 @@ describe("categorizeStatement", () => {
         new File(["statement"], "statement.pdf", { type: "application/pdf" }),
       ),
     ).resolves.toMatchObject({
-      summary: { totalTransactions: 46, provider: "BDO", accountType: "AMEX" },
+      summary: { entryCount: 46, provider: "BDO", accountType: "AMEX" },
     });
   });
 
@@ -95,7 +95,7 @@ describe("categorizeStatement", () => {
       ]),
     ).resolves.toMatchObject({
       summary: {
-        totalTransactions: 22,
+        entryCount: 22,
         provider: "EastWest",
         accountType: "Visa",
       },
@@ -146,7 +146,7 @@ describe("categorizeStatement", () => {
     );
 
     await expect(categorizeFixture(pageSplitReference)).resolves.toMatchObject({
-      summary: { totalTransactions: 46 },
+      summary: { entryCount: 46 },
     });
   });
 
@@ -192,33 +192,33 @@ describe("categorizeStatement", () => {
       /orphan Reference/i,
     ],
     [
-      "a malformed transaction-prefixed line",
+      "a malformed statement-entry line",
       bdoFixture.replace(
         "05/18/26 05/21/26 LAZADA PH MAKATI PH 1,590.00",
-        "05/18/26 malformed transaction row",
+        "05/18/26 malformed statement entry",
       ),
-      /malformed transaction/i,
+      /malformed statement entry/i,
     ],
     [
-      "a transaction-prefixed line outside card activity",
+      "a statement-entry line outside card activity",
       bdoFixture.replace(
         "TOTAL 56,040.04",
-        "TOTAL 56,040.04\n06/31/26 malformed transaction row",
+        "TOTAL 56,040.04\n06/31/26 malformed statement entry",
       ),
-      /transaction row.*outside card activity/i,
+      /statement entry.*outside card activity/i,
     ],
   ])("rejects %s", async (_case, text, error) => {
     await expect(categorizeFixture(text)).rejects.toThrow(error);
   });
 
-  it("rejects a BDO fixture without any extracted Transactions", async () => {
-    const withoutTransactions = bdoFixture.replace(
+  it("rejects a BDO fixture without any extracted Statement Entries", async () => {
+    const withoutExpenses = bdoFixture.replace(
       /^\d{2}\/\d{2}\/\d{2}\s+\d{2}\/\d{2}\/\d{2}\s+.+$/gmu,
       "",
     );
 
-    await expect(categorizeFixture(withoutTransactions)).rejects.toThrow(
-      /Transactions|subtotal/i,
+    await expect(categorizeFixture(withoutExpenses)).rejects.toThrow(
+      /Statement Entries|subtotal/i,
     );
   });
 
@@ -228,15 +228,15 @@ describe("categorizeStatement", () => {
     expect(statement.summary).toMatchObject({
       provider: "EastWest",
       accountType: "Visa",
-      totalTransactions: 22,
+      entryCount: 22,
       totalAmountDue: 30481.08,
       totalExtractedAmount: 1004.29,
     });
-    expect(statement.transactions).toHaveLength(22);
-    expect(statement.transactions).toEqual(
+    expect(statement.entries).toHaveLength(22);
+    expect(statement.entries).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          transactionDate: new Date("2026-06-23T00:00:00.000Z"),
+          entryDate: new Date("2026-06-23T00:00:00.000Z"),
           postingDate: new Date("2026-06-24T00:00:00.000Z"),
           description: "PETRON SERVICE STATION TAGUIG PHL",
           amount: -4673.08,
@@ -259,7 +259,7 @@ describe("categorizeStatement", () => {
           isExcluded: true,
         }),
         expect.objectContaining({
-          transactionDate: new Date("2026-07-12T00:00:00.000Z"),
+          entryDate: new Date("2026-07-12T00:00:00.000Z"),
           description: "BAYAD CENTER MERALCO PASIG PHL",
           amount: -20062.52,
           isExcluded: false,
@@ -280,15 +280,15 @@ Less: Payments 0.00
 Credits 0.00
 Total Statement Balance 200.00
 YOUR CARD ACTIVITIES
-BASIC TRANSACTIONS
+BASIC EXPENSES
 DEC 31 JAN 02 DECEMBER MERCHANT 100.00
 Total Statement Balance 200.00`;
 
     const statement = await categorizeFixture(januaryFixture);
 
-    expect(statement.transactions).toEqual([
+    expect(statement.entries).toEqual([
       expect.objectContaining({
-        transactionDate: new Date("2025-12-31T00:00:00.000Z"),
+        entryDate: new Date("2025-12-31T00:00:00.000Z"),
         postingDate: new Date("2026-01-02T00:00:00.000Z"),
         description: "DECEMBER MERCHANT",
         amount: -100,
@@ -317,12 +317,12 @@ Total Statement Balance 200.00`;
       /missing Credits control/i,
     ],
     [
-      "no Transactions",
+      "no Statement Entries",
       eastwestFixture.replace(
         /^[A-Z]{3}\s+\d{1,2}\s+[A-Z]{3}\s+\d{1,2}\s+.+$/gmu,
         "",
       ),
-      /Transactions|activity/i,
+      /Expenses|activity/i,
     ],
     [
       "an invalid calendar date",
@@ -338,7 +338,7 @@ Total Statement Balance 200.00`;
         "JUN 23 JUN 24 PETRON SERVICE STATION TAGUIG PHL 4,673.08",
         "JUN 23 JUN 24 PETRON SERVICE STATION TAGUIG PHL 4,673.0",
       ),
-      /malformed transaction|invalid amount/i,
+      /malformed statement entry|invalid amount/i,
     ],
     [
       "a doubly signed control amount",
@@ -349,12 +349,12 @@ Total Statement Balance 200.00`;
       /invalid amount/i,
     ],
     [
-      "a malformed transaction-prefixed line",
+      "a malformed statement-entry line",
       eastwestFixture.replace(
         "JUN 23 JUN 24 PETRON SERVICE STATION TAGUIG PHL 4,673.08",
-        "JUN 23 JUN 24 malformed transaction row",
+        "JUN 23 JUN 24 malformed statement entry",
       ),
-      /malformed transaction/i,
+      /malformed statement entry/i,
     ],
     [
       "a positive activity reconciliation mismatch",
@@ -400,17 +400,17 @@ Total Statement Balance 200.00`;
       );
 
     await expect(categorizeFixture(numericDateFixture)).rejects.toThrow(
-      /numeric transaction/i,
+      /unsupported numeric statement entry/i,
     );
   });
 
   it("normalizes the complete GCash E-Wallet fixture through the Statement Import boundary", async () => {
     const statement = await categorizeFixture(gcashFixture);
-    const incomingTransactions = statement.transactions.filter(
-      (transaction) => transaction.amount > 0,
+    const incomingExpenses = statement.entries.filter(
+      (expense) => expense.amount > 0,
     );
-    const outgoingTransactions = statement.transactions.filter(
-      (transaction) => transaction.amount < 0,
+    const outgoingExpenses = statement.entries.filter(
+      (expense) => expense.amount < 0,
     );
 
     expect(statement.summary).toMatchObject({
@@ -420,36 +420,36 @@ Total Statement Balance 200.00`;
       accountType: "E-Wallet",
       transactionHistoryStartDate: new Date("2026-08-09T00:00:00.000Z"),
       totalDebit: 26696.92,
-      totalTransactions: 55,
+      entryCount: 55,
       totalAmountDue: 26696.92,
       totalExtractedAmount: -25291.92,
     });
-    expect(statement.transactions).toHaveLength(55);
-    expect(incomingTransactions).toHaveLength(6);
+    expect(statement.entries).toHaveLength(55);
+    expect(incomingExpenses).toHaveLength(6);
     expect(
-      incomingTransactions.reduce(
-        (total, transaction) => total + moneyToCents(transaction.amount),
+      incomingExpenses.reduce(
+        (total, expense) => total + moneyToCents(expense.amount),
         0,
       ),
     ).toBe(574300);
-    expect(outgoingTransactions).toHaveLength(49);
+    expect(outgoingExpenses).toHaveLength(49);
     expect(
-      outgoingTransactions.reduce(
-        (total, transaction) =>
-          total + moneyToCents(Math.abs(transaction.amount)),
+      outgoingExpenses.reduce(
+        (total, expense) =>
+          total + moneyToCents(Math.abs(expense.amount)),
         0,
       ),
     ).toBe(3103492);
 
     expect(
-      statement.transactions.every(({ description }) =>
+      statement.entries.every(({ description }) =>
         !/\[Ref\. #:/u.test(description),
       ),
     ).toBe(true);
-    expect(statement.transactions).toEqual(
+    expect(statement.entries).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          transactionDate: new Date("2026-08-15T00:00:00.000Z"),
+          entryDate: new Date("2026-08-15T00:00:00.000Z"),
           postingDate: new Date("2026-08-15T00:00:00.000Z"),
           description:
             "Received GCash from GrabPay with account ending in 0272 and invno:20260815GPNEPHM2XXXB0000000516038",
@@ -458,7 +458,7 @@ Total Statement Balance 200.00`;
           isExcluded: true,
         }),
         expect.objectContaining({
-          transactionDate: new Date("2026-08-09T00:00:00.000Z"),
+          entryDate: new Date("2026-08-09T00:00:00.000Z"),
           postingDate: new Date("2026-08-09T00:00:00.000Z"),
           description: "Transfer from 09112334455 to 09676769174",
           amount: -4000,
@@ -467,7 +467,7 @@ Total Statement Balance 200.00`;
         }),
       ]),
     );
-    expect(statement.transactions).not.toEqual(
+    expect(statement.entries).not.toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           description: expect.stringMatching(
@@ -494,14 +494,14 @@ Total Statement Balance 200.00`;
       ),
     ],
     [
-      "an invalid transaction date",
+      "an invalid expense date",
       gcashFixture.replace(
         "2026-08-09 12:20 PM",
         "2026-02-30 12:20 PM",
       ),
     ],
     [
-      "an invalid transaction amount",
+      "an invalid expense amount",
       gcashFixture.replace(/4000\.00(?=\s+3178\.87)/u, "4000.0"),
     ],
     [

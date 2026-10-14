@@ -70,7 +70,7 @@ runner is interrupted. A hard cancellation or Azure outage can leave a temporary
 job to remove manually. Application startup never applies migrations.
 
 The migration runner acquires a PostgreSQL session advisory lock before migrations and releases it after the schema-readiness check. Keep migrations additive and preserve compatibility with the
-currently running API until the new API rollout succeeds.
+currently running API until the new API rollout succeeds. The Expense rename is the exception: migration `1960000000000-rename-transactions-to-expenses`, the API, and web ship together. Roll that change back by running the migration's down and restoring the previous API and web together. Mixed old and new versions are unsupported.
 
 Before enabling API publication, configure the `SPENDEAZYAPI2_DATABASE_URL`
 GitHub Actions secret with the API database connection string, including the
@@ -105,6 +105,15 @@ Use expand/backfill/contract migrations and retain compatibility during rollback
 Web-only publication is valid only against the deployed API; API-only publication
 must continue supporting deployed and still-running web versions. Contract
 artifact consistency and a same-revision suite do not prove cross-version support.
+
+The Expense and Statement Entry rename does not follow that additive order.
+`/transactions` routes, transaction request fields, and the `/transactions`
+browser path are removed with no aliases or redirects. Deploy the renaming
+migration, API, and web as one revision. A database that has applied
+`1960000000000-rename-transactions-to-expenses` cannot serve the previous
+application, and the new application cannot serve a database that has not.
+Rollback is the migration down followed by the previous API and web. Do not
+restore only one of them.
 
 ## Main enforcement
 

@@ -67,7 +67,7 @@ describe("PrimarySidebar", () => {
   it("opens Insights while preserving the selected Space", () => {
     render(
       <AppSessionContext.Provider value={session}>
-        <MemoryRouter initialEntries={["/transactions?spaceId=shared-7"]}>
+        <MemoryRouter initialEntries={["/expenses?spaceId=shared-7"]}>
           <PrimarySidebar />
           <CurrentLocation />
         </MemoryRouter>

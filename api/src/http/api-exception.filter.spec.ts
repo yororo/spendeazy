@@ -199,7 +199,7 @@ describe('ApiExceptionFilter', () => {
       new StatementImportProbableDuplicatesError([
         {
           fingerprint: 'internal-fingerprint',
-          incomingTransactionIndexes: [0, 2],
+          incomingExpenseIndexes: [0, 2],
           committedMatches: [{ id: '12' }],
         },
       ]),
@@ -210,15 +210,14 @@ describe('ApiExceptionFilter', () => {
     expect(response.json).toHaveBeenCalledWith({
       error: {
         code: 'STATEMENT_IMPORT_PROBABLE_DUPLICATES',
-        message:
-          'Probable duplicate imported transactions require acknowledgement',
+        message: 'Probable duplicate imported expenses require acknowledgement',
         details: [
           {
-            field: '/transactions/0',
+            field: '/expenses/0',
             code: 'probable_duplicate',
-            message: 'The reviewed transaction has a probable duplicate',
-            transactionIndexes: [0, 2],
-            committedTransactionIds: ['12'],
+            message: 'The reviewed expense has a probable duplicate',
+            expenseIndexes: [0, 2],
+            committedExpenseIds: ['12'],
           },
         ],
       },
@@ -253,9 +252,9 @@ describe('ApiExceptionFilter', () => {
     const filter = new ApiExceptionFilter();
 
     filter.catch(
-      new QueryFailedError('INSERT INTO transactions', [], {
+      new QueryFailedError('INSERT INTO expenses', [], {
         code: '23503',
-        constraint: 'fk_transactions_category_user',
+        constraint: 'fk_expenses_category_user',
         detail: 'Key is not present in table categories.',
       }),
       httpHost(response),

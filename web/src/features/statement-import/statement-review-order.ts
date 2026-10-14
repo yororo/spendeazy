@@ -1,5 +1,5 @@
 import type { PageScrollPosition } from "@/shared/ui";
-import type { CategorizedTransaction } from "./statement-categorizer";
+import type { CategorizedStatementEntry } from "./statement-categorizer";
 import { toDateInputValue } from "./statement-import-utils";
 
 type StatementSort = "date-asc" | "date-desc" | "amount-asc" | "amount-desc";
@@ -16,10 +16,10 @@ interface CategorizeView extends PageScrollPosition {
   sort: StatementSort;
 }
 
-function compareStatementRows(a: CategorizedTransaction, b: CategorizedTransaction, sort: StatementSort) {
+function compareStatementRows(a: CategorizedStatementEntry, b: CategorizedStatementEntry, sort: StatementSort) {
   const difference = sort.startsWith("amount")
     ? Math.abs(a.amount) - Math.abs(b.amount)
-    : toDateInputValue(a.transactionDate).localeCompare(toDateInputValue(b.transactionDate));
+    : toDateInputValue(a.entryDate).localeCompare(toDateInputValue(b.entryDate));
   return (sort.endsWith("asc") ? difference : -difference) || a.id.localeCompare(b.id);
 }
 

@@ -25,7 +25,7 @@ import type {
 } from "./statement-import-service";
 import type {
   CategorizedStatement,
-  CategorizedTransaction,
+  CategorizedStatementEntry,
 } from "./statement-categorizer";
 
 const summary: CategorizedStatement["summary"] = {
@@ -35,14 +35,14 @@ const summary: CategorizedStatement["summary"] = {
   accountType: "AMEX",
   transactionHistoryStartDate: null,
   totalDebit: null,
-  totalTransactions: 1,
+  entryCount: 1,
   totalAmountDue: 25.5,
   totalExtractedAmount: -25.5,
 };
 
-const ambiguousTransaction: CategorizedTransaction = {
-  id: "transaction-1",
-  transactionDate: new Date("2026-08-29T00:00:00.000Z"),
+const ambiguousExpense: CategorizedStatementEntry = {
+  id: "expense-1",
+  entryDate: new Date("2026-08-29T00:00:00.000Z"),
   postingDate: new Date("2026-08-30T00:00:00.000Z"),
   description: "Green Market Cafe",
   amount: -25.5,
@@ -52,15 +52,15 @@ const ambiguousTransaction: CategorizedTransaction = {
   isExcluded: false,
 };
 
-const unmappedTransaction: CategorizedTransaction = {
-  ...ambiguousTransaction,
+const unmappedExpense: CategorizedStatementEntry = {
+  ...ambiguousExpense,
   assignment: "unmapped",
   matchedCategoryIds: [],
 };
 
-const noSuggestionTransaction: CategorizedTransaction = {
-  ...unmappedTransaction,
-  id: "transaction-no-suggestions",
+const noSuggestionExpense: CategorizedStatementEntry = {
+  ...unmappedExpense,
+  id: "expense-no-suggestions",
   description: "No suggestion Cafe",
 };
 
@@ -102,7 +102,7 @@ type RememberCategoryRuleHandler = (
 ) => Promise<RememberCategoryRuleResult>;
 
 interface CategorizeHarnessProps {
-  readonly initialTransactions?: CategorizedTransaction[];
+  readonly initialExpenses?: CategorizedStatementEntry[];
   readonly getCategorySuggestion?: CategorySuggestionFetcher;
   readonly onRememberCategoryRule?: RememberCategoryRuleHandler;
   readonly onReview?: () => void;
@@ -113,7 +113,7 @@ interface CategorizeHarnessProps {
 }
 
 function CategorizeHarness({
-  initialTransactions = [ambiguousTransaction],
+  initialExpenses = [ambiguousExpense],
   getCategorySuggestion = async () => null,
   onReview,
   resetImport = false,
@@ -154,13 +154,13 @@ function CategorizeHarness({
       transactionHistoryStartDate: null,
       totalDebit: null,
       importedAt: "2026-09-01T00:00:00.000Z",
-      transactionCount: 1,
+      expenseCount: 1,
       importedByUserId: "10",
     }),
   });
   const initialStatementRef = useRef({
     summary: statementSummary,
-    transactions: initialTransactions,
+    entries: initialExpenses,
   });
 
   useEffect(() => {
@@ -208,19 +208,19 @@ function createDeferred<T>() {
 
 function getDesktopTable() {
   return screen.getByRole("table", {
-    name: "Transactions parsed from statement.pdf",
+    name: "Statement Entries parsed from statement.pdf",
   });
 }
 
 it("previews normalized repeats and permits deselection and explicit replacement without remembering", () => {
   const remember = vi.fn();
-  render(<CategorizeHarness onRememberCategoryRule={remember} initialTransactions={[
-    unmappedTransaction,
-    { ...unmappedTransaction, id: "repeat", description: " GREEN  market cafe ", transactionDate: new Date("2026-08-28T00:00:00Z") },
-    { ...unmappedTransaction, id: "reviewed", categoryId: "42", assignment: "manual" },
-    { ...unmappedTransaction, id: "excluded", isExcluded: true },
-    { ...unmappedTransaction, id: "punctuation", description: "Green Market Cafe!" },
-    { ...ambiguousTransaction, id: "ambiguous-repeat" },
+  render(<CategorizeHarness onRememberCategoryRule={remember} initialExpenses={[
+    unmappedExpense,
+    { ...unmappedExpense, id: "repeat", description: " GREEN  market cafe ", entryDate: new Date("2026-08-28T00:00:00Z") },
+    { ...unmappedExpense, id: "reviewed", categoryId: "42", assignment: "manual" },
+    { ...unmappedExpense, id: "excluded", isExcluded: true },
+    { ...unmappedExpense, id: "punctuation", description: "Green Market Cafe!" },
+    { ...ambiguousExpense, id: "ambiguous-repeat" },
   ]} />);
   fireEvent.click(screen.getAllByRole("button", { name: "Categorize repeats of Green Market Cafe" })[0]);
   const preview = screen.getByRole("dialog", { name: "Categorize repeated descriptions" });
@@ -249,11 +249,11 @@ describe("CategorizeStatement ambiguity handling", () => {
     const getCategorySuggestion = vi.fn(() => new Promise<null>(() => {}));
     render(
       <CategorizeHarness
-        initialTransactions={[
-          unmappedTransaction,
+        initialExpenses={[
+          unmappedExpense,
           {
-            ...unmappedTransaction,
-            id: "transaction-2",
+            ...unmappedExpense,
+            id: "expense-2",
             description: "  GREEN   MARKET CAFE  ",
           },
         ]}
@@ -286,14 +286,14 @@ describe("CategorizeStatement ambiguity handling", () => {
     });
     render(
       <CategorizeHarness
-        initialTransactions={[
+        initialExpenses={[
           "Market One",
           "Market Two",
           "Market Three",
           "Market Four",
         ].map((description, index) => ({
-          ...unmappedTransaction,
-          id: `transaction-${index + 1}`,
+          ...unmappedExpense,
+          id: `expense-${index + 1}`,
           description,
         }))}
         getCategorySuggestion={getCategorySuggestion}
@@ -314,7 +314,7 @@ describe("CategorizeStatement ambiguity handling", () => {
     expect(requests.has("Market Four")).toBe(true);
   });
 
-  it("does not show a late result after the edited Transaction description changes", async () => {
+  it("does not show a late result after the edited Expense description changes", async () => {
     const originalResult = createDeferred<readonly CategorySuggestion[] | null>();
     const editedResult = createDeferred<readonly CategorySuggestion[] | null>();
     const getCategorySuggestion = vi.fn((description: string) =>
@@ -324,7 +324,7 @@ describe("CategorizeStatement ambiguity handling", () => {
     );
     render(
       <CategorizeHarness
-        initialTransactions={[unmappedTransaction]}
+        initialExpenses={[unmappedExpense]}
         getCategorySuggestion={getCategorySuggestion}
       />,
     );
@@ -333,14 +333,14 @@ describe("CategorizeStatement ambiguity handling", () => {
       expect(getCategorySuggestion).toHaveBeenCalledTimes(1);
     });
     const mobileList = screen.getByRole("list", {
-      name: "Transactions to categorize",
+      name: "Statement Entries to categorize",
     });
     fireEvent.click(
       within(mobileList).getByRole("button", {
         name: "Edit Green Market Cafe",
       }),
     );
-    const editor = screen.getByRole("dialog", { name: "Edit Transaction" });
+    const editor = screen.getByRole("dialog", { name: "Edit Statement Entry" });
     fireEvent.change(
       within(editor).getByRole("textbox", {
         name: "Description for Green Market Cafe",
@@ -386,7 +386,7 @@ describe("CategorizeStatement ambiguity handling", () => {
     );
     const view = render(
       <CategorizeHarness
-        initialTransactions={[unmappedTransaction]}
+        initialExpenses={[unmappedExpense]}
         getCategorySuggestion={getCategorySuggestion}
       />,
     );
@@ -395,18 +395,18 @@ describe("CategorizeStatement ambiguity handling", () => {
       expect(getCategorySuggestion).toHaveBeenCalledTimes(1);
     });
     const mobileList = screen.getByRole("list", {
-      name: "Transactions to categorize",
+      name: "Statement Entries to categorize",
     });
     fireEvent.click(
       within(mobileList).getByRole("button", {
         name: "Edit Green Market Cafe",
       }),
     );
-    const editor = screen.getByRole("dialog", { name: "Edit Transaction" });
+    const editor = screen.getByRole("dialog", { name: "Edit Statement Entry" });
 
     view.rerender(
       <CategorizeHarness
-        initialTransactions={[unmappedTransaction]}
+        initialExpenses={[unmappedExpense]}
         getCategorySuggestion={getCategorySuggestion}
         spaceId="88"
       />,
@@ -438,7 +438,7 @@ describe("CategorizeStatement ambiguity handling", () => {
 
     view.rerender(
       <CategorizeHarness
-        initialTransactions={[unmappedTransaction]}
+        initialExpenses={[unmappedExpense]}
         getCategorySuggestion={getCategorySuggestion}
         spaceId="88"
         categoryDescription="Updated Category purpose"
@@ -464,7 +464,7 @@ describe("CategorizeStatement ambiguity handling", () => {
     ).toBeTruthy();
   });
 
-  it("cancels obsolete suggestion work when a Transaction is excluded", async () => {
+  it("cancels obsolete suggestion work when a Statement Entry is excluded", async () => {
     const requests: Array<{
       readonly signal: AbortSignal;
       readonly result: ReturnType<
@@ -480,7 +480,7 @@ describe("CategorizeStatement ambiguity handling", () => {
     );
     render(
       <CategorizeHarness
-        initialTransactions={[unmappedTransaction]}
+        initialExpenses={[unmappedExpense]}
         getCategorySuggestion={getCategorySuggestion}
       />,
     );
@@ -489,7 +489,7 @@ describe("CategorizeStatement ambiguity handling", () => {
     });
 
     const mobileList = screen.getByRole("list", {
-      name: "Transactions to categorize",
+      name: "Statement Entries to categorize",
     });
     fireEvent.click(
       within(mobileList).getByRole("button", {
@@ -517,7 +517,7 @@ describe("CategorizeStatement ambiguity handling", () => {
         name: "Edit Green Market Cafe",
       }),
     );
-    const editor = screen.getByRole("dialog", { name: "Edit Transaction" });
+    const editor = screen.getByRole("dialog", { name: "Edit Statement Entry" });
     expect(
       within(editor).queryByRole("button", {
         name: "Use suggested Category: Housing",
@@ -539,7 +539,7 @@ describe("CategorizeStatement ambiguity handling", () => {
     );
     const view = render(
       <CategorizeHarness
-        initialTransactions={[unmappedTransaction]}
+        initialExpenses={[unmappedExpense]}
         getCategorySuggestion={getCategorySuggestion}
       />,
     );
@@ -549,7 +549,7 @@ describe("CategorizeStatement ambiguity handling", () => {
 
     view.rerender(
       <CategorizeHarness
-        initialTransactions={[unmappedTransaction]}
+        initialExpenses={[unmappedExpense]}
         getCategorySuggestion={getCategorySuggestion}
         resetImport
       />,
@@ -578,14 +578,14 @@ describe("CategorizeStatement ambiguity handling", () => {
     }));
     render(
       <CategorizeHarness
-        initialTransactions={[unmappedTransaction]}
+        initialExpenses={[unmappedExpense]}
         getCategorySuggestion={getCategorySuggestion}
         onRememberCategoryRule={rememberCategoryRule}
       />,
     );
 
     const mobileList = screen.getByRole("list", {
-      name: "Transactions to categorize",
+      name: "Statement Entries to categorize",
     });
     fireEvent.click(
       within(mobileList).getByRole("button", {
@@ -593,7 +593,7 @@ describe("CategorizeStatement ambiguity handling", () => {
       }),
     );
 
-    const editor = screen.getByRole("dialog", { name: "Edit Transaction" });
+    const editor = screen.getByRole("dialog", { name: "Edit Statement Entry" });
     const suggestion = await within(editor).findByRole("button", {
       name: "Use suggested Category: Groceries",
     });
@@ -620,7 +620,7 @@ describe("CategorizeStatement ambiguity handling", () => {
       }),
     );
     const reopenedEditor = screen.getByRole("dialog", {
-      name: "Edit Transaction",
+      name: "Edit Statement Entry",
     });
     fireEvent.click(
       await within(reopenedEditor).findByRole("button", {
@@ -640,33 +640,33 @@ describe("CategorizeStatement ambiguity handling", () => {
 
   it("shows suggestions in the mobile Category control only for included Unmapped rows", async () => {
     const getCategorySuggestion = vi.fn(getSuggestionsForGreenMarket);
-    const excludedTransaction = {
-      ...unmappedTransaction,
-      id: "transaction-excluded",
+    const excludedExpense = {
+      ...unmappedExpense,
+      id: "expense-excluded",
       description: "Excluded Cafe",
       isExcluded: true,
     };
-    const categorizedTransaction = {
-      ...unmappedTransaction,
-      id: "transaction-categorized",
+    const categorizedExpense = {
+      ...unmappedExpense,
+      id: "expense-categorized",
       description: "Already categorized Cafe",
       categoryId: "42",
       assignment: "manual" as const,
     };
     render(
       <CategorizeHarness
-        initialTransactions={[
-          unmappedTransaction,
-          noSuggestionTransaction,
-          excludedTransaction,
-          categorizedTransaction,
+        initialExpenses={[
+          unmappedExpense,
+          noSuggestionExpense,
+          excludedExpense,
+          categorizedExpense,
         ]}
         getCategorySuggestion={getCategorySuggestion}
       />,
     );
 
     const mobileList = screen.getByRole("list", {
-      name: "Transactions to categorize",
+      name: "Statement Entries to categorize",
     });
     const categoryControl = await within(mobileList).findByRole("button", {
       name: "Edit Category for Green Market Cafe, 1 suggestion available",
@@ -686,7 +686,7 @@ describe("CategorizeStatement ambiguity handling", () => {
 
     fireEvent.click(categoryControl);
 
-    const editor = screen.getByRole("dialog", { name: "Edit Transaction" });
+    const editor = screen.getByRole("dialog", { name: "Edit Statement Entry" });
     expect(within(editor).getByRole("combobox", { name: "Category for Green Market Cafe" })).toBe(
       document.activeElement,
     );
@@ -701,29 +701,29 @@ describe("CategorizeStatement ambiguity handling", () => {
     const getCategorySuggestion = vi.fn(getSuggestionsForGreenMarket);
     render(
       <CategorizeHarness
-        initialTransactions={[unmappedTransaction, noSuggestionTransaction]}
+        initialExpenses={[unmappedExpense, noSuggestionExpense]}
         getCategorySuggestion={getCategorySuggestion}
       />,
     );
 
-    const transactionTable = getDesktopTable();
-    const cue = await within(transactionTable).findByRole("button", {
+    const expenseTable = getDesktopTable();
+    const cue = await within(expenseTable).findByRole("button", {
       name: "Suggestions available for Green Market Cafe",
     });
     expect(cue.textContent).toContain("Suggestions available");
     expect(
-      within(transactionTable).queryByRole("button", {
+      within(expenseTable).queryByRole("button", {
         name: "Suggestions available for No suggestion Cafe",
       }),
     ).toBeNull();
 
     fireEvent.click(cue);
 
-    const dateInput = within(transactionTable).getByLabelText(
+    const dateInput = within(expenseTable).getByLabelText(
       "Date for Green Market Cafe",
     );
     expect(document.activeElement).toBe(dateInput);
-    const suggestionGroup = await within(transactionTable).findByRole("group", {
+    const suggestionGroup = await within(expenseTable).findByRole("group", {
       name: "Category Suggestions",
     });
     expect(
@@ -741,22 +741,22 @@ describe("CategorizeStatement ambiguity handling", () => {
     ]);
     render(
       <CategorizeHarness
-        initialTransactions={[unmappedTransaction]}
+        initialExpenses={[unmappedExpense]}
         getCategorySuggestion={getCategorySuggestion}
       />,
     );
 
-    const transactionTable = getDesktopTable();
+    const expenseTable = getDesktopTable();
     fireEvent.click(
-      within(transactionTable).getByRole("button", {
+      within(expenseTable).getByRole("button", {
         name: "Edit Green Market Cafe",
       }),
     );
 
-    const suggestion = await within(transactionTable).findByRole("button", {
+    const suggestion = await within(expenseTable).findByRole("button", {
       name: "Use suggested Category: Housing",
     });
-    const suggestionGroup = within(transactionTable).getByRole("group", {
+    const suggestionGroup = within(expenseTable).getByRole("group", {
       name: "Category Suggestions",
     });
     expect(
@@ -772,13 +772,13 @@ describe("CategorizeStatement ambiguity handling", () => {
       expect.stringContaining("Dining"),
     ]);
     expect(
-      within(transactionTable).getByRole("combobox", {
+      within(expenseTable).getByRole("combobox", {
         name: "Category for Green Market Cafe",
       }),
     ).toBeTruthy();
     fireEvent.click(suggestion);
     expect(
-      within(transactionTable).getByRole("combobox", {
+      within(expenseTable).getByRole("combobox", {
         name: "Category for Green Market Cafe",
       }).textContent,
     ).toContain("Housing");
@@ -788,13 +788,13 @@ describe("CategorizeStatement ambiguity handling", () => {
     const getCategorySuggestion = vi.fn(() => new Promise<null>(() => {}));
     render(
       <CategorizeHarness
-        initialTransactions={[unmappedTransaction]}
+        initialExpenses={[unmappedExpense]}
         getCategorySuggestion={getCategorySuggestion}
       />,
     );
 
     const mobileList = screen.getByRole("list", {
-      name: "Transactions to categorize",
+      name: "Statement Entries to categorize",
     });
     fireEvent.click(
       within(mobileList).getByRole("button", {
@@ -802,7 +802,7 @@ describe("CategorizeStatement ambiguity handling", () => {
       }),
     );
 
-    const editor = screen.getByRole("dialog", { name: "Edit Transaction" });
+    const editor = screen.getByRole("dialog", { name: "Edit Statement Entry" });
     const feedback = await within(editor).findByRole("status");
     expect(feedback.textContent).toContain(
       "Checking for a Category Suggestion",
@@ -819,20 +819,20 @@ describe("CategorizeStatement ambiguity handling", () => {
     const getCategorySuggestion = vi.fn(() => new Promise<null>(() => {}));
     render(
       <CategorizeHarness
-        initialTransactions={[unmappedTransaction]}
+        initialExpenses={[unmappedExpense]}
         getCategorySuggestion={getCategorySuggestion}
       />,
     );
 
     const mobileList = screen.getByRole("list", {
-      name: "Transactions to categorize",
+      name: "Statement Entries to categorize",
     });
     fireEvent.click(
       within(mobileList).getByRole("button", {
         name: "Edit Green Market Cafe",
       }),
     );
-    const editor = screen.getByRole("dialog", { name: "Edit Transaction" });
+    const editor = screen.getByRole("dialog", { name: "Edit Statement Entry" });
     const feedback = within(editor).getByRole("status");
     expect(feedback.textContent).toContain(
       "Checking for a Category Suggestion",
@@ -853,13 +853,13 @@ describe("CategorizeStatement ambiguity handling", () => {
     const getCategorySuggestion = vi.fn(async () => null);
     render(
       <CategorizeHarness
-        initialTransactions={[unmappedTransaction]}
+        initialExpenses={[unmappedExpense]}
         getCategorySuggestion={getCategorySuggestion}
       />,
     );
 
     const mobileList = screen.getByRole("list", {
-      name: "Transactions to categorize",
+      name: "Statement Entries to categorize",
     });
     fireEvent.click(
       within(mobileList).getByRole("button", {
@@ -867,7 +867,7 @@ describe("CategorizeStatement ambiguity handling", () => {
       }),
     );
 
-    const editor = screen.getByRole("dialog", { name: "Edit Transaction" });
+    const editor = screen.getByRole("dialog", { name: "Edit Statement Entry" });
     const feedback = await within(editor).findByRole("status");
     expect(feedback.textContent).toContain("No Category Suggestion available");
     expect(
@@ -884,14 +884,14 @@ describe("CategorizeStatement ambiguity handling", () => {
     const onReview = vi.fn();
     render(
       <CategorizeHarness
-        initialTransactions={[unmappedTransaction]}
+        initialExpenses={[unmappedExpense]}
         getCategorySuggestion={getCategorySuggestion}
         onReview={onReview}
       />,
     );
 
     const mobileList = screen.getByRole("list", {
-      name: "Transactions to categorize",
+      name: "Statement Entries to categorize",
     });
     fireEvent.click(
       within(mobileList).getByRole("button", {
@@ -899,7 +899,7 @@ describe("CategorizeStatement ambiguity handling", () => {
       }),
     );
 
-    const editor = screen.getByRole("dialog", { name: "Edit Transaction" });
+    const editor = screen.getByRole("dialog", { name: "Edit Statement Entry" });
     const feedback = await within(editor).findByRole("status");
     expect(feedback.textContent).toContain("Category Suggestion unavailable");
     expect(
@@ -916,7 +916,7 @@ describe("CategorizeStatement ambiguity handling", () => {
     fireEvent.click(within(editor).getByRole("button", { name: "Save changes" }));
 
     const reviewButton = screen.getByRole("button", {
-      name: "Review 1 Transactions",
+      name: "Review 1 Expenses",
     });
     await waitFor(() => expect(reviewButton).toHaveProperty("disabled", false));
     fireEvent.click(reviewButton);
@@ -930,7 +930,7 @@ describe("CategorizeStatement ambiguity handling", () => {
     render(<CategorizeHarness getCategorySuggestion={getCategorySuggestion} />);
 
     const mobileList = screen.getByRole("list", {
-      name: "Transactions to categorize",
+      name: "Statement Entries to categorize",
     });
     fireEvent.click(
       within(mobileList).getByRole("button", {
@@ -941,17 +941,17 @@ describe("CategorizeStatement ambiguity handling", () => {
     expect(getCategorySuggestion).not.toHaveBeenCalled();
     expect(
       within(
-        screen.getByRole("dialog", { name: "Edit Transaction" }),
+        screen.getByRole("dialog", { name: "Edit Statement Entry" }),
       ).getByRole("combobox", { name: "Category for Green Market Cafe" }),
     ).toBeTruthy();
   });
 
-  it("uses the saved Category Color for an assigned Transaction", () => {
+  it("uses the saved Category Color for an assigned Expense", () => {
     render(
       <CategorizeHarness
-        initialTransactions={[
+        initialExpenses={[
           {
-            ...ambiguousTransaction,
+            ...ambiguousExpense,
             categoryId: "42",
             assignment: "manual",
             matchedCategoryIds: ["42"],
@@ -967,14 +967,14 @@ describe("CategorizeStatement ambiguity handling", () => {
     ).toContain("bg-category-teal");
   });
 
-  it("offers the mobile Transaction flow alongside the desktop table", () => {
+  it("offers the mobile Expense flow alongside the desktop table", () => {
     render(<CategorizeHarness />);
 
     const mobileList = screen.getByRole("list", {
-      name: "Transactions to categorize",
+      name: "Statement Entries to categorize",
     });
     const desktopTable = screen.getByRole("table", {
-      name: "Transactions parsed from statement.pdf",
+      name: "Statement Entries parsed from statement.pdf",
     });
 
     expect(within(mobileList).getByText("Green Market Cafe")).toBeTruthy();
@@ -987,17 +987,17 @@ describe("CategorizeStatement ambiguity handling", () => {
   });
 
   it("leaves Unmapped assignment cells empty on mobile and desktop", () => {
-    const unmappedTransaction = {
-      ...ambiguousTransaction,
+    const unmappedExpense = {
+      ...ambiguousExpense,
       description: "Unmapped Cafe",
       assignment: "unmapped" as const,
       matchedCategoryIds: [],
     };
 
-    render(<CategorizeHarness initialTransactions={[unmappedTransaction]} />);
+    render(<CategorizeHarness initialExpenses={[unmappedExpense]} />);
 
     const mobileItem = within(
-      screen.getByRole("list", { name: "Transactions to categorize" }),
+      screen.getByRole("list", { name: "Statement Entries to categorize" }),
     )
       .getByText("Unmapped Cafe")
       .closest("li");
@@ -1018,15 +1018,15 @@ describe("CategorizeStatement ambiguity handling", () => {
   });
 
   it("explicitly applies compact assignments and skips excluded rows", async () => {
-    render(<CategorizeHarness initialTransactions={[
-      unmappedTransaction,
-      { ...unmappedTransaction, id: "excluded", description: "Excluded Cafe", isExcluded: true },
-      { ...unmappedTransaction, id: "assigned", description: "Assigned Cafe", categoryId: "42", assignment: "manual" },
-      { ...unmappedTransaction, id: "next", description: "Next Cafe" },
+    render(<CategorizeHarness initialExpenses={[
+      unmappedExpense,
+      { ...unmappedExpense, id: "excluded", description: "Excluded Cafe", isExcluded: true },
+      { ...unmappedExpense, id: "assigned", description: "Assigned Cafe", categoryId: "42", assignment: "manual" },
+      { ...unmappedExpense, id: "next", description: "Next Cafe" },
     ]} getCategorySuggestion={getSuggestionsForGreenMarket} />);
-    const list = screen.getByRole("list", { name: "Transactions to categorize" });
+    const list = screen.getByRole("list", { name: "Statement Entries to categorize" });
     fireEvent.click(within(list).getByRole("button", { name: "Edit Category for Green Market Cafe" }));
-    const editor = screen.getByRole("dialog", { name: "Edit Transaction" });
+    const editor = screen.getByRole("dialog", { name: "Edit Statement Entry" });
     expect(within(editor).queryByRole("textbox", { name: "Description for Green Market Cafe" })).toBeNull();
     fireEvent.click(await within(editor).findByRole("button", { name: "Use suggested Category: Groceries" }));
     expect(within(list).getAllByText("Unmapped").length).toBeGreaterThan(0);
@@ -1042,15 +1042,15 @@ describe("CategorizeStatement ambiguity handling", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(screen.getByText("All included expenses have a Category. Continue to Review when ready.")).toBeTruthy();
     expect(within(list).getByText("Corrected Cafe")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Review 3 Transactions" }).hasAttribute("disabled")).toBe(false);
+    expect(screen.getByRole("button", { name: "Review 3 Expenses" }).hasAttribute("disabled")).toBe(false);
     fireEvent.click(within(list).getByRole("button", { name: "Include Excluded Cafe" }));
-    expect(screen.getByRole("button", { name: "Review 4 Transactions" }).hasAttribute("disabled")).toBe(true);
+    expect(screen.getByRole("button", { name: "Review 4 Expenses" }).hasAttribute("disabled")).toBe(true);
   });
 
   it("retains corrections and editor position when Apply & next fails", async () => {
-    render(<CategorizeHarness initialTransactions={[unmappedTransaction, { ...unmappedTransaction, id: "next", description: "Next Cafe" }]}
+    render(<CategorizeHarness initialExpenses={[unmappedExpense, { ...unmappedExpense, id: "next", description: "Next Cafe" }]}
       onRememberCategoryRule={async () => { throw new Error("Rule unavailable"); }} />);
-    const list = screen.getByRole("list", { name: "Transactions to categorize" });
+    const list = screen.getByRole("list", { name: "Statement Entries to categorize" });
     fireEvent.click(within(list).getByRole("button", { name: "Edit Category for Green Market Cafe" }));
     const editor = screen.getByRole("dialog");
     fireEvent.click(within(editor).getByRole("button", { name: "Full corrections" }));
@@ -1069,10 +1069,10 @@ describe("CategorizeStatement ambiguity handling", () => {
   });
 
   it("focuses the Category selector when Choose category opens the mobile editor", () => {
-    render(<CategorizeHarness initialTransactions={[unmappedTransaction]} />);
+    render(<CategorizeHarness initialExpenses={[unmappedExpense]} />);
 
     const mobileList = screen.getByRole("list", {
-      name: "Transactions to categorize",
+      name: "Statement Entries to categorize",
     });
     fireEvent.click(
       within(mobileList).getByRole("button", {
@@ -1080,7 +1080,7 @@ describe("CategorizeStatement ambiguity handling", () => {
       }),
     );
 
-    const editor = screen.getByRole("dialog", { name: "Edit Transaction" });
+    const editor = screen.getByRole("dialog", { name: "Edit Statement Entry" });
     const categoryInput = within(editor).getByRole("combobox", {
       name: "Category for Green Market Cafe",
     });
@@ -1091,18 +1091,18 @@ describe("CategorizeStatement ambiguity handling", () => {
     render(<CategorizeHarness />);
 
     fireEvent.change(
-      screen.getByRole("textbox", { name: "Search Transactions" }),
+      screen.getByRole("textbox", { name: "Search Statement Entries" }),
       {
         target: { value: "green" },
       },
     );
 
     expect(
-      screen.getByRole("button", { name: "Filter Transactions" }),
+      screen.getByRole("button", { name: "Filter Statement Entries" }),
     ).toBeTruthy();
     expect(
       screen.queryByRole("button", {
-        name: "Filter Transactions, filters active",
+        name: "Filter Statement Entries, filters active",
       }),
     ).toBeNull();
   });
@@ -1111,20 +1111,20 @@ describe("CategorizeStatement ambiguity handling", () => {
     render(<CategorizeHarness />);
 
     fireEvent.click(
-      screen.getByRole("button", { name: "Filter Transactions" }),
+      screen.getByRole("button", { name: "Filter Statement Entries" }),
     );
 
-    const filters = screen.getByRole("dialog", { name: "Filter Transactions" });
+    const filters = screen.getByRole("dialog", { name: "Filter Statement Entries" });
     const fromInput = within(filters).getByLabelText("From");
 
     expect(document.activeElement).not.toBe(fromInput);
   });
 
-  it("edits a Transaction from the mobile editor", async () => {
+  it("edits a Statement Entry from the mobile editor", async () => {
     render(<CategorizeHarness />);
 
     const mobileList = screen.getByRole("list", {
-      name: "Transactions to categorize",
+      name: "Statement Entries to categorize",
     });
     fireEvent.click(
       within(mobileList).getByRole("button", {
@@ -1132,7 +1132,7 @@ describe("CategorizeStatement ambiguity handling", () => {
       }),
     );
 
-    const editor = screen.getByRole("dialog", { name: "Edit Transaction" });
+    const editor = screen.getByRole("dialog", { name: "Edit Statement Entry" });
     const dateInput = within(editor).getByLabelText(
       "Date for Green Market Cafe",
     );
@@ -1154,17 +1154,17 @@ describe("CategorizeStatement ambiguity handling", () => {
 
     await waitFor(() => {
       expect(
-        screen.queryByRole("dialog", { name: "Edit Transaction" }),
+        screen.queryByRole("dialog", { name: "Edit Statement Entry" }),
       ).toBeNull();
     });
     expect(within(mobileList).getByText("Housing")).toBeTruthy();
   });
 
-  it("uses the Transaction description for Exact Rules and only enables Contains patterns", () => {
+  it("uses the Expense description for Exact Rules and only enables Contains patterns", () => {
     render(<CategorizeHarness />);
 
     const mobileList = screen.getByRole("list", {
-      name: "Transactions to categorize",
+      name: "Statement Entries to categorize",
     });
     fireEvent.click(
       within(mobileList).getByRole("button", {
@@ -1172,7 +1172,7 @@ describe("CategorizeStatement ambiguity handling", () => {
       }),
     );
 
-    const editor = screen.getByRole("dialog", { name: "Edit Transaction" });
+    const editor = screen.getByRole("dialog", { name: "Edit Statement Entry" });
     fireEvent.click(
       within(editor).getByRole("checkbox", {
         name: "Remember this category",
@@ -1240,14 +1240,14 @@ describe("CategorizeStatement ambiguity handling", () => {
     render(<CategorizeHarness onRememberCategoryRule={rememberCategoryRule} />);
 
     const mobileList = screen.getByRole("list", {
-      name: "Transactions to categorize",
+      name: "Statement Entries to categorize",
     });
     fireEvent.click(
       within(mobileList).getByRole("button", {
         name: "Edit Green Market Cafe",
       }),
     );
-    const editor = screen.getByRole("dialog", { name: "Edit Transaction" });
+    const editor = screen.getByRole("dialog", { name: "Edit Statement Entry" });
     fireEvent.click(
       within(editor).getByRole("combobox", {
         name: "Category for Green Market Cafe",
@@ -1273,7 +1273,7 @@ describe("CategorizeStatement ambiguity handling", () => {
 
     await waitFor(() => {
       expect(
-        screen.queryByRole("dialog", { name: "Edit Transaction" }),
+        screen.queryByRole("dialog", { name: "Edit Statement Entry" }),
       ).toBeNull();
     });
     expect(rememberCategoryRule).toHaveBeenCalledWith(
@@ -1299,14 +1299,14 @@ describe("CategorizeStatement ambiguity handling", () => {
     render(<CategorizeHarness onRememberCategoryRule={rememberCategoryRule} />);
 
     const mobileList = screen.getByRole("list", {
-      name: "Transactions to categorize",
+      name: "Statement Entries to categorize",
     });
     fireEvent.click(
       within(mobileList).getByRole("button", {
         name: "Edit Green Market Cafe",
       }),
     );
-    const editor = screen.getByRole("dialog", { name: "Edit Transaction" });
+    const editor = screen.getByRole("dialog", { name: "Edit Statement Entry" });
     fireEvent.click(
       within(editor).getByRole("combobox", {
         name: "Category for Green Market Cafe",
@@ -1336,7 +1336,7 @@ describe("CategorizeStatement ambiguity handling", () => {
 
     expect(await screen.findByText("Rule service unavailable.")).toBeTruthy();
     const recoveredEditor = screen.getByRole("dialog", {
-      name: "Edit Transaction",
+      name: "Edit Statement Entry",
     });
     expect(
       within(recoveredEditor)
@@ -1373,14 +1373,14 @@ describe("CategorizeStatement ambiguity handling", () => {
     render(<CategorizeHarness onRememberCategoryRule={rememberCategoryRule} />);
 
     const mobileList = screen.getByRole("list", {
-      name: "Transactions to categorize",
+      name: "Statement Entries to categorize",
     });
     fireEvent.click(
       within(mobileList).getByRole("button", {
         name: "Edit Green Market Cafe",
       }),
     );
-    const editor = screen.getByRole("dialog", { name: "Edit Transaction" });
+    const editor = screen.getByRole("dialog", { name: "Edit Statement Entry" });
     fireEvent.click(
       within(editor).getByRole("combobox", {
         name: "Category for Green Market Cafe",
@@ -1412,7 +1412,7 @@ describe("CategorizeStatement ambiguity handling", () => {
       await screen.findByText("A Category Rule requires a non-empty pattern."),
     ).toBeTruthy();
     expect(
-      screen.getByRole("dialog", { name: "Edit Transaction" }),
+      screen.getByRole("dialog", { name: "Edit Statement Entry" }),
     ).toBeTruthy();
     expect(rememberCategoryRule).not.toHaveBeenCalled();
     expect(
@@ -1430,11 +1430,11 @@ describe("CategorizeStatement ambiguity handling", () => {
   it("applies mobile Sheet filters immediately", () => {
     render(
       <CategorizeHarness
-        initialTransactions={[
-          ambiguousTransaction,
+        initialExpenses={[
+          ambiguousExpense,
           {
-            ...ambiguousTransaction,
-            id: "transaction-2",
+            ...ambiguousExpense,
+            id: "expense-2",
             description: "Rent payment",
             categoryId: "42",
             assignment: "rule",
@@ -1445,9 +1445,9 @@ describe("CategorizeStatement ambiguity handling", () => {
     );
 
     fireEvent.click(
-      screen.getByRole("button", { name: "Filter Transactions" }),
+      screen.getByRole("button", { name: "Filter Statement Entries" }),
     );
-    const filters = screen.getByRole("dialog", { name: "Filter Transactions" });
+    const filters = screen.getByRole("dialog", { name: "Filter Statement Entries" });
     fireEvent.click(
       within(filters).getByRole("combobox", { name: "Category" }),
     );
@@ -1457,7 +1457,7 @@ describe("CategorizeStatement ambiguity handling", () => {
     );
 
     const mobileList = screen.getByRole("list", {
-      name: "Transactions to categorize",
+      name: "Statement Entries to categorize",
     });
     expect(within(mobileList).getByText("Green Market Cafe")).toBeTruthy();
     expect(within(mobileList).queryByText("Rent payment")).toBeNull();
@@ -1473,7 +1473,7 @@ describe("CategorizeStatement ambiguity handling", () => {
     expect(within(desktopTable).getByText("Housing, Groceries")).toBeTruthy();
     expect(screen.getAllByText("1 Ambiguous")).toHaveLength(2);
     expect(
-      screen.getByRole("button", { name: "Review 1 Transactions" }),
+      screen.getByRole("button", { name: "Review 1 Expenses" }),
     ).toHaveProperty("disabled", true);
 
     fireEvent.click(
@@ -1500,18 +1500,18 @@ describe("CategorizeStatement ambiguity handling", () => {
     });
     expect(within(desktopTable).getByText("Housing")).toBeTruthy();
     expect(
-      screen.getByRole("button", { name: "Review 1 Transactions" }),
+      screen.getByRole("button", { name: "Review 1 Expenses" }),
     ).toHaveProperty("disabled", false);
   });
 
   it("keeps ambiguous rows in the Unmapped filter", () => {
     render(
       <CategorizeHarness
-        initialTransactions={[
-          ambiguousTransaction,
+        initialExpenses={[
+          ambiguousExpense,
           {
-            ...ambiguousTransaction,
-            id: "transaction-2",
+            ...ambiguousExpense,
+            id: "expense-2",
             description: "Rent payment",
             categoryId: "42",
             assignment: "rule",
@@ -1522,13 +1522,13 @@ describe("CategorizeStatement ambiguity handling", () => {
     );
 
     const desktopTable = getDesktopTable();
-    expect(screen.getAllByText("2 of 2 Transactions")).toHaveLength(2);
+    expect(screen.getAllByText("2 of 2 Expenses")).toHaveLength(2);
     fireEvent.click(screen.getByRole("combobox", { name: "Category" }));
     fireEvent.click(screen.getByRole("option", { name: "Unmapped" }));
 
     expect(within(desktopTable).getByText("Green Market Cafe")).toBeTruthy();
     expect(within(desktopTable).queryByText("Rent payment")).toBeNull();
-    expect(screen.getAllByText("1 of 2 Transactions")).toHaveLength(2);
+    expect(screen.getAllByText("1 of 2 Expenses")).toHaveLength(2);
   });
 
   it("places the desktop remember control above its Category Rule fields", () => {
@@ -1665,7 +1665,7 @@ describe("CategorizeStatement ambiguity handling", () => {
       }).textContent,
     ).toContain("Exact");
     expect(
-      screen.getByRole("button", { name: "Review 1 Transactions" }),
+      screen.getByRole("button", { name: "Review 1 Expenses" }),
     ).toHaveProperty("disabled", true);
   });
 });
@@ -1685,11 +1685,11 @@ describe("CategorizeStatement E-Wallet controls", () => {
           totalAmountDue: 26696.92,
           totalExtractedAmount: -25291.92,
         }}
-        initialTransactions={[
-          ambiguousTransaction,
+        initialExpenses={[
+          ambiguousExpense,
           {
-            ...ambiguousTransaction,
-            id: "excluded-transaction",
+            ...ambiguousExpense,
+            id: "excluded-expense",
             description: "Received transfer",
             amount: 10,
             isExcluded: true,
@@ -1718,9 +1718,9 @@ describe("CategorizeStatement E-Wallet controls", () => {
 
 describe("CategorizeStatement row emphasis", () => {
   it("labels excluded payments accurately and displays positive expense amounts", () => {
-    const debitTransaction = {
-      ...ambiguousTransaction,
-      id: "transaction-2",
+    const debitExpense = {
+      ...ambiguousExpense,
+      id: "expense-2",
       description: "Payment received",
       activityKind: "payment" as const,
       amount: 10,
@@ -1729,7 +1729,7 @@ describe("CategorizeStatement row emphasis", () => {
 
     render(
       <CategorizeHarness
-        initialTransactions={[ambiguousTransaction, debitTransaction]}
+        initialExpenses={[ambiguousExpense, debitExpense]}
       />,
     );
 
@@ -1753,10 +1753,10 @@ describe("CategorizeStatement row emphasis", () => {
     expect(within(debitRow as HTMLElement).getByText("Payment")).toBeTruthy();
   });
 
-  it("mutes manually excluded transactions regardless of amount sign", () => {
-    const excludedTransaction = {
-      ...ambiguousTransaction,
-      id: "transaction-3",
+  it("mutes manually excluded expenses regardless of amount sign", () => {
+    const excludedExpense = {
+      ...ambiguousExpense,
+      id: "expense-3",
       description: "Excluded refund",
       amount: -10,
       categoryId: "42",
@@ -1767,7 +1767,7 @@ describe("CategorizeStatement row emphasis", () => {
 
     render(
       <CategorizeHarness
-        initialTransactions={[ambiguousTransaction, excludedTransaction]}
+        initialExpenses={[ambiguousExpense, excludedExpense]}
       />,
     );
 
@@ -1776,7 +1776,7 @@ describe("CategorizeStatement row emphasis", () => {
       .getByText("Excluded refund")
       .closest("tr");
     const mobileList = screen.getByRole("list", {
-      name: "Transactions to categorize",
+      name: "Statement Entries to categorize",
     });
     const excludedItem = within(mobileList)
       .getByText("Excluded refund")

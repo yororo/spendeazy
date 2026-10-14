@@ -13,7 +13,7 @@ export interface CategorySummaryRow {
   categoryName: string;
   categoryIsActive: boolean;
   totalAmount: string;
-  transactionCount: string;
+  expenseCount: string;
   budgetAmount: string | null;
   budgetPeriod: BudgetPeriod | null;
 }

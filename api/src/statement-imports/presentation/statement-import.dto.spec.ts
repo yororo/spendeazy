@@ -34,7 +34,7 @@ describe('statement import DTOs', () => {
       statementType: 'credit_card',
       bank: '  Example Bank  ',
       cardType: '  visa  ',
-      transactions: [
+      expenses: [
         {
           categoryId: '42',
           purchaseDate: '2026-08-01',
@@ -48,14 +48,14 @@ describe('statement import DTOs', () => {
     await expect(validate(input)).resolves.toEqual([]);
     expect(input.fileName).toBe('august.pdf');
     expect(input.bank).toBe('Example Bank');
-    expect(input.transactions[0].description).toBe('Coffee');
+    expect(input.expenses[0].description).toBe('Coffee');
   });
 
-  it('rejects uppercase hashes, invalid dates, and missing transactions', async () => {
+  it('rejects uppercase hashes, invalid dates, and missing expenses', async () => {
     for (const overrides of [
       { fileHash: 'A'.repeat(64) },
       { statementDate: '2026-02-29' },
-      { transactions: undefined },
+      { expenses: undefined },
     ]) {
       const input = plainToInstance(CommitReviewedStatementImportDto, {
         fileName: 'august.pdf',
@@ -63,7 +63,7 @@ describe('statement import DTOs', () => {
         statementDate: '2026-08-31',
         statementType: 'credit_card',
         bank: 'Example Bank',
-        transactions: [
+        expenses: [
           {
             purchaseDate: '2026-08-01',
             description: 'Coffee',
@@ -84,7 +84,7 @@ describe('statement import DTOs', () => {
       statementDate: '2026-08-31',
       statementType: 'credit_card',
       bank: 'Example Bank',
-      transactions: [],
+      expenses: [],
       acknowledgeProbableDuplicates: true,
     });
 
@@ -97,7 +97,7 @@ describe('statement import DTOs', () => {
       statementDate: '2026-08-31',
       statementType: 'credit_card',
       bank: 'Example Bank',
-      transactions: [],
+      expenses: [],
       acknowledgeProbableDuplicates: 'true',
     });
 
@@ -114,7 +114,7 @@ describe('statement import DTOs', () => {
       cardType: 'E-Wallet',
       transactionHistoryStartDate: '2026-08-09',
       totalDebit: '26696.92',
-      transactions: [
+      expenses: [
         {
           purchaseDate: '2026-08-09',
           description: 'Payment to Cafe',
@@ -125,7 +125,7 @@ describe('statement import DTOs', () => {
     });
 
     await expect(validate(input)).resolves.toEqual([]);
-    expect(input.transactions[0].reference).toBe('123456789');
+    expect(input.expenses[0].reference).toBe('123456789');
   });
 
   it('accepts bounded statement-import history filters and transforms page size', async () => {

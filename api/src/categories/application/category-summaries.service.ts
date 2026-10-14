@@ -28,7 +28,7 @@ export interface CategorySummaryItem {
   name: string;
   isActive: boolean;
   totalAmount: string;
-  transactionCount: string;
+  expenseCount: string;
   budgetAmount: string | null;
   remainingAmount: string | null;
 }
@@ -100,7 +100,7 @@ function toCategorySummaryItem(
     name: category.categoryName,
     isActive: category.categoryIsActive,
     totalAmount,
-    transactionCount: normalizeCount(category.transactionCount),
+    expenseCount: normalizeCount(category.expenseCount),
     budgetAmount,
     remainingAmount:
       budgetAmount === null ? null : subtractMoney(budgetAmount, totalAmount),

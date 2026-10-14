@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 
-import type { CategorizedTransaction } from "./statement-categorizer";
+import type { CategorizedStatementEntry } from "./statement-categorizer";
 import type { CategoryRule } from "./statement-import-service";
 
 interface CategoryRuleHelpProps {
@@ -8,7 +8,7 @@ interface CategoryRuleHelpProps {
   readonly equivalentRule: boolean;
   readonly rememberRule: boolean;
   readonly matchType: CategoryRule["matchType"];
-  readonly previewRows: readonly CategorizedTransaction[];
+  readonly previewRows: readonly CategorizedStatementEntry[];
   readonly editingId: string | null;
   readonly draftDescription: string | undefined;
   readonly draftError: string | null;

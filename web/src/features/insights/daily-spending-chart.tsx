@@ -208,9 +208,9 @@ function DailySpendingChart({ report, onInspect }: DailySpendingChartProps) {
             <table>
               <caption>
                 Daily spending values for {report.period}. Amounts are in PHP.
-                Total spending includes all Transactions, including
-                Uncategorized Transactions. Budgeted Spending includes
-                Transactions in Categories with a current monthly Budget.
+                Total spending includes all Expenses, including
+                Uncategorized Expenses. Budgeted Spending includes
+                Expenses in Categories with a current monthly Budget.
                 {visibleBudgetPace
                   ? ` The daily Budget pace is ${budgetPaceLabel}; it is a pace guide, not a daily limit.`
                   : ""}

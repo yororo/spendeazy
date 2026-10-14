@@ -30,12 +30,12 @@ export class TypeOrmInvitationAcceptanceStore implements InvitationAcceptanceSto
 
   accept(input: AcceptInvitationInput): Promise<AccessibleSpaceRecord> {
     return this.entityManager.transaction((entityManager) =>
-      acceptInTransaction(entityManager, input),
+      acceptInExpense(entityManager, input),
     );
   }
 }
 
-async function acceptInTransaction(
+async function acceptInExpense(
   entityManager: EntityManager,
   input: AcceptInvitationInput,
 ): Promise<AccessibleSpaceRecord> {

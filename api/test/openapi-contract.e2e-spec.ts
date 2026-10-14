@@ -34,9 +34,9 @@ import type { BudgetRecord } from '../src/categories/application/budget-store';
 import { CategoryRulesService } from '../src/category-rules/application/category-rules.service';
 import type { CategoryRuleRecord } from '../src/category-rules/application/category-rule-store';
 import { CategoryRulePatternConflictError } from '../src/category-rules/application/category-rule-errors';
-import { TransactionsService } from '../src/transactions/application/transactions.service';
-import type { ImportedTransactionRecord } from '../src/transactions/application/imported-transaction-store';
-import type { ManualTransactionRecord } from '../src/transactions/application/transaction-store';
+import { ExpensesService } from '../src/expenses/application/expenses.service';
+import type { ImportedExpenseRecord } from '../src/expenses/application/imported-expense-store';
+import type { ManualExpenseRecord } from '../src/expenses/application/expense-store';
 import { StatementImportsService } from '../src/statement-imports/application/statement-imports.service';
 import { StatementImportProbableDuplicatesError } from '../src/statement-imports/application/statement-import-errors';
 import type {
@@ -95,13 +95,13 @@ describe('runtime responses against the generated OpenAPI contract', () => {
     updateCategoryRule: jest.Mock;
     deleteCategoryRule: jest.Mock;
   };
-  let transactionsService: {
-    createManualTransaction: jest.Mock;
-    listTransactions: jest.Mock;
-    listDeletedTransactions: jest.Mock;
-    getManualTransaction: jest.Mock;
-    updateTransaction: jest.Mock;
-    deleteManualTransaction: jest.Mock;
+  let expensesService: {
+    createManualExpense: jest.Mock;
+    listExpenses: jest.Mock;
+    listDeletedExpenses: jest.Mock;
+    getManualExpense: jest.Mock;
+    updateExpense: jest.Mock;
+    deleteManualExpense: jest.Mock;
   };
   let statementImportsService: {
     getStatementImport: jest.Mock;
@@ -143,13 +143,13 @@ describe('runtime responses against the generated OpenAPI contract', () => {
       updateCategoryRule: jest.fn(),
       deleteCategoryRule: jest.fn(),
     };
-    transactionsService = {
-      createManualTransaction: jest.fn(),
-      listTransactions: jest.fn(),
-      listDeletedTransactions: jest.fn(),
-      getManualTransaction: jest.fn(),
-      updateTransaction: jest.fn(),
-      deleteManualTransaction: jest.fn(),
+    expensesService = {
+      createManualExpense: jest.fn(),
+      listExpenses: jest.fn(),
+      listDeletedExpenses: jest.fn(),
+      getManualExpense: jest.fn(),
+      updateExpense: jest.fn(),
+      deleteManualExpense: jest.fn(),
     };
     statementImportsService = {
       getStatementImport: jest.fn(),
@@ -212,28 +212,25 @@ describe('runtime responses against the generated OpenAPI contract', () => {
         revision: '0',
       }),
     });
-    Object.assign(transactionsService, {
-      createManualTransactionInSpace: (
+    Object.assign(expensesService, {
+      createManualExpenseInSpace: (
         _userId: string,
         _spaceId: string,
         input: unknown,
-      ) => invoke(transactionsService.createManualTransaction, _userId, input),
-      listTransactionsInSpace: (_spaceId: string, query: unknown) =>
-        invoke(transactionsService.listTransactions, '7', query),
-      listDeletedTransactionsInSpace: (_spaceId: string, query: unknown) =>
-        invoke(transactionsService.listDeletedTransactions, '7', query),
-      getManualTransactionInSpace: (_spaceId: string, id: string) =>
-        invoke(transactionsService.getManualTransaction, '7', id),
-      updateTransactionInSpace: (
-        _spaceId: string,
-        id: string,
-        input: unknown,
-      ) => invoke(transactionsService.updateTransaction, '7', id, input),
-      deleteManualTransactionInSpace: (
+      ) => invoke(expensesService.createManualExpense, _userId, input),
+      listExpensesInSpace: (_spaceId: string, query: unknown) =>
+        invoke(expensesService.listExpenses, '7', query),
+      listDeletedExpensesInSpace: (_spaceId: string, query: unknown) =>
+        invoke(expensesService.listDeletedExpenses, '7', query),
+      getManualExpenseInSpace: (_spaceId: string, id: string) =>
+        invoke(expensesService.getManualExpense, '7', id),
+      updateExpenseInSpace: (_spaceId: string, id: string, input: unknown) =>
+        invoke(expensesService.updateExpense, '7', id, input),
+      deleteManualExpenseInSpace: (
         _actorUserId: string,
         _spaceId: string,
         id: string,
-      ) => invoke(transactionsService.deleteManualTransaction, '7', id),
+      ) => invoke(expensesService.deleteManualExpense, '7', id),
     });
     Object.assign(statementImportsService, {
       getStatementImportInSpace: (_spaceId: string, id: string) =>
@@ -278,8 +275,8 @@ describe('runtime responses against the generated OpenAPI contract', () => {
       .useValue(categorySummariesService)
       .overrideProvider(CategoryRulesService)
       .useValue(categoryRulesService)
-      .overrideProvider(TransactionsService)
-      .useValue(transactionsService)
+      .overrideProvider(ExpensesService)
+      .useValue(expensesService)
       .overrideProvider(StatementImportsService)
       .useValue(statementImportsService)
       .overrideProvider(SpaceAccessService)
@@ -306,13 +303,13 @@ describe('runtime responses against the generated OpenAPI contract', () => {
     budgetsService.putBudget
       .mockResolvedValueOnce({ budget: budgetRecord(), created: true })
       .mockResolvedValueOnce({ budget: budgetRecord(), created: false });
-    transactionsService.updateTransaction
-      .mockResolvedValueOnce(manualTransactionRecord())
-      .mockResolvedValueOnce(importedTransactionRecord());
+    expensesService.updateExpense
+      .mockResolvedValueOnce(manualExpenseRecord())
+      .mockResolvedValueOnce(importedExpenseRecord());
     readiness.isReady.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
 
-    const manualResponse = manualTransactionResponse();
-    const importedResponse = importedTransactionResponse();
+    const manualResponse = manualExpenseResponse();
+    const importedResponse = importedExpenseResponse();
     const cases: RuntimeSuccessCase[] = [
       {
         name: 'ready health',
@@ -490,10 +487,10 @@ describe('runtime responses against the generated OpenAPI contract', () => {
         status: 204,
       },
       {
-        name: 'created manual Transaction',
+        name: 'created manual Expense',
         method: 'post',
-        path: '/api/v1/users/me/transactions',
-        contractPath: '/api/v1/users/me/transactions',
+        path: '/api/v1/users/me/expenses',
+        contractPath: '/api/v1/users/me/expenses',
         status: 201,
         body: {
           purchaseDate: '2026-08-01',
@@ -501,48 +498,48 @@ describe('runtime responses against the generated OpenAPI contract', () => {
           amount: '4.50',
         },
         expectedBody: manualResponse,
-        location: '/api/v1/users/me/transactions/46',
+        location: '/api/v1/users/me/expenses/46',
       },
       {
-        name: 'mixed Transaction history page',
+        name: 'mixed Expense history page',
         method: 'get',
-        path: '/api/v1/users/me/transactions',
-        contractPath: '/api/v1/users/me/transactions',
+        path: '/api/v1/users/me/expenses',
+        contractPath: '/api/v1/users/me/expenses',
         status: 200,
         query: { pageSize: '2' },
-        expectedBody: transactionHistoryPageResponse(),
+        expectedBody: expenseHistoryPageResponse(),
       },
       {
-        name: 'manual Transaction item',
+        name: 'manual Expense item',
         method: 'get',
-        path: '/api/v1/users/me/transactions/46',
-        contractPath: '/api/v1/users/me/transactions/{transactionId}',
+        path: '/api/v1/users/me/expenses/46',
+        contractPath: '/api/v1/users/me/expenses/{expenseId}',
         status: 200,
         expectedBody: manualResponse,
       },
       {
-        name: 'manual Transaction update variant',
+        name: 'manual Expense update variant',
         method: 'patch',
-        path: '/api/v1/users/me/transactions/46',
-        contractPath: '/api/v1/users/me/transactions/{transactionId}',
+        path: '/api/v1/users/me/expenses/46',
+        contractPath: '/api/v1/users/me/expenses/{expenseId}',
         status: 200,
         body: { amount: '5.00' },
         expectedBody: manualResponse,
       },
       {
-        name: 'imported Transaction update variant',
+        name: 'imported Expense update variant',
         method: 'patch',
-        path: '/api/v1/users/me/transactions/47',
-        contractPath: '/api/v1/users/me/transactions/{transactionId}',
+        path: '/api/v1/users/me/expenses/47',
+        contractPath: '/api/v1/users/me/expenses/{expenseId}',
         status: 200,
         body: { categoryId: '42' },
         expectedBody: importedResponse,
       },
       {
-        name: 'deleted manual Transaction',
+        name: 'deleted manual Expense',
         method: 'delete',
-        path: '/api/v1/users/me/transactions/46',
-        contractPath: '/api/v1/users/me/transactions/{transactionId}',
+        path: '/api/v1/users/me/expenses/46',
+        contractPath: '/api/v1/users/me/expenses/{expenseId}',
         status: 204,
       },
       {
@@ -794,7 +791,7 @@ describe('runtime responses against the generated OpenAPI contract', () => {
       new StatementImportProbableDuplicatesError([
         {
           fingerprint: 'internal-fingerprint',
-          incomingTransactionIndexes: [0, 2],
+          incomingExpenseIndexes: [0, 2],
           committedMatches: [{ id: '18' }],
         },
       ]),
@@ -811,10 +808,10 @@ describe('runtime responses against the generated OpenAPI contract', () => {
       error: {
         details: [
           {
-            field: '/transactions/0',
+            field: '/expenses/0',
             code: 'probable_duplicate',
-            transactionIndexes: [0, 2],
-            committedTransactionIds: ['18'],
+            expenseIndexes: [0, 2],
+            committedExpenseIds: ['18'],
           },
         ],
       },
@@ -862,8 +859,8 @@ describe('runtime responses against the generated OpenAPI contract', () => {
 
     await sendErrorRequest({
       method: 'get',
-      path: '/api/v1/users/me/transactions',
-      contractPath: '/api/v1/users/me/transactions',
+      path: '/api/v1/users/me/expenses',
+      contractPath: '/api/v1/users/me/expenses',
       status: 400,
       code: 'VALIDATION_FAILED',
       query: { fromDate: '2026-02-30' },
@@ -871,8 +868,8 @@ describe('runtime responses against the generated OpenAPI contract', () => {
 
     await sendErrorRequest({
       method: 'get',
-      path: '/api/v1/users/me/transactions',
-      contractPath: '/api/v1/users/me/transactions',
+      path: '/api/v1/users/me/expenses',
+      contractPath: '/api/v1/users/me/expenses',
       status: 400,
       code: 'VALIDATION_FAILED',
       query: { userId: '8' },
@@ -880,8 +877,8 @@ describe('runtime responses against the generated OpenAPI contract', () => {
 
     await sendErrorRequest({
       method: 'get',
-      path: '/api/v1/users/me/transactions',
-      contractPath: '/api/v1/users/me/transactions',
+      path: '/api/v1/users/me/expenses',
+      contractPath: '/api/v1/users/me/expenses',
       status: 400,
       code: 'VALIDATION_FAILED',
       query: { pageSize: '101' },
@@ -889,8 +886,8 @@ describe('runtime responses against the generated OpenAPI contract', () => {
 
     await sendErrorRequest({
       method: 'get',
-      path: '/api/v1/users/me/transactions',
-      contractPath: '/api/v1/users/me/transactions',
+      path: '/api/v1/users/me/expenses',
+      contractPath: '/api/v1/users/me/expenses',
       status: 400,
       code: 'VALIDATION_FAILED',
       query: { fromDate: '2026-09-01', toDate: '2026-08-01' },
@@ -898,8 +895,8 @@ describe('runtime responses against the generated OpenAPI contract', () => {
 
     await sendErrorRequest({
       method: 'post',
-      path: '/api/v1/users/me/transactions',
-      contractPath: '/api/v1/users/me/transactions',
+      path: '/api/v1/users/me/expenses',
+      contractPath: '/api/v1/users/me/expenses',
       status: 400,
       code: 'VALIDATION_FAILED',
       body: {
@@ -947,7 +944,7 @@ describe('runtime responses against the generated OpenAPI contract', () => {
       code: 'VALIDATION_FAILED',
       body: {
         ...statementImportRequest(),
-        transactions: [
+        expenses: [
           {
             purchaseDate: '2026-08-01',
             description: '',
@@ -1071,21 +1068,21 @@ describe('runtime responses against the generated OpenAPI contract', () => {
     categoryRulesService.deleteCategoryRule
       .mockReset()
       .mockResolvedValue(undefined);
-    transactionsService.createManualTransaction
+    expensesService.createManualExpense
       .mockReset()
-      .mockResolvedValue(manualTransactionRecord());
-    transactionsService.listTransactions.mockReset().mockResolvedValue({
-      items: [manualTransactionRecord(), importedTransactionRecord()],
+      .mockResolvedValue(manualExpenseRecord());
+    expensesService.listExpenses.mockReset().mockResolvedValue({
+      items: [manualExpenseRecord(), importedExpenseRecord()],
       nextCursor: 'cursor_1',
       totalCount: '2',
     });
-    transactionsService.getManualTransaction
+    expensesService.getManualExpense
       .mockReset()
-      .mockResolvedValue(manualTransactionRecord());
-    transactionsService.updateTransaction
+      .mockResolvedValue(manualExpenseRecord());
+    expensesService.updateExpense
       .mockReset()
-      .mockResolvedValue(manualTransactionRecord());
-    transactionsService.deleteManualTransaction
+      .mockResolvedValue(manualExpenseRecord());
+    expensesService.deleteManualExpense
       .mockReset()
       .mockResolvedValue(undefined);
     statementImportsService.getStatementImport
@@ -1433,7 +1430,7 @@ function categorySummaryResult(): CategorySummaryResult {
         name: 'Groceries',
         isActive: true,
         totalAmount: '125.00',
-        transactionCount: '2',
+        expenseCount: '2',
         budgetAmount: null,
         remainingAmount: null,
       },
@@ -1474,9 +1471,9 @@ function categoryRuleResponse(): Record<string, unknown> {
   };
 }
 
-function manualTransactionRecord(
-  overrides: Partial<ManualTransactionRecord> = {},
-): ManualTransactionRecord {
+function manualExpenseRecord(
+  overrides: Partial<ManualExpenseRecord> = {},
+): ManualExpenseRecord {
   return {
     id: '46',
     userId: '42',
@@ -1491,9 +1488,9 @@ function manualTransactionRecord(
   };
 }
 
-function importedTransactionRecord(
-  overrides: Partial<ImportedTransactionRecord> = {},
-): ImportedTransactionRecord {
+function importedExpenseRecord(
+  overrides: Partial<ImportedExpenseRecord> = {},
+): ImportedExpenseRecord {
   return {
     id: '47',
     userId: '42',
@@ -1511,7 +1508,7 @@ function importedTransactionRecord(
   };
 }
 
-function manualTransactionResponse(): Record<string, unknown> {
+function manualExpenseResponse(): Record<string, unknown> {
   return {
     id: '46',
     categoryId: '42',
@@ -1524,7 +1521,7 @@ function manualTransactionResponse(): Record<string, unknown> {
   };
 }
 
-function importedTransactionResponse(): Record<string, unknown> {
+function importedExpenseResponse(): Record<string, unknown> {
   return {
     id: '47',
     categoryId: null,
@@ -1537,15 +1534,15 @@ function importedTransactionResponse(): Record<string, unknown> {
   };
 }
 
-function transactionHistoryPageResponse(): Record<string, unknown> {
+function expenseHistoryPageResponse(): Record<string, unknown> {
   return {
     items: [
       {
-        ...manualTransactionResponse(),
+        ...manualExpenseResponse(),
         statementImportId: null,
       },
       {
-        ...importedTransactionResponse(),
+        ...importedExpenseResponse(),
         statementImportId: '10',
       },
     ],
@@ -1578,7 +1575,7 @@ function statementImportHistoryRecord(
 ): StatementImportHistoryRecord {
   return {
     ...statementImportRecord(),
-    transactionCount: '2',
+    expenseCount: '2',
     ...overrides,
   };
 }
@@ -1603,7 +1600,7 @@ function statementImportHistoryPageResponse(): Record<string, unknown> {
     items: [
       {
         ...statementImportResponse(),
-        transactionCount: '2',
+        expenseCount: '2',
       },
     ],
     nextCursor: null,
@@ -1617,7 +1614,7 @@ function statementImportRequest(): Record<string, unknown> {
     statementDate: '2026-08-31',
     statementType: 'credit_card',
     bank: 'Example Bank',
-    transactions: [
+    expenses: [
       {
         purchaseDate: '2026-08-01',
         description: 'Coffee',

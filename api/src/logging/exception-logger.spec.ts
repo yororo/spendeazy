@@ -75,7 +75,7 @@ describe('exception logging privacy', () => {
     const logger = new ExceptionLogger((line) => lines.push(line));
     const app = express();
     app.use(exceptionRequestContext);
-    app.get('/transactions/:id', (_req, res) => {
+    app.get('/expenses/:id', (_req, res) => {
       setImmediate(() => {
         logger.report('request_failed', new Error('secret'), 500);
         res.sendStatus(500);
@@ -84,7 +84,7 @@ describe('exception logging privacy', () => {
     const responses = await Promise.all(
       ['private-a', 'private-b'].map((id) =>
         request(app)
-          .get(`/transactions/${id}?email=private@example.com`)
+          .get(`/expenses/${id}?email=private@example.com`)
           .set('X-Request-ID', 'untrusted-id')
           .set('Authorization', 'Bearer secret'),
       ),
@@ -98,7 +98,7 @@ describe('exception logging privacy', () => {
     for (const line of lines) {
       expect(JSON.parse(line)).toMatchObject({
         method: 'GET',
-        route: '/transactions/:id',
+        route: '/expenses/:id',
       });
       expect(line).not.toMatch(/private|secret|untrusted/u);
     }

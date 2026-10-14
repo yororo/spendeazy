@@ -35,7 +35,7 @@ interface StatementImportResponse {
 }
 
 interface StatementImportHistoryItemResponse extends StatementImportResponse {
-  readonly transactionCount: string;
+  readonly expenseCount: string;
 }
 
 interface StatementImportHistoryPageResponse {
@@ -184,10 +184,10 @@ function isStatementImportHistoryItemResponse(
 ): value is StatementImportHistoryItemResponse {
   return (
     isStatementImportResponse(value, true) &&
-    typeof (value as unknown as Record<string, unknown>).transactionCount ===
+    typeof (value as unknown as Record<string, unknown>).expenseCount ===
       "string" &&
     /^\d+$/u.test(
-      (value as unknown as Record<string, unknown>).transactionCount as string,
+      (value as unknown as Record<string, unknown>).expenseCount as string,
     )
   );
 }

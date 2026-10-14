@@ -11,9 +11,9 @@ Private personal-finance software for tracking expenses, managing Budgets, and i
 
 The browser authenticates with Clerk session tokens. `/api/v1/users/me` provisions/resolves the User; financial workflows use `/api/v1/users/me/spaces/:spaceId/...` for the selected Space. The API enforces authenticated membership and write access. Personal compatibility aliases are described in the [route guide](api/docs/route-compatibility.md).
 
-The web owns PDF extraction/reconciliation, temporary Upload/Categorize/Review state, and Category Rule matching. The API persists financial data and Rules, checks duplicates, and atomically saves Committed Statement Imports with reviewed Transactions. It receives JSON, not PDFs. Financial UI has no runtime mock-data fallback.
+The web owns PDF extraction/reconciliation, temporary Upload/Categorize/Review state, and Category Rule matching. The API persists financial data and Rules, checks duplicates, and atomically saves Committed Statement Imports with reviewed Expenses. It receives JSON, not PDFs. Financial UI has no runtime mock-data fallback.
 
-Financial data is Space-scoped. Invite Code acceptance creates a Shared Space; leaving preserves read-only history for both former members. [Domain decisions](docs/agents/domain.md) govern ownership and lifecycle. Account is derived from import provider/account type (Cash for manual Transactions), not a persisted Account entity; transport fields `bank` and `cardType` carry this metadata, including wallets.
+Financial data is Space-scoped. Invite Code acceptance creates a Shared Space; leaving preserves read-only history for both former members. [Domain decisions](docs/agents/domain.md) govern ownership and lifecycle. Account is derived from import provider/account type (Cash for manual Expenses), not a persisted Account entity; transport fields `bank` and `cardType` carry this metadata, including wallets.
 
 Optional [Category Suggestions](docs/category-suggestions.md) send descriptions and scoped Category/history context through the API to TypeSafe. Manual selection remains available when the integration is disabled or unavailable.
 

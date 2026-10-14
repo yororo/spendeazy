@@ -24,12 +24,12 @@ for (const width of [320, 390, 1440]) {
       if (!isRecord(category) || typeof category.id !== "string") throw new Error("Expected Category ID");
       const budget = await page.request.put(`${base}/categories/${category.id}/budget`, { headers, data: { amount: "200.00", period: "monthly" } });
       expect(budget.ok()).toBe(true);
-      const recorded = await page.request.post(`${base}/transactions`, { headers, data: { categoryId: category.id, amount, purchaseDate, description: `Synthetic ${name}` } });
+      const recorded = await page.request.post(`${base}/expenses`, { headers, data: { categoryId: category.id, amount, purchaseDate, description: `Synthetic ${name}` } });
       expect(recorded.ok()).toBe(true);
     }
     await page.clock.fastForward(31_000);
     const refreshNavigation = page.getByRole("navigation", { name: width < 768 ? "Mobile navigation" : "Primary navigation" });
-    await refreshNavigation.getByRole("link", { name: "Transactions", exact: true }).click();
+    await refreshNavigation.getByRole("link", { name: "Expenses", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Your spending", exact: true })).toBeVisible();
     await refreshNavigation.getByRole("link", { name: "Dashboard", exact: true }).click();
     await page.getByLabel("Reporting period", { exact: true }).fill(purchaseDate.slice(0, 7));
@@ -56,7 +56,7 @@ for (const width of [320, 390, 1440]) {
     await expect(page.getByRole("status")).toContainText("₱100.00");
     await page.getByRole("button", { name: "Dismiss chart details" }).click();
     await expect(page.getByRole("status")).toHaveCount(0);
-    await expect(page.getByRole("link", { name: "View all transactions" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "View all expenses" })).toBeVisible();
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
     if (process.env.SPENDEAZY_E2E_SCREENSHOTS === "1") await page.screenshot({ path: test.info().outputPath(`dashboard-${width}.png`), fullPage: true });
   });

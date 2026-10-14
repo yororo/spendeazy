@@ -9,7 +9,7 @@ import { CategoryEntity } from '../src/database/entities/category.entity';
 import { SpaceEntity } from '../src/database/entities/space.entity';
 import { SpaceMembershipEntity } from '../src/database/entities/space-membership.entity';
 import { StatementImportEntity } from '../src/database/entities/statement-import.entity';
-import { TransactionEntity } from '../src/database/entities/transaction.entity';
+import { ExpenseEntity } from '../src/database/entities/expense.entity';
 import { UserEntity } from '../src/database/entities/user.entity';
 import type { CategorySuggestionEvaluator } from '../src/statement-imports/application/statement-category-suggestions';
 import { StatementCategorySuggestionsService } from '../src/statement-imports/application/statement-category-suggestions.service';
@@ -86,7 +86,7 @@ describeDatabase(
         otherPersonalSpaceId,
       ]) {
         if (!spaceId) continue;
-        await database.getRepository(TransactionEntity).delete({ spaceId });
+        await database.getRepository(ExpenseEntity).delete({ spaceId });
         await database.getRepository(StatementImportEntity).delete({ spaceId });
         await database.getRepository(CategoryEntity).delete({ spaceId });
       }
@@ -159,16 +159,16 @@ describeDatabase(
         });
 
       await database
-        .getRepository(TransactionEntity)
+        .getRepository(ExpenseEntity)
         .save([
-          transactionFixture(
+          expenseFixture(
             sharedSpaceId,
             userId,
             manualCategory.id,
             'Metro Mart shared manual purchase',
             '2026-09-08',
           ),
-          transactionFixture(
+          expenseFixture(
             sharedSpaceId,
             userId,
             importedCategory.id,
@@ -176,7 +176,7 @@ describeDatabase(
             '2026-09-07',
             statementImport.id,
           ),
-          transactionFixture(
+          expenseFixture(
             sharedSpaceId,
             userId,
             manualCategory.id,
@@ -185,28 +185,28 @@ describeDatabase(
             null,
             new Date('2026-09-11T00:00:00.000Z'),
           ),
-          transactionFixture(
+          expenseFixture(
             sharedSpaceId,
             userId,
             null,
             'Metro Mart uncategorized purchase',
             '2026-09-09',
           ),
-          transactionFixture(
+          expenseFixture(
             sharedSpaceId,
             userId,
             inactiveCategory.id,
             'Metro Mart retired purchase',
             '2026-09-09',
           ),
-          transactionFixture(
+          expenseFixture(
             personalSpaceId,
             userId,
             personalCategory.id,
             'Metro Mart personal purchase',
             '2026-09-09',
           ),
-          transactionFixture(
+          expenseFixture(
             otherPersonalSpaceId,
             otherUserId,
             otherCategory.id,
@@ -241,7 +241,7 @@ describeDatabase(
       );
     });
 
-    it('uses renamed Categories and a corrected Transaction assignment, then omits deleted history', async () => {
+    it('uses renamed Categories and a corrected Expense assignment, then omits deleted history', async () => {
       const [originalCategory, correctedCategory] = await database
         .getRepository(CategoryEntity)
         .save([
@@ -258,10 +258,10 @@ describeDatabase(
             isActive: true,
           },
         ]);
-      const transaction = await database
-        .getRepository(TransactionEntity)
+      const expense = await database
+        .getRepository(ExpenseEntity)
         .save(
-          transactionFixture(
+          expenseFixture(
             sharedSpaceId,
             userId,
             originalCategory.id,
@@ -292,7 +292,7 @@ describeDatabase(
         ]),
       );
 
-      await database.getRepository(TransactionEntity).update(transaction.id, {
+      await database.getRepository(ExpenseEntity).update(expense.id, {
         categoryId: correctedCategory.id,
       });
       await service.suggestInSpace(sharedSpaceId, 'Cafe Moon purchase');
@@ -300,14 +300,14 @@ describeDatabase(
         { categoryId: correctedCategory.id, description: 'Cafe Moon merchant' },
       ]);
 
-      await database.getRepository(TransactionEntity).update(transaction.id, {
+      await database.getRepository(ExpenseEntity).update(expense.id, {
         deletedAt: new Date('2026-09-12T00:00:00.000Z'),
       });
       await service.suggestInSpace(sharedSpaceId, 'Cafe Moon purchase');
       expect(evaluation.mock.calls[3]?.[2]).toEqual([]);
     });
 
-    it('finds older matching history when a Category has a newer unrelated Transaction', async () => {
+    it('finds older matching history when a Category has a newer unrelated Expense', async () => {
       const category = await database.getRepository(CategoryEntity).save({
         spaceId: sharedSpaceId,
         name: 'Groceries',
@@ -315,16 +315,16 @@ describeDatabase(
         isActive: true,
       });
       await database
-        .getRepository(TransactionEntity)
+        .getRepository(ExpenseEntity)
         .save([
-          transactionFixture(
+          expenseFixture(
             sharedSpaceId,
             userId,
             category.id,
             'Old Metro Market purchase',
             '2026-09-01',
           ),
-          transactionFixture(
+          expenseFixture(
             sharedSpaceId,
             userId,
             category.id,
@@ -362,9 +362,9 @@ describeDatabase(
           },
         ]);
       await database
-        .getRepository(TransactionEntity)
+        .getRepository(ExpenseEntity)
         .save(
-          transactionFixture(
+          expenseFixture(
             sharedSpaceId,
             userId,
             inactiveCategory.id,
@@ -397,10 +397,10 @@ describeDatabase(
         })),
       );
       await database
-        .getRepository(TransactionEntity)
+        .getRepository(ExpenseEntity)
         .save(
           categories.map((category, index) =>
-            transactionFixture(
+            expenseFixture(
               sharedSpaceId,
               userId,
               category.id,
@@ -441,7 +441,7 @@ function createSuggestionEvaluator() {
   return jest.fn<ReturnType<SuggestCategory>, Parameters<SuggestCategory>>();
 }
 
-function transactionFixture(
+function expenseFixture(
   spaceId: string,
   addedByUserId: string,
   categoryId: string | null,

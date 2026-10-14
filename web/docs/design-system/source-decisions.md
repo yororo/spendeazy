@@ -5,7 +5,7 @@ Part of the [Spendeazy design system](../../DESIGN_SYSTEM.md). Code paths are re
 ## Source inconsistencies and decisions
 
 The integrated spending journey uses these detailed Pen references:
-[statement-categorization.pen](../../design/statement-categorization.pen) for assignment/Remember, [statement-transactions.pen](../../design/statement-transactions.pen)
+[statement-categorization.pen](../../design/statement-categorization.pen) for assignment/Remember, [statement-expenses.pen](../../design/statement-expenses.pen)
 for committed-statement scope, [monthly-insights.pen](../../design/monthly-insights.pen) for monitoring and return
 actions, and [chart-inspection.pen](../../design/chart-inspection.pen) for accessible details. These refine the
 original overview frames in [ui-design.pen](../../design/ui-design.pen); its Review frames retain read-only

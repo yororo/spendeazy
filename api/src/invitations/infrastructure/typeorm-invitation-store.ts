@@ -76,13 +76,13 @@ export class TypeOrmInvitationStore implements InvitationStore {
     now: Date,
   ): Promise<InvitationRecord | null> {
     return this.entityManager.transaction((entityManager) =>
-      rotatePendingInTransaction(entityManager, senderUserId, replacement, now),
+      rotatePendingInExpense(entityManager, senderUserId, replacement, now),
     );
   }
 
   async revokePending(senderUserId: string, now: Date): Promise<boolean> {
     return this.entityManager.transaction((entityManager) =>
-      revokePendingInTransaction(entityManager, senderUserId, now),
+      revokePendingInExpense(entityManager, senderUserId, now),
     );
   }
 
@@ -157,7 +157,7 @@ export class TypeOrmInvitationStore implements InvitationStore {
 
   async expirePending(before: Date): Promise<void> {
     await this.entityManager.transaction((entityManager) =>
-      expirePendingInTransaction(entityManager, before),
+      expirePendingInExpense(entityManager, before),
     );
   }
 }
@@ -175,7 +175,7 @@ async function lockRecipient(
     .getOne();
 }
 
-async function rotatePendingInTransaction(
+async function rotatePendingInExpense(
   entityManager: EntityManager,
   senderUserId: string,
   replacement: NewInvitation,
@@ -203,7 +203,7 @@ async function rotatePendingInTransaction(
   return toInvitationRecord(created);
 }
 
-async function revokePendingInTransaction(
+async function revokePendingInExpense(
   entityManager: EntityManager,
   senderUserId: string,
   now: Date,
@@ -221,7 +221,7 @@ async function revokePendingInTransaction(
   return true;
 }
 
-async function expirePendingInTransaction(
+async function expirePendingInExpense(
   entityManager: EntityManager,
   before: Date,
 ): Promise<void> {

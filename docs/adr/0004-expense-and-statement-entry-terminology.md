@@ -1,0 +1,7 @@
+# Name saved spending Expense and parsed rows Statement Entry
+
+Spendeazy used Transaction both for saved positive spending and for mixed rows parsed from a statement. Expense is the saved spending record, entered manually or confirmed from a Statement Import. Statement Entry is a parsed statement row, which may be spending, a payment, or a credit. Included spending becomes an Expense only when that import is confirmed.
+
+The old transaction API routes, request fields, and browser path are removed in the same change, with no aliases, dual fields, fallback parsers, or redirects. Personal and explicit Space-scoped Expense routes both remain; this decision does not retire the Personal aliases in [Personal and Shared Spaces](0002-personal-and-shared-spaces.md). It is an approved exception to the additive expand-then-contract order in the release notes. Transaction History Period, database units of work, historical migration identifiers, provider statement headings, and the categorization prompt's Transaction description stay as they are.
+
+The schema rename keeps identifiers, amounts, dates, descriptions, categories, Space ownership, statement-import links, actor attribution, deletion retention, activity snapshots, fingerprints, and file hashes. Ship the migration, API, and web together. Roll back by reversing the migration and restoring the previous API and web together. Mixed old and new versions are unsupported.

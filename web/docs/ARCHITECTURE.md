@@ -11,9 +11,9 @@ Start at the owner below; neighboring `*.test.ts(x)` files cover each seam. Thes
 | Statement Import | [Page](../src/features/statement-import/statement-import-page.tsx) | [Workflow hook](../src/features/statement-import/use-statement-import-workflow.ts), [workflow state](../src/features/statement-import/statement-import-workflow.ts), [service](../src/features/statement-import/statement-import-service.ts) | [Statement Imports](../../api/src/statement-imports/); [complete journey](../e2e/spending-journey.spec.ts) |
 | PDF extraction and reconciliation | [Parser dispatch](../src/features/statement-import/statement-parser/transformer.ts) | [PDF extractor](../src/features/statement-import/statement-parser/pdf-extractor.ts), provider transformers in the same directory | Browser-owned; [fictional PDF fixtures](../e2e/fixtures/README.md) |
 | Sharing and Space selection | [Sharing page](../src/features/invitations/sharing-page.tsx), [Space switcher](../src/components/app/space-switcher.tsx) | [Invitation adapter](../src/features/invitations/invitations-service.ts), [Space catalog](../src/shared/api/space.ts), [selection](../src/components/app/space-selection.ts) | [Invitations](../../api/src/invitations/), [Spaces](../../api/src/spaces/); [sharing journey](../e2e/sharing-themes.spec.ts) |
-| Reporting and Budget status | [Dashboard adapter](../src/features/dashboard/dashboard-service.ts), [Insights adapter](../src/features/insights/insights-service.ts) | [Reporting Period](../src/shared/reporting-period/), [Budget status](../src/shared/budget/); Budget editing in [Categories adapter](../src/features/categories/categories-service.ts) | [Transactions](../../api/src/transactions/), [Categories](../../api/src/categories/); [Dashboard](../e2e/dashboard-summary.spec.ts), [Insights actions](../e2e/monthly-insights-actions.spec.ts) |
+| Reporting and Budget status | [Dashboard adapter](../src/features/dashboard/dashboard-service.ts), [Insights adapter](../src/features/insights/insights-service.ts) | [Reporting Period](../src/shared/reporting-period/), [Budget status](../src/shared/budget/); Budget editing in [Categories adapter](../src/features/categories/categories-service.ts) | [Expenses](../../api/src/expenses/), [Categories](../../api/src/categories/); [Dashboard](../e2e/dashboard-summary.spec.ts), [Insights actions](../e2e/monthly-insights-actions.spec.ts) |
 | Category Rule matching and editing | [Matching](../src/features/statement-import/category-rule-matching.ts), [categorizer](../src/features/statement-import/statement-categorizer.ts) | [Rule adapter](../src/features/categories/category-rules-service.ts), [editor](../src/features/categories/category-rules-dialog.tsx) | [Category Rules](../../api/src/category-rules/); [Remember](../e2e/statement-import-remember.spec.ts) |
-| Manual Transactions and retained history | [Transactions page](../src/features/transactions/transactions-page.tsx) | [Adapter](../src/features/transactions/transactions-service.ts), [editor](../src/features/transactions/transaction-editor-dialog.tsx), [archived history](../src/features/transactions/archived-space-history-page.tsx) | [Transactions](../../api/src/transactions/); [history](../e2e/space-history.spec.ts) |
+| Manual Expenses and retained history | [Expenses page](../src/features/expenses/expenses-page.tsx) | [Adapter](../src/features/expenses/expenses-service.ts), [editor](../src/features/expenses/expense-editor-dialog.tsx), [archived history](../src/features/expenses/archived-space-history-page.tsx) | [Expenses](../../api/src/expenses/); [history](../e2e/space-history.spec.ts) |
 | Theme, Appearance, Settings | [Theme](../src/components/app/theme.ts), [Appearance](../src/components/app/appearance.ts) | [Sidebar](../src/components/app/primary-sidebar.tsx), [scroll operations](../src/shared/ui/page-scroll.ts) | Browser-owned; [Settings acceptance](../e2e/theme-settings.spec.ts) |
 | Category Suggestions | [Coordinator](../src/features/statement-import/use-statement-category-suggestions.ts) | [Integration rules](../../docs/category-suggestions.md) | [Suggestion acceptance](../e2e/statement-import-category-suggestions.spec.ts) |
 
@@ -27,7 +27,7 @@ history bounds and independent projections. Statement Import keeps suggestion
 feedback in [`category-suggestion-feedback.ts`](../src/features/statement-import/category-suggestion-feedback.ts),
 Rule help presentation in [`category-rule-help.tsx`](../src/features/statement-import/category-rule-help.tsx),
 and pure Review calculations in [`statement-review-data.ts`](../src/features/statement-import/statement-review-data.ts).
-`review-statement.tsx` owns Review page effects and its transaction-table component.
+`review-statement.tsx` owns Review page effects and its expense-table component.
 These are feature-private seams, not additions to the feature root interfaces.
 
 The [API route compatibility guide](../../api/docs/route-compatibility.md) records paired Personal aliases, explicit Space routes, and which first-party web adapters can still select an alias when no Space ID is supplied.
@@ -66,14 +66,14 @@ Keep small or coincidentally similar code feature-local. Before sharing, name cu
 page -> query hook -> service/endpoint adapter -> shared API client
 ```
 
-The service validates transport data and projects feature-owned read models; pages consume query hooks rather than transport records. The API is the runtime source of financial data. Share transport mechanics; Dashboard, Transactions, and Categories can project the same data differently.
+The service validates transport data and projects feature-owned read models; pages consume query hooks rather than transport records. The API is the runtime source of financial data. Share transport mechanics; Dashboard, Expenses, and Categories can project the same data differently.
 
 ## Shared boundaries
 
 | Module | Owns |
 | --- | --- |
 | `shared/api` | Validated configuration, authenticated user scope, HTTP transport/cancellation, response validation, structured errors |
-| `shared/category`, `shared/account`, `shared/transaction` | Multi-feature domain identity/projections |
+| `shared/category`, `shared/account`, `shared/expense` | Multi-feature domain identity/projections |
 | `shared/money` | Currency formatting and exact cents arithmetic; add a currency-bearing value object only when multi-currency behavior requires it |
 | `shared/budget` | Exact monthly Budget status and amount descriptions for Dashboard, Categories, Insights |
 | `shared/reporting-period` | One browser-local calendar-month selection and inclusive reporting bounds |

@@ -38,7 +38,7 @@ interface InsightsPageProps {
   readonly spaceId?: string;
   readonly onSpaceChange?: (spaceId?: string) => void;
   readonly onManageBudgets?: () => void;
-  readonly onViewTransactions?: (categoryId: string | undefined, period: ReportingPeriod, spaceId?: string, origin?: InsightsReturnContext) => void;
+  readonly onViewExpenses?: (categoryId: string | undefined, period: ReportingPeriod, spaceId?: string, origin?: InsightsReturnContext) => void;
   readonly onEditBudget?: (categoryId: string, period: ReportingPeriod, spaceId?: string, evidence?: BudgetReviewHistory, returnFocusId?: string) => void;
 }
 
@@ -548,7 +548,7 @@ function LedgerCharts({ report }: { report: InsightsMonthlyReport }) {
   );
 }
 
-function InsightsPage({ spaceId, onSpaceChange, onViewTransactions, onEditBudget, returnContext }: InsightsPageProps = {}) {
+function InsightsPage({ spaceId, onSpaceChange, onViewExpenses, onEditBudget, returnContext }: InsightsPageProps = {}) {
   const [helpDismissal, setHelpDismissal] = useState(0);
   const { period } = useReportingPeriod();
   const shouldResolvePersonalSpace = onSpaceChange !== undefined;
@@ -592,7 +592,7 @@ function InsightsPage({ spaceId, onSpaceChange, onViewTransactions, onEditBudget
           <MonthlyInspection
             report={insightsQuery.data}
             initialPoint={returnContext?.period === period && returnContext.spaceId === effectiveSpaceId ? returnContext.inspectionPoint : undefined}
-            onViewTransactions={onViewTransactions ? (categoryId, selectedPeriod, focusId) => onViewTransactions(categoryId, selectedPeriod, effectiveSpaceId, {
+            onViewExpenses={onViewExpenses ? (categoryId, selectedPeriod, focusId) => onViewExpenses(categoryId, selectedPeriod, effectiveSpaceId, {
               scroll: capturePageScroll(), focusId: focusId ?? "insights-inspect-spending", period, spaceId: effectiveSpaceId, view: "monthly", inspectionPoint: selectedPeriod,
             }) : undefined}
             onEditBudget={onEditBudget ? (categoryId, selectedPeriod, focusId) => onEditBudget(categoryId, selectedPeriod, effectiveSpaceId, undefined, focusId) : undefined}
@@ -604,17 +604,17 @@ function InsightsPage({ spaceId, onSpaceChange, onViewTransactions, onEditBudget
   );
 }
 
-function MonthlyInspection({ report, initialPoint, onViewTransactions, onEditBudget }: {
+function MonthlyInspection({ report, initialPoint, onViewExpenses, onEditBudget }: {
   report: InsightsMonthlyReport;
   initialPoint?: string;
-  onViewTransactions?: (categoryId: string | undefined, period: ReportingPeriod, focusId?: string) => void;
+  onViewExpenses?: (categoryId: string | undefined, period: ReportingPeriod, focusId?: string) => void;
   onEditBudget?: (categoryId: string, period: ReportingPeriod, focusId?: string) => void;
 }) {
   const [inspection, setInspection] = useState<{ point: string; triggerId: string; open: boolean } | null>(initialPoint ? { point: initialPoint, triggerId: "insights-inspect-spending", open: false } : null);
   return <SpendingInspection report={report} point={inspection?.point} triggerId={inspection?.triggerId} open={inspection?.open ?? false}
     onInspect={(point, triggerId) => setInspection({ point, triggerId, open: true })}
     onDismiss={() => setInspection(current => current ? { ...current, open: false } : null)}
-    onViewTransactions={onViewTransactions} onEditBudget={onEditBudget} />;
+    onViewExpenses={onViewExpenses} onEditBudget={onEditBudget} />;
 }
 
 export { InsightsPage };

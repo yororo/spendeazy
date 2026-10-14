@@ -23,14 +23,14 @@ describe("ImportSuccess importer attribution", () => {
           transactionHistoryStartDate: null,
           totalDebit: null,
           importedAt: "2026-09-01T00:00:00.000Z",
-          transactionCount: 1,
+          expenseCount: 1,
           importedByUserId: "11",
         }}
         destinationLabel="Shared Space · Ada Lovelace & Grace Hopper"
         importerName="Grace Hopper"
         spaceId="99"
         onImportAnother={vi.fn()}
-        onViewTransactions={vi.fn()}
+        onViewExpenses={vi.fn()}
       />,
     );
 
@@ -51,13 +51,13 @@ describe("ImportSuccess importer attribution", () => {
           transactionHistoryStartDate: null,
           totalDebit: null,
           importedAt: "2026-09-01T00:00:00.000Z",
-          transactionCount: 1,
+          expenseCount: 1,
           importedByUserId: "10",
         }}
         destinationLabel="Personal Space · Ada Lovelace"
         spaceId={undefined}
         onImportAnother={vi.fn()}
-        onViewTransactions={vi.fn()}
+        onViewExpenses={vi.fn()}
       />,
     );
 
@@ -79,11 +79,11 @@ describe("ImportSuccess E-Wallet controls", () => {
           transactionHistoryStartDate: "2026-08-09",
           totalDebit: 26696.92,
           importedAt: "2026-09-08T00:00:00.000Z",
-          transactionCount: 3,
+          expenseCount: 3,
           importedByUserId: "10",
         }}
         onImportAnother={vi.fn()}
-        onViewTransactions={vi.fn()}
+        onViewExpenses={vi.fn()}
       />,
     );
 

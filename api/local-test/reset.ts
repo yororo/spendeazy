@@ -18,7 +18,7 @@ async function main(): Promise<void> {
       createLocalTestClock().date(),
     );
     console.log(
-      `Restored ${result.counts.users} User, ${result.counts.categories} Categories, ${result.counts.budgets} Budgets, ${result.counts.categoryRules} Category Rules, and ${result.counts.transactions} Transactions`,
+      `Restored ${result.counts.users} User, ${result.counts.categories} Categories, ${result.counts.budgets} Budgets, ${result.counts.categoryRules} Category Rules, and ${result.counts.expenses} Expenses`,
     );
   } finally {
     await AppDataSource.destroy();

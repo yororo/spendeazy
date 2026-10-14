@@ -4,8 +4,8 @@ import { BudgetEntity } from '../entities/budget.entity';
 import { CategoryRuleEntity } from '../entities/category-rule.entity';
 import { CategoryEntity } from '../entities/category.entity';
 import { StatementImportEntity } from '../entities/statement-import.entity';
-import { TransactionEntity } from '../entities/transaction.entity';
-import { TransactionActivityEntity } from '../entities/transaction-activity.entity';
+import { ExpenseEntity } from '../entities/expense.entity';
+import { ExpenseActivityEntity } from '../entities/expense-activity.entity';
 import { UserEntity } from '../entities/user.entity';
 import { SpaceEntity } from '../entities/space.entity';
 import { normalizeMatchingText } from '../../normalization/matching-text';
@@ -27,7 +27,7 @@ interface SeedCounts {
   budgets: number;
   categoryRules: number;
   statementImports: number;
-  transactions: number;
+  expenses: number;
 }
 
 async function main(): Promise<void> {
@@ -95,10 +95,10 @@ async function removeExistingSeedUser(manager: EntityManager): Promise<void> {
     await manager.delete(UserEntity, { id: seedUser.id });
     return;
   }
-  await manager.delete(TransactionActivityEntity, {
+  await manager.delete(ExpenseActivityEntity, {
     spaceId: personalSpace.id,
   });
-  await manager.delete(TransactionEntity, { spaceId: personalSpace.id });
+  await manager.delete(ExpenseEntity, { spaceId: personalSpace.id });
   await manager.delete(CategoryRuleEntity, { spaceId: personalSpace.id });
   await manager
     .createQueryBuilder()
@@ -189,7 +189,7 @@ async function createSeedScenario(manager: EntityManager): Promise<SeedCounts> {
   );
 
   await manager.save([
-    createTransaction(
+    createExpense(
       manager,
       spaceId,
       user.id,
@@ -201,7 +201,7 @@ async function createSeedScenario(manager: EntityManager): Promise<SeedCounts> {
       null,
       null,
     ),
-    createTransaction(
+    createExpense(
       manager,
       spaceId,
       user.id,
@@ -213,7 +213,7 @@ async function createSeedScenario(manager: EntityManager): Promise<SeedCounts> {
       null,
       null,
     ),
-    createTransaction(
+    createExpense(
       manager,
       spaceId,
       user.id,
@@ -225,7 +225,7 @@ async function createSeedScenario(manager: EntityManager): Promise<SeedCounts> {
       '1.0000',
       sha256('netflix|549.00|development-import'),
     ),
-    createTransaction(
+    createExpense(
       manager,
       spaceId,
       user.id,
@@ -245,11 +245,11 @@ async function createSeedScenario(manager: EntityManager): Promise<SeedCounts> {
     budgets: SEED_CATEGORY_BUDGETS.length,
     categoryRules: categoryRules.length,
     statementImports: 1,
-    transactions: 4,
+    expenses: 4,
   };
 }
 
-function createTransaction(
+function createExpense(
   manager: EntityManager,
   spaceId: string,
   addedByUserId: string,
@@ -260,8 +260,8 @@ function createTransaction(
   amount: string,
   categoryMatchConfidence: string | null,
   importFingerprint: string | null,
-): TransactionEntity {
-  return manager.create(TransactionEntity, {
+): ExpenseEntity {
+  return manager.create(ExpenseEntity, {
     spaceId,
     addedByUserId,
     categoryId,
@@ -286,7 +286,7 @@ function requireCategory(
 function printSeedSummary(counts: SeedCounts): void {
   console.log(`Seeded ${SEED_USER.email}`);
   console.log(
-    `Created ${counts.users} user, ${counts.categories} categories, ${counts.budgets} budgets, ${counts.categoryRules} category rules, ${counts.statementImports} statement import, and ${counts.transactions} transactions`,
+    `Created ${counts.users} user, ${counts.categories} categories, ${counts.budgets} budgets, ${counts.categoryRules} category rules, ${counts.statementImports} statement import, and ${counts.expenses} expenses`,
   );
 }
 

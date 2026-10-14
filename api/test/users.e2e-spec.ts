@@ -42,14 +42,14 @@ import { CategoryRulesController } from '../src/category-rules/presentation/cate
 import { CategoryRulesService } from '../src/category-rules/application/category-rules.service';
 import { CategoryRuleNotFoundError } from '../src/category-rules/application/category-rule-errors';
 import type { CategoryRuleRecord } from '../src/category-rules/application/category-rule-store';
-import { TransactionsController } from '../src/transactions/presentation/transactions.controller';
-import { TransactionsService } from '../src/transactions/application/transactions.service';
-import { TransactionNotFoundError } from '../src/transactions/application/transaction-errors';
-import type { ImportedTransactionRecord } from '../src/transactions/application/imported-transaction-store';
+import { ExpensesController } from '../src/expenses/presentation/expenses.controller';
+import { ExpensesService } from '../src/expenses/application/expenses.service';
+import { ExpenseNotFoundError } from '../src/expenses/application/expense-errors';
+import type { ImportedExpenseRecord } from '../src/expenses/application/imported-expense-store';
 import type {
-  ManualTransactionRecord,
-  TransactionRecord,
-} from '../src/transactions/application/transaction-store';
+  ManualExpenseRecord,
+  ExpenseRecord,
+} from '../src/expenses/application/expense-store';
 import { StatementImportsController } from '../src/statement-imports/presentation/statement-imports.controller';
 import { StatementImportsService } from '../src/statement-imports/application/statement-imports.service';
 import { UsersController } from '../src/users/presentation/users.controller';
@@ -96,13 +96,13 @@ describe('authenticated User routes', () => {
     updateCategoryRule: jest.Mock;
     deleteCategoryRule: jest.Mock;
   };
-  let transactionsService: {
-    createManualTransaction: jest.Mock;
-    listTransactions: jest.Mock;
-    listDeletedTransactions: jest.Mock;
-    getManualTransaction: jest.Mock;
-    updateTransaction: jest.Mock;
-    deleteManualTransaction: jest.Mock;
+  let expensesService: {
+    createManualExpense: jest.Mock;
+    listExpenses: jest.Mock;
+    listDeletedExpenses: jest.Mock;
+    getManualExpense: jest.Mock;
+    updateExpense: jest.Mock;
+    deleteManualExpense: jest.Mock;
   };
   let alternateUserId: string | undefined;
 
@@ -151,27 +151,25 @@ describe('authenticated User routes', () => {
         .mockResolvedValue(categoryRuleRecord({ id: '200' })),
       deleteCategoryRule: jest.fn().mockResolvedValue(undefined),
     };
-    transactionsService = {
-      createManualTransaction: jest
+    expensesService = {
+      createManualExpense: jest
         .fn()
-        .mockResolvedValue(transactionRecord({ id: '300', userId: '99' })),
-      listTransactions: jest.fn().mockResolvedValue({
-        items: [transactionPageRecord({ id: '300', userId: '99' })],
+        .mockResolvedValue(expenseRecord({ id: '300', userId: '99' })),
+      listExpenses: jest.fn().mockResolvedValue({
+        items: [expensePageRecord({ id: '300', userId: '99' })],
         nextCursor: null,
       }),
-      listDeletedTransactions: jest.fn().mockResolvedValue({
+      listDeletedExpenses: jest.fn().mockResolvedValue({
         items: [],
         nextCursor: null,
       }),
-      getManualTransaction: jest
+      getManualExpense: jest
         .fn()
-        .mockResolvedValue(transactionRecord({ id: '300', userId: '99' })),
-      updateTransaction: jest
+        .mockResolvedValue(expenseRecord({ id: '300', userId: '99' })),
+      updateExpense: jest
         .fn()
-        .mockResolvedValue(
-          importedTransactionRecord({ id: '301', userId: '99' }),
-        ),
-      deleteManualTransaction: jest.fn().mockResolvedValue(undefined),
+        .mockResolvedValue(importedExpenseRecord({ id: '301', userId: '99' })),
+      deleteManualExpense: jest.fn().mockResolvedValue(undefined),
     };
     Object.assign(categoriesService, {
       createCategoryInSpace: (spaceId: string, input: unknown) =>
@@ -215,29 +213,29 @@ describe('authenticated User routes', () => {
       deleteCategoryRuleInSpace: (spaceId: string, id: string) =>
         invoke(categoryRulesService.deleteCategoryRule, spaceId, id),
     });
-    Object.assign(transactionsService, {
-      createManualTransactionInSpace: (
+    Object.assign(expensesService, {
+      createManualExpenseInSpace: (
         userId: string,
         _spaceId: string,
         input: unknown,
-      ) => invoke(transactionsService.createManualTransaction, userId, input),
-      listTransactionsInSpace: (spaceId: string, query: unknown) =>
-        invoke(transactionsService.listTransactions, spaceId, query),
-      listDeletedTransactionsInSpace: (spaceId: string, query: unknown) =>
-        invoke(transactionsService.listDeletedTransactions, spaceId, query),
-      getManualTransactionInSpace: (spaceId: string, id: string) =>
-        invoke(transactionsService.getManualTransaction, spaceId, id),
-      updateTransactionInSpace: (
+      ) => invoke(expensesService.createManualExpense, userId, input),
+      listExpensesInSpace: (spaceId: string, query: unknown) =>
+        invoke(expensesService.listExpenses, spaceId, query),
+      listDeletedExpensesInSpace: (spaceId: string, query: unknown) =>
+        invoke(expensesService.listDeletedExpenses, spaceId, query),
+      getManualExpenseInSpace: (spaceId: string, id: string) =>
+        invoke(expensesService.getManualExpense, spaceId, id),
+      updateExpenseInSpace: (
         _actorUserId: string,
         spaceId: string,
         id: string,
         input: unknown,
-      ) => invoke(transactionsService.updateTransaction, spaceId, id, input),
-      deleteManualTransactionInSpace: (
+      ) => invoke(expensesService.updateExpense, spaceId, id, input),
+      deleteManualExpenseInSpace: (
         _actorUserId: string,
         spaceId: string,
         id: string,
-      ) => invoke(transactionsService.deleteManualTransaction, spaceId, id),
+      ) => invoke(expensesService.deleteManualExpense, spaceId, id),
     });
     const module = await Test.createTestingModule({
       controllers: [
@@ -246,7 +244,7 @@ describe('authenticated User routes', () => {
         CategorySummariesController,
         BudgetsController,
         CategoryRulesController,
-        TransactionsController,
+        ExpensesController,
         StatementImportsController,
         HealthProbeController,
         DocumentationJsonProbeController,
@@ -280,7 +278,7 @@ describe('authenticated User routes', () => {
         },
         { provide: BudgetsService, useValue: budgetsService },
         { provide: CategoryRulesService, useValue: categoryRulesService },
-        { provide: TransactionsService, useValue: transactionsService },
+        { provide: ExpensesService, useValue: expensesService },
         { provide: StatementImportsService, useValue: {} },
         {
           provide: SpaceAccessService,
@@ -637,10 +635,10 @@ describe('authenticated User routes', () => {
     );
   });
 
-  it('passes only the authenticated local User ID to every transaction operation', async () => {
+  it('passes only the authenticated local User ID to every expense operation', async () => {
     const userId = ensureAlternateUser();
     const createResponse = await request(testHttpServer())
-      .post('/api/v1/users/me/transactions')
+      .post('/api/v1/users/me/expenses')
       .set('Authorization', 'Bearer token-c')
       .set('Accept', 'application/json')
       .send({
@@ -650,21 +648,21 @@ describe('authenticated User routes', () => {
         amount: '4.50',
       });
     const listResponse = await request(testHttpServer())
-      .get('/api/v1/users/me/transactions')
+      .get('/api/v1/users/me/expenses')
       .query({ fromDate: '2026-08-01', pageSize: '10' })
       .set('Authorization', 'Bearer token-c')
       .set('Accept', 'application/json');
     const getResponse = await request(testHttpServer())
-      .get('/api/v1/users/me/transactions/300')
+      .get('/api/v1/users/me/expenses/300')
       .set('Authorization', 'Bearer token-c')
       .set('Accept', 'application/json');
     const updateResponse = await request(testHttpServer())
-      .patch('/api/v1/users/me/transactions/301')
+      .patch('/api/v1/users/me/expenses/301')
       .set('Authorization', 'Bearer token-c')
       .set('Accept', 'application/json')
       .send({ categoryId: '100' });
     const deleteResponse = await request(testHttpServer())
-      .delete('/api/v1/users/me/transactions/300')
+      .delete('/api/v1/users/me/expenses/300')
       .set('Authorization', 'Bearer token-c')
       .set('Accept', 'application/json');
 
@@ -673,34 +671,29 @@ describe('authenticated User routes', () => {
     expect(getResponse.status).toBe(200);
     expect(updateResponse.status).toBe(200);
     expect(deleteResponse.status).toBe(204);
-    expect(transactionsService.createManualTransaction).toHaveBeenCalledWith(
-      userId,
-      {
-        categoryId: '100',
-        purchaseDate: '2026-08-01',
-        description: 'Coffee',
-        amount: '4.50',
-      },
-    );
-    expect(transactionsService.listTransactions).toHaveBeenCalledWith(userId, {
+    expect(expensesService.createManualExpense).toHaveBeenCalledWith(userId, {
+      categoryId: '100',
+      purchaseDate: '2026-08-01',
+      description: 'Coffee',
+      amount: '4.50',
+    });
+    expect(expensesService.listExpenses).toHaveBeenCalledWith(userId, {
       fromDate: '2026-08-01',
       pageSize: 10,
     });
-    expect(transactionsService.getManualTransaction).toHaveBeenCalledWith(
+    expect(expensesService.getManualExpense).toHaveBeenCalledWith(
       userId,
       '300',
     );
-    expect(transactionsService.updateTransaction).toHaveBeenCalledWith(
-      userId,
-      '301',
-      { categoryId: '100' },
-    );
-    expect(transactionsService.deleteManualTransaction).toHaveBeenCalledWith(
+    expect(expensesService.updateExpense).toHaveBeenCalledWith(userId, '301', {
+      categoryId: '100',
+    });
+    expect(expensesService.deleteManualExpense).toHaveBeenCalledWith(
       userId,
       '300',
     );
     expect(createResponse.headers.location).toBe(
-      '/api/v1/users/me/transactions/300',
+      '/api/v1/users/me/expenses/300',
     );
     expect(updateResponse.body).toMatchObject({
       id: '301',
@@ -709,16 +702,16 @@ describe('authenticated User routes', () => {
     });
   });
 
-  it('does not treat caller-supplied User IDs as transaction ownership', async () => {
+  it('does not treat caller-supplied User IDs as expense ownership', async () => {
     const userId = ensureAlternateUser();
-    transactionsService.createManualTransaction.mockClear();
-    transactionsService.listTransactions.mockClear();
-    transactionsService.getManualTransaction.mockClear();
-    transactionsService.updateTransaction.mockClear();
-    transactionsService.deleteManualTransaction.mockClear();
+    expensesService.createManualExpense.mockClear();
+    expensesService.listExpenses.mockClear();
+    expensesService.getManualExpense.mockClear();
+    expensesService.updateExpense.mockClear();
+    expensesService.deleteManualExpense.mockClear();
 
     const createResponse = await request(testHttpServer())
-      .post('/api/v1/users/me/transactions')
+      .post('/api/v1/users/me/expenses')
       .set('Authorization', 'Bearer token-c')
       .set('Accept', 'application/json')
       .send({
@@ -728,22 +721,22 @@ describe('authenticated User routes', () => {
         amount: '4.50',
       });
     const listResponse = await request(testHttpServer())
-      .get('/api/v1/users/me/transactions')
+      .get('/api/v1/users/me/expenses')
       .query({ userId: '8' })
       .set('Authorization', 'Bearer token-c')
       .set('Accept', 'application/json');
     const getResponse = await request(testHttpServer())
-      .get('/api/v1/users/me/transactions/300')
+      .get('/api/v1/users/me/expenses/300')
       .query({ userId: '8' })
       .set('Authorization', 'Bearer token-c')
       .set('Accept', 'application/json');
     const updateResponse = await request(testHttpServer())
-      .patch('/api/v1/users/me/transactions/300')
+      .patch('/api/v1/users/me/expenses/300')
       .set('Authorization', 'Bearer token-c')
       .set('Accept', 'application/json')
       .send({ categoryId: '100', userId: '8' });
     const deleteResponse = await request(testHttpServer())
-      .delete('/api/v1/users/me/transactions/300')
+      .delete('/api/v1/users/me/expenses/300')
       .query({ userId: '8' })
       .set('Authorization', 'Bearer token-c')
       .set('Accept', 'application/json');
@@ -753,69 +746,69 @@ describe('authenticated User routes', () => {
     expect(getResponse.status).toBe(200);
     expect(updateResponse.status).toBe(400);
     expect(deleteResponse.status).toBe(204);
-    expect(transactionsService.createManualTransaction).not.toHaveBeenCalled();
-    expect(transactionsService.listTransactions).not.toHaveBeenCalled();
-    expect(transactionsService.updateTransaction).not.toHaveBeenCalled();
-    expect(transactionsService.getManualTransaction).toHaveBeenCalledWith(
+    expect(expensesService.createManualExpense).not.toHaveBeenCalled();
+    expect(expensesService.listExpenses).not.toHaveBeenCalled();
+    expect(expensesService.updateExpense).not.toHaveBeenCalled();
+    expect(expensesService.getManualExpense).toHaveBeenCalledWith(
       userId,
       '300',
     );
-    expect(transactionsService.deleteManualTransaction).toHaveBeenCalledWith(
+    expect(expensesService.deleteManualExpense).toHaveBeenCalledWith(
       userId,
       '300',
     );
   });
 
-  it('returns the same non-disclosing 404 for absent and cross-user transaction identifiers', async () => {
+  it('returns the same non-disclosing 404 for absent and cross-user expense identifiers', async () => {
     const userId = ensureAlternateUser();
-    const originalGet = transactionsService.getManualTransaction;
-    const originalUpdate = transactionsService.updateTransaction;
-    const originalDelete = transactionsService.deleteManualTransaction;
-    const notFound = () => Promise.reject(new TransactionNotFoundError());
-    transactionsService.getManualTransaction = jest.fn(
-      (requestUserId: string, transactionId: string) =>
-        requestUserId === userId && transactionId === '300'
-          ? Promise.resolve(transactionRecord({ id: '300', userId }))
+    const originalGet = expensesService.getManualExpense;
+    const originalUpdate = expensesService.updateExpense;
+    const originalDelete = expensesService.deleteManualExpense;
+    const notFound = () => Promise.reject(new ExpenseNotFoundError());
+    expensesService.getManualExpense = jest.fn(
+      (requestUserId: string, expenseId: string) =>
+        requestUserId === userId && expenseId === '300'
+          ? Promise.resolve(expenseRecord({ id: '300', userId }))
           : notFound(),
     );
-    transactionsService.updateTransaction = jest.fn(
-      (requestUserId: string, transactionId: string) =>
-        requestUserId === userId && transactionId === '301'
-          ? Promise.resolve(importedTransactionRecord({ id: '301', userId }))
+    expensesService.updateExpense = jest.fn(
+      (requestUserId: string, expenseId: string) =>
+        requestUserId === userId && expenseId === '301'
+          ? Promise.resolve(importedExpenseRecord({ id: '301', userId }))
           : notFound(),
     );
-    transactionsService.deleteManualTransaction = jest.fn(
-      (requestUserId: string, transactionId: string) =>
-        requestUserId === userId && transactionId === '300'
+    expensesService.deleteManualExpense = jest.fn(
+      (requestUserId: string, expenseId: string) =>
+        requestUserId === userId && expenseId === '300'
           ? Promise.resolve()
           : notFound(),
     );
 
     try {
       const absentGet = await request(testHttpServer())
-        .get('/api/v1/users/me/transactions/404')
+        .get('/api/v1/users/me/expenses/404')
         .set('Authorization', 'Bearer token-c')
         .set('Accept', 'application/json');
       const crossUserGet = await request(testHttpServer())
-        .get('/api/v1/users/me/transactions/8')
+        .get('/api/v1/users/me/expenses/8')
         .set('Authorization', 'Bearer token-c')
         .set('Accept', 'application/json');
       const absentUpdate = await request(testHttpServer())
-        .patch('/api/v1/users/me/transactions/404')
+        .patch('/api/v1/users/me/expenses/404')
         .set('Authorization', 'Bearer token-c')
         .set('Accept', 'application/json')
         .send({ categoryId: '100' });
       const crossUserUpdate = await request(testHttpServer())
-        .patch('/api/v1/users/me/transactions/8')
+        .patch('/api/v1/users/me/expenses/8')
         .set('Authorization', 'Bearer token-c')
         .set('Accept', 'application/json')
         .send({ categoryId: '100' });
       const absentDelete = await request(testHttpServer())
-        .delete('/api/v1/users/me/transactions/404')
+        .delete('/api/v1/users/me/expenses/404')
         .set('Authorization', 'Bearer token-c')
         .set('Accept', 'application/json');
       const crossUserDelete = await request(testHttpServer())
-        .delete('/api/v1/users/me/transactions/8')
+        .delete('/api/v1/users/me/expenses/8')
         .set('Authorization', 'Bearer token-c')
         .set('Accept', 'application/json');
 
@@ -829,47 +822,46 @@ describe('authenticated User routes', () => {
       expect(crossUserDelete.status).toBe(404);
       expect(crossUserDelete.body).toEqual(absentDelete.body);
     } finally {
-      transactionsService.getManualTransaction = originalGet;
-      transactionsService.updateTransaction = originalUpdate;
-      transactionsService.deleteManualTransaction = originalDelete;
+      expensesService.getManualExpense = originalGet;
+      expensesService.updateExpense = originalUpdate;
+      expensesService.deleteManualExpense = originalDelete;
     }
   });
 
-  it('keeps transaction category and imported-transaction associations within the authenticated User', async () => {
+  it('keeps expense category and imported-expense associations within the authenticated User', async () => {
     const userId = ensureAlternateUser();
-    const originalCreate = transactionsService.createManualTransaction;
-    const originalUpdate = transactionsService.updateTransaction;
+    const originalCreate = expensesService.createManualExpense;
+    const originalUpdate = expensesService.updateExpense;
     const categoryNotFound = () => Promise.reject(new CategoryNotFoundError());
-    const transactionNotFound = () =>
-      Promise.reject(new TransactionNotFoundError());
-    transactionsService.createManualTransaction = jest.fn(
+    const expenseNotFound = () => Promise.reject(new ExpenseNotFoundError());
+    expensesService.createManualExpense = jest.fn(
       (requestUserId: string, input: { categoryId?: string | null }) =>
         requestUserId !== userId || input.categoryId === '8'
           ? categoryNotFound()
-          : Promise.resolve(transactionRecord({ id: '302', userId })),
+          : Promise.resolve(expenseRecord({ id: '302', userId })),
     );
-    transactionsService.updateTransaction = jest.fn(
+    expensesService.updateExpense = jest.fn(
       (
         requestUserId: string,
-        transactionId: string,
+        expenseId: string,
         input: { categoryId?: string | null },
       ) => {
-        if (requestUserId !== userId || transactionId === '8') {
-          return transactionNotFound();
+        if (requestUserId !== userId || expenseId === '8') {
+          return expenseNotFound();
         }
         if (input.categoryId === '8') {
           return categoryNotFound();
         }
 
         return Promise.resolve(
-          importedTransactionRecord({ id: transactionId, userId }),
+          importedExpenseRecord({ id: expenseId, userId }),
         );
       },
     );
 
     try {
       const crossUserCategory = await request(testHttpServer())
-        .post('/api/v1/users/me/transactions')
+        .post('/api/v1/users/me/expenses')
         .set('Authorization', 'Bearer token-c')
         .set('Accept', 'application/json')
         .send({
@@ -879,12 +871,12 @@ describe('authenticated User routes', () => {
           amount: '4.50',
         });
       const crossUserCategoryOnImported = await request(testHttpServer())
-        .patch('/api/v1/users/me/transactions/301')
+        .patch('/api/v1/users/me/expenses/301')
         .set('Authorization', 'Bearer token-c')
         .set('Accept', 'application/json')
         .send({ categoryId: '8' });
-      const crossUserImportedTransaction = await request(testHttpServer())
-        .patch('/api/v1/users/me/transactions/8')
+      const crossUserImportedExpense = await request(testHttpServer())
+        .patch('/api/v1/users/me/expenses/8')
         .set('Authorization', 'Bearer token-c')
         .set('Accept', 'application/json')
         .send({ categoryId: '100' });
@@ -893,34 +885,29 @@ describe('authenticated User routes', () => {
       expect(errorCode(crossUserCategory)).toBe('CATEGORY_NOT_FOUND');
       expect(crossUserCategoryOnImported.status).toBe(404);
       expect(errorCode(crossUserCategoryOnImported)).toBe('CATEGORY_NOT_FOUND');
-      expect(crossUserImportedTransaction.status).toBe(404);
-      expect(errorCode(crossUserImportedTransaction)).toBe(
-        'TRANSACTION_NOT_FOUND',
-      );
-      expect(transactionsService.createManualTransaction).toHaveBeenCalledWith(
-        userId,
-        {
-          categoryId: '8',
-          purchaseDate: '2026-08-01',
-          description: 'Coffee',
-          amount: '4.50',
-        },
-      );
-      expect(transactionsService.updateTransaction).toHaveBeenNthCalledWith(
+      expect(crossUserImportedExpense.status).toBe(404);
+      expect(errorCode(crossUserImportedExpense)).toBe('EXPENSE_NOT_FOUND');
+      expect(expensesService.createManualExpense).toHaveBeenCalledWith(userId, {
+        categoryId: '8',
+        purchaseDate: '2026-08-01',
+        description: 'Coffee',
+        amount: '4.50',
+      });
+      expect(expensesService.updateExpense).toHaveBeenNthCalledWith(
         1,
         userId,
         '301',
         { categoryId: '8' },
       );
-      expect(transactionsService.updateTransaction).toHaveBeenNthCalledWith(
+      expect(expensesService.updateExpense).toHaveBeenNthCalledWith(
         2,
         userId,
         '8',
         { categoryId: '100' },
       );
     } finally {
-      transactionsService.createManualTransaction = originalCreate;
-      transactionsService.updateTransaction = originalUpdate;
+      expensesService.createManualExpense = originalCreate;
+      expensesService.updateExpense = originalUpdate;
     }
   });
 
@@ -1165,34 +1152,24 @@ describe('authenticated User routes', () => {
       '/api/v1/users/8/categories',
       undefined,
     ],
+    ['expense collection read', 'GET', '/api/v1/users/8/expenses', undefined],
     [
-      'transaction collection read',
-      'GET',
-      '/api/v1/users/8/transactions',
-      undefined,
-    ],
-    [
-      'transaction collection write',
+      'expense collection write',
       'POST',
-      '/api/v1/users/8/transactions',
+      '/api/v1/users/8/expenses',
       { purchaseDate: '2026-08-01', description: 'Coffee', amount: '4.50' },
     ],
+    ['expense item read', 'GET', '/api/v1/users/8/expenses/300', undefined],
     [
-      'transaction item read',
-      'GET',
-      '/api/v1/users/8/transactions/300',
-      undefined,
-    ],
-    [
-      'transaction item write',
+      'expense item write',
       'PATCH',
-      '/api/v1/users/8/transactions/300',
+      '/api/v1/users/8/expenses/300',
       { categoryId: null },
     ],
     [
-      'transaction item delete',
+      'expense item delete',
       'DELETE',
-      '/api/v1/users/8/transactions/300',
+      '/api/v1/users/8/expenses/300',
       undefined,
     ],
     [
@@ -1557,34 +1534,24 @@ describe('authenticated User routes', () => {
       '/api/v1/users/me/category-rules/200',
       undefined,
     ],
+    ['expense collection read', 'GET', '/api/v1/users/me/expenses', undefined],
     [
-      'transaction collection read',
-      'GET',
-      '/api/v1/users/me/transactions',
-      undefined,
-    ],
-    [
-      'transaction collection write',
+      'expense collection write',
       'POST',
-      '/api/v1/users/me/transactions',
+      '/api/v1/users/me/expenses',
       { purchaseDate: '2026-08-01', description: 'Coffee', amount: '4.50' },
     ],
+    ['expense item read', 'GET', '/api/v1/users/me/expenses/300', undefined],
     [
-      'transaction item read',
-      'GET',
-      '/api/v1/users/me/transactions/300',
-      undefined,
-    ],
-    [
-      'transaction item write',
+      'expense item write',
       'PATCH',
-      '/api/v1/users/me/transactions/300',
+      '/api/v1/users/me/expenses/300',
       { categoryId: null },
     ],
     [
-      'transaction item delete',
+      'expense item delete',
       'DELETE',
-      '/api/v1/users/me/transactions/300',
+      '/api/v1/users/me/expenses/300',
       undefined,
     ],
   ] as const)(
@@ -1610,8 +1577,8 @@ describe('authenticated User routes', () => {
     ['my budget', 'GET', '/api/v1/users/me/categories/1/budget'],
     ['my category rules', 'GET', '/api/v1/users/me/category-rules'],
     ['my category rule', 'GET', '/api/v1/users/me/category-rules/1'],
-    ['my transactions', 'GET', '/api/v1/users/me/transactions'],
-    ['my transaction', 'GET', '/api/v1/users/me/transactions/1'],
+    ['my expenses', 'GET', '/api/v1/users/me/expenses'],
+    ['my expense', 'GET', '/api/v1/users/me/expenses/1'],
     ['my statement imports', 'GET', '/api/v1/users/me/statement-imports'],
     ['my statement import', 'GET', '/api/v1/users/me/statement-imports/1'],
     ['my category summaries', 'GET', '/api/v1/users/me/category-summaries'],
@@ -1908,9 +1875,9 @@ function categorySummaryRecord() {
   };
 }
 
-function transactionRecord(
-  overrides: Partial<ManualTransactionRecord> = {},
-): ManualTransactionRecord {
+function expenseRecord(
+  overrides: Partial<ManualExpenseRecord> = {},
+): ManualExpenseRecord {
   const timestamp = new Date('2026-08-31T00:00:00.000Z');
   return {
     id: '300',
@@ -1926,19 +1893,19 @@ function transactionRecord(
   };
 }
 
-function transactionPageRecord(
-  overrides: Partial<TransactionRecord> = {},
-): TransactionRecord {
+function expensePageRecord(
+  overrides: Partial<ExpenseRecord> = {},
+): ExpenseRecord {
   return {
-    ...transactionRecord(),
+    ...expenseRecord(),
     statementImportId: null,
     ...overrides,
   };
 }
 
-function importedTransactionRecord(
-  overrides: Partial<ImportedTransactionRecord> = {},
-): ImportedTransactionRecord {
+function importedExpenseRecord(
+  overrides: Partial<ImportedExpenseRecord> = {},
+): ImportedExpenseRecord {
   return {
     id: '301',
     userId: '99',

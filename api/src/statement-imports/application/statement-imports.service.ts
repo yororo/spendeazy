@@ -51,7 +51,7 @@ import {
 export const DEFAULT_STATEMENT_IMPORT_PAGE_SIZE = 20;
 export const MAX_STATEMENT_IMPORT_PAGE_SIZE = 100;
 
-export interface ReviewedStatementTransactionInput {
+export interface ReviewedStatementExpenseInput {
   categoryId?: string | null;
   purchaseDate: string;
   description: string;
@@ -69,7 +69,7 @@ export interface CommitReviewedStatementImportInput {
   cardType?: string | null;
   transactionHistoryStartDate?: string | null;
   totalDebit?: string | null;
-  transactions: ReviewedStatementTransactionInput[];
+  expenses: ReviewedStatementExpenseInput[];
   acknowledgeProbableDuplicates?: boolean;
 }
 
@@ -112,7 +112,7 @@ export class StatementImportsService {
     }
 
     return this.unitOfWork.execute((context) =>
-      this.commitWithinTransaction(context, userId, spaceId, input),
+      this.commitWithinExpense(context, userId, spaceId, input),
     );
   }
 
@@ -169,7 +169,7 @@ export class StatementImportsService {
     };
   }
 
-  private async commitWithinTransaction(
+  private async commitWithinExpense(
     context: StatementImportConfirmationContext,
     userId: string,
     spaceId: string,
@@ -195,20 +195,20 @@ export class StatementImportsService {
       throw new StatementImportFileAlreadyExistsError();
     }
 
-    await ensureCategoriesAreActive(context, spaceId, input.transactions);
-    const preparedTransactions = input.transactions.map((transaction) => {
+    await ensureCategoriesAreActive(context, spaceId, input.expenses);
+    const preparedExpenses = input.expenses.map((expense) => {
       const referenceHash =
-        transaction.reference == null
+        expense.reference == null
           ? null
-          : this.hashGcashReference(spaceId, input.bank, transaction.reference);
-      const importFingerprint = computeImportFingerprint(input, transaction);
+          : this.hashGcashReference(spaceId, input.bank, expense.reference);
+      const importFingerprint = computeImportFingerprint(input, expense);
 
       return {
-        categoryId: transaction.categoryId ?? null,
-        purchaseDate: transaction.purchaseDate,
-        description: transaction.description.trim(),
-        amount: normalizeAmount(transaction.amount),
-        categoryMatchConfidence: transaction.categoryMatchConfidence ?? null,
+        categoryId: expense.categoryId ?? null,
+        purchaseDate: expense.purchaseDate,
+        description: expense.description.trim(),
+        amount: normalizeAmount(expense.amount),
+        categoryMatchConfidence: expense.categoryMatchConfidence ?? null,
         importFingerprint,
         referenceHash,
         duplicateKey: referenceHash ?? importFingerprint,
@@ -218,7 +218,7 @@ export class StatementImportsService {
     const probableDuplicateGroups = await findProbableDuplicates(
       context,
       spaceId,
-      preparedTransactions,
+      preparedExpenses,
     );
     if (
       probableDuplicateGroups.length > 0 &&
@@ -242,25 +242,25 @@ export class StatementImportsService {
       importedAt: new Date(),
     });
 
-    for (const transaction of preparedTransactions) {
-      const createdTransaction = await context.importedTransactions.create({
+    for (const expense of preparedExpenses) {
+      const createdExpense = await context.importedExpenses.create({
         spaceId,
         addedByUserId: userId,
-        categoryId: transaction.categoryId ?? null,
+        categoryId: expense.categoryId ?? null,
         statementImportId: statementImport.id,
-        purchaseDate: transaction.purchaseDate,
-        description: transaction.description,
-        amount: transaction.amount,
-        categoryMatchConfidence: transaction.categoryMatchConfidence,
-        importFingerprint: transaction.importFingerprint,
-        referenceHash: transaction.referenceHash,
+        purchaseDate: expense.purchaseDate,
+        description: expense.description,
+        amount: expense.amount,
+        categoryMatchConfidence: expense.categoryMatchConfidence,
+        importFingerprint: expense.importFingerprint,
+        referenceHash: expense.referenceHash,
       });
-      await context.transactionActivities.create({
-        transactionId: createdTransaction.id,
+      await context.expenseActivities.create({
+        expenseId: createdExpense.id,
         spaceId,
         actorUserId: userId,
         type: 'created',
-        occurredAt: createdTransaction.createdAt,
+        occurredAt: createdExpense.createdAt,
       });
     }
 
@@ -283,29 +283,27 @@ export class StatementImportsService {
 async function findProbableDuplicates(
   context: StatementImportConfirmationContext,
   spaceId: string,
-  preparedTransactions: readonly {
+  preparedExpenses: readonly {
     importFingerprint: string;
     referenceHash: string | null;
     duplicateKey: string;
   }[],
 ) {
   const duplicateKeys = [
-    ...new Set(
-      preparedTransactions.map((transaction) => transaction.duplicateKey),
-    ),
+    ...new Set(preparedExpenses.map((expense) => expense.duplicateKey)),
   ];
   const committedMatchesByDuplicateKey = new Map<string, { id: string }[]>();
 
   for (const duplicateKey of duplicateKeys) {
-    const transaction = preparedTransactions.find(
+    const expense = preparedExpenses.find(
       (candidate) => candidate.duplicateKey === duplicateKey,
     );
-    const committedMatches = transaction?.referenceHash
-      ? await context.importedTransactions.findByReferenceHashInSpace(
+    const committedMatches = expense?.referenceHash
+      ? await context.importedExpenses.findByReferenceHashInSpace(
           spaceId,
-          transaction.referenceHash,
+          expense.referenceHash,
         )
-      : await context.importedTransactions.findByFingerprintInSpace(
+      : await context.importedExpenses.findByFingerprintInSpace(
           spaceId,
           duplicateKey,
         );
@@ -313,9 +311,9 @@ async function findProbableDuplicates(
   }
 
   return findProbableDuplicateGroups(
-    preparedTransactions.map((transaction, transactionIndex) => ({
-      transactionIndex,
-      fingerprint: transaction.duplicateKey,
+    preparedExpenses.map((expense, expenseIndex) => ({
+      expenseIndex,
+      fingerprint: expense.duplicateKey,
     })),
     committedMatchesByDuplicateKey,
   );
@@ -324,26 +322,24 @@ async function findProbableDuplicates(
 async function ensureCategoriesAreActive(
   context: StatementImportConfirmationContext,
   spaceId: string,
-  transactions: ReviewedStatementTransactionInput[],
+  expenses: ReviewedStatementExpenseInput[],
 ): Promise<void> {
-  const transactionIndexesByCategory = new Map<string, number[]>();
-  transactions.forEach((transaction, transactionIndex) => {
-    if (transaction.categoryId == null) return;
+  const expenseIndexesByCategory = new Map<string, number[]>();
+  expenses.forEach((expense, expenseIndex) => {
+    if (expense.categoryId == null) return;
 
-    const indexes = transactionIndexesByCategory.get(transaction.categoryId);
+    const indexes = expenseIndexesByCategory.get(expense.categoryId);
     if (indexes) {
-      indexes.push(transactionIndex);
+      indexes.push(expenseIndex);
       return;
     }
 
-    transactionIndexesByCategory.set(transaction.categoryId, [
-      transactionIndex,
-    ]);
+    expenseIndexesByCategory.set(expense.categoryId, [expenseIndex]);
   });
 
   const inactiveCategories: CategoryEligibilityConflict[] = [];
 
-  for (const [categoryId, transactionIndexes] of transactionIndexesByCategory) {
+  for (const [categoryId, expenseIndexes] of expenseIndexesByCategory) {
     const category = await context.categories.findBySpaceId(
       spaceId,
       categoryId,
@@ -352,7 +348,7 @@ async function ensureCategoriesAreActive(
       assertActiveCategory(category);
     }
     if (!category.isActive) {
-      inactiveCategories.push({ categoryId, transactionIndexes });
+      inactiveCategories.push({ categoryId, expenseIndexes });
     }
   }
 
@@ -440,27 +436,27 @@ function validateReviewedStatementInput(
     });
   }
 
-  if (!Array.isArray(input.transactions)) {
+  if (!Array.isArray(input.expenses)) {
     details.push({
-      field: '/transactions',
+      field: '/expenses',
       code: 'invalid_format',
-      message: 'Transactions must be an array',
+      message: 'Expenses must be an array',
     });
   } else {
-    input.transactions.forEach((transaction, index) => {
-      const fieldPrefix = `/transactions/${index}`;
-      if (transaction === null || typeof transaction !== 'object') {
+    input.expenses.forEach((expense, index) => {
+      const fieldPrefix = `/expenses/${index}`;
+      if (expense === null || typeof expense !== 'object') {
         details.push({
           field: fieldPrefix,
           code: 'invalid_format',
-          message: 'Transaction must be an object',
+          message: 'Expense must be an object',
         });
         return;
       }
       if (
-        transaction.categoryId != null &&
-        (typeof transaction.categoryId !== 'string' ||
-          !POSITIVE_INTEGER_ID_PATTERN.test(transaction.categoryId))
+        expense.categoryId != null &&
+        (typeof expense.categoryId !== 'string' ||
+          !POSITIVE_INTEGER_ID_PATTERN.test(expense.categoryId))
       ) {
         details.push({
           field: `${fieldPrefix}/categoryId`,
@@ -471,17 +467,17 @@ function validateReviewedStatementInput(
       addDateDetail(
         details,
         `${fieldPrefix}/purchaseDate`,
-        transaction.purchaseDate,
+        expense.purchaseDate,
       );
       addStringDetail(
         details,
         `${fieldPrefix}/description`,
-        transaction.description,
+        expense.description,
         500,
       );
       if (
-        typeof transaction.amount !== 'string' ||
-        !POSITIVE_TWO_DECIMAL_AMOUNT_PATTERN.test(transaction.amount)
+        typeof expense.amount !== 'string' ||
+        !POSITIVE_TWO_DECIMAL_AMOUNT_PATTERN.test(expense.amount)
       ) {
         details.push({
           field: `${fieldPrefix}/amount`,
@@ -490,10 +486,10 @@ function validateReviewedStatementInput(
         });
       }
       if (
-        transaction.categoryMatchConfidence != null &&
-        (typeof transaction.categoryMatchConfidence !== 'string' ||
+        expense.categoryMatchConfidence != null &&
+        (typeof expense.categoryMatchConfidence !== 'string' ||
           !/^(?:0(?:\.\d{1,4})?|1(?:\.0{1,4})?)$/u.test(
-            transaction.categoryMatchConfidence,
+            expense.categoryMatchConfidence,
           ))
       ) {
         details.push({
@@ -502,13 +498,13 @@ function validateReviewedStatementInput(
           message: 'Category match confidence must be between 0 and 1',
         });
       }
-      if (transaction.reference != null) {
+      if (expense.reference != null) {
         if (
           !isEWallet ||
           !isEWalletProvider(input.bank) ||
-          typeof transaction.reference !== 'string' ||
-          transaction.reference.trim().length === 0 ||
-          Array.from(transaction.reference).length > 100
+          typeof expense.reference !== 'string' ||
+          expense.reference.trim().length === 0 ||
+          Array.from(expense.reference).length > 100
         ) {
           details.push({
             field: `${fieldPrefix}/reference`,

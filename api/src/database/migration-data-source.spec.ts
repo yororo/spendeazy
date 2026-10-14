@@ -16,7 +16,7 @@ describe('createMigrationDataSource', () => {
       synchronize: false,
     });
     expect(dataSource.options.entities).toBeUndefined();
-    expect(dataSource.options.migrations).toHaveLength(25);
+    expect(dataSource.options.migrations).toHaveLength(26);
   });
 
   it('rejects a missing or invalid database URL before connecting', () => {

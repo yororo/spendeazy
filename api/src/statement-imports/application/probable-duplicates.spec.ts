@@ -7,11 +7,11 @@ describe('findProbableDuplicateGroups', () => {
   it('groups within-command and committed matches deterministically', () => {
     const groups = findProbableDuplicateGroups(
       [
-        { transactionIndex: 2, fingerprint: 'fingerprint-b' },
-        { transactionIndex: 0, fingerprint: 'fingerprint-a' },
-        { transactionIndex: 1, fingerprint: 'fingerprint-a' },
-        { transactionIndex: 3, fingerprint: 'fingerprint-b' },
-        { transactionIndex: 4, fingerprint: 'fingerprint-c' },
+        { expenseIndex: 2, fingerprint: 'fingerprint-b' },
+        { expenseIndex: 0, fingerprint: 'fingerprint-a' },
+        { expenseIndex: 1, fingerprint: 'fingerprint-a' },
+        { expenseIndex: 3, fingerprint: 'fingerprint-b' },
+        { expenseIndex: 4, fingerprint: 'fingerprint-c' },
       ],
       new Map([
         ['fingerprint-a', [{ id: '12' }, { id: '2' }]],
@@ -23,12 +23,12 @@ describe('findProbableDuplicateGroups', () => {
     expect(groups).toEqual([
       {
         fingerprint: 'fingerprint-a',
-        incomingTransactionIndexes: [0, 1],
+        incomingExpenseIndexes: [0, 1],
         committedMatches: [{ id: '2' }, { id: '12' }],
       },
       {
         fingerprint: 'fingerprint-b',
-        incomingTransactionIndexes: [2, 3],
+        incomingExpenseIndexes: [2, 3],
         committedMatches: [{ id: '20' }],
       },
     ]);
@@ -41,7 +41,7 @@ describe('findProbableDuplicateGroups', () => {
     );
 
     const [group] = findProbableDuplicateGroups(
-      [{ transactionIndex: 0, fingerprint: 'fingerprint-a' }],
+      [{ expenseIndex: 0, fingerprint: 'fingerprint-a' }],
       new Map([['fingerprint-a', committedMatches]]),
     );
 
@@ -56,7 +56,7 @@ describe('findProbableDuplicateGroups', () => {
   it('ignores fingerprints with no repeated incoming or committed match', () => {
     expect(
       findProbableDuplicateGroups(
-        [{ transactionIndex: 0, fingerprint: 'fingerprint-a' }],
+        [{ expenseIndex: 0, fingerprint: 'fingerprint-a' }],
         new Map(),
       ),
     ).toEqual([]);

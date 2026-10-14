@@ -148,7 +148,7 @@ describe('Category summary OpenAPI contract', () => {
         'name',
         'isActive',
         'totalAmount',
-        'transactionCount',
+        'expenseCount',
         'budgetAmount',
         'remainingAmount',
       ],
@@ -165,7 +165,7 @@ describe('Category summary OpenAPI contract', () => {
           type: 'string',
           pattern: '^\\d+\\.\\d{2}$',
         },
-        transactionCount: { type: 'string', pattern: '^\\d+$' },
+        expenseCount: { type: 'string', pattern: '^\\d+$' },
         budgetAmount: {
           type: 'string',
           pattern: '^(?=.*[1-9])\\d{1,13}\\.\\d{2}$',

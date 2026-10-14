@@ -91,7 +91,7 @@ function MonthlySpendingChart({ report, onInspect }: MonthlySpendingChartProps) 
           <p id="insights-monthly-budget-description" className="text-sm">
             Dashed line: <span className="font-mono font-semibold">{budgetLabel} per month</span>
             <span className="text-muted-foreground">
-              {" "}from current monthly Budgets. Bars include all Transactions;
+              {" "}from current monthly Budgets. Bars include all Expenses;
               the line and Over Budget markers compare Budgeted Spending only.
               A ! marks a month above its Budget.
             </span>
@@ -258,8 +258,8 @@ function MonthlySpendingChart({ report, onInspect }: MonthlySpendingChartProps) 
                 Monthly spending values from{" "}
                 {formatReportingPeriod(report.months[0]!.period)} through{" "}
                 {formatReportingPeriod(report.period)}. Total spending includes
-                all Transactions, including unbudgeted and Uncategorized
-                Transactions. Budgeted Spending includes Transactions in
+                all Expenses, including unbudgeted and Uncategorized
+                Expenses. Budgeted Spending includes Expenses in
                 Categories with a current monthly Budget. Historical comparisons
                 use current monthly Budgets; past Budget amounts are not
                 reconstructed.

@@ -82,8 +82,8 @@ test("fits rolling-month Category trend labels across desktop and mobile plot wi
     throw new Error("The local test User has no Category for the chart fixture.");
   }
 
-  const transactionResponse = await request.post(
-    `${apiBaseUrl}/api/v1/users/me/transactions`,
+  const expenseResponse = await request.post(
+    `${apiBaseUrl}/api/v1/users/me/expenses`,
     {
       headers: { ...authorizationHeaders, "Content-Type": "application/json" },
       data: {
@@ -94,11 +94,11 @@ test("fits rolling-month Category trend labels across desktop and mobile plot wi
       },
     },
   );
-  expect(transactionResponse.status()).toBe(201);
-  const transaction = (await transactionResponse.json()) as {
+  expect(expenseResponse.status()).toBe(201);
+  const expense = (await expenseResponse.json()) as {
     readonly id?: unknown;
   };
-  if (typeof transaction.id !== "string") {
+  if (typeof expense.id !== "string") {
     throw new Error("The local test API did not return the chart fixture ID.");
   }
 
@@ -161,7 +161,7 @@ test("fits rolling-month Category trend labels across desktop and mobile plot wi
   }
 
   const deleteResponse = await request.delete(
-    `${apiBaseUrl}/api/v1/users/me/transactions/${transaction.id}`,
+    `${apiBaseUrl}/api/v1/users/me/expenses/${expense.id}`,
     { headers: authorizationHeaders },
   );
   expect(deleteResponse.status()).toBe(204);

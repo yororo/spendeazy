@@ -75,7 +75,7 @@ test("switches the Categories browser view to a seeded Shared Space", async ({
               name: sharedCategory.name,
               isActive: true,
               totalAmount: "0.00",
-              transactionCount: "0",
+              expenseCount: "0",
               budgetAmount: null,
               remainingAmount: null,
             },

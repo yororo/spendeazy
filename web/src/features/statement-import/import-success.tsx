@@ -15,7 +15,7 @@ import {
 import type { CommittedStatementImport } from "./statement-import-service";
 import {
   formatImportDate,
-  formatTransactionHistoryPeriod,
+  formatExpenseHistoryPeriod,
 } from "./statement-import-date-formatting";
 import { formatStatementType } from "./statement-type";
 
@@ -26,7 +26,7 @@ interface ImportSuccessProps {
   importerName?: string;
   spaceId?: string;
   onImportAnother: () => void;
-  onViewTransactions: () => void;
+  onViewExpenses: () => void;
 }
 
 function formatAccount(committedImport: CommittedStatementImport) {
@@ -42,7 +42,7 @@ function ImportSuccess({
   importerName,
   spaceId,
   onImportAnother,
-  onViewTransactions,
+  onViewExpenses,
 }: ImportSuccessProps) {
   const headingRef = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
@@ -59,7 +59,7 @@ function ImportSuccess({
         </h1>
       </header>
       <p role="status" className="text-sm">
-        {committedImport.transactionCount} expenses saved to {destinationLabel ?? "Personal"}
+        {committedImport.expenseCount} expenses saved to {destinationLabel ?? "Personal"}
         {totalExpense !== undefined && ` · ${formatMoney(totalExpense)}`}.
       </p>
 
@@ -73,7 +73,7 @@ function ImportSuccess({
               <div>
                 <CardTitle className="uppercase">Import complete</CardTitle>
                 <CardDescription className="mt-1 text-primary-foreground">
-                  The reviewed statement details and Transactions are now saved.
+                  The reviewed statement details and Expenses are now saved.
                 </CardDescription>
               </div>
             </div>
@@ -129,7 +129,7 @@ function ImportSuccess({
                 </dt>
                 <dd className="mt-1 font-mono text-sm font-semibold uppercase">
                   {committedImport.statementType === "e_wallet"
-                    ? formatTransactionHistoryPeriod(
+                    ? formatExpenseHistoryPeriod(
                         committedImport.transactionHistoryStartDate,
                         committedImport.statementDate,
                       )
@@ -151,7 +151,7 @@ function ImportSuccess({
                   Expenses saved
                 </dt>
                 <dd className="mt-1 font-mono text-sm font-semibold tabular-nums">
-                  {committedImport.transactionCount}
+                  {committedImport.expenseCount}
                 </dd>
               </div>
               {totalExpense !== undefined && <div>
@@ -161,7 +161,7 @@ function ImportSuccess({
             </dl>
 
             <p className="mt-6 border-t border-border pt-4 text-sm text-muted-foreground">
-              Imports cannot be undone. Check your Transactions if you need to
+              Imports cannot be undone. Check your Expenses if you need to
               review the saved entries.
             </p>
 
@@ -169,8 +169,8 @@ function ImportSuccess({
               <Button type="button" variant="outline" onClick={onImportAnother}>
                 Import another statement
               </Button>
-              <Button variant="secondary" onClick={onViewTransactions}>
-                View Transactions
+              <Button variant="secondary" onClick={onViewExpenses}>
+                View Expenses
                 <ArrowRightIcon className="text-inverse-accent" aria-hidden="true" />
               </Button>
             </div>

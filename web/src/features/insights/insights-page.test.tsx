@@ -96,7 +96,7 @@ function createSuccessfulFetch(initialPeriod: string) {
               name: "Housing",
               isActive: true,
               totalAmount: "8.40",
-              transactionCount: "1",
+              expenseCount: "1",
               budgetAmount: "500.00",
               remainingAmount: "491.60",
             },
@@ -120,7 +120,7 @@ function createSuccessfulFetch(initialPeriod: string) {
             name: "Groceries",
             isActive: true,
             totalAmount: amount,
-            transactionCount: "1",
+            expenseCount: "1",
             budgetAmount: "100.00",
               remainingAmount: "94.75",
             },
@@ -129,7 +129,7 @@ function createSuccessfulFetch(initialPeriod: string) {
               name: "Transit",
               isActive: true,
               totalAmount: "0.00",
-              transactionCount: "0",
+              expenseCount: "0",
               budgetAmount: null,
               remainingAmount: null,
             },
@@ -139,7 +139,7 @@ function createSuccessfulFetch(initialPeriod: string) {
       });
     }
 
-    if (path.endsWith("/transactions")) {
+    if (path.endsWith("/expenses")) {
       const fromDate = url.searchParams.get("fromDate") ?? rollingStart(url.searchParams.get("toDate")!.slice(0, 7));
       const toDate = url.searchParams.get("toDate")!;
       const selectedPeriod = toDate.slice(0, 7);
@@ -326,7 +326,7 @@ describe("InsightsPage Ledger", () => {
     vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
       const url = new URL(String(input));
       if (url.pathname.endsWith("/categories")) return apiResponse([]);
-      if (url.pathname.endsWith("/transactions")) return apiResponse({ items: [], nextCursor: null });
+      if (url.pathname.endsWith("/expenses")) return apiResponse({ items: [], nextCursor: null });
       return apiResponse({ period: "monthly", year: url.searchParams.get("year"), month: url.searchParams.get("month"), categories: [], uncategorizedTotal: "0.00", uncategorizedCount: "0" });
     }));
     renderInsights();

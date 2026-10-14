@@ -599,7 +599,7 @@ function CategoriesPage({ spaceId, onSpaceChange }: CategoriesPageProps = {}) {
                 Deactivate {statusDialog.category.name}?
               </DialogTitle>
               <DialogDescription>
-                Historical Transactions and spending will remain, but{" "}
+                Historical Expenses and spending will remain, but{" "}
                 {statusDialog.category.name} will stop being available for
                 future Category assignments.
               </DialogDescription>

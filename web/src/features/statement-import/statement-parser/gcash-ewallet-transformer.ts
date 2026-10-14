@@ -5,7 +5,7 @@ import { StatementTransformationError } from "./statement-transformation-error";
 import type {
   Statement,
   StatementTransformer,
-  Transaction,
+  StatementEntry,
 } from "./transformer";
 import {
   MONEY_AMOUNT_PATTERN_SOURCE,
@@ -20,11 +20,11 @@ const DATE_RANGE_PATTERN =
   /^(\d{4}-\d{2}-\d{2})\s+to\s+(\d{4}-\d{2}-\d{2})$/u;
 const TIME_PATTERN =
   "(?:0?[1-9]|1[0-2]):[0-5]\\d\\s+[AP]M";
-const TRANSACTION_PATTERN = new RegExp(
+const EXPENSE_PATTERN = new RegExp(
   `^(\\d{4}-\\d{2}-\\d{2})\\s+(${TIME_PATTERN})\\s+(.+?)\\s+(\\d+)\\s+(${MONEY_AMOUNT_PATTERN_SOURCE})\\s+(${MONEY_AMOUNT_PATTERN_SOURCE})$`,
   "iu",
 );
-const TRANSACTION_START_PATTERN = new RegExp(
+const EXPENSE_START_PATTERN = new RegExp(
   `^\\d{4}-\\d{2}-\\d{2}\\s+${TIME_PATTERN}\\s+.+$`,
   "iu",
 );
@@ -46,7 +46,7 @@ interface GCashControls {
 }
 
 interface ParsedActivity {
-  readonly transactions: Transaction[];
+  readonly entries: StatementEntry[];
   readonly totalExtractedCents: number;
   readonly totalExtractedMagnitudeCents: number;
 }
@@ -134,7 +134,7 @@ function readControls(lines: readonly string[]): GCashControls {
   }
 
   if (!lines.some((line) => TABLE_HEADER_PATTERN.test(normalizeLine(line)))) {
-    return validationError("missing transaction table header.");
+    return validationError("missing statement entry table header.");
   }
 
   parseControlAmount(lines, "STARTING BALANCE");
@@ -164,15 +164,15 @@ function isIncomingDescription(description: string) {
   return /^(?:Refund|Received)\b/iu.test(description);
 }
 
-function parseTransaction(
+function parseExpense(
   rowLines: readonly string[],
   lineNumber: number,
   controls: GCashControls,
-): { transaction: Transaction; amountMagnitudeCents: number } {
+): { expense: StatementEntry; amountMagnitudeCents: number } {
   const row = rowLines.map(normalizeLine).filter(Boolean).join(" ");
-  const match = row.match(TRANSACTION_PATTERN);
+  const match = row.match(EXPENSE_PATTERN);
   if (!match) {
-    return validationError(`malformed transaction row on line ${lineNumber}.`);
+    return validationError(`malformed statement entry on line ${lineNumber}.`);
   }
 
   const [
@@ -184,26 +184,26 @@ function parseTransaction(
     amountText,
     balanceText,
   ] = match;
-  const transactionDate = parseCalendarDate(
+  const entryDate = parseCalendarDate(
     dateText,
-    `transaction date on line ${lineNumber}`,
+    `statement entry date on line ${lineNumber}`,
   );
   if (
-    transactionDate.getTime() < controls.startDate.getTime() ||
-    transactionDate.getTime() > controls.statementDate.getTime()
+    entryDate.getTime() < controls.startDate.getTime() ||
+    entryDate.getTime() > controls.statementDate.getTime()
   ) {
     return validationError(
-      `transaction date on line ${lineNumber} is outside the statement range.`,
+      `statement entry date on line ${lineNumber} is outside the statement range.`,
     );
   }
 
   const baseDescription = cleanDescription(descriptionText);
   if (!baseDescription) {
-    return validationError(`transaction on line ${lineNumber} has no description.`);
+    return validationError(`statement entry on line ${lineNumber} has no description.`);
   }
   const amountMagnitudeCents = parseAmount(
     amountText,
-    `transaction on line ${lineNumber}`,
+    `statement entry on line ${lineNumber}`,
   );
   parseAmount(balanceText, `running Balance on line ${lineNumber}`);
 
@@ -212,9 +212,9 @@ function parseTransaction(
     : amountMagnitudeCents;
 
   return {
-    transaction: {
-      transactionDate,
-      postingDate: transactionDate,
+    expense: {
+      entryDate,
+      postingDate: entryDate,
       description: baseDescription,
       amount: centsToMoney(providerAmountCents),
       reference: referenceNumber,
@@ -227,7 +227,7 @@ function parseActivity(
   lines: readonly string[],
   controls: GCashControls,
 ): ParsedActivity {
-  const transactions: Transaction[] = [];
+  const entries: StatementEntry[] = [];
   let totalExtractedCents = 0;
   let totalExtractedMagnitudeCents = 0;
   let activeRow: { lines: string[]; lineNumber: number } | null = null;
@@ -235,13 +235,13 @@ function parseActivity(
   function flushActiveRow() {
     if (!activeRow) return;
 
-    const parsed = parseTransaction(
+    const parsed = parseExpense(
       activeRow.lines,
       activeRow.lineNumber,
       controls,
     );
-    transactions.push(parsed.transaction);
-    totalExtractedCents += moneyToCents(parsed.transaction.amount);
+    entries.push(parsed.expense);
+    totalExtractedCents += moneyToCents(parsed.expense.amount);
     totalExtractedMagnitudeCents += parsed.amountMagnitudeCents;
     activeRow = null;
   }
@@ -251,7 +251,7 @@ function parseActivity(
     const normalizedLine = normalizeLine(line);
     if (!normalizedLine) return;
 
-    if (TRANSACTION_START_PATTERN.test(normalizedLine)) {
+    if (EXPENSE_START_PATTERN.test(normalizedLine)) {
       flushActiveRow();
       activeRow = { lines: [normalizedLine], lineNumber };
       return;
@@ -263,7 +263,7 @@ function parseActivity(
     }
 
     if (CALENDAR_DATE_PREFIX_PATTERN.test(normalizedLine)) {
-      return validationError(`malformed transaction row on line ${lineNumber}.`);
+      return validationError(`malformed statement entry on line ${lineNumber}.`);
     }
 
     if (!activeRow) {
@@ -275,8 +275,8 @@ function parseActivity(
 
   flushActiveRow();
 
-  if (transactions.length === 0) {
-    return validationError("no Transactions were extracted from the activity.");
+  if (entries.length === 0) {
+    return validationError("no Statement Entries were extracted from the activity.");
   }
 
   const expectedMagnitudeCents =
@@ -288,7 +288,7 @@ function parseActivity(
   }
 
   return {
-    transactions,
+    entries,
     totalExtractedCents,
     totalExtractedMagnitudeCents,
   };
@@ -315,11 +315,11 @@ const gcashEwalletTransformer: StatementTransformer = {
         accountType: "E-Wallet",
         transactionHistoryStartDate: controls.startDate,
         totalDebit: centsToMoney(controls.totalDebitCents),
-        totalTransactions: activity.transactions.length,
+        entryCount: activity.entries.length,
         totalAmountDue: centsToMoney(controls.totalDebitCents),
         totalExtractedAmount: centsToMoney(activity.totalExtractedCents),
       },
-      transactions: activity.transactions,
+      entries: activity.entries,
     };
   },
 };

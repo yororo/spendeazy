@@ -32,7 +32,7 @@ import type {
 import { StatementImportsService } from '../application/statement-imports.service';
 import {
   CommitReviewedStatementImportDto,
-  ReviewedStatementTransactionDto,
+  ReviewedStatementExpenseDto,
   StatementImportCollectionQueryDto,
   StatementImportParamsDto,
 } from './statement-import.dto';
@@ -46,7 +46,7 @@ import {
 @ApiTags('Statement imports')
 @ApiExtraModels(
   CommitReviewedStatementImportDto,
-  ReviewedStatementTransactionDto,
+  ReviewedStatementExpenseDto,
   StatementImportCollectionQueryDto,
   StatementImportParamsDto,
   StatementImportResponseDto,
@@ -138,7 +138,7 @@ export class StatementImportsController {
   @ApiOperation({
     summary: 'Commit an already parsed and reviewed statement atomically.',
     description:
-      'Commits the reviewed Statement import and its Transactions as one operation. File names, bank names, card types, and Transaction descriptions are trimmed before storage; amounts are normalized to canonical decimal strings. Exact-file duplicates cannot be acknowledged, while probable duplicate signals require explicit acknowledgement. Client file hashes and internal matching values are never returned.',
+      'Commits the reviewed Statement import and its Expenses as one operation. File names, bank names, card types, and Expense descriptions are trimmed before storage; amounts are normalized to canonical decimal strings. Exact-file duplicates cannot be acknowledged, while probable duplicate signals require explicit acknowledgement. Client file hashes and internal matching values are never returned.',
   })
   @ApiResponse({
     status: HttpStatus.CREATED,
@@ -230,7 +230,7 @@ export function toStatementImportHistoryResponse(
 ): StatementImportHistoryResponseDto {
   return {
     ...toStatementImportResponse(statementImport),
-    transactionCount: statementImport.transactionCount,
+    expenseCount: statementImport.expenseCount,
   };
 }
 

@@ -5,7 +5,7 @@ import type { ComponentProps } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { CategoryRuleHelp } from "./category-rule-help";
-import type { CategorizedTransaction } from "./statement-categorizer";
+import type { CategorizedStatementEntry } from "./statement-categorizer";
 
 const props: ComponentProps<typeof CategoryRuleHelp> = {
   layout: "table",
@@ -28,8 +28,8 @@ afterEach(() => {
 
 describe("Category Rule help actions", () => {
   it("preserves preview order, edited descriptions, and row annotations", () => {
-    const row: CategorizedTransaction = {
-      id: "edited", transactionDate: new Date("2026-10-01T00:00:00.000Z"),
+    const row: CategorizedStatementEntry = {
+      id: "edited", entryDate: new Date("2026-10-01T00:00:00.000Z"),
       postingDate: new Date("2026-10-02T00:00:00.000Z"),
       description: "Original description", amount: -10, categoryId: null,
       assignment: "unmapped", matchedCategoryIds: [], isExcluded: false,

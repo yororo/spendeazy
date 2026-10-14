@@ -10,7 +10,7 @@ import type {
 
 interface Statement {
   summary: StatementSummary;
-  transactions: Transaction[];
+  entries: StatementEntry[];
 }
 
 interface StatementSummary {
@@ -20,15 +20,15 @@ interface StatementSummary {
   accountType: string;
   transactionHistoryStartDate: Date | null;
   totalDebit: number | null;
-  totalTransactions: number;
+  entryCount: number;
   totalAmountDue: number;
   totalExtractedAmount: number;
 }
 
 type StatementType = "credit_card" | "e_wallet";
 
-interface Transaction {
-  transactionDate: Date;
+interface StatementEntry {
+  entryDate: Date;
   postingDate: Date;
   description: string;
   amount: number;
@@ -88,7 +88,7 @@ export type {
   Statement,
   StatementSummary,
   StatementTransformer,
-  Transaction,
+  StatementEntry,
   StatementType,
   StatementTransformationErrorCode,
 };

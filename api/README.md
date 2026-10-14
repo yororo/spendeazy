@@ -49,10 +49,11 @@ PostgreSQL suites skip when their variable is unset. A skipped suite provides no
 | Category HTTP concurrency | `TEST_SPACE_CATEGORIES_CONCURRENCY_DATABASE_URL` |
 | Statement Import rollback/duplicates and GCash reference hashes | `TEST_STATEMENT_IMPORT_ROLLBACK_DATABASE_URL` |
 | Statement Import Category concurrency | `TEST_STATEMENT_IMPORT_CATEGORY_CONCURRENCY_DATABASE_URL` |
-| Imported Transaction/Space provenance | `TEST_TRANSACTION_STATEMENT_IMPORT_SPACE_DATABASE_URL` |
+| Imported Expense/Space provenance | `TEST_EXPENSE_STATEMENT_IMPORT_SPACE_DATABASE_URL` |
 | Category Suggestions | `TEST_STATEMENT_CATEGORY_SUGGESTIONS_DATABASE_URL` |
 | Invitations | `TEST_INVITATIONS_DATABASE_URL` |
 | Historical ownership migration | `TEST_FINANCIAL_OWNERSHIP_MIGRATION_DATABASE_URL` — separate, empty disposable database; starts from the pre-Space schema |
+| Expense rename migration | `TEST_EXPENSE_RENAME_MIGRATION_DATABASE_URL` — separate, empty disposable database; proves the forward and reverse rename and a fresh migration chain |
 
 The [synthetic launcher](../docs/local-testing.md#run-the-isolated-browser-suite) supplies a disposable rollback-suite database and runs real browser/API acceptance. It does not configure every PostgreSQL suite above.
 

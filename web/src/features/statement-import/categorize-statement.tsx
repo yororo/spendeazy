@@ -69,7 +69,7 @@ import { CategoryRuleHelp } from "./category-rule-help";
 import { BulkCategoryPreview } from "./bulk-category-preview";
 import {
   formatImportDate,
-  formatTransactionHistoryPeriod,
+  formatExpenseHistoryPeriod,
 } from "./statement-import-date-formatting";
 import { formatStatementType } from "./statement-type";
 import {
@@ -81,18 +81,18 @@ import {
 import {
   getCategoryLabel,
   getStatementActivityLabel,
-  isIncludedStatementTransaction,
+  isIncludedStatementEntry,
   normalizeDescription,
   toDateInputValue,
 } from "./statement-import-utils";
 import type {
   CategorizedStatement,
-  CategorizedTransaction,
+  CategorizedStatementEntry,
 } from "./statement-categorizer";
 import { AssignmentBadge, CategoryMatchCell } from "./statement-category-match";
 import type {
   CategorizeEditorState,
-  TransactionDraft,
+  ExpenseDraft,
 } from "./statement-import-workflow";
 import {
   useStatementCategorySuggestions,
@@ -113,20 +113,20 @@ interface CategorizeStatementProps {
   getCategorySuggestion?: CategorySuggestionFetcher;
   fileName: string;
   statementSummary: CategorizedStatement["summary"];
-  transactions: readonly CategorizedTransaction[];
+  entries: readonly CategorizedStatementEntry[];
   editor: CategorizeEditorState;
   canReview: boolean;
-  onBeginEdit: (transactionId: string) => boolean;
+  onBeginEdit: (expenseId: string) => boolean;
   onCancelEdit: () => boolean;
-  onChangeDraft: (draft: TransactionDraft) => boolean;
+  onChangeDraft: (draft: ExpenseDraft) => boolean;
   onChangeDescription: (description: string) => boolean;
   onChangeRememberRule: (checked: boolean) => boolean;
   onChangeRememberedMatchType: (
     matchType: CategoryRule["matchType"],
   ) => boolean;
   onChangeRememberedPattern: (pattern: string) => boolean;
-  onSaveEdit: () => Promise<readonly CategorizedTransaction[] | null>;
-  onToggleTransactionExclusion: (transactionId: string) => boolean;
+  onSaveEdit: () => Promise<readonly CategorizedStatementEntry[] | null>;
+  onToggleExpenseExclusion: (expenseId: string) => boolean;
   onApplyBulkCategory: (sourceId: string, selectedIds: readonly string[], categoryId: string) => boolean;
   onBack: () => void;
   onReview: () => void;
@@ -143,7 +143,7 @@ function CategorizeStatement({
   getCategorySuggestion,
   fileName,
   statementSummary,
-  transactions,
+  entries: expenses,
   editor,
   canReview,
   onBeginEdit,
@@ -154,7 +154,7 @@ function CategorizeStatement({
   onChangeRememberedMatchType,
   onChangeRememberedPattern,
   onSaveEdit,
-  onToggleTransactionExclusion,
+  onToggleExpenseExclusion,
   onApplyBulkCategory,
   onBack,
   onReview,
@@ -189,22 +189,22 @@ function CategorizeStatement({
     rememberRule,
   } = editor;
   const isEditing = editingId !== null;
-  const editingTransaction = transactions.find(
-    (transaction) => transaction.id === editingId,
+  const editingExpense = expenses.find(
+    (expense) => expense.id === editingId,
   );
   const canRequestEditingSuggestion = Boolean(
     getCategorySuggestion &&
       spaceId &&
       draft &&
-      editingTransaction?.assignment === "unmapped" &&
-      isIncludedStatementTransaction(editingTransaction) &&
+      editingExpense?.assignment === "unmapped" &&
+      isIncludedStatementEntry(editingExpense) &&
       draft.category.trim().length === 0 &&
       draft.description.trim().length > 0,
   );
   const { results: categorySuggestionResults, isAvailable: suggestionsAvailable } =
     useStatementCategorySuggestions({
-      transactions,
-      editingTransaction,
+      entries: expenses,
+      editingExpense,
       editingDescription: canRequestEditingSuggestion ? draft?.description ?? null : null,
       categoryOptions,
       categoryLabels,
@@ -236,16 +236,16 @@ function CategorizeStatement({
     categorySuggestionResult,
     suggestedCategories.length,
   );
-  function currentCategorySuggestionCount(transaction: CategorizedTransaction) {
+  function currentCategorySuggestionCount(expense: CategorizedStatementEntry) {
     if (
-      transaction.assignment !== "unmapped" ||
-      !isIncludedStatementTransaction(transaction)
+      expense.assignment !== "unmapped" ||
+      !isIncludedStatementEntry(expense)
     ) {
       return 0;
     }
 
     const result = categorySuggestionResults.get(
-      normalizeDescription(transaction.description),
+      normalizeDescription(expense.description),
     );
     return result?.status === "suggested"
       ? result.suggestions.filter((suggestion) =>
@@ -253,7 +253,7 @@ function CategorizeStatement({
         ).length
       : 0;
   }
-  const getCategoryLabelForTransaction = (categoryId: string) =>
+  const getCategoryLabelForExpense = (categoryId: string) =>
     getCategoryLabel(categoryLabels, categoryId);
 
   useEffect(() => {
@@ -273,55 +273,55 @@ function CategorizeStatement({
     categoryFilter !== "all";
   const hasActiveSheetFilters =
     dateFrom.length > 0 || dateTo.length > 0 || categoryFilter !== "all";
-  const includedTransactions = transactions.filter(
-    isIncludedStatementTransaction,
+  const includedExpenses = expenses.filter(
+    isIncludedStatementEntry,
   );
-  const ruleCount = includedTransactions.filter(
-    (transaction) =>
-      transaction.categoryId !== null && transaction.assignment === "rule",
+  const ruleCount = includedExpenses.filter(
+    (expense) =>
+      expense.categoryId !== null && expense.assignment === "rule",
   ).length;
-  const manualCount = includedTransactions.filter(
-    (transaction) =>
-      transaction.categoryId !== null && transaction.assignment === "manual",
+  const manualCount = includedExpenses.filter(
+    (expense) =>
+      expense.categoryId !== null && expense.assignment === "manual",
   ).length;
-  const unmappedCount = includedTransactions.filter(
-    (transaction) => transaction.categoryId === null,
+  const unmappedCount = includedExpenses.filter(
+    (expense) => expense.categoryId === null,
   ).length;
-  const ambiguousCount = includedTransactions.filter(
-    (transaction) => transaction.assignment === "ambiguous",
+  const ambiguousCount = includedExpenses.filter(
+    (expense) => expense.assignment === "ambiguous",
   ).length;
-  const excludedCount = transactions.length - includedTransactions.length;
+  const excludedCount = expenses.length - includedExpenses.length;
   const isEWallet = statementSummary.statementType === "e_wallet";
-  const statementHistoryPeriod = formatTransactionHistoryPeriod(
+  const statementHistoryPeriod = formatExpenseHistoryPeriod(
     statementSummary.transactionHistoryStartDate,
     statementSummary.statementDate,
   );
 
-  const visibleTransactions = useMemo(() => {
+  const visibleExpenses = useMemo(() => {
     const normalizedSearch = normalizeDescription(search);
 
-    return transactions
-      .filter((transaction) => {
-        const transactionDate = toDateInputValue(transaction.transactionDate);
+    return expenses
+      .filter((expense) => {
+        const entryDate = toDateInputValue(expense.entryDate);
         const matchesSearch =
           !normalizedSearch ||
-          normalizeDescription(transaction.description).includes(
+          normalizeDescription(expense.description).includes(
             normalizedSearch,
           );
-        const matchesStart = !dateFrom || transactionDate >= dateFrom;
-        const matchesEnd = !dateTo || transactionDate <= dateTo;
+        const matchesStart = !dateFrom || entryDate >= dateFrom;
+        const matchesEnd = !dateTo || entryDate <= dateTo;
         const matchesCategory =
           categoryFilter === "all" ||
           (categoryFilter === "unmapped"
-            ? transaction.categoryId === null
-            : transaction.categoryId === categoryFilter);
+            ? expense.categoryId === null
+            : expense.categoryId === categoryFilter);
 
         return matchesSearch && matchesStart && matchesEnd && matchesCategory;
       })
       .sort((a, b) => compareStatementRows(a, b, sort));
-  }, [categoryFilter, dateFrom, dateTo, search, sort, transactions]);
-  const editingTransactionIsVisible = visibleTransactions.some(
-    (transaction) => transaction.id === editingId,
+  }, [categoryFilter, dateFrom, dateTo, search, sort, expenses]);
+  const editingExpenseIsVisible = visibleExpenses.some(
+    (expense) => expense.id === editingId,
   );
 
   function getCategoryColor(categoryId: string): CategoryColor {
@@ -335,8 +335,8 @@ function CategorizeStatement({
     rule.categoryId === draft?.category && hasSameRulePattern(rule, { matchType: rememberedMatchType, pattern: rememberedPattern }),
   );
   const normalizedRulePattern = normalizeDescription(rememberedPattern);
-  const previewRows = normalizedRulePattern ? transactions.filter((transaction) => {
-    const description = transaction.id === editingId ? draft?.description ?? transaction.description : transaction.description;
+  const previewRows = normalizedRulePattern ? expenses.filter((expense) => {
+    const description = expense.id === editingId ? draft?.description ?? expense.description : expense.description;
     return matchesRuleDescription(description, { matchType: rememberedMatchType, pattern: rememberedPattern });
   }) : [];
 
@@ -353,19 +353,19 @@ function CategorizeStatement({
 
   async function applyAndNext() {
     const rememberedFeedback = rememberRule ? "Category Rule saved for future imports. " : "";
-    const orderedIds = visibleTransactions.map((transaction) => transaction.id);
+    const orderedIds = visibleExpenses.map((expense) => expense.id);
     const currentIndex = orderedIds.indexOf(editingId ?? "");
     const candidateIds = [
       ...orderedIds.slice(currentIndex + 1),
       ...orderedIds.slice(0, currentIndex),
     ];
-    const savedTransactions = await saveAssignment();
-    if (!savedTransactions) return;
-    const remainingIds = new Set(savedTransactions
-      .filter((transaction) =>
-        isIncludedStatementTransaction(transaction) && transaction.categoryId === null,
+    const savedExpenses = await saveAssignment();
+    if (!savedExpenses) return;
+    const remainingIds = new Set(savedExpenses
+      .filter((expense) =>
+        isIncludedStatementEntry(expense) && expense.categoryId === null,
       )
-      .map((transaction) => transaction.id));
+      .map((expense) => expense.id));
     const nextId = candidateIds.find((id) => remainingIds.has(id));
     if (nextId && onBeginEdit(nextId)) {
       setMobileEditorFocus("category");
@@ -380,8 +380,8 @@ function CategorizeStatement({
     }
   }
 
-  function toggleTransactionExclusion(transactionId: string) {
-    if (onToggleTransactionExclusion(transactionId)) setAssignmentFeedback(null);
+  function toggleExpenseExclusion(expenseId: string) {
+    if (onToggleExpenseExclusion(expenseId)) setAssignmentFeedback(null);
   }
 
   function changeSort(value: string) {
@@ -407,8 +407,8 @@ function CategorizeStatement({
     onBack();
   }
 
-  function beginDesktopEditing(transactionId: string) {
-    if (onBeginEdit(transactionId)) {
+  function beginDesktopEditing(expenseId: string) {
+    if (onBeginEdit(expenseId)) {
       setAssignmentFeedback(null);
       setMobileEditorFocus("details");
       setMobileEditorOpen(false);
@@ -416,10 +416,10 @@ function CategorizeStatement({
   }
 
   function beginMobileEditing(
-    transactionId: string,
+    expenseId: string,
     focus: "category" | "details" = "details",
   ) {
-    if (onBeginEdit(transactionId)) {
+    if (onBeginEdit(expenseId)) {
       setAssignmentFeedback(null);
       setMobileEditorFocus(focus);
       setMobileEditorOpen(true);
@@ -468,7 +468,7 @@ function CategorizeStatement({
           Saving…
         </p>
       )}
-      {draftError && !mobileEditorOpen && !editingTransactionIsVisible && (
+      {draftError && !mobileEditorOpen && !editingExpenseIsVisible && (
         <p role="alert" className="font-medium text-destructive">
           {draftError}
         </p>
@@ -512,7 +512,7 @@ function CategorizeStatement({
               )}
             </MobileSummaryMetric>
             <MobileSummaryMetric label="Rows">
-              {transactions.length}
+              {expenses.length}
             </MobileSummaryMetric>
           </div>
         </section>
@@ -555,18 +555,18 @@ function CategorizeStatement({
                 : statementSummary.totalAmountDue,
             )}
           </SummaryMetric>
-          <SummaryMetric label="Transactions parsed">
-            {transactions.length}
+          <SummaryMetric label="Statement Entries parsed">
+            {expenses.length}
           </SummaryMetric>
         </section>
 
         <section
           className="border border-structure"
-          aria-labelledby="transactions-heading"
+          aria-labelledby="expenses-heading"
         >
           <div className="flex gap-2 border-b p-3 md:hidden">
             <div className="relative min-w-0 flex-1">
-              <Label htmlFor="mobile-transaction-search" className="sr-only">
+              <Label htmlFor="mobile-expense-search" className="sr-only">
                 Search descriptions
               </Label>
               <SearchIcon
@@ -574,8 +574,8 @@ function CategorizeStatement({
                 aria-hidden="true"
               />
               <Input
-                id="mobile-transaction-search"
-                aria-label="Search Transactions"
+                id="mobile-expense-search"
+                aria-label="Search Statement Entries"
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="Search description"
@@ -591,8 +591,8 @@ function CategorizeStatement({
                   className="relative size-11 border-structure"
                   aria-label={
                     hasActiveSheetFilters
-                      ? "Filter Transactions, filters active"
-                      : "Filter Transactions"
+                      ? "Filter Statement Entries, filters active"
+                      : "Filter Statement Entries"
                   }
                 >
                   <FilterIcon aria-hidden="true" />
@@ -610,32 +610,32 @@ function CategorizeStatement({
                 onOpenAutoFocus={(event) => event.preventDefault()}
               >
                 <SheetHeader className="border-b p-5 pr-14">
-                  <SheetTitle>Filter Transactions</SheetTitle>
+                  <SheetTitle>Filter Statement Entries</SheetTitle>
                   <SheetDescription>
                     Results update immediately as filters change.
                   </SheetDescription>
                 </SheetHeader>
                 <div className="grid gap-4 p-5">
                   <div>
-                    <Label htmlFor="mobile-transaction-date-from">From</Label>
+                    <Label htmlFor="mobile-expense-date-from">From</Label>
                     <DateInput
-                      id="mobile-transaction-date-from"
+                      id="mobile-expense-date-from"
                       value={dateFrom}
                       onChange={(event) => setDateFrom(event.target.value)}
                       className="mt-1.5 font-mono text-xs"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="mobile-transaction-date-to">To</Label>
+                    <Label htmlFor="mobile-expense-date-to">To</Label>
                     <DateInput
-                      id="mobile-transaction-date-to"
+                      id="mobile-expense-date-to"
                       value={dateTo}
                       onChange={(event) => setDateTo(event.target.value)}
                       className="mt-1.5 font-mono text-xs"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="mobile-transaction-category-filter">
+                    <Label htmlFor="mobile-expense-category-filter">
                       Category
                     </Label>
                     <Select
@@ -643,7 +643,7 @@ function CategorizeStatement({
                       onValueChange={setCategoryFilter}
                     >
                       <SelectTrigger
-                        id="mobile-transaction-category-filter"
+                        id="mobile-expense-category-filter"
                         className="mt-1.5"
                       >
                         <SelectValue />
@@ -666,10 +666,10 @@ function CategorizeStatement({
                     </Select>
                   </div>
                   <div>
-                    <Label htmlFor="mobile-transaction-sort">Sort by</Label>
+                    <Label htmlFor="mobile-expense-sort">Sort by</Label>
                     <Select value={sort} onValueChange={changeSort}>
                       <SelectTrigger
-                        id="mobile-transaction-sort"
+                        id="mobile-expense-sort"
                         className="mt-1.5"
                       >
                         <SelectValue />
@@ -705,44 +705,44 @@ function CategorizeStatement({
 
           <div className="hidden gap-3 border-b p-3 md:grid md:grid-cols-2 lg:grid-cols-[minmax(14rem,1fr)_10.5rem_10.5rem_12rem_12rem_auto] lg:items-end">
             <div>
-              <Label htmlFor="transaction-search">Search descriptions</Label>
+              <Label htmlFor="expense-search">Search descriptions</Label>
               <div className="relative mt-1.5">
                 <SearchIcon
                   className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
                   aria-hidden="true"
                 />
                 <Input
-                  id="transaction-search"
+                  id="expense-search"
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Search transaction description…"
+                  placeholder="Search statement entry description…"
                   className="pl-9"
                 />
               </div>
             </div>
             <div>
-              <Label htmlFor="transaction-date-from">From</Label>
+              <Label htmlFor="expense-date-from">From</Label>
               <DateInput
-                id="transaction-date-from"
+                id="expense-date-from"
                 value={dateFrom}
                 onChange={(event) => setDateFrom(event.target.value)}
                 className="mt-1.5 font-mono text-xs"
               />
             </div>
             <div>
-              <Label htmlFor="transaction-date-to">To</Label>
+              <Label htmlFor="expense-date-to">To</Label>
               <DateInput
-                id="transaction-date-to"
+                id="expense-date-to"
                 value={dateTo}
                 onChange={(event) => setDateTo(event.target.value)}
                 className="mt-1.5 font-mono text-xs"
               />
             </div>
             <div>
-              <Label htmlFor="transaction-category-filter">Category</Label>
+              <Label htmlFor="expense-category-filter">Category</Label>
               <Select value={categoryFilter} onValueChange={setCategoryFilter}>
                 <SelectTrigger
-                  id="transaction-category-filter"
+                  id="expense-category-filter"
                   className="mt-1.5"
                 >
                   <SelectValue />
@@ -765,9 +765,9 @@ function CategorizeStatement({
               </Select>
             </div>
             <div>
-              <Label htmlFor="transaction-sort">Sort by</Label>
+              <Label htmlFor="expense-sort">Sort by</Label>
               <Select value={sort} onValueChange={changeSort}>
-                <SelectTrigger id="transaction-sort" className="mt-1.5">
+                <SelectTrigger id="expense-sort" className="mt-1.5">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -795,8 +795,8 @@ function CategorizeStatement({
           <div className="border-b bg-secondary px-3 py-2 text-secondary-foreground md:hidden">
             <div className="flex items-center justify-between gap-3 font-mono text-xs font-bold uppercase">
               <span>
-                {visibleTransactions.length} of {transactions.length}{" "}
-                Transactions
+                {visibleExpenses.length} of {expenses.length}{" "}
+                Expenses
               </span>
               <span className={unmappedCount > 0 ? "text-inverse-accent" : undefined}>
                 {unmappedCount} need Review
@@ -821,12 +821,12 @@ function CategorizeStatement({
 
           <div className="hidden flex-col gap-1 border-b bg-muted px-3 py-2 md:flex sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 id="transactions-heading" className="text-label">
-                Parsed Transactions
+              <h2 id="expenses-heading" className="text-label">
+                Parsed Expenses
               </h2>
               <p className="mt-0.5 font-mono text-xs text-muted-foreground uppercase">
-                {visibleTransactions.length} of {transactions.length}{" "}
-                Transactions
+                {visibleExpenses.length} of {expenses.length}{" "}
+                Expenses
               </p>
             </div>
             <p className="font-mono text-xs font-semibold uppercase">
@@ -850,43 +850,43 @@ function CategorizeStatement({
           </div>
 
           <div className="md:hidden">
-            {visibleTransactions.length === 0 ? (
+            {visibleExpenses.length === 0 ? (
               <div className="px-4 py-10 text-center">
                 <p className="font-mono text-sm font-bold uppercase">
-                  No Transactions match
+                  No Expenses match
                 </p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Adjust or clear the active filters to see parsed Transactions.
+                  Adjust or clear the active filters to see parsed Expenses.
                 </p>
               </div>
             ) : (
-              <ul className="divide-y" aria-label="Transactions to categorize">
-                {visibleTransactions.map((transaction) => {
-                  const suggestionCount = currentCategorySuggestionCount(transaction);
+              <ul className="divide-y" aria-label="Statement Entries to categorize">
+                {visibleExpenses.map((expense) => {
+                  const suggestionCount = currentCategorySuggestionCount(expense);
                   return (
                     <li
-                      key={transaction.id}
+                      key={expense.id}
                       className={`space-y-2.5 px-4 py-3 ${
-                        transaction.isExcluded
+                        expense.isExcluded
                           ? "bg-muted/70 text-muted-foreground"
                           : ""
                       }`}
                     >
                       <div className="flex items-start gap-3">
                         <p className="min-w-0 flex-1 font-semibold wrap-anywhere">
-                          {transaction.description}
+                          {expense.description}
                         </p>
                         <p className="max-w-1/2 shrink-0 text-right font-mono text-sm font-bold tabular-nums wrap-anywhere">
-                          {formatMoney(Math.abs(transaction.amount))}
+                          {formatMoney(Math.abs(expense.amount))}
                         </p>
                         <Button
                           type="button"
                           variant="ghost"
                           size="icon"
                           className="size-10"
-                          onClick={() => beginMobileEditing(transaction.id)}
-                          disabled={isEditing || transaction.isExcluded}
-                          aria-label={`Edit ${transaction.description}`}
+                          onClick={() => beginMobileEditing(expense.id)}
+                          disabled={isEditing || expense.isExcluded}
+                          aria-label={`Edit ${expense.description}`}
                         >
                           <PencilIcon aria-hidden="true" />
                         </Button>
@@ -894,16 +894,16 @@ function CategorizeStatement({
 
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="font-mono text-xs font-semibold uppercase text-muted-foreground">
-                          {formatImportDate(transaction.transactionDate)}
+                          {formatImportDate(expense.entryDate)}
                         </p>
-                        <AssignmentBadge assignment={transaction.assignment} />
-                        {transaction.amount > 0 && <Badge variant="muted">{getStatementActivityLabel(transaction)}</Badge>}
-                        {transaction.isExcluded && <Badge variant="muted">Excluded</Badge>}
+                        <AssignmentBadge assignment={expense.assignment} />
+                        {expense.amount > 0 && <Badge variant="muted">{getStatementActivityLabel(expense)}</Badge>}
+                        {expense.isExcluded && <Badge variant="muted">Excluded</Badge>}
                       </div>
 
                       <BulkCategoryPreview
-                        source={transaction}
-                        transactions={transactions}
+                        source={expense}
+                        entries={expenses}
                         categoryOptions={categoryOptions}
                         categoryLabels={categoryLabels}
                         disabled={isEditing}
@@ -913,23 +913,23 @@ function CategorizeStatement({
                         <button
                           type="button"
                           className="focus-ledger flex min-h-10 min-w-0 flex-1 items-center justify-between gap-2 border border-input bg-muted px-3 py-2 text-left disabled:cursor-not-allowed disabled:opacity-60"
-                          onClick={() => beginMobileEditing(transaction.id, "category")}
-                          disabled={isEditing || transaction.isExcluded}
-                          aria-label={`Edit Category for ${transaction.description}${suggestionCount > 0 ? `, ${suggestionCount} ${suggestionCount === 1 ? "suggestion" : "suggestions"} available` : ""}`}
+                          onClick={() => beginMobileEditing(expense.id, "category")}
+                          disabled={isEditing || expense.isExcluded}
+                          aria-label={`Edit Category for ${expense.description}${suggestionCount > 0 ? `, ${suggestionCount} ${suggestionCount === 1 ? "suggestion" : "suggestions"} available` : ""}`}
                         >
                           <span className="min-w-0 whitespace-normal wrap-anywhere">
-                            {transaction.assignment === "unmapped" ? (
+                            {expense.assignment === "unmapped" ? (
                               <span className="inline-flex items-center gap-2 font-medium text-warning">
                                 <TagIcon className="size-4 shrink-0" aria-hidden="true" />
                                 Choose category
                               </span>
                             ) : (
                               <CategoryMatchCell
-                                assignment={transaction.assignment}
-                                categoryId={transaction.categoryId}
-                                getCategoryLabel={getCategoryLabelForTransaction}
+                                assignment={expense.assignment}
+                                categoryId={expense.categoryId}
+                                getCategoryLabel={getCategoryLabelForExpense}
                                 getCategoryColor={getCategoryColor}
-                                matchedCategoryIds={transaction.matchedCategoryIds}
+                                matchedCategoryIds={expense.matchedCategoryIds}
                               />
                             )}
                           </span>
@@ -945,21 +945,21 @@ function CategorizeStatement({
                           variant="outline"
                           size="icon"
                           className={`size-10 ${
-                            transaction.isExcluded
+                            expense.isExcluded
                               ? "text-success hover:text-success"
                               : "text-destructive hover:text-destructive"
                           }`}
                           onClick={() =>
-                            toggleTransactionExclusion(transaction.id)
+                            toggleExpenseExclusion(expense.id)
                           }
-                          disabled={isEditing || transaction.amount > 0}
+                          disabled={isEditing || expense.amount > 0}
                           aria-label={
-                            transaction.amount > 0
-                              ? `${getStatementActivityLabel(transaction)} ${transaction.description} is permanently excluded`
-                              : `${transaction.isExcluded ? "Include" : "Exclude"} ${transaction.description}`
+                            expense.amount > 0
+                              ? `${getStatementActivityLabel(expense)} ${expense.description} is permanently excluded`
+                              : `${expense.isExcluded ? "Include" : "Exclude"} ${expense.description}`
                           }
                         >
-                          {transaction.isExcluded ? (
+                          {expense.isExcluded ? (
                             <CirclePlusIcon aria-hidden="true" />
                           ) : (
                             <CircleMinusIcon aria-hidden="true" />
@@ -976,7 +976,7 @@ function CategorizeStatement({
           <div className="hidden md:block">
             <Table className="min-w-[64rem]">
               <TableCaption className="sr-only">
-                Transactions parsed from {fileName}
+                Statement Entries parsed from {fileName}
               </TableCaption>
               <TableHeader>
                 <TableRow>
@@ -989,35 +989,35 @@ function CategorizeStatement({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {visibleTransactions.length === 0 ? (
+                {visibleExpenses.length === 0 ? (
                   <TableRow>
                     <TableCell
                       colSpan={6}
                       className="h-32 text-center whitespace-normal"
                     >
                       <p className="font-mono text-sm font-bold uppercase">
-                        No Transactions match
+                        No Expenses match
                       </p>
                       <p className="mt-1 text-sm text-muted-foreground">
                         Adjust or clear the active filters to see parsed
-                        Transactions.
+                        Expenses.
                       </p>
                     </TableCell>
                   </TableRow>
                 ) : (
-                  visibleTransactions.map((transaction) => {
+                  visibleExpenses.map((expense) => {
                     const isCurrentEdit =
-                      transaction.id === editingId && !mobileEditorOpen;
+                      expense.id === editingId && !mobileEditorOpen;
                     if (isCurrentEdit && draft) {
                       return (
-                        <TransactionEditRows
-                          key={transaction.id}
+                        <ExpenseEditRows
+                          key={expense.id}
                           categoryOptions={categoryOptions}
                           suggestedCategories={suggestedCategories}
                           categorySuggestionFeedback={
                             categorySuggestionFeedback
                           }
-                          transaction={transaction}
+                          expense={expense}
                           draft={draft}
                           error={draftError}
                           ruleHelp={
@@ -1059,63 +1059,63 @@ function CategorizeStatement({
 
                     return (
                       <TableRow
-                        key={transaction.id}
+                        key={expense.id}
                         className={
-                          transaction.isExcluded
+                          expense.isExcluded
                             ? "bg-muted/70 text-muted-foreground hover:bg-muted"
                             : undefined
                         }
                       >
                         <TableCell className="font-mono text-xs font-semibold tabular-nums uppercase">
-                          {formatImportDate(transaction.transactionDate)}
+                          {formatImportDate(expense.entryDate)}
                         </TableCell>
                         <TableCell className="font-medium whitespace-normal">
                           <div className="flex flex-wrap items-center gap-2">
-                            <span>{transaction.description}</span>
-                            {transaction.amount > 0 && (
-                              <Badge variant="muted">{getStatementActivityLabel(transaction)}</Badge>
+                            <span>{expense.description}</span>
+                            {expense.amount > 0 && (
+                              <Badge variant="muted">{getStatementActivityLabel(expense)}</Badge>
                             )}
-                            {transaction.isExcluded && (
+                            {expense.isExcluded && (
                               <Badge variant="muted">Excluded</Badge>
                             )}
                           </div>
                         </TableCell>
                         <TableCell className="text-right font-mono font-bold tabular-nums">
-                          {formatMoney(Math.abs(transaction.amount))}
+                          {formatMoney(Math.abs(expense.amount))}
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-col items-start gap-1">
                             <CategoryMatchCell
-                              assignment={transaction.assignment}
-                              categoryId={transaction.categoryId}
-                              getCategoryLabel={getCategoryLabelForTransaction}
+                              assignment={expense.assignment}
+                              categoryId={expense.categoryId}
+                              getCategoryLabel={getCategoryLabelForExpense}
                               getCategoryColor={getCategoryColor}
-                              matchedCategoryIds={transaction.matchedCategoryIds}
+                              matchedCategoryIds={expense.matchedCategoryIds}
                             />
-                            {currentCategorySuggestionCount(transaction) > 0 && (
+                            {currentCategorySuggestionCount(expense) > 0 && (
                               <CategorySuggestionCue
-                                description={transaction.description}
+                                description={expense.description}
                                 disabled={isEditing}
                                 className="h-8 justify-start px-2 text-left"
                                 onActivate={() =>
-                                  beginDesktopEditing(transaction.id)
+                                  beginDesktopEditing(expense.id)
                                 }
                               />
                             )}
                           </div>
                         </TableCell>
                         <TableCell className="text-center">
-                          {transaction.assignment !== "unmapped" && (
+                          {expense.assignment !== "unmapped" && (
                             <AssignmentBadge
-                              assignment={transaction.assignment}
+                              assignment={expense.assignment}
                             />
                           )}
                         </TableCell>
                         <TableCell>
                           <div className="flex justify-end gap-1">
                             <BulkCategoryPreview
-                              source={transaction}
-                              transactions={transactions}
+                              source={expense}
+                              entries={expenses}
                               categoryOptions={categoryOptions}
                               categoryLabels={categoryLabels}
                               disabled={isEditing}
@@ -1126,10 +1126,10 @@ function CategorizeStatement({
                               variant="ghost"
                               size="icon-sm"
                               onClick={() =>
-                                beginDesktopEditing(transaction.id)
+                                beginDesktopEditing(expense.id)
                               }
-                              disabled={isEditing || transaction.isExcluded}
-                              aria-label={`Edit ${transaction.description}`}
+                              disabled={isEditing || expense.isExcluded}
+                              aria-label={`Edit ${expense.description}`}
                             >
                               <PencilIcon aria-hidden="true" />
                             </Button>
@@ -1138,21 +1138,21 @@ function CategorizeStatement({
                               variant="ghost"
                               size="icon-sm"
                               className={
-                                transaction.isExcluded
+                                expense.isExcluded
                                   ? "text-success hover:text-success"
                                   : "text-destructive hover:text-destructive"
                               }
                               onClick={() =>
-                                toggleTransactionExclusion(transaction.id)
+                                toggleExpenseExclusion(expense.id)
                               }
-                              disabled={isEditing || transaction.amount > 0}
+                              disabled={isEditing || expense.amount > 0}
                               aria-label={
-                                transaction.amount > 0
-                                  ? `${getStatementActivityLabel(transaction)} ${transaction.description} is permanently excluded`
-                                  : `${transaction.isExcluded ? "Include" : "Exclude"} ${transaction.description}`
+                                expense.amount > 0
+                                  ? `${getStatementActivityLabel(expense)} ${expense.description} is permanently excluded`
+                                  : `${expense.isExcluded ? "Include" : "Exclude"} ${expense.description}`
                               }
                             >
-                              {transaction.isExcluded ? (
+                              {expense.isExcluded ? (
                                 <CirclePlusIcon aria-hidden="true" />
                               ) : (
                                 <CircleMinusIcon aria-hidden="true" />
@@ -1176,7 +1176,7 @@ function CategorizeStatement({
               if (!open) closeMobileEditor();
             }}
           >
-            {editingTransaction && draft && (
+            {editingExpense && draft && (
               <DialogContent
                 className="md:hidden"
                 closeButtonDisabled={isSaving}
@@ -1192,7 +1192,7 @@ function CategorizeStatement({
                     const focusTarget =
                       mobileEditorFocus === "category"
                         ? event.currentTarget.querySelector<HTMLElement>(
-                            `#mobile-transaction-${editingTransaction.id}-category`,
+                            `#mobile-expense-${editingExpense.id}-category`,
                           )
                         : null;
                     (focusTarget ?? event.currentTarget).focus();
@@ -1203,14 +1203,14 @@ function CategorizeStatement({
                 }}
               >
                 <DialogHeader>
-                  <DialogTitle>Edit Transaction</DialogTitle>
+                  <DialogTitle>Edit Statement Entry</DialogTitle>
                   <DialogDescription className="wrap-anywhere">
-                    Update {editingTransaction.description} and choose its
+                    Update {editingExpense.description} and choose its
                     Category.
                   </DialogDescription>
                 </DialogHeader>
-                <MobileTransactionEditor
-                  key={editingTransaction.id}
+                <MobileExpenseEditor
+                  key={editingExpense.id}
                   onApplyAndNext={applyAndNext}
                   categoryOptions={categoryOptions}
                   suggestedCategories={suggestedCategories}
@@ -1219,7 +1219,7 @@ function CategorizeStatement({
                   onToggleCorrections={() => setMobileEditorFocus(
                     mobileEditorFocus === "category" ? "details" : "category",
                   )}
-                  transaction={editingTransaction}
+                  expense={editingExpense}
                   draft={draft}
                   error={draftError}
                   ruleHelp={
@@ -1264,13 +1264,13 @@ function CategorizeStatement({
           >
             <p>
               {unmappedCount} included{" "}
-              {unmappedCount === 1 ? "Transaction needs" : "Transactions need"}{" "}
+              {unmappedCount === 1 ? "Statement Entry needs" : "Statement Entries need"}{" "}
               a Category before Review.
             </p>
             {ambiguousCount > 0 && (
               <p className="mt-1">
                 {ambiguousCount}{" "}
-                {ambiguousCount === 1 ? "Transaction has" : "Transactions have"}{" "}
+                {ambiguousCount === 1 ? "Statement Entry has" : "Statement Entries have"}{" "}
                 multiple categories matched. Choose a Category to resolve the
                 ambiguity.
               </p>
@@ -1297,7 +1297,7 @@ function CategorizeStatement({
             onClick={advanceToReview}
             disabled={!canReview}
           >
-            Review {includedTransactions.length} Transactions
+            Review {includedExpenses.length} Expenses
             <ArrowRightIcon className="text-inverse-accent" aria-hidden="true" />
           </Button>
         </div>
@@ -1376,20 +1376,20 @@ function getCategorySuggestionFeedbackText(
   }
 }
 
-interface TransactionEditRowsProps {
+interface ExpenseEditRowsProps {
   readonly focusCategoryInitially?: boolean;
   categoryOptions: readonly CategoryColorOption[];
   suggestedCategories: readonly CategoryColorOption[];
   categorySuggestionFeedback: CategorySuggestionFeedback;
-  transaction: CategorizedTransaction;
-  draft: TransactionDraft;
+  expense: CategorizedStatementEntry;
+  draft: ExpenseDraft;
   error: string | null;
   ruleHelp: ReactNode;
   rememberRule: boolean;
   isSaving: boolean;
   rememberedMatchType: CategoryRule["matchType"];
   rememberedPattern: string;
-  onDraftChange: (draft: TransactionDraft) => void;
+  onDraftChange: (draft: ExpenseDraft) => void;
   onUseSuggestedCategory: (categoryId: string) => void;
   onDescriptionChange: (description: string) => void;
   onRememberRuleChange: (checked: boolean) => void;
@@ -1400,42 +1400,42 @@ interface TransactionEditRowsProps {
   onCancel: () => void;
 }
 
-interface TransactionDraftFieldsProps {
+interface ExpenseDraftFieldsProps {
   readonly layout: "mobile" | "table";
   readonly compact?: boolean;
   readonly focusCategoryInitially?: boolean;
   readonly categoryOptions: readonly CategoryColorOption[];
   readonly suggestedCategories: readonly CategoryColorOption[];
   readonly categorySuggestionFeedback: CategorySuggestionFeedback;
-  readonly transaction: CategorizedTransaction;
-  readonly draft: TransactionDraft;
+  readonly expense: CategorizedStatementEntry;
+  readonly draft: ExpenseDraft;
   readonly isSaving: boolean;
   readonly errorId?: string;
-  readonly onDraftChange: (draft: TransactionDraft) => void;
+  readonly onDraftChange: (draft: ExpenseDraft) => void;
   readonly onUseSuggestedCategory: (categoryId: string) => void;
   readonly onDescriptionChange: (description: string) => void;
 }
 
-function TransactionDraftFields({
+function ExpenseDraftFields({
   layout,
   compact = false,
   focusCategoryInitially = false,
   categoryOptions,
   suggestedCategories,
   categorySuggestionFeedback,
-  transaction,
+  expense,
   draft,
   isSaving,
   errorId,
   onDraftChange,
   onUseSuggestedCategory,
   onDescriptionChange,
-}: TransactionDraftFieldsProps) {
+}: ExpenseDraftFieldsProps) {
   const idPrefix =
-    layout === "mobile" ? `mobile-transaction-${transaction.id}` : undefined;
+    layout === "mobile" ? `mobile-expense-${expense.id}` : undefined;
   const assignment = draft.category
-    ? transaction.assignment === "rule" &&
-      draft.category === transaction.categoryId
+    ? expense.assignment === "rule" &&
+      draft.category === expense.categoryId
       ? "rule"
       : "manual"
     : "unmapped";
@@ -1453,7 +1453,7 @@ function TransactionDraftFields({
           ? "mt-1.5 max-w-full font-mono text-xs"
           : "h-8 min-w-36 font-mono text-xs"
       }
-      aria-label={`Date for ${transaction.description}`}
+      aria-label={`Date for ${expense.description}`}
       aria-describedby={errorId}
     />
   );
@@ -1464,7 +1464,7 @@ function TransactionDraftFields({
       disabled={isSaving}
       onChange={(event) => onDescriptionChange(event.target.value)}
       className={layout === "mobile" ? "mt-1.5" : "h-8 min-w-56"}
-      aria-label={`Description for ${transaction.description}`}
+      aria-label={`Description for ${expense.description}`}
       aria-describedby={errorId}
     />
   );
@@ -1483,7 +1483,7 @@ function TransactionDraftFields({
           ? "mt-1.5 font-mono tabular-nums"
           : "h-8 min-w-32 text-right font-mono tabular-nums"
       }
-      aria-label={`Amount for ${transaction.description}`}
+      aria-label={`Amount for ${expense.description}`}
       aria-describedby={errorId}
     />
   );
@@ -1497,7 +1497,7 @@ function TransactionDraftFields({
         id={idPrefix ? `${idPrefix}-category` : undefined}
         className={layout === "mobile" ? "mt-1.5" : "h-8 min-w-40"}
         data-initial-focus={focusCategoryInitially ? "" : undefined}
-        aria-label={`Category for ${transaction.description}`}
+        aria-label={`Category for ${expense.description}`}
       >
         <SelectValue placeholder="Select Category" />
       </SelectTrigger>
@@ -1634,7 +1634,7 @@ function RememberCategoryRuleField({
 
 function RememberedRuleFields({
   layout,
-  transaction,
+  expense,
   matchType,
   pattern,
   isSaving,
@@ -1643,7 +1643,7 @@ function RememberedRuleFields({
   onPatternChange,
 }: {
   readonly layout: "mobile" | "table";
-  readonly transaction: CategorizedTransaction;
+  readonly expense: CategorizedStatementEntry;
   readonly matchType: CategoryRule["matchType"];
   readonly pattern: string;
   readonly isSaving: boolean;
@@ -1653,8 +1653,8 @@ function RememberedRuleFields({
 }) {
   const idPrefix =
     layout === "mobile"
-      ? `mobile-transaction-${transaction.id}`
-      : `transaction-${transaction.id}`;
+      ? `mobile-expense-${expense.id}`
+      : `expense-${expense.id}`;
   const matchTypeId = `${idPrefix}-match-type`;
   const patternId = `${idPrefix}-pattern`;
 
@@ -1678,7 +1678,7 @@ function RememberedRuleFields({
           <SelectTrigger
             id={matchTypeId}
             className={layout === "mobile" ? "mt-1.5" : "mt-1 h-8"}
-            aria-label={`Match type for ${transaction.description}`}
+            aria-label={`Match type for ${expense.description}`}
           >
             <SelectValue />
           </SelectTrigger>
@@ -1699,7 +1699,7 @@ function RememberedRuleFields({
           maxLength={500}
           onChange={(event) => onPatternChange(event.target.value)}
           className={layout === "mobile" ? "mt-1.5" : "mt-1 h-8 min-w-56"}
-          aria-label={`Pattern for ${transaction.description}`}
+          aria-label={`Pattern for ${expense.description}`}
           aria-describedby={errorId}
         />
       </div>
@@ -1707,7 +1707,7 @@ function RememberedRuleFields({
   );
 }
 
-function TransactionDraftError({
+function ExpenseDraftError({
   id,
   error,
   className,
@@ -1727,12 +1727,12 @@ function TransactionDraftError({
   );
 }
 
-function MobileTransactionEditor({
+function MobileExpenseEditor({
   categoryOptions,
   suggestedCategories,
   categorySuggestionFeedback,
   focusCategoryInitially,
-  transaction,
+  expense,
   draft,
   error,
   ruleHelp,
@@ -1750,7 +1750,7 @@ function MobileTransactionEditor({
   onSave,
   onCancel,
   onToggleCorrections,
-}: TransactionEditRowsProps & {
+}: ExpenseEditRowsProps & {
   readonly focusCategoryInitially: boolean;
   readonly onToggleCorrections: () => void;
 }) {
@@ -1760,9 +1760,9 @@ function MobileTransactionEditor({
     if (focusCategoryInitially) {
       categoryRef.current?.querySelector<HTMLElement>("[role=combobox]")?.focus();
     }
-  }, [focusCategoryInitially, transaction.id]);
-  const errorId = `mobile-transaction-${transaction.id}-error`;
-  const rememberId = `mobile-transaction-${transaction.id}-remember`;
+  }, [focusCategoryInitially, expense.id]);
+  const errorId = `mobile-expense-${expense.id}-error`;
+  const rememberId = `mobile-expense-${expense.id}-remember`;
 
   return (
     <>
@@ -1784,14 +1784,14 @@ function MobileTransactionEditor({
         >
           {showCorrections ? "Compact Category assignment" : "Full corrections"}
         </Button>
-        <TransactionDraftFields
+        <ExpenseDraftFields
           layout="mobile"
           compact={!showCorrections}
           focusCategoryInitially={focusCategoryInitially}
           categoryOptions={categoryOptions}
           suggestedCategories={suggestedCategories}
           categorySuggestionFeedback={categorySuggestionFeedback}
-          transaction={transaction}
+          expense={expense}
           draft={draft}
           isSaving={isSaving}
           errorId={error ? errorId : undefined}
@@ -1809,7 +1809,7 @@ function MobileTransactionEditor({
         {rememberRule && (
           <RememberedRuleFields
             layout="mobile"
-            transaction={transaction}
+            expense={expense}
             matchType={rememberedMatchType}
             pattern={rememberedPattern}
             isSaving={isSaving}
@@ -1818,7 +1818,7 @@ function MobileTransactionEditor({
             onPatternChange={onRememberedPatternChange}
           />
         )}
-        {error && <TransactionDraftError id={errorId} error={error} />}
+        {error && <ExpenseDraftError id={errorId} error={error} />}
       </div>
       <DialogFooter>
         <Button
@@ -1842,12 +1842,12 @@ function MobileTransactionEditor({
   );
 }
 
-function TransactionEditRows({
+function ExpenseEditRows({
   focusCategoryInitially = false,
   categoryOptions,
   suggestedCategories,
   categorySuggestionFeedback,
-  transaction,
+  expense,
   draft,
   error,
   ruleHelp,
@@ -1864,25 +1864,25 @@ function TransactionEditRows({
   onApplyAndNext,
   onSave,
   onCancel,
-}: TransactionEditRowsProps) {
+}: ExpenseEditRowsProps) {
   const rowRef = useRef<HTMLTableRowElement>(null);
   useEffect(() => {
     if (focusCategoryInitially) {
       rowRef.current?.querySelector<HTMLElement>("[role=combobox]")?.focus();
     }
-  }, [focusCategoryInitially, transaction.id]);
-  const errorId = `transaction-${transaction.id}-error`;
-  const rememberId = `transaction-${transaction.id}-remember`;
+  }, [focusCategoryInitially, expense.id]);
+  const errorId = `expense-${expense.id}-error`;
+  const rememberId = `expense-${expense.id}-remember`;
 
   return (
     <>
       <TableRow ref={rowRef} className="bg-primary/10 hover:bg-primary/10">
-        <TransactionDraftFields
+        <ExpenseDraftFields
           layout="table"
           categoryOptions={categoryOptions}
           suggestedCategories={suggestedCategories}
           categorySuggestionFeedback={categorySuggestionFeedback}
-          transaction={transaction}
+          expense={expense}
           draft={draft}
           isSaving={isSaving}
           errorId={error ? errorId : undefined}
@@ -1898,7 +1898,7 @@ function TransactionEditRows({
               size="icon-sm"
               onClick={onSave}
               disabled={isSaving}
-              aria-label={`Save changes to ${transaction.description}`}
+              aria-label={`Save changes to ${expense.description}`}
             >
               <CheckIcon aria-hidden="true" />
             </Button>
@@ -1908,7 +1908,7 @@ function TransactionEditRows({
               size="icon-sm"
               onClick={onCancel}
               disabled={isSaving}
-              aria-label={`Cancel changes to ${transaction.description}`}
+              aria-label={`Cancel changes to ${expense.description}`}
             >
               <XIcon aria-hidden="true" />
             </Button>
@@ -1937,7 +1937,7 @@ function TransactionEditRows({
             <div className="flex flex-col gap-2 sm:items-end">
               <RememberedRuleFields
                 layout="table"
-                transaction={transaction}
+                expense={expense}
                 matchType={rememberedMatchType}
                 pattern={rememberedPattern}
                 isSaving={isSaving}
@@ -1945,7 +1945,7 @@ function TransactionEditRows({
                 onMatchTypeChange={onRememberedMatchTypeChange}
                 onPatternChange={onRememberedPatternChange}
               />
-              {error && <TransactionDraftError id={errorId} error={error} />}
+              {error && <ExpenseDraftError id={errorId} error={error} />}
             </div>
           </TableCell>
         </TableRow>

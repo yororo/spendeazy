@@ -16,7 +16,7 @@ const dashboardState = vi.hoisted(() => ({
       summary: {
         period: "Aug 2026",
         totalSpend: 100,
-        transactionCount: 1,
+        expenseCount: 1,
         recordedDayCount: 1,
         accountCount: 1,
         topCategory: "Housing",
@@ -38,7 +38,7 @@ const dashboardState = vi.hoisted(() => ({
           share: 100,
         },
       ],
-      recentTransactions: [],
+      recentExpenses: [],
       spendingPoints: [{ label: "1", amount: 100, categories: [{ id: "category-housing", label: "Housing", color: "teal", amount: 100 }] }],
       budgetAlerts: [{ categoryId: "category-housing", label: "Housing", spent: 100, budget: 80, remaining: -20, usage: 125, status: "over" }],
     },
@@ -89,7 +89,7 @@ describe("DashboardPage", () => {
     dashboardState.query.isPlaceholderData = false;
   });
 
-  it("shows Budget status without remaining amounts and links to all Transactions", () => {
+  it("shows Budget status without remaining amounts and links to all Expenses", () => {
     const summary = dashboardState.query.data.summary;
     const previous = { ...summary };
     Object.assign(summary, { budgetLimit: 200, budgetedSpend: 100, budgetUsed: 50 });
@@ -97,7 +97,7 @@ describe("DashboardPage", () => {
       renderDashboard();
       expect(screen.getByText("Within Budget")).toBeTruthy();
       expect(screen.queryByText(/remaining/)).toBeNull();
-      expect(screen.getByRole("link", { name: "View all transactions" }).getAttribute("href")).toBe("/transactions");
+      expect(screen.getByRole("link", { name: "View all expenses" }).getAttribute("href")).toBe("/expenses");
       fireEvent.click(screen.getByRole("button", { name: "About Category attention" }));
       expect(screen.getByRole("tooltip").textContent).toContain("Categories at 80%");
       fireEvent.keyDown(screen.getByRole("button", { name: "About Category attention" }), { key: "Escape" });
@@ -116,7 +116,7 @@ describe("DashboardPage", () => {
   });
   it("removes categories from the previous Reporting Period while the next period loads", () => {
     const view = renderDashboard();
-    expect(screen.getByRole("link", { name: /Housing.*Over Budget/ }).getAttribute("href")).toBe("/transactions?categoryId=category-housing");
+    expect(screen.getByRole("link", { name: /Housing.*Over Budget/ }).getAttribute("href")).toBe("/expenses?categoryId=category-housing");
     expect(
       screen.getByRole("img", { name: "Housing: 100% of monthly spending" }),
     ).toBeTruthy();

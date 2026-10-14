@@ -11,11 +11,11 @@ import type {
   CategoryEligibilityConflict,
   ProbableDuplicateConflict,
 } from "./statement-import-errors";
-import type { CategorizedTransaction } from "./statement-categorizer";
+import type { CategorizedStatementEntry } from "./statement-categorizer";
 
-const transaction: CategorizedTransaction = {
-  id: "transaction-1",
-  transactionDate: new Date("2026-08-29T00:00:00.000Z"),
+const expense: CategorizedStatementEntry = {
+  id: "expense-1",
+  entryDate: new Date("2026-08-29T00:00:00.000Z"),
   postingDate: new Date("2026-08-30T00:00:00.000Z"),
   description: "Green Market Cafe",
   amount: -25.5,
@@ -32,7 +32,7 @@ const statementSummary = {
   accountType: "AMEX",
   transactionHistoryStartDate: null,
   totalDebit: null,
-  totalTransactions: 3,
+  entryCount: 3,
   totalAmountDue: 65.5,
   totalExtractedAmount: 65.5,
 };
@@ -44,15 +44,15 @@ const eWalletStatementSummary = {
   accountType: "E-Wallet",
   transactionHistoryStartDate: new Date("2026-08-09T00:00:00.000Z"),
   totalDebit: 26696.92,
-  totalTransactions: 3,
+  entryCount: 3,
   totalAmountDue: 26696.92,
   totalExtractedAmount: -25291.92,
 };
 
-const completeTransactions: CategorizedTransaction[] = [
+const completeExpenses: CategorizedStatementEntry[] = [
   {
-    id: "housing-transaction",
-    transactionDate: new Date("2026-08-02T00:00:00.000Z"),
+    id: "housing-expense",
+    entryDate: new Date("2026-08-02T00:00:00.000Z"),
     postingDate: new Date("2026-08-03T00:00:00.000Z"),
     description: "Northline Properties",
     amount: -50,
@@ -62,8 +62,8 @@ const completeTransactions: CategorizedTransaction[] = [
     isExcluded: false,
   },
   {
-    id: "groceries-transaction",
-    transactionDate: new Date("2026-08-04T00:00:00.000Z"),
+    id: "groceries-expense",
+    entryDate: new Date("2026-08-04T00:00:00.000Z"),
     postingDate: new Date("2026-08-05T00:00:00.000Z"),
     description: "Green Market Cafe",
     amount: -15.5,
@@ -73,8 +73,8 @@ const completeTransactions: CategorizedTransaction[] = [
     isExcluded: false,
   },
   {
-    id: "credit-transaction",
-    transactionDate: new Date("2026-08-06T00:00:00.000Z"),
+    id: "credit-expense",
+    entryDate: new Date("2026-08-06T00:00:00.000Z"),
     postingDate: new Date("2026-08-07T00:00:00.000Z"),
     description: "Store refund",
     amount: 10,
@@ -94,7 +94,7 @@ const defaultProps: ReviewProps = {
   ],
   fileName: "statement.pdf",
   statementSummary,
-  transactions: [transaction],
+  entries: [expense],
   commitError: null,
   probableDuplicateConflict: null,
   categoryEligibilityConflict: null,
@@ -127,7 +127,7 @@ afterEach(() => {
 
 describe("ReviewStatement ambiguity handling", () => {
   it("uses the saved Category Color in the Category breakdown", () => {
-    renderReview({ transactions: completeTransactions });
+    renderReview({ entries: completeExpenses });
 
     const categoryBreakdown = screen.getByRole("region", {
       name: "Category breakdown",
@@ -156,11 +156,11 @@ describe("ReviewStatement ambiguity handling", () => {
         statementType: "credit_card",
         transactionHistoryStartDate: null,
         totalDebit: null,
-          totalTransactions: 1,
+          entryCount: 1,
           totalAmountDue: 25.5,
           totalExtractedAmount: 25.5,
         }}
-        transactions={[transaction]}
+        entries={[expense]}
         commitError={null}
         probableDuplicateConflict={null}
         categoryEligibilityConflict={null}
@@ -177,7 +177,7 @@ describe("ReviewStatement ambiguity handling", () => {
     expect(screen.getAllByText("Housing, Groceries")).toHaveLength(2);
     expect(
       within(
-        screen.getByRole("list", { name: "Transactions to review" }),
+        screen.getByRole("list", { name: "Expenses to review" }),
       ).getByText("Housing, Groceries"),
     ).toBeTruthy();
     expect(screen.getAllByText(/multiple categories matched/).length).toBeGreaterThan(0);
@@ -186,16 +186,16 @@ describe("ReviewStatement ambiguity handling", () => {
     );
     expect(onBack).toHaveBeenCalledTimes(1);
     expect(
-      screen.getByRole("button", { name: "Import 1 Transactions" }),
+      screen.getByRole("button", { name: "Import 1 Expenses" }),
     ).toHaveProperty("disabled", true);
   });
 });
 
 describe("ReviewStatement phone composition", () => {
-  it("keeps the complete summary, status, Category breakdown, and Transaction details in phone order", () => {
+  it("keeps the complete summary, status, Category breakdown, and Expense details in phone order", () => {
     renderReview({
       statementSummary,
-      transactions: completeTransactions,
+      entries: completeExpenses,
     });
 
     const summaries = screen.getAllByRole("region", {
@@ -209,15 +209,15 @@ describe("ReviewStatement phone composition", () => {
     const categoryBreakdown = screen.getByRole("region", {
       name: "Category breakdown",
     });
-    const transactionList = screen.getByRole("list", {
-      name: "Transactions to review",
+    const expenseList = screen.getByRole("list", {
+      name: "Expenses to review",
     });
 
     expect(phoneSummary).toBeTruthy();
     expect(phoneStatus).toBeTruthy();
     expectBefore(phoneSummary, phoneStatus);
     expectBefore(phoneStatus, categoryBreakdown);
-    expectBefore(categoryBreakdown, transactionList);
+    expectBefore(categoryBreakdown, expenseList);
 
     expect(within(phoneSummary).getByText("BDO")).toBeTruthy();
     expect(within(phoneSummary).getByText(/AMEX/)).toBeTruthy();
@@ -235,23 +235,23 @@ describe("ReviewStatement phone composition", () => {
     expect(within(categoryBreakdown).getByText("₱15.50")).toBeTruthy();
     expect(within(categoryBreakdown).getByText("23.7%")).toBeTruthy();
 
-    expect(within(transactionList).getByText("Northline Properties")).toBeTruthy();
-    expect(within(transactionList).getByText("Green Market Cafe")).toBeTruthy();
+    expect(within(expenseList).getByText("Northline Properties")).toBeTruthy();
+    expect(within(expenseList).getByText("Green Market Cafe")).toBeTruthy();
     fireEvent.click(screen.getAllByText("Excluded rows (1)")[0]);
     const exclusions = screen.getByRole("list", { name: "Excluded rows to review" });
     expect(within(exclusions).getByText("Store refund")).toBeTruthy();
-    expect(within(transactionList).getByText("Aug 02, 2026")).toBeTruthy();
-    expect(within(transactionList).getByText("₱50.00")).toBeTruthy();
-    expect(within(transactionList).getByText("₱15.50")).toBeTruthy();
-    expect(within(transactionList).getByText("Rule")).toBeTruthy();
-    expect(within(transactionList).getByText("Manual")).toBeTruthy();
-    expect(within(transactionList).getAllByText("Expense")).toHaveLength(2);
+    expect(within(expenseList).getByText("Aug 02, 2026")).toBeTruthy();
+    expect(within(expenseList).getByText("₱50.00")).toBeTruthy();
+    expect(within(expenseList).getByText("₱15.50")).toBeTruthy();
+    expect(within(expenseList).getByText("Rule")).toBeTruthy();
+    expect(within(expenseList).getByText("Manual")).toBeTruthy();
+    expect(within(expenseList).getAllByText("Expense")).toHaveLength(2);
     expect(within(exclusions).getByText("Other credit — not an expense")).toBeTruthy();
 
     const importButton = screen.getByRole("button", {
-      name: "Import 2 Transactions",
+      name: "Import 2 Expenses",
     });
-    expectBefore(transactionList, importButton);
+    expectBefore(expenseList, importButton);
 
     const backButtons = screen.getAllByRole("button", {
       name: "Back to Categorize",
@@ -266,7 +266,7 @@ describe("ReviewStatement E-Wallet controls", () => {
   it("shows the document period and Total Debit separately from included debits", () => {
     renderReview({
       statementSummary: eWalletStatementSummary,
-      transactions: completeTransactions,
+      entries: completeExpenses,
     });
 
     const summaries = screen.getAllByRole("region", {
@@ -295,22 +295,22 @@ describe("ReviewStatement E-Wallet controls", () => {
 describe("ReviewStatement import safeguards", () => {
   it("commits a ready review and exposes disabled committing feedback", () => {
     const { onCommit } = renderReview({
-      transactions: completeTransactions,
+      entries: completeExpenses,
     });
 
     fireEvent.click(
-      screen.getByRole("button", { name: "Import 2 Transactions" }),
+      screen.getByRole("button", { name: "Import 2 Expenses" }),
     );
     expect(onCommit).toHaveBeenCalledWith(false);
 
     cleanup();
     renderReview({
-      transactions: completeTransactions,
+      entries: completeExpenses,
       isCommitting: true,
     });
 
     const importButton = screen.getByRole("button", {
-      name: "Import 2 Transactions",
+      name: "Import 2 Expenses",
     });
     expect(importButton).toHaveProperty("disabled", true);
     expect(importButton.getAttribute("aria-busy")).toBe("true");
@@ -318,27 +318,27 @@ describe("ReviewStatement import safeguards", () => {
 
   it("keeps probable duplicate and duplicate-file safeguards visible and blocking", () => {
     const probableDuplicateConflict: ProbableDuplicateConflict = {
-      message: "Probable duplicate Transactions found.",
+      message: "Probable duplicate Expenses found.",
       details: [
         {
           field: "description",
           code: "probable_duplicate",
-          message: "Description matched an existing Transaction.",
-          transactionIndexes: [0],
-          committedTransactionIds: ["existing-transaction"],
+          message: "Description matched an existing Expense.",
+          expenseIndexes: [0],
+          committedExpenseIds: ["existing-expense"],
         },
       ],
     };
     const { onCommit } = renderReview({
-      transactions: completeTransactions,
+      entries: completeExpenses,
       probableDuplicateConflict,
       sort: "amount-asc",
     });
 
     expect(
-      screen.getAllByText("Probable duplicate Transactions"),
+      screen.getAllByText("Probable duplicate Expenses"),
     ).toHaveLength(2);
-    expect(screen.getAllByText(/Transaction 1.*Northline Properties/u)).toHaveLength(2);
+    expect(screen.getAllByText(/Expense 1.*Northline Properties/u)).toHaveLength(2);
     expect(screen.getByRole("button", { name: "Resolve duplicate warning above" })).toHaveProperty(
       "disabled",
       true,
@@ -348,7 +348,7 @@ describe("ReviewStatement import safeguards", () => {
 
     cleanup();
     renderReview({
-      transactions: completeTransactions,
+      entries: completeExpenses,
       commitError: new ApiError("The statement file has already been imported", {
         kind: "http",
         status: 409,
@@ -359,12 +359,12 @@ describe("ReviewStatement import safeguards", () => {
 
     expect(screen.getAllByText("Statement already imported")).toHaveLength(2);
     expect(
-      screen.getByRole("button", { name: "Import 2 Transactions" }),
+      screen.getByRole("button", { name: "Import 2 Expenses" }),
     ).toHaveProperty("disabled", true);
 
     cleanup();
     renderReview({
-      transactions: completeTransactions,
+      entries: completeExpenses,
       commitError: new Error("The API is unavailable."),
     });
 
@@ -377,18 +377,18 @@ describe("ReviewStatement import safeguards", () => {
       message: "Category is inactive",
       details: [
         {
-          field: "/transactions/0/categoryId",
+          field: "/expenses/0/categoryId",
           code: "category_inactive",
-          message: "The reviewed transaction uses an inactive Category",
+          message: "The reviewed expense uses an inactive Category",
           categoryId: "42",
-          transactionIndexes: [0],
+          expenseIndexes: [0],
         },
       ],
     };
     const onBack = vi.fn();
 
     renderReview({
-      transactions: completeTransactions.slice(0, 2),
+      entries: completeExpenses.slice(0, 2),
       categoryEligibilityConflict,
       canConfirm: false,
       onBack,
@@ -403,7 +403,7 @@ describe("ReviewStatement import safeguards", () => {
     );
     expect(onBack).toHaveBeenCalledTimes(1);
     expect(
-      screen.getByRole("button", { name: "Import 2 Transactions" }),
+      screen.getByRole("button", { name: "Import 2 Expenses" }),
     ).toHaveProperty("disabled", true);
   });
 });
@@ -411,8 +411,8 @@ describe("ReviewStatement import safeguards", () => {
 
 describe("read-only expense Review", () => {
   it("groups every expense before expandable exclusions and displays positive amounts", () => {
-    renderReview({ transactions: [completeTransactions[2], completeTransactions[1], completeTransactions[0]] });
-    const list = screen.getByRole("list", { name: "Transactions to review" });
+    renderReview({ entries: [completeExpenses[2], completeExpenses[1], completeExpenses[0]] });
+    const list = screen.getByRole("list", { name: "Expenses to review" });
     expect(within(list).getAllByRole("listitem")).toHaveLength(2);
     expect(within(list).getByText("₱50.00")).toBeTruthy();
     expect(within(list).queryByText("Credit")).toBeNull();
@@ -426,13 +426,13 @@ describe("read-only expense Review", () => {
 
 
 it("preserves the chosen amount order within both groups and explains excluded expenses and payments", () => {
-  renderReview({ sort: "amount-asc", transactions: [
-    completeTransactions[0], completeTransactions[1],
-    { ...completeTransactions[0], id: "excluded-expense", description: "Excluded purchase", isExcluded: true },
-    { ...completeTransactions[2], id: "payment", description: "PAYMENT RECEIVED", amount: 100, activityKind: "payment" },
-    completeTransactions[2],
+  renderReview({ sort: "amount-asc", entries: [
+    completeExpenses[0], completeExpenses[1],
+    { ...completeExpenses[0], id: "excluded-expense", description: "Excluded purchase", isExcluded: true },
+    { ...completeExpenses[2], id: "payment", description: "PAYMENT RECEIVED", amount: 100, activityKind: "payment" },
+    completeExpenses[2],
   ] });
-  const included = screen.getByRole("list", { name: "Transactions to review" });
+  const included = screen.getByRole("list", { name: "Expenses to review" });
   expectBefore(within(included).getByText("Green Market Cafe"), within(included).getByText("Northline Properties"));
   fireEvent.click(screen.getAllByText("Excluded rows (3)")[0]);
   const excluded = screen.getByRole("list", { name: "Excluded rows to review" });

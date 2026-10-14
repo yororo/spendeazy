@@ -48,8 +48,8 @@ import {
   INVITATION_CODE_UNAVAILABLE_CODE,
   INVITATION_INELIGIBLE_CODE,
 } from '../invitations/application/invitation-errors';
-import { TRANSACTION_NOT_FOUND_CODE } from '../transactions/application/transaction-errors';
-import { IMPORTED_TRANSACTION_IMMUTABLE_CODE } from '../transactions/application/transaction-errors';
+import { EXPENSE_NOT_FOUND_CODE } from '../expenses/application/expense-errors';
+import { IMPORTED_EXPENSE_IMMUTABLE_CODE } from '../expenses/application/expense-errors';
 import {
   STATEMENT_IMPORT_FILE_ALREADY_EXISTS_CODE,
   STATEMENT_IMPORT_FILE_HASH_INVALID_CODE,
@@ -309,7 +309,7 @@ function applicationErrorStatus(code: string): number {
     case CATEGORY_NOT_FOUND_CODE:
     case BUDGET_NOT_FOUND_CODE:
     case STATEMENT_IMPORT_NOT_FOUND_CODE:
-    case TRANSACTION_NOT_FOUND_CODE:
+    case EXPENSE_NOT_FOUND_CODE:
       return HttpStatus.NOT_FOUND;
     case CATEGORY_NAME_ALREADY_EXISTS_CODE:
     case STALE_EDIT_CODE:
@@ -317,7 +317,7 @@ function applicationErrorStatus(code: string): number {
     case CATEGORY_INACTIVE_CODE:
     case STATEMENT_IMPORT_FILE_ALREADY_EXISTS_CODE:
     case STATEMENT_IMPORT_PROBABLE_DUPLICATES_CODE:
-    case IMPORTED_TRANSACTION_IMMUTABLE_CODE:
+    case IMPORTED_EXPENSE_IMMUTABLE_CODE:
       return HttpStatus.CONFLICT;
     case CATEGORY_RULE_NOT_FOUND_CODE:
       return HttpStatus.NOT_FOUND;

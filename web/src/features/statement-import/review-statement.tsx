@@ -920,7 +920,7 @@ function MobileExpenseList({
           {expenses.length} Expenses
         </p>
       </div>
-      <ul className="divide-y" aria-label={excluded ? "Excluded Statement Entries" : "Statement Entries to review"}>
+      <ul className="divide-y" aria-label={excluded ? "Excluded rows to review" : "Expenses to review"}>
         {expenses.map((expense) => {
           const activityDescriptionId = `mobile-review-${expense.id}-activity-description`;
           const markerClass = expense.categoryId

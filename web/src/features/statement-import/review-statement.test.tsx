@@ -177,7 +177,7 @@ describe("ReviewStatement ambiguity handling", () => {
     expect(screen.getAllByText("Housing, Groceries")).toHaveLength(2);
     expect(
       within(
-        screen.getByRole("list", { name: "Statement Entries to review" }),
+        screen.getByRole("list", { name: "Expenses to review" }),
       ).getByText("Housing, Groceries"),
     ).toBeTruthy();
     expect(screen.getAllByText(/multiple categories matched/).length).toBeGreaterThan(0);
@@ -210,7 +210,7 @@ describe("ReviewStatement phone composition", () => {
       name: "Category breakdown",
     });
     const expenseList = screen.getByRole("list", {
-      name: "Statement Entries to review",
+      name: "Expenses to review",
     });
 
     expect(phoneSummary).toBeTruthy();
@@ -238,7 +238,7 @@ describe("ReviewStatement phone composition", () => {
     expect(within(expenseList).getByText("Northline Properties")).toBeTruthy();
     expect(within(expenseList).getByText("Green Market Cafe")).toBeTruthy();
     fireEvent.click(screen.getAllByText("Excluded rows (1)")[0]);
-    const exclusions = screen.getByRole("list", { name: "Excluded Statement Entries" });
+    const exclusions = screen.getByRole("list", { name: "Excluded rows to review" });
     expect(within(exclusions).getByText("Store refund")).toBeTruthy();
     expect(within(expenseList).getByText("Aug 02, 2026")).toBeTruthy();
     expect(within(expenseList).getByText("₱50.00")).toBeTruthy();
@@ -412,7 +412,7 @@ describe("ReviewStatement import safeguards", () => {
 describe("read-only expense Review", () => {
   it("groups every expense before expandable exclusions and displays positive amounts", () => {
     renderReview({ entries: [completeExpenses[2], completeExpenses[1], completeExpenses[0]] });
-    const list = screen.getByRole("list", { name: "Statement Entries to review" });
+    const list = screen.getByRole("list", { name: "Expenses to review" });
     expect(within(list).getAllByRole("listitem")).toHaveLength(2);
     expect(within(list).getByText("₱50.00")).toBeTruthy();
     expect(within(list).queryByText("Credit")).toBeNull();
@@ -432,10 +432,10 @@ it("preserves the chosen amount order within both groups and explains excluded e
     { ...completeExpenses[2], id: "payment", description: "PAYMENT RECEIVED", amount: 100, activityKind: "payment" },
     completeExpenses[2],
   ] });
-  const included = screen.getByRole("list", { name: "Statement Entries to review" });
+  const included = screen.getByRole("list", { name: "Expenses to review" });
   expectBefore(within(included).getByText("Green Market Cafe"), within(included).getByText("Northline Properties"));
   fireEvent.click(screen.getAllByText("Excluded rows (3)")[0]);
-  const excluded = screen.getByRole("list", { name: "Excluded Statement Entries" });
+  const excluded = screen.getByRole("list", { name: "Excluded rows to review" });
   expectBefore(within(excluded).getByText("Store refund"), within(excluded).getByText("Excluded purchase"));
   expectBefore(within(excluded).getByText("Excluded purchase"), within(excluded).getByText("PAYMENT RECEIVED"));
   expect(within(excluded).getByText("Excluded by you")).toBeTruthy();

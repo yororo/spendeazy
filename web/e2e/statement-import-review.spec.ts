@@ -40,7 +40,7 @@ for (const width of [320, 390, 1440]) {
     await categorize.getByRole("button", { name: "Exclude Fictional purchase 12", exact: true }).click();
     await categorize.getByRole("button", { name: "Include Fictional purchase 12", exact: true }).click();
     await categorize.getByRole("button", { name: "Exclude Fictional purchase 12", exact: true }).click();
-    await page.getByRole("textbox", { name: /^Search (Expenses|descriptions)$/ }).filter({ visible: true }).fill("purchase 01");
+    await page.getByRole("textbox", { name: width < 768 ? "Search Statement Entries" : "Search descriptions", exact: true }).filter({ visible: true }).fill("purchase 01");
     if (width < 768) await page.getByRole("button", { name: "Filter Statement Entries", exact: true }).click();
     await page.getByLabel("From", { exact: true }).filter({ visible: true }).fill("2026-08-01");
     await page.getByLabel("To", { exact: true }).filter({ visible: true }).fill("2026-08-11");
@@ -111,7 +111,7 @@ for (const width of [320, 390, 1440]) {
     await expect(review).toBeFocused();
     await expect.poll(() => page.evaluate(() => scrollY)).toBe(position.windowTop);
     await expect.poll(() => page.evaluate(() => document.getElementById("main-content")?.parentElement?.scrollTop ?? 0)).toBe(position.contentTop);
-    await expect(page.getByRole("textbox", { name: /^Search (Expenses|descriptions)$/ }).filter({ visible: true })).toHaveValue("purchase 01");
+    await expect(page.getByRole("textbox", { name: width < 768 ? "Search Statement Entries" : "Search descriptions", exact: true }).filter({ visible: true })).toHaveValue("purchase 01");
     if (width < 768) await page.getByRole("button", { name: "Filter Statement Entries, filters active" }).click();
     await expect(page.getByLabel("From", { exact: true }).filter({ visible: true })).toHaveValue("2026-08-01");
     await expect(page.getByLabel("To", { exact: true }).filter({ visible: true })).toHaveValue("2026-08-11");

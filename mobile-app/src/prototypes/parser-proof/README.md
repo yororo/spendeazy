@@ -141,9 +141,12 @@ finished successfully on 2026-10-22. Its uploaded source is
 [commit 132bbc9](https://github.com/yororo/spendeazy/commit/132bbc9fc8161394b98e3a4c2ad05ce47575c464),
 verified against the controlled export. This is a signed, bundled `preview`
 build with internal distribution; build success is not an extraction result.
-The User will test on **iPhone 14 Pro Max, iOS 27.0.1** (self-reported).
-Installation, offline cold start, password flow and ledger review on that
-physical device remain pending. Open the build page on the registered iPhone
+The User reported **successful device testing** on **iPhone 14 Pro Max,
+iOS 27.0.1** after receiving this preview and the BDO test instructions.
+This is human-reported physical-device success. The report did not separately
+provide page/Transaction counts, elapsed time, offline cold-start confirmation,
+password-retry outcomes or row/control review details; those remain unconfirmed.
+Open the build page on the registered iPhone
 to install, download the PDF in Files, then fully close the app, enable airplane
 mode with Wi-Fi disabled and reopen **Parser proof**. With engine stream order,
 the comparison target from Android is six pages and 46 Transactions, followed
@@ -207,5 +210,6 @@ Force-stop/relaunch before the UI run returned to a fresh empty draft. The
 initial normalized Exact rule probe displayed Food on Android. Full rule
 ambiguity/manual-assignment coverage, cancellation mid-page, completed-draft
 background retention, stale cache cleanup after termination, cold start in
-airplane mode, and all iPhone evidence remain pending. Network settings used for
+airplane mode, and detailed iPhone acceptance evidence remain pending beyond the
+User-reported successful device test above. Network settings used for
 the emulator experiment are restored after testing.

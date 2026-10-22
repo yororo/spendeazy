@@ -13,7 +13,11 @@ device/fixture evidence and human review exist.
 
 Run `npm run parser:test` from `mobile-app/` for the fictional EastWest ledger
 regressions. It prepares the bundled diagnostics and checks PDF-run whitespace,
-dates/signs, missing/malformed controls and strict legacy reconciliation.
+dates/signs, missing/malformed controls, strict legacy reconciliation and local
+Category Rules (10 checks). `npm run parser:engine` runs the exact embedded worker
+against fictional corrupt/image-only/mixed/page-limit/repeated/cancel cases in
+desktop Edge with the browser context offline before loading. It is desktop
+diagnostic evidence, not mobile certification.
 
 From `mobile-app/`, `npm run parser:proof` prepares all local assets and starts
 Metro for a development client. Open **Parser proof** in the bottom tabs. Native
@@ -94,10 +98,10 @@ in Files. No statement/password goes into the build or source.
 | Fictional BDO plain/encrypted | Existing invented four-row ledger, 200001 cents | Reuse `web/e2e/fixtures/`; device review pending |
 | BDO multipage/wrapped/duplicate rows | Independent sanitized ledger and repeated headers | User confirms matching rows/totals for supplied six-page BDO on iPhone; independent reusable sanitized ledger still absent |
 | EastWest Visa | Actual sanitized PDF bytes and independent ledger incl year boundary, payments/credits | Original iPhone: missing purchases control. Separate five-page sample reproduces same error; whitespace fix reconciles 16 Transactions on desktop. User reports successful corrected iPhone retest; separate counts/timing and independent expected ledger not supplied |
-| GCash | Actual sanitized PDF bytes and ledger incl debit/credit columns, balances, references, wraps, cash-in/refund/outgoing | User reports iPhone pass; counts/timing, direction-specific review and independent ledger not separately supplied |
-| Corrupt/unsupported/scanned/mixed | Explicit rejection or completeness warning, no off-device fallback | Needs constructed/sanitized fixtures and device evidence |
-| Cancel/retry/background/terminate | No stale result, responsiveness, cleanup and correct draft lifetime | User confirms iPhone cancel at password prompt/reselect, background/reopen after success, and force-close/reopen clears draft. Mid-page cancellation and termination-time filesystem cleanup remain pending |
-| Large/repeated/offline cold start | Wall time, native + WebView peak memory, zero extraction traffic, measured bounds | iPhone BDO: 333 ms, User confirms offline cold start with Wi-Fi off; network capture, memory/limits and Android cold start pending |
+| GCash | PDF or human-reviewed rows/totals/direction; cover debit/credit columns and available activity types | User confirms successful iPhone testing with no issues in response to the row/date/amount/total/direction checklist. Counts/timing and coverage of absent activity types are not inferred; private PDF not shared |
+| Corrupt/unsupported/scanned/mixed | Explicit rejection or completeness warning, no off-device fallback | Exact bundled worker in offline desktop Edge: corrupt unreadable; synthetic image-only/mixed flags observed. Full device/provider completeness remains a launch gate |
+| Cancel/retry/background/terminate | No stale result, responsiveness, cleanup and correct draft lifetime | iPhone reported password-prompt cancel/background/force-close pass; Android release active-extraction cancel/retry/background/force-stop pass; desktop closes worker after page progress. Native mid-page milestone and termination-time filesystem cleanup remain pending |
+| Large/repeated/offline cold start | Wall time, native + WebView peak memory, zero extraction traffic, measured bounds | iPhone BDO: 333 ms; Android bundled release: 1,007 ms, both cold-start offline. Desktop 100/101-page guard and repeated-run checks pass. Release PSS snapshots recorded; true peak, low-memory support and maximum bounds remain launch gates |
 
 Do not close the ticket, choose minimum OS/launch limits, or claim all providers
 supported from the BDO desktop result. Android emulator is not low-memory physical
@@ -122,6 +126,14 @@ CMake to hash library object paths; application targets use 250 and a shorter
 staging directory under the repository's ignored `.tmp/cxx/`. It changes
 generated build configuration, not parser behavior. Do not edit generated
 `android/` sources by hand.
+
+The release target's longer gesture-handler codegen name also requires a short
+staging root. The plugin accepts optional `PARSER_PROOF_CXX_DIR`; for this local
+run it was `P:/.tmp/cxx-release` with `P:` temporarily mapped to this repository.
+Set it before normal `expo prebuild --platform android --no-install`, then build
+the generated release target. This avoids editing generated native sources.
+After the run, native configuration was regenerated with the default staging
+root and the task-created drive mapping removed.
 
 ## Repository verification
 
@@ -265,7 +277,10 @@ independent filesystem cleanup or native memory measurements are inferred.
 The private GCash PDF is optional for human device evidence: a report of
 independently checked rows/totals and incoming/outgoing direction can be recorded
 without sharing the original. Actual bytes would be needed to reproduce a
-reported discrepancy. GCash direction-specific confirmation remains pending.
+reported discrepancy. The User subsequently confirms GCash testing successful
+with no issues, in response to the row/date/amount/total/direction checklist.
+Record this as human-reviewed success for the activity present in that statement;
+do not infer counts/timing or coverage of absent cash-in/refund/transfer variants.
 
 ## Android engine observation
 
@@ -298,9 +313,54 @@ unchanged. No claim of immediate secure memory erasure follows from clearing
 the password field or releasing object references.
 
 Force-stop/relaunch before the UI run returned to a fresh empty draft. The
-initial normalized Exact rule probe displayed Food on Android. Full rule
-ambiguity/manual-assignment coverage, cancellation mid-page, completed-draft
-background retention on Android, stale cache cleanup after termination, Android
-cold start in airplane mode, and the remaining iPhone acceptance evidence
-described above remain pending. Network settings used for
-the emulator experiment are restored after testing.
+initial normalized Exact rule probe displayed Food on Android. Later release
+and synthetic observations below extend this evidence; full manual-assignment
+flows, termination cleanup and supported-device resource bounds remain separate
+implementation/launch gates. Network settings used for the emulator experiment
+are restored after testing.
+
+## Final synthetic and bundled Android release observations
+
+All ten fictional provider/rule checks pass. The exact embedded worker was
+tested in desktop Edge with its context offline **before** the worker loaded:
+corrupt input returns `unreadable`; synthetic image-only and mixed pages expose
+the expected no-text/image evidence; 101 pages returns `page-limit`, while 100
+simple fictional pages complete (52 ms in this run). Ten repeated extractions
+return the correct operation identity. Closing the page on the first progress
+event during a larger fictional extraction and retrying with a fresh worker
+succeeds. Only `blob:` requests were observed. Earlier polling attempts missed
+cancellation because extraction finished first; the final diagnostic reacts to
+the progress event and verifies completion was not received before destruction.
+This remains desktop evidence, not native mid-page cancellation certification.
+
+An Android **release variant** with bundled JS/worker, x86_64 and the existing
+local debug signing key built successfully. On the same API 36 / WebView 155
+emulator, airplane mode was enabled and Wi-Fi disabled **before cold launch**,
+with no Metro reverse connection. The normal picker/password UI opened the local
+BDO file: **six pages / 46 Transactions**, reconciled controls, **1,007 ms**.
+The completed draft survived background/foreground; force-stop/relaunch cleared
+it. Cancelling during active extraction of a 100-page / 2,810,325-byte fictional
+PDF returned a fresh ready worker, then immediately selecting/unlocking BDO
+succeeded in **1,212 ms** without a stale result. The native pre-cancel screenshot
+showed loading, not an established per-page milestone. Filesystem cleanup is
+reported by the release UI; release-private cache was not independently read.
+
+Android activity launch timings were **4,503 ms** initially and **2,238 ms** on
+the second cold launch; these do not bound time until worker readiness. PSS
+snapshots (KiB): app **190,119** at ready and **211,914** after BDO; associated
+renderer **104,044** after BDO (association checked in Android process records).
+App **254,291** around the fictional cancellation; during the next BDO retry,
+app **225,189**, renderer **120,893**. These are point-in-time release-emulator
+observations, not continuous peak sampling, a memory leak study, or a low-memory
+physical-device budget. The 10 MiB/100-page guards remain provisional.
+
+Task-created emulator PDF/screenshot copies and private local screenshots were
+removed; originals in `local-test` and unrelated emulator files were preserved.
+The emulator network settings were restored, the task's headless emulator
+stopped, and generated staging configuration reset. A local release artifact
+remains ignored at `.tmp/parser-proof-release-final.apk` from the repository root.
+
+[Proposed parser decision and remaining launch gates](../../../docs/specifications/statement-parser-proposal.md)
+is ready for final User review. It selects the engine only if accepted, and
+explicitly retains unmeasured resource/OS bounds and stale-copy cleanup as
+required launch-validation follow-up work.

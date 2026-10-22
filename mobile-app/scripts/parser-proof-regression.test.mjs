@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { transformStatement } from '../.expo/parser-proof-transformer.mjs';
+import { matchCategory } from '../.expo/parser-proof-rules.mjs';
 
 const controls = [
   ['Previous Balance', '1000.00'],
@@ -60,4 +61,24 @@ test('EastWest still rejects a malformed control amount', () => {
 test('EastWest retains reconciliation failures when control values disagree', () => {
   const rows = controls.map(([label, amount]) => [label, label === 'Total Statement Balance' ? '791.00' : amount]);
   assert.throws(() => transformStatement(statement(undefined, rows)), /Previous Balance plus net activity does not match/u);
+});
+test('offline rules normalize case/whitespace and prefer Exact over Contains', () => {
+  assert.equal(matchCategory('  fictional   journey '), 'Food');
+  assert.equal(matchCategory('prefix FICTIONAL JOURNEY suffix'), 'Travel');
+});
+test('offline conflicting Categories remain Unmapped and inactive rules do not match', () => {
+  assert.equal(matchCategory('AMBIGUOUS'), 'Ambiguous → Unmapped');
+  assert.equal(matchCategory('INACTIVE'), 'Unmapped');
+  assert.equal(matchCategory('unknown'), 'Unmapped');
+});
+test('offline Contains matches within words, retains punctuation and ignores empty patterns', () => {
+  const rules = [
+    { pattern: 'art', matchType: 'contains', category: 'Food', active: true },
+    { pattern: ' ', matchType: 'exact', category: 'Other', active: true },
+    { pattern: 'shop.x', matchType: 'exact', category: 'Travel', active: true },
+  ];
+  assert.equal(matchCategory('cartwheel', rules), 'Food');
+  assert.equal(matchCategory('shop x', rules), 'Unmapped');
+  assert.equal(matchCategory('SHOP.X', rules), 'Travel');
+  assert.equal(matchCategory(' ', rules), 'Unmapped');
 });

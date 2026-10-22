@@ -129,10 +129,35 @@ generated build configuration, not parser behavior. Do not edit generated
   in Sharing at 1440px, spending journey at 390px, and import Review at 1440px.
   This is a failed completion gate, not passing acceptance. The map forbids
   edits to `web/`, so those failures are reported without modifying that app.
-- iPhone EAS build request was rejected by automatic approval review pending
-  explicit consent to upload the committed app source to Expo. No build was
-  started by that rejected request. Private PDFs/passwords and ignored local
-  extraction output are excluded from Git and the requested commit-based build.
+- The initial iPhone EAS request was rejected pending explicit source-upload
+  approval; the User subsequently approved it. The approved build and its exact
+  source are recorded below. Private PDFs/passwords and ignored local extraction
+  output are excluded from Git and the uploaded source snapshot.
+
+## iPhone preview preparation
+
+User-approved internal preview: [EAS build](https://expo.dev/accounts/seyfsasy/projects/spendeazy-mobile/builds/2cfc045b-aa7d-4dcb-aa58-2e04706da10b),
+requested 2026-10-22. Source: [commit 1b05534](https://github.com/yororo/spendeazy/commit/1b05534f5fd651f541f77a308d9ac4cada6f9cd3).
+This first attempt failed before compilation: EAS npm 10.9.9 required optional
+`@emnapi/core` / `@emnapi/runtime` peer entries omitted by the npm 11 lockfile.
+The same failure reproduced with npm 10 on both Windows and macOS/ARM64 install
+selection, isolating installer-version behavior rather than a PDF engine or
+upload mismatch. Regenerating those entries with npm 10.9.9 made the exact
+`npm ci --include=dev --ignore-scripts --os=darwin --cpu=arm64 --dry-run`
+preflight pass; npm 11 validation also passes. No parser/runtime version changed.
+The connector could not trigger it because this EAS project has no GitHub
+repository connection. EAS CLI uploaded a controlled export with its project
+root fixed to the snapshot; its 219 tracked files were verified against the
+commit, accounting for Windows line endings. Thus EAS's Git commit field is
+empty; this source pointer and the build message retain the provenance.
+
+The snapshot passed `npm ci`, asset generation, lint and TypeScript without an
+existing `expo-env.d.ts`. The repaired lockfile includes the linter dependency
+tree; the parser/runtime versions in the matrix are unchanged. A tracked Expo
+type reference makes fresh-checkout typechecks independent of Metro-generated
+declarations. Existing remote signing/provisioning were reused; no store
+submission or credential provisioning was requested. Build completion and
+physical-iPhone extraction/review remain separate evidence gates.
 
 ## Android engine observation
 

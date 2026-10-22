@@ -1,10 +1,13 @@
-# On-device statement parser: proposed decision
+# On-device statement parser: approved decision
 
-Status: prepared for final User review. This document does not certify launch
-limits or close [Validate the on-device parser approach on Android and iPhone](https://github.com/yororo/spendeazy/issues/130).
-The prototype stays on its throwaway branch and out of production.
+Status: **approved by the User on 2026-10-23 (Asia/Manila)** as the bounded
+resolution of [Validate the on-device parser approach on Android and iPhone](https://github.com/yororo/spendeazy/issues/130).
+Launch limits/device floors and cleanup are not certified by this decision;
+[Validate parser launch limits, older-device support and temporary-file cleanup](https://github.com/yororo/spendeazy/issues/138)
+is the blocking prelaunch follow-up. The prototype stays on its throwaway branch
+and out of production.
 
-## Recommendation
+## Selected approach
 
 Use bundled PDF.js in a restricted local WebView, with **engine stream order**
 and sequential page extraction. Keep extraction, provider interpretation,
@@ -105,7 +108,8 @@ termination-time/stale-copy cleanup, native mid-page cancel/retry and complete
 provider direction/error fixtures. Any gaps remaining when the engine decision
 closes must be explicitly tracked as a blocking launch-validation follow-up.
 
-Proposed closure scope: select PDF.js plus engine stream and the contracts/UX
+Approved closure scope: select PDF.js plus engine stream and the contracts/UX
 above from the observed proof; keep unmeasured release limits and cleanup as
-explicit launch gates. This is a specification decision, not permission to merge
+explicit launch gates in the [launch-validation follow-up](https://github.com/yororo/spendeazy/issues/138).
+This is a specification decision, not permission to merge
 the prototype or ship an unvalidated production import feature.

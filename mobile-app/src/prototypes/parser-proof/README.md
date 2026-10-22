@@ -1,13 +1,15 @@
 # Throwaway on-device PDF.js proof
 
 Question: can a bundled PDF.js engine preserve the supported statement semantics
-on Android and physical iPhone? This branch is an experiment to review, not the
-production import feature or an approved parser choice.
+on Android and physical iPhone? This branch is the captured throwaway experiment
+supporting an approved parser decision; it is not the production import feature.
 
 For [Validate the on-device parser approach on Android and iPhone](https://github.com/yororo/spendeazy/issues/130).
-User selected PDF.js and supplied one local encrypted BDO Amex PDF. Do not merge
-this experiment into the production app. Keep the ticket open until the remaining
-device/fixture evidence and human review exist.
+User selected PDF.js and supplied local encrypted BDO and EastWest samples;
+GCash was reviewed privately on iPhone. On 2026-10-23 the User approved selecting
+PDF.js with engine stream order and carrying unresolved release limits/device
+support/cleanup into [the blocking prelaunch follow-up](https://github.com/yororo/spendeazy/issues/138).
+Do not merge this experiment into the production app.
 
 ## Run
 
@@ -103,9 +105,10 @@ in Files. No statement/password goes into the build or source.
 | Cancel/retry/background/terminate | No stale result, responsiveness, cleanup and correct draft lifetime | iPhone reported password-prompt cancel/background/force-close pass; Android release active-extraction cancel/retry/background/force-stop pass; desktop closes worker after page progress. Native mid-page milestone and termination-time filesystem cleanup remain pending |
 | Large/repeated/offline cold start | Wall time, native + WebView peak memory, zero extraction traffic, measured bounds | iPhone BDO: 333 ms; Android bundled release: 1,007 ms, both cold-start offline. Desktop 100/101-page guard and repeated-run checks pass. Release PSS snapshots recorded; true peak, low-memory support and maximum bounds remain launch gates |
 
-Do not close the ticket, choose minimum OS/launch limits, or claim all providers
-supported from the BDO desktop result. Android emulator is not low-memory physical
-Android acceptance. Missing iPhone/fixture evidence stays explicitly unresolved.
+The approved bounded resolution selects the engine from the observed evidence;
+it does not choose measured minimum OS/launch limits or certify every provider
+variant. Android emulator is not low-memory physical Android acceptance. Missing
+release/device/fixture evidence stays explicitly unresolved in the follow-up.
 
 ## Sources
 
@@ -360,7 +363,7 @@ The emulator network settings were restored, the task's headless emulator
 stopped, and generated staging configuration reset. A local release artifact
 remains ignored at `.tmp/parser-proof-release-final.apk` from the repository root.
 
-[Proposed parser decision and remaining launch gates](../../../docs/specifications/statement-parser-proposal.md)
-is ready for final User review. It selects the engine only if accepted, and
-explicitly retains unmeasured resource/OS bounds and stale-copy cleanup as
-required launch-validation follow-up work.
+[Approved parser decision and remaining launch gates](../../../docs/specifications/statement-parser-proposal.md)
+selects PDF.js plus engine stream following User approval. Unmeasured resource/OS
+bounds and stale-copy cleanup remain required work in
+[Validate parser launch limits, older-device support and temporary-file cleanup](https://github.com/yororo/spendeazy/issues/138).

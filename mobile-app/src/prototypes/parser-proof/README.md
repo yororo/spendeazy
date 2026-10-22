@@ -11,6 +11,10 @@ device/fixture evidence and human review exist.
 
 ## Run
 
+Run `npm run parser:test` from `mobile-app/` for the fictional EastWest ledger
+regressions. It prepares the bundled diagnostics and checks PDF-run whitespace,
+dates/signs, missing/malformed controls and strict legacy reconciliation.
+
 From `mobile-app/`, `npm run parser:proof` prepares all local assets and starts
 Metro for a development client. Open **Parser proof** in the bottom tabs. Native
 modules require a fresh development binary: `npx expo run:android` on Windows,
@@ -59,8 +63,9 @@ in Files. No statement/password goes into the build or source.
 - `extraction.ts`: experimental page-to-text reconstruction, separate from
   engine and provider interpretation. Desktop BDO evidence favors engine stream;
   spatial regrouping currently fails provider validation.
-- `providers/`: read-only snapshots of the pure web transformers at `69055e9`,
-  with local money/description helpers and import paths. `web/` is unchanged.
+- `providers/`: snapshots of the pure web transformers at `69055e9`, with local
+  money/description helpers and import paths. The EastWest proof adds control
+  label whitespace normalization for PDF text runs. `web/` is unchanged.
   **Legacy reconciliation throws** and **GCash direction is heuristic**: neither
   represents the approved mobile warning-and-continue/direction contract. A
   failed transformer must retain readable extraction evidence, never masquerade
@@ -88,7 +93,7 @@ in Files. No statement/password goes into the build or source.
 | Missing/wrong/correct password | Challenge, retry, success; no persisted secret | Desktop, Android engine and normal Android picker/password UI observed; iPhone pending |
 | Fictional BDO plain/encrypted | Existing invented four-row ledger, 200001 cents | Reuse `web/e2e/fixtures/`; device review pending |
 | BDO multipage/wrapped/duplicate rows | Independent sanitized ledger and repeated headers | User confirms matching rows/totals for supplied six-page BDO on iPhone; independent reusable sanitized ledger still absent |
-| EastWest Visa | Actual sanitized PDF bytes and independent ledger incl year boundary, payments/credits | iPhone extraction succeeds: six pages / 230 ms; legacy provider interpretation fails: missing Plus: Purchases/Debits control. Original PDF needed locally for reproduction |
+| EastWest Visa | Actual sanitized PDF bytes and independent ledger incl year boundary, payments/credits | Original iPhone: six pages / 230 ms, missing purchases control. Separate five-page sample reproduces same error; whitespace fix reconciles 16 Transactions on desktop. Updated iPhone retest pending |
 | GCash | Actual sanitized PDF bytes and ledger incl debit/credit columns, balances, references, wraps, cash-in/refund/outgoing | User reports iPhone pass; counts/timing, direction-specific review and independent ledger not separately supplied |
 | Corrupt/unsupported/scanned/mixed | Explicit rejection or completeness warning, no off-device fallback | Needs constructed/sanitized fixtures and device evidence |
 | Cancel/retry/background/terminate | No stale result, responsiveness, cleanup and correct draft lifetime | iPhone screenshot retains completed result through multiple background/active transitions; cancellation, termination and cleanup acceptance remain pending |
@@ -199,11 +204,35 @@ This distinguishes successful engine text extraction from failed provider
 interpretation; it does not establish whether the cause is text reconstruction,
 an unsupported statement layout, or a legacy control-matching assumption.
 The UI reports temporary-copy deletion, but no independent iPhone filesystem
-inspection was performed. The original EastWest PDF is not yet present in the
-local test folder, so no agent-runnable reproduction or fix is claimed.
+inspection was performed.
 GCash is recorded as User-reported success; no counts, timing, separate
 incoming/outgoing checks or reusable expected ledger were supplied. Private
 screenshots and statement data are not committed or uploaded to the tracker.
+
+### EastWest control-whitespace reproduction and correction
+
+The User subsequently supplied an encrypted **five-page** EastWest sample;
+it is distinct from the six-page iPhone input. It reproduces the exact
+missing-purchases-control error in both stream and spatial desktop reconstruction.
+A four-line minimized diagnostic isolates `Plus:   Purchases/Debits`: PDF text
+runs preserve multiple spaces, while the legacy control lookup requires exactly
+one. A fictional full-ledger regression failed with the same error before the
+fix; it contains no statement data.
+
+The proof's EastWest control lookup now collapses whitespace before matching
+the label and slicing its amount. Labels, amount parsing and all legacy
+reconciliation remain strict. Seven fictional regressions pass, including dates,
+signs, tabs/nonbreaking spaces, genuinely missing or malformed controls, and
+mismatched totals. No web source or dependency version changed.
+
+The original sample now yields **16 Transactions** with reconciled controls in
+engine stream order. The bundled PDF.js browser diagnostic on desktop Edge
+also yields five pages / 468 runs / 16 Transactions in **246 ms**, with only
+`blob:` requests observed. These are desktop observations, not a new iPhone
+result. Spatial regrouping still fails control lookup because columns merge;
+keep stream order selected. The previous BDO sample still yields six pages /
+46 Transactions with reconciled controls. Mobile lint and TypeScript pass.
+An updated signed preview and physical iPhone retest remain required.
 
 ## Android engine observation
 

@@ -1,4 +1,5 @@
-// Throwaway snapshot from web at 69055e9; legacy reconciliation/direction, not the target contract.
+// Throwaway snapshot from web at 69055e9, with PDF-run control whitespace normalization.
+// Legacy reconciliation/direction, not the target contract.
 import { centsToMoney } from "./money";
 
 import { StatementTransformationError } from "./statement-transformation-error";
@@ -117,17 +118,19 @@ function extractFirstLabeledCents(
   lines: readonly string[],
   label: string,
 ): number {
-  const index = lines.findIndex((line) => {
-    const normalizedLine = line.trim().toLocaleLowerCase();
-    const normalizedLabel = label.toLocaleLowerCase();
-    return normalizedLine.startsWith(`${normalizedLabel} `);
-  });
-  if (index < 0) {
+  // PDF.js may preserve spaces inside a run and add another between runs.
+  // Normalize only whitespace: labels and complete amount validation stay strict.
+  const normalizedLabel = label.trim().replace(/\s+/gu, " ");
+  const line = lines
+    .map((candidate) => candidate.trim().replace(/\s+/gu, " "))
+    .find((candidate) =>
+      candidate.toLocaleLowerCase().startsWith(`${normalizedLabel.toLocaleLowerCase()} `),
+    );
+  if (line === undefined) {
     return validationError(`missing ${label} control.`);
   }
 
-  const line = lines[index]?.trim() ?? "";
-  const amountText = line.slice(label.length).trim();
+  const amountText = line.slice(normalizedLabel.length).trim();
   if (!amountText) {
     return validationError(`missing amount for ${label} control.`);
   }

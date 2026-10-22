@@ -41,3 +41,7 @@ example
 # generated native folders
 /ios
 /android
+
+# Reproducible bundled parser experiment and private local evidence
+/src/prototypes/parser-proof/generated/
+/prototypes/parser-proof/private/

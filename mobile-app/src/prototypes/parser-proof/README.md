@@ -88,8 +88,8 @@ in Files. No statement/password goes into the build or source.
 | Missing/wrong/correct password | Challenge, retry, success; no persisted secret | Desktop, Android engine and normal Android picker/password UI observed; iPhone pending |
 | Fictional BDO plain/encrypted | Existing invented four-row ledger, 200001 cents | Reuse `web/e2e/fixtures/`; device review pending |
 | BDO multipage/wrapped/duplicate rows | Independent sanitized ledger and repeated headers | User confirms matching rows/totals for supplied six-page BDO on iPhone; independent reusable sanitized ledger still absent |
-| EastWest Visa | Actual sanitized PDF bytes and independent ledger incl year boundary, payments/credits | Missing; text fixture alone is insufficient |
-| GCash | Actual sanitized PDF bytes and ledger incl debit/credit columns, balances, references, wraps, cash-in/refund/outgoing | Missing; amount-magnitude reconciliation cannot establish direction |
+| EastWest Visa | Actual sanitized PDF bytes and independent ledger incl year boundary, payments/credits | iPhone extraction succeeds: six pages / 230 ms; legacy provider interpretation fails: missing Plus: Purchases/Debits control. Original PDF needed locally for reproduction |
+| GCash | Actual sanitized PDF bytes and ledger incl debit/credit columns, balances, references, wraps, cash-in/refund/outgoing | User reports iPhone pass; counts/timing, direction-specific review and independent ledger not separately supplied |
 | Corrupt/unsupported/scanned/mixed | Explicit rejection or completeness warning, no off-device fallback | Needs constructed/sanitized fixtures and device evidence |
 | Cancel/retry/background/terminate | No stale result, responsiveness, cleanup and correct draft lifetime | iPhone screenshot retains completed result through multiple background/active transitions; cancellation, termination and cleanup acceptance remain pending |
 | Large/repeated/offline cold start | Wall time, native + WebView peak memory, zero extraction traffic, measured bounds | iPhone BDO: 333 ms, User confirms offline cold start with Wi-Fi off; network capture, memory/limits and Android cold start pending |
@@ -187,6 +187,23 @@ type reference makes fresh-checkout typechecks independent of Metro-generated
 declarations. Existing remote signing/provisioning were reused; no store
 submission or credential provisioning was requested. Build completion and
 physical-iPhone extraction/review remain separate evidence gates.
+
+## Further iPhone provider results
+
+The User reports **GCash passed; EastWest failed** on the same iPhone proof.
+The private EastWest screenshot shows local PDF.js extraction completed in
+**230 ms**: six pages, zero empty-text pages and 24 image operations. Engine
+stream order is selected. Provider interpretation then reports
+`EastWest Visa statement validation failed: missing Plus: Purchases/Debits control.`
+This distinguishes successful engine text extraction from failed provider
+interpretation; it does not establish whether the cause is text reconstruction,
+an unsupported statement layout, or a legacy control-matching assumption.
+The UI reports temporary-copy deletion, but no independent iPhone filesystem
+inspection was performed. The original EastWest PDF is not yet present in the
+local test folder, so no agent-runnable reproduction or fix is claimed.
+GCash is recorded as User-reported success; no counts, timing, separate
+incoming/outgoing checks or reusable expected ledger were supplied. Private
+screenshots and statement data are not committed or uploaded to the tracker.
 
 ## Android engine observation
 

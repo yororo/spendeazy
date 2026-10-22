@@ -125,15 +125,20 @@ generated build configuration, not parser behavior. Do not edit generated
 
 ## Repository verification
 
+- Latest full root suite after the EastWest fix:
+  `node scripts/local-test-launcher.mjs --e2e`, report
+  `web/e2e-reports/full/8b0b0a90ebfbedba/`: database rollback checks **3 passed**;
+  browser cases **103 passed** (8.0 minutes). The earlier theme failures below
+  did not recur. The suite cleaned its dedicated database/container afterward.
 - Mobile lint and `tsc --noEmit` passed after adding the Expo linter. Two starter
   web-target issues were corrected inside `mobile-app/`: the TabTrigger ref type
   and the hydration hook's synchronous state update. No `web/` source changed.
-- Required full root suite `node scripts/local-test-launcher.mjs --e2e` ran at
+- Earlier full root suite `node scripts/local-test-launcher.mjs --e2e` ran at
   `web/e2e-reports/full/37a3d1fa30fffb50/`: database rollback checks **3 passed**;
   browser cases **100 passed, 3 failed**. The failures were theme synchronization
   in Sharing at 1440px, spending journey at 390px, and import Review at 1440px.
-  This is a failed completion gate, not passing acceptance. The map forbids
-  edits to `web/`, so those failures are reported without modifying that app.
+  That run failed; the passing rerun above supersedes its completion-gate result.
+  No `web/` changes were made to address those intermittent failures.
 - The initial iPhone EAS request was rejected pending explicit source-upload
   approval; the User subsequently approved it. The approved build and its exact
   source are recorded below. Private PDFs/passwords and ignored local extraction
@@ -232,7 +237,16 @@ also yields five pages / 468 runs / 16 Transactions in **246 ms**, with only
 result. Spatial regrouping still fails control lookup because columns merge;
 keep stream order selected. The previous BDO sample still yields six pages /
 46 Transactions with reconciled controls. Mobile lint and TypeScript pass.
-An updated signed preview and physical iPhone retest remain required.
+The [corrected internal iPhone preview](https://expo.dev/accounts/seyfsasy/projects/spendeazy-mobile/builds/bb7a5792-e527-4ea8-b322-a114414c3053)
+finished successfully (2026-10-22 UTC / 2026-10-23 Asia/Manila), from
+[source 3e4acef](https://github.com/yororo/spendeazy/commit/3e4acef7aa3bfa9bd0ec4edcca28e383e172707b).
+All 220 files in its committed-only export were verified byte-for-byte against
+that commit; private PDFs/passwords/evidence and uncommitted design edits were
+excluded. Existing signing/provisioning were reused, with no store submission.
+Install this corrected preview and retest in engine stream order. The supplied
+five-page sample's desktop comparison target is 16 Transactions with reconciled
+controls; the earlier six-page statement is a separate input and needs its own
+review. The corrected physical iPhone result remains pending.
 
 ## Android engine observation
 

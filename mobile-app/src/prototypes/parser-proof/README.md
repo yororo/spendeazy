@@ -90,13 +90,13 @@ in Files. No statement/password goes into the build or source.
 | Case | Expected ledger / evidence | Current coverage |
 | --- | --- | --- |
 | Encrypted BDO, 6 pages | Every row/date/sign and controls vs original PDF | Desktop, Android and physical iPhone: 46 Transactions; legacy controls reconcile in stream order; User confirms matching rows/totals on iPhone |
-| Missing/wrong/correct password | Challenge, retry, success; no persisted secret | Desktop, Android engine and normal Android picker/password UI observed; iPhone pending |
+| Missing/wrong/correct password | Challenge, retry, success; no persisted secret | Desktop and Android engine/UI observed; User confirms iPhone wrong-password retry succeeds. Independent iPhone persistence inspection remains pending |
 | Fictional BDO plain/encrypted | Existing invented four-row ledger, 200001 cents | Reuse `web/e2e/fixtures/`; device review pending |
 | BDO multipage/wrapped/duplicate rows | Independent sanitized ledger and repeated headers | User confirms matching rows/totals for supplied six-page BDO on iPhone; independent reusable sanitized ledger still absent |
 | EastWest Visa | Actual sanitized PDF bytes and independent ledger incl year boundary, payments/credits | Original iPhone: missing purchases control. Separate five-page sample reproduces same error; whitespace fix reconciles 16 Transactions on desktop. User reports successful corrected iPhone retest; separate counts/timing and independent expected ledger not supplied |
 | GCash | Actual sanitized PDF bytes and ledger incl debit/credit columns, balances, references, wraps, cash-in/refund/outgoing | User reports iPhone pass; counts/timing, direction-specific review and independent ledger not separately supplied |
 | Corrupt/unsupported/scanned/mixed | Explicit rejection or completeness warning, no off-device fallback | Needs constructed/sanitized fixtures and device evidence |
-| Cancel/retry/background/terminate | No stale result, responsiveness, cleanup and correct draft lifetime | iPhone screenshot retains completed result through multiple background/active transitions; cancellation, termination and cleanup acceptance remain pending |
+| Cancel/retry/background/terminate | No stale result, responsiveness, cleanup and correct draft lifetime | User confirms iPhone cancel at password prompt/reselect, background/reopen after success, and force-close/reopen clears draft. Mid-page cancellation and termination-time filesystem cleanup remain pending |
 | Large/repeated/offline cold start | Wall time, native + WebView peak memory, zero extraction traffic, measured bounds | iPhone BDO: 333 ms, User confirms offline cold start with Wi-Fi off; network capture, memory/limits and Android cold start pending |
 
 Do not close the ticket, choose minimum OS/launch limits, or claim all providers
@@ -165,8 +165,8 @@ is established by User confirmation, not the screenshot or network capture.
 App-reported OS is 27.0.1; the WebView compatibility user-agent reports an iOS
 18_7 token, which is not treated as an independent OS-version measurement.
 Private screenshots and financial values are not copied into Git or issues.
-Password retries, cancellation, native peak memory and stale-copy cleanup on
-iPhone remain unconfirmed. Image operations may include logos; this result does
+Later User-reported password/lifecycle checks are recorded below. Native peak
+memory and stale-copy cleanup on iPhone remain unconfirmed. Image operations may include logos; this result does
 not establish support for scanned/mixed statements or every provider.
 Open the build page on the registered iPhone
 to install, download the PDF in Files, then fully close the app, enable airplane
@@ -254,6 +254,18 @@ controls; the earlier six-page statement is a separate input and needs its own
 review. BDO, GCash and corrected EastWest now each have User-reported iPhone
 success; this does not complete direction/error/lifecycle/memory coverage or
 select the production engine.
+
+### Further User-confirmed iPhone checks
+
+The User confirms success for the requested wrong-password/correct retry,
+cancel at the password prompt followed by choosing again, background/reopen
+after successful extraction, and force-close/reopen with an empty draft.
+These are human-reported functional outcomes; no mid-page cancellation,
+independent filesystem cleanup or native memory measurements are inferred.
+The private GCash PDF is optional for human device evidence: a report of
+independently checked rows/totals and incoming/outgoing direction can be recorded
+without sharing the original. Actual bytes would be needed to reproduce a
+reported discrepancy. GCash direction-specific confirmation remains pending.
 
 ## Android engine observation
 

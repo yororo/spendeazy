@@ -128,7 +128,7 @@ export default function ParserProof() {
       <Text style={styles.warning}>10 MiB / 100 pages are temporary safety caps, not validated launch limits. Native peak memory and offline cold-start evidence still require device review.</Text>
     </ScrollView>
     <WebView<object> key={generation} ref={webview} style={styles.engine} source={{ html: parserProofHtml }}
-      originWhitelist={['about:*']} javaScriptEnabled domStorageEnabled={false} cacheEnabled={false}
+      originWhitelist={['about:*']} javaScriptEnabled domStorageEnabled={false} cacheEnabled={false} webviewDebuggingEnabled={__DEV__}
       allowFileAccess={false} allowFileAccessFromFileURLs={false} allowUniversalAccessFromFileURLs={false}
       javaScriptCanOpenWindowsAutomatically={false} setSupportMultipleWindows={false}
       onShouldStartLoadWithRequest={(request) => request.url === 'about:blank'}

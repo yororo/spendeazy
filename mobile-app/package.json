@@ -41,7 +41,7 @@
   },
   "scripts": {
     "parser:prepare": "node scripts/build-parser-proof.mjs",
-    "parser:proof": "npm run parser:prepare && expo start --dev-client --lan",
+    "parser:proof": "npm run parser:prepare && node --dns-result-order=ipv4first node_modules/expo/bin/cli start --dev-client --localhost --max-workers 2",
     "eas-build-post-install": "npm run parser:prepare",
     "start": "expo start",
     "reset-project": "node ./scripts/reset-project.js",

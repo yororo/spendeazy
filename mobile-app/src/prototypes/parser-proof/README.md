@@ -16,6 +16,11 @@ Metro for a development client. Open **Parser proof** in the bottom tabs. Native
 modules require a fresh development binary: `npx expo run:android` on Windows,
 or an EAS iOS development build using existing project provisioning.
 
+The command binds only IPv4 localhost and limits Metro to two workers. After
+installing the Android binary, press `a` in Expo CLI to open it on the emulator;
+ADB reverse connects the local development port. This does not expose Metro to
+the LAN. Physical-iPhone review uses the bundled internal preview build below.
+
 For an iPhone build with JavaScript bundled, use the existing `preview` internal
 EAS profile. `eas-build-post-install` generates the bundled engine before Metro
 builds the app. This permits offline cold-start testing; a Metro session alone
@@ -79,8 +84,8 @@ in Files. No statement/password goes into the build or source.
 
 | Case | Expected ledger / evidence | Current coverage |
 | --- | --- | --- |
-| Encrypted BDO, 6 pages | Every row/date/sign and controls vs original PDF | Desktop extraction: 46 Transactions; legacy controls reconcile in stream order; human ledger review pending |
-| Missing/wrong/correct password | Challenge, retry, success; no persisted secret | Desktop observed; Android/iPhone pending |
+| Encrypted BDO, 6 pages | Every row/date/sign and controls vs original PDF | Desktop and Android extraction: 46 Transactions; legacy controls reconcile in stream order; human ledger review pending |
+| Missing/wrong/correct password | Challenge, retry, success; no persisted secret | Desktop, Android engine and normal Android picker/password UI observed; iPhone pending |
 | Fictional BDO plain/encrypted | Existing invented four-row ledger, 200001 cents | Reuse `web/e2e/fixtures/`; device review pending |
 | BDO multipage/wrapped/duplicate rows | Independent sanitized ledger and repeated headers | Real input exists locally; row-by-row human review pending |
 | EastWest Visa | Actual sanitized PDF bytes and independent ledger incl year boundary, payments/credits | Missing; text fixture alone is insufficient |
@@ -101,3 +106,67 @@ Android acceptance. Missing iPhone/fixture evidence stays explicitly unresolved.
   [FileSystem](https://docs.expo.dev/versions/v58.0.0/sdk/filesystem/).
 - [PDF.js binary input/lifecycle options](https://mozilla.github.io/pdf.js/api/draft/module-pdfjsLib.html).
 - Bundler retains PDF.js Apache-2.0 and CMap/font resource notices in generated HTML.
+
+## Windows build note
+
+The installed CMake/Ninja toolchain failed while creating long Worklets object
+paths. A short `subst` workspace path alone did not fix it because autolinking
+retained canonical paths. The proof's config plugin adds
+`-DCMAKE_OBJECT_PATH_MAX=240` through normal Expo native generation, allowing
+CMake to hash library object paths; application targets use 250 and a shorter
+staging directory under the repository's ignored `.tmp/cxx/`. It changes
+generated build configuration, not parser behavior. Do not edit generated
+`android/` sources by hand.
+
+## Repository verification
+
+- Mobile lint and `tsc --noEmit` passed after adding the Expo linter. Two starter
+  web-target issues were corrected inside `mobile-app/`: the TabTrigger ref type
+  and the hydration hook's synchronous state update. No `web/` source changed.
+- Required full root suite `node scripts/local-test-launcher.mjs --e2e` ran at
+  `web/e2e-reports/full/37a3d1fa30fffb50/`: database rollback checks **3 passed**;
+  browser cases **100 passed, 3 failed**. The failures were theme synchronization
+  in Sharing at 1440px, spending journey at 390px, and import Review at 1440px.
+  This is a failed completion gate, not passing acceptance. The map forbids
+  edits to `web/`, so those failures are reported without modifying that app.
+- iPhone EAS build request was rejected by automatic approval review pending
+  explicit consent to upload the committed app source to Expo. No build was
+  started by that rejected request. Private PDFs/passwords and ignored local
+  extraction output are excluded from Git and the requested commit-based build.
+
+## Android engine observation
+
+Local emulator: Pixel 9 Pro, Android 16 / API 36, x86_64; Android System WebView
+155.0.8059.43. The debug native app built and installed successfully. With the
+WebView already loaded and CDP network emulation offline, PDF.js returned the
+expected missing-password and wrong-password outcomes, then extracted six pages
+and 46 Transactions from the supplied BDO input in **629 ms**. Stream-order
+provider interpretation reconciled legacy controls. Observed resource request
+schemes were `blob:` only during that diagnostic.
+
+This used `scripts/inspect-android-proof.mjs` with a localhost ADB DevTools
+forward, which injects the input through the debug bridge and reports metadata
+only. It is actual Android WebView extraction, but does **not** prove the picker,
+password-entry UI, temporary-file cleanup, airplane-mode cold start, native peak
+memory, low-memory physical Android, or iPhone. The initial app process PSS sample
+was about **586 MiB** in a debug client; it excludes an established renderer peak
+and is not a production memory budget. Release profiling remains necessary.
+
+The **normal Android UI path** was subsequently exercised: selected the local
+PDF through DocumentPicker, observed the missing-password challenge and wrong
+password retry, then entered the supplied password. With emulator airplane mode
+enabled and Wi-Fi disabled **after the app had loaded**, extraction completed
+in **760 ms**, yielding the same six pages / 46 Transactions and reconciled
+legacy controls. A metadata-only DevTools observer watched the result; it did
+not inject the bytes/password in this UI run. No request was observed during
+the final unlock. The app-created `cache/DocumentPicker/` PDF existed while
+waiting for a password and was gone after success; the source in Downloads was
+unchanged. No claim of immediate secure memory erasure follows from clearing
+the password field or releasing object references.
+
+Force-stop/relaunch before the UI run returned to a fresh empty draft. The
+initial normalized Exact rule probe displayed Food on Android. Full rule
+ambiguity/manual-assignment coverage, cancellation mid-page, completed-draft
+background retention, stale cache cleanup after termination, cold start in
+airplane mode, and all iPhone evidence remain pending. Network settings used for
+the emulator experiment are restored after testing.

@@ -136,6 +136,20 @@ generated build configuration, not parser behavior. Do not edit generated
 
 ## iPhone preview preparation
 
+The replacement [internal iPhone preview](https://expo.dev/accounts/seyfsasy/projects/spendeazy-mobile/builds/b33a96c2-1c8f-4428-bf4f-a62ddbf1fae8)
+finished successfully on 2026-10-22. Its uploaded source is
+[commit 132bbc9](https://github.com/yororo/spendeazy/commit/132bbc9fc8161394b98e3a4c2ad05ce47575c464),
+verified against the controlled export. This is a signed, bundled `preview`
+build with internal distribution; build success is not an extraction result.
+The User will test on **iPhone 14 Pro Max, iOS 27.0.1** (self-reported).
+Installation, offline cold start, password flow and ledger review on that
+physical device remain pending. Open the build page on the registered iPhone
+to install, download the PDF in Files, then fully close the app, enable airplane
+mode with Wi-Fi disabled and reopen **Parser proof**. With engine stream order,
+the comparison target from Android is six pages and 46 Transactions, followed
+by independent row/control review. Report only sanitized counts, timing and
+behavior; keep the statement/password and financial values local.
+
 User-approved internal preview: [EAS build](https://expo.dev/accounts/seyfsasy/projects/spendeazy-mobile/builds/2cfc045b-aa7d-4dcb-aa58-2e04706da10b),
 requested 2026-10-22. Source: [commit 1b05534](https://github.com/yororo/spendeazy/commit/1b05534f5fd651f541f77a308d9ac4cada6f9cd3).
 This first attempt failed before compilation: EAS npm 10.9.9 required optional

@@ -93,7 +93,7 @@ in Files. No statement/password goes into the build or source.
 | Missing/wrong/correct password | Challenge, retry, success; no persisted secret | Desktop, Android engine and normal Android picker/password UI observed; iPhone pending |
 | Fictional BDO plain/encrypted | Existing invented four-row ledger, 200001 cents | Reuse `web/e2e/fixtures/`; device review pending |
 | BDO multipage/wrapped/duplicate rows | Independent sanitized ledger and repeated headers | User confirms matching rows/totals for supplied six-page BDO on iPhone; independent reusable sanitized ledger still absent |
-| EastWest Visa | Actual sanitized PDF bytes and independent ledger incl year boundary, payments/credits | Original iPhone: six pages / 230 ms, missing purchases control. Separate five-page sample reproduces same error; whitespace fix reconciles 16 Transactions on desktop. Updated iPhone retest pending |
+| EastWest Visa | Actual sanitized PDF bytes and independent ledger incl year boundary, payments/credits | Original iPhone: missing purchases control. Separate five-page sample reproduces same error; whitespace fix reconciles 16 Transactions on desktop. User reports successful corrected iPhone retest; separate counts/timing and independent expected ledger not supplied |
 | GCash | Actual sanitized PDF bytes and ledger incl debit/credit columns, balances, references, wraps, cash-in/refund/outgoing | User reports iPhone pass; counts/timing, direction-specific review and independent ledger not separately supplied |
 | Corrupt/unsupported/scanned/mixed | Explicit rejection or completeness warning, no off-device fallback | Needs constructed/sanitized fixtures and device evidence |
 | Cancel/retry/background/terminate | No stale result, responsiveness, cleanup and correct draft lifetime | iPhone screenshot retains completed result through multiple background/active transitions; cancellation, termination and cleanup acceptance remain pending |
@@ -243,10 +243,17 @@ finished successfully (2026-10-22 UTC / 2026-10-23 Asia/Manila), from
 All 220 files in its committed-only export were verified byte-for-byte against
 that commit; private PDFs/passwords/evidence and uncommitted design edits were
 excluded. Existing signing/provisioning were reused, with no store submission.
-Install this corrected preview and retest in engine stream order. The supplied
+The User reports **successful retest** after receiving this corrected iPhone
+preview. This confirms human-reported resolution of the EastWest trial failure
+on the previously identified iPhone 14 Pro Max / iOS 27.0.1. No new screenshot,
+device counts/timing or independent expected ledger was supplied with the retest
+report; the desktop measurements above are not relabeled as iPhone measurements.
+The supplied
 five-page sample's desktop comparison target is 16 Transactions with reconciled
 controls; the earlier six-page statement is a separate input and needs its own
-review. The corrected physical iPhone result remains pending.
+review. BDO, GCash and corrected EastWest now each have User-reported iPhone
+success; this does not complete direction/error/lifecycle/memory coverage or
+select the production engine.
 
 ## Android engine observation
 

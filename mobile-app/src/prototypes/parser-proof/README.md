@@ -84,15 +84,15 @@ in Files. No statement/password goes into the build or source.
 
 | Case | Expected ledger / evidence | Current coverage |
 | --- | --- | --- |
-| Encrypted BDO, 6 pages | Every row/date/sign and controls vs original PDF | Desktop and Android extraction: 46 Transactions; legacy controls reconcile in stream order; human ledger review pending |
+| Encrypted BDO, 6 pages | Every row/date/sign and controls vs original PDF | Desktop, Android and physical iPhone: 46 Transactions; legacy controls reconcile in stream order; User confirms matching rows/totals on iPhone |
 | Missing/wrong/correct password | Challenge, retry, success; no persisted secret | Desktop, Android engine and normal Android picker/password UI observed; iPhone pending |
 | Fictional BDO plain/encrypted | Existing invented four-row ledger, 200001 cents | Reuse `web/e2e/fixtures/`; device review pending |
-| BDO multipage/wrapped/duplicate rows | Independent sanitized ledger and repeated headers | Real input exists locally; row-by-row human review pending |
+| BDO multipage/wrapped/duplicate rows | Independent sanitized ledger and repeated headers | User confirms matching rows/totals for supplied six-page BDO on iPhone; independent reusable sanitized ledger still absent |
 | EastWest Visa | Actual sanitized PDF bytes and independent ledger incl year boundary, payments/credits | Missing; text fixture alone is insufficient |
 | GCash | Actual sanitized PDF bytes and ledger incl debit/credit columns, balances, references, wraps, cash-in/refund/outgoing | Missing; amount-magnitude reconciliation cannot establish direction |
 | Corrupt/unsupported/scanned/mixed | Explicit rejection or completeness warning, no off-device fallback | Needs constructed/sanitized fixtures and device evidence |
-| Cancel/retry/background/terminate | No stale result, responsiveness, cleanup and correct draft lifetime | Harness controls exist; device observations pending |
-| Large/repeated/offline cold start | Wall time, native + WebView peak memory, zero extraction traffic, measured bounds | Pending both platforms |
+| Cancel/retry/background/terminate | No stale result, responsiveness, cleanup and correct draft lifetime | iPhone screenshot retains completed result through multiple background/active transitions; cancellation, termination and cleanup acceptance remain pending |
+| Large/repeated/offline cold start | Wall time, native + WebView peak memory, zero extraction traffic, measured bounds | iPhone BDO: 333 ms, User confirms offline cold start with Wi-Fi off; network capture, memory/limits and Android cold start pending |
 
 Do not close the ticket, choose minimum OS/launch limits, or claim all providers
 supported from the BDO desktop result. Android emulator is not low-memory physical
@@ -143,9 +143,21 @@ verified against the controlled export. This is a signed, bundled `preview`
 build with internal distribution; build success is not an extraction result.
 The User reported **successful device testing** on **iPhone 14 Pro Max,
 iOS 27.0.1** after receiving this preview and the BDO test instructions.
-This is human-reported physical-device success. The report did not separately
-provide page/Transaction counts, elapsed time, offline cold-start confirmation,
-password-retry outcomes or row/control review details; those remain unconfirmed.
+The User subsequently confirmed offline cold start in airplane mode with Wi-Fi
+disabled, six pages / 46 Transactions, and matching rows/totals. Two privately
+attached screenshots corroborate **333 ms**, PDF.js **5.4.296**, engine stream
+order, six pages, zero empty-text pages, eight image operations, 46 Transactions
+and reconciled legacy BDO controls. The completed result remains visible with
+multiple active/inactive/background transitions in the lifecycle trace; this
+supports retention for that observed session, not process-death recovery.
+The screenshots were captured with connectivity icons visible: offline execution
+is established by User confirmation, not the screenshot or network capture.
+App-reported OS is 27.0.1; the WebView compatibility user-agent reports an iOS
+18_7 token, which is not treated as an independent OS-version measurement.
+Private screenshots and financial values are not copied into Git or issues.
+Password retries, cancellation, native peak memory and stale-copy cleanup on
+iPhone remain unconfirmed. Image operations may include logos; this result does
+not establish support for scanned/mixed statements or every provider.
 Open the build page on the registered iPhone
 to install, download the PDF in Files, then fully close the app, enable airplane
 mode with Wi-Fi disabled and reopen **Parser proof**. With engine stream order,
@@ -209,7 +221,7 @@ the password field or releasing object references.
 Force-stop/relaunch before the UI run returned to a fresh empty draft. The
 initial normalized Exact rule probe displayed Food on Android. Full rule
 ambiguity/manual-assignment coverage, cancellation mid-page, completed-draft
-background retention, stale cache cleanup after termination, cold start in
-airplane mode, and detailed iPhone acceptance evidence remain pending beyond the
-User-reported successful device test above. Network settings used for
+background retention on Android, stale cache cleanup after termination, Android
+cold start in airplane mode, and the remaining iPhone acceptance evidence
+described above remain pending. Network settings used for
 the emulator experiment are restored after testing.

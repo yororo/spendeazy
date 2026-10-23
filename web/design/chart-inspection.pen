@@ -40,7 +40,7 @@
         {
           "type": "text",
           "id": "i87detailcopy",
-          "content": "August 2026 recorded spending        [×]\nRecorded contributions, independent of pattern signals\nTotal ₱3,000.00\nBudgeted Spending ₱2,000.00\nUnbudgeted Spending ₱1,000.00\nFull-month states use current Budgets\nGroceries · ₱900.00\nWithin Budget · ₱100.00 remaining\n2026-08-10 · Synthetic groceries · ₱900.00\n[View Groceries month’s Transactions]\n[Edit Groceries Budget]\n[View this month]\n[View full month’s Transactions]\nScrollable dialog above mobile tabs\nClose restores the chart control; inspection preserves September.",
+          "content": "August 2026 recorded spending        [×]\nRecorded contributions, independent of pattern signals\nTotal ₱3,000.00\nBudgeted Spending ₱2,000.00\nUnbudgeted Spending ₱1,000.00\nFull-month states use current Budgets\nGroceries · ₱900.00\nWithin Budget · ₱100.00 remaining\n2026-08-10 · Synthetic groceries · ₱900.00\n[View Groceries month’s Expenses]\n[Edit Groceries Budget]\n[View this month]\n[View full month’s Expenses]\nScrollable dialog above mobile tabs\nClose restores the chart control; inspection preserves September.",
           "fontFamily": "Geist Mono",
           "fontSize": 14,
           "fill": "#000000"

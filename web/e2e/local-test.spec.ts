@@ -78,7 +78,7 @@ test("switches Users without exposing stale browser data", async ({ page }) => {
   const purchaseDate = requireEnvironment("SPENDEAZY_E2E_TEST_DATE");
   const description = "Primary-only browser isolation fixture";
 
-  await page.goto("/transactions");
+  await page.goto("/expenses");
   await page
     .getByTestId("local-test-panel")
     .getByRole("button", {
@@ -89,7 +89,7 @@ test("switches Users without exposing stale browser data", async ({ page }) => {
     "Local Test User",
   );
 
-  const created = await createTransaction(page, {
+  const created = await createExpense(page, {
     apiBaseUrl,
     token: primaryToken,
     purchaseDate,
@@ -97,7 +97,7 @@ test("switches Users without exposing stale browser data", async ({ page }) => {
   });
   expect(created.status).toBe(201);
 
-  const transactionId = readStringId(created.body);
+  const expenseId = readStringId(created.body);
   try {
     await page.reload();
     await expect(
@@ -127,7 +127,7 @@ test("switches Users without exposing stale browser data", async ({ page }) => {
     await expect(page.locator("html")).toHaveAttribute("data-visual-theme", "playful");
     await expect(page.locator("html")).toHaveCSS("color-scheme", "dark");
   } finally {
-    const removed = await page.request.delete(`${apiBaseUrl}/api/v1/users/me/transactions/${transactionId}`, {
+    const removed = await page.request.delete(`${apiBaseUrl}/api/v1/users/me/expenses/${expenseId}`, {
       headers: authorizationHeaders(primaryToken),
     });
     expect(removed.status()).toBe(204);
@@ -204,7 +204,7 @@ test("provisions private Personal Spaces and denies cross-User Space reads", asy
 test("signs out protected routes and re-enters without Clerk", async ({
   page,
 }) => {
-  await page.goto("/transactions");
+  await page.goto("/expenses");
   await page
     .getByTestId("local-test-panel")
     .getByRole("button", {
@@ -215,7 +215,7 @@ test("signs out protected routes and re-enters without Clerk", async ({
   await expect(page).toHaveURL(/\/sign-in$/);
   await expect(page.getByTestId("local-test-signed-out")).toBeVisible();
 
-  await page.goto("/transactions");
+  await page.goto("/expenses");
   await expect(page).toHaveURL(/\/sign-in$/);
   await expect(page.getByTestId("local-test-signed-out")).toBeVisible();
 
@@ -231,7 +231,7 @@ test("refreshes an expired session through the real API recovery path", async ({
   request,
 }) => {
   const apiBaseUrl = requireEnvironment("SPENDEAZY_E2E_API_BASE_URL");
-  await page.goto("/transactions");
+  await page.goto("/expenses");
   const panel = page.getByTestId("local-test-panel");
   const sessionState = page.getByTestId("local-test-session-state");
   await expect(sessionState).toHaveAttribute("data-session-mode", "active");
@@ -276,13 +276,13 @@ test("refreshes an expired session through the real API recovery path", async ({
   const expiredToken = readSessionToken(expireBody.expiredSession);
   const refreshedToken = readSessionToken(expireBody.refreshedSession);
   const rejectedAccess = await request.get(
-    `${apiBaseUrl}/api/v1/users/me/transactions`,
+    `${apiBaseUrl}/api/v1/users/me/expenses`,
     { headers: authorizationHeaders(expiredToken) },
   );
   await expectUnauthenticated(rejectedAccess);
 
   const resumedAccess = await request.get(
-    `${apiBaseUrl}/api/v1/users/me/transactions`,
+    `${apiBaseUrl}/api/v1/users/me/expenses`,
     { headers: authorizationHeaders(refreshedToken) },
   );
   expect(resumedAccess.status()).toBe(200);
@@ -295,10 +295,10 @@ test("revokes a session, clears private data, and allows deliberate re-entry", a
   const apiBaseUrl = requireEnvironment("SPENDEAZY_E2E_API_BASE_URL");
   const purchaseDate = requireEnvironment("SPENDEAZY_E2E_TEST_DATE");
 
-  await page.goto("/transactions");
+  await page.goto("/expenses");
   const secondaryToken = await createNewLocalTestUser(page);
   const privateDescription = `Revoked session private fixture ${test.info().testId}-${test.info().retry}`;
-  const created = await createTransactionWithRequest(request, apiBaseUrl, {
+  const created = await createExpenseWithRequest(request, apiBaseUrl, {
     token: secondaryToken,
     purchaseDate,
     description: privateDescription,
@@ -308,7 +308,7 @@ test("revokes a session, clears private data, and allows deliberate re-entry", a
   // Expire the cached empty list before returning to this fresh User's route.
   await page.clock.fastForward(31_000);
   await navigateSpending(page, "Budgets");
-  await navigateSpending(page, "Transactions");
+  await navigateSpending(page, "Expenses");
   const activeSecondaryToken = secondaryToken;
   await expect(page.getByTestId("local-test-active-user")).toContainText(
     "Fresh Local User",
@@ -350,7 +350,7 @@ test("revokes a session, clears private data, and allows deliberate re-entry", a
   expect(authenticationStatuses).toEqual([401]);
 
   const revokedAccess = await request.get(
-    `${apiBaseUrl}/api/v1/users/me/transactions`,
+    `${apiBaseUrl}/api/v1/users/me/expenses`,
     { headers: authorizationHeaders(activeSecondaryToken) },
   );
   await expectUnauthenticated(revokedAccess);
@@ -358,7 +358,7 @@ test("revokes a session, clears private data, and allows deliberate re-entry", a
   const resumeToken = readSessionToken(revokeBody.resumeSession);
   expect(resumeToken).not.toBe(activeSecondaryToken);
   const resumedAccess = await request.get(
-    `${apiBaseUrl}/api/v1/users/me/transactions`,
+    `${apiBaseUrl}/api/v1/users/me/expenses`,
     { headers: authorizationHeaders(resumeToken) },
   );
   expect(resumedAccess.status()).toBe(200);
@@ -389,7 +389,7 @@ test("proves ownership isolation through authenticated API requests", async ({
   const primaryDescription = "Ownership boundary primary fixture";
   const secondaryDescription = "Ownership boundary secondary fixture";
 
-  const primaryTransaction = await createTransactionWithRequest(
+  const primaryExpense = await createExpenseWithRequest(
     request,
     apiBaseUrl,
     {
@@ -398,15 +398,15 @@ test("proves ownership isolation through authenticated API requests", async ({
       description: primaryDescription,
     },
   );
-  expect(primaryTransaction.status()).toBe(201);
-  const primaryBody = (await primaryTransaction.json()) as {
+  expect(primaryExpense.status()).toBe(201);
+  const primaryBody = (await primaryExpense.json()) as {
     id?: unknown;
     description?: unknown;
   };
   expect(primaryBody.description).toBe(primaryDescription);
   expect(typeof primaryBody.id).toBe("string");
 
-  const secondaryTransaction = await createTransactionWithRequest(
+  const secondaryExpense = await createExpenseWithRequest(
     request,
     apiBaseUrl,
     {
@@ -415,10 +415,10 @@ test("proves ownership isolation through authenticated API requests", async ({
       description: secondaryDescription,
     },
   );
-  expect(secondaryTransaction.status()).toBe(201);
+  expect(secondaryExpense.status()).toBe(201);
 
   const secondaryHistory = await request.get(
-    `${apiBaseUrl}/api/v1/users/me/transactions`,
+    `${apiBaseUrl}/api/v1/users/me/expenses`,
     { headers: authorizationHeaders(secondarySession.token) },
   );
   expect(secondaryHistory.status()).toBe(200);
@@ -437,7 +437,7 @@ test("proves ownership isolation through authenticated API requests", async ({
   ).toBe(true);
 
   const crossUserMutation = await request.patch(
-    `${apiBaseUrl}/api/v1/users/me/transactions/${String(primaryBody.id)}`,
+    `${apiBaseUrl}/api/v1/users/me/expenses/${String(primaryBody.id)}`,
     {
       headers: {
         ...authorizationHeaders(secondarySession.token),
@@ -449,7 +449,7 @@ test("proves ownership isolation through authenticated API requests", async ({
   expect(crossUserMutation.status()).toBe(404);
 
   const primaryHistory = await request.get(
-    `${apiBaseUrl}/api/v1/users/me/transactions`,
+    `${apiBaseUrl}/api/v1/users/me/expenses`,
     { headers: authorizationHeaders(primaryToken) },
   );
   expect(primaryHistory.status()).toBe(200);
@@ -620,48 +620,48 @@ test("completes the two-member Shared Space financial journey through an Invite 
     expect(primaryRule.status).toBe(201);
     expect(secondaryRule.status).toBe(201);
 
-    const primaryTransaction = await browserApi(
+    const primaryExpense = await browserApi(
       page,
       apiBaseUrl,
       primaryToken,
-      `/api/v1/users/me/spaces/${sharedSpaceId}/transactions`,
+      `/api/v1/users/me/spaces/${sharedSpaceId}/expenses`,
       {
         method: "POST",
         body: {
           categoryId: primaryCategoryId,
           purchaseDate,
-          description: "Primary shared transaction",
+          description: "Primary shared expense",
           amount: "123.45",
         },
       },
     );
-    const secondaryTransaction = await browserApi(
+    const secondaryExpense = await browserApi(
       secondaryPage,
       apiBaseUrl,
       secondarySession.token,
-      `/api/v1/users/me/spaces/${sharedSpaceId}/transactions`,
+      `/api/v1/users/me/spaces/${sharedSpaceId}/expenses`,
       {
         method: "POST",
         body: {
           categoryId: secondaryCategoryId,
           purchaseDate,
-          description: "Secondary shared transaction",
+          description: "Secondary shared expense",
           amount: "67.89",
         },
       },
     );
-    expect(primaryTransaction.status).toBe(201);
-    expect(secondaryTransaction.status).toBe(201);
-    const deletedTransactionId = readStringId(primaryTransaction.body);
+    expect(primaryExpense.status).toBe(201);
+    expect(secondaryExpense.status).toBe(201);
+    const deletedExpenseId = readStringId(primaryExpense.body);
     const deletedUpdatedAt = readStringField(
-      primaryTransaction.body,
+      primaryExpense.body,
       "updatedAt",
     );
     const deleteResponse = await browserApi(
       page,
       apiBaseUrl,
       primaryToken,
-      `/api/v1/users/me/spaces/${sharedSpaceId}/transactions/${deletedTransactionId}`,
+      `/api/v1/users/me/spaces/${sharedSpaceId}/expenses/${deletedExpenseId}`,
       {
         method: "DELETE",
         headers: { "If-Match": deletedUpdatedAt },
@@ -677,18 +677,18 @@ test("completes the two-member Shared Space financial journey through an Invite 
         journeyPage,
         apiBaseUrl,
         token,
-        `/api/v1/users/me/spaces/${sharedSpaceId}/transactions/history`,
+        `/api/v1/users/me/spaces/${sharedSpaceId}/expenses/history`,
       );
       expect(retainedHistory.status).toBe(200);
       expect(JSON.stringify(retainedHistory.body)).toContain(
-        "Primary shared transaction",
+        "Primary shared expense",
       );
     }
     const deletedActivity = await browserApi(
       secondaryPage,
       apiBaseUrl,
       secondarySession.token,
-      `/api/v1/users/me/spaces/${sharedSpaceId}/transactions/${deletedTransactionId}/activity`,
+      `/api/v1/users/me/spaces/${sharedSpaceId}/expenses/${deletedExpenseId}/activity`,
     );
     expect(deletedActivity.status).toBe(200);
     expect(JSON.stringify(deletedActivity.body)).toContain('"type":"created"');
@@ -708,11 +708,11 @@ test("completes the two-member Shared Space financial journey through an Invite 
           statementType: "credit_card",
           bank: "Browser Journey Bank",
           cardType: "visa",
-          transactions: [
+          expenses: [
             {
               categoryId: secondaryCategoryId,
               purchaseDate,
-              description: "Secondary imported transaction",
+              description: "Secondary imported expense",
               amount: "45.67",
             },
           ],
@@ -723,7 +723,7 @@ test("completes the two-member Shared Space financial journey through an Invite 
 
     const walletReferenceA = "5049000000001";
     const walletReferenceB = "5049000000002";
-    const walletDescription = "Wallet same visible transaction";
+    const walletDescription = "Wallet same visible expense";
     const walletImport = await browserApi(
       secondaryPage,
       apiBaseUrl,
@@ -740,7 +740,7 @@ test("completes the two-member Shared Space financial journey through an Invite 
           totalDebit: "20.00",
           bank: "GCash",
           cardType: "E-Wallet",
-          transactions: [
+          expenses: [
             {
               categoryId: secondaryCategoryId,
               purchaseDate,
@@ -769,16 +769,16 @@ test("completes the two-member Shared Space financial journey through an Invite 
     expect(JSON.stringify(walletImport.body)).not.toContain(walletReferenceA);
     expect(JSON.stringify(walletImport.body)).not.toContain(walletReferenceB);
 
-    const walletTransactions = await browserApi(
+    const walletExpenses = await browserApi(
       page,
       apiBaseUrl,
       primaryToken,
-      `/api/v1/users/me/spaces/${sharedSpaceId}/transactions`,
+      `/api/v1/users/me/spaces/${sharedSpaceId}/expenses`,
     );
-    expect(walletTransactions.status).toBe(200);
-    expect(JSON.stringify(walletTransactions.body)).toContain(walletDescription);
-    expect(JSON.stringify(walletTransactions.body)).not.toContain(walletReferenceA);
-    expect(JSON.stringify(walletTransactions.body)).not.toContain(walletReferenceB);
+    expect(walletExpenses.status).toBe(200);
+    expect(JSON.stringify(walletExpenses.body)).toContain(walletDescription);
+    expect(JSON.stringify(walletExpenses.body)).not.toContain(walletReferenceA);
+    expect(JSON.stringify(walletExpenses.body)).not.toContain(walletReferenceB);
 
     const duplicateWalletInput = {
       fileName: "shared-gcash-history-retry.pdf",
@@ -789,11 +789,11 @@ test("completes the two-member Shared Space financial journey through an Invite 
       totalDebit: "12.00",
       bank: "GCash",
       cardType: "E-Wallet",
-      transactions: [
+      expenses: [
         {
           categoryId: secondaryCategoryId,
           purchaseDate,
-          description: "Wallet changed visible transaction",
+          description: "Wallet changed visible expense",
           amount: "12.00",
           reference: walletReferenceA,
         },
@@ -838,9 +838,9 @@ test("completes the two-member Shared Space financial journey through an Invite 
           ...duplicateWalletInput,
           fileName: "personal-gcash-history.pdf",
           fileHash: "1".repeat(64),
-          transactions: [
+          expenses: [
             {
-              ...duplicateWalletInput.transactions[0],
+              ...duplicateWalletInput.expenses[0],
               categoryId: null,
             },
           ],
@@ -864,38 +864,38 @@ test("completes the two-member Shared Space financial journey through an Invite 
     );
     expect(JSON.stringify(imports.body)).toContain(purchaseDate);
     expect(JSON.stringify(imports.body)).toContain("20.00");
-    const sharedTransactions = await browserApi(
+    const sharedExpenses = await browserApi(
       page,
       apiBaseUrl,
       primaryToken,
-      `/api/v1/users/me/spaces/${sharedSpaceId}/transactions`,
+      `/api/v1/users/me/spaces/${sharedSpaceId}/expenses`,
     );
-    expect(sharedTransactions.status).toBe(200);
-    expect(JSON.stringify(sharedTransactions.body)).toContain(
-      "Secondary shared transaction",
+    expect(sharedExpenses.status).toBe(200);
+    expect(JSON.stringify(sharedExpenses.body)).toContain(
+      "Secondary shared expense",
     );
-    expect(JSON.stringify(sharedTransactions.body)).toContain(
-      "Secondary imported transaction",
+    expect(JSON.stringify(sharedExpenses.body)).toContain(
+      "Secondary imported expense",
     );
-    const importedTransactionId = readStringIdByDescription(
-      sharedTransactions.body,
-      "Secondary imported transaction",
+    const importedExpenseId = readStringIdByDescription(
+      sharedExpenses.body,
+      "Secondary imported expense",
     );
     const importedUpdatedAt = readStringFieldByDescription(
-      sharedTransactions.body,
-      "Secondary imported transaction",
+      sharedExpenses.body,
+      "Secondary imported expense",
       "updatedAt",
     );
     const importedAddedByUserId = readStringFieldByDescription(
-      sharedTransactions.body,
-      "Secondary imported transaction",
+      sharedExpenses.body,
+      "Secondary imported expense",
       "addedByUserId",
     );
     const primaryImportedEdit = await browserApi(
       page,
       apiBaseUrl,
       primaryToken,
-      `/api/v1/users/me/spaces/${sharedSpaceId}/transactions/${importedTransactionId}`,
+      `/api/v1/users/me/spaces/${sharedSpaceId}/expenses/${importedExpenseId}`,
       {
         method: "PATCH",
         body: {
@@ -929,11 +929,11 @@ test("completes the two-member Shared Space financial journey through an Invite 
           statementType: "credit_card",
           bank: "Browser Primary Journey Bank",
           cardType: "visa",
-          transactions: [
+          expenses: [
             {
               categoryId: primaryCategoryId,
               purchaseDate,
-              description: "Primary imported transaction",
+              description: "Primary imported expense",
               amount: "78.90",
             },
           ],
@@ -942,32 +942,32 @@ test("completes the two-member Shared Space financial journey through an Invite 
     );
     expect(primaryImported.status).toBe(201);
     const primaryStatementImportId = readStringId(primaryImported.body);
-    const secondaryTransactions = await browserApi(
+    const secondaryExpenses = await browserApi(
       secondaryPage,
       apiBaseUrl,
       secondarySession.token,
-      `/api/v1/users/me/spaces/${sharedSpaceId}/transactions`,
+      `/api/v1/users/me/spaces/${sharedSpaceId}/expenses`,
     );
-    expect(secondaryTransactions.status).toBe(200);
-    const primaryImportedTransactionId = readStringIdByDescription(
-      secondaryTransactions.body,
-      "Primary imported transaction",
+    expect(secondaryExpenses.status).toBe(200);
+    const primaryImportedExpenseId = readStringIdByDescription(
+      secondaryExpenses.body,
+      "Primary imported expense",
     );
     const primaryImportedUpdatedAt = readStringFieldByDescription(
-      secondaryTransactions.body,
-      "Primary imported transaction",
+      secondaryExpenses.body,
+      "Primary imported expense",
       "updatedAt",
     );
     const primaryImportedAddedByUserId = readStringFieldByDescription(
-      secondaryTransactions.body,
-      "Primary imported transaction",
+      secondaryExpenses.body,
+      "Primary imported expense",
       "addedByUserId",
     );
     const secondaryImportedEdit = await browserApi(
       secondaryPage,
       apiBaseUrl,
       secondarySession.token,
-      `/api/v1/users/me/spaces/${sharedSpaceId}/transactions/${primaryImportedTransactionId}`,
+      `/api/v1/users/me/spaces/${sharedSpaceId}/expenses/${primaryImportedExpenseId}`,
       {
         method: "PATCH",
         body: {
@@ -986,7 +986,7 @@ test("completes the two-member Shared Space financial journey through an Invite 
       description: "Primary import corrected by secondary",
       amount: "80.90",
     });
-    expect(secondaryTransaction.status).toBe(201);
+    expect(secondaryExpense.status).toBe(201);
 
     for (const [journeyPage, token] of [
       [page, primaryToken],
@@ -1035,7 +1035,7 @@ test("completes the two-member Shared Space financial journey through an Invite 
       page,
       apiBaseUrl,
       thirdSession.token,
-      `/api/v1/users/me/spaces/${sharedSpaceId}/transactions/${importedTransactionId}`,
+      `/api/v1/users/me/spaces/${sharedSpaceId}/expenses/${importedExpenseId}`,
       {
         method: "PATCH",
         body: {
@@ -1049,7 +1049,7 @@ test("completes the two-member Shared Space financial journey through an Invite 
       page,
       apiBaseUrl,
       thirdSession.token,
-      `/api/v1/users/me/spaces/${sharedSpaceId}/transactions/${importedTransactionId}`,
+      `/api/v1/users/me/spaces/${sharedSpaceId}/expenses/${importedExpenseId}`,
       {
         method: "DELETE",
         headers: {
@@ -1063,7 +1063,7 @@ test("completes the two-member Shared Space financial journey through an Invite 
       page,
       apiBaseUrl,
       primaryToken,
-      `/api/v1/users/me/spaces/${sharedSpaceId}/transactions/${importedTransactionId}`,
+      `/api/v1/users/me/spaces/${sharedSpaceId}/expenses/${importedExpenseId}`,
       {
         method: "DELETE",
         headers: {
@@ -1076,7 +1076,7 @@ test("completes the two-member Shared Space financial journey through an Invite 
       secondaryPage,
       apiBaseUrl,
       secondarySession.token,
-      `/api/v1/users/me/spaces/${sharedSpaceId}/transactions/${primaryImportedTransactionId}`,
+      `/api/v1/users/me/spaces/${sharedSpaceId}/expenses/${primaryImportedExpenseId}`,
       {
         method: "DELETE",
         headers: {
@@ -1090,17 +1090,17 @@ test("completes the two-member Shared Space financial journey through an Invite 
       [page, primaryToken],
       [secondaryPage, secondarySession.token],
     ] as const) {
-      const activeTransactions = await browserApi(
+      const activeExpenses = await browserApi(
         journeyPage,
         apiBaseUrl,
         token,
-        `/api/v1/users/me/spaces/${sharedSpaceId}/transactions`,
+        `/api/v1/users/me/spaces/${sharedSpaceId}/expenses`,
       );
-      expect(activeTransactions.status).toBe(200);
-      expect(JSON.stringify(activeTransactions.body)).not.toContain(
+      expect(activeExpenses.status).toBe(200);
+      expect(JSON.stringify(activeExpenses.body)).not.toContain(
         "Secondary import corrected by primary",
       );
-      expect(JSON.stringify(activeTransactions.body)).not.toContain(
+      expect(JSON.stringify(activeExpenses.body)).not.toContain(
         "Primary import corrected by secondary",
       );
 
@@ -1108,7 +1108,7 @@ test("completes the two-member Shared Space financial journey through an Invite 
         journeyPage,
         apiBaseUrl,
         token,
-        `/api/v1/users/me/spaces/${sharedSpaceId}/transactions/history`,
+        `/api/v1/users/me/spaces/${sharedSpaceId}/expenses/history`,
       );
       expect(retainedImportedHistory.status).toBe(200);
       const historyJson = JSON.stringify(retainedImportedHistory.body);
@@ -1117,15 +1117,15 @@ test("completes the two-member Shared Space financial journey through an Invite 
       expect(historyJson).toContain(primaryStatementImportId);
     }
 
-    for (const transactionId of [
-      importedTransactionId,
-      primaryImportedTransactionId,
+    for (const expenseId of [
+      importedExpenseId,
+      primaryImportedExpenseId,
     ]) {
       const importedActivity = await browserApi(
         secondaryPage,
         apiBaseUrl,
         secondarySession.token,
-        `/api/v1/users/me/spaces/${sharedSpaceId}/transactions/${transactionId}/activity`,
+        `/api/v1/users/me/spaces/${sharedSpaceId}/expenses/${expenseId}/activity`,
       );
       expect(importedActivity.status).toBe(200);
       const activityJson = JSON.stringify(importedActivity.body);
@@ -1154,7 +1154,7 @@ test("completes the two-member Shared Space financial journey through an Invite 
     await expect(
       page.getByRole("heading", { name: "Budget overview" }),
     ).toBeVisible();
-    await navigateSpending(secondaryPage, "Transactions");
+    await navigateSpending(secondaryPage, "Expenses");
     await selectSharedSpace(secondaryPage, sharedSpaceId);
     await expect(
       secondaryPage.getByRole("heading", { name: "Your spending" }),
@@ -1446,11 +1446,11 @@ function readStringFieldByDescription(
   field: string,
 ): string {
   if (value === null || typeof value !== "object" || Array.isArray(value)) {
-    throw new Error("Expected a transaction page");
+    throw new Error("Expected a expense page");
   }
 
   const items = (value as { items?: unknown }).items;
-  if (!Array.isArray(items)) throw new Error("Expected a transaction page");
+  if (!Array.isArray(items)) throw new Error("Expected a expense page");
 
   const item = items.find(
     (candidate) =>
@@ -1459,7 +1459,7 @@ function readStringFieldByDescription(
       !Array.isArray(candidate) &&
       (candidate as { description?: unknown }).description === description,
   );
-  if (!item) throw new Error(`Missing transaction ${description}`);
+  if (!item) throw new Error(`Missing expense ${description}`);
 
   return readStringField(item, field);
 }
@@ -1477,7 +1477,7 @@ function readStringField(value: unknown, field: string): string {
   return (value as Record<string, string>)[field];
 }
 
-async function createTransaction(
+async function createExpense(
   page: import("@playwright/test").Page,
   input: {
     apiBaseUrl: string;
@@ -1489,7 +1489,7 @@ async function createTransaction(
   return page.evaluate(
     async ({ apiBaseUrl, token, purchaseDate, description }) => {
       const response = await fetch(
-        `${apiBaseUrl}/api/v1/users/me/transactions`,
+        `${apiBaseUrl}/api/v1/users/me/expenses`,
         {
           method: "POST",
           headers: {
@@ -1515,12 +1515,12 @@ async function createTransaction(
   );
 }
 
-async function createTransactionWithRequest(
+async function createExpenseWithRequest(
   request: APIRequestContext,
   apiBaseUrl: string,
   input: { token: string; purchaseDate: string; description: string },
 ) {
-  return request.post(`${apiBaseUrl}/api/v1/users/me/transactions`, {
+  return request.post(`${apiBaseUrl}/api/v1/users/me/expenses`, {
     headers: {
       ...authorizationHeaders(input.token),
       "Content-Type": "application/json",

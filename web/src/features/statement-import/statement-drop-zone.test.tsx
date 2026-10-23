@@ -120,7 +120,7 @@ describe("StatementDropZone GCash recipient prompt", () => {
     });
     expect(
       screen.getByText(
-        "Enter your GCash mobile number to automatically mark transfers to you as Debit and exclude them from this import. If you skip, search for your number in the transactions and manually exclude transfers to you.",
+        "Enter your GCash mobile number to automatically mark transfers to you as Debit and exclude them from this import. If you skip, search for your number in the expenses and manually exclude transfers to you.",
       ),
     ).toBeTruthy();
     expect(
@@ -187,7 +187,7 @@ describe("StatementDropZone GCash recipient prompt", () => {
     await waitFor(() => {
       expect(onStatementCategorized).toHaveBeenCalledOnce();
     });
-    expect(onStatementCategorized.mock.calls[0]?.[1].transactions).toEqual(
+    expect(onStatementCategorized.mock.calls[0]?.[1].entries).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           description: "Transfer from 09112334455 to 09676769174",
@@ -220,12 +220,12 @@ describe("StatementDropZone GCash recipient prompt", () => {
     const statement = onStatementCategorized.mock.calls[0]?.[1];
     expect(statement.summary).toMatchObject({
       provider: "GCash",
-      totalTransactions: 55,
+      entryCount: 55,
       totalExtractedAmount: -25291.92,
     });
 
-    const recipientTransfers = statement.transactions.filter((transaction) =>
-      /Transfer from .+ to 09999999999$/iu.test(transaction.description),
+    const recipientTransfers = statement.entries.filter((expense) =>
+      /Transfer from .+ to 09999999999$/iu.test(expense.description),
     );
     expect(recipientTransfers).toEqual([
       expect.objectContaining({
@@ -251,7 +251,7 @@ describe("StatementDropZone GCash recipient prompt", () => {
       }),
     ]);
 
-    expect(statement.transactions).toEqual(
+    expect(statement.entries).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           description:
@@ -301,7 +301,7 @@ describe("StatementDropZone GCash recipient prompt", () => {
       expect(onStatementCategorized).toHaveBeenCalledOnce();
     });
     const statement = onStatementCategorized.mock.calls[0]?.[1];
-    expect(statement.transactions).toEqual(
+    expect(statement.entries).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           description: "Transfer from 09112334455 to 09676769174",
@@ -445,7 +445,7 @@ describe("StatementDropZone PDF password challenge", () => {
     await waitFor(() => {
       expect(onStatementCategorized).toHaveBeenCalledWith(
         file,
-        expect.objectContaining({ transactions: expect.any(Array) }),
+        expect.objectContaining({ entries: expect.any(Array) }),
       );
     });
     expect(screen.queryByRole("dialog")).toBeNull();
@@ -495,7 +495,7 @@ describe("StatementDropZone PDF password challenge", () => {
     expect(onStatementCategorized).toHaveBeenCalledWith(
       file,
       expect.objectContaining({
-        transactions: expect.any(Array),
+        entries: expect.any(Array),
       }),
     );
   });
@@ -721,7 +721,7 @@ describe("StatementDropZone PDF password challenge", () => {
     expect(onStatementCategorized).not.toHaveBeenCalled();
   });
 
-  it("accepts a BDO Reference separated from its Transaction by extraction whitespace", async () => {
+  it("accepts a BDO Reference separated from its Expense by extraction whitespace", async () => {
     vi.mocked(extractPdfPages).mockResolvedValueOnce([
       {
         pageNumber: 1,
@@ -743,20 +743,20 @@ describe("StatementDropZone PDF password challenge", () => {
 
   it.each([
     [
-      "a malformed EastWest transaction",
+      "a malformed EastWest statement entry",
       eastwestFixture.replace(
         "JUN 23 JUN 24 PETRON SERVICE STATION TAGUIG PHL 4,673.08",
-        "JUN 23 JUN 24 malformed transaction row",
+        "JUN 23 JUN 24 malformed statement entry",
       ),
-      /EastWest Visa statement validation failed:.*malformed transaction/i,
+      /EastWest Visa statement validation failed:.*malformed statement entry/i,
     ],
     [
-      "an empty EastWest activity section",
+      "an empty EastWest Statement Entry section",
       eastwestFixture.replace(
         /^[A-Z]{3}\s+\d{1,2}\s+[A-Z]{3}\s+\d{1,2}\s+.+$/gmu,
         "",
       ),
-      /EastWest Visa statement validation failed:.*no Transactions/i,
+      /EastWest Visa statement validation failed:.*no Statement Entries/i,
     ],
     [
       "an unreconciled EastWest control",

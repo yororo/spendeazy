@@ -17,7 +17,7 @@ describe("loadStatementImports in a browser realm", () => {
 
     const request = loadStatementImports(apiClient, [
       {
-        id: "transaction-1",
+        id: "expense-1",
         source: "imported",
         statementImportId: "statement-import-1",
       },

@@ -2,7 +2,7 @@ export { CategoryBadge } from "./category-badge";
 export { isCategoryCatalog, isCategoryCatalogItem } from "./category-catalog";
 export type { CategoryCatalogItem } from "./category-catalog";
 export { getCategoryKeyFromName, projectCategoryCatalog } from "./category";
-export { resolveTransactionCategory } from "./category";
+export { resolveExpenseCategory } from "./category";
 export {
   getCategoryColorClass,
   getCategoryMarkerClass,

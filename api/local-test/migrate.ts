@@ -23,7 +23,7 @@ async function main(): Promise<void> {
     );
     if (result.seeded) {
       console.log(
-        `Created ${result.counts.users} User, ${result.counts.categories} Categories, ${result.counts.budgets} Budgets, ${result.counts.categoryRules} Category Rules, and ${result.counts.transactions} Transactions for the fictional local test scenario`,
+        `Created ${result.counts.users} User, ${result.counts.categories} Categories, ${result.counts.budgets} Budgets, ${result.counts.categoryRules} Category Rules, and ${result.counts.expenses} Expenses for the fictional local test scenario`,
       );
     } else {
       console.log('Preserved existing local test data');

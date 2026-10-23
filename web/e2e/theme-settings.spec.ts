@@ -234,7 +234,7 @@ test("Theme changes preserve recorded money and exact Category Colors", async ({
   expect(created.status()).toBe(201);
   const category: unknown = await created.json();
   if (!isRecord(category) || typeof category.id !== "string") throw new Error("Expected Category ID");
-  const recorded = await page.request.post(`${base}/transactions`, {
+  const recorded = await page.request.post(`${base}/expenses`, {
     headers, data: { description: "Fictional theme purchase", amount: "123.45", categoryId: category.id, purchaseDate: "2026-08-15" },
   });
   expect(recorded.status()).toBe(201);

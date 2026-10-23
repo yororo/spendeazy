@@ -1,29 +1,29 @@
 import { normalizeCategoryRulePattern } from "@/shared/category-rule";
-import type { CategorizedTransaction } from "./statement-categorizer";
+import type { CategorizedStatementEntry } from "./statement-categorizer";
 
 interface CategoryLabelOption {
   readonly value: string;
   readonly label: string;
 }
 
-interface IncludedStatementTransaction {
+interface IncludedStatementEntry {
   readonly amount: number;
   readonly isExcluded: boolean;
 }
 
-interface ManualTransactionEdit {
-  readonly transactionId: string;
-  readonly transactionDate: Date;
+interface ManualStatementEntryEdit {
+  readonly expenseId: string;
+  readonly entryDate: Date;
   readonly description: string;
   readonly amount: number;
   readonly categoryId: string;
 }
 
 function getStatementActivityLabel(
-  transaction: Pick<CategorizedTransaction, "amount" | "activityKind">,
+  expense: Pick<CategorizedStatementEntry, "amount" | "activityKind">,
 ): "Expense" | "Payment" | "Other credit" {
-  if (transaction.amount <= 0) return "Expense";
-  return transaction.activityKind === "payment" ? "Payment" : "Other credit";
+  if (expense.amount <= 0) return "Expense";
+  return expense.activityKind === "payment" ? "Payment" : "Other credit";
 }
 
 function normalizeDescription(value: string) {
@@ -48,42 +48,42 @@ function toDateInputValue(value: Date) {
   return value.toISOString().slice(0, 10);
 }
 
-function isIncludedStatementTransaction(
-  transaction: IncludedStatementTransaction,
+function isIncludedStatementEntry(
+  expense: IncludedStatementEntry,
 ) {
-  return !transaction.isExcluded;
+  return !expense.isExcluded;
 }
 
-function applyManualTransactionEdit<
-  Transaction extends {
+function applyManualStatementEntryEdit<
+  Entry extends {
     readonly id: string;
     readonly isExcluded: boolean;
     readonly assignment: "rule" | "manual" | "ambiguous" | "unmapped";
     readonly categoryId: string | null;
   },
->(transactions: readonly Transaction[], edit: ManualTransactionEdit): Transaction[] {
-  return transactions.map((transaction): Transaction =>
-    transaction.id === edit.transactionId
+>(entries: readonly Entry[], edit: ManualStatementEntryEdit): Entry[] {
+  return entries.map((entry): Entry =>
+    entry.id === edit.expenseId
       ? ({
-          ...transaction,
-          transactionDate: edit.transactionDate,
+          ...entry,
+          entryDate: edit.entryDate,
           description: cleanDescription(edit.description),
           amount: edit.amount,
           categoryId: edit.categoryId,
           assignment: "manual" as const,
-          isExcluded: transaction.isExcluded || edit.amount > 0,
-        } as Transaction)
-      : transaction,
+          isExcluded: entry.isExcluded || edit.amount > 0,
+        } as Entry)
+      : entry,
   );
 }
 
 export {
-  applyManualTransactionEdit,
+  applyManualStatementEntryEdit,
   cleanDescription,
   getCategoryLabel,
   getStatementActivityLabel,
-  isIncludedStatementTransaction,
+  isIncludedStatementEntry,
   normalizeDescription,
   toDateInputValue,
 };
-export type { ManualTransactionEdit };
+export type { ManualStatementEntryEdit };

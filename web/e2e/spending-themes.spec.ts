@@ -20,15 +20,15 @@ for (const width of [390, 1440]) {
     const category: unknown = await created.json();
     if (!isRecord(category) || typeof category.id !== "string") throw new Error("Expected Category ID");
     expect((await page.request.put(`${base}/categories/${category.id}/budget`, { headers, data: { amount: "100.00", period: "monthly" } })).ok()).toBe(true);
-    expect((await page.request.post(`${base}/transactions`, { headers, data: { amount: "123.45", description: "Fictional theme purchase", categoryId: category.id, purchaseDate: "2026-08-15" } })).ok()).toBe(true);
-    for (const [route, heading, destination] of [["transactions", "Your spending", "Transactions"], ["categories", "Budget overview", "Budgets"], ["insights", "Insights", "Insights"]] as const) {
+    expect((await page.request.post(`${base}/expenses`, { headers, data: { amount: "123.45", description: "Fictional theme purchase", categoryId: category.id, purchaseDate: "2026-08-15" } })).ok()).toBe(true);
+    for (const [route, heading, destination] of [["expenses", "Your spending", "Expenses"], ["categories", "Budget overview", "Budgets"], ["insights", "Insights", "Insights"]] as const) {
       await navigateSpending(page, destination);
       await expect(page.getByRole("heading", { name: heading, exact: true })).toBeVisible();
       await page.getByLabel("Reporting period", { exact: true }).fill("2026-08");
       await expect(page.getByRole("heading", { name: heading, exact: true })).toBeVisible();
       const url = page.url();
       await expect(page.locator('main [aria-busy="true"]')).toHaveCount(0);
-      await expect(page.getByText("Loading matching Transactions", { exact: true })).toHaveCount(0);
+      await expect(page.getByText("Loading matching Expenses", { exact: true })).toHaveCount(0);
       await expect(page.getByText("Loading Budget overview", { exact: true })).toHaveCount(0);
       await expect(page.getByText("Loading Insights", { exact: true })).toHaveCount(0);
       await expect(page.locator("main").getByText("₱123.45", { exact: true }).first()).toBeVisible();
@@ -71,7 +71,7 @@ for (const width of [390, 1440]) {
   });
 }
 
-for (const [destination, heading] of [["Transactions", "Your spending"], ["Budgets", "Budget overview"], ["Insights", "Insights"]] as const) {
+for (const [destination, heading] of [["Expenses", "Your spending"], ["Budgets", "Budget overview"], ["Insights", "Insights"]] as const) {
   test(`${destination} loading and error states follow Theme and allow retry`, async ({ page }) => {
     test.setTimeout(90_000);
     await page.clock.install({ time: requireEnvironment("SPENDEAZY_E2E_TEST_CLOCK") });
@@ -82,12 +82,12 @@ for (const [destination, heading] of [["Transactions", "Your spending"], ["Budge
     const pending = new Promise<void>(resolve => { release = resolve; });
     await page.route("**/api/v1/users/me/**", async route => {
       const path = new URL(route.request().url()).pathname;
-      if (!/\/(categories|category-summaries|transactions)$/.test(path)) return route.continue();
+      if (!/\/(categories|category-summaries|expenses)$/.test(path)) return route.continue();
       await pending;
       await route.fulfill({ status: 503, json: { message: "Fictional service interruption" } });
     });
     await navigateSpending(page, destination);
-    const loading = page.getByRole("status").filter({ hasText: /Loading (Transactions|Budget overview|Insights)/ });
+    const loading = page.getByRole("status").filter({ hasText: /Loading (Expenses|Budget overview|Insights)/ });
     await expect(loading).toBeVisible();
     await changeTheme(page, "Playful", "Dark");
     await expect(loading).toBeVisible();

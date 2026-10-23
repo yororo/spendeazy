@@ -12,9 +12,9 @@ Start at the named owner, then follow its ports into infrastructure. Paths are r
 | Space authorization and archive lifecycle | [Access service](src/spaces/application/space-access.service.ts), [lifecycle service](src/spaces/application/space-lifecycle.service.ts) | [Spaces controller](src/spaces/presentation/spaces.controller.ts), `src/spaces/infrastructure/` | [Space behavior](test/spaces.e2e-spec.ts), [PostgreSQL](test/spaces-postgres.e2e-spec.ts) |
 | Invite Codes and joining | [Invitation service](src/invitations/application/invitations.service.ts) | [Controller](src/invitations/presentation/invitations.controller.ts), [atomic acceptance](src/invitations/infrastructure/typeorm-invitation-acceptance-store.ts) | [HTTP contract](test/invitations.e2e-spec.ts), [PostgreSQL](test/invitations-postgres.e2e-spec.ts) |
 | TypeSafe Category Suggestions | [Suggestion service](src/statement-imports/application/statement-category-suggestions.service.ts), [request builder](src/statement-imports/infrastructure/typesafe-category-suggestion-request.ts) | [Space endpoint](src/statement-imports/presentation/space-statement-imports.controller.ts), [scoped catalog](src/statement-imports/infrastructure/typeorm-statement-category-suggestion-catalog.ts) | [service tests](src/statement-imports/application/statement-category-suggestions.service.spec.ts), [SDK tests](src/statement-imports/infrastructure/typesafe-category-suggestion-evaluator.spec.ts) |
-| Reporting data and Budgets | [Transaction service](src/transactions/application/transactions.service.ts), [Category service](src/categories/application/categories.service.ts) | `src/transactions/presentation/`, `src/categories/presentation/`; Budgets belong to Categories | [Space transactions](test/space-transactions.e2e-spec.ts), [Space categories](test/space-categories.e2e-spec.ts) |
+| Reporting data and Budgets | [Expense service](src/expenses/application/expenses.service.ts), [Category service](src/categories/application/categories.service.ts) | `src/expenses/presentation/`, `src/categories/presentation/`; Budgets belong to Categories | [Space expenses](test/space-expenses.e2e-spec.ts), [Space categories](test/space-categories.e2e-spec.ts) |
 | Category Rule storage/replacement | [Rule service](src/category-rules/application/category-rules.service.ts) | `src/category-rules/presentation/`, `src/category-rules/infrastructure/`; matching belongs to the web | [PostgreSQL](test/category-rules-postgres.e2e-spec.ts), [storage ADR](docs/adr/0003-category-rule-storage-and-replacement.md) |
-| Manual Transactions, history, attribution | [Transaction service](src/transactions/application/transactions.service.ts) | `src/transactions/presentation/`, `src/transactions/infrastructure/` | [Space transactions](test/space-transactions.e2e-spec.ts), [provenance constraint](test/transaction-statement-import-space-postgres.e2e-spec.ts) |
+| Manual Expenses, history, attribution | [Expense service](src/expenses/application/expenses.service.ts) | `src/expenses/presentation/`, `src/expenses/infrastructure/` | [Space expenses](test/space-expenses.e2e-spec.ts), [provenance constraint](test/expense-statement-import-space-postgres.e2e-spec.ts) |
 
 For browser projections and their adapters, use the [web task map](../web/docs/ARCHITECTURE.md#task-entry-points).
 
@@ -50,14 +50,14 @@ Feature modules bind symbolic application tokens such as `USER_STORE` to concret
 
 ## Feature modules
 
-The business features are `users`, `spaces`, `invitations`, `categories`, `category-rules`, `transactions`, and `statement-imports`. [The feature registry](src/api-feature-modules.ts) assembles them; `spaces` is composed through dependent feature modules. A feature normally contains:
+The business features are `users`, `spaces`, `invitations`, `categories`, `category-rules`, `expenses`, and `statement-imports`. [The feature registry](src/api-feature-modules.ts) assembles them; `spaces` is composed through dependent feature modules. A feature normally contains:
 
 - `presentation/`: controllers, request/response DTOs, and HTTP mapping.
 - `application/`: use-case services and pure rule helpers, errors, records and inputs, and store ports.
 - `infrastructure/`: TypeORM adapters implementing application ports.
 - `<feature>.module.ts`: dependency wiring.
 
-A feature may define a narrow read port for data owned elsewhere when that capability is specific to its workflow; for example, transaction categorization and category-rule validation use feature-owned category ports. This avoids coupling application services to another feature's adapter or to TypeORM.
+A feature may define a narrow read port for data owned elsewhere when that capability is specific to its workflow; for example, expense categorization and category-rule validation use feature-owned category ports. This avoids coupling application services to another feature's adapter or to TypeORM.
 
 Shared code exists only where the concern is genuinely cross-cutting:
 
@@ -86,7 +86,7 @@ Read [suggestion integration](../docs/category-suggestions.md) for the external 
 - A feature controller obtains the authenticated local User ID, maps the DTO, and calls an application service. Space-aware features must pass that trusted ID through the reusable `SpaceAccessService`; a client-supplied Space ID is only a lookup key and never an ownership grant.
 - `ApiExceptionFilter` translates application, HTTP, parser, and database failures to the common error envelope.
 
-Health and documentation routes are public and excluded from the `/api/v1` prefix. Financial features expose authorized Space routes, and the older `/users/me` routes resolve the authenticated User's Personal Space before calling the same Space-scoped application methods. Space IDs in requests are lookup keys; authenticated membership determines access. Financial persistence stores ownership only by `space_id`; actor columns preserve Transaction and Statement Import attribution. Cross-feature references are constrained by Space.
+Health and documentation routes are public and excluded from the `/api/v1` prefix. Financial features expose authorized Space routes, and the older `/users/me` routes resolve the authenticated User's Personal Space before calling the same Space-scoped application methods. Space IDs in requests are lookup keys; authenticated membership determines access. Financial persistence stores ownership only by `space_id`; actor columns preserve Expense and Statement Import attribution. Cross-feature references are constrained by Space.
 
 ## Persistence and transactions
 
@@ -94,7 +94,7 @@ Each feature's application layer owns small, capability-specific store interface
 
 The database schema is managed by explicit migrations. Entities describe the runtime mapping; migrations remain the authoritative history of schema changes. Scope financial queries, uniqueness, and relational constraints by Space. Preserve User references only for membership, Personal Space ownership, and immutable actor attribution.
 
-Use the injected feature store for work contained within one persistence seam. A workflow that must coordinate multiple feature-owned stores atomically owns a narrow application-facing unit-of-work port in its feature application layer. Statement Import confirmation's context exposes only User lookup by ID, membership locking for the destination Space, Category lookup by Space and ID, Statement Import file-hash lookup and creation, and imported Transaction fingerprint lookup and creation. It does not expose `EntityManager` or unrelated store methods. The TypeORM unit-of-work implementation remains in persistence infrastructure, where it creates all participating adapters from one transaction-bound `EntityManager`; every read and write in the workflow uses the supplied context. Statement import confirmation is the reference implementation.
+Use the injected feature store for work contained within one persistence seam. A workflow that must coordinate multiple feature-owned stores atomically owns a narrow application-facing unit-of-work port in its feature application layer. Statement Import confirmation's context exposes only User lookup by ID, membership locking for the destination Space, Category lookup by Space and ID, Statement Import file-hash lookup and creation, and imported Expense fingerprint lookup and creation. It does not expose `EntityManager` or unrelated store methods. The TypeORM unit-of-work implementation remains in persistence infrastructure, where it creates all participating adapters from one transaction-bound `EntityManager`; every read and write in the workflow uses the supplied context. Statement import confirmation is the reference implementation.
 
 Add a store to an atomic workflow context only for a real cross-feature workflow, and expose only the operations that workflow uses. Keep each port owned by its feature and each adapter feature-local.
 

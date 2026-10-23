@@ -38,7 +38,7 @@ export interface StatementImportHistoryRecord extends Omit<
   StatementImportRecord,
   'fileHash'
 > {
-  transactionCount: string;
+  expenseCount: string;
 }
 
 export interface NewStatementImport {

@@ -17,13 +17,13 @@ function getMonthComparison(report: InsightsMonthlyReport) {
   const previous = report.months[index - 1];
   const cutoff = report.spendingPatterns.dayCutoff;
   const recordedAmount = (period: ReportingPeriod) =>
-    report.transactions
+    report.expenses
       .filter(
-        (transaction) =>
-          transaction.date.startsWith(period) &&
-          (cutoff === null || Number(transaction.date.slice(8, 10)) <= cutoff),
+        (expense) =>
+          expense.date.startsWith(period) &&
+          (cutoff === null || Number(expense.date.slice(8, 10)) <= cutoff),
       )
-      .reduce((sum, transaction) => sum + transaction.amountCents, 0);
+      .reduce((sum, expense) => sum + expense.amountCents, 0);
   const selectedCents =
     cutoff === null
       ? selected.totalSpendingCents

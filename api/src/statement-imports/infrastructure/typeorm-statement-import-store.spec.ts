@@ -6,7 +6,7 @@ import {
   SpaceNotFoundError,
   SpaceNotWritableError,
 } from '../../spaces/application/space-errors';
-import { TransactionEntity } from '../../database/entities/transaction.entity';
+import { ExpenseEntity } from '../../database/entities/expense.entity';
 import type {
   StatementImportHistoryRecord,
   StatementImportRecord,
@@ -87,14 +87,14 @@ describe('TypeOrmStatementImportStore', () => {
     });
   });
 
-  it('queries a stable filtered page with transaction counts and a forward-only boundary', async () => {
+  it('queries a stable filtered page with expense counts and a forward-only boundary', async () => {
     const entities = [
       statementImportEntity({ id: '3', statementDate: '2026-08-03' }),
       statementImportEntity({ id: '2', statementDate: '2026-08-03' }),
     ];
     const query = statementImportPageQuery(entities, [
-      { transactionCount: '12' },
-      { transactionCount: '0' },
+      { expenseCount: '12' },
+      { expenseCount: '0' },
     ]);
     const repository = {
       createQueryBuilder: jest.fn().mockReturnValue(query),
@@ -115,12 +115,12 @@ describe('TypeOrmStatementImportStore', () => {
       statementImportHistoryRecord({
         id: '3',
         statementDate: '2026-08-03',
-        transactionCount: '12',
+        expenseCount: '12',
       }),
       statementImportHistoryRecord({
         id: '2',
         statementDate: '2026-08-03',
-        transactionCount: '0',
+        expenseCount: '0',
       }),
     ]);
 
@@ -141,13 +141,13 @@ describe('TypeOrmStatementImportStore', () => {
       { cursorDate: '2026-08-15', cursorId: '100' },
     );
     expect(query.leftJoin).toHaveBeenCalledWith(
-      TransactionEntity,
-      'transaction',
-      'transaction.statementImportId = statementImport.id AND transaction.spaceId = statementImport.spaceId AND transaction.deletedAt IS NULL',
+      ExpenseEntity,
+      'expense',
+      'expense.statementImportId = statementImport.id AND expense.spaceId = statementImport.spaceId AND expense.deletedAt IS NULL',
     );
     expect(query.addSelect).toHaveBeenCalledWith(
-      'COUNT(transaction.id)',
-      'transactionCount',
+      'COUNT(expense.id)',
+      'expenseCount',
     );
     expect(query.groupBy).toHaveBeenCalledWith('statementImport.id');
     expect(query.orderBy).toHaveBeenCalledWith(
@@ -158,11 +158,9 @@ describe('TypeOrmStatementImportStore', () => {
     expect(query.take).toHaveBeenCalledWith(3);
   });
 
-  it('joins transaction counts within the requested Space', async () => {
+  it('joins expense counts within the requested Space', async () => {
     const entities = [statementImportEntity({ id: '3', spaceId: '55' })];
-    const query = statementImportPageQuery(entities, [
-      { transactionCount: '2' },
-    ]);
+    const query = statementImportPageQuery(entities, [{ expenseCount: '2' }]);
     const repository = {
       createQueryBuilder: jest.fn().mockReturnValue(query),
     };
@@ -180,9 +178,9 @@ describe('TypeOrmStatementImportStore', () => {
       { spaceId: '55' },
     );
     expect(query.leftJoin).toHaveBeenCalledWith(
-      TransactionEntity,
-      'transaction',
-      'transaction.statementImportId = statementImport.id AND transaction.spaceId = statementImport.spaceId AND transaction.deletedAt IS NULL',
+      ExpenseEntity,
+      'expense',
+      'expense.statementImportId = statementImport.id AND expense.spaceId = statementImport.spaceId AND expense.deletedAt IS NULL',
     );
   });
 });
@@ -274,7 +272,7 @@ function statementImportHistoryRecord(
     transactionHistoryStartDate: null,
     totalDebit: null,
     importedAt: new Date('2026-08-29T00:00:00.000Z'),
-    transactionCount: '2',
+    expenseCount: '2',
     ...overrides,
   };
 }

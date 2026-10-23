@@ -16,7 +16,7 @@ describe('CategorySummariesController', () => {
           name: 'Groceries',
           isActive: true,
           totalAmount: '10.00',
-          transactionCount: '1',
+          expenseCount: '1',
           budgetAmount: '20.00',
           remainingAmount: '10.00',
         },

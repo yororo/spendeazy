@@ -102,10 +102,10 @@ test("does not commit a Category Suggestion selected only in the unsaved editor"
     }),
   ).toBeVisible();
   const table = page.getByRole("table").first();
-  const transactionRow = table
+  const expenseRow = table
     .getByRole("row")
     .filter({ hasText: description });
-  await expect(transactionRow).toContainText("Unmapped");
+  await expect(expenseRow).toContainText("Unmapped");
 
   await page
     .getByRole("button", {
@@ -127,9 +127,9 @@ test("does not commit a Category Suggestion selected only in the unsaved editor"
     .getByRole("button", { name: `Cancel changes to ${description}` })
     .click();
 
-  await expect(transactionRow).toContainText("Unmapped");
+  await expect(expenseRow).toContainText("Unmapped");
   await expect(
-    page.getByRole("button", { name: "Review 1 Transactions" }),
+    page.getByRole("button", { name: "Review 1 Expenses" }),
   ).toBeDisabled();
   await page.getByRole("button", { name: "Back to Upload" }).click();
   await expect(
@@ -149,13 +149,13 @@ test("does not commit a Category Suggestion selected only in the unsaved editor"
     readObjectsField(await importsResponse.json(), "items"),
   ).toHaveLength(0);
 
-  const transactionsResponse = await request.get(
-    `${apiBaseUrl}/api/v1/users/me/spaces/${spaceId}/transactions`,
+  const expensesResponse = await request.get(
+    `${apiBaseUrl}/api/v1/users/me/spaces/${spaceId}/expenses`,
     { headers: authorizationHeaders(userToken) },
   );
-  expect(transactionsResponse.status()).toBe(200);
+  expect(expensesResponse.status()).toBe(200);
   expect(
-    readObjectsField(await transactionsResponse.json(), "items"),
+    readObjectsField(await expensesResponse.json(), "items"),
   ).toHaveLength(0);
 });
 
@@ -429,9 +429,9 @@ test("commits saved Category Suggestions through Statement Import with Space iso
   await expect(ambiguousRow).toContainText("Excluded");
 
   await expect(
-    page.getByRole("button", { name: "Review 5 Transactions" }),
+    page.getByRole("button", { name: "Review 5 Expenses" }),
   ).toBeEnabled();
-  await page.getByRole("button", { name: "Review 5 Transactions" }).click();
+  await page.getByRole("button", { name: "Review 5 Expenses" }).click();
   const reviewTable = page.getByRole("table").first();
   await expect(
     reviewTable.getByRole("row").filter({ hasText: suggestedDescription }),
@@ -449,7 +449,7 @@ test("commits saved Category Suggestions through Statement Import with Space iso
     reviewTable.getByRole("row").filter({ hasText: slowDescription }),
   ).toContainText(fallbackCategoryName);
 
-  await page.getByRole("button", { name: "Import 5 Transactions" }).click();
+  await page.getByRole("button", { name: "Import 5 Expenses" }).click();
   await expect(
     page.getByRole("heading", { name: "Statement imported" }),
   ).toBeVisible();
@@ -479,51 +479,51 @@ test("commits saved Category Suggestions through Statement Import with Space iso
   expect(committedImports[0]).not.toHaveProperty("categorySuggestion");
   expect(committedImports[0]).not.toHaveProperty("suggestionFeedback");
 
-  const transactionsResponse = await request.get(
-    `${apiBaseUrl}/api/v1/users/me/spaces/${spaceId}/transactions?pageSize=100`,
+  const expensesResponse = await request.get(
+    `${apiBaseUrl}/api/v1/users/me/spaces/${spaceId}/expenses?pageSize=100`,
     { headers: authorizationHeaders(userToken) },
   );
-  expect(transactionsResponse.status()).toBe(200);
-  const committedTransactions = readObjectsField(
-    await transactionsResponse.json(),
+  expect(expensesResponse.status()).toBe(200);
+  const committedExpenses = readObjectsField(
+    await expensesResponse.json(),
     "items",
   );
-  expect(committedTransactions).toHaveLength(5);
+  expect(committedExpenses).toHaveLength(5);
   expect(
-    findTransaction(committedTransactions, suggestedDescription),
+    findExpense(committedExpenses, suggestedDescription),
   ).toMatchObject({
     categoryId: suggestedCategoryId,
   });
   expect(
-    findTransaction(committedTransactions, unsavedDescription),
+    findExpense(committedExpenses, unsavedDescription),
   ).toMatchObject({
     categoryId: fallbackCategoryId,
   });
   expect(
-    findTransaction(committedTransactions, unavailableDescription),
+    findExpense(committedExpenses, unavailableDescription),
   ).toMatchObject({
     categoryId: fallbackCategoryId,
   });
-  expect(findTransaction(committedTransactions, slowDescription)).toMatchObject(
+  expect(findExpense(committedExpenses, slowDescription)).toMatchObject(
     {
       categoryId: fallbackCategoryId,
     },
   );
-  expect(findTransaction(committedTransactions, ruleDescription)).toMatchObject(
+  expect(findExpense(committedExpenses, ruleDescription)).toMatchObject(
     {
       categoryId: ruleCategoryId,
     },
   );
   expect(
-    committedTransactions.some(
-      (transaction) => transaction.description === ambiguousDescription,
+    committedExpenses.some(
+      (expense) => expense.description === ambiguousDescription,
     ),
   ).toBe(false);
   expect(
-    committedTransactions.every(
-      (transaction) =>
-        !Object.hasOwn(transaction, "suggestion") &&
-        !Object.hasOwn(transaction, "suggestionFeedback"),
+    committedExpenses.every(
+      (expense) =>
+        !Object.hasOwn(expense, "suggestion") &&
+        !Object.hasOwn(expense, "suggestionFeedback"),
     ),
   ).toBe(true);
 
@@ -576,9 +576,9 @@ for (const width of [320, 390, 1440]) {
       { date: "2026-09-01", time: "09:00 AM", description: "Payment to Last Cafe", reference: "920003", debit: "30.00", balance: "40.00" },
     ], { startingBalance: "100.00", endingBalance: "40.00", totalDebit: "60.00", totalCredit: "0.00" });
     await page.getByRole("button", { name: "Exclude Payment to Excluded Cafe", exact: true }).click();
-    const search = page.getByRole("textbox", { name: width < 768 ? "Search Transactions" : "Search descriptions", exact: true });
+    const search = page.getByRole("textbox", { name: width < 768 ? "Search Statement Entries" : "Search descriptions", exact: true });
     await search.fill("Cafe");
-    if (width < 768) await page.getByRole("button", { name: "Filter Transactions", exact: true }).click();
+    if (width < 768) await page.getByRole("button", { name: "Filter Statement Entries", exact: true }).click();
     await page.getByRole("combobox", { name: "Sort by", exact: true }).click();
     await page.getByRole("option", { name: "Amount: highest first", exact: true }).click();
     await page.getByRole("combobox", { name: "Category", exact: true }).click();
@@ -590,7 +590,7 @@ for (const width of [320, 390, 1440]) {
     if (width < 768) await expect(category).toBeFocused();
     await page.getByRole("button", { name: `Use suggested Category: ${suggestedCategoryName}`, exact: true }).click();
     await page.getByRole("button", { name: width < 768 ? "Cancel" : "Cancel changes to Payment to Last Cafe", exact: true }).click();
-    await expect(page.getByRole("button", { name: "Review 2 Transactions" })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Review 2 Expenses" })).toBeDisabled();
     await page.getByRole("button", { name: width < 768 ? "Edit Category for Payment to Last Cafe" : "Edit Payment to Last Cafe", exact: false }).click();
     await page.getByRole("button", { name: `Use suggested Category: ${suggestedCategoryName}`, exact: true }).click();
     if (width < 768) {
@@ -607,7 +607,7 @@ for (const width of [320, 390, 1440]) {
     await page.getByRole("button", { name: "Apply & next", exact: true }).click();
     await expect(page.getByText("All included expenses have a Category. Continue to Review when ready.")).toBeVisible();
     await expect(search).toHaveValue("Cafe");
-    if (width < 768) await page.getByRole("button", { name: "Filter Transactions, filters active" }).click();
+    if (width < 768) await page.getByRole("button", { name: "Filter Statement Entries, filters active" }).click();
     await expect(page.getByRole("combobox", { name: "Sort by", exact: true })).toContainText("Amount: highest first");
     await expect(page.getByRole("combobox", { name: "Category", exact: true })).toContainText("Unmapped");
     await expect(page.getByLabel("From", { exact: true }).filter({ visible: true })).toHaveValue("2026-09-01");
@@ -616,18 +616,18 @@ for (const width of [320, 390, 1440]) {
     const beforeCommit = await request.get(`${context.apiBaseUrl}/api/v1/users/me/spaces/${context.spaceId}/statement-imports`, { headers: authorizationHeaders(context.token) });
     expect(readObjectsField(await beforeCommit.json(), "items")).toHaveLength(0);
     await page.getByRole("button", { name: "Include Payment to Excluded Cafe", exact: true }).click();
-    await expect(page.getByRole("button", { name: "Review 3 Transactions" })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Review 3 Expenses" })).toBeDisabled();
     await page.getByRole("button", { name: width < 768 ? "Edit Category for Payment to Excluded Cafe" : "Edit Payment to Excluded Cafe", exact: false }).click();
     await selectCategory(page, "Payment to Excluded Cafe", suggestedCategoryName);
     await page.getByRole("button", { name: "Apply & next", exact: true }).click();
-    await page.getByRole("button", { name: "Review 3 Transactions" }).click();
-    await page.getByRole("button", { name: "Import 3 Transactions" }).click();
+    await page.getByRole("button", { name: "Review 3 Expenses" }).click();
+    await page.getByRole("button", { name: "Import 3 Expenses" }).click();
     await expect(page.getByRole("heading", { name: "Statement imported" })).toBeVisible();
-    const response = await request.get(`${context.apiBaseUrl}/api/v1/users/me/spaces/${context.spaceId}/transactions?pageSize=100`, { headers: authorizationHeaders(context.token) });
+    const response = await request.get(`${context.apiBaseUrl}/api/v1/users/me/spaces/${context.spaceId}/expenses?pageSize=100`, { headers: authorizationHeaders(context.token) });
     expect(response.status()).toBe(200);
     const saved = readObjectsField(await response.json(), "items");
     expect(saved).toHaveLength(3);
-    expect(findTransaction(saved, "Payment to Corrected Cafe")).toMatchObject({ categoryId, amount: "31.00", purchaseDate: "2026-09-04" });
+    expect(findExpense(saved, "Payment to Corrected Cafe")).toMatchObject({ categoryId, amount: "31.00", purchaseDate: "2026-09-04" });
   });
 }
 
@@ -749,7 +749,7 @@ async function expectCategorySuggestionContract(
 async function uploadStatement(
   page: Page,
   fileName: string,
-  transactions: readonly GcashTransaction[],
+  expenses: readonly GcashExpense[],
   summary: GcashStatementSummary,
 ): Promise<void> {
   const lines = [
@@ -757,7 +757,7 @@ async function uploadStatement(
     "2026-09-01 to 2026-09-07",
     "Date and Time Description Reference No. Debit Credit Balance",
     `STARTING BALANCE ${summary.startingBalance}`,
-    ...transactions.map(
+    ...expenses.map(
       ({ date, time, description, reference, debit, balance }) =>
         `${date} ${time} ${description} ${reference} ${debit} ${balance}`,
     ),
@@ -774,7 +774,7 @@ async function uploadStatement(
   await page.getByRole("button", { name: "Skip" }).click();
 }
 
-interface GcashTransaction {
+interface GcashExpense {
   readonly date: string;
   readonly time: string;
   readonly description: string;
@@ -844,16 +844,16 @@ async function selectCategory(
   await page.getByRole("option", { name: categoryName, exact: true }).click();
 }
 
-function findTransaction(
-  transactions: readonly Record<string, unknown>[],
+function findExpense(
+  expenses: readonly Record<string, unknown>[],
   description: string,
 ): Record<string, unknown> {
-  const transaction = transactions.find(
+  const expense = expenses.find(
     (candidate) => candidate.description === description,
   );
-  if (!transaction)
-    throw new Error(`Missing committed Transaction ${description}`);
-  return transaction;
+  if (!expense)
+    throw new Error(`Missing committed Expense ${description}`);
+  return expense;
 }
 
 function readArray(value: unknown): unknown[] {

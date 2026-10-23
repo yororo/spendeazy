@@ -28,7 +28,7 @@ interface CategorySummaryItem {
   readonly name: string;
   readonly isActive: boolean;
   readonly totalAmount: string;
-  readonly transactionCount: string;
+  readonly expenseCount: string;
   readonly budgetAmount: string | null;
   readonly remainingAmount: string | null;
 }
@@ -44,7 +44,7 @@ interface CategorySummaryResponse {
 
 interface CategorySummaryTotals {
   readonly totalAmount: number;
-  readonly transactionCount: number;
+  readonly expenseCount: number;
 }
 
 function isCategorySummaryItem(value: unknown): value is CategorySummaryItem {
@@ -54,7 +54,7 @@ function isCategorySummaryItem(value: unknown): value is CategorySummaryItem {
     typeof value.name === "string" &&
     typeof value.isActive === "boolean" &&
     typeof value.totalAmount === "string" &&
-    typeof value.transactionCount === "string" &&
+    typeof value.expenseCount === "string" &&
     (value.budgetAmount === null || typeof value.budgetAmount === "string") &&
     (value.remainingAmount === null ||
       typeof value.remainingAmount === "string")
@@ -104,12 +104,12 @@ function getCategorySummaryTotals(
       ),
     moneyToCents(uncategorizedTotal),
   );
-  const transactionCount =
+  const expenseCount =
     categorySummary.categories.reduce(
       (total, category) =>
         total +
         parseApiCount(
-          category.transactionCount,
+          category.expenseCount,
           `Category ${category.categoryId}`,
           createError,
         ),
@@ -123,7 +123,7 @@ function getCategorySummaryTotals(
 
   return {
     totalAmount: centsToMoney(totalCents),
-    transactionCount,
+    expenseCount,
   };
 }
 

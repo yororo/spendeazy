@@ -7,19 +7,19 @@ import { getDashboard, type DashboardApiClient } from "./dashboard-service";
 
 const period = "2026-08" as ReportingPeriod;
 const summaryPath = "/category-summaries?period=monthly&year=2026&month=08";
-const fullTransactionsPath =
-  "/transactions?fromDate=2026-08-01&toDate=2026-08-31&pageSize=100";
-const secondTransactionsPath =
-  "/transactions?fromDate=2026-08-01&toDate=2026-08-31&pageSize=100&cursor=page-2";
-const recentTransactionsPath =
-  "/transactions?fromDate=2026-08-01&toDate=2026-08-31&pageSize=5";
+const fullExpensesPath =
+  "/expenses?fromDate=2026-08-01&toDate=2026-08-31&pageSize=100";
+const secondExpensesPath =
+  "/expenses?fromDate=2026-08-01&toDate=2026-08-31&pageSize=100&cursor=page-2";
+const recentExpensesPath =
+  "/expenses?fromDate=2026-08-01&toDate=2026-08-31&pageSize=5";
 const scopedCategoryPath = "/spaces/7/categories";
 const scopedSummaryPath =
   "/spaces/7/category-summaries?period=monthly&year=2026&month=08";
-const scopedFullTransactionsPath =
-  "/spaces/7/transactions?fromDate=2026-08-01&toDate=2026-08-31&pageSize=100";
-const scopedRecentTransactionsPath =
-  "/spaces/7/transactions?fromDate=2026-08-01&toDate=2026-08-31&pageSize=5";
+const scopedFullExpensesPath =
+  "/spaces/7/expenses?fromDate=2026-08-01&toDate=2026-08-31&pageSize=100";
+const scopedRecentExpensesPath =
+  "/spaces/7/expenses?fromDate=2026-08-01&toDate=2026-08-31&pageSize=5";
 const scopedStatementImportPath = "/spaces/7/statement-imports/statement-1";
 
 function createCategoryCatalog() {
@@ -86,11 +86,11 @@ describe("getDashboard", () => {
   ])("uses exact cents for %s even with low aggregate usage", async (spent, status) => {
     const { apiClient } = createApiClient(new Map<string, unknown>([
       [summaryPath, { ...createEmptySummary(), categories: [
-        { categoryId: "42", name: "Housing", isActive: true, totalAmount: spent, transactionCount: "1", budgetAmount: "1000.00", remainingAmount: null },
-        { categoryId: "43", name: "Groceries", isActive: true, totalAmount: "0.00", transactionCount: "0", budgetAmount: "99000.00", remainingAmount: null },
+        { categoryId: "42", name: "Housing", isActive: true, totalAmount: spent, expenseCount: "1", budgetAmount: "1000.00", remainingAmount: null },
+        { categoryId: "43", name: "Groceries", isActive: true, totalAmount: "0.00", expenseCount: "0", budgetAmount: "99000.00", remainingAmount: null },
       ] }],
-      [fullTransactionsPath, { items: [], nextCursor: null }],
-      [recentTransactionsPath, { items: [], nextCursor: null }],
+      [fullExpensesPath, { items: [], nextCursor: null }],
+      [recentExpensesPath, { items: [], nextCursor: null }],
     ]));
     const dashboard = await getDashboard(apiClient, period);
     expect(dashboard.summary.budgetUsed).toBeLessThan(2);
@@ -98,19 +98,19 @@ describe("getDashboard", () => {
     if (spent === "1000.01") expect(dashboard.budgetAlerts[0]?.remaining).toBe(-0.01);
   });
 
-  it("loads Dashboard aggregates and recent Transactions from the selected Space", async () => {
+  it("loads Dashboard aggregates and recent Expenses from the selected Space", async () => {
     const responses = new Map<string, unknown>([
       [scopedCategoryPath, createCategoryCatalog()],
       [scopedSummaryPath, createEmptySummary()],
       [
-        scopedFullTransactionsPath,
+        scopedFullExpensesPath,
         {
           items: [
             {
-              id: "transaction-1",
+              id: "expense-1",
               categoryId: "42",
               purchaseDate: "2026-08-01",
-              description: "Scoped imported transaction",
+              description: "Scoped imported expense",
               amount: "10.00",
               source: "imported",
               statementImportId: "statement-1",
@@ -119,7 +119,7 @@ describe("getDashboard", () => {
           nextCursor: null,
         },
       ],
-      [scopedRecentTransactionsPath, { items: [], nextCursor: null }],
+      [scopedRecentExpensesPath, { items: [], nextCursor: null }],
       [
         scopedStatementImportPath,
         {
@@ -142,10 +142,10 @@ describe("getDashboard", () => {
     expect(get).toHaveBeenCalledWith(scopedSummaryPath, {
       signal: undefined,
     });
-    expect(get).toHaveBeenCalledWith(scopedFullTransactionsPath, {
+    expect(get).toHaveBeenCalledWith(scopedFullExpensesPath, {
       signal: undefined,
     });
-    expect(get).toHaveBeenCalledWith(scopedRecentTransactionsPath, {
+    expect(get).toHaveBeenCalledWith(scopedRecentExpensesPath, {
       signal: undefined,
     });
     expect(get).toHaveBeenCalledWith(scopedStatementImportPath, {
@@ -153,7 +153,7 @@ describe("getDashboard", () => {
     });
   });
 
-  it("projects persisted summary data, traverses transaction pages, and joins recent transactions", async () => {
+  it("projects persisted summary data, traverses expense pages, and joins recent expenses", async () => {
     const responses = new Map<string, unknown>([
       [
         summaryPath,
@@ -167,7 +167,7 @@ describe("getDashboard", () => {
               name: "Housing",
               isActive: true,
               totalAmount: "100.00",
-              transactionCount: "2",
+              expenseCount: "2",
               budgetAmount: "150.00",
               remainingAmount: "50.00",
             },
@@ -176,7 +176,7 @@ describe("getDashboard", () => {
               name: "Groceries",
               isActive: true,
               totalAmount: "30.00",
-              transactionCount: "1",
+              expenseCount: "1",
               budgetAmount: null,
               remainingAmount: null,
             },
@@ -186,11 +186,11 @@ describe("getDashboard", () => {
         },
       ],
       [
-        fullTransactionsPath,
+        fullExpensesPath,
         {
           items: [
             {
-              id: "transaction-10",
+              id: "expense-10",
               categoryId: "42",
               purchaseDate: "2026-08-31",
               description: "Monthly rent",
@@ -199,7 +199,7 @@ describe("getDashboard", () => {
               statementImportId: "statement-1",
             },
             {
-              id: "transaction-9",
+              id: "expense-9",
               categoryId: null,
               purchaseDate: "2026-08-30",
               description: "Cash lunch",
@@ -212,11 +212,11 @@ describe("getDashboard", () => {
         },
       ],
       [
-        secondTransactionsPath,
+        secondExpensesPath,
         {
           items: [
             {
-              id: "transaction-8",
+              id: "expense-8",
               categoryId: "43",
               purchaseDate: "2026-08-02",
               description: "Weekly groceries",
@@ -225,7 +225,7 @@ describe("getDashboard", () => {
               statementImportId: "statement-2",
             },
             {
-              id: "transaction-7",
+              id: "expense-7",
               categoryId: "42",
               purchaseDate: "2026-08-02",
               description: "Home supplies",
@@ -238,11 +238,11 @@ describe("getDashboard", () => {
         },
       ],
       [
-        recentTransactionsPath,
+        recentExpensesPath,
         {
           items: [
             {
-              id: "transaction-10",
+              id: "expense-10",
               categoryId: "42",
               purchaseDate: "2026-08-31",
               description: "Monthly rent",
@@ -251,7 +251,7 @@ describe("getDashboard", () => {
               statementImportId: "statement-1",
             },
             {
-              id: "transaction-9",
+              id: "expense-9",
               categoryId: null,
               purchaseDate: "2026-08-30",
               description: "Cash lunch",
@@ -260,7 +260,7 @@ describe("getDashboard", () => {
               statementImportId: null,
             },
             {
-              id: "transaction-8",
+              id: "expense-8",
               categoryId: "43",
               purchaseDate: "2026-08-02",
               description: "Weekly groceries",
@@ -314,7 +314,7 @@ describe("getDashboard", () => {
     expect(dashboard.summary).toEqual({
       period: "Aug 2026",
       totalSpend: 140,
-      transactionCount: 4,
+      expenseCount: 4,
       recordedDayCount: 3,
       accountCount: 3,
       topCategory: "Housing",
@@ -358,9 +358,9 @@ describe("getDashboard", () => {
     expect(dashboard.spendingPoints[1]).toEqual({ label: "2", amount: 60, categories: [{ id: "42", label: "Housing", color: "teal", amount: 30 }, { id: "43", label: "Groceries", color: "forest", amount: 30 }] });
     expect(dashboard.spendingPoints[29]).toEqual({ label: "30", amount: 10, categories: [{ id: null, label: "Uncategorized", color: null, amount: 10 }] });
     expect(dashboard.spendingPoints[30]).toEqual({ label: "31", amount: 70, categories: [{ id: "42", label: "Housing", color: "teal", amount: 70 }] });
-    expect(dashboard.recentTransactions).toEqual([
+    expect(dashboard.recentExpenses).toEqual([
       {
-        id: "transaction-10",
+        id: "expense-10",
         categoryId: "42",
         purchaseDate: "2026-08-31",
         date: "Aug 31",
@@ -374,7 +374,7 @@ describe("getDashboard", () => {
         statementImportId: "statement-1",
       },
       {
-        id: "transaction-9",
+        id: "expense-9",
         categoryId: null,
         purchaseDate: "2026-08-30",
         date: "Aug 30",
@@ -388,7 +388,7 @@ describe("getDashboard", () => {
         statementImportId: null,
       },
       {
-        id: "transaction-8",
+        id: "expense-8",
         categoryId: "43",
         purchaseDate: "2026-08-02",
         date: "Aug 02",
@@ -409,13 +409,13 @@ describe("getDashboard", () => {
     expect(get).toHaveBeenCalledWith("/categories", {
       signal: controller.signal,
     });
-    expect(get).toHaveBeenCalledWith(fullTransactionsPath, {
+    expect(get).toHaveBeenCalledWith(fullExpensesPath, {
       signal: controller.signal,
     });
-    expect(get).toHaveBeenCalledWith(secondTransactionsPath, {
+    expect(get).toHaveBeenCalledWith(secondExpensesPath, {
       signal: controller.signal,
     });
-    expect(get).toHaveBeenCalledWith(recentTransactionsPath, {
+    expect(get).toHaveBeenCalledWith(recentExpensesPath, {
       signal: controller.signal,
     });
     expect(
@@ -428,7 +428,7 @@ describe("getDashboard", () => {
     ).toBe(true);
   });
 
-  it("fails explicitly when an imported Transaction has no Statement Import ID", async () => {
+  it("fails explicitly when an imported Expense has no Statement Import ID", async () => {
     const responses = new Map<string, unknown>([
       [
         summaryPath,
@@ -439,14 +439,14 @@ describe("getDashboard", () => {
         },
       ],
       [
-        fullTransactionsPath,
+        fullExpensesPath,
         {
           items: [
             {
-              id: "transaction-without-import",
+              id: "expense-without-import",
               categoryId: null,
               purchaseDate: "2026-08-01",
-              description: "Invalid imported Transaction",
+              description: "Invalid imported Expense",
               amount: "10.00",
               source: "imported",
               statementImportId: null,
@@ -455,14 +455,14 @@ describe("getDashboard", () => {
           nextCursor: null,
         },
       ],
-      [recentTransactionsPath, { items: [], nextCursor: null }],
+      [recentExpensesPath, { items: [], nextCursor: null }],
     ]);
     const { apiClient, get } = createApiClient(responses);
 
     await expect(getDashboard(apiClient, period)).rejects.toMatchObject({
       kind: "data",
       message:
-        "Imported Transaction transaction-without-import is missing its Statement Import ID.",
+        "Imported Expense expense-without-import is missing its Statement Import ID.",
     });
     expect(get.mock.calls).not.toContainEqual([
       "/statement-imports/undefined",
@@ -471,8 +471,8 @@ describe("getDashboard", () => {
   });
 
   it("fails explicitly when a referenced Statement Import cannot be loaded", async () => {
-    const importedTransaction = {
-      id: "transaction-404",
+    const importedExpense = {
+      id: "expense-404",
       categoryId: null,
       purchaseDate: "2026-08-01",
       description: "Missing import",
@@ -490,12 +490,12 @@ describe("getDashboard", () => {
         },
       ],
       [
-        fullTransactionsPath,
-        { items: [importedTransaction], nextCursor: null },
+        fullExpensesPath,
+        { items: [importedExpense], nextCursor: null },
       ],
       [
-        recentTransactionsPath,
-        { items: [importedTransaction], nextCursor: null },
+        recentExpensesPath,
+        { items: [importedExpense], nextCursor: null },
       ],
     ]);
     const { apiClient } = createApiClient(responses);
@@ -511,8 +511,8 @@ describe("getDashboard", () => {
   it("preserves an empty Reporting Period as an empty Dashboard", async () => {
     const responses = new Map<string, unknown>([
       [summaryPath, createEmptySummary()],
-      [fullTransactionsPath, { items: [], nextCursor: null }],
-      [recentTransactionsPath, { items: [], nextCursor: null }],
+      [fullExpensesPath, { items: [], nextCursor: null }],
+      [recentExpensesPath, { items: [], nextCursor: null }],
     ]);
     const { apiClient } = createApiClient(responses);
 
@@ -521,7 +521,7 @@ describe("getDashboard", () => {
     expect(dashboard.summary).toEqual({
       period: "Aug 2026",
       totalSpend: 0,
-      transactionCount: 0,
+      expenseCount: 0,
       recordedDayCount: 0,
       accountCount: 0,
       topCategory: "None",
@@ -534,7 +534,7 @@ describe("getDashboard", () => {
       unbudgetedSpend: 0,
     });
     expect(dashboard.categorySpending).toEqual([]);
-    expect(dashboard.recentTransactions).toEqual([]);
+    expect(dashboard.recentExpenses).toEqual([]);
     expect(dashboard.spendingPoints).toHaveLength(31);
     expect(dashboard.spendingPoints.every((point) => point.amount === 0)).toBe(
       true,

@@ -37,14 +37,14 @@ export type {
   CategorySummaryTotals,
 } from "./category-summary";
 export {
-  requireTransactionHistoryPage,
-  requireTransactionResponse,
-} from "./transaction-history";
+  requireExpenseHistoryPage,
+  requireExpenseResponse,
+} from "./expense-history";
 export type {
-  TransactionHistoryItem,
-  TransactionHistoryPage,
-  TransactionResponse,
-} from "./transaction-history";
+  ExpenseHistoryItem,
+  ExpenseHistoryPage,
+  ExpenseResponse,
+} from "./expense-history";
 export {
   getAccessibleSpaces,
   getArchivedSpaces,

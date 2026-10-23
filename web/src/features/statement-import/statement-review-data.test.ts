@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import { getDefaultCategoryColor } from "@/shared/category";
-import type { CategorizedTransaction } from "./statement-categorizer";
+import type { CategorizedStatementEntry } from "./statement-categorizer";
 import { createStatementReviewData } from "./statement-review-data";
 
-const expense: CategorizedTransaction = {
+const expense: CategorizedStatementEntry = {
   id: "a",
-  transactionDate: new Date("2026-10-01T00:00:00.000Z"),
+  entryDate: new Date("2026-10-01T00:00:00.000Z"),
   postingDate: new Date("2026-10-02T00:00:00.000Z"),
   description: "Fixture expense",
   amount: -0.1,
@@ -16,19 +16,19 @@ const expense: CategorizedTransaction = {
   isExcluded: false,
 };
 
-function review(transactions: readonly CategorizedTransaction[]) {
+function review(entries: readonly CategorizedStatementEntry[]) {
   return createStatementReviewData(
-    transactions, "amount-asc", (id) => id === "42" ? "Groceries" : "Unknown Category", getDefaultCategoryColor,
+    entries, "amount-asc", (id) => id === "42" ? "Groceries" : "Unknown Category", getDefaultCategoryColor,
   );
 }
 
 describe("Statement Review data", () => {
-  it("returns zero summaries and empty groups without Transactions", () => {
+  it("returns zero summaries and empty groups without Expenses", () => {
     expect(review([])).toMatchObject({
-      includedTransactions: [], excludedTransactions: [], categoryBreakdown: [],
+      includedExpenses: [], excludedExpenses: [], categoryBreakdown: [],
       debitTotal: 0, averageDebit: 0, categorizedDebitTotal: 0,
       largestCategoryAmount: 0, ruleCount: 0, manualCount: 0,
-      excludedCount: 0, hasUnmappedTransactions: false,
+      excludedCount: 0, hasUnmappedExpenses: false,
     });
   });
 
@@ -54,10 +54,10 @@ describe("Statement Review data", () => {
     expect(data.excludedCount).toBe(2);
     expect(data.ruleCount).toBe(1);
     expect(data.manualCount).toBe(1);
-    expect(data.categorizedTransactions).toHaveLength(2);
-    expect(data.unmappedTransactions).toHaveLength(2);
-    expect(data.ambiguousTransactions).toHaveLength(1);
-    expect(data.hasUnmappedTransactions).toBe(true);
+    expect(data.categorizedExpenses).toHaveLength(2);
+    expect(data.unmappedExpenses).toHaveLength(2);
+    expect(data.ambiguousExpenses).toHaveLength(1);
+    expect(data.hasUnmappedExpenses).toBe(true);
     expect(data.categoryBreakdown[0]).toMatchObject({ amount: 0.2, share: 50 });
   });
 
@@ -70,8 +70,8 @@ describe("Statement Review data", () => {
     ]);
     const data = review(rows);
     expect(rows.map(({ id }) => id)).toEqual(["z", "a", "excluded-z", "excluded-a"]);
-    expect(data.includedTransactions.map(({ id }) => id)).toEqual(["a", "z"]);
-    expect(data.excludedTransactions.map(({ id }) => id)).toEqual(["excluded-a", "excluded-z"]);
+    expect(data.includedExpenses.map(({ id }) => id)).toEqual(["a", "z"]);
+    expect(data.excludedExpenses.map(({ id }) => id)).toEqual(["excluded-a", "excluded-z"]);
     expect(data.categoryBreakdown.map(({ categoryId }) => categoryId)).toEqual(["42", "unknown"]);
     expect(data.categoryBreakdown[1]).toMatchObject({
       label: "Unknown Category", color: getDefaultCategoryColor("unknown"), share: 50,

@@ -17,7 +17,7 @@ for (const width of [320, 390, 1440]) {
     if (!isRecord(category) || typeof category.id !== "string") throw new Error("Expected Category ID");
     expect((await page.request.put(`${base}/categories/${category.id}/budget`, { headers, data: { amount: "1000.00", period: "monthly" } })).ok()).toBe(true);
     for (const [amount, purchaseDate] of [["1000.01", date], ["500.00", "2026-08-10"]]) {
-      expect((await page.request.post(`${base}/transactions`, { headers, data: { categoryId: category.id, amount, purchaseDate, description: "Synthetic monthly investigation" } })).ok()).toBe(true);
+      expect((await page.request.post(`${base}/expenses`, { headers, data: { categoryId: category.id, amount, purchaseDate, description: "Synthetic monthly investigation" } })).ok()).toBe(true);
     }
     await page.getByRole("navigation", { name: width < 768 ? "Mobile navigation" : "Primary navigation" }).getByRole("link", { name: "Insights", exact: true }).click();
     await page.getByLabel("Reporting period", { exact: true }).fill(date.slice(0, 7));
@@ -26,10 +26,10 @@ for (const width of [320, 390, 1440]) {
     await inspect.click();
     const details = page.getByRole("dialog");
     await expect(details.getByText(/Over Budget · ₱0.01 over/)).toHaveCount(1);
-    await details.getByRole("button", { name: "View Synthetic risk month’s Transactions" }).click();
+    await details.getByRole("button", { name: "View Synthetic risk month’s Expenses" }).click();
     await expect(page).toHaveURL(new RegExp("categoryId=" + category.id));
     await expect(page.getByRole("heading", { name: "Your spending", exact: true })).toBeVisible();
-    await expect(page.getByRole("region", { name: "Transaction summary" }).getByText("₱1,000.01", { exact: true })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Expense summary" }).getByText("₱1,000.01", { exact: true })).toBeVisible();
     await page.getByLabel("Reporting period", { exact: true }).fill("2026-08");
     await page.getByRole("button", { name: "Return to Insights" }).click();
     await expect(page.getByLabel("Reporting period", { exact: true })).toHaveValue(date.slice(0, 7));

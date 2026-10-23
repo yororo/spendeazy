@@ -60,7 +60,7 @@ for (const width of [390, 1440]) {
       expect(categoryResponse.ok()).toBe(true);
       const category: unknown = await categoryResponse.json();
       if (!isRecord(category) || typeof category.id !== "string") throw new Error("Expected Shared Category");
-      expect((await page.request.post(`${scoped}/transactions`, { headers, data: { amount: "45.67", purchaseDate: "2026-09-04", description: "Fictional shared theme dinner", categoryId: category.id } })).ok()).toBe(true);
+      expect((await page.request.post(`${scoped}/expenses`, { headers, data: { amount: "45.67", purchaseDate: "2026-09-04", description: "Fictional shared theme dinner", categoryId: category.id } })).ok()).toBe(true);
       await navigateSpending(page, "Imports");
       await navigateSpending(page, "Sharing");
       await expect(page.getByRole("button", { name: "End sharing", exact: true })).toBeVisible();
@@ -91,7 +91,7 @@ for (const width of [390, 1440]) {
       await page.getByRole("link", { name: /^View history for Shared/ }).click();
       await expect(page.getByRole("heading", { name: "Archived Space history", exact: true })).toBeVisible();
       await expect(page.getByText("Fictional shared theme dinner", { exact: true }).filter({ visible: true })).toBeVisible();
-      await expect(page.getByText("No Transactions have been deleted.", { exact: true }).filter({ visible: true })).toBeVisible();
+      await expect(page.getByText("No Expenses have been deleted.", { exact: true }).filter({ visible: true })).toBeVisible();
       if (width === 390) await expectResponsiveContainment(page, width);
       const marker = page.getByText("Fictional shared theme", { exact: true }).filter({ visible: true }).first().locator('[aria-hidden="true"]');
       await expect(marker).toHaveCSS("background-color", "rgb(15, 118, 110)");
@@ -116,11 +116,11 @@ for (const width of [390, 1440]) {
       }
       const activity = page.getByRole("dialog");
       await expect(activity).toBeVisible();
-      await expect(activity.getByRole("list", { name: "Transaction activity events", exact: true })).toBeVisible();
+      await expect(activity.getByRole("list", { name: "Expense activity events", exact: true })).toBeVisible();
       await expectWorkflowSurvivesThemeChange(page, "Playful", "Light");
       await page.keyboard.press("Escape");
       if (process.env.SPENDEAZY_E2E_SCREENSHOTS === "1") await page.screenshot({ path: testInfo.outputPath(`archived-history-${width}.png`), fullPage: true, animations: "disabled" });
-      const denied = await page.request.post(`${scoped}/transactions`, { headers, data: { amount: "1.00", purchaseDate: "2026-09-04", description: "Fictional denied write" } });
+      const denied = await page.request.post(`${scoped}/expenses`, { headers, data: { amount: "1.00", purchaseDate: "2026-09-04", description: "Fictional denied write" } });
       expect(denied.status()).toBe(403);
     } finally {
       await recipientContext.close();

@@ -71,10 +71,10 @@ function CategorizeStatementAdapter({
       getCategorySuggestion={getCategorySuggestion}
       fileName={fileName}
       statementSummary={statementSummary}
-      transactions={statement.transactions}
+      entries={statement.entries}
       editor={state.editor}
       canReview={state.canEnterReview}
-      onBeginEdit={(transactionId) => workflow.beginEdit(transactionId)}
+      onBeginEdit={(expenseId) => workflow.beginEdit(expenseId)}
       onCancelEdit={() => workflow.cancelEdit()}
       onChangeDraft={(draft) => workflow.changeDraft(draft)}
       onChangeDescription={(description) =>
@@ -92,11 +92,11 @@ function CategorizeStatementAdapter({
       onSaveEdit={async () => {
         const result = await workflow.saveEdit();
         return result === "saved"
-          ? workflow.getSnapshot().statement?.transactions ?? null
+          ? workflow.getSnapshot().statement?.entries ?? null
           : null;
       }}
-      onToggleTransactionExclusion={(transactionId) =>
-        workflow.toggleTransactionExclusion(transactionId)
+      onToggleExpenseExclusion={(expenseId) =>
+        workflow.toggleExpenseExclusion(expenseId)
       }
       onApplyBulkCategory={(sourceId, selectedIds, categoryId) => workflow.applyBulkCategory(sourceId, selectedIds, categoryId)}
       onBack={onBack}

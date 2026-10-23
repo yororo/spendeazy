@@ -1,6 +1,6 @@
 import type { EntityManager } from 'typeorm';
 import { CategoryEntity } from '../../database/entities/category.entity';
-import { TransactionEntity } from '../../database/entities/transaction.entity';
+import { ExpenseEntity } from '../../database/entities/expense.entity';
 import { TypeOrmCategorySummaryStore } from './typeorm-category-summary-store';
 
 describe('TypeOrmCategorySummaryStore', () => {
@@ -11,7 +11,7 @@ describe('TypeOrmCategorySummaryStore', () => {
         categoryName: 'Groceries',
         categoryIsActive: true,
         totalAmount: '10.10',
-        transactionCount: '2',
+        expenseCount: '2',
         budgetAmount: '20.00',
         budgetPeriod: 'monthly',
       },
@@ -23,15 +23,13 @@ describe('TypeOrmCategorySummaryStore', () => {
     const categoryRepository = {
       createQueryBuilder: jest.fn().mockReturnValue(categoryQuery),
     };
-    const transactionRepository = {
+    const expenseRepository = {
       createQueryBuilder: jest.fn().mockReturnValue(uncategorizedQuery),
     };
     const entityManager = {
       getRepository: jest.fn(
-        (entity: typeof CategoryEntity | typeof TransactionEntity) =>
-          entity === CategoryEntity
-            ? categoryRepository
-            : transactionRepository,
+        (entity: typeof CategoryEntity | typeof ExpenseEntity) =>
+          entity === CategoryEntity ? categoryRepository : expenseRepository,
       ),
     } as unknown as EntityManager;
     const store = new TypeOrmCategorySummaryStore(entityManager);
@@ -49,7 +47,7 @@ describe('TypeOrmCategorySummaryStore', () => {
           categoryName: 'Groceries',
           categoryIsActive: true,
           totalAmount: '10.10',
-          transactionCount: '2',
+          expenseCount: '2',
           budgetAmount: '20.00',
           budgetPeriod: 'monthly',
         },
@@ -63,16 +61,16 @@ describe('TypeOrmCategorySummaryStore', () => {
       { spaceId: '7' },
     );
     expect(categoryQuery.leftJoin).toHaveBeenCalledWith(
-      TransactionEntity,
-      'transaction',
+      ExpenseEntity,
+      'expense',
       expect.stringContaining(
-        'transaction.purchaseDate BETWEEN :fromDate AND :toDate',
+        'expense.purchaseDate BETWEEN :fromDate AND :toDate',
       ),
     );
     expect(categoryQuery.leftJoin).toHaveBeenCalledWith(
-      TransactionEntity,
-      'transaction',
-      expect.stringContaining('transaction.deletedAt IS NULL'),
+      ExpenseEntity,
+      'expense',
+      expect.stringContaining('expense.deletedAt IS NULL'),
     );
     expect(categoryQuery.leftJoin).toHaveBeenCalledWith(
       expect.anything(),
@@ -80,24 +78,24 @@ describe('TypeOrmCategorySummaryStore', () => {
       'budget.categoryId = category.id',
     );
     expect(uncategorizedQuery.where).toHaveBeenCalledWith(
-      'transaction.spaceId = :spaceId',
+      'expense.spaceId = :spaceId',
       { spaceId: '7' },
     );
     expect(uncategorizedQuery.andWhere).toHaveBeenCalledWith(
-      'transaction.deletedAt IS NULL',
+      'expense.deletedAt IS NULL',
     );
     expect(uncategorizedQuery.andWhere).toHaveBeenCalledWith(
-      'transaction.purchaseDate BETWEEN :fromDate AND :toDate',
+      'expense.purchaseDate BETWEEN :fromDate AND :toDate',
       { fromDate: '2026-08-01', toDate: '2026-08-31' },
     );
   });
 
-  it('returns a zero Uncategorized total when no uncategorized transactions exist', async () => {
+  it('returns a zero Uncategorized total when no uncategorized expenses exist', async () => {
     const categoryQuery = queryBuilder([]);
     const uncategorizedQuery = queryBuilder([]);
     const entityManager = {
       getRepository: jest.fn(
-        (entity: typeof CategoryEntity | typeof TransactionEntity) =>
+        (entity: typeof CategoryEntity | typeof ExpenseEntity) =>
           entity === CategoryEntity
             ? { createQueryBuilder: jest.fn().mockReturnValue(categoryQuery) }
             : {

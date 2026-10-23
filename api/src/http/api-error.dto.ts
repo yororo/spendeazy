@@ -48,9 +48,9 @@ const ERROR_CODES = [
   'BUDGET_NOT_FOUND',
   'CATEGORY_RULE_NOT_FOUND',
   'CATEGORY_RULE_PATTERN_ALREADY_EXISTS',
-  'TRANSACTION_NOT_FOUND',
+  'EXPENSE_NOT_FOUND',
   'STATEMENT_IMPORT_NOT_FOUND',
-  'IMPORTED_TRANSACTION_IMMUTABLE',
+  'IMPORTED_EXPENSE_IMMUTABLE',
   'STATEMENT_IMPORT_FILE_ALREADY_EXISTS',
   'STATEMENT_IMPORT_FILE_HASH_INVALID',
   'STATEMENT_IMPORT_PROBABLE_DUPLICATES',
@@ -103,7 +103,7 @@ export class ErrorDetailDto {
   additionalProperties: false,
 } as ApiSchemaOptionsWithAdditionalProperties)
 export class ProbableDuplicateDetailDto {
-  @ApiProperty({ example: '/transactions/0' })
+  @ApiProperty({ example: '/expenses/0' })
   field!: string;
 
   @ApiProperty({ enum: ['probable_duplicate'] })
@@ -113,21 +113,21 @@ export class ProbableDuplicateDetailDto {
   message!: string;
 
   @ApiProperty({ type: 'array', items: { type: 'integer', minimum: 0 } })
-  transactionIndexes!: number[];
+  expenseIndexes!: number[];
 
   @ApiProperty({
-    description: 'Public transaction IDs encoded as strings.',
+    description: 'Public expense IDs encoded as strings.',
     type: 'array',
     items: { type: 'string', pattern: '^[1-9]\\d*$' },
   })
-  committedTransactionIds!: string[];
+  committedExpenseIds!: string[];
 }
 
 @ApiSchema({
   additionalProperties: false,
 } as ApiSchemaOptionsWithAdditionalProperties)
 export class CategoryEligibilityDetailDto {
-  @ApiProperty({ example: '/transactions/0/categoryId' })
+  @ApiProperty({ example: '/expenses/0/categoryId' })
   field!: string;
 
   @ApiProperty({ enum: ['category_inactive'] })
@@ -144,12 +144,11 @@ export class CategoryEligibilityDetailDto {
   categoryId!: string;
 
   @ApiProperty({
-    description:
-      'Zero-based reviewed Transaction indexes requiring correction.',
+    description: 'Zero-based reviewed Expense indexes requiring correction.',
     type: 'array',
     items: { type: 'integer', minimum: 0 },
   })
-  transactionIndexes!: number[];
+  expenseIndexes!: number[];
 }
 
 @ApiSchema({
@@ -351,14 +350,14 @@ export const API_ERROR_RESPONSE_COMPONENTS = {
           error: {
             code: 'STATEMENT_IMPORT_PROBABLE_DUPLICATES',
             message:
-              'Probable duplicate imported transactions require acknowledgement',
+              'Probable duplicate imported expenses require acknowledgement',
             details: [
               {
-                field: '/transactions/0',
+                field: '/expenses/0',
                 code: 'probable_duplicate',
-                message: 'The reviewed transaction has a probable duplicate',
-                transactionIndexes: [0, 2],
-                committedTransactionIds: [],
+                message: 'The reviewed expense has a probable duplicate',
+                expenseIndexes: [0, 2],
+                committedExpenseIds: [],
               },
             ],
           },
@@ -366,19 +365,19 @@ export const API_ERROR_RESPONSE_COMPONENTS = {
       },
       committedMatch: {
         summary:
-          'A submitted row matches previously committed imported Transactions.',
+          'A submitted row matches previously committed imported Expenses.',
         value: {
           error: {
             code: 'STATEMENT_IMPORT_PROBABLE_DUPLICATES',
             message:
-              'Probable duplicate imported transactions require acknowledgement',
+              'Probable duplicate imported expenses require acknowledgement',
             details: [
               {
-                field: '/transactions/1',
+                field: '/expenses/1',
                 code: 'probable_duplicate',
-                message: 'The reviewed transaction has a probable duplicate',
-                transactionIndexes: [1],
-                committedTransactionIds: ['12', '18'],
+                message: 'The reviewed expense has a probable duplicate',
+                expenseIndexes: [1],
+                committedExpenseIds: ['12', '18'],
               },
             ],
           },
@@ -392,11 +391,11 @@ export const API_ERROR_RESPONSE_COMPONENTS = {
             message: 'Category is inactive',
             details: [
               {
-                field: '/transactions/0/categoryId',
+                field: '/expenses/0/categoryId',
                 code: 'category_inactive',
-                message: 'The reviewed transaction uses an inactive Category',
+                message: 'The reviewed expense uses an inactive Category',
                 categoryId: '42',
-                transactionIndexes: [0, 2],
+                expenseIndexes: [0, 2],
               },
             ],
           },

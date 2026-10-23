@@ -5,7 +5,7 @@ import { POSTGRES_UNIQUE_VIOLATION } from '../../database/database-error-codes';
 import { SpaceEntity } from '../../database/entities/space.entity';
 import { SpaceMembershipEntity } from '../../database/entities/space-membership.entity';
 import { StatementImportEntity } from '../../database/entities/statement-import.entity';
-import { TransactionEntity } from '../../database/entities/transaction.entity';
+import { ExpenseEntity } from '../../database/entities/expense.entity';
 import { StatementImportFileAlreadyExistsError } from '../application/statement-import-errors';
 import { SpaceNotFoundError } from '../../spaces/application/space-errors';
 import { assertWritableSpace } from '../../spaces/application/assert-writable-space';
@@ -77,11 +77,11 @@ export class TypeOrmStatementImportStore implements StatementImportStore {
       .getRepository(StatementImportEntity)
       .createQueryBuilder('statementImport')
       .leftJoin(
-        TransactionEntity,
-        'transaction',
-        'transaction.statementImportId = statementImport.id AND transaction.spaceId = statementImport.spaceId AND transaction.deletedAt IS NULL',
+        ExpenseEntity,
+        'expense',
+        'expense.statementImportId = statementImport.id AND expense.spaceId = statementImport.spaceId AND expense.deletedAt IS NULL',
       )
-      .addSelect('COUNT(transaction.id)', 'transactionCount')
+      .addSelect('COUNT(expense.id)', 'expenseCount')
       .where('statementImport.spaceId = :spaceId', {
         spaceId: query.spaceId,
       });
@@ -118,10 +118,10 @@ export class TypeOrmStatementImportStore implements StatementImportStore {
       .getRawAndEntities();
 
     const rawRows = result.raw as unknown as {
-      transactionCount?: unknown;
+      expenseCount?: unknown;
     }[];
     return result.entities.map((entity, index) =>
-      toHistoryRecord(entity, rawRows[index]?.transactionCount),
+      toHistoryRecord(entity, rawRows[index]?.expenseCount),
     );
   }
 
@@ -177,7 +177,7 @@ function toRecord(entity: StatementImportEntity): StatementImportRecord {
 
 function toHistoryRecord(
   entity: StatementImportEntity,
-  transactionCount: unknown,
+  expenseCount: unknown,
 ): StatementImportHistoryRecord {
   return {
     id: entity.id,
@@ -191,11 +191,11 @@ function toHistoryRecord(
     transactionHistoryStartDate: entity.transactionHistoryStartDate,
     totalDebit: entity.totalDebit,
     importedAt: entity.importedAt,
-    transactionCount: serializeTransactionCount(transactionCount),
+    expenseCount: serializeExpenseCount(expenseCount),
   };
 }
 
-function serializeTransactionCount(value: unknown): string {
+function serializeExpenseCount(value: unknown): string {
   if (
     typeof value === 'string' ||
     typeof value === 'number' ||

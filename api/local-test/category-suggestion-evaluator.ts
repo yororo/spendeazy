@@ -11,15 +11,15 @@ const E2E_SLOW_DESCRIPTION = 'Payment to Cafe Slow Shop';
 
 export class LocalTestCategorySuggestionEvaluator implements CategorySuggestionEvaluator {
   suggestCategory(
-    transactionDescription: string,
+    expenseDescription: string,
     categories: readonly CategorySuggestionCandidate[],
   ): Promise<CategorySuggestionDistribution> {
-    if (transactionDescription === E2E_UNAVAILABLE_DESCRIPTION) {
+    if (expenseDescription === E2E_UNAVAILABLE_DESCRIPTION) {
       return Promise.reject(
         new Error('The local-test Jev stub simulated an unavailable service'),
       );
     }
-    if (transactionDescription === E2E_SLOW_DESCRIPTION) {
+    if (expenseDescription === E2E_SLOW_DESCRIPTION) {
       return new Promise<CategorySuggestionDistribution>(() => {});
     }
 

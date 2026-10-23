@@ -80,7 +80,7 @@ describe('local test fixture definition', () => {
         matchType: 'contains',
       },
     ]);
-    expect(fixture.transactions).toEqual([
+    expect(fixture.expenses).toEqual([
       {
         categoryName: 'Food & Drink',
         purchaseDate: '2026-09-03',

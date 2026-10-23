@@ -77,35 +77,35 @@ for (const width of [320, 390, 1440]) {
     await page.getByRole("checkbox", { name: "Show inactive Categories", exact: true }).check();
     await page.getByRole("button", { name: "Reactivate Fictional theme drafts", exact: true }).click();
     await expect(page.getByRole("button", { name: "Reactivate Fictional theme drafts", exact: true })).toHaveCount(0);
-    await navigateSpending(page, "Transactions");
+    await navigateSpending(page, "Expenses");
     await expect(page.getByRole("heading", { name: "Your spending", exact: true })).toBeVisible();
-    const search = page.getByRole("textbox", { name: width < 768 ? "Search Transactions" : "Search descriptions", exact: true }).filter({ visible: true }).first();
+    const search = page.getByRole("textbox", { name: width < 768 ? "Search Expenses" : "Search descriptions", exact: true }).filter({ visible: true }).first();
     await search.fill("Fictional");
     await expect(page.locator('main [aria-busy="true"]')).toHaveCount(0);
-    await page.getByRole("button", { name: "Record Transaction", exact: true }).click();
-    const transaction = page.getByRole("dialog", { name: "Record Transaction", exact: true });
-    await transaction.getByLabel("Description", { exact: true }).fill("Fictional dinner");
-    await transaction.getByLabel("Amount", { exact: true }).fill("123.4");
-    await transaction.getByLabel("Purchase date", { exact: true }).fill("2026-08-15");
-    await transaction.getByRole("combobox", { name: "Category", exact: true }).click();
+    await page.getByRole("button", { name: "Record Expense", exact: true }).click();
+    const expense = page.getByRole("dialog", { name: "Record Expense", exact: true });
+    await expense.getByLabel("Description", { exact: true }).fill("Fictional dinner");
+    await expense.getByLabel("Amount", { exact: true }).fill("123.4");
+    await expense.getByLabel("Purchase date", { exact: true }).fill("2026-08-15");
+    await expense.getByRole("combobox", { name: "Category", exact: true }).click();
     await page.getByRole("option", { name: "Fictional theme drafts", exact: true }).click();
-    await transaction.getByRole("button", { name: "Record Transaction", exact: true }).click();
-    expect(await transaction.getByLabel("Amount", { exact: true }).evaluate(element => element instanceof HTMLInputElement && element.validity.patternMismatch)).toBe(true);
+    await expense.getByRole("button", { name: "Record Expense", exact: true }).click();
+    expect(await expense.getByLabel("Amount", { exact: true }).evaluate(element => element instanceof HTMLInputElement && element.validity.patternMismatch)).toBe(true);
     await preserve();
-    expect(await transaction.getByLabel("Amount", { exact: true }).evaluate(element => element instanceof HTMLInputElement && element.validity.patternMismatch)).toBe(true);
-    await transaction.getByLabel("Amount", { exact: true }).fill("123.45");
+    expect(await expense.getByLabel("Amount", { exact: true }).evaluate(element => element instanceof HTMLInputElement && element.validity.patternMismatch)).toBe(true);
+    await expense.getByLabel("Amount", { exact: true }).fill("123.45");
     await preserve();
     await expect(search).toHaveValue("Fictional");
-    await expect(transaction.getByLabel("Description", { exact: true })).toHaveValue("Fictional dinner");
-    await expect(transaction.getByLabel("Amount", { exact: true })).toHaveValue("123.45");
-    await expect(transaction.getByLabel("Purchase date", { exact: true })).toHaveValue("2026-08-15");
-    await expect(transaction.getByRole("combobox")).toContainText("Fictional theme drafts");
+    await expect(expense.getByLabel("Description", { exact: true })).toHaveValue("Fictional dinner");
+    await expect(expense.getByLabel("Amount", { exact: true })).toHaveValue("123.45");
+    await expect(expense.getByLabel("Purchase date", { exact: true })).toHaveValue("2026-08-15");
+    await expect(expense.getByRole("combobox")).toContainText("Fictional theme drafts");
     await changeTheme(page, "Playful", "Light");
-    const recorded = page.waitForResponse(response => response.request().method() === "POST" && response.url().endsWith("/transactions"));
-    await transaction.getByRole("button", { name: "Record Transaction", exact: true }).click();
+    const recorded = page.waitForResponse(response => response.request().method() === "POST" && response.url().endsWith("/expenses"));
+    await expense.getByRole("button", { name: "Record Expense", exact: true }).click();
     expect(await (await recorded).json()).toMatchObject({ amount: "123.45", purchaseDate: "2026-08-15", description: "Fictional dinner" });
-    await expect(transaction).toHaveCount(0);
-    await expect(page.getByRole("region", { name: "Transaction summary" })).toContainText("₱123.45");
+    await expect(expense).toHaveCount(0);
+    await expect(page.getByRole("region", { name: "Expense summary" })).toContainText("₱123.45");
     const action = async (desktopName: string, mobileName: string) => {
       if (width < 768) {
         await page.getByRole("button", { name: "More actions for Fictional dinner", exact: true }).click();
@@ -116,15 +116,15 @@ for (const width of [320, 390, 1440]) {
     await expect(page.getByRole("dialog")).toContainText("Fictional dinner");
     await page.keyboard.press("Escape");
     await action("Edit Fictional dinner", "Edit");
-    const edit = page.getByRole("dialog", { name: "Edit Transaction", exact: true });
+    const edit = page.getByRole("dialog", { name: "Edit Expense", exact: true });
     await edit.getByLabel("Amount", { exact: true }).fill("124.45");
     await preserve();
     await expect(edit.getByLabel("Amount", { exact: true })).toHaveValue("124.45");
     await edit.getByRole("button", { name: "Save changes", exact: true }).click();
     await expect(edit).toHaveCount(0);
     await action("Delete Fictional dinner", "Delete");
-    await page.getByRole("dialog", { name: "Delete Transaction?", exact: true }).getByRole("button", { name: "Delete Transaction", exact: true }).click();
-    await expect(page.getByRole("region", { name: "Transaction summary" })).toContainText("₱0.00");
+    await page.getByRole("dialog", { name: "Delete Expense?", exact: true }).getByRole("button", { name: "Delete Expense", exact: true }).click();
+    await expect(page.getByRole("region", { name: "Expense summary" })).toContainText("₱0.00");
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   });
 }
@@ -173,7 +173,7 @@ const categorySummary = {
       name: housing.name,
       isActive: true,
       totalAmount: "0.00",
-      transactionCount: "0",
+      expenseCount: "0",
       budgetAmount: "200.00",
       remainingAmount: "200.00",
     },
@@ -232,8 +232,8 @@ async function installFinancialFixtures(page: Page) {
       return;
     }
     if (
-      path.endsWith("/transactions") ||
-      path.endsWith("/transactions/history")
+      path.endsWith("/expenses") ||
+      path.endsWith("/expenses/history")
     ) {
       await fulfillJson(route, { items: [], nextCursor: null });
       return;
@@ -337,62 +337,62 @@ test("guards Category, Budget, and Category Rule editors during Space switching"
   await expect(page).toHaveURL(/\/categories\?spaceId=99$/u);
 });
 
-test("guards the Transaction editor during a real Space switch", async ({
+test("guards the Expense editor during a real Space switch", async ({
   page,
 }) => {
   await installFinancialFixtures(page);
 
-  await page.goto("/transactions?spaceId=1");
+  await page.goto("/expenses?spaceId=1");
   await expect(
     page.getByRole("heading", { name: "Your spending" }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Record Transaction" }).click();
-  const transactionDialog = page.getByRole("dialog", {
-    name: "Record Transaction",
+  await page.getByRole("button", { name: "Record Expense" }).click();
+  const expenseDialog = page.getByRole("dialog", {
+    name: "Record Expense",
   });
-  const description = transactionDialog.getByLabel("Description");
+  const description = expenseDialog.getByLabel("Description");
   await description.fill("Unsaved dinner");
   await description.focus();
   await switchToSharedSpace(page);
   await expect(
-    page.getByRole("dialog", { name: "Leave Transaction editor?" }),
+    page.getByRole("dialog", { name: "Leave Expense editor?" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Stay in editor" }).click();
   await expect(description).toBeFocused();
   await expect(description).toHaveValue("Unsaved dinner");
   await switchToSharedSpace(page);
-  await leaveThroughGuard(page, "Transaction");
-  await expect(page).toHaveURL(/\/transactions\?spaceId=99$/u);
+  await leaveThroughGuard(page, "Expense");
+  await expect(page).toHaveURL(/\/expenses\?spaceId=99$/u);
 });
 
-test("guards ordinary primary navigation while a Transaction editor is dirty", async ({
+test("guards ordinary primary navigation while an Expense editor is dirty", async ({
   page,
 }) => {
   await installFinancialFixtures(page);
 
-  await page.goto("/transactions?spaceId=1");
+  await page.goto("/expenses?spaceId=1");
   await expect(
     page.getByRole("heading", { name: "Your spending" }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Record Transaction" }).click();
-  const transactionDialog = page.getByRole("dialog", {
-    name: "Record Transaction",
+  await page.getByRole("button", { name: "Record Expense" }).click();
+  const expenseDialog = page.getByRole("dialog", {
+    name: "Record Expense",
   });
-  const description = transactionDialog.getByLabel("Description");
+  const description = expenseDialog.getByLabel("Description");
   await description.fill("Unsaved dinner");
   await description.focus();
 
   await page.getByRole("link", { name: "Budgets" }).first().click();
   await expect(
-    page.getByRole("dialog", { name: "Leave Transaction editor?" }),
+    page.getByRole("dialog", { name: "Leave Expense editor?" }),
   ).toBeVisible();
-  await expect(page).toHaveURL(/\/transactions(?:\?spaceId=1)?$/u);
+  await expect(page).toHaveURL(/\/expenses(?:\?spaceId=1)?$/u);
   await page.getByRole("button", { name: "Stay in editor" }).click();
   await expect(description).toBeFocused();
   await expect(description).toHaveValue("Unsaved dinner");
 
   await page.getByRole("link", { name: "Budgets" }).first().click();
-  await leaveThroughGuard(page, "Transaction");
+  await leaveThroughGuard(page, "Expense");
   await expect(page).toHaveURL(/\/categories(?:\?spaceId=1)?$/u);
 });
 

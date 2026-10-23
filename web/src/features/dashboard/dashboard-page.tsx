@@ -21,7 +21,7 @@ import { ActiveSpaceLabel, MetricCard } from "@/shared/ui";
 import { CategoryAttentionHelp } from "./category-attention-help";
 import { CategoryBreakdown } from "./category-breakdown";
 import { useDashboardQuery } from "./dashboard-queries";
-import { RecentTransactions } from "./recent-transactions";
+import { RecentExpenses } from "./recent-expenses";
 import { SpendingChart } from "./spending-chart";
 
 interface DashboardPageProps {
@@ -82,7 +82,7 @@ function DashboardPage({
   const {
     summary: dashboardSummary,
     categorySpending,
-    recentTransactions,
+    recentExpenses,
     spendingPoints,
     budgetAlerts,
   } = dashboardQuery.data;
@@ -184,9 +184,9 @@ function DashboardPage({
         </div>
         <div className="mt-3 grid grid-cols-2 gap-3 xl:grid-cols-4">
           <MetricCard
-            label="Transactions"
+            label="Expenses"
             className="min-w-0 [&_.text-metric]:text-xl md:[&_.text-metric]:text-2xl"
-            value={dashboardSummary.transactionCount.toString()}
+            value={dashboardSummary.expenseCount.toString()}
             detail={`Across ${dashboardSummary.accountCount} accounts`}
           />
           <MetricCard
@@ -245,7 +245,7 @@ function DashboardPage({
                   return (
                   <li key={alert.categoryId}>
                     <Link
-                      to={`/transactions?categoryId=${encodeURIComponent(alert.categoryId)}`}
+                      to={`/expenses?categoryId=${encodeURIComponent(alert.categoryId)}`}
                       className="focus-ledger flex min-h-14 items-center justify-between gap-3 px-4 py-3 hover:bg-muted"
                     >
                       {category ? (
@@ -300,31 +300,31 @@ function DashboardPage({
       </section>
 
       <section
-        id="recent-transactions"
+        id="recent-expenses"
         className="mt-5"
-        aria-labelledby="transactions-heading"
+        aria-labelledby="expenses-heading"
       >
         <Card variant="strong">
           <CardHeader className="flex-row items-end justify-between gap-4">
             <div>
-              <CardTitle id="transactions-heading">
-                Recent transactions
+              <CardTitle id="expenses-heading">
+                Recent expenses
               </CardTitle>
               <p className="mt-1 text-xs text-muted-foreground md:hidden">
-                {recentTransactions.length} recent transactions
+                {recentExpenses.length} recent expenses
               </p>
               <p className="mt-1 hidden text-xs text-muted-foreground md:block">
                 Latest activity across connected accounts
               </p>
             </div>
             <Button asChild variant="ghost" className="min-h-11 shrink-0">
-              <Link to="/transactions" aria-label="View all transactions">
+              <Link to="/expenses" aria-label="View all expenses">
                 View all
               </Link>
             </Button>
           </CardHeader>
-          <RecentTransactions
-            transactions={recentTransactions}
+          <RecentExpenses
+            expenses={recentExpenses}
             showAttribution={spaceId !== undefined}
           />
         </Card>

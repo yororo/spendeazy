@@ -16,7 +16,7 @@ for (const width of [390, 1440]) {
     const navigation = page.getByRole("navigation", { name: width < 768 ? "Mobile navigation" : "Primary navigation" });
     const refreshDashboard = async () => {
       await page.clock.fastForward(31_000);
-      await navigation.getByRole("link", { name: "Transactions", exact: true }).click();
+      await navigation.getByRole("link", { name: "Expenses", exact: true }).click();
       await expect(page.getByRole("heading", { name: "Your spending", exact: true })).toBeVisible();
       await navigation.getByRole("link", { name: "Dashboard", exact: true }).click();
       await expect(page.getByRole("heading", { name: "Your spending at a glance" })).toBeVisible();
@@ -37,7 +37,7 @@ for (const width of [390, 1440]) {
       const saved = await page.request.put(`${base}/categories/${category.id}/budget`, { headers, data: { amount: budget, period } });
       expect(saved.ok()).toBe(true);
       if (amount !== null) {
-        const recorded = await page.request.post(`${base}/transactions`, { headers, data: { categoryId: category.id, amount, purchaseDate, description: `Synthetic ${name}` } });
+        const recorded = await page.request.post(`${base}/expenses`, { headers, data: { categoryId: category.id, amount, purchaseDate, description: `Synthetic ${name}` } });
         expect(recorded.ok()).toBe(true);
       }
       if (period === "yearly") {
@@ -47,7 +47,7 @@ for (const width of [390, 1440]) {
         await expect(page.getByRole("region", { name: "Monthly summary" }).getByText("₱50.00", { exact: true })).toHaveCount(2);
       }
     }
-    const uncategorized = await page.request.post(`${base}/transactions`, { headers, data: { categoryId: null, amount: "25.00", purchaseDate, description: "Synthetic Uncategorized" } });
+    const uncategorized = await page.request.post(`${base}/expenses`, { headers, data: { categoryId: null, amount: "25.00", purchaseDate, description: "Synthetic Uncategorized" } });
     expect(uncategorized.ok()).toBe(true);
     await refreshDashboard();
     const summary = page.getByRole("region", { name: "Monthly summary" });

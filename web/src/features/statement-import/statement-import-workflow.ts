@@ -1,14 +1,14 @@
 import type {
   CategorizedStatement,
-  CategorizedTransaction,
+  CategorizedStatementEntry,
 } from "./statement-categorizer";
 import { ApiError } from "@/shared/api";
 import {
-  getRepeatedStatementTransactions,
+  getRepeatedStatementEntries,
   isBulkAssignableExpense,
 } from "./bulk-category-assignment";
 import {
-  categorizeTransactions,
+  categorizeStatementEntries,
   type CategoryCatalogOption,
   type CategoryColorOption,
   type CategoryRule,
@@ -24,17 +24,17 @@ import {
   type ProbableDuplicateConflict,
 } from "./statement-import-errors";
 import {
-  applyManualTransactionEdit,
+  applyManualStatementEntryEdit,
   cleanDescription,
   getCategoryLabel,
-  isIncludedStatementTransaction,
+  isIncludedStatementEntry,
   normalizeDescription,
   toDateInputValue,
 } from "./statement-import-utils";
 
 type ImportStage = "upload" | "categorize" | "review";
 
-interface TransactionDraft {
+interface ExpenseDraft {
   readonly date: string;
   readonly description: string;
   readonly amount: string;
@@ -43,7 +43,7 @@ interface TransactionDraft {
 
 interface CategorizeEditorState {
   readonly editingId: string | null;
-  readonly draft: TransactionDraft | null;
+  readonly draft: ExpenseDraft | null;
   readonly draftError: string | null;
   readonly rememberRule: boolean;
   readonly rememberedMatchType: CategoryRule["matchType"];
@@ -132,15 +132,15 @@ function isValidDate(value: string) {
   );
 }
 
-function validateDraft(draft: TransactionDraft) {
+function validateDraft(draft: ExpenseDraft) {
   if (!draft.description.trim()) return "Description is required.";
-  if (!isValidDate(draft.date)) return "Choose a valid transaction date.";
+  if (!isValidDate(draft.date)) return "Choose a valid expense date.";
 
   const amount = Number(draft.amount);
   if (!Number.isFinite(amount) || amount === 0) {
     return "Amount must be a non-zero number.";
   }
-  if (!draft.category) return "Choose a Category for this Transaction.";
+  if (!draft.category) return "Choose a Category for this Expense.";
 
   return null;
 }
@@ -160,15 +160,15 @@ function canEnterReview(
 ) {
   if (!statement || editor.editingId !== null || editor.isSaving) return false;
 
-  return !hasUnmappedTransactions(statement);
+  return !hasUnmappedExpenses(statement);
 }
 
-function hasUnmappedTransactions(statement: CategorizedStatement | null) {
+function hasUnmappedExpenses(statement: CategorizedStatement | null) {
   return Boolean(
-    statement?.transactions.some(
-      (transaction) =>
-        isIncludedStatementTransaction(transaction) &&
-        transaction.categoryId === null,
+    statement?.entries.some(
+      (expense) =>
+        isIncludedStatementEntry(expense) &&
+        expense.categoryId === null,
     ),
   );
 }
@@ -188,7 +188,7 @@ function getCommitState(
   const hasFileDuplicate =
     commit.error instanceof ApiError &&
     commit.error.code === "STATEMENT_IMPORT_FILE_ALREADY_EXISTS";
-  const hasUnmapped = hasUnmappedTransactions(statement);
+  const hasUnmapped = hasUnmappedExpenses(statement);
   const hasImportContext = Boolean(importedFile && statement);
 
   return {
@@ -226,7 +226,7 @@ function toCommitError(error: unknown) {
 function cloneStatement(statement: CategorizedStatement): CategorizedStatement {
   return {
     ...statement,
-    transactions: [...statement.transactions],
+    entries: [...statement.entries],
   };
 }
 
@@ -442,7 +442,7 @@ class StatementImportWorkflow {
     }
   }
 
-  beginEdit(transactionId: string) {
+  beginEdit(expenseId: string) {
     if (
       this.destroyed ||
       this.state.stage !== "categorize" ||
@@ -452,27 +452,27 @@ class StatementImportWorkflow {
       return false;
     }
 
-    const transaction = this.state.statement?.transactions.find(
-      (candidate) => candidate.id === transactionId,
+    const expense = this.state.statement?.entries.find(
+      (candidate) => candidate.id === expenseId,
     );
-    if (!transaction || transaction.isExcluded) return false;
+    if (!expense || expense.isExcluded) return false;
 
     this.editLifetime = Symbol("categorize-edit");
     this.hasCustomizedRememberedPattern = false;
     this.updateState((current) => ({
       ...current,
       editor: {
-        editingId: transaction.id,
+        editingId: expense.id,
         draft: {
-          date: toDateInputValue(transaction.transactionDate),
-          description: transaction.description,
-          amount: String(transaction.amount),
-          category: transaction.categoryId ?? "",
+          date: toDateInputValue(expense.entryDate),
+          description: expense.description,
+          amount: String(expense.amount),
+          category: expense.categoryId ?? "",
         },
         draftError: null,
         rememberRule: false,
         rememberedMatchType: "exact",
-        rememberedPattern: cleanDescription(transaction.description),
+        rememberedPattern: cleanDescription(expense.description),
         isSaving: false,
       },
     }));
@@ -492,7 +492,7 @@ class StatementImportWorkflow {
     return true;
   }
 
-  changeDraft(draft: TransactionDraft) {
+  changeDraft(draft: ExpenseDraft) {
     if (this.destroyed || this.state.editor.isSaving || !this.state.editor.draft) {
       return false;
     }
@@ -611,7 +611,7 @@ class StatementImportWorkflow {
 
     const selectedCategory = draft.category;
     const updatedFields = {
-      transactionDate: new Date(`${draft.date}T00:00:00Z`),
+      entryDate: new Date(`${draft.date}T00:00:00Z`),
       description: cleanDescription(draft.description),
       amount: Number(draft.amount),
     };
@@ -709,8 +709,8 @@ class StatementImportWorkflow {
     const currentStatement = this.state.statement;
     if (!currentStatement) return "abandoned";
 
-    const transactions = this.applyEdit(
-      currentStatement.transactions,
+    const expenses = this.applyEdit(
+      currentStatement.entries,
       editingId,
       updatedFields,
       selectedCategory,
@@ -720,7 +720,7 @@ class StatementImportWorkflow {
     this.invalidateEdit();
     this.updateState((current) => ({
       ...current,
-      statement: { ...currentStatement, transactions },
+      statement: { ...currentStatement, entries: expenses },
       categoryRules: nextCategoryRules,
       editor: emptyEditor(),
     }));
@@ -740,16 +740,16 @@ class StatementImportWorkflow {
     if (!this.dependencies.getCategoryOptions().some(
       (category) => category.value === categoryId,
     )) return false;
-    const source = statement.transactions.find(
-      (transaction) => transaction.id === sourceId,
+    const source = statement.entries.find(
+      (expense) => expense.id === sourceId,
     );
     if (!source || !isBulkAssignableExpense(source)) return false;
     const selected = new Set(selectedIds);
     if (selected.size === 0) return false;
     const eligibleIds = new Set(
-      getRepeatedStatementTransactions(statement.transactions, source)
+      getRepeatedStatementEntries(statement.entries, source)
         .filter(isBulkAssignableExpense)
-        .map((transaction) => transaction.id),
+        .map((expense) => expense.id),
     );
     if ([...selected].some((id) => !eligibleIds.has(id))) return false;
 
@@ -757,26 +757,26 @@ class StatementImportWorkflow {
       ...current,
       statement: {
         ...statement,
-        transactions: statement.transactions.map((transaction) =>
-          selected.has(transaction.id)
-            ? { ...transaction, categoryId, assignment: "manual", matchedCategoryIds: [] }
-            : transaction,
+        entries: statement.entries.map((expense) =>
+          selected.has(expense.id)
+            ? { ...expense, categoryId, assignment: "manual", matchedCategoryIds: [] }
+            : expense,
         ),
       },
     }));
     return true;
   }
 
-  toggleTransactionExclusion(transactionId: string) {
+  toggleExpenseExclusion(expenseId: string) {
     if (this.destroyed || this.state.editor.isSaving) return false;
 
-    const transaction = this.state.statement?.transactions.find(
-      (candidate) => candidate.id === transactionId,
+    const expense = this.state.statement?.entries.find(
+      (candidate) => candidate.id === expenseId,
     );
     if (
       this.state.stage !== "categorize" ||
-      !transaction ||
-      transaction.amount > 0
+      !expense ||
+      expense.amount > 0
     ) {
       return false;
     }
@@ -786,8 +786,8 @@ class StatementImportWorkflow {
       statement: current.statement
         ? {
             ...current.statement,
-            transactions: current.statement.transactions.map((candidate) =>
-              candidate.id === transactionId
+            entries: current.statement.entries.map((candidate) =>
+              candidate.id === expenseId
                 ? { ...candidate, isExcluded: !candidate.isExcluded }
                 : candidate,
             ),
@@ -830,20 +830,20 @@ class StatementImportWorkflow {
   }
 
   private applyEdit(
-    transactions: readonly CategorizedTransaction[],
-    transactionId: string,
+    entries: readonly CategorizedStatementEntry[],
+    expenseId: string,
     updatedFields: {
-      readonly transactionDate: Date;
+      readonly entryDate: Date;
       readonly description: string;
       readonly amount: number;
     },
     categoryId: string,
     categoryRules?: readonly CategoryRule[],
   ) {
-    const manuallyUpdatedTransactions = applyManualTransactionEdit(
-      transactions,
+    const manuallyUpdatedExpenses = applyManualStatementEntryEdit(
+      entries,
       {
-        transactionId,
+        expenseId,
         ...updatedFields,
         categoryId,
       },
@@ -857,30 +857,30 @@ class StatementImportWorkflow {
         )
       : undefined;
 
-    return manuallyUpdatedTransactions.map((transaction) => {
-      if (transaction.id === transactionId) {
-        return { ...transaction, matchedCategoryIds: [] };
+    return manuallyUpdatedExpenses.map((expense) => {
+      if (expense.id === expenseId) {
+        return { ...expense, matchedCategoryIds: [] };
       }
 
       if (
         !categoryRules ||
-        transaction.isExcluded ||
-        transaction.assignment !== "unmapped"
+        expense.isExcluded ||
+        expense.assignment !== "unmapped"
       ) {
-        return transaction;
+        return expense;
       }
 
-      const categorization = categorizeTransactions(
-        [transaction],
+      const categorization = categorizeStatementEntries(
+        [expense],
         categoryRules,
         activeCategoryIds,
       )[0];
       if (!categorization || categorization.assignment === "unmapped") {
-        return transaction;
+        return expense;
       }
 
       return {
-        ...transaction,
+        ...expense,
         categoryId: categorization.categoryId,
         assignment: categorization.assignment,
         matchedCategoryIds: categorization.matchedCategoryIds ?? [],
@@ -974,5 +974,5 @@ export type {
   StatementImportWorkflow,
   StatementImportWorkflowDependencies,
   StatementImportWorkflowState,
-  TransactionDraft,
+  ExpenseDraft,
 };

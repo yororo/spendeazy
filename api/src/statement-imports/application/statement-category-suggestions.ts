@@ -62,7 +62,7 @@ export interface CategorySuggestionCatalogStore {
 
 export interface CategorySuggestionEvaluator {
   suggestCategory(
-    transactionDescription: string,
+    expenseDescription: string,
     categories: readonly CategorySuggestionCandidate[],
     examples: readonly CategorySuggestionExample[],
   ): Promise<CategorySuggestionDistribution | null>;

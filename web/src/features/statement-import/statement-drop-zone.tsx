@@ -212,7 +212,7 @@ function StatementDropZone({
             </div>
           ) : (
             <p className="text-muted-foreground">
-              PDF processed locally. Reviewed statement details and Transactions
+              PDF processed locally. Reviewed statement details and Expenses
               are saved when you import.
             </p>
           )}
@@ -250,7 +250,7 @@ function StatementDropZone({
                 </h3>
                 <DialogDescription className="text-foreground/80">
                   Enter the document password to open this statement and
-                  continue importing Transactions.
+                  continue importing Expenses.
                 </DialogDescription>
               </div>
 
@@ -356,7 +356,7 @@ function StatementDropZone({
               <DialogDescription className="text-foreground/80">
                 Enter your GCash mobile number to automatically mark transfers
                 to you as Debit and exclude them from this import. If you skip,
-                search for your number in the transactions and manually exclude
+                search for your number in the expenses and manually exclude
                 transfers to you.
               </DialogDescription>
 

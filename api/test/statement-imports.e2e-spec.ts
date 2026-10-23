@@ -28,19 +28,19 @@ import {
   SpaceNotWritableError,
 } from '../src/spaces/application/space-errors';
 import type {
-  ImportedTransactionRecord,
-  NewImportedTransaction,
-  SpaceImportedTransactionStore,
-} from '../src/transactions/application/imported-transaction-store';
+  ImportedExpenseRecord,
+  NewImportedExpense,
+  SpaceImportedExpenseStore,
+} from '../src/expenses/application/imported-expense-store';
 import type {
-  TransactionCategoryRecord,
-  TransactionCategoryStore,
-} from '../src/transactions/application/transaction-category-store';
+  ExpenseCategoryRecord,
+  ExpenseCategoryStore,
+} from '../src/expenses/application/expense-category-store';
 import type {
-  NewTransactionActivity,
-  TransactionActivityRecord,
-  TransactionActivityStore,
-} from '../src/transactions/application/transaction-activity-store';
+  NewExpenseActivity,
+  ExpenseActivityRecord,
+  ExpenseActivityStore,
+} from '../src/expenses/application/expense-activity-store';
 import {
   USER_STORE,
   type NewUser,
@@ -173,9 +173,7 @@ describe('authenticated statement-import routes', () => {
       .set('Accept', 'application/json')
       .send({
         ...statementImportInput(),
-        transactions: [
-          { ...statementImportInput().transactions[0], userId: '8' },
-        ],
+        expenses: [{ ...statementImportInput().expenses[0], userId: '8' }],
       });
 
     expect(listResponse.status).toBe(400);
@@ -433,7 +431,7 @@ describe('statement-import ownership through authenticated routes', () => {
 
   it('scopes exact-file and probable-duplicate checks to the authenticated User', async () => {
     const input = statementImportInput();
-    const fingerprint = computeImportFingerprint(input, input.transactions[0]);
+    const fingerprint = computeImportFingerprint(input, input.expenses[0]);
     fixture.statementImports.seed(
       statementImportRecord({
         id: '500',
@@ -441,8 +439,8 @@ describe('statement-import ownership through authenticated routes', () => {
         fileHash: 'b'.repeat(64),
       }),
     );
-    fixture.importedTransactions.seed(
-      importedTransactionRecord({
+    fixture.importedExpenses.seed(
+      importedExpenseRecord({
         id: '700',
         spaceId: '99',
         statementImportId: '500',
@@ -480,26 +478,26 @@ describe('statement-import ownership through authenticated routes', () => {
       spaceId: '42',
       importedByUserId: '42',
     });
-    expect(fixture.importedTransactions.createdInputs).toHaveLength(1);
-    expect(fixture.importedTransactions.createdInputs[0]).toMatchObject({
+    expect(fixture.importedExpenses.createdInputs).toHaveLength(1);
+    expect(fixture.importedExpenses.createdInputs[0]).toMatchObject({
       spaceId: '42',
       addedByUserId: '42',
     });
     expect(
-      typeof fixture.importedTransactions.createdInputs[0]?.statementImportId,
+      typeof fixture.importedExpenses.createdInputs[0]?.statementImportId,
     ).toBe('string');
-    expect(fixture.transactionActivities.createdInputs).toHaveLength(1);
-    expect(fixture.transactionActivities.createdInputs[0]).toMatchObject({
+    expect(fixture.expenseActivities.createdInputs).toHaveLength(1);
+    expect(fixture.expenseActivities.createdInputs[0]).toMatchObject({
       spaceId: '42',
       actorUserId: '42',
       type: 'created',
     });
-    expect(
-      typeof fixture.transactionActivities.createdInputs[0]?.transactionId,
-    ).toBe('string');
+    expect(typeof fixture.expenseActivities.createdInputs[0]?.expenseId).toBe(
+      'string',
+    );
   });
 
-  it('requires categories to belong to the authenticated User and commits transactions in that scope', async () => {
+  it('requires categories to belong to the authenticated User and commits expenses in that scope', async () => {
     fixture.categories.seed({
       id: '42',
       spaceId: '42',
@@ -513,9 +511,9 @@ describe('statement-import ownership through authenticated routes', () => {
       .send({
         ...statementImportInput(),
         fileHash: 'd'.repeat(64),
-        transactions: [
+        expenses: [
           {
-            ...statementImportInput().transactions[0],
+            ...statementImportInput().expenses[0],
             categoryId: '42',
           },
         ],
@@ -527,9 +525,9 @@ describe('statement-import ownership through authenticated routes', () => {
       .send({
         ...statementImportInput(),
         fileHash: 'e'.repeat(64),
-        transactions: [
+        expenses: [
           {
-            ...statementImportInput().transactions[0],
+            ...statementImportInput().expenses[0],
             categoryId: '43',
           },
         ],
@@ -541,9 +539,9 @@ describe('statement-import ownership through authenticated routes', () => {
       .send({
         ...statementImportInput(),
         fileHash: 'f'.repeat(64),
-        transactions: [
+        expenses: [
           {
-            ...statementImportInput().transactions[0],
+            ...statementImportInput().expenses[0],
             categoryId: '42',
           },
         ],
@@ -559,21 +557,21 @@ describe('statement-import ownership through authenticated routes', () => {
       spaceId: '42',
       importedByUserId: '42',
     });
-    expect(fixture.importedTransactions.createdInputs).toHaveLength(1);
-    expect(fixture.importedTransactions.createdInputs[0]).toMatchObject({
+    expect(fixture.importedExpenses.createdInputs).toHaveLength(1);
+    expect(fixture.importedExpenses.createdInputs[0]).toMatchObject({
       spaceId: '42',
       addedByUserId: '42',
       categoryId: '42',
     });
-    expect(fixture.transactionActivities.createdInputs).toHaveLength(1);
-    expect(fixture.transactionActivities.createdInputs[0]).toMatchObject({
+    expect(fixture.expenseActivities.createdInputs).toHaveLength(1);
+    expect(fixture.expenseActivities.createdInputs[0]).toMatchObject({
       spaceId: '42',
       actorUserId: '42',
       type: 'created',
     });
-    expect(
-      typeof fixture.transactionActivities.createdInputs[0]?.transactionId,
-    ).toBe('string');
+    expect(typeof fixture.expenseActivities.createdInputs[0]?.expenseId).toBe(
+      'string',
+    );
   });
 });
 
@@ -960,15 +958,15 @@ class ProvisionedTestUserStore implements UserStore {
 
 class StatementImportHttpFixture implements StatementImportConfirmationUnitOfWork {
   readonly statementImports = new HttpStatementImportStore();
-  readonly importedTransactions = new HttpImportedTransactionStore();
-  readonly transactionActivities = new HttpTransactionActivityStore();
+  readonly importedExpenses = new HttpImportedExpenseStore();
+  readonly expenseActivities = new HttpExpenseActivityStore();
   readonly categories = new HttpCategoryStore();
   private readonly context: StatementImportConfirmationContext = {
     users: new ProvisionedTestUserStore(),
     categories: this.categories,
     statementImports: this.statementImports,
-    importedTransactions: this.importedTransactions,
-    transactionActivities: this.transactionActivities,
+    importedExpenses: this.importedExpenses,
+    expenseActivities: this.expenseActivities,
     spaces: { lockForStatementImport: () => Promise.resolve() },
   };
 
@@ -1052,23 +1050,23 @@ class HttpStatementImportStore implements StatementImportStore {
   }
 }
 
-class HttpImportedTransactionStore implements SpaceImportedTransactionStore {
-  readonly createdInputs: NewImportedTransaction[] = [];
-  private readonly transactions: ImportedTransactionRecord[] = [];
+class HttpImportedExpenseStore implements SpaceImportedExpenseStore {
+  readonly createdInputs: NewImportedExpense[] = [];
+  private readonly expenses: ImportedExpenseRecord[] = [];
 
-  seed(...records: ImportedTransactionRecord[]): void {
-    this.transactions.push(...records);
+  seed(...records: ImportedExpenseRecord[]): void {
+    this.expenses.push(...records);
   }
 
   findByFingerprintInSpace(
     spaceId: string,
     fingerprint: string,
-  ): Promise<ImportedTransactionRecord[]> {
+  ): Promise<ImportedExpenseRecord[]> {
     return Promise.resolve(
-      this.transactions.filter(
-        (transaction) =>
-          transaction.spaceId === spaceId &&
-          transaction.importFingerprint === fingerprint,
+      this.expenses.filter(
+        (expense) =>
+          expense.spaceId === spaceId &&
+          expense.importFingerprint === fingerprint,
       ),
     );
   }
@@ -1076,64 +1074,63 @@ class HttpImportedTransactionStore implements SpaceImportedTransactionStore {
   findByReferenceHashInSpace(
     spaceId: string,
     referenceHash: string,
-  ): Promise<ImportedTransactionRecord[]> {
+  ): Promise<ImportedExpenseRecord[]> {
     return Promise.resolve(
-      this.transactions.filter(
-        (transaction) =>
-          transaction.spaceId === spaceId &&
-          transaction.referenceHash === referenceHash,
+      this.expenses.filter(
+        (expense) =>
+          expense.spaceId === spaceId &&
+          expense.referenceHash === referenceHash,
       ),
     );
   }
 
-  create(input: NewImportedTransaction): Promise<ImportedTransactionRecord> {
+  create(input: NewImportedExpense): Promise<ImportedExpenseRecord> {
     this.createdInputs.push(input);
-    const record = importedTransactionRecord({
+    const record = importedExpenseRecord({
       ...input,
-      id: String(this.transactions.length + 1),
+      id: String(this.expenses.length + 1),
     });
-    this.transactions.push(record);
+    this.expenses.push(record);
     return Promise.resolve(record);
   }
 
   findByIdInSpace(
     spaceId: string,
     id: string,
-  ): Promise<ImportedTransactionRecord | null> {
+  ): Promise<ImportedExpenseRecord | null> {
     return Promise.resolve(
-      this.transactions.find(
-        (transaction) =>
-          transaction.spaceId === spaceId && transaction.id === id,
+      this.expenses.find(
+        (expense) => expense.spaceId === spaceId && expense.id === id,
       ) ?? null,
     );
   }
 
-  updateCategoryInSpace(): Promise<ImportedTransactionRecord | null> {
+  updateCategoryInSpace(): Promise<ImportedExpenseRecord | null> {
     return Promise.resolve(null);
   }
 }
 
-class HttpTransactionActivityStore implements TransactionActivityStore {
-  readonly createdInputs: NewTransactionActivity[] = [];
+class HttpExpenseActivityStore implements ExpenseActivityStore {
+  readonly createdInputs: NewExpenseActivity[] = [];
   private nextId = 1;
 
-  create(input: NewTransactionActivity): Promise<TransactionActivityRecord> {
+  create(input: NewExpenseActivity): Promise<ExpenseActivityRecord> {
     this.createdInputs.push(input);
     return Promise.resolve({ ...input, id: String(this.nextId++) });
   }
 }
 
-class HttpCategoryStore implements TransactionCategoryStore {
-  private readonly categories: TransactionCategoryRecord[] = [];
+class HttpCategoryStore implements ExpenseCategoryStore {
+  private readonly categories: ExpenseCategoryRecord[] = [];
 
-  seed(...categories: TransactionCategoryRecord[]): void {
+  seed(...categories: ExpenseCategoryRecord[]): void {
     this.categories.push(...categories);
   }
 
   findBySpaceId(
     spaceId: string,
     id: string,
-  ): Promise<TransactionCategoryRecord | null> {
+  ): Promise<ExpenseCategoryRecord | null> {
     return Promise.resolve(
       this.categories.find(
         (category) => category.spaceId === spaceId && category.id === id,
@@ -1177,7 +1174,7 @@ function statementImportInput() {
     statementType: 'credit_card',
     bank: 'Example Bank',
     cardType: 'visa',
-    transactions: [
+    expenses: [
       {
         categoryId: null,
         purchaseDate: '2026-08-01',
@@ -1224,14 +1221,14 @@ function statementImportHistoryRecord(
     transactionHistoryStartDate: null,
     totalDebit: null,
     importedAt: new Date('2026-08-29T00:00:00.000Z'),
-    transactionCount: '1',
+    expenseCount: '1',
     ...overrides,
   };
 }
 
-function importedTransactionRecord(
-  overrides: Partial<ImportedTransactionRecord> = {},
-): ImportedTransactionRecord {
+function importedExpenseRecord(
+  overrides: Partial<ImportedExpenseRecord> = {},
+): ImportedExpenseRecord {
   return {
     id: '700',
     spaceId: '99',
@@ -1265,7 +1262,7 @@ function toHistoryRecord(
     transactionHistoryStartDate: statementImport.transactionHistoryStartDate,
     totalDebit: statementImport.totalDebit,
     importedAt: statementImport.importedAt,
-    transactionCount: '0',
+    expenseCount: '0',
   };
 }
 

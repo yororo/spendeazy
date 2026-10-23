@@ -17,7 +17,7 @@
         {
           "type": "text",
           "id": "s80title",
-          "content": "Edit Transaction",
+          "content": "Edit Expense",
           "fontFamily": "Geist Mono",
           "fontSize": 20,
           "fill": "#000000"
@@ -104,7 +104,7 @@
         {
           "type": "text",
           "id": "s80fulltitle",
-          "content": "Edit Transaction",
+          "content": "Edit Expense",
           "fontFamily": "Geist Mono",
           "fontSize": 20,
           "fill": "#000000"
@@ -207,7 +207,7 @@
         {
           "type": "text",
           "id": "s80review",
-          "content": "Review 3 Transactions",
+          "content": "Review 3 Expenses",
           "fontFamily": "Geist Mono",
           "fontSize": 14,
           "fill": "#000000"
@@ -458,7 +458,7 @@
         {
           "type": "text",
           "id": "s82text14",
-          "content": "Discard draft Transactions · saved Rules remain",
+          "content": "Discard draft Expenses · saved Rules remain",
           "fontFamily": "Geist",
           "fontSize": 14,
           "fill": "#000000",

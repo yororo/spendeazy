@@ -13,7 +13,7 @@ import type {
 } from "./statement-import-service";
 import type {
   CategorizedStatement,
-  CategorizedTransaction,
+  CategorizedStatementEntry,
 } from "./statement-categorizer";
 import { createStatementImportWorkflow } from "./statement-import-workflow";
 
@@ -24,14 +24,14 @@ const summary: CategorizedStatement["summary"] = {
   accountType: "AMEX",
   transactionHistoryStartDate: null,
   totalDebit: null,
-  totalTransactions: 1,
+  entryCount: 1,
   totalAmountDue: 25.5,
   totalExtractedAmount: -25.5,
 };
 
-const transaction: CategorizedTransaction = {
-  id: "transaction-1",
-  transactionDate: new Date("2026-08-29T00:00:00.000Z"),
+const expense: CategorizedStatementEntry = {
+  id: "expense-1",
+  entryDate: new Date("2026-08-29T00:00:00.000Z"),
   postingDate: new Date("2026-08-30T00:00:00.000Z"),
   description: "Green Market Cafe",
   amount: -25.5,
@@ -65,7 +65,7 @@ const committedImport: CommittedStatementImport = {
   transactionHistoryStartDate: null,
   totalDebit: null,
   importedAt: "2026-09-01T00:00:00.000Z",
-  transactionCount: 1,
+  expenseCount: 1,
   importedByUserId: "10",
 };
 
@@ -101,11 +101,11 @@ function createWorkflow(
 
 function acceptStatement(
   workflow: ReturnType<typeof createStatementImportWorkflow>,
-  transactions: readonly CategorizedTransaction[] = [transaction],
+  entries: readonly CategorizedStatementEntry[] = [expense],
 ) {
   workflow.acceptPreparedStatement(
     new File(["statement"], "statement.pdf", { type: "application/pdf" }),
-    { summary, transactions: [...transactions] },
+    { summary, entries: [...entries] },
     categoryRules,
   );
   workflow.beginCategorizeSession(categoryRules);
@@ -130,10 +130,10 @@ function createDeferred<T>() {
   };
 }
 
-function withTransaction(
-  overrides: Partial<CategorizedTransaction>,
-): CategorizedTransaction {
-  return { ...transaction, ...overrides };
+function withExpense(
+  overrides: Partial<CategorizedStatementEntry>,
+): CategorizedStatementEntry {
+  return { ...expense, ...overrides };
 }
 
 it("bulk assigns only explicitly selected matching included expenses through Review and commit", async () => {
@@ -141,21 +141,21 @@ it("bulk assigns only explicitly selected matching included expenses through Rev
   const commit = vi.fn<CommitStatementImport>(async () => committedImport);
   const workflow = createWorkflow(remember, commit);
   acceptStatement(workflow, [
-    transaction,
-    withTransaction({ id: "repeat", description: "  GREEN   market cafe " }),
-    withTransaction({ id: "reviewed", categoryId: "43", assignment: "manual" }),
-    withTransaction({ id: "excluded", isExcluded: true }),
-    withTransaction({ id: "punctuation", description: "Green Market Cafe!", categoryId: "43", assignment: "rule" }),
-    withTransaction({ id: "credit", amount: 25.5, isExcluded: true }),
+    expense,
+    withExpense({ id: "repeat", description: "  GREEN   market cafe " }),
+    withExpense({ id: "reviewed", categoryId: "43", assignment: "manual" }),
+    withExpense({ id: "excluded", isExcluded: true }),
+    withExpense({ id: "punctuation", description: "Green Market Cafe!", categoryId: "43", assignment: "rule" }),
+    withExpense({ id: "credit", amount: 25.5, isExcluded: true }),
   ]);
-  expect(workflow.applyBulkCategory("transaction-1", [], "42")).toBe(false);
-  expect(workflow.applyBulkCategory("transaction-1", ["excluded"], "42")).toBe(false);
-  expect(workflow.applyBulkCategory("transaction-1", ["punctuation"], "42")).toBe(false);
-  expect(workflow.applyBulkCategory("transaction-1", ["transaction-1"], "42")).toBe(true);
-  expect(workflow.getSnapshot().statement?.transactions[1].categoryId).toBeNull();
-  expect(workflow.getSnapshot().statement?.transactions[2].categoryId).toBe("43");
+  expect(workflow.applyBulkCategory("expense-1", [], "42")).toBe(false);
+  expect(workflow.applyBulkCategory("expense-1", ["excluded"], "42")).toBe(false);
+  expect(workflow.applyBulkCategory("expense-1", ["punctuation"], "42")).toBe(false);
+  expect(workflow.applyBulkCategory("expense-1", ["expense-1"], "42")).toBe(true);
+  expect(workflow.getSnapshot().statement?.entries[1].categoryId).toBeNull();
+  expect(workflow.getSnapshot().statement?.entries[2].categoryId).toBe("43");
   expect(workflow.applyBulkCategory("repeat", ["repeat", "reviewed"], "42")).toBe(true);
-  expect(workflow.getSnapshot().statement?.transactions.map(({ categoryId, assignment, isExcluded }) =>
+  expect(workflow.getSnapshot().statement?.entries.map(({ categoryId, assignment, isExcluded }) =>
     [categoryId, assignment, isExcluded],
   )).toEqual([
     ["42", "manual", false], ["42", "manual", false], ["42", "manual", false],
@@ -170,19 +170,19 @@ it("bulk assigns only explicitly selected matching included expenses through Rev
 
 function acceptReviewableStatement(
   workflow: ReturnType<typeof createStatementImportWorkflow>,
-  transactions: readonly CategorizedTransaction[] = [
-    withTransaction({
+  entries: readonly CategorizedStatementEntry[] = [
+    withExpense({
       categoryId: "42",
       assignment: "manual",
     }),
   ],
 ) {
-  acceptStatement(workflow, transactions);
+  acceptStatement(workflow, entries);
   expect(workflow.enterReview()).toBe(true);
 }
 
 function createProbableDuplicateError() {
-  return new ApiError("Probable duplicate Transactions found.", {
+  return new ApiError("Probable duplicate Expenses found.", {
     kind: "http",
     status: 409,
     code: "STATEMENT_IMPORT_PROBABLE_DUPLICATES",
@@ -190,9 +190,9 @@ function createProbableDuplicateError() {
       {
         field: "description",
         code: "probable_duplicate",
-        message: "Description matched an existing Transaction.",
-        transactionIndexes: [0],
-        committedTransactionIds: ["existing-transaction"],
+        message: "Description matched an existing Expense.",
+        expenseIndexes: [0],
+        committedExpenseIds: ["existing-expense"],
       },
     ],
   });
@@ -213,11 +213,11 @@ function createCategoryEligibilityError() {
     code: 'CATEGORY_INACTIVE',
     details: [
       {
-        field: '/transactions/0/categoryId',
+        field: '/expenses/0/categoryId',
         code: 'category_inactive',
-        message: 'The reviewed transaction uses an inactive Category',
+        message: 'The reviewed expense uses an inactive Category',
         categoryId: '42',
-        transactionIndexes: [0],
+        expenseIndexes: [0],
       },
     ],
   });
@@ -232,12 +232,12 @@ describe("Statement Import workflow", () => {
       stage: "categorize",
       importedFile: expect.objectContaining({ name: "statement.pdf" }),
       statement: expect.objectContaining({
-        transactions: [transaction],
+        entries: [expense],
       }),
       canEnterReview: false,
     });
 
-    expect(workflow.beginEdit("transaction-1")).toBe(true);
+    expect(workflow.beginEdit("expense-1")).toBe(true);
     workflow.changeDraft({
       date: "2026-08-28",
       description: "  Cafe lunch  ",
@@ -255,10 +255,10 @@ describe("Statement Import workflow", () => {
       },
       canEnterReview: true,
       statement: {
-        transactions: [
+        entries: [
           expect.objectContaining({
-            id: "transaction-1",
-            transactionDate: new Date("2026-08-28T00:00:00.000Z"),
+            id: "expense-1",
+            entryDate: new Date("2026-08-28T00:00:00.000Z"),
             description: "Cafe lunch",
             amount: 31.25,
             categoryId: "42",
@@ -275,7 +275,7 @@ describe("Statement Import workflow", () => {
   });
 
   it.each(["contains", "exact"] as const)(
-    "remembers a %s Rule without rewriting repeated, manual, or excluded Transactions",
+    "remembers a %s Rule without rewriting repeated, manual, or excluded Expenses",
     async (matchType) => {
       const rememberCategoryRule = vi.fn(
         async (input: RememberCategoryRuleInput) => ({
@@ -289,56 +289,56 @@ describe("Statement Import workflow", () => {
         }),
       );
       const workflow = createWorkflow(rememberCategoryRule);
-      const priorTransaction = withTransaction({
-        id: "transaction-3",
+      const priorExpense = withExpense({
+        id: "expense-3",
         description: "Cafe manual choice",
       });
-      const repeatedTransaction = withTransaction({
-        id: "transaction-2",
+      const repeatedExpense = withExpense({
+        id: "expense-2",
         description: " green   market   cafe ",
         assignment: "ambiguous",
         matchedCategoryIds: ["42", "43"],
       });
-      const excludedTransaction = withTransaction({
-        id: "transaction-4",
+      const excludedExpense = withExpense({
+        id: "expense-4",
         description: "Green Market Cafe",
         amount: 5,
         assignment: "ambiguous",
         matchedCategoryIds: ["42", "43"],
         isExcluded: true,
       });
-      const unmappedTransaction = withTransaction({
-        id: "transaction-5",
+      const unmappedExpense = withExpense({
+        id: "expense-5",
         description: "Lunch",
       });
       acceptStatement(workflow, [
-        transaction,
-        repeatedTransaction,
-        priorTransaction,
-        excludedTransaction,
-        unmappedTransaction,
+        expense,
+        repeatedExpense,
+        priorExpense,
+        excludedExpense,
+        unmappedExpense,
       ]);
 
       // Establish the prior assignment through the same interface as the next save.
-      expect(workflow.beginEdit(priorTransaction.id)).toBe(true);
+      expect(workflow.beginEdit(priorExpense.id)).toBe(true);
       workflow.changeDraft({
         date: "2026-08-29",
-        description: priorTransaction.description,
+        description: priorExpense.description,
         amount: "-25.50",
         category: "43",
       });
       await expect(workflow.saveEdit()).resolves.toBe("saved");
-      const manualTransaction = {
-        ...priorTransaction,
+      const manualExpense = {
+        ...priorExpense,
         categoryId: "43",
         assignment: "manual",
       };
-      expect(workflow.getSnapshot().statement?.transactions[2]).toEqual(
-        manualTransaction,
+      expect(workflow.getSnapshot().statement?.entries[2]).toEqual(
+        manualExpense,
       );
       expect(rememberCategoryRule).not.toHaveBeenCalled();
 
-      expect(workflow.beginEdit("transaction-1")).toBe(true);
+      expect(workflow.beginEdit("expense-1")).toBe(true);
       workflow.changeDraft({
         date: "2026-08-29",
         description: "Green Market Cafe",
@@ -362,18 +362,18 @@ describe("Statement Import workflow", () => {
         pattern,
         matchType,
       });
-      expect(workflow.getSnapshot().statement?.transactions).toEqual([
+      expect(workflow.getSnapshot().statement?.entries).toEqual([
         expect.objectContaining({
-          id: "transaction-1",
+          id: "expense-1",
           assignment: "manual",
           categoryId: "42",
           matchedCategoryIds: [],
           isExcluded: false,
         }),
-        repeatedTransaction,
-        manualTransaction,
-        excludedTransaction,
-        unmappedTransaction,
+        repeatedExpense,
+        manualExpense,
+        excludedExpense,
+        unmappedExpense,
       ]);
       expect(rememberCategoryRule).toHaveBeenCalledOnce();
       expect(workflow.getSnapshot().canEnterReview).toBe(false);
@@ -381,7 +381,7 @@ describe("Statement Import workflow", () => {
     },
   );
 
-  it("reapplies a remembered Contains Rule to the remaining Unmapped Transactions", async () => {
+  it("reapplies a remembered Contains Rule to the remaining Unmapped Expenses", async () => {
     const rememberCategoryRule = vi.fn(
       async (input: RememberCategoryRuleInput) => ({
         status: "created" as const,
@@ -394,20 +394,20 @@ describe("Statement Import workflow", () => {
       }),
     );
     const workflow = createWorkflow(rememberCategoryRule);
-    const firstTransaction = withTransaction({
-      id: "transaction-1",
+    const firstExpense = withExpense({
+      id: "expense-1",
       description: "ABC XYZ",
     });
-    const remainingTransaction = withTransaction({
-      id: "transaction-2",
+    const remainingExpense = withExpense({
+      id: "expense-2",
       description: "ABC FOO",
     });
-    acceptStatement(workflow, [firstTransaction, remainingTransaction]);
+    acceptStatement(workflow, [firstExpense, remainingExpense]);
 
-    expect(workflow.beginEdit(firstTransaction.id)).toBe(true);
+    expect(workflow.beginEdit(firstExpense.id)).toBe(true);
     workflow.changeDraft({
       date: "2026-08-29",
-      description: firstTransaction.description,
+      description: firstExpense.description,
       amount: "-25.50",
       category: "42",
     });
@@ -417,14 +417,14 @@ describe("Statement Import workflow", () => {
 
     await expect(workflow.saveEdit()).resolves.toBe("saved");
 
-    expect(workflow.getSnapshot().statement?.transactions).toEqual([
+    expect(workflow.getSnapshot().statement?.entries).toEqual([
       expect.objectContaining({
-        id: firstTransaction.id,
+        id: firstExpense.id,
         categoryId: "42",
         assignment: "manual",
       }),
       expect.objectContaining({
-        id: remainingTransaction.id,
+        id: remainingExpense.id,
         categoryId: "42",
         assignment: "rule",
       }),
@@ -451,7 +451,7 @@ describe("Statement Import workflow", () => {
     );
     const workflow = createWorkflow(rememberCategoryRule);
     acceptStatement(workflow);
-    expect(workflow.beginEdit("transaction-1")).toBe(true);
+    expect(workflow.beginEdit("expense-1")).toBe(true);
     const draft = {
       date: "2026-08-28",
       description: "Changed description",
@@ -507,7 +507,7 @@ describe("Statement Import workflow", () => {
       }));
     const workflow = createWorkflow(rememberCategoryRule);
     acceptStatement(workflow);
-    workflow.beginEdit("transaction-1");
+    workflow.beginEdit("expense-1");
     workflow.changeDraft({
       date: "2026-08-29",
       description: "Green Market Cafe",
@@ -533,7 +533,7 @@ describe("Statement Import workflow", () => {
     const rememberCategoryRule = vi.fn(() => response.promise);
     const workflow = createWorkflow(rememberCategoryRule);
     acceptStatement(workflow);
-    workflow.beginEdit("transaction-1");
+    workflow.beginEdit("expense-1");
     workflow.changeDraft({
       date: "2026-08-29",
       description: "Green Market Cafe",
@@ -573,7 +573,7 @@ describe("Statement Import workflow", () => {
     });
     const workflow = createWorkflow(rememberCategoryRule);
     acceptStatement(workflow);
-    workflow.beginEdit("transaction-1");
+    workflow.beginEdit("expense-1");
     workflow.changeDraft({
       date: "2026-08-29",
       description: "Abandoned draft",
@@ -584,12 +584,12 @@ describe("Statement Import workflow", () => {
     const abandonedSave = workflow.saveEdit();
 
     workflow.backToUpload();
-    const replacement = withTransaction({
-      description: "Replacement Transaction",
+    const replacement = withExpense({
+      description: "Replacement Expense",
     });
     acceptStatement(workflow, [replacement]);
     workflow.beginCategorizeSession(categoryRules);
-    workflow.beginEdit("transaction-1");
+    workflow.beginEdit("expense-1");
     workflow.changeDraft({
       date: "2026-08-29",
       description: "Current draft",
@@ -610,11 +610,11 @@ describe("Statement Import workflow", () => {
     });
     await expect(abandonedSave).resolves.toBe("abandoned");
     expect(workflow.getSnapshot().editor).toMatchObject({
-      editingId: "transaction-1",
+      editingId: "expense-1",
       isSaving: true,
       draft: expect.objectContaining({ description: "Current draft" }),
     });
-    expect(workflow.getSnapshot().statement?.transactions).toEqual([
+    expect(workflow.getSnapshot().statement?.entries).toEqual([
       replacement,
     ]);
 
@@ -628,24 +628,24 @@ describe("Statement Import workflow", () => {
       },
     });
     await expect(currentSave).resolves.toBe("saved");
-    expect(workflow.getSnapshot().statement?.transactions[0]).toMatchObject({
+    expect(workflow.getSnapshot().statement?.entries[0]).toMatchObject({
       description: "Current draft",
       categoryId: "43",
       assignment: "manual",
     });
   });
 
-  it("abandons the editor on Categorize displacement while retaining saved Transactions", async () => {
+  it("abandons the editor on Categorize displacement while retaining saved Expenses", async () => {
     const response = createDeferred<RememberCategoryRuleResult>();
     const workflow = createWorkflow(() => response.promise);
     acceptStatement(workflow, [
-      withTransaction({
+      withExpense({
         categoryId: "42",
         assignment: "manual",
         matchedCategoryIds: [],
       }),
     ]);
-    workflow.beginEdit("transaction-1");
+    workflow.beginEdit("expense-1");
     workflow.changeDraft({
       date: "2026-08-29",
       description: "Unsaved draft",
@@ -663,7 +663,7 @@ describe("Statement Import workflow", () => {
         isSaving: false,
       },
       statement: {
-        transactions: [
+        entries: [
           expect.objectContaining({
             description: "Green Market Cafe",
             categoryId: "42",
@@ -688,21 +688,21 @@ describe("Statement Import workflow", () => {
   it("confirms the workflow-owned statement in its existing row order", async () => {
     const commitStatementImport = vi.fn(async () => committedImport);
     const workflow = createWorkflow(undefined, commitStatementImport);
-    const firstTransaction = withTransaction({
-      id: "transaction-1",
-      description: "First Transaction",
+    const firstExpense = withExpense({
+      id: "expense-1",
+      description: "First Expense",
       categoryId: "42",
       assignment: "manual",
     });
-    const excludedTransaction = withTransaction({
-      id: "transaction-2",
-      description: "Excluded Transaction",
+    const excludedExpense = withExpense({
+      id: "expense-2",
+      description: "Excluded Expense",
       categoryId: "43",
       assignment: "manual",
       isExcluded: true,
     });
 
-    acceptReviewableStatement(workflow, [firstTransaction, excludedTransaction]);
+    acceptReviewableStatement(workflow, [firstExpense, excludedExpense]);
     expect(workflow.getSnapshot().commit.canConfirm).toBe(true);
 
     await expect(workflow.confirmStatementImport(false)).resolves.toBe(
@@ -711,7 +711,7 @@ describe("Statement Import workflow", () => {
     expect(commitStatementImport).toHaveBeenCalledWith(
       expect.objectContaining({ name: "statement.pdf" }),
       expect.objectContaining({
-        transactions: [firstTransaction, excludedTransaction],
+        entries: [firstExpense, excludedExpense],
       }),
       { acknowledgeProbableDuplicates: false },
     );
@@ -749,27 +749,27 @@ describe("Statement Import workflow", () => {
       .fn<CommitStatementImport>()
       .mockRejectedValue(createCategoryEligibilityError());
     const workflow = createWorkflow(undefined, commitStatementImport);
-    const reviewedTransactions = [
-      withTransaction({ categoryId: '42', assignment: 'manual' }),
-      withTransaction({
-        id: 'transaction-2',
-        description: 'Second Transaction',
+    const reviewedExpenses = [
+      withExpense({ categoryId: '42', assignment: 'manual' }),
+      withExpense({
+        id: 'expense-2',
+        description: 'Second Expense',
         categoryId: '43',
         assignment: 'manual',
       }),
     ];
-    acceptReviewableStatement(workflow, reviewedTransactions);
+    acceptReviewableStatement(workflow, reviewedExpenses);
 
     await expect(workflow.confirmStatementImport(false)).resolves.toBe('failed');
 
     expect(workflow.getSnapshot()).toMatchObject({
-      statement: { transactions: reviewedTransactions },
+      statement: { entries: reviewedExpenses },
       commit: {
         categoryEligibilityConflict: {
           details: [
             expect.objectContaining({
               categoryId: '42',
-              transactionIndexes: [0],
+              expenseIndexes: [0],
             }),
           ],
         },
@@ -781,7 +781,7 @@ describe("Statement Import workflow", () => {
     expect(workflow.returnToCategorize(categoryRules)).toBe(true);
     expect(workflow.getSnapshot()).toMatchObject({
       stage: 'categorize',
-      statement: { transactions: reviewedTransactions },
+      statement: { entries: reviewedExpenses },
       commit: {
         categoryEligibilityConflict: null,
         error: null,
@@ -818,7 +818,7 @@ describe("Statement Import workflow", () => {
     await expect(workflow.confirmStatementImport(false)).resolves.toBe("failed");
     expect(workflow.getSnapshot().commit).toMatchObject({
       probableDuplicateConflict: expect.objectContaining({
-        message: "Probable duplicate Transactions found.",
+        message: "Probable duplicate Expenses found.",
       }),
       canConfirm: false,
       canImportAnyway: true,
@@ -877,8 +877,8 @@ describe("Statement Import workflow", () => {
     expect(workflow.getSnapshot().commit.isCommitting).toBe(true);
 
     expect(workflow.backToUpload()).toBe(true);
-    const replacement = withTransaction({
-      description: "Replacement Transaction",
+    const replacement = withExpense({
+      description: "Replacement Expense",
       categoryId: "43",
       assignment: "manual",
     });
@@ -886,7 +886,7 @@ describe("Statement Import workflow", () => {
       new File(["replacement"], "replacement.pdf", {
         type: "application/pdf",
       }),
-      { summary, transactions: [replacement] },
+      { summary, entries: [replacement] },
       categoryRules,
     );
     response.resolve(committedImport);
@@ -895,7 +895,7 @@ describe("Statement Import workflow", () => {
     expect(workflow.getSnapshot()).toMatchObject({
       stage: "categorize",
       importedFile: expect.objectContaining({ name: "replacement.pdf" }),
-      statement: { transactions: [replacement] },
+      statement: { entries: [replacement] },
       commit: {
         result: null,
         error: null,

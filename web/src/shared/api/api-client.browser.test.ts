@@ -17,6 +17,6 @@ describe("createApiClient in a browser realm", () => {
       fetchMock,
     );
 
-    await expect(client.get("/transactions")).rejects.toBe(abortError);
+    await expect(client.get("/expenses")).rejects.toBe(abortError);
   });
 });

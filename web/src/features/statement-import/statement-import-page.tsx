@@ -12,7 +12,7 @@ import { centsToMoney, formatMoney, moneyToCents } from "@/shared/money";
 import { ActiveSpaceLabel, SpaceLabelProvider, getSpaceIdentityLabel } from "@/shared/ui";
 import { ImportProgress } from "./import-progress";
 import { ImportSuccess } from "./import-success";
-import { isIncludedStatementTransaction } from "./statement-import-utils";
+import { isIncludedStatementEntry } from "./statement-import-utils";
 import { ReviewStatement } from "./review-statement";
 import { importFeatures } from "./statement-import-data";
 import {
@@ -35,13 +35,13 @@ import { useStatementImportWorkflow } from "./use-statement-import-workflow";
 import { formatStatementType, type StatementType } from "./statement-type";
 
 interface StatementImportPageProps {
-  onViewTransactions: (spaceId: string | undefined, statementImportId: string) => void;
+  onViewExpenses: (spaceId: string | undefined, statementImportId: string) => void;
   spaceId?: string;
   onSpaceChange?: (spaceId?: string) => void;
 }
 
 function StatementImportPage({
-  onViewTransactions,
+  onViewExpenses,
   spaceId,
   onSpaceChange,
 }: StatementImportPageProps) {
@@ -239,16 +239,16 @@ function StatementImportPage({
     return withNavigationGuard(
       <ImportSuccess
         committedImport={workflowState.commit.result}
-        totalExpense={centsToMoney((workflowState.statement?.transactions ?? [])
-          .filter(isIncludedStatementTransaction)
-          .reduce((total, transaction) => total + moneyToCents(Math.abs(transaction.amount)), 0))}
+        totalExpense={centsToMoney((workflowState.statement?.entries ?? [])
+          .filter(isIncludedStatementEntry)
+          .reduce((total, expense) => total + moneyToCents(Math.abs(expense.amount)), 0))}
         destinationLabel={destinationLabel}
         importerName={
           destinationSpace?.kind === "shared" ? importerName : undefined
         }
         spaceId={destinationSpaceId}
         onImportAnother={resetImport}
-        onViewTransactions={() => onViewTransactions(destinationSpaceId, committedImport.id)}
+        onViewExpenses={() => onViewExpenses(destinationSpaceId, committedImport.id)}
       />,
     );
   }
@@ -265,7 +265,7 @@ function StatementImportPage({
         spaceId={destinationSpaceId}
         fileName={importedFile.name}
         statementSummary={statement.summary}
-        transactions={statement.transactions}
+        entries={statement.entries}
         commitError={commit.error}
         categoryEligibilityConflict={commit.categoryEligibilityConflict}
         probableDuplicateConflict={commit.probableDuplicateConflict}
@@ -378,7 +378,7 @@ function StatementImportPage({
             <InfoIcon className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
             <p className="text-sm leading-5 font-semibold">
               PDF processed locally. Your PDF stays on this device. Reviewed
-              statement details and Transactions are saved when you import.
+              statement details and Expenses are saved when you import.
             </p>
           </section>
 
@@ -409,7 +409,7 @@ function StatementImportPage({
                     {item.fileName}
                   </p>
                   <p className="mt-1.5 font-mono text-xs text-muted-foreground uppercase">
-                    {item.transactionCount} Transactions ·{" "}
+                    {item.expenseCount} Expenses ·{" "}
                     {formatRecentImportAccount(
                       item.provider,
                       item.accountType,

@@ -122,10 +122,10 @@ describe("AuthenticatedRoute", () => {
 
     render(
       <AppSessionProvider session={session}>
-        <MemoryRouter initialEntries={["/transactions"]}>
+        <MemoryRouter initialEntries={["/expenses"]}>
           <Routes>
             <Route element={<AuthenticatedRoute />}>
-              <Route path="/transactions" element={<ProtectedRoute />} />
+              <Route path="/expenses" element={<ProtectedRoute />} />
             </Route>
             <Route path="/sign-in" element={<SignInDestination />} />
           </Routes>
@@ -134,7 +134,7 @@ describe("AuthenticatedRoute", () => {
     );
 
     await waitFor(() =>
-      expect(screen.getByText("Sign-in destination: /transactions")).toBeTruthy(),
+      expect(screen.getByText("Sign-in destination: /expenses")).toBeTruthy(),
     );
 
     expect(sessionMock.signOut).toHaveBeenCalledOnce();

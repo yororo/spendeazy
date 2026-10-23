@@ -82,4 +82,4 @@ pinned model.
 
 The model's probabilities are used only for ranking and suppression. They are
 not persisted as user feedback, and a displayed result never changes a
-transaction until the user selects and saves a Category.
+expense until the user selects and saves a Category.

@@ -6,11 +6,11 @@ import {
   parseApiMoney,
   requireApiResponse,
   requireMonthlyCategorySummary,
-  requireTransactionHistoryPage,
+  requireExpenseHistoryPage,
   type ApiClient,
   type CategorySummaryResponse,
-  type TransactionHistoryItem,
-  type TransactionHistoryPage,
+  type ExpenseHistoryItem,
+  type ExpenseHistoryPage,
 } from "@/shared/api";
 import {
   isCategoryCatalog,
@@ -20,7 +20,7 @@ import {
 } from "@/shared/category";
 import { moneyToCents } from "@/shared/money";
 import { createBudgetReviews, type BudgetReview } from "./budget-reviews";
-import { createSpendingPatterns, type PatternTransaction, type SpendingPatterns } from "./spending-patterns";
+import { createSpendingPatterns, type PatternExpense, type SpendingPatterns } from "./spending-patterns";
 import {
   getReportingPeriodBounds,
   type ReportingPeriod,
@@ -63,7 +63,7 @@ interface InsightsDay {
 }
 
 interface InsightsDailyReport {
-  readonly transactions: readonly PatternTransaction[];
+  readonly expenses: readonly PatternExpense[];
   readonly view: "daily";
   readonly period: ReportingPeriod;
   readonly totalSpendingCents: number;
@@ -88,7 +88,7 @@ interface InsightsMonth {
 }
 
 interface InsightsMonthlyReport {
-  readonly transactions: readonly PatternTransaction[];
+  readonly expenses: readonly PatternExpense[];
   readonly budgetReviews: readonly BudgetReview[];
   readonly spendingPatterns: SpendingPatterns;
   readonly selectedMonthCategories: readonly InsightsCategory[];
@@ -122,7 +122,7 @@ class InsightsDataError extends Error {
 const createInsightsDataError = (message: string) =>
   new InsightsDataError(message);
 
-const TRANSACTION_PAGE_SIZE = 100;
+const EXPENSE_PAGE_SIZE = 100;
 const MONTHLY_RANKING_LIMIT = 5;
 
 interface CategoryIdentity {
@@ -149,7 +149,7 @@ async function getDailyInsights(
   const bounds = getReportingPeriodBounds(period);
   const periods = getRollingPeriods(period);
   const firstPeriod = periods[0]!;
-  const { catalog, summary, inactiveCategoryBudgets, transactions } =
+  const { catalog, summary, inactiveCategoryBudgets, expenses } =
     await loadInsightsData(
       apiClient,
       period,
@@ -165,7 +165,7 @@ async function getDailyInsights(
     catalog,
     summary,
     inactiveCategoryBudgets,
-    transactions,
+    expenses,
   );
 }
 
@@ -177,7 +177,7 @@ async function getMonthlyInsights(
 ): Promise<InsightsMonthlyReport> {
   const periods = getRollingPeriods(period);
   const { toDate } = getReportingPeriodBounds(period);
-  const { catalog, summary, inactiveCategoryBudgets, transactions } =
+  const { catalog, summary, inactiveCategoryBudgets, expenses } =
     await loadInsightsData(
       apiClient,
       period,
@@ -192,7 +192,7 @@ async function getMonthlyInsights(
     catalog,
     summary,
     inactiveCategoryBudgets,
-    transactions,
+    expenses,
   );
 }
 
@@ -203,7 +203,7 @@ async function loadInsightsData(
   signal?: AbortSignal,
   spaceId?: string,
 ) {
-  const [categoryResponse, summaryResponse, transactions] = await Promise.all([
+  const [categoryResponse, summaryResponse, expenses] = await Promise.all([
     apiClient.get<readonly CategoryCatalogItem[]>(
       buildCategoryCollectionPath(spaceId),
       { signal },
@@ -212,7 +212,7 @@ async function loadInsightsData(
       buildMonthlyCategorySummaryPath(period, spaceId),
       { signal },
     ),
-    loadAllTransactions(
+    loadAllExpenses(
       apiClient,
       bounds.fromDate,
       bounds.toDate,
@@ -240,51 +240,51 @@ async function loadInsightsData(
     spaceId,
   );
 
-  return { catalog, summary, inactiveCategoryBudgets, transactions };
+  return { catalog, summary, inactiveCategoryBudgets, expenses };
 }
 
-async function loadAllTransactions(
+async function loadAllExpenses(
   apiClient: InsightsApiClient,
   fromDate: string | undefined,
   toDate: string,
   signal?: AbortSignal,
   spaceId?: string,
-): Promise<readonly TransactionHistoryItem[]> {
-  const transactions: TransactionHistoryItem[] = [];
+): Promise<readonly ExpenseHistoryItem[]> {
+  const expenses: ExpenseHistoryItem[] = [];
   const seenCursors = new Set<string>();
   let cursor: string | null = null;
 
   do {
-    const response = requireTransactionHistoryPage(
+    const response = requireExpenseHistoryPage(
       requireApiResponse(
-        await apiClient.get<TransactionHistoryPage>(
-          buildApiPath(buildTransactionCollectionPath(spaceId), {
+        await apiClient.get<ExpenseHistoryPage>(
+          buildApiPath(buildExpenseCollectionPath(spaceId), {
             fromDate,
             toDate,
-            pageSize: String(TRANSACTION_PAGE_SIZE),
+            pageSize: String(EXPENSE_PAGE_SIZE),
             cursor: cursor ?? undefined,
           }),
           { signal },
         ),
-        "Transaction history page",
+        "Expense history page",
         createInsightsDataError,
       ),
       createInsightsDataError,
     );
 
-    transactions.push(...response.items);
+    expenses.push(...response.items);
     cursor = response.nextCursor;
     if (cursor !== null) {
       if (seenCursors.has(cursor)) {
         throw new InsightsDataError(
-          "The API returned a repeated Transaction history cursor.",
+          "The API returned a repeated Expense history cursor.",
         );
       }
       seenCursors.add(cursor);
     }
   } while (cursor !== null);
 
-  return transactions;
+  return expenses;
 }
 
 async function loadInactiveCategoryBudgets(
@@ -379,7 +379,7 @@ function createDailyInsightsReport(
   catalog: readonly CategoryCatalogItem[],
   summary: CategorySummaryResponse,
   inactiveCategoryBudgets: ReadonlyMap<string, number | null>,
-  transactions: readonly TransactionHistoryItem[],
+  expenses: readonly ExpenseHistoryItem[],
 ): InsightsDailyReport {
   const { categoryById, budgetedCategoryIds, monthlyBudgetCents } =
     createCategoryContext(catalog, summary, inactiveCategoryBudgets);
@@ -398,26 +398,26 @@ function createDailyInsightsReport(
     () => 0,
   );
 
-  transactions.forEach((transaction) => {
-    const transactionPeriod = getTransactionPeriod(transaction.purchaseDate);
-    const monthIndex = indexByPeriod.get(transactionPeriod);
+  expenses.forEach((expense) => {
+    const expensePeriod = getExpensePeriod(expense.purchaseDate);
+    const monthIndex = indexByPeriod.get(expensePeriod);
     if (monthIndex === undefined) {
       throw new InsightsDataError(
-        "The API returned a Transaction outside the selected 12-month Reporting Period.",
+        "The API returned an Expense outside the selected 12-month Reporting Period.",
       );
     }
     const amountCents = moneyToCents(
       parseApiMoney(
-        transaction.amount,
-        `Transaction ${transaction.id} amount`,
+        expense.amount,
+        `Expense ${expense.id} amount`,
         createInsightsDataError,
       ),
     );
-    const categoryId = transaction.categoryId;
+    const categoryId = expense.categoryId;
 
     if (categoryId !== null && !categoryById.has(categoryId)) {
       throw new InsightsDataError(
-        `Transaction ${transaction.id} references missing Category ${categoryId}.`,
+        `Expense ${expense.id} references missing Category ${categoryId}.`,
       );
     }
 
@@ -434,7 +434,7 @@ function createDailyInsightsReport(
 
     if (monthIndex === selectedMonthIndex) {
       const day = getDayOfMonth(
-        transaction.purchaseDate,
+        expense.purchaseDate,
         period,
         daysInPeriod,
       );
@@ -485,7 +485,7 @@ function createDailyInsightsReport(
 
   return {
     view: "daily",
-    transactions: transactions.map((transaction) => ({ id: transaction.id, categoryId: transaction.categoryId, date: transaction.purchaseDate, description: transaction.description, amountCents: moneyToCents(parseApiMoney(transaction.amount, `Transaction ${transaction.id} amount`, createInsightsDataError)) })),
+    expenses: expenses.map((expense) => ({ id: expense.id, categoryId: expense.categoryId, date: expense.purchaseDate, description: expense.description, amountCents: moneyToCents(parseApiMoney(expense.amount, `Expense ${expense.id} amount`, createInsightsDataError)) })),
     period,
     totalSpendingCents,
     budgetedSpendingCents,
@@ -509,7 +509,7 @@ function createMonthlyInsightsReport(
   catalog: readonly CategoryCatalogItem[],
   summary: CategorySummaryResponse,
   inactiveCategoryBudgets: ReadonlyMap<string, number | null>,
-  transactions: readonly TransactionHistoryItem[],
+  expenses: readonly ExpenseHistoryItem[],
 ): InsightsMonthlyReport {
   const { categoryById, budgetedCategoryIds, monthlyBudgetCents } =
     createCategoryContext(catalog, summary, inactiveCategoryBudgets);
@@ -518,36 +518,36 @@ function createMonthlyInsightsReport(
   const budgetedByMonth = periods.map(() => 0);
   const indexByPeriod = new Map(periods.map((month, index) => [month, index]));
   const selectedMonthIndex = indexByPeriod.get(period)!;
-  const patternTransactions: PatternTransaction[] = [];
+  const patternExpenses: PatternExpense[] = [];
 
-  transactions.forEach((transaction) => {
-    const transactionPeriod = getTransactionPeriod(transaction.purchaseDate);
-    const monthIndex = indexByPeriod.get(transactionPeriod);
+  expenses.forEach((expense) => {
+    const expensePeriod = getExpensePeriod(expense.purchaseDate);
+    const monthIndex = indexByPeriod.get(expensePeriod);
 
     const amountCents = moneyToCents(
       parseApiMoney(
-        transaction.amount,
-        `Transaction ${transaction.id} amount`,
+        expense.amount,
+        `Expense ${expense.id} amount`,
         createInsightsDataError,
       ),
     );
-    const categoryId = transaction.categoryId;
+    const categoryId = expense.categoryId;
 
-    patternTransactions.push({
-      id: transaction.id,
+    patternExpenses.push({
+      id: expense.id,
       categoryId,
-      date: transaction.purchaseDate,
-      description: transaction.description,
+      date: expense.purchaseDate,
+      description: expense.description,
       amountCents,
     });
 
     if (categoryId !== null && !categoryById.has(categoryId)) {
       throw new InsightsDataError(
-        `Transaction ${transaction.id} references missing Category ${categoryId}.`,
+        `Expense ${expense.id} references missing Category ${categoryId}.`,
       );
     }
 
-    if (transactionPeriod > period) throw new InsightsDataError("The API returned a future Transaction outside the selected Reporting Period.");
+    if (expensePeriod > period) throw new InsightsDataError("The API returned a future Expense outside the selected Reporting Period.");
     if (monthIndex === undefined) return;
 
     const monthAmounts = amountsByMonth[monthIndex]!;
@@ -594,12 +594,12 @@ function createMonthlyInsightsReport(
 
   return {
     view: "monthly",
-    transactions: patternTransactions,
-    budgetReviews: createBudgetReviews(period, selectedMonthCategories, patternTransactions),
+    expenses: patternExpenses,
+    budgetReviews: createBudgetReviews(period, selectedMonthCategories, patternExpenses),
     spendingPatterns: createSpendingPatterns(
       period,
       selectedMonthCategories,
-      patternTransactions,
+      patternExpenses,
     ),
     selectedMonthCategories,
     period,
@@ -792,11 +792,11 @@ function getRollingPeriods(period: ReportingPeriod): ReportingPeriod[] {
   });
 }
 
-function getTransactionPeriod(purchaseDate: string): ReportingPeriod {
+function getExpensePeriod(purchaseDate: string): ReportingPeriod {
   const dateMatch = /^(\d{4})-(0[1-9]|1[0-2])-(\d{2})$/u.exec(purchaseDate);
   if (!dateMatch) {
     throw new InsightsDataError(
-      "The API returned an invalid Transaction purchase date.",
+      "The API returned an invalid Expense purchase date.",
     );
   }
 
@@ -804,7 +804,7 @@ function getTransactionPeriod(purchaseDate: string): ReportingPeriod {
   const day = Number(dateMatch[3]);
   if (day < 1 || day > getReportingPeriodBounds(period).daysInPeriod) {
     throw new InsightsDataError(
-      "The API returned an invalid Transaction purchase date.",
+      "The API returned an invalid Expense purchase date.",
     );
   }
 
@@ -819,14 +819,14 @@ function getDayOfMonth(
   const dateMatch = /^(\d{4}-\d{2})-(\d{2})$/u.exec(purchaseDate);
   if (!dateMatch || dateMatch[1] !== period) {
     throw new InsightsDataError(
-      "The API returned a Transaction outside the selected Reporting Period.",
+      "The API returned an Expense outside the selected Reporting Period.",
     );
   }
 
   const day = Number(dateMatch[2]);
   if (!Number.isInteger(day) || day < 1 || day > daysInPeriod) {
     throw new InsightsDataError(
-      "The API returned an invalid Transaction purchase date.",
+      "The API returned an invalid Expense purchase date.",
     );
   }
 
@@ -853,10 +853,10 @@ function buildCategoryBudgetPath(categoryId: string, spaceId?: string): string {
   )}/budget`;
 }
 
-function buildTransactionCollectionPath(spaceId?: string): string {
+function buildExpenseCollectionPath(spaceId?: string): string {
   return spaceId === undefined
-    ? "/transactions"
-    : `/spaces/${encodeURIComponent(spaceId)}/transactions`;
+    ? "/expenses"
+    : `/spaces/${encodeURIComponent(spaceId)}/expenses`;
 }
 
 export { getDailyInsights, getMonthlyInsights, InsightsDataError };

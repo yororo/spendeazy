@@ -69,9 +69,9 @@ describe('OpenAPI document factory', () => {
       ?.matchType as SchemaObject;
     const categorySchema = document.components?.schemas
       ?.CategoryResponseDto as SchemaObject;
-    const transactionSchema = document.components?.schemas
-      ?.ManualTransactionResponseDto as SchemaObject;
-    const addedBySchema = transactionSchema.properties
+    const expenseSchema = document.components?.schemas
+      ?.ManualExpenseResponseDto as SchemaObject;
+    const addedBySchema = expenseSchema.properties
       ?.addedByUserId as SchemaObject;
     const statementImportSchema = document.components?.schemas
       ?.StatementImportResponseDto as SchemaObject;
@@ -91,7 +91,7 @@ describe('OpenAPI document factory', () => {
     expect(matchTypeSchema.enum as unknown).toEqual(['exact', 'contains']);
     expect(matchTypeSchema.description).toContain('substring');
     expect(categorySchema.description).toContain('authorized Space');
-    expect(transactionSchema.description).toContain('authorized Space');
+    expect(expenseSchema.description).toContain('authorized Space');
     expect(addedBySchema.description).toContain(
       'does not determine Space ownership',
     );
@@ -126,13 +126,13 @@ describe('OpenAPI document factory', () => {
         `GET ${apiRoot}/users/me/category-rules/{ruleId}`,
         `PATCH ${apiRoot}/users/me/category-rules/{ruleId}`,
         `PUT ${apiRoot}/users/me/categories/{categoryId}/rules`,
-        `GET ${apiRoot}/users/me/transactions`,
-        `POST ${apiRoot}/users/me/transactions`,
-        `DELETE ${apiRoot}/users/me/transactions/{transactionId}`,
-        `GET ${apiRoot}/users/me/transactions/history`,
-        `GET ${apiRoot}/users/me/transactions/{transactionId}`,
-        `GET ${apiRoot}/users/me/transactions/{transactionId}/activity`,
-        `PATCH ${apiRoot}/users/me/transactions/{transactionId}`,
+        `GET ${apiRoot}/users/me/expenses`,
+        `POST ${apiRoot}/users/me/expenses`,
+        `DELETE ${apiRoot}/users/me/expenses/{expenseId}`,
+        `GET ${apiRoot}/users/me/expenses/history`,
+        `GET ${apiRoot}/users/me/expenses/{expenseId}`,
+        `GET ${apiRoot}/users/me/expenses/{expenseId}/activity`,
+        `PATCH ${apiRoot}/users/me/expenses/{expenseId}`,
         `GET ${apiRoot}/users/me/statement-imports`,
         `POST ${apiRoot}/users/me/statement-imports`,
         `GET ${apiRoot}/users/me/statement-imports/{statementImportId}`,
@@ -158,14 +158,14 @@ describe('OpenAPI document factory', () => {
         `GET ${apiRoot}/users/me/spaces/{spaceId}/statement-imports`,
         `POST ${apiRoot}/users/me/spaces/{spaceId}/statement-imports/category-suggestions`,
         `GET ${apiRoot}/users/me/spaces/{spaceId}/statement-imports/{statementImportId}`,
-        `GET ${apiRoot}/users/me/spaces/{spaceId}/transactions`,
-        `GET ${apiRoot}/users/me/spaces/{spaceId}/transactions/history`,
-        `GET ${apiRoot}/users/me/spaces/{spaceId}/transactions/{transactionId}`,
-        `GET ${apiRoot}/users/me/spaces/{spaceId}/transactions/{transactionId}/activity`,
-        `PATCH ${apiRoot}/users/me/spaces/{spaceId}/transactions/{transactionId}`,
-        `POST ${apiRoot}/users/me/spaces/{spaceId}/transactions`,
+        `GET ${apiRoot}/users/me/spaces/{spaceId}/expenses`,
+        `GET ${apiRoot}/users/me/spaces/{spaceId}/expenses/history`,
+        `GET ${apiRoot}/users/me/spaces/{spaceId}/expenses/{expenseId}`,
+        `GET ${apiRoot}/users/me/spaces/{spaceId}/expenses/{expenseId}/activity`,
+        `PATCH ${apiRoot}/users/me/spaces/{spaceId}/expenses/{expenseId}`,
+        `POST ${apiRoot}/users/me/spaces/{spaceId}/expenses`,
         `POST ${apiRoot}/users/me/spaces/{spaceId}/statement-imports`,
-        `DELETE ${apiRoot}/users/me/spaces/{spaceId}/transactions/{transactionId}`,
+        `DELETE ${apiRoot}/users/me/spaces/{spaceId}/expenses/{expenseId}`,
         `POST ${apiRoot}/users/me/invitations`,
         `DELETE ${apiRoot}/users/me/invitations`,
         `POST ${apiRoot}/users/me/invitations/rotate`,

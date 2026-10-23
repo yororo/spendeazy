@@ -28,7 +28,7 @@ for (const width of [390, 1440]) {
     const category: unknown = await created.json();
     if (!isRecord(category) || typeof category.id !== "string") throw new Error("Expected Category ID");
     expect((await page.request.put(`${scoped}/categories/${category.id}/budget`, { headers, data: { amount: "1000.00", period: "monthly" } })).ok()).toBe(true);
-    expect((await page.request.post(`${scoped}/transactions`, { headers, data: { amount: "99.00", purchaseDate: "2026-08-01", description: "Unrelated same-date expense" } })).ok()).toBe(true);
+    expect((await page.request.post(`${scoped}/expenses`, { headers, data: { amount: "99.00", purchaseDate: "2026-08-01", description: "Unrelated same-date expense" } })).ok()).toBe(true);
     const navigation = page.getByRole("navigation", { name: width < 768 ? "Mobile navigation" : "Primary navigation" });
     await page.getByLabel("Reporting period", { exact: true }).fill("2026-06");
     await navigation.getByRole("link", { name: "Imports", exact: true }).click();
@@ -64,9 +64,9 @@ for (const width of [390, 1440]) {
     }
     if (process.env.SPENDEAZY_E2E_SCREENSHOTS === "1") await page.screenshot({ path: testInfo.outputPath(`password-${width}.png`), fullPage: true });
     await unlock.getByRole("button", { name: "Open PDF", exact: true }).click();
-    const rows = width < 768 ? page.getByRole("list", { name: "Transactions to categorize" }) : page.getByRole("table");
+    const rows = width < 768 ? page.getByRole("list", { name: "Statement Entries to categorize" }) : page.getByRole("table");
     await rows.getByRole("button", { name: "Edit Fictional Separate", exact: true }).click();
-    const editor = width < 768 ? page.getByRole("dialog", { name: "Edit Transaction" }) : rows;
+    const editor = width < 768 ? page.getByRole("dialog", { name: "Edit Statement Entry" }) : rows;
     await editor.getByRole("combobox", { name: "Category for Fictional Separate", exact: true }).click();
     await page.getByRole("option", { name: "Journey expenses", exact: true }).click();
     await editor.getByRole("checkbox", { name: "Remember this category" }).check();
@@ -94,7 +94,7 @@ for (const width of [390, 1440]) {
     await assignRepeats();
     await rows.getByRole("button", { name: "Exclude Fictional Separate", exact: true }).click();
     await rows.getByRole("button", { name: "Include Fictional Separate", exact: true }).click();
-    await page.getByRole("button", { name: "Review 4 Transactions", exact: true }).click();
+    await page.getByRole("button", { name: "Review 4 Expenses", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Review your imported statement" })).toBeFocused();
     await expect(page.getByRole("combobox")).toHaveCount(0);
     await expect(page.getByRole("checkbox")).toHaveCount(0);
@@ -112,7 +112,7 @@ for (const width of [390, 1440]) {
         }
       }
     }
-    const confirm = page.getByRole("button", { name: "Import 4 Transactions", exact: true });
+    const confirm = page.getByRole("button", { name: "Import 4 Expenses", exact: true });
     if (process.env.SPENDEAZY_E2E_SCREENSHOTS === "1") await page.screenshot({ path: testInfo.outputPath(`review-${width}.png`), fullPage: true });
     await confirm.scrollIntoViewIfNeeded();
     await expect(confirm).toBeInViewport();
@@ -121,21 +121,21 @@ for (const width of [390, 1440]) {
     await expect(page.getByRole("heading", { name: "Statement imported" })).toBeFocused();
     await expect(page.getByRole("status").filter({ hasText: "4 expenses saved" })).toContainText("₱2,000.01");
     await expectWorkflowSurvivesThemeChange(page, "Technical", "Light");
-    await page.getByRole("button", { name: "View Transactions", exact: true }).click();
+    await page.getByRole("button", { name: "View Expenses", exact: true }).click();
     expect(new URL(page.url()).searchParams.get("spaceId")).toBe(spaces[0].id);
     const statementId = new URL(page.url()).searchParams.get("statementImportId");
     expect(statementId).toBeTruthy();
     await expect(page.getByRole("region", { name: "Statement filter" })).toBeVisible();
-    await expect(page.getByRole("region", { name: "Transaction summary" })).toContainText("₱2,000.01");
+    await expect(page.getByRole("region", { name: "Expense summary" })).toContainText("₱2,000.01");
     await expect(page.getByText(/Recorded expense activity matching this view:/)).toContainText("2026-07-31 – 2026-08-03");
     await expect(page.getByText("Unrelated same-date expense", { exact: true })).toHaveCount(0);
     const importedColor = await page.getByText("Journey expenses", { exact: true }).filter({ visible: true }).first()
       .locator('[aria-hidden="true"]').evaluate((element) => getComputedStyle(element).backgroundColor);
-    const transactionRoute = page.url();
+    const expenseRoute = page.url();
     await changeTheme(page, "Playful");
-    await expect(page).toHaveURL(transactionRoute);
+    await expect(page).toHaveURL(expenseRoute);
     await expect(page.getByRole("region", { name: "Statement filter" })).toBeVisible();
-    await expect(page.getByRole("region", { name: "Transaction summary" })).toContainText("₱2,000.01");
+    await expect(page.getByRole("region", { name: "Expense summary" })).toContainText("₱2,000.01");
     await expect(page.getByText("Journey expenses", { exact: true }).filter({ visible: true }).first()
       .locator('[aria-hidden="true"]')).toHaveCSS("background-color", importedColor);
     await page.getByRole("button", { name: "Return to monthly view", exact: true }).click();
@@ -148,9 +148,9 @@ for (const width of [390, 1440]) {
     const details = page.getByRole("dialog");
     await expect(details).toContainText("Over Budget · ₱0.01 over");
     await expect(details).toContainText("Total: ₱1,099.01");
-    await details.getByRole("button", { name: "View Journey expenses month’s Transactions" }).click();
+    await details.getByRole("button", { name: "View Journey expenses month’s Expenses" }).click();
     await expect(page).toHaveURL(new RegExp("categoryId=" + category.id));
-    await expect(page.getByRole("region", { name: "Transaction summary" })).toContainText("₱1,000.01");
+    await expect(page.getByRole("region", { name: "Expense summary" })).toContainText("₱1,000.01");
     await page.getByRole("button", { name: "Return to Insights" }).click();
     await expect(point).toBeFocused();
     await expect(page.getByLabel("Reporting period", { exact: true })).toHaveValue("2026-08");
@@ -184,7 +184,7 @@ for (const width of [390, 1440]) {
     await page.keyboard.press("Escape");
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     // Re-upload the same encrypted bytes: Rule assignment and exact-file protection
-    // both survive navigation and the successful Transaction commit.
+    // both survive navigation and the successful Expense commit.
     await navigation.getByRole("link", { name: "Imports", exact: true }).click();
     await page.locator('input[type="file"]').setInputFiles(fixture);
     await unlock.getByLabel("PDF password", { exact: true }).fill("fictional-journey-only");
@@ -194,22 +194,22 @@ for (const width of [390, 1440]) {
     await expect(rememberedRow).toContainText("Journey expenses");
     await expect(rememberedRow.getByText("Rule", { exact: true })).toBeVisible();
     await assignRepeats();
-    await page.getByRole("button", { name: "Review 4 Transactions", exact: true }).click();
-    await page.getByRole("button", { name: "Import 4 Transactions", exact: true }).click();
+    await page.getByRole("button", { name: "Review 4 Expenses", exact: true }).click();
+    await page.getByRole("button", { name: "Import 4 Expenses", exact: true }).click();
     await expect(page.getByText("Statement already imported", { exact: true }).filter({ visible: true })).toBeVisible();
     await expectWorkflowSurvivesThemeChange(page, "Technical", "Dark");
     await expectWorkflowSurvivesThemeChange(page, "Playful", "Light");
     await expect(page.getByText("Statement already imported", { exact: true }).filter({ visible: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Import 4 Transactions", exact: true })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Import 4 Expenses", exact: true })).toBeDisabled();
     const imports: unknown = await (await page.request.get(`${scoped}/statement-imports`, { headers })).json();
     if (!isRecord(imports) || !Array.isArray(imports.items)) throw new Error("Expected import history");
     expect(imports.items).toHaveLength(1);
-    expect(imports.items[0]).toMatchObject({ transactionCount: "4", statementDate: "2026-08-31" });
-    const saved: unknown = await (await page.request.get(`${scoped}/transactions?statementImportId=${statementId}`, { headers })).json();
-    if (!isRecord(saved) || !Array.isArray(saved.items)) throw new Error("Expected saved statement Transactions");
+    expect(imports.items[0]).toMatchObject({ expenseCount: "4", statementDate: "2026-08-31" });
+    const saved: unknown = await (await page.request.get(`${scoped}/expenses?statementImportId=${statementId}`, { headers })).json();
+    if (!isRecord(saved) || !Array.isArray(saved.items)) throw new Error("Expected saved statement Expenses");
     expect(saved.totalCount).toBe("4");
     expect(saved.items.map((item: unknown) => {
-      if (!isRecord(item)) throw new Error("Expected Transaction");
+      if (!isRecord(item)) throw new Error("Expected Expense");
       expect(item).toMatchObject({ categoryId: category.id, source: "imported" });
       return item.amount;
     }).sort()).toEqual(["1000.00", "200.01", "400.00", "400.00"]);

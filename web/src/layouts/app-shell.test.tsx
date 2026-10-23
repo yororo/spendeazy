@@ -103,10 +103,10 @@ describe("AppShell", () => {
 
     render(
       <AppSessionProvider session={session}>
-        <MemoryRouter initialEntries={["/transactions"]}>
+        <MemoryRouter initialEntries={["/expenses"]}>
           <Routes>
             <Route element={<AppShell />}>
-              <Route path="/transactions" element={<p>Transactions page</p>} />
+              <Route path="/expenses" element={<p>Expenses page</p>} />
               <Route path="/insights" element={<p>Insights page</p>} />
             </Route>
           </Routes>
@@ -115,7 +115,7 @@ describe("AppShell", () => {
     );
 
     await waitFor(() =>
-      expect(document.title).toBe(`Transactions \u00b7 Spendeazy`),
+      expect(document.title).toBe(`Expenses \u00b7 Spendeazy`),
     );
     fireEvent.click(screen.getAllByRole("link", { name: "Insights" })[0]!);
 
@@ -128,10 +128,10 @@ describe("AppShell", () => {
   it("adds a separate History destination to desktop and mobile navigation when archives exist", () => {
     render(
       <AppSessionProvider session={session}>
-        <MemoryRouter initialEntries={["/transactions"]}>
+        <MemoryRouter initialEntries={["/expenses"]}>
           <Routes>
             <Route element={<AppShell />}>
-              <Route path="/transactions" element={<p>Transactions page</p>} />
+              <Route path="/expenses" element={<p>Expenses page</p>} />
               <Route path="/history" element={<p>History page</p>} />
             </Route>
           </Routes>
@@ -166,7 +166,7 @@ describe("AppShell", () => {
             <Route element={<AppShell />}>
               <Route path="/history" element={<CurrentLocation />} />
               <Route path="/" element={<CurrentLocation />} />
-              <Route path="/transactions" element={<CurrentLocation />} />
+              <Route path="/expenses" element={<CurrentLocation />} />
             </Route>
           </Routes>
         </MemoryRouter>
@@ -190,18 +190,18 @@ describe("AppShell", () => {
     sessionStorage.clear();
     render(
       <AppSessionProvider session={session}>
-        <MemoryRouter initialEntries={["/transactions?spaceId=archived-1"]}>
+        <MemoryRouter initialEntries={["/expenses?spaceId=archived-1"]}>
           <Routes>
             <Route element={<AppShell />}>
-              <Route path="/transactions" element={<CurrentLocation />} />
+              <Route path="/expenses" element={<CurrentLocation />} />
             </Route>
           </Routes>
         </MemoryRouter>
       </AppSessionProvider>,
     );
 
-    expect(await screen.findByText("/transactions")).toBeTruthy();
-    expect(screen.queryByText("/transactions?spaceId=archived-1")).toBeNull();
+    expect(await screen.findByText("/expenses")).toBeTruthy();
+    expect(screen.queryByText("/expenses?spaceId=archived-1")).toBeNull();
   });
 
   it("does not carry the active Space query into the History destination", () => {
@@ -212,10 +212,10 @@ describe("AppShell", () => {
 
     render(
       <AppSessionProvider session={session}>
-        <MemoryRouter initialEntries={["/transactions?spaceId=shared-1"]}>
+        <MemoryRouter initialEntries={["/expenses?spaceId=shared-1"]}>
           <Routes>
             <Route element={<AppShell />}>
-              <Route path="/transactions" element={<CurrentLocation />} />
+              <Route path="/expenses" element={<CurrentLocation />} />
               <Route path="/history" element={<CurrentLocation />} />
             </Route>
           </Routes>
@@ -235,10 +235,10 @@ describe("AppShell", () => {
 
     render(
       <AppSessionProvider session={session}>
-        <MemoryRouter initialEntries={["/transactions?month=2026-09"]}>
+        <MemoryRouter initialEntries={["/expenses?month=2026-09"]}>
           <Routes>
             <Route element={<AppShell />}>
-              <Route path="/transactions" element={<CurrentLocation />} />
+              <Route path="/expenses" element={<CurrentLocation />} />
             </Route>
           </Routes>
         </MemoryRouter>
@@ -253,14 +253,14 @@ describe("AppShell", () => {
         name: "Shared",
       }),
     );
-    expect(screen.getByText("/transactions?month=2026-09&spaceId=shared-1")).toBeTruthy();
+    expect(screen.getByText("/expenses?month=2026-09&spaceId=shared-1")).toBeTruthy();
     fireEvent.click(
       screen.getAllByRole("button", { name: /Active Space/u })[0]!,
     );
     fireEvent.click(
       screen.getByRole("menuitemradio", { name: "Personal" }),
     );
-    expect(screen.getByText("/transactions?month=2026-09")).toBeTruthy();
+    expect(screen.getByText("/expenses?month=2026-09")).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Open navigation" }));
     fireEvent.click(
@@ -274,7 +274,7 @@ describe("AppShell", () => {
         name: "Shared",
       }),
     );
-    expect(screen.getByText("/transactions?month=2026-09&spaceId=shared-1")).toBeTruthy();
+    expect(screen.getByText("/expenses?month=2026-09&spaceId=shared-1")).toBeTruthy();
   });
 
   it("shows concise Personal and Shared labels in the mobile header", () => {
@@ -327,10 +327,10 @@ describe("AppShell", () => {
 
     render(
       <AppSessionProvider session={session}>
-        <MemoryRouter initialEntries={["/transactions?month=2026-09"]}>
+        <MemoryRouter initialEntries={["/expenses?month=2026-09"]}>
           <Routes>
             <Route element={<AppShell />}>
-              <Route path="/transactions" element={<CurrentLocation />} />
+              <Route path="/expenses" element={<CurrentLocation />} />
             </Route>
           </Routes>
         </MemoryRouter>
@@ -359,7 +359,7 @@ describe("AppShell", () => {
 
     fireEvent.keyDown(sharedOption, { key: "Enter" });
     expect(
-      screen.getByText("/transactions?month=2026-09&spaceId=shared-1"),
+      screen.getByText("/expenses?month=2026-09&spaceId=shared-1"),
     ).toBeTruthy();
   });
 
@@ -372,12 +372,12 @@ describe("AppShell", () => {
     render(
       <AppSessionProvider session={session}>
         <MemoryRouter
-          initialEntries={["/transactions?month=2026-09&spaceId=shared-1"]}
+          initialEntries={["/expenses?month=2026-09&spaceId=shared-1"]}
         >
           <Routes>
             <Route element={<AppShell />}>
               <Route path="/" element={<CurrentLocation />} />
-              <Route path="/transactions" element={<CurrentLocation />} />
+              <Route path="/expenses" element={<CurrentLocation />} />
               <Route path="/categories" element={<CurrentLocation />} />
             </Route>
           </Routes>
@@ -400,19 +400,19 @@ describe("AppShell", () => {
 
     render(
       <AppSessionProvider session={session}>
-        <MemoryRouter initialEntries={["/transactions?spaceId=shared-1"]}>
+        <MemoryRouter initialEntries={["/expenses?spaceId=shared-1"]}>
           <Routes>
             <Route element={<AppShell />}>
-              <Route path="/transactions" element={<CurrentLocation />} />
+              <Route path="/expenses" element={<CurrentLocation />} />
             </Route>
           </Routes>
         </MemoryRouter>
       </AppSessionProvider>,
     );
 
-    fireEvent.click(screen.getAllByRole("link", { name: "Transactions" })[0]!);
+    fireEvent.click(screen.getAllByRole("link", { name: "Expenses" })[0]!);
 
-    expect(screen.getByText("/transactions?spaceId=shared-1")).toBeTruthy();
+    expect(screen.getByText("/expenses?spaceId=shared-1")).toBeTruthy();
   });
 
   it("restores the device's last active Space in a new tab", async () => {
@@ -423,10 +423,10 @@ describe("AppShell", () => {
 
     const firstTab = render(
       <AppSessionProvider session={session}>
-        <MemoryRouter initialEntries={["/transactions"]}>
+        <MemoryRouter initialEntries={["/expenses"]}>
           <Routes>
             <Route element={<AppShell />}>
-              <Route path="/transactions" element={<CurrentLocation />} />
+              <Route path="/expenses" element={<CurrentLocation />} />
             </Route>
           </Routes>
         </MemoryRouter>
@@ -441,17 +441,17 @@ describe("AppShell", () => {
         name: "Shared",
       }),
     );
-    expect(screen.getByText("/transactions?spaceId=shared-1")).toBeTruthy();
+    expect(screen.getByText("/expenses?spaceId=shared-1")).toBeTruthy();
 
     firstTab.unmount();
     sessionStorage.removeItem(getSpaceStorageKey("tab", session.user!.id));
 
     render(
       <AppSessionProvider session={session}>
-        <MemoryRouter initialEntries={["/transactions"]}>
+        <MemoryRouter initialEntries={["/expenses"]}>
           <Routes>
             <Route element={<AppShell />}>
-              <Route path="/transactions" element={<CurrentLocation />} />
+              <Route path="/expenses" element={<CurrentLocation />} />
             </Route>
           </Routes>
         </MemoryRouter>
@@ -459,7 +459,7 @@ describe("AppShell", () => {
     );
 
     expect(
-      await screen.findByText("/transactions?spaceId=shared-1"),
+      await screen.findByText("/expenses?spaceId=shared-1"),
     ).toBeTruthy();
   });
 
@@ -471,19 +471,19 @@ describe("AppShell", () => {
 
     render(
       <AppSessionProvider session={session}>
-        <MemoryRouter initialEntries={["/transactions?spaceId=missing"]}>
+        <MemoryRouter initialEntries={["/expenses?spaceId=missing"]}>
           <Routes>
             <Route element={<AppShell />}>
-              <Route path="/transactions" element={<CurrentLocation />} />
+              <Route path="/expenses" element={<CurrentLocation />} />
             </Route>
           </Routes>
         </MemoryRouter>
       </AppSessionProvider>,
     );
 
-    expect(screen.queryByText("/transactions?spaceId=missing")).toBeNull();
-    expect(await screen.findByText("/transactions")).toBeTruthy();
-    expect(screen.queryByText("/transactions?spaceId=missing")).toBeNull();
+    expect(screen.queryByText("/expenses?spaceId=missing")).toBeNull();
+    expect(await screen.findByText("/expenses")).toBeTruthy();
+    expect(screen.queryByText("/expenses?spaceId=missing")).toBeNull();
   });
 
   it("retains the tab's selected Space when the app remounts", async () => {
@@ -494,10 +494,10 @@ describe("AppShell", () => {
 
     const firstTab = render(
       <AppSessionProvider session={session}>
-        <MemoryRouter initialEntries={["/transactions"]}>
+        <MemoryRouter initialEntries={["/expenses"]}>
           <Routes>
             <Route element={<AppShell />}>
-              <Route path="/transactions" element={<CurrentLocation />} />
+              <Route path="/expenses" element={<CurrentLocation />} />
             </Route>
           </Routes>
         </MemoryRouter>
@@ -512,17 +512,17 @@ describe("AppShell", () => {
         name: "Shared",
       }),
     );
-    expect(screen.getByText("/transactions?spaceId=shared-1")).toBeTruthy();
+    expect(screen.getByText("/expenses?spaceId=shared-1")).toBeTruthy();
 
     firstTab.unmount();
     localStorage.clear();
 
     render(
       <AppSessionProvider session={session}>
-        <MemoryRouter initialEntries={["/transactions"]}>
+        <MemoryRouter initialEntries={["/expenses"]}>
           <Routes>
             <Route element={<AppShell />}>
-              <Route path="/transactions" element={<CurrentLocation />} />
+              <Route path="/expenses" element={<CurrentLocation />} />
             </Route>
           </Routes>
         </MemoryRouter>
@@ -530,7 +530,7 @@ describe("AppShell", () => {
     );
 
     expect(
-      await screen.findByText("/transactions?spaceId=shared-1"),
+      await screen.findByText("/expenses?spaceId=shared-1"),
     ).toBeTruthy();
   });
 
@@ -546,11 +546,11 @@ describe("AppShell", () => {
       <>
         <div data-testid="tab-one">
           <AppSessionProvider session={session}>
-            <MemoryRouter initialEntries={["/transactions"]}>
+            <MemoryRouter initialEntries={["/expenses"]}>
               <Routes>
                 <Route element={<AppShell />}>
                   <Route
-                    path="/transactions"
+                    path="/expenses"
                     element={<CurrentLocation label="one" />}
                   />
                 </Route>
@@ -560,11 +560,11 @@ describe("AppShell", () => {
         </div>
         <div data-testid="tab-two">
           <AppSessionProvider session={session}>
-            <MemoryRouter initialEntries={["/transactions"]}>
+            <MemoryRouter initialEntries={["/expenses"]}>
               <Routes>
                 <Route element={<AppShell />}>
                   <Route
-                    path="/transactions"
+                    path="/expenses"
                     element={<CurrentLocation label="two" />}
                   />
                 </Route>
@@ -586,33 +586,33 @@ describe("AppShell", () => {
       }),
     );
 
-    expect(within(tabOne).getByText("one:/transactions?spaceId=shared-1")).toBeTruthy();
-    expect(within(tabTwo).getByText("two:/transactions")).toBeTruthy();
+    expect(within(tabOne).getByText("one:/expenses?spaceId=shared-1")).toBeTruthy();
+    expect(within(tabTwo).getByText("two:/expenses")).toBeTruthy();
   });
 
   it("guards the real Space switcher while an editor has unsaved changes", () => {
     function DirtyEditorFixture() {
-      const [draft, setDraft] = useState("Unsaved Transaction");
+      const [draft, setDraft] = useState("Unsaved Expense");
       const { dialog } = useUnsavedChangesNavigationGuard({
         enabled: draft.length > 0,
         focusScope: () =>
           document
-            .querySelector<HTMLInputElement>('input[aria-label="Transaction draft"]')
+            .querySelector<HTMLInputElement>('input[aria-label="Expense draft"]')
             ?.closest<HTMLElement>("label") ?? null,
         focusTarget: () =>
           document.querySelector<HTMLInputElement>(
-            'input[aria-label="Transaction draft"]',
+            'input[aria-label="Expense draft"]',
           ),
-        label: "Transaction",
+        label: "Expense",
         onDiscard: () => setDraft(""),
       });
 
       return (
         <>
           <label>
-            Transaction draft
+            Expense draft
             <input
-              aria-label="Transaction draft"
+              aria-label="Expense draft"
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
             />
@@ -633,11 +633,11 @@ describe("AppShell", () => {
 
     render(
       <AppSessionProvider session={session}>
-        <MemoryRouter initialEntries={["/transactions?spaceId=personal-1"]}>
+        <MemoryRouter initialEntries={["/expenses?spaceId=personal-1"]}>
           <Routes>
             <Route element={<AppShell />}>
               <Route
-                path="/transactions"
+                path="/expenses"
                 element={
                   <>
                     <DirtyEditorFixture />
@@ -651,7 +651,7 @@ describe("AppShell", () => {
       </AppSessionProvider>,
     );
 
-    const draft = screen.getByRole("textbox", { name: "Transaction draft" });
+    const draft = screen.getByRole("textbox", { name: "Expense draft" });
     draft.focus();
     fireEvent.click(
       screen.getAllByRole("button", { name: /Active Space/u })[0]!,
@@ -663,16 +663,16 @@ describe("AppShell", () => {
     );
 
     expect(
-      screen.getByRole("dialog", { name: "Leave Transaction editor?" }),
+      screen.getByRole("dialog", { name: "Leave Expense editor?" }),
     ).toBeTruthy();
     expect(screen.getByTestId("guarded-current-location").textContent).toBe(
-      "/transactions",
+      "/expenses",
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Stay in editor" }));
-    expect(screen.getByRole("textbox", { name: "Transaction draft" })).toHaveProperty(
+    expect(screen.getByRole("textbox", { name: "Expense draft" })).toHaveProperty(
       "value",
-      "Unsaved Transaction",
+      "Unsaved Expense",
     );
     expect(document.activeElement).toBe(draft);
 
@@ -687,7 +687,7 @@ describe("AppShell", () => {
     fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
 
     expect(screen.getByTestId("guarded-current-location").textContent).toBe(
-      "/transactions?spaceId=shared-1",
+      "/expenses?spaceId=shared-1",
     );
   });
 

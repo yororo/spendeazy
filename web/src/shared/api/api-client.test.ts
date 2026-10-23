@@ -56,7 +56,7 @@ function userNotProvisionedResponse(): Response {
 describe("createApiClient", () => {
   it("builds a self-scoped authenticated request and decodes a successful response", async () => {
     const fetchMock = createFetchMock(
-      new Response(JSON.stringify({ items: ["transaction"] }), {
+      new Response(JSON.stringify({ items: ["expense"] }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
       }),
@@ -65,15 +65,15 @@ describe("createApiClient", () => {
     const client = createApiClient(apiConfig, getToken, fetchMock);
 
     const result = await client.get<{ items: string[] }>(
-      "/transactions?fromDate=2026-08-01",
+      "/expenses?fromDate=2026-08-01",
     );
 
-    expect(result).toEqual({ items: ["transaction"] });
+    expect(result).toEqual({ items: ["expense"] });
     expect(fetchMock).toHaveBeenCalledOnce();
     expect(getToken).toHaveBeenCalledOnce();
     const [url, request] = fetchMock.mock.calls[0] ?? [];
     expect(url).toBe(
-      "https://api.example.test/api/v1/users/me/transactions?fromDate=2026-08-01",
+      "https://api.example.test/api/v1/users/me/expenses?fromDate=2026-08-01",
     );
     expect(request?.method).toBe("GET");
     expect(new Headers(request?.headers).get("Authorization")).toBe(
@@ -119,7 +119,7 @@ describe("createApiClient", () => {
         new Response(JSON.stringify(validUserProfile), { status: 201 }),
       )
       .mockResolvedValueOnce(
-        new Response(JSON.stringify({ items: ["transaction"] }), {
+        new Response(JSON.stringify({ items: ["expense"] }), {
           status: 200,
         }),
       );
@@ -130,8 +130,8 @@ describe("createApiClient", () => {
       { sessionId: "session-1" },
     );
 
-    await expect(client.get<{ items: string[] }>("/transactions")).resolves.toEqual({
-      items: ["transaction"],
+    await expect(client.get<{ items: string[] }>("/expenses")).resolves.toEqual({
+      items: ["expense"],
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(3);
@@ -158,7 +158,7 @@ describe("createApiClient", () => {
         { sessionId: `session-non-exact-${status}-${code}` },
       );
 
-      await expect(client.get("/transactions")).rejects.toMatchObject({
+      await expect(client.get("/expenses")).rejects.toMatchObject({
         kind: "http",
         status,
         code,
@@ -185,7 +185,7 @@ describe("createApiClient", () => {
       );
 
       await expect(
-        client.request("/transactions", { method }),
+        client.request("/expenses", { method }),
       ).resolves.toBeUndefined();
 
       expect(fetchMock).toHaveBeenCalledTimes(3);
@@ -210,7 +210,7 @@ describe("createApiClient", () => {
     );
 
     const error = await client
-      .post("/transactions", { amount: "25.00" })
+      .post("/expenses", { amount: "25.00" })
       .catch((cause: unknown) => cause);
 
     expect(error).toBeInstanceOf(ApiError);
@@ -237,7 +237,7 @@ describe("createApiClient", () => {
         new Response(JSON.stringify(validUserProfile), { status: 201 }),
       )
       .mockResolvedValueOnce(
-        new Response(JSON.stringify({ id: "transaction-1" }), { status: 201 }),
+        new Response(JSON.stringify({ id: "expense-1" }), { status: 201 }),
       );
     const client = createApiClient(
       apiConfig,
@@ -248,11 +248,11 @@ describe("createApiClient", () => {
 
     await expect(
       client.post<{ id: string }>(
-        "/transactions",
+        "/expenses",
         { amount: "25.00" },
         { replayAfterProvisioning: true },
       ),
-    ).resolves.toEqual({ id: "transaction-1" });
+    ).resolves.toEqual({ id: "expense-1" });
 
     expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(fetchMock.mock.calls[2]?.[1]?.method).toBe("POST");
@@ -306,7 +306,7 @@ describe("createApiClient", () => {
     });
 
     const requests = [
-      firstClient.get<{ ok: boolean }>("/transactions"),
+      firstClient.get<{ ok: boolean }>("/expenses"),
       secondClient.get<{ ok: boolean }>("/categories"),
     ];
     await initialResponsesReleased;
@@ -358,7 +358,7 @@ describe("createApiClient", () => {
     });
 
     const results = await Promise.allSettled([
-      firstClient.get<{ ok: boolean }>("/transactions"),
+      firstClient.get<{ ok: boolean }>("/expenses"),
       secondClient.get<{ ok: boolean }>("/categories"),
     ]);
 
@@ -384,7 +384,7 @@ describe("createApiClient", () => {
       { sessionId: "session-repair-failure" },
     );
 
-    await expect(client.get("/transactions")).rejects.toMatchObject({
+    await expect(client.get("/expenses")).rejects.toMatchObject({
       kind: "http",
       status: 409,
       code: "CONFLICT",
@@ -414,7 +414,7 @@ describe("createApiClient", () => {
       { sessionId: "session-transient-repair" },
     );
 
-    await expect(client.get<{ ok: boolean }>("/transactions")).resolves.toEqual({
+    await expect(client.get<{ ok: boolean }>("/expenses")).resolves.toEqual({
       ok: true,
     });
     expect(fetchMock).toHaveBeenCalledTimes(4);
@@ -439,7 +439,7 @@ describe("createApiClient", () => {
       { sessionId: "session-network-repair" },
     );
 
-    await expect(client.get<{ ok: boolean }>("/transactions")).resolves.toEqual({
+    await expect(client.get<{ ok: boolean }>("/expenses")).resolves.toEqual({
       ok: true,
     });
     expect(fetchMock).toHaveBeenCalledTimes(4);
@@ -465,7 +465,7 @@ describe("createApiClient", () => {
       sessionId: "session-401-to-403",
     });
 
-    await expect(client.get<{ ok: boolean }>("/transactions")).resolves.toEqual({
+    await expect(client.get<{ ok: boolean }>("/expenses")).resolves.toEqual({
       ok: true,
     });
 
@@ -500,7 +500,7 @@ describe("createApiClient", () => {
       sessionId: "session-403-to-401",
     });
 
-    await expect(client.get<{ ok: boolean }>("/transactions")).resolves.toEqual({
+    await expect(client.get<{ ok: boolean }>("/expenses")).resolves.toEqual({
       ok: true,
     });
 
@@ -530,7 +530,7 @@ describe("createApiClient", () => {
       { sessionId: "session-repeated-403" },
     );
 
-    await expect(client.get("/transactions")).rejects.toMatchObject({
+    await expect(client.get("/expenses")).rejects.toMatchObject({
       kind: "recovery",
       status: 403,
       code: "USER_ACCOUNT_LINKING_FAILED",
@@ -554,7 +554,7 @@ describe("createApiClient", () => {
       fetchMock,
     );
 
-    await client.post("/transactions", { amount: "25.00" });
+    await client.post("/expenses", { amount: "25.00" });
 
     const request = fetchMock.mock.calls[0]?.[1];
     expect(request?.method).toBe("POST");
@@ -631,7 +631,7 @@ describe("createApiClient", () => {
       .mockResolvedValueOnce("token-b");
     const client = createApiClient(apiConfig, getToken, fetchMock);
 
-    await client.get("/transactions");
+    await client.get("/expenses");
     await client.get("/categories");
 
     expect(getToken).toHaveBeenCalledTimes(2);
@@ -658,7 +658,7 @@ describe("createApiClient", () => {
         ),
       )
       .mockResolvedValueOnce(
-        new Response(JSON.stringify({ id: "transaction-1" }), {
+        new Response(JSON.stringify({ id: "expense-1" }), {
           status: 200,
         }),
       );
@@ -669,8 +669,8 @@ describe("createApiClient", () => {
     const client = createApiClient(apiConfig, getToken, fetchMock);
 
     await expect(
-      client.post<{ id: string }>("/transactions", { amount: "25.00" }),
-    ).resolves.toEqual({ id: "transaction-1" });
+      client.post<{ id: string }>("/expenses", { amount: "25.00" }),
+    ).resolves.toEqual({ id: "expense-1" });
 
     expect(getToken).toHaveBeenNthCalledWith(1);
     expect(getToken).toHaveBeenNthCalledWith(2, { skipCache: true });
@@ -808,7 +808,7 @@ describe("createApiClient", () => {
     });
 
     const requests = [
-      firstClient.get<{ ok: boolean }>("/transactions"),
+      firstClient.get<{ ok: boolean }>("/expenses"),
       secondClient.get<{ ok: boolean }>("/categories"),
     ];
     await initialResponsesReleased;
@@ -853,7 +853,7 @@ describe("createApiClient", () => {
     });
 
     const results = await Promise.allSettled([
-      firstClient.get("/transactions"),
+      firstClient.get("/expenses"),
       secondClient.get("/categories"),
     ]);
 
@@ -866,7 +866,7 @@ describe("createApiClient", () => {
       sessionId: "session-revoked-concurrent",
       onAuthenticationFailure,
     });
-    await expect(nextClient.get("/transactions")).rejects.toMatchObject({
+    await expect(nextClient.get("/expenses")).rejects.toMatchObject({
       status: 401,
       code: "UNAUTHENTICATED",
     });
@@ -900,7 +900,7 @@ describe("createApiClient", () => {
       onAuthenticationFailure,
     });
 
-    await expect(client.get("/transactions")).rejects.toMatchObject({
+    await expect(client.get("/expenses")).rejects.toMatchObject({
       status: 401,
       code: "UNAUTHENTICATED",
     });
@@ -935,7 +935,7 @@ describe("createApiClient", () => {
       onAuthenticationFailure,
     });
 
-    await expect(client.get("/transactions")).rejects.toMatchObject({
+    await expect(client.get("/expenses")).rejects.toMatchObject({
       status: 401,
       code: "UNAUTHENTICATED",
     });
@@ -981,7 +981,7 @@ describe("createApiClient", () => {
       onAuthenticationFailure,
     });
 
-    await expect(client.get("/transactions")).rejects.toMatchObject({
+    await expect(client.get("/expenses")).rejects.toMatchObject({
       status: response.status,
     });
 
@@ -995,7 +995,7 @@ describe("createApiClient", () => {
     const getToken = createTokenGetter(null);
     const client = createApiClient(apiConfig, getToken, fetchMock);
 
-    await expect(client.get("/transactions")).rejects.toMatchObject({
+    await expect(client.get("/expenses")).rejects.toMatchObject({
       kind: "authentication",
       code: "UNAUTHENTICATED",
     });
@@ -1003,11 +1003,11 @@ describe("createApiClient", () => {
   });
 
   it.each([
-    "https://attacker.example/transactions",
-    "//attacker.example/transactions",
-    "../transactions",
-    "/transactions/../categories",
-    "transactions/../../categories",
+    "https://attacker.example/expenses",
+    "//attacker.example/expenses",
+    "../expenses",
+    "/expenses/../categories",
+    "expenses/../../categories",
   ])("rejects a resource path that can escape the self-scoped boundary: %s", async (path) => {
     const fetchMock = createFetchMock(new Response(null, { status: 204 }));
     const client = createApiClient(apiConfig, createTokenGetter(), fetchMock);
@@ -1025,7 +1025,7 @@ describe("createApiClient", () => {
     const client = createApiClient(apiConfig, createTokenGetter(), fetchMock);
 
     await expect(
-      client.get("/transactions", { signal: controller.signal }),
+      client.get("/expenses", { signal: controller.signal }),
     ).rejects.toBe(abortError);
     expect(fetchMock.mock.calls[0]?.[1]?.signal).toBe(controller.signal);
   });
@@ -1040,7 +1040,7 @@ describe("createApiClient", () => {
     const client = createApiClient(apiConfig, getToken, fetchMock);
     const controller = new AbortController();
 
-    const request = client.get("/transactions", {
+    const request = client.get("/expenses", {
       signal: controller.signal,
     });
     controller.abort();
@@ -1054,7 +1054,7 @@ describe("createApiClient", () => {
     const fetchMock = createFetchMock(new Response(null, { status: 204 }));
     const client = createApiClient(apiConfig, createTokenGetter(), fetchMock);
 
-    await expect(client.delete("/transactions/7")).resolves.toBeUndefined();
+    await expect(client.delete("/expenses/7")).resolves.toBeUndefined();
   });
 
   it("retains structured API error codes and details", async () => {
@@ -1078,7 +1078,7 @@ describe("createApiClient", () => {
     );
     const client = createApiClient(apiConfig, createTokenGetter(), fetchMock);
 
-    await expect(client.get("/transactions")).rejects.toMatchObject({
+    await expect(client.get("/expenses")).rejects.toMatchObject({
       kind: "http",
       status: 400,
       code: "VALIDATION_FAILED",
@@ -1130,14 +1130,14 @@ describe("createApiClient", () => {
     );
     const client = createApiClient(apiConfig, createTokenGetter(), fetchMock);
 
-    await expect(client.get("/transactions")).rejects.toMatchObject({
+    await expect(client.get("/expenses")).rejects.toMatchObject({
       kind: "http",
       status: 401,
       code: "UNAUTHENTICATED",
       message: "Authentication required",
       details: [],
     });
-    await expect(client.get("/transactions")).rejects.toMatchObject({
+    await expect(client.get("/expenses")).rejects.toMatchObject({
       kind: "http",
       status: 503,
       code: "SERVICE_UNAVAILABLE",
@@ -1152,7 +1152,7 @@ describe("createApiClient", () => {
     );
     const client = createApiClient(apiConfig, createTokenGetter(), fetchMock);
 
-    await expect(client.get("/transactions")).rejects.toMatchObject({
+    await expect(client.get("/expenses")).rejects.toMatchObject({
       kind: "malformed-response",
       status: 200,
     });
@@ -1163,7 +1163,7 @@ describe("createApiClient", () => {
     const fetchMock = vi.fn<FetchMock>(() => Promise.reject(networkError));
     const client = createApiClient(apiConfig, createTokenGetter(), fetchMock);
 
-    await expect(client.get("/transactions")).rejects.toMatchObject({
+    await expect(client.get("/expenses")).rejects.toMatchObject({
       kind: "network",
       cause: networkError,
     });
@@ -1179,7 +1179,7 @@ describe("createApiClient", () => {
     const fetchMock = createFetchMock(response);
     const client = createApiClient(apiConfig, createTokenGetter(), fetchMock);
 
-    await expect(client.get("/transactions")).rejects.toMatchObject({
+    await expect(client.get("/expenses")).rejects.toMatchObject({
       kind: "network",
       status: 200,
       cause: networkError,
@@ -1199,6 +1199,6 @@ describe("createApiClient", () => {
     const fetchMock = createFetchMock(response);
     const client = createApiClient(apiConfig, createTokenGetter(), fetchMock);
 
-    await expect(client.get("/transactions")).rejects.toBe(abortError);
+    await expect(client.get("/expenses")).rejects.toBe(abortError);
   });
 });

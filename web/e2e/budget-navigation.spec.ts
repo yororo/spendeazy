@@ -20,7 +20,7 @@ for (const width of [320, 390, 1440]) {
     const personal: unknown = spaces.find((space: unknown) => isRecord(space) && space.kind === "personal");
     if (!isRecord(personal) || typeof personal.id !== "string") throw new Error("Expected a Personal Space ID");
 
-    for (const path of ["/", "/insights", "/transactions", "/categories", "/imports"]) {
+    for (const path of ["/", "/insights", "/expenses", "/categories", "/imports"]) {
       await page.goto(`${path}?spaceId=${encodeURIComponent(personal.id)}`);
       await expect(page.locator("#main-content header").getByText("Personal", { exact: true })).toBeVisible();
       await expect(page.locator("#main-content header").getByText("Shared", { exact: true })).toHaveCount(0);
@@ -38,11 +38,11 @@ for (const width of [320, 390, 1440]) {
     expect(created.ok()).toBe(true);
     const category: unknown = await created.json();
     if (!isRecord(category) || typeof category.id !== "string") throw new Error("Expected Category ID");
-    const recorded = await page.request.post(`${base}/transactions`, { headers, data: { categoryId: category.id, amount: "10.00", purchaseDate: "2026-08-01", description: "Synthetic navigation attention" } });
+    const recorded = await page.request.post(`${base}/expenses`, { headers, data: { categoryId: category.id, amount: "10.00", purchaseDate: "2026-08-01", description: "Synthetic navigation attention" } });
     expect(recorded.ok()).toBe(true);
     await page.clock.fastForward(31_000);
     const refreshNavigation = page.getByRole("navigation", { name: width < 768 ? "Mobile navigation" : "Primary navigation" });
-    await refreshNavigation.getByRole("link", { name: "Transactions", exact: true }).click();
+    await refreshNavigation.getByRole("link", { name: "Expenses", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Your spending", exact: true })).toBeVisible();
     await refreshNavigation.getByRole("link", { name: "Dashboard", exact: true }).click();
     const manage = page.getByRole("button", { name: "Manage Budgets", exact: true });
@@ -56,7 +56,7 @@ for (const width of [320, 390, 1440]) {
 
     if (width < 768) {
       const tabs = page.getByRole("navigation", { name: "Mobile navigation" });
-      await expect(tabs.getByRole("link")).toHaveText(["Dashboard", "Imports", "Transactions", "Insights"]);
+      await expect(tabs.getByRole("link")).toHaveText(["Dashboard", "Imports", "Expenses", "Insights"]);
       await tabs.getByRole("link", { name: "Insights" }).click();
     } else {
       await page.getByRole("navigation", { name: "Primary navigation" }).getByRole("link", { name: "Insights" }).click();

@@ -10,7 +10,7 @@ import {
 const primaryNavigation = [
   { label: "Dashboard", href: "/", icon: LayoutDashboardIcon },
   { label: "Imports", href: "/imports", icon: ArrowDownToLineIcon },
-  { label: "Transactions", href: "/transactions", icon: ListFilterIcon },
+  { label: "Expenses", href: "/expenses", icon: ListFilterIcon },
   { label: "Insights", href: "/insights", icon: ChartNoAxesCombinedIcon },
   { label: "Budgets", href: "/categories", icon: TagsIcon },
   { label: "Sharing", href: "/sharing", icon: UsersRoundIcon },

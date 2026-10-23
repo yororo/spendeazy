@@ -56,8 +56,8 @@ function projectCategoryCatalog(
   );
 }
 
-function resolveTransactionCategory(
-  transactionId: string,
+function resolveExpenseCategory(
+  expenseId: string,
   categoryId: string | null,
   categoryById: ReadonlyMap<string, CategoryProjection>,
   createError: (message: string) => Error,
@@ -69,7 +69,7 @@ function resolveTransactionCategory(
   const category = categoryById.get(categoryId);
   if (!category) {
     throw createError(
-      `Transaction ${transactionId} references missing Category ${categoryId}.`,
+      `Expense ${expenseId} references missing Category ${categoryId}.`,
     );
   }
 
@@ -79,6 +79,6 @@ function resolveTransactionCategory(
 export {
   getCategoryKeyFromName,
   projectCategoryCatalog,
-  resolveTransactionCategory,
+  resolveExpenseCategory,
 };
 export type { CategoryKey, CategoryProjection };

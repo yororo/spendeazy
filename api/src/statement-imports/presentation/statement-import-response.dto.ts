@@ -114,7 +114,7 @@ export class StatementImportResponseDto {
 
 @ApiSchema({
   description:
-    'A Statement import in the destination Space history collection, including its committed Transaction count.',
+    'A Statement import in the destination Space history collection, including its committed Expense count.',
   additionalProperties: false,
 } as ApiSchemaOptionsWithAdditionalProperties)
 export class StatementImportHistoryResponseDto {
@@ -207,13 +207,12 @@ export class StatementImportHistoryResponseDto {
   importedByUserId!: string;
 
   @ApiProperty({
-    description:
-      'Non-negative committed Transaction count encoded as a string.',
+    description: 'Non-negative committed Expense count encoded as a string.',
     type: String,
     pattern: '^\\d+$',
     example: '12',
   })
-  transactionCount!: string;
+  expenseCount!: string;
 }
 
 @ApiSchema({

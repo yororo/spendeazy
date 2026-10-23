@@ -26,7 +26,7 @@ export class TypeSafeCategorySuggestionEvaluator implements CategorySuggestionEv
   ) {}
 
   async suggestCategory(
-    transactionDescription: string,
+    expenseDescription: string,
     categories: readonly CategorySuggestionCandidate[],
     examples: readonly CategorySuggestionExample[],
   ): Promise<CategorySuggestionDistribution | null> {
@@ -45,7 +45,7 @@ export class TypeSafeCategorySuggestionEvaluator implements CategorySuggestionEv
     try {
       const response = await client.systemOne(
         buildTypeSafeCategorySuggestionRequest(
-          transactionDescription,
+          expenseDescription,
           categories,
           examples,
         ),

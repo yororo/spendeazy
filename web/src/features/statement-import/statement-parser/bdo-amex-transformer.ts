@@ -4,7 +4,7 @@ import { StatementTransformationError } from "./statement-transformation-error";
 import type {
   Statement,
   StatementTransformer,
-  Transaction,
+  StatementEntry,
 } from "./transformer";
 import {
   MONEY_AMOUNT_PATTERN_SOURCE,
@@ -16,12 +16,12 @@ import {
 } from "./statement-parser-utils";
 
 const BDO_PROVIDER = "BDO AMEX";
-const TRANSACTION_PATTERN = new RegExp(
+const EXPENSE_PATTERN = new RegExp(
   `^(\\d{2}\\/\\d{2}\\/\\d{2})\\s+(\\d{2}\\/\\d{2}\\/\\d{2})\\s+(.+?)\\s+(${MONEY_AMOUNT_PATTERN_SOURCE})$`,
   "u",
 );
-const TRANSACTION_PREFIX_PATTERN = /^\d{2}\/\d{2}\/\d{2}(?:\s|$)/u;
-const TRANSACTION_HEADER_PATTERN =
+const EXPENSE_PREFIX_PATTERN = /^\d{2}\/\d{2}\/\d{2}(?:\s|$)/u;
+const EXPENSE_HEADER_PATTERN =
   /^Sale Date\s+Post Date\s+Transaction Details\s+Amount$/iu;
 const STATEMENT_DATE_PATTERN =
   /^Statement Date\s+([A-Za-z]+\s+\d{1,2},\s+\d{4})$/iu;
@@ -59,7 +59,7 @@ interface BdoControls {
 }
 
 interface ParsedActivity {
-  readonly transactions: Transaction[];
+  readonly entries: StatementEntry[];
   readonly subtotalsCents: readonly number[];
   readonly finalTotalCents: number | null;
   readonly sectionCount: number;
@@ -69,8 +69,8 @@ interface ParsedActivity {
   readonly totalExtractedCents: number;
 }
 
-interface ParsedTransaction {
-  readonly transaction: Transaction;
+interface ParsedStatementEntry {
+  readonly expense: StatementEntry;
   readonly amountCents: number;
 }
 
@@ -161,7 +161,7 @@ function parseStatementDate(lines: readonly string[]): Date {
   return statementDate;
 }
 
-function parseTransactionDate(value: string, context: string): Date {
+function parseExpenseDate(value: string, context: string): Date {
   const parts = value.split("/").map(Number);
   const [month, day, shortYear] = parts;
   if (
@@ -179,36 +179,36 @@ function parseTransactionDate(value: string, context: string): Date {
   return date;
 }
 
-function parseTransaction(line: string, lineNumber: number): ParsedTransaction {
-  const match = line.match(TRANSACTION_PATTERN);
+function parseExpense(line: string, lineNumber: number): ParsedStatementEntry {
+  const match = line.match(EXPENSE_PATTERN);
   if (!match) {
-    return validationError(`malformed transaction row on line ${lineNumber}.`);
+    return validationError(`malformed statement entry on line ${lineNumber}.`);
   }
 
-  const [, transactionDateText, postingDateText, description, amountText] =
+  const [, entryDateText, postingDateText, description, amountText] =
     match;
-  const transactionDate = parseTransactionDate(
-    transactionDateText,
-    `transaction date on line ${lineNumber}`,
+  const entryDate = parseExpenseDate(
+    entryDateText,
+    `statement entry date on line ${lineNumber}`,
   );
-  const postingDate = parseTransactionDate(
+  const postingDate = parseExpenseDate(
     postingDateText,
     `posting date on line ${lineNumber}`,
   );
   const amountCents = parseCents(
     amountText,
-    `transaction on line ${lineNumber}`,
+    `statement entry on line ${lineNumber}`,
   );
 
   if (!description.trim()) {
     return validationError(
-      `transaction on line ${lineNumber} has no description.`,
+      `statement entry on line ${lineNumber} has no description.`,
     );
   }
 
   return {
-    transaction: {
-      transactionDate,
+    expense: {
+      entryDate,
       postingDate,
       description: description.trim(),
       amount: centsToMoney(amountCents),
@@ -218,11 +218,11 @@ function parseTransaction(line: string, lineNumber: number): ParsedTransaction {
 }
 
 function parseActivity(lines: readonly string[]): ParsedActivity {
-  const transactions: Transaction[] = [];
+  const entries: StatementEntry[] = [];
   const subtotalsCents: number[] = [];
   let activeSection: {
     balanceCents: number;
-    transactionCount: number;
+    expenseCount: number;
   } | null = null;
   let previousStatementBalanceCents: number | null = null;
   let pendingOpeningBalanceCents: number | null = null;
@@ -273,7 +273,7 @@ function parseActivity(lines: readonly string[]): ParsedActivity {
 
       activeSection = {
         balanceCents: pendingOpeningBalanceCents ?? 0,
-        transactionCount: 0,
+        expenseCount: 0,
       };
       pendingOpeningBalanceCents = null;
       canAcceptReference = false;
@@ -294,9 +294,9 @@ function parseActivity(lines: readonly string[]): ParsedActivity {
       }
 
       const subtotalCents = parseCents(subtotalText, "SUBTOTAL");
-      if (activeSection.transactionCount === 0) {
+      if (activeSection.expenseCount === 0) {
         validationError(
-          `card activity section on line ${lineNumber} has no Transactions.`,
+          `card activity section on line ${lineNumber} has no Statement Entries.`,
         );
       }
       if (activeSection.balanceCents !== subtotalCents) {
@@ -328,7 +328,7 @@ function parseActivity(lines: readonly string[]): ParsedActivity {
       canAcceptReference = false;
       return;
     }
-    if (TRANSACTION_HEADER_PATTERN.test(trimmedLine)) {
+    if (EXPENSE_HEADER_PATTERN.test(trimmedLine)) {
       return;
     }
 
@@ -344,22 +344,22 @@ function parseActivity(lines: readonly string[]): ParsedActivity {
       return;
     }
 
-    if (TRANSACTION_PREFIX_PATTERN.test(trimmedLine)) {
+    if (EXPENSE_PREFIX_PATTERN.test(trimmedLine)) {
       if (!activeSection) {
         validationError(
-          `transaction row on line ${lineNumber} is outside card activity.`,
+          `statement entry on line ${lineNumber} is outside card activity.`,
         );
       }
 
-      const parsedTransaction = parseTransaction(trimmedLine, lineNumber);
-      transactions.push(parsedTransaction.transaction);
-      activeSection.transactionCount += 1;
-      activeSection.balanceCents += parsedTransaction.amountCents;
-      totalExtractedCents += parsedTransaction.amountCents;
-      if (parsedTransaction.amountCents > 0) {
-        positiveActivityCents += parsedTransaction.amountCents;
+      const parsedExpense = parseExpense(trimmedLine, lineNumber);
+      entries.push(parsedExpense.expense);
+      activeSection.expenseCount += 1;
+      activeSection.balanceCents += parsedExpense.amountCents;
+      totalExtractedCents += parsedExpense.amountCents;
+      if (parsedExpense.amountCents > 0) {
+        positiveActivityCents += parsedExpense.amountCents;
       } else {
-        negativeActivityCents -= parsedTransaction.amountCents;
+        negativeActivityCents -= parsedExpense.amountCents;
       }
       canAcceptReference = true;
       return;
@@ -387,7 +387,7 @@ function parseActivity(lines: readonly string[]): ParsedActivity {
   }
 
   return {
-    transactions,
+    entries,
     subtotalsCents,
     finalTotalCents,
     sectionCount,
@@ -421,9 +421,9 @@ function readControls(lines: readonly string[]): BdoControls {
 }
 
 function validateActivity(controls: BdoControls, activity: ParsedActivity) {
-  if (activity.transactions.length === 0) {
+  if (activity.entries.length === 0) {
     validationError(
-      "no Transactions were extracted from the card activity sections.",
+      "no Statement Entries were extracted from the card activity sections.",
     );
   }
 
@@ -494,11 +494,11 @@ const bdoAmexTransformer: StatementTransformer = {
         accountType: "AMEX",
         transactionHistoryStartDate: null,
         totalDebit: null,
-        totalTransactions: activity.transactions.length,
+        entryCount: activity.entries.length,
         totalAmountDue: centsToMoney(controls.totalAmountDueCents),
         totalExtractedAmount: centsToMoney(activity.totalExtractedCents),
       },
-      transactions: activity.transactions,
+      entries: activity.entries,
     };
   },
 };

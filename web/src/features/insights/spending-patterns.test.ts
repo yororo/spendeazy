@@ -25,7 +25,7 @@ describe("recorded Category spending patterns", () => {
     const result = createSpendingPatterns(period, [category], items, new Date(2024, 7, 30));
     expect(result.categories[0]).toMatchObject({ status: "potential", selectedCents: 80000, medianCents: 20000 });
     expect(result.categories[0]!.comparisons.map(({ cutoff }) => cutoff)).toEqual(["2024-02-29", "2024-03-30", "2024-04-30"]);
-    expect(result.categories[0]!.selectedTransactions.map(({ id }) => id)).toEqual(["2024-08-30"]);
+    expect(result.categories[0]!.selectedExpenses.map(({ id }) => id)).toEqual(["2024-08-30"]);
     const historical = createSpendingPatterns(period, [category], items, new Date(2024, 8, 1));
     expect(historical.categories[0]!.selectedCents).toBe(980000);
     expect(historical.categories[0]!.comparisons).toHaveLength(4);

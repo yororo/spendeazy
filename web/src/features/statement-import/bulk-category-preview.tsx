@@ -5,33 +5,33 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatMoney } from "@/shared/money";
-import type { CategorizedTransaction } from "./statement-categorizer";
+import type { CategorizedStatementEntry } from "./statement-categorizer";
 import type { CategoryColorOption, CategoryCatalogOption } from "./statement-import-service";
 import { formatImportDate } from "./statement-import-date-formatting";
 import { getCategoryLabel } from "./statement-import-utils";
-import { getRepeatedStatementTransactions, isBulkAssignableExpense } from "./bulk-category-assignment";
+import { getRepeatedStatementEntries, isBulkAssignableExpense } from "./bulk-category-assignment";
 
 interface BulkCategoryPreviewProps {
-  readonly source: CategorizedTransaction;
-  readonly transactions: readonly CategorizedTransaction[];
+  readonly source: CategorizedStatementEntry;
+  readonly entries: readonly CategorizedStatementEntry[];
   readonly categoryOptions: readonly CategoryColorOption[];
   readonly categoryLabels: readonly CategoryCatalogOption[];
   readonly disabled: boolean;
   readonly onApply: (sourceId: string, selectedIds: readonly string[], categoryId: string) => boolean;
 }
 
-function BulkCategoryPreview({ source, transactions, categoryOptions, categoryLabels, disabled, onApply }: BulkCategoryPreviewProps) {
+function BulkCategoryPreview({ source, entries: expenses, categoryOptions, categoryLabels, disabled, onApply }: BulkCategoryPreviewProps) {
   const [open, setOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<readonly string[]>([]);
   const [categoryId, setCategoryId] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const matches = getRepeatedStatementTransactions(transactions, source);
+  const matches = getRepeatedStatementEntries(expenses, source);
   if (!isBulkAssignableExpense(source) || matches.length < 2) return null;
 
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => {
       if (nextOpen) {
-        setSelectedIds(matches.filter((transaction) => isBulkAssignableExpense(transaction) && transaction.assignment === "unmapped").map((transaction) => transaction.id));
+        setSelectedIds(matches.filter((expense) => isBulkAssignableExpense(expense) && expense.assignment === "unmapped").map((expense) => expense.id));
         setCategoryId("");
         setError(null);
       }
@@ -47,17 +47,17 @@ function BulkCategoryPreview({ source, transactions, categoryOptions, categoryLa
         </DialogHeader>
         <p role="status">{selectedIds.length} of {matches.length} matching rows selected</p>
         <ul aria-label="Matching statement rows" className="space-y-3">
-          {matches.map((transaction) => {
-            const eligible = isBulkAssignableExpense(transaction);
-            return <li key={transaction.id}>
+          {matches.map((expense) => {
+            const eligible = isBulkAssignableExpense(expense);
+            return <li key={expense.id}>
               <label className="flex items-start gap-3 border p-3">
-                <Checkbox aria-label={`Select ${transaction.description} on ${formatImportDate(transaction.transactionDate)}`} disabled={!eligible} checked={selectedIds.includes(transaction.id)} onCheckedChange={(checked) => {
-                  setSelectedIds((current) => checked === true ? [...current, transaction.id] : current.filter((id) => id !== transaction.id));
+                <Checkbox aria-label={`Select ${expense.description} on ${formatImportDate(expense.entryDate)}`} disabled={!eligible} checked={selectedIds.includes(expense.id)} onCheckedChange={(checked) => {
+                  setSelectedIds((current) => checked === true ? [...current, expense.id] : current.filter((id) => id !== expense.id));
                 }} />
                 <span className="min-w-0 wrap-anywhere">
-                  <span className="block">{transaction.description}</span>
-                  <span className="block font-mono text-xs">{formatImportDate(transaction.transactionDate)} · {formatMoney(transaction.amount)}</span>
-                  <span className="block text-sm">{transaction.isExcluded ? "Excluded" : transaction.categoryId ? `Replace ${getCategoryLabel(categoryLabels, transaction.categoryId)}` : transaction.assignment === "ambiguous" ? "Ambiguous Category match" : "Unmapped"}</span>
+                  <span className="block">{expense.description}</span>
+                  <span className="block font-mono text-xs">{formatImportDate(expense.entryDate)} · {formatMoney(expense.amount)}</span>
+                  <span className="block text-sm">{expense.isExcluded ? "Excluded" : expense.categoryId ? `Replace ${getCategoryLabel(categoryLabels, expense.categoryId)}` : expense.assignment === "ambiguous" ? "Ambiguous Category match" : "Unmapped"}</span>
                 </span>
               </label>
             </li>;

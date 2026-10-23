@@ -7,7 +7,7 @@ export interface ImportFingerprintStatementFields {
   cardType?: string | null;
 }
 
-export interface ImportFingerprintTransactionFields {
+export interface ImportFingerprintExpenseFields {
   purchaseDate: string;
   description: string;
   amount: string;
@@ -15,13 +15,13 @@ export interface ImportFingerprintTransactionFields {
 
 export function computeImportFingerprint(
   statement: ImportFingerprintStatementFields,
-  transaction: ImportFingerprintTransactionFields,
+  expense: ImportFingerprintExpenseFields,
 ): string {
   const resolvedTuple = [
     'v2',
-    transaction.purchaseDate,
-    normalizeMatchingText(transaction.description),
-    normalizeAmount(transaction.amount),
+    expense.purchaseDate,
+    normalizeMatchingText(expense.description),
+    normalizeAmount(expense.amount),
     normalizeMatchingText(statement.bank),
     statement.cardType == null
       ? null

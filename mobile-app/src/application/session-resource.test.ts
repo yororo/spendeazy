@@ -17,7 +17,7 @@ test('resource retries and refresh replaces an obsolete pagination completion', 
   assert.deepEqual(resource.snapshot().data, ['fresh']);
 });
 
-test('Categories/detail resources hide private data and reject failures after identity or Space changes', async () => {
+test('Category resources hide private data and reject failures after identity or Space changes', async () => {
   for (const transition of ['identity', 'space', 'sign-out'] as const) {
     const session = createSession(); session.observeIdentity('ada'); session.changeSpace('personal');
     const resource = createSessionResource<string[]>(session);

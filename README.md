@@ -1,6 +1,8 @@
 # Spendeazy
 
-Private personal-finance software for tracking expenses, managing Budgets, and importing supported statements. Two npm projects share one [domain glossary](GLOSSARY.md).
+Private personal-finance software for tracking expenses, managing Budgets, and importing supported statements. The web, API and planned mobile replacement share one [domain glossary](GLOSSARY.md).
+
+The root glossary now records the agreed mobile replacement vocabulary. The accepted [Expense domain and mobile API contract](docs/specifications/mobile-expense-domain-api.md) and [replacement ADR](docs/adr/0004-mobile-expense-domain-and-contract.md) specify future behavior; the integration/runtime descriptions below still describe the existing web/API. The replacement is planning work, with no changes to `web/` or claim of a shipped mobile/API contract.
 
 | Project | Responsibility | Guides |
 | --- | --- | --- |

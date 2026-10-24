@@ -1,5 +1,7 @@
 # Personal route compatibility
 
+**Replacement boundary:** the accepted [mobile Expense target decision](../../docs/adr/0004-mobile-expense-domain-and-contract.md) explicitly removes Personal financial aliases and old Transaction names without a compatibility window in the planned development replacement. That implementation has not shipped. This guide remains the inventory/policy for the existing API and browser; it is not a requirement to preserve aliases in the target. No browser edits are authorized by the replacement specification.
+
 Personal compatibility aliases remain active in API v1. They are not marked as deprecated in the OpenAPI document, and issue #100 does not remove or change them.
 
 ## Route behavior

@@ -1,15 +1,15 @@
 # Spendeazy
 
-Spendeazy is a private personal-finance application for understanding spending, importing account statements, and assigning expenses to Categories with Budgets. It models expenses in one currency within Personal and Shared Spaces.
+Spendeazy is a personal-finance application for recording positive Expenses, reviewing statement Transactions, and planning spending with Category Budgets. Financial data is separate within Personal and Shared Spaces.
 
-## Language
+## People and Spaces
 
 **User**:
 The authenticated person using Spendeazy, with one sign-in identity, a private Personal Space, and membership in at most one active Shared Space.
 _Avoid_: API User, internal user, account holder
 
 **Space**:
-The separate financial context to which Categories, Budgets, Transactions, Category Rules, and Committed Statement Imports belong.
+The separate financial context to which Expenses, Categories, Budgets, Category Rules and Committed Statement Imports belong.
 _Avoid_: Account, ledger, workspace
 
 **Personal Space**:
@@ -21,161 +21,159 @@ A Space created when an invitation is accepted, in which two Users have equal au
 _Avoid_: Shared account, family account, household account
 
 **Archived Shared Space**:
-A former Shared Space preserved as read-only history for both members after either leaves; it does not count toward either User's active Shared Space limit.
+A former Shared Space preserved as read-only history for its surviving members after either leaves or deletes their identity. It does not count toward a User's active Shared Space limit and cannot be reopened.
 _Avoid_: Deleted Space, abandoned account
 
 **Shared Space Invitation**:
-A pending offer from one User to form a Shared Space with another eligible User. A User must enter its Invite Code and explicitly accept to form the Shared Space.
+A pending offer to form a Shared Space, reviewed and explicitly accepted by a signed-in User who has its Invite Code.
 _Avoid_: Account invitation, membership link
 
 **Invite Code**:
-A shareable code that identifies a Shared Space Invitation. A signed-in User who has the code can review the invitation and choose whether to join.
+A shareable code identifying a Shared Space Invitation; possession allows review, not automatic membership.
 _Avoid_: Email invitation link, invitation token
 
-**Added By**:
-The User who originally recorded a Transaction manually or confirmed it through Statement Import; this attribution remains unchanged by later edits and does not identify who paid.
-_Avoid_: Owner, payer
+**Deleted User**:
+A former User whose identity and Personal financial data have been removed, while their contribution to retained Shared history is attributed to Deleted user. Registering again does not restore their former access or attribution.
+_Avoid_: Former payer, anonymous member
 
-**Dashboard**:
-The authenticated overview of recent spending, monthly totals, budget usage, and recent transactions.
-_Avoid_: Spending Overview, Overview page
+## Expenses and history
 
-**Theme**:
-A User's chosen visual style for Spendeazy, initially Technical or Playful. A Theme changes presentation while preserving financial data, page structure, and responsive layout.
-_Avoid_: Skin, layout preset
-
-**Appearance**:
-Spendeazy's light or dark presentation, chosen independently of Theme through Light, Dark, or System. System follows the User's operating-system appearance.
-_Avoid_: Theme, color theme
-
-**Statement Import**:
-The workflow that converts a supported account statement into categorized transactions ready to be saved as expenses.
-_Avoid_: File import, transaction import
-
-**Committed Statement Import**:
-The persisted provenance record for a Statement Import whose reviewed transactions have been confirmed and saved together. Temporary parsing and review state is not a Committed Statement Import.
-_Avoid_: Parsed statement, upload
-
-**Supported Statement**:
-A financial account statement whose provider and account format Spendeazy recognizes and whose extracted activity can be reconciled against the statement's control totals.
-_Avoid_: Compatible PDF, accepted statement
-
-**Statement Type**:
-The kind of Supported Statement being imported: Credit Card or E-Wallet. It is distinct from the statement's provider and the Account through which a Transaction was made.
-_Avoid_: Provider, Account Type
-
-**Transaction History Period**:
-The inclusive date range covered by an E-Wallet statement's transaction history.
-_Avoid_: Statement Date
-
-**Upload**:
-The Statement Import stage in which a statement file is selected and processed.
-_Avoid_: Import, ingest
-
-**Categorize**:
-The Statement Import stage in which parsed transactions are assigned to categories and corrected when necessary.
-_Avoid_: Map, update
-
-**Review**:
-The Statement Import stage in which categorized transactions and statement totals are checked before confirmation.
-_Avoid_: Confirm stage, validation
-
-**Unmapped Transaction**:
-A parsed Transaction whose Category could not be determined during Statement Import. It has no match confidence; a user-assigned Category is Manual.
-_Avoid_: Unmapped Category, unknown transaction
-
-**Excluded Transaction**:
-A parsed Transaction that remains visible during Statement Import but will not be confirmed or included in import summaries.
-_Avoid_: Deleted transaction, ignored row
+**Expense**:
+Positive spending recorded manually or saved by confirming an included statement Transaction, with a date, description and Category. An Expense belongs to one Space and is distinct from the parsed Transaction that may have produced it.
+_Avoid_: Spending record, Transaction, Statement Entry
 
 **Transaction**:
-A positive expense on an Account, recorded manually or confirmed through Statement Import. It may be assigned a Category.
-_Avoid_: Record, statement row
+Parsed statement activity, including purchases, outgoing transfers, payments, refunds, credits and cash-ins. Reviewing a Transaction does not create an Expense; only included eligible spending becomes an Expense on confirmation.
+_Avoid_: Expense, Statement Entry, saved Transaction
+
+**Added By**:
+The User who originally recorded an Expense manually or confirmed it through Statement Import. Attribution is unchanged by later edits and does not identify who paid.
+_Avoid_: Owner, payer
 
 **Account**:
-The source through which a Transaction was made. An imported Transaction's Account is identified by its Statement Import's provider and account type; card or wallet identifiers do not define its Account identity. A manual Transaction's Account is Cash.
-_Avoid_: Payment Source
+The source through which an Expense was made: Cash for manual Expenses, or the provider and account format of its Statement Import. Individual card or wallet identifiers do not define a separate Account.
+_Avoid_: Space, payment owner
+
+**Expense Activity**:
+The retained record of an Expense's creation, changes and deletion, including who acted and when. Edits retain the values before and after the change; display names follow the current person and Category names.
+_Avoid_: Budget history, bank activity
+
+**Deleted Expense**:
+An Expense removed from active lists and spending totals but retained with its Activity and original provenance for inspection. It cannot be restored at launch.
+_Avoid_: Excluded Transaction, erased Expense
+
+**Dashboard**:
+The overview of a Space's actual Expenses, planning equivalents, Budget checks and successful Statement Imports for the selected Reporting Period.
+_Avoid_: Spending Overview, Overview page
+
+**Appearance**:
+The light or dark presentation selected through Light, Dark or System, with System following the device's appearance.
+_Avoid_: Theme, selectable style
+
+## Categories and planning
 
 **Category**:
-A spending classification assigned to a Transaction and used consistently across analysis and budgeting.
-_Avoid_: Tag, label
+A Space-owned spending classification assigned to Expenses and used across analysis, budgeting and statement review. A Category can exist without a Budget.
+_Avoid_: Tag, label, Budget Category
 
 **Category Color**:
-A Category's visual identifier, used consistently wherever that Category appears, including historical Transactions, and retained when it is renamed. Multiple Categories may share a Category Color.
-_Avoid_: Transaction color, chart color
+A Category's visual identifier, used consistently including for historical Expenses and retained when renamed. Multiple Categories may share a Category Color.
+_Avoid_: Expense color, chart color
 
 **Inactive Category**:
-A Category retired from future Transaction assignments and Statement Import categorization while retaining its historical Transactions and spending. It can be reactivated for future use.
+A Category retired from new Expense assignments, rule matching, planning and Budget checks while retaining its historical Expenses, Budget and Rules. Existing Expenses may be corrected without changing it, and its settings may be maintained before reactivation.
 _Avoid_: Deleted Category, archived Category
 
-**Category Match Confidence**:
-The strength of an automatically assigned Category match, expressed from 0 to 1. Unmapped and manually categorized Transactions have no confidence.
-_Avoid_: Match percentage, categorization score
-
-**Category Suggestion**:
-One of up to three proposed Categories shown for an Unmapped Transaction during Statement Import. It does not assign a Category; a User's selection becomes a Manual assignment.
-_Avoid_: Automatic Category, AI assignment
-
-**Bulk Category Assignment**:
-A Manual assignment of one Category to multiple selected parsed Transactions within the same Statement Import. It is distinct from a Category Rule that applies to future Statement Imports.
-_Avoid_: Bulk Rule, automatic merchant mapping
-
-**Category Rule**:
-A persistent association between a description pattern and a Category, using either Exact or Contains matching during future Statement Imports. Matching ignores case and normalizes whitespace; rules for Inactive Categories do not participate.
-_Avoid_: Category mapping, remembered mapping
-
-**Exact Rule**:
-A Category Rule whose pattern matches the entire normalized Transaction description. Exact Rules take precedence over Contains Rules.
-_Avoid_: Full-text rule
-
-**Contains Rule**:
-A Category Rule whose pattern occurs anywhere within the normalized Transaction description, including within a word. Punctuation remains significant.
-_Avoid_: Keyword rule, fuzzy rule
-
-**Ambiguous Category Match**:
-A match in which the applicable Category Rules identify more than one distinct Category after Exact Rule precedence is applied. The Transaction remains Unmapped until the User assigns a Category.
-_Avoid_: Multiple matches, guessed Category
+**Default Category**:
+A Category copied from the maintained default catalog when a Space is created. Default describes its origin only; later catalog changes do not alter existing Spaces' Categories.
+_Avoid_: System category, built-in category
 
 **Budget**:
-The single recurring spending limit associated with a Category, over either a monthly or yearly period.
-_Avoid_: Allowance, Budget Category
+The single current recurring spending limit optionally assigned to a Category, with a positive amount and Monthly or Yearly recurrence. Current settings apply to retrospective comparisons; there are no historical Budget versions, effective dates or rollover.
+_Avoid_: Allowance, savings pot, Budget Category
+
+**Reporting Period**:
+The inclusive date range selected for Expense reporting, such as a six-month window, a calendar year or year to date. Individual Budget checks use the relevant calendar month or full calendar-year limit rather than treating every Reporting Period as a monthly cap.
+_Avoid_: Active month, Budget recurrence
+
+**Monthly-equivalent Plan**:
+The combined current Monthly Budgets and one twelfth of current Yearly Budgets among active Categories. It is a planning comparison, not a monthly limit for a Yearly Budget.
+_Avoid_: Combined monthly cap, monthly Yearly Budget
+
+**Planned**:
+The Monthly-equivalent Plan multiplied by the number of calendar months counted in a reporting view, including a started current month in full.
+_Avoid_: Prorated cap, historical Budget
 
 **Over Budget**:
-A Category whose spending for the selected Reporting Period exceeds its monthly Budget. Spending exactly equal to the limit is not Over Budget.
-_Avoid_: At limit, projected breach
+A Category whose actual Expenses exceed its current Budget's applicable calendar-month or calendar-year limit. Spending exactly equal to the limit is not Over Budget.
+_Avoid_: Above plan, projected breach
 
 **Nearing Budget**:
-A Category whose spending for the selected Reporting Period is at least 80% of its monthly Budget and below the limit.
+A Category whose actual Expenses reach at least 80% of its applicable Budget limit and remain below 100%.
 _Avoid_: Projected breach, Over Budget
 
 **At Budget Limit**:
-A Category whose spending for the selected Reporting Period equals its monthly Budget exactly.
+A Category whose actual Expenses equal its applicable Budget limit exactly.
 _Avoid_: Over Budget, rounded-to-limit
 
-**Budgeted Spending**:
-Spending in Categories with a monthly Budget for the selected Reporting Period. It is the spending compared with the sum of those monthly Budgets.
-_Avoid_: Total Spending, Covered Spending
+**Unbudgeted Expenses**:
+Expenses assigned to Categories without a current active Budget. They remain part of actual Expense totals without an invented spending limit.
+_Avoid_: Uncategorized Expenses, untracked spending
 
-**Unbudgeted Spending**:
-Spending in Categories without a monthly Budget, including Uncategorized Transactions, for the selected Reporting Period.
-_Avoid_: Remaining Spending, Untracked Spending
+## Statement Import
 
-**Reporting Period**:
-The calendar month and year used to scope Dashboard, Transaction, and Category figures.
-_Avoid_: Active Period, Date Filter
+**Statement Import**:
+The Select file, Update and Confirm workflow that reviews supported statement Transactions and saves included eligible spending as Expenses.
+_Avoid_: Upload, transaction import
 
-**Default Category**:
-A Category copied from the maintained default catalog when a Personal or Shared Space is created. Default describes its origin only; subsequent catalog changes do not alter existing Spaces' Categories.
-_Avoid_: System category, built-in category
+**Committed Statement Import**:
+The immutable provenance of a successfully confirmed Statement Import, including original evidence, confirmation totals, importer and destination Space. Later Expense edits or deletion do not rewrite that record.
+_Avoid_: Parsed statement, review draft
 
-**Uncategorized**:
-The state of a Transaction with no Category assignment. During Statement Import, an Unmapped Transaction is a parsed Transaction awaiting that assignment.
-_Avoid_: Unassigned, categoryless
+**Supported Statement**:
+A financial statement in a recognized provider and account format whose extracted activity can be compared with its control totals. A reconciliation warning does not prevent confirmation.
+_Avoid_: Verified bank record, guaranteed-correct PDF
+
+**Statement Type**:
+The kind of Supported Statement: Credit Card or E-Wallet, distinct from its provider and account format.
+_Avoid_: Provider, Account Type
+
+**Transaction History Period**:
+The inclusive date range covered by an E-Wallet statement's activity.
+_Avoid_: Statement Date
+
+**Unmapped Transaction**:
+A parsed Transaction awaiting a Category assignment, including one whose applicable Rules identify different Categories. Every included Transaction must have an active Category before confirmation.
+_Avoid_: Saved Uncategorized Expense, unknown Category
+
+**Excluded Transaction**:
+A parsed Transaction kept visible in review but omitted from confirmation's Expense count and totals. Automatically excluded payments, refunds, credits and cash-ins cannot become Expenses through review controls.
+_Avoid_: Deleted Expense, ignored row
+
+**Bulk Category Assignment**:
+A manual assignment of one Category to multiple selected Transactions within an import draft. It is distinct from remembering a Category Rule for future imports.
+_Avoid_: Bulk Rule, automatic merchant mapping
+
+**Category Rule**:
+A Space-owned association between a description pattern and a Category, evaluated using Exact or Contains matching during Statement Import. Matching ignores case, normalizes whitespace and excludes inactive Categories.
+_Avoid_: Category mapping, remembered mapping
+
+**Exact Rule**:
+A Category Rule matching the entire normalized Transaction description, taking precedence over Contains Rules.
+_Avoid_: Full-text rule
+
+**Contains Rule**:
+A Category Rule matching a normalized substring, including within a word, with punctuation remaining significant.
+_Avoid_: Keyword rule, fuzzy rule
+
+**Ambiguous Category Match**:
+A match identifying multiple distinct Categories after Exact precedence is applied, leaving the Transaction Unmapped until manually assigned.
+_Avoid_: Guessed Category, multiple matching rows
 
 **Exact File Duplicate**:
-A statement file whose content hash matches a Committed Statement Import already in the destination Space.
-_Avoid_: Duplicate statement
+A statement file whose content hash matches a Committed Statement Import in the destination Space. It is an overridable warning; an intentional reimport is distinct from retrying one confirmation.
+_Avoid_: Forbidden statement, idempotent retry
 
 **Probable Duplicate**:
-An imported Transaction whose fingerprint matches another reviewed row or a previously imported Transaction in the destination Space. It is a review signal, not proof that the Transactions are identical.
-_Avoid_: Duplicate transaction
+A reviewed Transaction whose fingerprint matches another reviewed row or an imported Expense in the destination Space. It is an overridable review signal, not proof that the spending is identical.
+_Avoid_: Proven duplicate, automatically removed Expense

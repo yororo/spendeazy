@@ -23,6 +23,10 @@ export function useSessionTransport() {
   const { getToken, signOut, sessionId } = useAuth();
   const clerk = useClerk();
   return useMemo(() => ({
+    async prepareSignIn() {
+      const activeSessionId = clerk.session?.id;
+      if (activeSessionId) await signOut({ sessionId: activeSessionId });
+    },
     forScope(scope: SessionScope) {
       const credentialsCurrent = () => clerk.session?.id === sessionId && clerk.user?.id === scope.userId;
       return {

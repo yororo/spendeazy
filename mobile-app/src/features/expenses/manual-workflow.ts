@@ -5,6 +5,24 @@ import {
   type ManualExpenseDraft, type ManualExpenseField, type ManualExpenseRequest,
 } from './manual-draft.ts';
 
+type ManualState = { saving: boolean; error: string | null; issues: Partial<Record<ManualExpenseField, string>> };
+type ManualEvent =
+  | { type: 'edited' }
+  | { type: 'validationFailed'; issues: ManualState['issues'] }
+  | { type: 'saveStarted' }
+  | { type: 'saveFailed'; error: string }
+  | { type: 'saveFinished' };
+
+function manualReducer(state: ManualState, event: ManualEvent): ManualState {
+  switch (event.type) {
+    case 'edited': return { ...state, error: null };
+    case 'validationFailed': return { ...state, issues: event.issues };
+    case 'saveStarted': return { saving: true, issues: {}, error: null };
+    case 'saveFailed': return { ...state, error: event.error };
+    case 'saveFinished': return { ...state, saving: false };
+  }
+}
+
 export function createManualExpenseWorkflow(
   session: Session,
   save: (spaceId: string, input: ManualExpenseRequest) => Promise<unknown>,
@@ -12,10 +30,10 @@ export function createManualExpenseWorkflow(
 ) {
   const scope = session.capture();
   const initial = defaultManualExpenseDraft(today());
-  let state = { saving: false, error: null as string | null, issues: {} as Partial<Record<ManualExpenseField, string>> };
+  let state: ManualState = { saving: false, error: null, issues: {} };
   const listeners = new Set<() => void>();
-  function publish(patch: Partial<typeof state>) {
-    state = { ...state, ...patch };
+  function dispatch(event: ManualEvent) {
+    state = manualReducer(state, event);
     for (const listener of listeners) listener();
   }
   const draft = () => session.snapshot().draft ?? initial;
@@ -26,7 +44,7 @@ export function createManualExpenseWorkflow(
     update(patch: Partial<ManualExpenseDraft>) {
       if (!session.isCurrent(scope) || state.saving) return;
       session.saveDraft({ ...draft(), ...patch });
-      publish({ error: null });
+      dispatch({ type: 'edited' });
     },
     async submit(activeCategoryIds: readonly string[]): Promise<'saved' | 'invalid' | 'failed' | 'obsolete' | 'busy'> {
       if (state.saving) return 'busy';
@@ -37,10 +55,10 @@ export function createManualExpenseWorkflow(
         issues.push({ field: 'categoryId', message: 'Choose an active Category.' });
       }
       if (issues.length) {
-        publish({ issues: Object.fromEntries(issues.map((issue) => [issue.field, issue.message])) });
+        dispatch({ type: 'validationFailed', issues: Object.fromEntries(issues.map((issue) => [issue.field, issue.message])) });
         return 'invalid';
       }
-      publish({ saving: true, issues: {}, error: null });
+      dispatch({ type: 'saveStarted' });
       try {
         await save(scope.spaceId, manualExpenseRequest(entered));
         if (!session.isCurrent(scope)) return 'obsolete';
@@ -48,10 +66,10 @@ export function createManualExpenseWorkflow(
         return 'saved';
       } catch (cause) {
         if (!session.isCurrent(scope)) return 'obsolete';
-        publish({ error: `${requestFailureMessage(cause)} The entered Expense is still here.` });
+        dispatch({ type: 'saveFailed', error: `${requestFailureMessage(cause)} The entered Expense is still here.` });
         return 'failed';
       } finally {
-        publish({ saving: false });
+        dispatch({ type: 'saveFinished' });
       }
     },
   };

@@ -1,5 +1,4 @@
 import { useSignInWithGoogle } from '@clerk/expo/google';
-import { useAuth } from '@clerk/expo';
 import { useState } from 'react';
 import { Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -12,12 +11,13 @@ import {
   googleSignInConfigurationMessage,
 } from '@/navigation/google-sign-in';
 import { useSessionSnapshot } from '@/application/session-runtime';
+import { useSessionTransport } from '@/application/authorized-client';
 
 export default function SignInScreen() {
   const insets = useSafeAreaInsets();
   const { palette, fonts } = useAppTheme();
   const { startGoogleAuthenticationFlow } = useSignInWithGoogle();
-  const { isSignedIn, signOut } = useAuth();
+  const { prepareSignIn } = useSessionTransport();
   const session = useSessionSnapshot();
   const [phase, setPhase] = useState<'ready' | 'loading' | 'cancelled' | 'failed'>('ready');
   const [failure, setFailure] = useState<string | null>(null);
@@ -37,9 +37,7 @@ export default function SignInScreen() {
     setPhase('loading');
     setFailure(null);
     const outcome = await completeGoogleSignIn(async () => {
-      // A failed Clerk sign-out can leave credentials present after the app has
-      // locked private screens. Retry termination before starting recovery.
-      if (isSignedIn) await signOut();
+      await prepareSignIn();
       const result = await startGoogleAuthenticationFlow();
       return {
         createdSessionId: result.createdSessionId,

@@ -37,3 +37,9 @@ test('an HTTP failure received after switching Spaces cannot expire the session'
   await assert.rejects(result, (cause) => requestFailure(cause) === 'obsolete');
   assert.equal(session.snapshot().notice, null);
 });
+
+test('a connection reset while reading the HTTP body is a transport failure', async (t) => {
+  const body = new ReadableStream({ start(controller) { controller.error(new TypeError('connection reset')); } });
+  t.mock.method(globalThis, 'fetch', async () => new Response(body, { status: 200 }));
+  await assert.rejects(authorizedRequest({ baseUrl: 'https://example.invalid', getAccessToken: async () => 'token' }, '/expenses'), (cause) => requestFailure(cause) === 'transport');
+});

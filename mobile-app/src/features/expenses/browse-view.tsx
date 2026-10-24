@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { FlatList, KeyboardAvoidingView, Pressable, RefreshControl, Text, View, type ListRenderItem } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { SpaceCategory } from '@/api/categories-api-client';
@@ -7,14 +7,13 @@ import { SecondaryButton } from '@/components/buttons';
 import { ChoiceSheet } from '@/components/choice-sheet';
 import { MoneyAmount } from '@/components/money-amount';
 import { BodyText, StackGap, SupportingText } from '@/components/screen';
-import { SpaceStatus } from '@/components/space-status';
 import { TextField } from '@/components/text-field';
 import { controlSize, space, typeScale } from '@/constants/theme';
 import { useAppTheme } from '@/navigation/app-theme';
 import type { ExpenseBrowseSelection } from './browse-state';
 import type { useExpenseBrowse } from './use-expense-browse';
 
-export function ExpenseBrowse({ controller, onOpenExpense }: { controller: ReturnType<typeof useExpenseBrowse>; onOpenExpense: (expenseId: string) => void }) {
+export function ExpenseBrowse({ controller, onOpenExpense, spaceStatus }: { controller: ReturnType<typeof useExpenseBrowse>; onOpenExpense: (expenseId: string) => void; spaceStatus: ReactNode }) {
   const insets = useSafeAreaInsets();
   const { palette, fonts } = useAppTheme();
   const { spaceId, selection, categories, issues, queryKey, loaded, error, phase, refreshing, loadingMore,
@@ -111,7 +110,7 @@ export function ExpenseBrowse({ controller, onOpenExpense }: { controller: Retur
               }}>
               Expenses
             </Text>
-            <SpaceStatus />
+            {spaceStatus}
             {selection ? (
               <ExpenseFilters
                 selection={selection}

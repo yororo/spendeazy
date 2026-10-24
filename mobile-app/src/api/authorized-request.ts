@@ -74,7 +74,12 @@ async function sendAuthorizedRequest<T>(
 }
 
 async function readJson(response: Response): Promise<unknown> {
-  const body = await response.text();
+  let body: string;
+  try {
+    body = await response.text();
+  } catch {
+    throw new ExpenseApiTransportError();
+  }
   if (body.length === 0) {
     throw new ExpenseApiError(
       response.status,

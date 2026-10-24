@@ -9,7 +9,31 @@ type SpacesState = {
   refreshing: boolean;
   error: string | null;
   memoryError: string | null;
+  requestId: number;
 };
+type SpacesEvent =
+  | { type: 'loadStarted' }
+  | { type: 'cancelled' }
+  | { type: 'loadSucceeded'; requestId: number; spaces: AccessibleSpace[]; active: AccessibleSpace | null }
+  | { type: 'loadFailed'; requestId: number; error: string }
+  | { type: 'loadFinished'; requestId: number }
+  | { type: 'selected'; active: AccessibleSpace }
+  | { type: 'memorySaved'; saved: boolean };
+
+function spacesReducer(state: SpacesState, event: SpacesEvent): SpacesState {
+  switch (event.type) {
+    case 'loadStarted': return { ...state, requestId: state.requestId + 1, refreshing: true, error: null };
+    case 'cancelled': return { ...state, requestId: state.requestId + 1, refreshing: false };
+    case 'selected': return { ...state, requestId: state.requestId + 1, active: event.active, refreshing: false };
+    case 'memorySaved': return { ...state, memoryError: event.saved ? null : 'This device could not remember the active Space.' };
+  }
+  if (event.requestId !== state.requestId) return state;
+  switch (event.type) {
+    case 'loadSucceeded': return { ...state, spaces: event.spaces, active: event.active, loading: false };
+    case 'loadFailed': return { ...state, error: event.error, loading: false };
+    case 'loadFinished': return { ...state, refreshing: false };
+  }
+}
 type SpacesAdapters = {
   list: () => Promise<AccessibleSpace[]>;
   read: (userId: string) => Promise<string | null>;
@@ -18,14 +42,13 @@ type SpacesAdapters = {
 
 export function createSpacesWorkflow(session: Session, adapters: SpacesAdapters) {
   const ownerUserId = session.snapshot().userId;
-  const empty: SpacesState = { spaces: [], active: null, loading: true, refreshing: false, error: null, memoryError: null };
+  const empty: SpacesState = { spaces: [], active: null, loading: true, refreshing: false, error: null, memoryError: null, requestId: 0 };
   let state = empty;
   let scope = session.capture();
-  let request = 0;
   let writes = Promise.resolve();
   const listeners = new Set<() => void>();
-  function publish(patch: Partial<SpacesState>) {
-    state = { ...state, ...patch };
+  function dispatch(event: SpacesEvent) {
+    state = spacesReducer(state, event);
     for (const listener of listeners) listener();
   }
   function currentOwner() {
@@ -37,43 +60,42 @@ export function createSpacesWorkflow(session: Session, adapters: SpacesAdapters)
     writes = writes.then(async () => {
       if (!ownerUserId || !session.isCurrent(selectedScope)) return;
       const saved = await adapters.write(ownerUserId, space.id);
-      if (session.isCurrent(selectedScope)) publish({ memoryError: saved ? null : 'This device could not remember the active Space.' });
+      if (session.isCurrent(selectedScope)) dispatch({ type: 'memorySaved', saved });
     });
     return writes;
   }
   return {
     snapshot: () => currentOwner() && session.isCurrent(scope) ? state : empty,
     subscribe(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener); }; },
-    cancel() { request += 1; },
+    cancel() { dispatch({ type: 'cancelled' }); },
     async load() {
       if (!ownerUserId || !currentOwner()) return;
-      const operation = ++request;
+      dispatch({ type: 'loadStarted' });
+      const requestId = state.requestId;
       const started = session.capture();
-      publish({ refreshing: true, error: null });
       try {
         const spaces = await adapters.list();
-        if (operation !== request || !session.isCurrent(started)) return;
+        if (requestId !== state.requestId || !session.isCurrent(started)) return;
         const remembered = await adapters.read(ownerUserId);
-        if (operation !== request || !session.isCurrent(started)) return;
+        if (requestId !== state.requestId || !session.isCurrent(started)) return;
         const selected = selectActiveSpace(spaces, session.snapshot().spaceId ?? remembered);
         session.changeSpace(selected?.id ?? null);
         scope = session.capture();
-        publish({ spaces, active: selected, loading: false });
+        dispatch({ type: 'loadSucceeded', requestId, spaces, active: selected });
         if (selected && selected.id !== remembered) await remember(selected);
       } catch (cause) {
-        if (operation === request && session.isCurrent(started)) publish({ error: requestFailureMessage(cause), loading: false });
+        if (session.isCurrent(started)) dispatch({ type: 'loadFailed', requestId, error: requestFailureMessage(cause) });
       } finally {
-        if (operation === request && currentOwner()) publish({ refreshing: false });
+        if (currentOwner()) dispatch({ type: 'loadFinished', requestId });
       }
     },
     async select(spaceId: string) {
       if (!currentOwner() || !session.isCurrent(scope)) return;
       const space = state.spaces.find((item) => item.id === spaceId);
       if (!space || space.id === state.active?.id) return;
-      request += 1;
       session.changeSpace(space.id);
       scope = session.capture();
-      publish({ active: space, refreshing: false });
+      dispatch({ type: 'selected', active: space });
       await remember(space);
     },
   };

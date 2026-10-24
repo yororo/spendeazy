@@ -8,7 +8,7 @@ Source: [`mobile-design.pen`](mobile-design.pen), Pencil format 2.20, inspected 
 
 **Declared** tokens below exist in the source `variables` object. **Derived** names are conventions introduced here for repeated literal values or component recipes; they are not existing Pencil variables or runtime exports. Node IDs are lookup keys in the source JSON. When the design changes, update the affected table and its evidence together. Resolve conflicts against the current source node, and record intentional departures rather than silently choosing another value.
 
-The current [`src/constants/theme.ts`](src/constants/theme.ts) contains starter colors, system fonts, and spacing. It does not implement this design-token contract. This document establishes the target; migrating runtime styles is separate work.
+[`src/constants/theme.ts`](src/constants/theme.ts) implements the declared colors, Outfit families, page/section/button sizes, and the spacing, radius, and control sizes used by sign-in and navigation. Navigation and Add use opaque fills taken from the glass recipe so contrast does not depend on blur. The light navigation edge uses `border.field` because a white glass stroke disappears on an opaque white bar. Canvas wash gradients are not painted yet; screens use `surface.canvas`.
 
 ## Agent implementation workflow
 
@@ -133,6 +133,8 @@ Treat each surface as a recipe combining fill, stroke, blur, and shadow. If the 
 ## Unspecified states and implementation checks
 
 The source does not declare a complete token system for focus, pressed, disabled, loading, motion, or reduced transparency. These remain implementation decisions requiring explicit documentation when introduced. Do not label newly chosen values as extracted design tokens.
+
+Sign-in and navigation decisions: a disabled or busy primary action uses 55% opacity. Sheets and signed-in stack transitions use no animation, so reduced motion does not need a second path. Screens wrap their scroll view in keyboard avoidance and use `keyboardShouldPersistTaps="handled"`. These screens do not collect typed input. Navigation icons are Lucide, size 18, in the semantic text color. The Add control uses Lucide `plus` at 22.
 
 Check readable contrast on composited surfaces in both modes, especially action foregrounds, small secondary labels, and charts. Preserve labels/icons alongside status colors, usable touch areas, font scaling, modal focus behavior, and screen-reader names. These are implementation checks, not a claim that the static mockup already satisfies accessibility requirements.
 

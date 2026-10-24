@@ -1,6 +1,6 @@
 # Mobile agent guidance
 
-This project is the native Android/iPhone client. There is no web platform target. `web/design/` is a legacy visual reference only. Current mobile code remains a starter plus a parser prototype; do not describe the target user journeys as shipped.
+This project is the native Android/iPhone client. There is no web platform target. `web/design/` is a legacy visual reference only. The app has Google sign-in, Dashboard, Expenses, Budget, and Profile navigation, device Appearance, and an authorized Space switcher. Expense, Budget, reporting, import, and sharing workflows are not implemented; do not describe those journeys as shipped. A local PDF.js parser prototype remains on `/parser-proof` and is not a product tab.
 
 ## Expo and React Native APIs
 
@@ -15,6 +15,7 @@ npm ci --prefix mobile-app
 npm --prefix mobile-app run lint
 npm --prefix mobile-app run typecheck
 npm --prefix mobile-app run parser:test
+npm --prefix mobile-app test
 ```
 
 Run checks regularly. `parser:test` uses fictional fixtures; it does not establish build, device, accessibility or parser launch acceptance. See [mobile setup and evidence](README.md) and [root local testing](../docs/local-testing.md).
@@ -28,7 +29,7 @@ Run checks regularly. `parser:test` uses fictional fixtures; it does not establi
 
 ## API and identity boundaries
 
-The app has an authenticated Expense API client that takes an access-token provider, but no Clerk sign-in flow or connected user journeys yet. `EXPO_PUBLIC_API_BASE_URL` configures that client; document new settings in the project README. Device journeys need a device-reachable dedicated development API/PostgreSQL database and real Google/Clerk development identities. Never use production financial data. Synthetic identities belong only to isolated automated API tests and do not prove real sign-in on a phone.
+The app signs in with Clerk Google authentication and sends that session token to the Expense and Spaces API clients. `EXPO_PUBLIC_API_BASE_URL` and the Clerk/Google settings in `.env.example` configure the client; document new settings in the project README. The API derives the actor from that token. Device-remembered Appearance is shared on the device. The last active Space is stored per signed-in identity and falls back to Personal. Explicit sign-out drops in-memory private state; session expiry keeps it for the same identity only. Device journeys need a device-reachable dedicated development API/PostgreSQL database and real Google/Clerk development identities. Never use production financial data. Synthetic identities belong only to isolated automated API tests and do not prove real sign-in on a phone.
 
 ## Parser and privacy
 

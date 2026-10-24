@@ -1,0 +1,22 @@
+import { Stack } from 'expo-router/stack';
+
+import { SpacesProvider } from '@/navigation/spaces-provider';
+
+export default function SignedInLayout() {
+  return (
+    <SpacesProvider>
+      <Stack screenOptions={{ headerShown: false, animation: 'none' }}>
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen
+          name="add"
+          options={{
+            presentation: 'transparentModal',
+            contentStyle: { backgroundColor: 'transparent' },
+          }}
+        />
+        <Stack.Screen name="import-statement" />
+        <Stack.Screen name="add-expense" />
+      </Stack>
+    </SpacesProvider>
+  );
+}

@@ -14,6 +14,7 @@ type ManualEvent =
   | { type: 'edited' }
   | { type: 'validationFailed'; issues: ManualState['issues'] }
   | { type: 'saveStarted' }
+  | { type: 'saveCancelled' }
   | { type: 'saveFailed'; error: string }
   | { type: 'saveSucceeded' };
 
@@ -22,6 +23,7 @@ function manualReducer(state: ManualState, event: ManualEvent): ManualState {
     case 'edited': return { ...state, error: null, issues: {} };
     case 'validationFailed': return { ...state, error: null, issues: event.issues };
     case 'saveStarted': return { phase: 'saving', issues: {}, error: null };
+    case 'saveCancelled': return { ...state, phase: 'ready' };
     case 'saveFailed': return { ...state, phase: 'ready', error: event.error };
     case 'saveSucceeded': return { phase: 'saved', issues: {}, error: null };
   }
@@ -34,6 +36,9 @@ export function createManualExpenseWorkflow(
 ) {
   const scope = session.capture();
   const initial = defaultManualExpenseDraft(todayInManila(now()));
+  let active = true;
+  let generation = 0;
+  const isCurrent = () => active && session.isCurrent(scope);
   let state: ManualState = { phase: 'ready', error: null, issues: {} };
   const listeners = new Set<() => void>();
   function dispatch(event: ManualEvent) {
@@ -45,14 +50,23 @@ export function createManualExpenseWorkflow(
     snapshot: () => state,
     subscribe(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener); }; },
     draft,
+    isCurrent,
+    activate() { active = true; },
+    cancel() {
+      active = false;
+      generation++;
+      if (state.phase === 'saving') dispatch({ type: 'saveCancelled' });
+    },
     update(patch: Partial<ManualExpenseDraft>) {
-      if (!session.isCurrent(scope) || state.phase !== 'ready') return;
+      if (!isCurrent() || state.phase !== 'ready') return;
       session.saveDraft({ ...draft(), ...patch });
       dispatch({ type: 'edited' });
     },
     async submit(categories: ManualCategoryEligibility): Promise<'saved' | 'invalid' | 'failed' | 'obsolete' | 'busy'> {
-      if (!session.isCurrent(scope) || !scope.spaceId) return 'obsolete';
+      if (!isCurrent() || !scope.spaceId) return 'obsolete';
       if (state.phase !== 'ready') return 'busy';
+      const operationGeneration = generation;
+      const acceptsCompletion = () => isCurrent() && generation === operationGeneration;
       const prepared = prepareManualExpense(draft(), { now: now(), spaceId: scope.spaceId, categories });
       if (!prepared.ok) {
         dispatch({ type: 'validationFailed', issues: Object.fromEntries(prepared.issues.map((issue) => [issue.field, issue.message])) });
@@ -61,12 +75,12 @@ export function createManualExpenseWorkflow(
       dispatch({ type: 'saveStarted' });
       try {
         await save(scope.spaceId, prepared.input);
-        if (!session.isCurrent(scope)) return 'obsolete';
+        if (!acceptsCompletion()) return 'obsolete';
         session.saveDraft(null);
         dispatch({ type: 'saveSucceeded' });
         return 'saved';
       } catch (cause) {
-        if (!session.isCurrent(scope)) return 'obsolete';
+        if (!acceptsCompletion()) return 'obsolete';
         const failure = requestFailure(cause);
         const uncertainty = failure === 'transport' || failure === 'invalid-response'
           ? ' The Expense may have been saved. Check Expenses before trying again.' : '';

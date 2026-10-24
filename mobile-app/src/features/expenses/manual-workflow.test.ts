@@ -124,3 +124,37 @@ test('submission refuses inactive or wrong-Space Category eligibility before sav
   assert.equal(await workflow.submit({ spaceId: 'personal', items: [{ id: 'food', isActive: false }] }), 'invalid');
   assert.equal(workflow.draft().description, 'Lunch');
 });
+
+test('disposing and reopening a form in the same scope makes its late save obsolete', async () => {
+  for (const fails of [false, true]) {
+    const session = createSession(); session.observeIdentity('ada'); session.changeSpace('personal');
+    let finish!: () => void;
+    const pending = new Promise<void>(resolve => { finish = resolve; });
+    const old = createManualExpenseWorkflow(session, async () => { await pending; if (fails) throw new ExpenseApiTransportError(); }, () => new Date('2026-10-24T00:00:00Z'));
+    old.update({ amount: '12', description: 'Old form', categoryId: 'food' });
+    const saving = old.submit(eligible);
+    old.cancel();
+    const current = createManualExpenseWorkflow(session, async () => {}, () => new Date('2026-10-24T00:00:00Z'));
+    current.update({ description: 'New draft after reopening' });
+    finish();
+    assert.equal(await saving, 'obsolete');
+    assert.equal(old.isCurrent(), false);
+    assert.equal(current.draft().description, 'New draft after reopening');
+    assert.equal(current.snapshot().phase, 'ready');
+  }
+});
+
+test('reactivating a workflow never accepts a completion from before cancellation', async () => {
+  const session = createSession(); session.observeIdentity('ada'); session.changeSpace('personal');
+  let finish!: () => void;
+  const pending = new Promise<void>(resolve => { finish = resolve; });
+  const workflow = createManualExpenseWorkflow(session, async () => pending, () => new Date('2026-10-24T00:00:00Z'));
+  workflow.update({ amount: '12', description: 'Lunch', categoryId: 'food' });
+  const saving = workflow.submit(eligible);
+  workflow.cancel(); workflow.activate();
+  workflow.update({ description: 'Retained after effect setup' });
+  finish();
+  assert.equal(await saving, 'obsolete');
+  assert.equal(workflow.snapshot().phase, 'ready');
+  assert.equal(workflow.draft().description, 'Retained after effect setup');
+});

@@ -1,4 +1,4 @@
-import { useMemo, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useSyncExternalStore } from 'react';
 import { createExpenseApiClient } from '@/api/expense-api-client';
 import { useAuthorizedClient } from '@/application/authorized-client';
 import { session, useSessionSnapshot } from '@/application/session-runtime';
@@ -18,6 +18,10 @@ export function useManualExpense() {
     (spaceId, input) => createExpenseApiClient(authorized).createManualExpense(spaceId, input),
     () => new Date(),
   ), [authorized]);
+  useEffect(() => {
+    workflow.activate();
+    return workflow.cancel;
+  }, [workflow]);
   const state = useSyncExternalStore(workflow.subscribe, workflow.snapshot, workflow.snapshot);
   const draft = workflow.draft();
   const activeCategories = categories.categories.filter((category) => category.isActive);
@@ -34,11 +38,11 @@ export function useManualExpense() {
     state: form,
     update: workflow.update,
     retryCategories: categories.reload,
-    isCurrent: authorized.isCurrent,
+    isCurrent: () => workflow.isCurrent() && authorized.isCurrent(),
     async save() {
       if (!canSave || !active) return false;
       const result = await workflow.submit({ spaceId: active.id, items: categories.categories });
-      if (result !== 'saved' || !authorized.isCurrent()) return false;
+      if (result !== 'saved' || !workflow.isCurrent() || !authorized.isCurrent()) return false;
       noteManualExpenseSaved();
       return true;
     },

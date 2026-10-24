@@ -13,6 +13,10 @@ One product, two independently built npm projects: a native mobile app and a RES
 
 `web/` source and hosting are retired. The retained `web/design/` files are visual references only and must not regain build, test or deployment jobs without a new decision.
 
+## Cross-project documentation
+
+When a document in one project describes the other, cite that project's stable published surface. Source paths and code samples stay in the owning project; implementation files move. Mobile documents describe API features by the exposed endpoints in the [OpenAPI contract](api/docs/openapi.yaml), the source of truth for shipped API behavior.
+
 ## Workflow when implementing code changes
 
 1. Switch to the `main` branch if in a dfferent branch, and get the latest commits `git pull`.

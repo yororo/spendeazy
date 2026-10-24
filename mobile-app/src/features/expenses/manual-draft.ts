@@ -42,12 +42,19 @@ export function defaultManualExpenseDraft(today: string): ManualExpenseDraft {
   };
 }
 
-export function validateManualExpenseDraft(
+export type ManualCategoryEligibility = {
+  spaceId: string;
+  items: readonly { id: string; isActive: boolean }[];
+};
+
+export function prepareManualExpense(
   draft: ManualExpenseDraft,
-  today: string,
-): ManualExpenseIssue[] {
+  context: { now: Date; spaceId: string; categories: ManualCategoryEligibility },
+): { ok: true; input: ManualExpenseRequest } | { ok: false; issues: ManualExpenseIssue[] } {
+  const today = todayInManila(context.now);
+  const amount = exactPositivePhp(draft.amount);
   const issues: ManualExpenseIssue[] = [];
-  if (exactPositivePhp(draft.amount) === null) {
+  if (amount === null) {
     issues.push({
       field: 'amount',
       message: 'Enter a positive peso amount with exact centavos, such as 12.50.',
@@ -59,7 +66,8 @@ export function validateManualExpenseDraft(
       message: 'Enter a description.',
     });
   }
-  if (draft.categoryId === null || draft.categoryId.length === 0) {
+  if (!draft.categoryId || context.categories.spaceId !== context.spaceId ||
+    !context.categories.items.some((category) => category.id === draft.categoryId && category.isActive)) {
     issues.push({
       field: 'categoryId',
       message: 'Choose an active Category.',
@@ -76,26 +84,13 @@ export function validateManualExpenseDraft(
       message: 'Expense date cannot be after today in Manila.',
     });
   }
-  return issues;
-}
-
-export function manualExpenseRequest(draft: ManualExpenseDraft): ManualExpenseRequest {
-  const amount = exactPositivePhp(draft.amount);
-  const description = draft.description.trim();
-  if (
-    amount === null ||
-    description.length === 0 ||
-    draft.categoryId === null ||
-    !isCalendarDate(draft.expenseDate)
-  ) {
-    throw new Error('Manual Expense draft is incomplete');
-  }
-  return {
+  if (issues.length || amount === null || draft.categoryId === null) return { ok: false, issues };
+  return { ok: true, input: {
     amount,
-    description,
+    description: draft.description.trim(),
     categoryId: draft.categoryId,
     expenseDate: draft.expenseDate,
-  };
+  } };
 }
 
 function exactPositivePhp(value: string): string | null {

@@ -54,3 +54,18 @@ test('malformed money and totals are rejected before reaching the browse view', 
     t.mock.restoreAll();
   }
 });
+
+test('manual creation decodes its successful response and rejects malformed success without replaying POST', async (t) => {
+  const client = createExpenseApiClient(options);
+  const input = { expenseDate: '2026-10-24', description: 'Cafe', amount: '10.00', categoryId: '2' };
+  let posts = 0;
+  t.mock.method(globalThis, 'fetch', async () => { posts++; return Response.json({ ...expense, amount: 10 }); });
+  await assert.rejects(client.createManualExpense('personal', input), cause => requestFailure(cause) === 'invalid-response');
+  assert.equal(posts, 1);
+  t.mock.restoreAll();
+  t.mock.method(globalThis, 'fetch', async () => Response.json(expense));
+  const created = await client.createManualExpense('personal', input);
+  assert.equal(created.id, '1');
+  assert.equal(created.amount, '10.00');
+  assert.equal('transportOnly' in created, false);
+});

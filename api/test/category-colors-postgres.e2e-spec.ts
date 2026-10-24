@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { DataSource } from 'typeorm';
 import { CategoriesService } from '../src/categories/application/categories.service';
-import { toCategoryResponse } from '../src/categories/presentation/categories.controller';
+import { toSpaceCategoryResponse } from '../src/categories/presentation/space-categories.controller';
 import {
   DATABASE_ENTITIES,
   DATABASE_MIGRATIONS,
@@ -95,7 +95,7 @@ describeDatabase('category colors with PostgreSQL', () => {
       name: 'Legacy category',
     });
     expect(legacy.color).toBeNull();
-    const defaultColor = toCategoryResponse(legacy).color;
+    const defaultColor = toSpaceCategoryResponse(legacy).color;
 
     await categories.updateCategoryInSpace(spaceId, legacy.id, {
       name: 'Legacy category renamed',
@@ -104,7 +104,7 @@ describeDatabase('category colors with PostgreSQL', () => {
 
     const reloaded = await categories.getCategoryInSpace(spaceId, legacy.id);
     expect(reloaded.color).toBeNull();
-    expect(toCategoryResponse(reloaded).color).toBe(defaultColor);
+    expect(toSpaceCategoryResponse(reloaded).color).toBe(defaultColor);
   });
 
   it('rejects unsupported palette values at the database boundary', async () => {

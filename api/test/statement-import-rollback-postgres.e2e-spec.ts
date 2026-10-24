@@ -9,8 +9,8 @@ import { CategoryEntity } from '../src/database/entities/category.entity';
 import { SpaceEntity } from '../src/database/entities/space.entity';
 import { SpaceMembershipEntity } from '../src/database/entities/space-membership.entity';
 import { StatementImportEntity } from '../src/database/entities/statement-import.entity';
-import { TransactionEntity } from '../src/database/entities/transaction.entity';
-import { TransactionActivityEntity } from '../src/database/entities/transaction-activity.entity';
+import { ExpenseEntity } from '../src/database/entities/expense.entity';
+import { ExpenseActivityEntity } from '../src/database/entities/expense-activity.entity';
 import { UserEntity } from '../src/database/entities/user.entity';
 import {
   computeImportFingerprint,
@@ -76,20 +76,19 @@ describeDatabase('Statement Import rollback with PostgreSQL', () => {
         fileName: 'existing.pdf',
         fileHash: uniqueHash('existing-import'),
         statementDate: '2026-08-31',
-        bank: 'Existing Bank',
-        cardType: 'visa',
+        provider: 'Existing Bank',
+        accountFormat: 'visa',
       });
 
-    await database.getRepository(TransactionEntity).save({
+    await database.getRepository(ExpenseEntity).save({
       spaceId: personalSpaceId,
       addedByUserId: userId,
       categoryId: categories[0].id,
       statementImportId: existingImport.id,
-      purchaseDate: '2026-08-15',
-      description: `Existing transaction ${unique}`,
+      expenseDate: '2026-08-15',
+      description: `Existing Expense ${unique}`,
       amount: '12.34',
-      categoryMatchConfidence: null,
-      importFingerprint: uniqueHash('existing-transaction'),
+      importFingerprint: uniqueHash('existing-expense'),
     });
   });
 
@@ -107,10 +106,10 @@ describeDatabase('Statement Import rollback with PostgreSQL', () => {
       return;
     }
 
-    await database.getRepository(TransactionActivityEntity).delete({
+    await database.getRepository(ExpenseActivityEntity).delete({
       spaceId: personalSpaceId,
     });
-    await database.getRepository(TransactionEntity).delete({
+    await database.getRepository(ExpenseEntity).delete({
       spaceId: personalSpaceId,
     });
     await database.getRepository(StatementImportEntity).delete({
@@ -121,10 +120,10 @@ describeDatabase('Statement Import rollback with PostgreSQL', () => {
     });
     if (sharedSpaceId !== undefined) {
       await database
-        .getRepository(TransactionActivityEntity)
+        .getRepository(ExpenseActivityEntity)
         .delete({ spaceId: sharedSpaceId });
       await database
-        .getRepository(TransactionEntity)
+        .getRepository(ExpenseEntity)
         .delete({ spaceId: sharedSpaceId });
       await database
         .getRepository(StatementImportEntity)
@@ -156,13 +155,13 @@ describeDatabase('Statement Import rollback with PostgreSQL', () => {
       .getRepository(CategoryEntity)
       .find({ where: { spaceId: personalSpaceId }, order: { id: 'ASC' } });
     const targetFileHash = uniqueHash('attempted-import');
-    const firstDescription = `Attempted first transaction ${currentUserId}`;
+    const firstDescription = `Attempted first Expense ${currentUserId}`;
     const failureDescription = `Force rollback failure ${currentUserId}`;
     const existingImport = await database
       .getRepository(StatementImportEntity)
       .findOneByOrFail({ spaceId: personalSpaceId, fileName: 'existing.pdf' });
     const existingTransaction = await database
-      .getRepository(TransactionEntity)
+      .getRepository(ExpenseEntity)
       .findOneByOrFail({
         spaceId: personalSpaceId,
         statementImportId: existingImport.id,
@@ -176,23 +175,21 @@ describeDatabase('Statement Import rollback with PostgreSQL', () => {
         fileName: 'attempted-import.pdf',
         fileHash: targetFileHash,
         statementDate: '2026-09-01',
-        bank: 'Rollback Bank',
-        cardType: 'visa',
+        provider: 'Rollback Bank',
+        accountFormat: 'visa',
         statementType: 'credit_card',
-        transactions: [
+        expenses: [
           {
             categoryId: categories[1].id,
-            purchaseDate: '2026-09-01',
+            expenseDate: '2026-09-01',
             description: firstDescription,
             amount: '4.50',
-            categoryMatchConfidence: '0.9000',
           },
           {
-            categoryId: null,
-            purchaseDate: '2026-09-02',
+            categoryId: categories[0].id,
+            expenseDate: '2026-09-02',
             description: failureDescription,
             amount: '5.50',
-            categoryMatchConfidence: null,
           },
         ],
       }),
@@ -202,7 +199,7 @@ describeDatabase('Statement Import rollback with PostgreSQL', () => {
       .getRepository(StatementImportEntity)
       .findOneBy({ spaceId: personalSpaceId, fileHash: targetFileHash });
     const attemptedTransactions = await database
-      .getRepository(TransactionEntity)
+      .getRepository(ExpenseEntity)
       .find({
         where: [
           { spaceId: personalSpaceId, description: firstDescription },
@@ -213,7 +210,7 @@ describeDatabase('Statement Import rollback with PostgreSQL', () => {
       .getRepository(StatementImportEntity)
       .findOneByOrFail({ id: existingImport.id, spaceId: personalSpaceId });
     const persistedTransaction = await database
-      .getRepository(TransactionEntity)
+      .getRepository(ExpenseEntity)
       .findOneByOrFail({
         id: existingTransaction.id,
         spaceId: personalSpaceId,
@@ -239,12 +236,12 @@ describeDatabase('Statement Import rollback with PostgreSQL', () => {
     ).resolves.toBe(1);
     await expect(
       database
-        .getRepository(TransactionEntity)
+        .getRepository(ExpenseEntity)
         .countBy({ spaceId: personalSpaceId }),
     ).resolves.toBe(1);
     await expect(
       database
-        .getRepository(TransactionActivityEntity)
+        .getRepository(ExpenseActivityEntity)
         .countBy({ spaceId: personalSpaceId }),
     ).resolves.toBe(0);
   });
@@ -259,7 +256,7 @@ describeDatabase('Statement Import rollback with PostgreSQL', () => {
       .getRepository(StatementImportEntity)
       .findOneByOrFail({ spaceId: personalSpaceId, fileName: 'existing.pdf' });
     const existingTransaction = await database
-      .getRepository(TransactionEntity)
+      .getRepository(ExpenseEntity)
       .findOneByOrFail({
         spaceId: personalSpaceId,
         statementImportId: existingImport.id,
@@ -285,24 +282,23 @@ describeDatabase('Statement Import rollback with PostgreSQL', () => {
       fileName: existingImport.fileName,
       fileHash: existingImport.fileHash,
       statementDate: existingImport.statementDate,
-      bank: existingImport.bank,
-      cardType: existingImport.cardType,
+      provider: existingImport.provider,
+      accountFormat: existingImport.accountFormat,
       statementType: 'credit_card' as const,
-      transactions: [
+      expenses: [
         {
           categoryId: sharedCategory.id,
-          purchaseDate: existingTransaction.purchaseDate,
+          expenseDate: existingTransaction.expenseDate,
           description: existingTransaction.description,
           amount: existingTransaction.amount,
-          categoryMatchConfidence: null,
         },
       ],
     };
     existingTransaction.importFingerprint = computeImportFingerprint(
       input,
-      input.transactions[0],
+      input.expenses[0],
     );
-    await database.getRepository(TransactionEntity).save(existingTransaction);
+    await database.getRepository(ExpenseEntity).save(existingTransaction);
 
     const committedImport = await service.commitReviewedStatementImportInSpace(
       currentUserId,
@@ -317,13 +313,13 @@ describeDatabase('Statement Import rollback with PostgreSQL', () => {
       }),
     ).resolves.toBe(2);
     await expect(
-      database.getRepository(TransactionEntity).countBy({
+      database.getRepository(ExpenseEntity).countBy({
         spaceId: sharedSpace.id,
         importFingerprint: existingTransaction.importFingerprint,
       }),
     ).resolves.toBe(1);
     await expect(
-      database.getRepository(TransactionActivityEntity).countBy({
+      database.getRepository(ExpenseActivityEntity).countBy({
         spaceId: sharedSpace.id,
       }),
     ).resolves.toBe(1);
@@ -347,16 +343,17 @@ describeDatabase('Statement Import rollback with PostgreSQL', () => {
     const input = {
       fileName: 'gcash-august.pdf',
       fileHash: uniqueHash('gcash-import'),
-      statementDate: '2026-09-07',
-      bank: 'GCash',
-      cardType: 'E-Wallet',
+      statementDate: null,
+      provider: 'GCash',
+      accountFormat: 'E-Wallet',
       statementType: 'e_wallet' as const,
-      transactionHistoryStartDate: '2026-08-09',
+      historyFromDate: '2026-08-09',
+      historyToDate: '2026-08-09',
       totalDebit: '26696.92',
-      transactions: [
+      expenses: [
         {
           categoryId: category.id,
-          purchaseDate: '2026-08-09',
+          expenseDate: '2026-08-09',
           description: cleanDescription,
           amount: '4000.00',
           reference,
@@ -370,7 +367,7 @@ describeDatabase('Statement Import rollback with PostgreSQL', () => {
       input,
     );
     const persistedTransaction = await database
-      .getRepository(TransactionEntity)
+      .getRepository(ExpenseEntity)
       .findOneByOrFail({
         spaceId: currentSpaceId,
         statementImportId: committedImport.id,
@@ -379,7 +376,7 @@ describeDatabase('Statement Import rollback with PostgreSQL', () => {
       gcashReferenceHashKey,
     ).hash({
       spaceId: currentSpaceId,
-      provider: input.bank,
+      provider: input.provider,
       reference,
     });
 
@@ -391,7 +388,7 @@ describeDatabase('Statement Import rollback with PostgreSQL', () => {
     expect(JSON.stringify(persistedTransaction)).not.toContain(reference);
 
     const persistedRows: { persistedRow: string }[] = await database.query(
-      'SELECT row_to_json(transaction_row)::text AS "persistedRow" FROM transactions AS transaction_row WHERE transaction_row.id = $1',
+      'SELECT row_to_json(expense_row)::text AS "persistedRow" FROM expenses AS expense_row WHERE expense_row.id = $1',
       [persistedTransaction.id],
     );
     expect(persistedRows[0]?.persistedRow).not.toContain(reference);
@@ -404,12 +401,12 @@ describeDatabase('Statement Import rollback with PostgreSQL', () => {
           ...input,
           fileName: 'gcash-september.pdf',
           fileHash: uniqueHash('gcash-duplicate-import'),
-          transactions: [
+          expenses: [
             {
-              ...input.transactions[0],
+              ...input.expenses[0],
               description: 'Different visible description',
               amount: '999.99',
-              purchaseDate: '2026-08-10',
+              expenseDate: '2026-08-10',
             },
           ],
         },
@@ -418,8 +415,8 @@ describeDatabase('Statement Import rollback with PostgreSQL', () => {
       code: STATEMENT_IMPORT_PROBABLE_DUPLICATES_CODE,
       details: [
         expect.objectContaining({
-          transactionIndexes: [0],
-          committedTransactionIds: [persistedTransaction.id],
+          expenseIndexes: [0],
+          committedExpenseIds: [persistedTransaction.id],
         }),
       ],
     });
@@ -454,7 +451,7 @@ async function installFailureTrigger(
   `);
   await database.query(`
     CREATE TRIGGER "${triggerName}"
-    BEFORE INSERT ON transactions
+    BEFORE INSERT ON expenses
     FOR EACH ROW
     EXECUTE FUNCTION "${functionName}"();
   `);
@@ -467,7 +464,7 @@ async function removeFailureTrigger(
   failureTrigger: FailureTrigger,
 ): Promise<void> {
   await database.query(
-    `DROP TRIGGER IF EXISTS "${failureTrigger.triggerName}" ON transactions`,
+    `DROP TRIGGER IF EXISTS "${failureTrigger.triggerName}" ON expenses`,
   );
   await database.query(
     `DROP FUNCTION IF EXISTS "${failureTrigger.functionName}"()`,

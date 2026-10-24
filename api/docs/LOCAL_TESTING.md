@@ -1,6 +1,6 @@
 # Local API testing with Clerk
 
-Use this runbook for a focused real Clerk authentication check. Automated API suites use Clerk test doubles and isolated databases; the root [local-testing guide](../../docs/local-testing.md) covers required PostgreSQL suites and native mobile checks. The mobile starter currently has no API adapter or base-URL configuration.
+Use this runbook for a focused real Clerk authentication check. Automated API suites use Clerk test doubles and isolated databases; the root [local-testing guide](../../docs/local-testing.md) covers required PostgreSQL suites and native mobile checks. The mobile Expense API client accepts an access-token provider, but the app has no Clerk sign-in flow or connected user journeys yet.
 
 Commands run from `api/`. Examples use Bash; on Windows use Git Bash/WSL or equivalent PowerShell. Use a dedicated Clerk development instance and a dedicated disposable API database. Keep secret keys, User/session IDs, and tokens outside commits and chat. Session tokens are short-lived; mint a fresh token when authentication starts returning `401`.
 

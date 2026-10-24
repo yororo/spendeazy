@@ -5,7 +5,7 @@ import type {
 import { CategorySummariesService } from './category-summaries.service';
 
 describe('CategorySummariesService', () => {
-  it('returns deterministic category totals with matching budgets and Uncategorized spending', async () => {
+  it('returns deterministic Expense totals with matching budgets', async () => {
     const store = new CategorySummaryStoreFake('7', {
       categories: [
         categorySummary({
@@ -13,7 +13,7 @@ describe('CategorySummariesService', () => {
           categoryName: 'Inactive historical',
           categoryIsActive: false,
           totalAmount: '12.35',
-          transactionCount: '2',
+          expenseCount: '2',
           budgetAmount: '10.00',
           budgetPeriod: 'monthly',
         }),
@@ -21,7 +21,7 @@ describe('CategorySummariesService', () => {
           categoryId: '2',
           categoryName: 'Empty active',
           totalAmount: '0',
-          transactionCount: '0',
+          expenseCount: '0',
           budgetAmount: '1200.00',
           budgetPeriod: 'yearly',
         }),
@@ -29,13 +29,11 @@ describe('CategorySummariesService', () => {
           categoryId: '3',
           categoryName: 'Groceries',
           totalAmount: '10.10',
-          transactionCount: '3',
+          expenseCount: '3',
           budgetAmount: '20.00',
           budgetPeriod: 'monthly',
         }),
       ],
-      uncategorizedAmount: '4.5',
-      uncategorizedCount: '1',
     });
     const service = new CategorySummariesService(store);
 
@@ -55,7 +53,7 @@ describe('CategorySummariesService', () => {
           name: 'Empty active',
           isActive: true,
           totalAmount: '0.00',
-          transactionCount: '0',
+          expenseCount: '0',
           budgetAmount: null,
           remainingAmount: null,
         },
@@ -64,7 +62,7 @@ describe('CategorySummariesService', () => {
           name: 'Groceries',
           isActive: true,
           totalAmount: '10.10',
-          transactionCount: '3',
+          expenseCount: '3',
           budgetAmount: '20.00',
           remainingAmount: '9.90',
         },
@@ -73,13 +71,11 @@ describe('CategorySummariesService', () => {
           name: 'Inactive historical',
           isActive: false,
           totalAmount: '12.35',
-          transactionCount: '2',
+          expenseCount: '2',
           budgetAmount: '10.00',
           remainingAmount: '-2.35',
         },
       ],
-      uncategorizedTotal: '4.50',
-      uncategorizedCount: '1',
     });
 
     expect(store.query).toEqual({
@@ -92,8 +88,6 @@ describe('CategorySummariesService', () => {
   it('uses the complete leap-year calendar range for yearly summaries and isolates users', async () => {
     const store = new CategorySummaryStoreFake('99', {
       categories: [categorySummary()],
-      uncategorizedAmount: '0.00',
-      uncategorizedCount: '0',
     });
     const service = new CategorySummariesService(store);
 
@@ -112,8 +106,6 @@ describe('CategorySummariesService', () => {
 
     const otherUserStore = new CategorySummaryStoreFake('7', {
       categories: [categorySummary({ categoryId: '2' })],
-      uncategorizedAmount: '0.00',
-      uncategorizedCount: '0',
     });
     await expect(
       new CategorySummariesService(otherUserStore).getCategorySummaryInSpace(
@@ -123,7 +115,7 @@ describe('CategorySummariesService', () => {
           year: '2028',
         },
       ),
-    ).resolves.toMatchObject({ categories: [], uncategorizedTotal: '0.00' });
+    ).resolves.toMatchObject({ categories: [] });
   });
 });
 
@@ -146,8 +138,6 @@ class CategorySummaryStoreFake implements CategorySummaryStore {
         ? this.data
         : {
             categories: [],
-            uncategorizedAmount: '0.00',
-            uncategorizedCount: '0',
           },
     );
   }
@@ -161,7 +151,7 @@ function categorySummary(
     categoryName: 'Category',
     categoryIsActive: true,
     totalAmount: '1.00',
-    transactionCount: '1',
+    expenseCount: '1',
     budgetAmount: null,
     budgetPeriod: null,
     ...overrides,

@@ -3,16 +3,15 @@ import {
   CategoryNotFoundError,
 } from '../../categories/application/category-errors';
 import type {
-  TransactionCategoryRecord,
-  TransactionCategoryStore,
-} from '../../transactions/application/transaction-category-store';
+  ExpenseCategoryRecord,
+  ExpenseCategoryStore,
+} from '../../expenses/application/expense-category-store';
 import type {
-  ImportedTransactionRecord,
-  NewImportedTransaction,
-  SpaceImportedTransactionStore,
-} from '../../transactions/application/imported-transaction-store';
+  ImportedExpenseRecord,
+  NewImportedExpense,
+  SpaceImportedExpenseStore,
+} from '../../expenses/application/imported-expense-store';
 import {
-  StatementImportFileAlreadyExistsError,
   StatementImportNotFoundError,
   STATEMENT_IMPORT_PROBABLE_DUPLICATES_CODE,
   StatementImportValidationError,
@@ -31,28 +30,28 @@ import type {
   StatementImportConfirmationUnitOfWork,
 } from './statement-import-confirmation';
 import type {
-  NewTransactionActivity,
-  TransactionActivityRecord,
-  TransactionActivityStore,
-} from '../../transactions/application/transaction-activity-store';
+  NewExpenseActivity,
+  ExpenseActivityRecord,
+  ExpenseActivityStore,
+} from '../../expenses/application/expense-activity-store';
 import { ApplicationError } from '../../errors/application-error';
 import { UserNotFoundError } from '../../users/application/user-errors';
 import type { UserRecord, UserStore } from '../../users/application/user-store';
 
 describe('StatementImportsService', () => {
-  it('commits the statement and every reviewed transaction in one unit of work', async () => {
+  it('commits the Statement Import and every reviewed Expense in one unit of work', async () => {
     const statementImports = new StatementImportStoreFake();
-    const importedTransactions = new ImportedTransactionStoreFake();
-    const categories = new TransactionCategoryStoreFake([
+    const importedExpenses = new ImportedExpenseStoreFake();
+    const categories = new ExpenseCategoryStoreFake([
       categoryRecord({ id: '42' }),
     ]);
-    const transactionActivities = new TransactionActivityStoreFake();
+    const expenseActivities = new ExpenseActivityStoreFake();
     const unitOfWork = new UnitOfWorkFake({
       users: userStore(),
       statementImports,
-      importedTransactions,
+      importedExpenses,
       categories,
-      transactionActivities,
+      expenseActivities,
     });
     const service = new StatementImportsService(statementImports, unitOfWork);
 
@@ -70,52 +69,62 @@ describe('StatementImportsService', () => {
       fileName: 'august.pdf',
       fileHash: validFileHash(),
       statementDate: '2026-08-31',
-      bank: 'Example Bank',
-      cardType: 'visa',
+      provider: 'Example Bank',
+      accountFormat: 'visa',
     });
-    expect(importedTransactions.createdInputs).toHaveLength(2);
-    expect(importedTransactions.createdInputs).toEqual(
+    expect(importedExpenses.createdInputs).toHaveLength(2);
+    expect(importedExpenses.createdInputs).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           spaceId: '7',
           addedByUserId: '7',
           statementImportId: '100',
           categoryId: '42',
-          purchaseDate: '2026-08-01',
+          expenseDate: '2026-08-01',
           description: 'Coffee',
           amount: '4.50',
-          categoryMatchConfidence: '0.9000',
         }),
         expect.objectContaining({
           spaceId: '7',
           addedByUserId: '7',
           statementImportId: '100',
-          categoryId: null,
-          purchaseDate: '2026-08-02',
+          categoryId: '42',
+          expenseDate: '2026-08-02',
           description: 'Bookstore',
           amount: '18.00',
-          categoryMatchConfidence: null,
         }),
       ]),
     );
-    expect(transactionActivities.createdInputs).toEqual([
+    expect(expenseActivities.createdInputs).toEqual([
       {
-        transactionId: '1',
+        expenseId: '1',
         spaceId: '7',
         actorUserId: '7',
         type: 'created',
         occurredAt: new Date('2026-08-29T00:00:00.000Z'),
+        after: {
+          categoryId: '42',
+          expenseDate: '2026-08-01',
+          description: 'Coffee',
+          amount: '4.50',
+        },
       },
       {
-        transactionId: '2',
+        expenseId: '2',
         spaceId: '7',
         actorUserId: '7',
         type: 'created',
         occurredAt: new Date('2026-08-29T00:00:00.000Z'),
+        after: {
+          categoryId: '42',
+          expenseDate: '2026-08-02',
+          description: 'Bookstore',
+          amount: '18.00',
+        },
       },
     ]);
     expect(
-      importedTransactions.createdInputs.every((input) =>
+      importedExpenses.createdInputs.every((input) =>
         /^[0-9a-f]{64}$/u.test(input.importFingerprint),
       ),
     ).toBe(true);
@@ -123,15 +132,13 @@ describe('StatementImportsService', () => {
 
   it('commits E-Wallet controls and hashes GCash references without persisting raw values', async () => {
     const statementImports = new StatementImportStoreFake();
-    const importedTransactions = new ImportedTransactionStoreFake();
+    const importedExpenses = new ImportedExpenseStoreFake();
     const unitOfWork = new UnitOfWorkFake({
       users: userStore(),
       statementImports,
-      importedTransactions,
-      categories: new TransactionCategoryStoreFake([
-        categoryRecord({ id: '42' }),
-      ]),
-      transactionActivities: new TransactionActivityStoreFake(),
+      importedExpenses,
+      categories: new ExpenseCategoryStoreFake([categoryRecord({ id: '42' })]),
+      expenseActivities: new ExpenseActivityStoreFake(),
     });
     const referenceHasher = {
       hash: jest.fn(
@@ -155,26 +162,24 @@ describe('StatementImportsService', () => {
     await service.commitReviewedStatementImportInSpace('7', '7', {
       ...statementInput(),
       statementType: 'e_wallet',
-      bank: 'GCash',
-      cardType: 'E-Wallet',
-      transactionHistoryStartDate: '2026-08-09',
+      statementDate: null,
+      provider: 'GCash',
+      accountFormat: 'E-Wallet',
+      historyToDate: '2026-08-31',
+      historyFromDate: '2026-08-09',
       totalDebit: '26696.92',
-      transactions: [
-        { ...statementInput().transactions[0], reference: '123456789' },
-      ],
+      expenses: [{ ...statementInput().expenses[0], reference: '123456789' }],
     });
 
     expect(statementImports.createdInput).toMatchObject({
       statementType: 'e_wallet',
-      transactionHistoryStartDate: '2026-08-09',
+      historyFromDate: '2026-08-09',
       totalDebit: '26696.92',
     });
-    expect(importedTransactions.createdInputs[0]).toMatchObject({
+    expect(importedExpenses.createdInputs[0]).toMatchObject({
       referenceHash: 'digest:7:GCash:123456789',
     });
-    expect(importedTransactions.createdInputs[0]).not.toHaveProperty(
-      'reference',
-    );
+    expect(importedExpenses.createdInputs[0]).not.toHaveProperty('reference');
     expect(referenceHasher.hash).toHaveBeenCalledWith({
       spaceId: '7',
       provider: 'GCash',
@@ -183,23 +188,23 @@ describe('StatementImportsService', () => {
   });
 
   it.each([
-    { transactionHistoryStartDate: null, totalDebit: '1.00' },
-    { transactionHistoryStartDate: '2026-08-09', totalDebit: null },
-    { transactionHistoryStartDate: '2026-09-01', totalDebit: '1.00' },
-    { transactionHistoryStartDate: '2026-08-09', totalDebit: '-1.00' },
+    { historyFromDate: null, totalDebit: '1.00' },
+    { historyFromDate: '2026-08-09', totalDebit: null },
+    { historyFromDate: '2026-09-01', totalDebit: '1.00' },
+    { historyFromDate: '2026-08-09', totalDebit: '-1.00' },
   ])(
     'rejects invalid E-Wallet controls before persistence',
     async (controls) => {
       const statementImports = new StatementImportStoreFake();
-      const importedTransactions = new ImportedTransactionStoreFake();
+      const importedExpenses = new ImportedExpenseStoreFake();
       const unitOfWork = new UnitOfWorkFake({
         users: userStore(),
         statementImports,
-        importedTransactions,
-        categories: new TransactionCategoryStoreFake([
+        importedExpenses,
+        categories: new ExpenseCategoryStoreFake([
           categoryRecord({ id: '42' }),
         ]),
-        transactionActivities: new TransactionActivityStoreFake(),
+        expenseActivities: new ExpenseActivityStoreFake(),
       });
       const service = new StatementImportsService(statementImports, unitOfWork);
 
@@ -207,27 +212,29 @@ describe('StatementImportsService', () => {
         service.commitReviewedStatementImportInSpace('7', '7', {
           ...statementInput(),
           statementType: 'e_wallet',
-          bank: 'GCash',
-          cardType: 'E-Wallet',
+          statementDate: null,
+          provider: 'GCash',
+          accountFormat: 'E-Wallet',
+          historyToDate: '2026-08-31',
           ...controls,
         }),
       ).rejects.toBeInstanceOf(StatementImportValidationError);
 
       expect(statementImports.createdInput).toBeUndefined();
-      expect(importedTransactions.createdInputs).toEqual([]);
+      expect(importedExpenses.createdInputs).toEqual([]);
     },
   );
 
   it('uses the Space-scoped GCash reference hash for duplicate review', async () => {
     const duplicateReferenceHash = 'digest:7:GCash:123456789';
     const statementImports = new StatementImportStoreFake();
-    const importedTransactions = new ImportedTransactionStoreFake(
+    const importedExpenses = new ImportedExpenseStoreFake(
       new Map(),
       new Map([
         [
           duplicateReferenceHash,
           [
-            importedTransactionRecord({
+            importedExpenseRecord({
               id: '99',
               spaceId: '7',
               referenceHash: duplicateReferenceHash,
@@ -241,11 +248,9 @@ describe('StatementImportsService', () => {
     const unitOfWork = new UnitOfWorkFake({
       users: userStore(),
       statementImports,
-      importedTransactions,
-      categories: new TransactionCategoryStoreFake([
-        categoryRecord({ id: '42' }),
-      ]),
-      transactionActivities: new TransactionActivityStoreFake(),
+      importedExpenses,
+      categories: new ExpenseCategoryStoreFake([categoryRecord({ id: '42' })]),
+      expenseActivities: new ExpenseActivityStoreFake(),
     });
     const service = new StatementImportsService(statementImports, unitOfWork, {
       hash: () => duplicateReferenceHash,
@@ -255,13 +260,15 @@ describe('StatementImportsService', () => {
       service.commitReviewedStatementImportInSpace('7', '7', {
         ...statementInput(),
         statementType: 'e_wallet',
-        bank: 'GCash',
-        cardType: 'E-Wallet',
-        transactionHistoryStartDate: '2026-08-09',
+        statementDate: null,
+        provider: 'GCash',
+        accountFormat: 'E-Wallet',
+        historyToDate: '2026-08-31',
+        historyFromDate: '2026-08-09',
         totalDebit: '1.00',
-        transactions: [
+        expenses: [
           {
-            ...statementInput().transactions[0],
+            ...statementInput().expenses[0],
             description: 'Visible values differ',
             amount: '1.00',
             reference: '123456789',
@@ -272,65 +279,65 @@ describe('StatementImportsService', () => {
       code: STATEMENT_IMPORT_PROBABLE_DUPLICATES_CODE,
       details: [
         expect.objectContaining({
-          transactionIndexes: [0],
-          committedTransactionIds: ['99'],
+          expenseIndexes: [0],
+          committedExpenseIds: ['99'],
         }),
       ],
     });
 
-    expect(importedTransactions.spaceReferenceQueries).toEqual([
+    expect(importedExpenses.spaceReferenceQueries).toEqual([
       { spaceId: '7', referenceHash: duplicateReferenceHash },
     ]);
-    expect(importedTransactions.createdInputs).toEqual([]);
+    expect(importedExpenses.createdInputs).toEqual([]);
   });
 
   it('does not treat distinct GCash references as duplicates when visible values match', async () => {
     const statementImports = new StatementImportStoreFake();
-    const importedTransactions = new ImportedTransactionStoreFake();
+    const importedExpenses = new ImportedExpenseStoreFake();
     const unitOfWork = new UnitOfWorkFake({
       users: userStore(),
       statementImports,
-      importedTransactions,
-      categories: new TransactionCategoryStoreFake([
-        categoryRecord({ id: '42' }),
-      ]),
-      transactionActivities: new TransactionActivityStoreFake(),
+      importedExpenses,
+      categories: new ExpenseCategoryStoreFake([categoryRecord({ id: '42' })]),
+      expenseActivities: new ExpenseActivityStoreFake(),
     });
     const service = new StatementImportsService(statementImports, unitOfWork, {
       hash: ({ reference }: { reference: string }) => `digest:${reference}`,
     });
-    const visibleTransaction = statementInput().transactions[0];
+    const visibleExpense = statementInput().expenses[0];
 
     await expect(
       service.commitReviewedStatementImportInSpace('7', '7', {
         ...statementInput(),
         statementType: 'e_wallet',
-        bank: 'GCash',
-        cardType: 'E-Wallet',
-        transactionHistoryStartDate: '2026-08-09',
+        statementDate: null,
+        provider: 'GCash',
+        accountFormat: 'E-Wallet',
+        historyToDate: '2026-08-31',
+        historyFromDate: '2026-08-09',
         totalDebit: '9.00',
-        transactions: [
-          { ...visibleTransaction, reference: 'reference-a' },
-          { ...visibleTransaction, reference: 'reference-b' },
+        expenses: [
+          { ...visibleExpense, reference: 'reference-a' },
+          { ...visibleExpense, reference: 'reference-b' },
         ],
       }),
     ).resolves.toBeDefined();
 
-    expect(importedTransactions.createdInputs).toHaveLength(2);
+    expect(importedExpenses.createdInputs).toHaveLength(2);
   });
 
   it('commits a reviewed import into the destination Space with importer attribution', async () => {
     const statementImports = new StatementImportStoreFake();
-    const importedTransactions = new ImportedTransactionStoreFake();
-    const categories = new TransactionCategoryStoreFake([
+    const importedExpenses = new ImportedExpenseStoreFake();
+    const categories = new ExpenseCategoryStoreFake([
       categoryRecord({ id: '42', spaceId: '55' }),
     ]);
     const unitOfWork = new UnitOfWorkFake({
       users: userStore(),
       statementImports,
-      importedTransactions,
+      importedExpenses,
       categories,
-      transactionActivities: new TransactionActivityStoreFake(),
+      expenseActivities: new ExpenseActivityStoreFake(),
       spaces: statementImports,
     });
     const service = new StatementImportsService(statementImports, unitOfWork);
@@ -341,10 +348,7 @@ describe('StatementImportsService', () => {
       statementInput(),
     );
 
-    expect(statementImports.spaceFileHashQuery).toEqual({
-      spaceId: '55',
-      fileHash: validFileHash(),
-    });
+    expect(statementImports.spaceFileHashQuery).toBeUndefined();
     expect(statementImports.spaceLockQueries).toEqual([
       { spaceId: '55', userId: '7' },
     ]);
@@ -352,9 +356,9 @@ describe('StatementImportsService', () => {
       spaceId: '55',
       importedByUserId: '7',
     });
-    expect(importedTransactions.spaceFingerprintQueries).toHaveLength(2);
-    expect(importedTransactions.createdInputs).toHaveLength(2);
-    expect(importedTransactions.createdInputs).toEqual(
+    expect(importedExpenses.spaceFingerprintQueries).toHaveLength(2);
+    expect(importedExpenses.createdInputs).toHaveLength(2);
+    expect(importedExpenses.createdInputs).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           spaceId: '55',
@@ -364,17 +368,17 @@ describe('StatementImportsService', () => {
     );
   });
 
-  it('rejects an exact file duplicate before creating any records', async () => {
+  it('allows a same-file import after probable duplicate acknowledgement', async () => {
     const statementImports = new StatementImportStoreFake([
       statementRecord({ fileHash: validFileHash() }),
     ]);
-    const importedTransactions = new ImportedTransactionStoreFake();
+    const importedExpenses = new ImportedExpenseStoreFake();
     const unitOfWork = new UnitOfWorkFake({
       users: userStore(),
       statementImports,
-      importedTransactions,
-      categories: new TransactionCategoryStoreFake(),
-      transactionActivities: new TransactionActivityStoreFake(),
+      importedExpenses,
+      categories: new ExpenseCategoryStoreFake([categoryRecord()]),
+      expenseActivities: new ExpenseActivityStoreFake(),
     });
     const service = new StatementImportsService(statementImports, unitOfWork);
 
@@ -383,26 +387,26 @@ describe('StatementImportsService', () => {
         ...statementInput(),
         acknowledgeProbableDuplicates: true,
       }),
-    ).rejects.toBeInstanceOf(StatementImportFileAlreadyExistsError);
+    ).resolves.toMatchObject({ fileHash: validFileHash() });
 
-    expect(statementImports.createdInput).toBeUndefined();
-    expect(importedTransactions.createdInputs).toEqual([]);
+    expect(statementImports.createdInput).toBeDefined();
+    expect(importedExpenses.createdInputs).toHaveLength(2);
   });
 
   it('rejects probable duplicates with deterministic grouped details before writing', async () => {
     const input = statementInput();
-    const duplicateTransaction = input.transactions[0];
+    const duplicateExpense = input.expenses[0];
     const duplicateFingerprint = computeImportFingerprint(
       input,
-      duplicateTransaction,
+      duplicateExpense,
     );
     const statementImports = new StatementImportStoreFake();
-    const importedTransactions = new ImportedTransactionStoreFake(
+    const importedExpenses = new ImportedExpenseStoreFake(
       new Map([
         [
           duplicateFingerprint,
           [
-            importedTransactionRecord({
+            importedExpenseRecord({
               id: '12',
               importFingerprint: duplicateFingerprint,
             }),
@@ -413,49 +417,47 @@ describe('StatementImportsService', () => {
     const unitOfWork = new UnitOfWorkFake({
       users: userStore(),
       statementImports,
-      importedTransactions,
-      categories: new TransactionCategoryStoreFake([
-        categoryRecord({ id: '42' }),
-      ]),
-      transactionActivities: new TransactionActivityStoreFake(),
+      importedExpenses,
+      categories: new ExpenseCategoryStoreFake([categoryRecord({ id: '42' })]),
+      expenseActivities: new ExpenseActivityStoreFake(),
     });
     const service = new StatementImportsService(statementImports, unitOfWork);
 
     await expect(
       service.commitReviewedStatementImportInSpace('7', '7', {
         ...input,
-        transactions: [duplicateTransaction, duplicateTransaction],
+        expenses: [duplicateExpense, duplicateExpense],
       }),
     ).rejects.toMatchObject({
       code: STATEMENT_IMPORT_PROBABLE_DUPLICATES_CODE,
       details: [
         expect.objectContaining({
-          field: '/transactions/0',
+          field: '/expenses/0',
           code: 'probable_duplicate',
-          transactionIndexes: [0, 1],
-          committedTransactionIds: ['12'],
+          expenseIndexes: [0, 1],
+          committedExpenseIds: ['12'],
         }),
       ],
     });
 
     expect(statementImports.createdInput).toBeUndefined();
-    expect(importedTransactions.createdInputs).toEqual([]);
+    expect(importedExpenses.createdInputs).toEqual([]);
   });
 
   it('acknowledges every probable duplicate and preserves every reviewed row', async () => {
     const input = statementInput();
-    const duplicateTransaction = input.transactions[0];
+    const duplicateExpense = input.expenses[0];
     const duplicateFingerprint = computeImportFingerprint(
       input,
-      duplicateTransaction,
+      duplicateExpense,
     );
     const statementImports = new StatementImportStoreFake();
-    const importedTransactions = new ImportedTransactionStoreFake(
+    const importedExpenses = new ImportedExpenseStoreFake(
       new Map([
         [
           duplicateFingerprint,
           [
-            importedTransactionRecord({
+            importedExpenseRecord({
               id: '12',
               importFingerprint: duplicateFingerprint,
             }),
@@ -466,11 +468,9 @@ describe('StatementImportsService', () => {
     const unitOfWork = new UnitOfWorkFake({
       users: userStore(),
       statementImports,
-      importedTransactions,
-      categories: new TransactionCategoryStoreFake([
-        categoryRecord({ id: '42' }),
-      ]),
-      transactionActivities: new TransactionActivityStoreFake(),
+      importedExpenses,
+      categories: new ExpenseCategoryStoreFake([categoryRecord({ id: '42' })]),
+      expenseActivities: new ExpenseActivityStoreFake(),
     });
     const service = new StatementImportsService(statementImports, unitOfWork);
 
@@ -478,11 +478,11 @@ describe('StatementImportsService', () => {
       service.commitReviewedStatementImportInSpace('7', '7', {
         ...input,
         acknowledgeProbableDuplicates: true,
-        transactions: [duplicateTransaction, duplicateTransaction],
+        expenses: [duplicateExpense, duplicateExpense],
       }),
     ).resolves.toBeDefined();
 
-    expect(importedTransactions.createdInputs).toHaveLength(2);
+    expect(importedExpenses.createdInputs).toHaveLength(2);
   });
 
   it('resolves every category before the first write and rejects missing or inactive categories', async () => {
@@ -491,24 +491,24 @@ describe('StatementImportsService', () => {
       categoryRecord({ id: '43', isActive: false }),
     ]) {
       const statementImports = new StatementImportStoreFake();
-      const importedTransactions = new ImportedTransactionStoreFake();
+      const importedExpenses = new ImportedExpenseStoreFake();
       const unitOfWork = new UnitOfWorkFake({
         users: userStore(),
         statementImports,
-        importedTransactions,
-        categories: new TransactionCategoryStoreFake(
+        importedExpenses,
+        categories: new ExpenseCategoryStoreFake(
           category ? [categoryRecord(), category] : [categoryRecord()],
         ),
-        transactionActivities: new TransactionActivityStoreFake(),
+        expenseActivities: new ExpenseActivityStoreFake(),
       });
       const service = new StatementImportsService(statementImports, unitOfWork);
 
       await expect(
         service.commitReviewedStatementImportInSpace('7', '7', {
           ...statementInput(),
-          transactions: [
-            statementInput().transactions[0],
-            { ...statementInput().transactions[1], categoryId: '43' },
+          expenses: [
+            statementInput().expenses[0],
+            { ...statementInput().expenses[1], categoryId: '43' },
           ],
         }),
       ).rejects.toEqual(
@@ -518,59 +518,59 @@ describe('StatementImportsService', () => {
       );
 
       expect(statementImports.createdInput).toBeUndefined();
-      expect(importedTransactions.createdInputs).toEqual([]);
+      expect(importedExpenses.createdInputs).toEqual([]);
     }
   });
 
   it('identifies every reviewed assignment affected by an inactive Category', async () => {
     const statementImports = new StatementImportStoreFake();
-    const importedTransactions = new ImportedTransactionStoreFake();
+    const importedExpenses = new ImportedExpenseStoreFake();
     const unitOfWork = new UnitOfWorkFake({
       users: userStore(),
       statementImports,
-      importedTransactions,
-      categories: new TransactionCategoryStoreFake([
+      importedExpenses,
+      categories: new ExpenseCategoryStoreFake([
         categoryRecord({ id: '42', isActive: false }),
         categoryRecord({ id: '43' }),
       ]),
-      transactionActivities: new TransactionActivityStoreFake(),
+      expenseActivities: new ExpenseActivityStoreFake(),
     });
     const service = new StatementImportsService(statementImports, unitOfWork);
 
     await expect(
       service.commitReviewedStatementImportInSpace('7', '7', {
         ...statementInput(),
-        transactions: [
-          { ...statementInput().transactions[0], categoryId: '42' },
-          { ...statementInput().transactions[1], categoryId: '43' },
-          { ...statementInput().transactions[0], categoryId: '42' },
+        expenses: [
+          { ...statementInput().expenses[0], categoryId: '42' },
+          { ...statementInput().expenses[1], categoryId: '43' },
+          { ...statementInput().expenses[0], categoryId: '42' },
         ],
       }),
     ).rejects.toMatchObject({
       code: 'CATEGORY_INACTIVE',
       details: [
         {
-          field: '/transactions/0/categoryId',
+          field: '/expenses/0/categoryId',
           code: 'category_inactive',
           categoryId: '42',
-          transactionIndexes: [0, 2],
+          expenseIndexes: [0, 2],
         },
       ],
     });
 
     expect(statementImports.createdInput).toBeUndefined();
-    expect(importedTransactions.createdInputs).toEqual([]);
+    expect(importedExpenses.createdInputs).toEqual([]);
   });
 
   it('checks reviewed statement fields before any persistence call', async () => {
     const statementImports = new StatementImportStoreFake();
-    const importedTransactions = new ImportedTransactionStoreFake();
+    const importedExpenses = new ImportedExpenseStoreFake();
     const unitOfWork = new UnitOfWorkFake({
       users: userStore(),
       statementImports,
-      importedTransactions,
-      categories: new TransactionCategoryStoreFake(),
-      transactionActivities: new TransactionActivityStoreFake(),
+      importedExpenses,
+      categories: new ExpenseCategoryStoreFake(),
+      expenseActivities: new ExpenseActivityStoreFake(),
     });
     const service = new StatementImportsService(statementImports, unitOfWork);
 
@@ -579,10 +579,10 @@ describe('StatementImportsService', () => {
         ...statementInput(),
         fileName: ' ',
         statementDate: '2026-02-29',
-        bank: ' ',
-        transactions: [
+        provider: ' ',
+        expenses: [
           {
-            ...statementInput().transactions[0],
+            ...statementInput().expenses[0],
             description: ' ',
             amount: '4',
           },
@@ -591,18 +591,18 @@ describe('StatementImportsService', () => {
     ).rejects.toBeInstanceOf(StatementImportValidationError);
 
     expect(statementImports.createdInput).toBeUndefined();
-    expect(importedTransactions.createdInputs).toEqual([]);
+    expect(importedExpenses.createdInputs).toEqual([]);
   });
 
   it('rejects an unknown user before checking or writing statement data', async () => {
     const statementImports = new StatementImportStoreFake();
-    const importedTransactions = new ImportedTransactionStoreFake();
+    const importedExpenses = new ImportedExpenseStoreFake();
     const unitOfWork = new UnitOfWorkFake({
       users: userStore(null),
       statementImports,
-      importedTransactions,
-      categories: new TransactionCategoryStoreFake(),
-      transactionActivities: new TransactionActivityStoreFake(),
+      importedExpenses,
+      categories: new ExpenseCategoryStoreFake(),
+      expenseActivities: new ExpenseActivityStoreFake(),
     });
     const service = new StatementImportsService(statementImports, unitOfWork);
 
@@ -615,21 +615,19 @@ describe('StatementImportsService', () => {
     ).rejects.toBeInstanceOf(UserNotFoundError);
 
     expect(statementImports.createdInput).toBeUndefined();
-    expect(importedTransactions.createdInputs).toEqual([]);
+    expect(importedExpenses.createdInputs).toEqual([]);
   });
 
   it('stops issuing later transaction writes when one write fails', async () => {
     const statementImports = new StatementImportStoreFake();
-    const importedTransactions = new ImportedTransactionStoreFake();
-    importedTransactions.failOnCreateNumber = 2;
+    const importedExpenses = new ImportedExpenseStoreFake();
+    importedExpenses.failOnCreateNumber = 2;
     const unitOfWork = new UnitOfWorkFake({
       users: userStore(),
       statementImports,
-      importedTransactions,
-      categories: new TransactionCategoryStoreFake([
-        categoryRecord({ id: '42' }),
-      ]),
-      transactionActivities: new TransactionActivityStoreFake(),
+      importedExpenses,
+      categories: new ExpenseCategoryStoreFake([categoryRecord({ id: '42' })]),
+      expenseActivities: new ExpenseActivityStoreFake(),
     });
     const service = new StatementImportsService(statementImports, unitOfWork);
 
@@ -638,8 +636,8 @@ describe('StatementImportsService', () => {
     ).rejects.toThrow('transaction write failed');
 
     expect(statementImports.createdInput).toBeDefined();
-    expect(importedTransactions.createdInputs).toHaveLength(2);
-    expect(importedTransactions.createCallCount).toBe(2);
+    expect(importedExpenses.createdInputs).toHaveLength(2);
+    expect(importedExpenses.createCallCount).toBe(2);
   });
 
   it('lists an owned statement-import page in stable order and binds its cursor to filters', async () => {
@@ -666,7 +664,10 @@ describe('StatementImportsService', () => {
     expect(page.nextCursor).toEqual(expect.any(String));
     expect(
       decodeStatementImportCursor(page.nextCursor ?? '', filters).position,
-    ).toEqual({ statementDate: '2026-08-03', statementImportId: '2' });
+    ).toEqual({
+      confirmedAt: '2026-08-29T00:00:00.000Z',
+      statementImportId: '2',
+    });
     expect(statementImports.spacePageQuery).toEqual({
       spaceId: '7',
       filters,
@@ -690,7 +691,10 @@ describe('StatementImportsService', () => {
     expect(statementImports.spacePageQuery).toEqual({
       spaceId: '7',
       filters,
-      after: { statementDate: '2026-08-03', statementImportId: '2' },
+      after: {
+        confirmedAt: '2026-08-29T00:00:00.000Z',
+        statementImportId: '2',
+      },
       pageSize: 1,
     });
   });
@@ -819,10 +823,11 @@ class StatementImportStoreFake implements StatementImportStore {
       fileName: input.fileName,
       fileHash: input.fileHash,
       statementDate: input.statementDate,
-      bank: input.bank,
-      cardType: input.cardType,
+      provider: input.provider,
+      accountFormat: input.accountFormat,
       statementType: input.statementType,
-      transactionHistoryStartDate: input.transactionHistoryStartDate,
+      historyFromDate: input.historyFromDate,
+      historyToDate: input.historyToDate,
       totalDebit: input.totalDebit,
       importedAt: input.importedAt,
     });
@@ -841,8 +846,8 @@ class StatementImportStoreFake implements StatementImportStore {
   }
 }
 
-class ImportedTransactionStoreFake implements SpaceImportedTransactionStore {
-  readonly createdInputs: NewImportedTransaction[] = [];
+class ImportedExpenseStoreFake implements SpaceImportedExpenseStore {
+  readonly createdInputs: NewImportedExpense[] = [];
   readonly spaceFingerprintQueries: { spaceId: string; fingerprint: string }[] =
     [];
   readonly spaceReferenceQueries: {
@@ -854,11 +859,11 @@ class ImportedTransactionStoreFake implements SpaceImportedTransactionStore {
   constructor(
     private readonly matchesByFingerprint: ReadonlyMap<
       string,
-      ImportedTransactionRecord[]
+      ImportedExpenseRecord[]
     > = new Map(),
     private readonly matchesByReference: ReadonlyMap<
       string,
-      ImportedTransactionRecord[]
+      ImportedExpenseRecord[]
     > = new Map(),
   ) {}
 
@@ -869,7 +874,7 @@ class ImportedTransactionStoreFake implements SpaceImportedTransactionStore {
   findByFingerprintInSpace(
     spaceId: string,
     fingerprint: string,
-  ): Promise<ImportedTransactionRecord[]> {
+  ): Promise<ImportedExpenseRecord[]> {
     this.spaceFingerprintQueries.push({ spaceId, fingerprint });
     return Promise.resolve(this.matchesByFingerprint.get(fingerprint) ?? []);
   }
@@ -877,7 +882,7 @@ class ImportedTransactionStoreFake implements SpaceImportedTransactionStore {
   findByReferenceHashInSpace(
     spaceId: string,
     referenceHash: string,
-  ): Promise<ImportedTransactionRecord[]> {
+  ): Promise<ImportedExpenseRecord[]> {
     this.spaceReferenceQueries.push({ spaceId, referenceHash });
     return Promise.resolve(
       (this.matchesByReference.get(referenceHash) ?? []).filter(
@@ -886,7 +891,7 @@ class ImportedTransactionStoreFake implements SpaceImportedTransactionStore {
     );
   }
 
-  create(input: NewImportedTransaction): Promise<ImportedTransactionRecord> {
+  create(input: NewImportedExpense): Promise<ImportedExpenseRecord> {
     this.createdInputs.push(input);
     if (this.createdInputs.length === this.failOnCreateNumber) {
       return Promise.reject(new Error('transaction write failed'));
@@ -898,22 +903,35 @@ class ImportedTransactionStoreFake implements SpaceImportedTransactionStore {
       source: 'imported',
       createdAt: new Date('2026-08-29T00:00:00.000Z'),
       updatedAt: new Date('2026-08-29T00:00:00.000Z'),
+      revision: '1',
     });
   }
 
-  findByIdInSpace(): Promise<ImportedTransactionRecord | null> {
+  findByIdInSpace(): Promise<ImportedExpenseRecord | null> {
     return Promise.resolve(null);
   }
 
-  updateCategoryInSpace(): Promise<ImportedTransactionRecord | null> {
+  findByIdInHistoryInSpace(): Promise<ImportedExpenseRecord | null> {
     return Promise.resolve(null);
+  }
+
+  updateCategoryInSpace(): Promise<ImportedExpenseRecord | null> {
+    return Promise.resolve(null);
+  }
+
+  updateInSpace(): Promise<ImportedExpenseRecord | null> {
+    return Promise.resolve(null);
+  }
+
+  deleteInSpace(): Promise<boolean> {
+    return Promise.resolve(false);
   }
 }
 
-class TransactionActivityStoreFake implements TransactionActivityStore {
-  readonly createdInputs: NewTransactionActivity[] = [];
+class ExpenseActivityStoreFake implements ExpenseActivityStore {
+  readonly createdInputs: NewExpenseActivity[] = [];
 
-  create(input: NewTransactionActivity): Promise<TransactionActivityRecord> {
+  create(input: NewExpenseActivity): Promise<ExpenseActivityRecord> {
     this.createdInputs.push(input);
     return Promise.resolve({
       id: String(this.createdInputs.length),
@@ -921,18 +939,18 @@ class TransactionActivityStoreFake implements TransactionActivityStore {
     });
   }
 
-  findByTransactionInSpace(): Promise<TransactionActivityRecord[]> {
+  findByExpenseInSpace(): Promise<ExpenseActivityRecord[]> {
     return Promise.resolve([]);
   }
 }
 
-class TransactionCategoryStoreFake implements TransactionCategoryStore {
-  constructor(private readonly categories: TransactionCategoryRecord[] = []) {}
+class ExpenseCategoryStoreFake implements ExpenseCategoryStore {
+  constructor(private readonly categories: ExpenseCategoryRecord[] = []) {}
 
   findBySpaceId(
     spaceId: string,
     id: string,
-  ): Promise<TransactionCategoryRecord | null> {
+  ): Promise<ExpenseCategoryRecord | null> {
     return Promise.resolve(
       this.categories.find(
         (category) => category.spaceId === spaceId && category.id === id,
@@ -947,22 +965,20 @@ function statementInput() {
     fileHash: validFileHash(),
     statementDate: '2026-08-31',
     statementType: 'credit_card',
-    bank: 'Example Bank',
-    cardType: 'visa',
-    transactions: [
+    provider: 'Example Bank',
+    accountFormat: 'visa',
+    expenses: [
       {
         categoryId: '42',
-        purchaseDate: '2026-08-01',
+        expenseDate: '2026-08-01',
         description: 'Coffee',
         amount: '4.50',
-        categoryMatchConfidence: '0.9000',
       },
       {
-        categoryId: null,
-        purchaseDate: '2026-08-02',
+        categoryId: '42',
+        expenseDate: '2026-08-02',
         description: 'Bookstore',
         amount: '18.00',
-        categoryMatchConfidence: null,
       },
     ],
   };
@@ -988,19 +1004,19 @@ function userRecord(): UserRecord {
   };
 }
 
-function importedTransactionRecord(
-  overrides: Partial<ImportedTransactionRecord> = {},
-): ImportedTransactionRecord {
+function importedExpenseRecord(
+  overrides: Partial<ImportedExpenseRecord> = {},
+): ImportedExpenseRecord {
   return {
     id: '1',
     spaceId: '7',
     addedByUserId: '7',
     categoryId: '42',
     statementImportId: '100',
-    purchaseDate: '2026-08-01',
+    expenseDate: '2026-08-01',
     description: 'Coffee',
     amount: '4.50',
-    categoryMatchConfidence: '0.9000',
+
     importFingerprint: 'a'.repeat(64),
     source: 'imported',
     createdAt: new Date('2026-08-29T00:00:00.000Z'),
@@ -1014,8 +1030,8 @@ function validFileHash(): string {
 }
 
 function categoryRecord(
-  overrides: Partial<TransactionCategoryRecord> = {},
-): TransactionCategoryRecord {
+  overrides: Partial<ExpenseCategoryRecord> = {},
+): ExpenseCategoryRecord {
   return {
     id: '42',
     spaceId: '7',
@@ -1034,10 +1050,11 @@ function statementRecord(
     fileName: 'august.pdf',
     fileHash: validFileHash(),
     statementDate: '2026-08-31',
-    bank: 'Example Bank',
-    cardType: 'visa',
+    provider: 'Example Bank',
+    accountFormat: 'visa',
     statementType: 'credit_card',
-    transactionHistoryStartDate: null,
+    historyFromDate: null,
+    historyToDate: null,
     totalDebit: null,
     importedAt: new Date('2026-08-29T00:00:00.000Z'),
     ...overrides,
@@ -1053,13 +1070,14 @@ function statementImportHistoryRecord(
     importedByUserId: '7',
     fileName: 'august.pdf',
     statementDate: '2026-08-01',
-    bank: 'Example Bank',
-    cardType: 'visa',
+    provider: 'Example Bank',
+    accountFormat: 'visa',
     statementType: 'credit_card',
-    transactionHistoryStartDate: null,
+    historyFromDate: null,
+    historyToDate: null,
     totalDebit: null,
     importedAt: new Date('2026-08-29T00:00:00.000Z'),
-    transactionCount: '2',
+    expenseCount: '2',
     ...overrides,
   };
 }

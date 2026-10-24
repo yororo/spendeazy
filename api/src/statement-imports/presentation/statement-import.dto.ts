@@ -44,8 +44,6 @@ type ApiSchemaOptionsWithAdditionalProperties = {
   additionalProperties?: boolean;
 };
 
-const CONFIDENCE_PATTERN = /^(?:0(?:\.\d{1,4})?|1(?:\.0{1,4})?)$/u;
-
 @ValidatorConstraint({ name: 'statementImportDate', async: false })
 class IsStatementImportDateConstraint implements ValidatorConstraintInterface {
   validate(value: unknown): boolean {
@@ -96,7 +94,7 @@ export class StatementImportCollectionQueryDto {
   @Validate(StatementImportDateBoundsConstraint)
   @ApiPropertyOptional({
     description:
-      'Inclusive lower Statement import date. It must be a valid calendar date in YYYY-MM-DD format and be on or before toDate when both filters are supplied.',
+      'Inclusive lower Statement confirmation date in Asia/Manila, encoded as a valid calendar date in YYYY-MM-DD format. It must be on or before toDate when both filters are supplied.',
     type: String,
     format: 'date',
     pattern: DOMAIN_DATE_PATTERN.source,
@@ -109,7 +107,7 @@ export class StatementImportCollectionQueryDto {
   @Validate(IsStatementImportDateConstraint)
   @ApiPropertyOptional({
     description:
-      'Inclusive upper Statement import date. It must be a valid calendar date in YYYY-MM-DD format.',
+      'Inclusive upper Statement confirmation date in Asia/Manila, encoded as a valid calendar date in YYYY-MM-DD format.',
     type: String,
     format: 'date',
     pattern: DOMAIN_DATE_PATTERN.source,
@@ -137,7 +135,7 @@ export class StatementImportCollectionQueryDto {
   @IsString()
   @ApiPropertyOptional({
     description:
-      'Opaque base64url cursor for the next page. Reuse it only with the same date filters; cursors encode the fixed statementDate-descending, ID-descending ordering.',
+      'Opaque base64url cursor for the next page. Reuse it only with the same date filters; results are ordered by confirmation time descending, then Statement Import ID descending. Page size is not part of the cursor.',
     type: String,
     minLength: 1,
     pattern: '^[A-Za-z0-9_-]+$',
@@ -149,29 +147,27 @@ export class StatementImportCollectionQueryDto {
 @ApiSchema({
   additionalProperties: false,
 } as ApiSchemaOptionsWithAdditionalProperties)
-export class ReviewedStatementTransactionDto {
-  @ValidateIf((_, value) => value !== undefined && value !== null)
+export class ReviewedExpenseDto {
   @IsString()
   @Matches(POSITIVE_INTEGER_ID_PATTERN)
-  @ApiPropertyOptional({
+  @ApiProperty({
     description:
-      'Positive bigint Category identifier encoded as a string. Omit or set to null to leave the imported Transaction Uncategorized.',
+      'Required positive bigint Category identifier encoded as a string.',
     type: String,
     pattern: POSITIVE_INTEGER_ID_PATTERN.source,
-    nullable: true,
     example: '42',
   })
-  categoryId?: string | null;
+  categoryId!: string;
 
   @IsString()
   @Validate(IsStatementImportDateConstraint)
   @ApiProperty({
-    description: 'Valid calendar purchase date encoded as YYYY-MM-DD.',
+    description: 'Valid calendar Expense date encoded as YYYY-MM-DD.',
     format: 'date',
     pattern: DOMAIN_DATE_PATTERN.source,
     example: '2026-08-01',
   })
-  purchaseDate!: string;
+  expenseDate!: string;
 
   @IsString()
   @IsNotEmpty()
@@ -179,7 +175,7 @@ export class ReviewedStatementTransactionDto {
   @Length(1, 500)
   @Transform(trimValue)
   @ApiProperty({
-    description: 'Transaction description, trimmed before storage.',
+    description: 'Expense description, trimmed before storage.',
     minLength: 1,
     maxLength: 500,
     pattern: '\\S',
@@ -191,24 +187,11 @@ export class ReviewedStatementTransactionDto {
   @Matches(POSITIVE_TWO_DECIMAL_AMOUNT_PATTERN)
   @ApiProperty({
     description:
-      'Positive exact two-decimal Transaction amount encoded as a string, normalized to remove redundant leading zeroes before storage.',
+      'Positive exact two-decimal Expense amount encoded as a string, normalized to remove redundant leading zeroes before storage.',
     pattern: POSITIVE_TWO_DECIMAL_AMOUNT_PATTERN.source,
     example: '4.50',
   })
   amount!: string;
-
-  @ValidateIf((_, value) => value !== undefined && value !== null)
-  @IsString()
-  @Matches(CONFIDENCE_PATTERN)
-  @ApiPropertyOptional({
-    description:
-      'Optional category-match confidence encoded as a decimal string between 0 and 1 inclusive, with up to four fractional digits.',
-    type: String,
-    pattern: CONFIDENCE_PATTERN.source,
-    nullable: true,
-    example: '0.9000',
-  })
-  categoryMatchConfidence?: string | null;
 
   @ValidateIf((_, value) => value !== undefined && value !== null)
   @IsString()
@@ -249,21 +232,25 @@ export class CommitReviewedStatementImportDto {
   @Matches(/^[0-9a-f]{64}$/u)
   @ApiProperty({
     description:
-      'Lowercase SHA-256 digest asserted by the client. It is used for exact-file duplicate detection and is never returned.',
+      'Lowercase SHA-256 digest asserted by the client and retained as import metadata. It is not a unique key and is never returned.',
     pattern: '^[0-9a-f]{64}$',
     example: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
   })
   fileHash!: string;
 
+  @ValidateIf(
+    (input: CommitReviewedStatementImportDto) =>
+      input.statementType === 'credit_card',
+  )
   @IsString()
   @Validate(IsStatementImportDateConstraint)
-  @ApiProperty({
-    description: 'Valid calendar statement date encoded as YYYY-MM-DD.',
+  @ApiPropertyOptional({
+    description: 'Valid Credit Card statement date encoded as YYYY-MM-DD.',
     format: 'date',
     pattern: DOMAIN_DATE_PATTERN.source,
     example: '2026-08-31',
   })
-  statementDate!: string;
+  statementDate?: string;
 
   @IsString()
   @IsIn(STATEMENT_TYPES)
@@ -279,13 +266,13 @@ export class CommitReviewedStatementImportDto {
   @Length(1, 100)
   @Transform(trimValue)
   @ApiProperty({
-    description: 'Statement bank name, trimmed before storage.',
+    description: 'Statement provider name, trimmed before storage.',
     minLength: 1,
     maxLength: 100,
     pattern: '\\S',
     example: 'Example Bank',
   })
-  bank!: string;
+  provider!: string;
 
   @ValidateIf((_, value) => value !== undefined && value !== null)
   @IsString()
@@ -293,7 +280,7 @@ export class CommitReviewedStatementImportDto {
   @Length(1, 100)
   @Transform(trimValue)
   @ApiPropertyOptional({
-    description: 'Optional card type, trimmed before storage when supplied.',
+    description: 'Account format, trimmed before storage when supplied.',
     type: String,
     minLength: 1,
     maxLength: 100,
@@ -301,21 +288,33 @@ export class CommitReviewedStatementImportDto {
     nullable: true,
     example: 'visa',
   })
-  cardType?: string | null;
+  accountFormat?: string | null;
 
   @ValidateIf((_, value) => value !== undefined && value !== null)
   @IsString()
   @Validate(IsStatementImportDateConstraint)
   @ApiPropertyOptional({
-    description:
-      'Inclusive Transaction History Period start for E-Wallet imports. The statementDate field remains the period end for ordering and filtering.',
+    description: 'Inclusive E-Wallet history start date.',
     type: String,
     format: 'date',
     pattern: DOMAIN_DATE_PATTERN.source,
     nullable: true,
     example: '2026-08-09',
   })
-  transactionHistoryStartDate?: string | null;
+  historyFromDate?: string | null;
+
+  @ValidateIf((_, value) => value !== undefined && value !== null)
+  @IsString()
+  @Validate(IsStatementImportDateConstraint)
+  @ApiPropertyOptional({
+    description: 'Inclusive E-Wallet history end date.',
+    type: String,
+    format: 'date',
+    pattern: DOMAIN_DATE_PATTERN.source,
+    nullable: true,
+    example: '2026-08-31',
+  })
+  historyToDate?: string | null;
 
   @ValidateIf((_, value) => value !== undefined && value !== null)
   @IsString()
@@ -332,20 +331,20 @@ export class CommitReviewedStatementImportDto {
 
   @IsArray()
   @ValidateNested({ each: true })
-  @Type(() => ReviewedStatementTransactionDto)
+  @Type(() => ReviewedExpenseDto)
   @ApiProperty({
     description:
-      'Reviewed Transactions to commit. The array may be empty; each row is normalized and validated before it is stored.',
+      'Reviewed Expenses to commit. The array may be empty; each row is normalized and validated before it is stored.',
     type: 'array',
-    items: { $ref: getSchemaPath(ReviewedStatementTransactionDto) },
+    items: { $ref: getSchemaPath(ReviewedExpenseDto) },
   })
-  transactions!: ReviewedStatementTransactionDto[];
+  expenses!: ReviewedExpenseDto[];
 
   @ValidateIf((_, value) => value !== undefined)
   @IsBoolean()
   @ApiPropertyOptional({
     description:
-      'Acknowledge all probable-duplicate review signals. Defaults to false; exact file duplicates cannot be acknowledged.',
+      'Acknowledge probable-duplicate review signals. Defaults to false; detected duplicate groups require explicit acknowledgement.',
     default: false,
     example: false,
   })

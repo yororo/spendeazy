@@ -63,7 +63,7 @@ function createDocumentConfig(): Omit<OpenAPIObject, 'paths'> {
   return new DocumentBuilder()
     .setTitle(API_TITLE)
     .setDescription(
-      'The Spendeazy REST API serves financial data in authorized Personal and Shared Spaces. Categories, Budgets, Category Rules, Transactions, and Statement Imports belong to a Space. Transaction Added By and Statement Import importer fields preserve actor attribution without changing Space ownership. Bigint identifiers and counts, decimal money, domain dates, and UTC timestamps use the encodings described by the schemas below.',
+      'The Spendeazy REST API serves financial data in authorized Personal and Shared Spaces through explicit Space-scoped routes. Expenses, Categories, Budgets, Category Rules, and Statement Imports belong to a Space. Expense Added By and Statement Import importer fields preserve actor attribution without changing Space ownership. Bigint identifiers and counts, decimal money, domain dates, and UTC timestamps use the encodings described by the schemas below.',
     )
     .setVersion(API_CONTRACT_VERSION)
     .setOpenAPIVersion(OPENAPI_VERSION)
@@ -77,7 +77,7 @@ function createDocumentConfig(): Omit<OpenAPIObject, 'paths'> {
       'Category rules',
       'Exact and Contains description-matching rules used during Statement Import categorization.',
     )
-    .addTag('Transactions', 'Manual and imported expenses in a Space.')
+    .addTag('Expenses', 'Manual and imported Expenses in a Space.')
     .addTag(
       'Statement imports',
       'Reviewed import commits and history in a Space.',

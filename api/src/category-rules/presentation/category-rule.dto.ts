@@ -75,7 +75,7 @@ export class CreateCategoryRuleDto {
   @Matches(POSITIVE_INTEGER_ID_PATTERN)
   @ApiProperty({
     description:
-      "Positive bigint Category identifier encoded as a decimal JSON string. The Category must be active in the destination Space; the legacy personal route resolves the authenticated User's Personal Space. An inactive Category causes a 409 Conflict.",
+      'Positive bigint Category identifier encoded as a decimal JSON string. The Category must be active in the destination Space. An inactive Category causes a 409 Conflict.',
     pattern: POSITIVE_INTEGER_ID_PATTERN.source,
     example: '42',
   })

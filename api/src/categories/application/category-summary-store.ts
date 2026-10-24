@@ -13,15 +13,13 @@ export interface CategorySummaryRow {
   categoryName: string;
   categoryIsActive: boolean;
   totalAmount: string;
-  transactionCount: string;
+  expenseCount: string;
   budgetAmount: string | null;
   budgetPeriod: BudgetPeriod | null;
 }
 
 export interface CategorySummaryData {
   categories: CategorySummaryRow[];
-  uncategorizedAmount: string;
-  uncategorizedCount: string;
 }
 
 export interface CategorySummaryStore {

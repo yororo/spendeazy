@@ -1,5 +1,5 @@
 import { Test } from '@nestjs/testing';
-import type { INestApplication, Provider } from '@nestjs/common';
+import type { INestApplication } from '@nestjs/common';
 import type { Server } from 'node:http';
 import request from 'supertest';
 
@@ -13,1277 +13,222 @@ import { ClerkAuthenticationGuard } from '../src/authentication/clerk-authentica
 import { ProvisionedUserGuard } from '../src/authentication/provisioned-user.guard';
 import { APP_CONFIG, type AppConfig } from '../src/config/app-config';
 import {
-  STATEMENT_IMPORT_CONFIRMATION_UNIT_OF_WORK,
-  type StatementImportConfirmationContext,
-  type StatementImportConfirmationUnitOfWork,
-} from '../src/statement-imports/application/statement-import-confirmation';
-import { computeImportFingerprint } from '../src/statement-imports/application/import-fingerprint';
-import { StatementImportsController } from '../src/statement-imports/presentation/statement-imports.controller';
-import { SpaceStatementImportsController } from '../src/statement-imports/presentation/space-statement-imports.controller';
-import { StatementImportsService } from '../src/statement-imports/application/statement-imports.service';
-import { StatementCategorySuggestionsService } from '../src/statement-imports/application/statement-category-suggestions.service';
-import { SpaceAccessService } from '../src/spaces/application/space-access.service';
-import {
   SpaceNotFoundError,
   SpaceNotWritableError,
 } from '../src/spaces/application/space-errors';
-import type {
-  ImportedTransactionRecord,
-  NewImportedTransaction,
-  SpaceImportedTransactionStore,
-} from '../src/transactions/application/imported-transaction-store';
-import type {
-  TransactionCategoryRecord,
-  TransactionCategoryStore,
-} from '../src/transactions/application/transaction-category-store';
-import type {
-  NewTransactionActivity,
-  TransactionActivityRecord,
-  TransactionActivityStore,
-} from '../src/transactions/application/transaction-activity-store';
-import {
-  USER_STORE,
-  type NewUser,
-  type UpdateUser,
-  type UserRecord,
-  type UserStore,
-} from '../src/users/application/user-store';
-import {
-  STATEMENT_IMPORT_STORE,
-  type NewStatementImport,
-  type StatementImportHistoryRecord,
-  type StatementImportRecord,
-  type StatementImportStore,
-  type SpaceStatementImportHistoryPageQuery,
-} from '../src/statement-imports/application/statement-import-store';
+import { SpaceAccessService } from '../src/spaces/application/space-access.service';
+import { StatementImportsService } from '../src/statement-imports/application/statement-imports.service';
+import { SpaceStatementImportsController } from '../src/statement-imports/presentation/space-statement-imports.controller';
+import { USER_STORE } from '../src/users/application/user-store';
 
-describe('authenticated statement-import routes', () => {
+describe('Space Statement Import API routes', () => {
   let application: INestApplication;
-  let statementImportsService: StatementImportsServiceMock;
-
-  beforeEach(async () => {
-    statementImportsService = createStatementImportsServiceMock();
-    application = await createStatementImportApplication({
-      provide: StatementImportsService,
-      useValue: statementImportsService,
-    });
-  });
-
-  afterEach(async () => {
-    await application.close();
-  });
-
-  it('passes the trusted local User ID to history, retrieval, and commit operations', async () => {
-    const userId = '99';
-    const statementImport = statementImportRecord({ id: '400', userId });
-    const historyItem = statementImportHistoryRecord({ id: '400', userId });
-    const commitInput = statementImportInput();
-    statementImportsService.listStatementImports.mockResolvedValue({
-      items: [historyItem],
-      nextCursor: 'next-page',
-    });
-    statementImportsService.getStatementImport.mockResolvedValue(
-      statementImport,
-    );
-    statementImportsService.commitReviewedStatementImport.mockResolvedValue(
-      statementImport,
-    );
-
-    const listResponse = await statementRequest(application)
-      .get('/api/v1/users/me/statement-imports')
-      .query({
-        fromDate: '2026-08-01',
-        toDate: '2026-08-31',
-        pageSize: '10',
-      })
-      .set('Authorization', 'Bearer token-c')
-      .set('Accept', 'application/json');
-    const getResponse = await statementRequest(application)
-      .get('/api/v1/users/me/statement-imports/400')
-      .set('Authorization', 'Bearer token-c')
-      .set('Accept', 'application/json');
-    const commitResponse = await statementRequest(application)
-      .post('/api/v1/users/me/statement-imports')
-      .set('Authorization', 'Bearer token-c')
-      .set('Accept', 'application/json')
-      .send(commitInput);
-
-    expect(listResponse.status).toBe(200);
-    expect(getResponse.status).toBe(200);
-    expect(commitResponse.status).toBe(201);
-    expect(statementImportsService.listStatementImports).toHaveBeenCalledWith(
-      userId,
-      {
-        fromDate: '2026-08-01',
-        toDate: '2026-08-31',
-        pageSize: 10,
-      },
-    );
-    expect(statementImportsService.getStatementImport).toHaveBeenCalledWith(
-      userId,
-      '400',
-    );
-    expect(
-      statementImportsService.commitReviewedStatementImport,
-    ).toHaveBeenCalledWith(userId, commitInput);
-    expect(commitResponse.headers.location).toBe(
-      '/api/v1/users/me/spaces/99/statement-imports/400',
-    );
-    expect(commitResponse.body).toEqual({
-      id: '400',
-      importedByUserId: '42',
-      fileName: 'august.pdf',
-      statementDate: '2026-08-31',
-      bank: 'Example Bank',
-      cardType: 'visa',
-      statementType: 'credit_card',
-      transactionHistoryStartDate: null,
-      totalDebit: null,
-      importedAt: '2026-08-29T00:00:00.000Z',
-    });
-    expect(JSON.stringify(commitResponse.body)).not.toContain(
-      commitInput.fileHash,
-    );
-  });
-
-  it('does not treat caller-supplied User IDs as statement-import ownership', async () => {
-    const userId = '99';
-    statementImportsService.getStatementImport.mockResolvedValue(
-      statementImportRecord({ userId }),
-    );
-
-    const listResponse = await statementRequest(application)
-      .get('/api/v1/users/me/statement-imports')
-      .query({ userId: '8' })
-      .set('Authorization', 'Bearer token-c')
-      .set('Accept', 'application/json');
-    const getResponse = await statementRequest(application)
-      .get('/api/v1/users/me/statement-imports/400')
-      .query({ userId: '8' })
-      .set('Authorization', 'Bearer token-c')
-      .set('Accept', 'application/json');
-    const commitResponse = await statementRequest(application)
-      .post('/api/v1/users/me/statement-imports')
-      .set('Authorization', 'Bearer token-c')
-      .set('Accept', 'application/json')
-      .send({ ...statementImportInput(), userId: '8' });
-    const nestedUserIdResponse = await statementRequest(application)
-      .post('/api/v1/users/me/statement-imports')
-      .set('Authorization', 'Bearer token-c')
-      .set('Accept', 'application/json')
-      .send({
-        ...statementImportInput(),
-        transactions: [
-          { ...statementImportInput().transactions[0], userId: '8' },
-        ],
-      });
-
-    expect(listResponse.status).toBe(400);
-    expect(getResponse.status).toBe(200);
-    expect(commitResponse.status).toBe(400);
-    expect(nestedUserIdResponse.status).toBe(400);
-    expect(statementImportsService.listStatementImports).not.toHaveBeenCalled();
-    expect(
-      statementImportsService.commitReviewedStatementImport,
-    ).not.toHaveBeenCalled();
-    expect(statementImportsService.getStatementImport).toHaveBeenCalledWith(
-      userId,
-      '400',
-    );
-  });
-
-  it.each([
-    [
-      'statement-import collection read',
-      'GET',
-      '/api/v1/users/8/statement-imports',
-    ],
-    [
-      'statement-import collection write',
-      'POST',
-      '/api/v1/users/8/statement-imports',
-    ],
-    [
-      'statement-import item read',
-      'GET',
-      '/api/v1/users/8/statement-imports/400',
-    ],
-  ] as const)(
-    'does not expose the legacy %s route',
-    async (_name, method, path) => {
-      const pending = statementRequestWithMethod(application, method, path)
-        .set('Authorization', 'Bearer token-a')
-        .set('Accept', 'application/json');
-      if (method === 'POST') {
-        pending.send(statementImportInput());
-      }
-
-      const response = await pending;
-
-      expect(response.status).toBe(404);
-      expect(statementImportsService.getStatementImport).not.toHaveBeenCalled();
-      expect(
-        statementImportsService.listStatementImports,
-      ).not.toHaveBeenCalled();
-      expect(
-        statementImportsService.commitReviewedStatementImport,
-      ).not.toHaveBeenCalled();
-    },
-  );
-
-  it.each([
-    [
-      'statement-import collection read',
-      'GET',
-      '/api/v1/users/me/statement-imports',
-    ],
-    [
-      'statement-import collection write',
-      'POST',
-      '/api/v1/users/me/statement-imports',
-    ],
-    [
-      'statement-import item read',
-      'GET',
-      '/api/v1/users/me/statement-imports/400',
-    ],
-  ] as const)(
-    'returns 403 for an authenticated but unprovisioned caller on %s',
-    async (_name, method, path) => {
-      const pending = statementRequestWithMethod(application, method, path)
-        .set('Authorization', 'Bearer token-b')
-        .set('Accept', 'application/json');
-      if (method === 'POST') {
-        pending.send(statementImportInput());
-      }
-
-      const response = await pending;
-
-      expect(response.status).toBe(403);
-    },
-  );
-
-  it.each([
-    [
-      'statement-import collection',
-      'GET',
-      '/api/v1/users/me/statement-imports',
-    ],
-    [
-      'statement-import collection write',
-      'POST',
-      '/api/v1/users/me/statement-imports',
-    ],
-    ['statement-import item', 'GET', '/api/v1/users/me/statement-imports/400'],
-  ] as const)(
-    'denies an anonymous request to %s',
-    async (_name, method, path) => {
-      const response = await statementRequestWithMethod(
-        application,
-        method,
-        path,
-      )
-        .set('Accept', 'application/json')
-        .send(method === 'POST' ? statementImportInput() : undefined);
-
-      expect(response.status).toBe(401);
-    },
-  );
-});
-
-describe('statement-import ownership through authenticated routes', () => {
-  let application: INestApplication;
-  let fixture: StatementImportHttpFixture;
-
-  beforeEach(async () => {
-    fixture = new StatementImportHttpFixture();
-    application = await createStatementImportApplication(
-      StatementImportsService,
-      fixture,
-      fixture.statementImports,
-    );
-  });
-
-  afterEach(async () => {
-    await application.close();
-  });
-
-  it('returns non-disclosing 404s for absent and cross-user imports', async () => {
-    fixture.statementImports.seed(
-      statementImportRecord({ id: '501', spaceId: '42' }),
-    );
-    const absent = await statementRequest(application)
-      .get('/api/v1/users/me/statement-imports/404')
-      .set('Authorization', 'Bearer token-c')
-      .set('Accept', 'application/json');
-    const crossUser = await statementRequest(application)
-      .get('/api/v1/users/me/statement-imports/501')
-      .set('Authorization', 'Bearer token-c')
-      .set('Accept', 'application/json');
-
-    expect(absent.status).toBe(404);
-    expect(crossUser.status).toBe(404);
-    expect(crossUser.body).toEqual(absent.body);
-  });
-
-  it('only lists statement imports owned by the authenticated User', async () => {
-    fixture.statementImports.seed(
-      statementImportRecord({ id: '500', spaceId: '99' }),
-      statementImportRecord({ id: '501', spaceId: '42' }),
-    );
-
-    const ownerHistory = await statementRequest(application)
-      .get('/api/v1/users/me/statement-imports')
-      .set('Authorization', 'Bearer token-c')
-      .set('Accept', 'application/json');
-    const otherUserHistory = await statementRequest(application)
-      .get('/api/v1/users/me/statement-imports')
-      .set('Authorization', 'Bearer token-a')
-      .set('Accept', 'application/json');
-    const ownerHistoryBody = ownerHistory.body as unknown as {
-      items: { id: string }[];
-    };
-    const otherUserHistoryBody = otherUserHistory.body as unknown as {
-      items: { id: string }[];
-    };
-
-    expect(ownerHistory.status).toBe(200);
-    expect(ownerHistoryBody.items.map((item) => item.id)).toEqual(['500']);
-    expect(otherUserHistory.status).toBe(200);
-    expect(otherUserHistoryBody.items.map((item) => item.id)).toEqual(['501']);
-    expect(
-      fixture.statementImports.pageQueries.map((query) => query.spaceId),
-    ).toEqual(['99', '42']);
-  });
-
-  it('returns legacy GCash and current E-Wallet controls in one history page', async () => {
-    fixture.statementImports.seed(
-      statementImportRecord({
-        id: '500',
-        spaceId: '99',
-        importedByUserId: '99',
-        fileName: 'legacy-wallet-history.pdf',
-        statementDate: '2026-08-07',
-        bank: 'GCash',
-        cardType: 'E-Wallet',
-        statementType: 'e_wallet',
-        transactionHistoryStartDate: null,
-        totalDebit: null,
-      }),
-      statementImportRecord({
-        id: '501',
-        spaceId: '99',
-        importedByUserId: '99',
-        fileName: 'wallet-history.pdf',
-        statementDate: '2026-09-07',
-        bank: 'GCash',
-        cardType: 'E-Wallet',
-        statementType: 'e_wallet',
-        transactionHistoryStartDate: '2026-08-09',
-        totalDebit: '26696.92',
-      }),
-    );
-
-    const response = await statementRequest(application)
-      .get('/api/v1/users/me/statement-imports')
-      .set('Authorization', 'Bearer token-c')
-      .set('Accept', 'application/json');
-    const body = response.body as {
-      items: {
-        id: string;
-        statementDate: string;
-        statementType: string;
-        transactionHistoryStartDate: string | null;
-        totalDebit: string | null;
-      }[];
-    };
-    const legacyImport = await statementRequest(application)
-      .get('/api/v1/users/me/statement-imports/500')
-      .set('Authorization', 'Bearer token-c')
-      .set('Accept', 'application/json');
-
-    expect(response.status).toBe(200);
-    expect(body.items).toHaveLength(2);
-    expect(body.items).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          id: '500',
-          statementDate: '2026-08-07',
-          statementType: 'e_wallet',
-          transactionHistoryStartDate: null,
-          totalDebit: null,
-        }),
-        expect.objectContaining({
-          id: '501',
-          statementDate: '2026-09-07',
-          statementType: 'e_wallet',
-          transactionHistoryStartDate: '2026-08-09',
-          totalDebit: '26696.92',
-        }),
-      ]),
-    );
-    expect(legacyImport.status).toBe(200);
-    expect(legacyImport.body).toMatchObject({
-      id: '500',
-      statementType: 'e_wallet',
-      transactionHistoryStartDate: null,
-      totalDebit: null,
-    });
-  });
-
-  it('scopes exact-file and probable-duplicate checks to the authenticated User', async () => {
-    const input = statementImportInput();
-    const fingerprint = computeImportFingerprint(input, input.transactions[0]);
-    fixture.statementImports.seed(
-      statementImportRecord({
-        id: '500',
-        spaceId: '99',
-        fileHash: 'b'.repeat(64),
-      }),
-    );
-    fixture.importedTransactions.seed(
-      importedTransactionRecord({
-        id: '700',
-        spaceId: '99',
-        statementImportId: '500',
-        importFingerprint: fingerprint,
-      }),
-    );
-
-    const exactDuplicate = await statementRequest(application)
-      .post('/api/v1/users/me/statement-imports')
-      .set('Authorization', 'Bearer token-c')
-      .set('Accept', 'application/json')
-      .send({ ...input, fileHash: 'b'.repeat(64) });
-    const sameFileForOtherUser = await statementRequest(application)
-      .post('/api/v1/users/me/statement-imports')
-      .set('Authorization', 'Bearer token-a')
-      .set('Accept', 'application/json')
-      .send({ ...input, fileHash: 'b'.repeat(64) });
-    const probableDuplicate = await statementRequest(application)
-      .post('/api/v1/users/me/statement-imports')
-      .set('Authorization', 'Bearer token-c')
-      .set('Accept', 'application/json')
-      .send({ ...input, fileHash: 'e'.repeat(64) });
-
-    expect(exactDuplicate.status).toBe(409);
-    expect(errorCode(exactDuplicate)).toBe(
-      'STATEMENT_IMPORT_FILE_ALREADY_EXISTS',
-    );
-    expect(sameFileForOtherUser.status).toBe(201);
-    expect(probableDuplicate.status).toBe(409);
-    expect(errorCode(probableDuplicate)).toBe(
-      'STATEMENT_IMPORT_PROBABLE_DUPLICATES',
-    );
-    expect(fixture.statementImports.createdInputs).toHaveLength(1);
-    expect(fixture.statementImports.createdInputs[0]).toMatchObject({
-      spaceId: '42',
-      importedByUserId: '42',
-    });
-    expect(fixture.importedTransactions.createdInputs).toHaveLength(1);
-    expect(fixture.importedTransactions.createdInputs[0]).toMatchObject({
-      spaceId: '42',
-      addedByUserId: '42',
-    });
-    expect(
-      typeof fixture.importedTransactions.createdInputs[0]?.statementImportId,
-    ).toBe('string');
-    expect(fixture.transactionActivities.createdInputs).toHaveLength(1);
-    expect(fixture.transactionActivities.createdInputs[0]).toMatchObject({
-      spaceId: '42',
-      actorUserId: '42',
-      type: 'created',
-    });
-    expect(
-      typeof fixture.transactionActivities.createdInputs[0]?.transactionId,
-    ).toBe('string');
-  });
-
-  it('requires categories to belong to the authenticated User and commits transactions in that scope', async () => {
-    fixture.categories.seed({
-      id: '42',
-      spaceId: '42',
-      isActive: true,
-    });
-
-    const crossUserCategory = await statementRequest(application)
-      .post('/api/v1/users/me/statement-imports')
-      .set('Authorization', 'Bearer token-c')
-      .set('Accept', 'application/json')
-      .send({
-        ...statementImportInput(),
-        fileHash: 'd'.repeat(64),
-        transactions: [
-          {
-            ...statementImportInput().transactions[0],
-            categoryId: '42',
-          },
-        ],
-      });
-    const missingCategory = await statementRequest(application)
-      .post('/api/v1/users/me/statement-imports')
-      .set('Authorization', 'Bearer token-c')
-      .set('Accept', 'application/json')
-      .send({
-        ...statementImportInput(),
-        fileHash: 'e'.repeat(64),
-        transactions: [
-          {
-            ...statementImportInput().transactions[0],
-            categoryId: '43',
-          },
-        ],
-      });
-    const ownedCategory = await statementRequest(application)
-      .post('/api/v1/users/me/statement-imports')
-      .set('Authorization', 'Bearer token-a')
-      .set('Accept', 'application/json')
-      .send({
-        ...statementImportInput(),
-        fileHash: 'f'.repeat(64),
-        transactions: [
-          {
-            ...statementImportInput().transactions[0],
-            categoryId: '42',
-          },
-        ],
-      });
-
-    expect(crossUserCategory.status).toBe(404);
-    expect(missingCategory.status).toBe(404);
-    expect(crossUserCategory.body).toEqual(missingCategory.body);
-    expect(errorCode(crossUserCategory)).toBe('CATEGORY_NOT_FOUND');
-    expect(ownedCategory.status).toBe(201);
-    expect(fixture.statementImports.createdInputs).toHaveLength(1);
-    expect(fixture.statementImports.createdInputs[0]).toMatchObject({
-      spaceId: '42',
-      importedByUserId: '42',
-    });
-    expect(fixture.importedTransactions.createdInputs).toHaveLength(1);
-    expect(fixture.importedTransactions.createdInputs[0]).toMatchObject({
-      spaceId: '42',
-      addedByUserId: '42',
-      categoryId: '42',
-    });
-    expect(fixture.transactionActivities.createdInputs).toHaveLength(1);
-    expect(fixture.transactionActivities.createdInputs[0]).toMatchObject({
-      spaceId: '42',
-      actorUserId: '42',
-      type: 'created',
-    });
-    expect(
-      typeof fixture.transactionActivities.createdInputs[0]?.transactionId,
-    ).toBe('string');
-  });
-});
-
-describe('statement-import access through Space routes', () => {
-  let application: INestApplication;
-  let statementImportsService: StatementImportsServiceMock;
-  let spaceAccessService: {
-    requireReadAccess: jest.Mock;
-    requireWriteAccess: jest.Mock;
+  const access = {
+    requireReadAccess: jest.fn(),
+    requireWriteAccess: jest.fn(),
   };
-  let categorySuggestionsService: { suggestInSpace: jest.Mock };
+  const service = {
+    listStatementImportsInSpace: jest.fn(),
+    getStatementImportInSpace: jest.fn(),
+    commitReviewedStatementImportInSpace: jest.fn(),
+  };
 
-  beforeEach(async () => {
-    statementImportsService = createStatementImportsServiceMock();
-    spaceAccessService = {
-      requireReadAccess: jest.fn().mockResolvedValue({ id: '77' }),
-      requireWriteAccess: jest.fn().mockResolvedValue({ id: '77' }),
-    };
-    categorySuggestionsService = {
-      suggestInSpace: jest
-        .fn()
-        .mockResolvedValue([{ categoryId: '42', categoryName: 'Groceries' }]),
-    };
-    application = await createSpaceStatementImportApplication(
-      statementImportsService,
-      spaceAccessService,
-      categorySuggestionsService,
+  beforeAll(async () => {
+    const module = await Test.createTestingModule({
+      controllers: [SpaceStatementImportsController],
+      providers: [
+        { provide: APP_CONFIG, useValue: testConfig },
+        {
+          provide: CLERK_TOKEN_VERIFIER,
+          useValue: new FakeClerkTokenVerifier(),
+        },
+        {
+          provide: USER_STORE,
+          useValue: {
+            findByClerkUserId: jest.fn().mockResolvedValue({ id: '99' }),
+          },
+        },
+        { provide: SpaceAccessService, useValue: access },
+        { provide: StatementImportsService, useValue: service },
+        ClerkAuthenticationGuard,
+        ProvisionedUserGuard,
+      ],
+    }).compile();
+
+    application = module.createNestApplication();
+    configureApp(application);
+    await application.init();
+  });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    access.requireReadAccess.mockResolvedValue({ id: '77' });
+    access.requireWriteAccess.mockResolvedValue({ id: '77', kind: 'personal' });
+    service.listStatementImportsInSpace.mockResolvedValue({
+      items: [historyRecord()],
+      nextCursor: null,
+    });
+    service.getStatementImportInSpace.mockResolvedValue(importRecord());
+    service.commitReviewedStatementImportInSpace.mockResolvedValue(
+      importRecord(),
     );
   });
 
-  afterEach(async () => {
+  afterAll(async () => {
     await application.close();
   });
 
-  it('authorizes the destination Space and binds history, retrieval, and commit to it', async () => {
-    const userId = '99';
-    const statementImport = statementImportRecord({
-      id: '400',
-      userId,
-      spaceId: '77',
-      importedByUserId: userId,
-    });
-    statementImportsService.listStatementImportsInSpace.mockResolvedValue({
-      items: [statementImportHistoryRecord({ ...statementImport })],
-      nextCursor: 'next-page',
-    });
-    statementImportsService.getStatementImportInSpace.mockResolvedValue(
-      statementImport,
-    );
-    statementImportsService.commitReviewedStatementImportInSpace.mockResolvedValue(
-      statementImport,
-    );
-    const input = statementImportInput();
-
-    const listResponse = await statementRequest(application)
+  it('authorizes and scopes history, detail and confirmation to the explicit Space', async () => {
+    const history = await request(httpServer(application))
       .get('/api/v1/users/me/spaces/77/statement-imports')
-      .query({ pageSize: '10' })
-      .set('Authorization', 'Bearer token-c')
+      .query({ fromDate: '2026-08-01', pageSize: '10' })
+      .set('Authorization', 'Bearer token-a')
       .set('Accept', 'application/json');
-    const getResponse = await statementRequest(application)
+    const detail = await request(httpServer(application))
       .get('/api/v1/users/me/spaces/77/statement-imports/400')
-      .set('Authorization', 'Bearer token-c')
+      .set('Authorization', 'Bearer token-a')
       .set('Accept', 'application/json');
-    const commitResponse = await statementRequest(application)
+    const commit = await request(httpServer(application))
       .post('/api/v1/users/me/spaces/77/statement-imports')
-      .set('Authorization', 'Bearer token-c')
+      .set('Authorization', 'Bearer token-a')
       .set('Accept', 'application/json')
-      .send(input);
+      .send(commitInput());
 
-    expect(listResponse.status).toBe(200);
-    expect(getResponse.status).toBe(200);
-    expect(commitResponse.status).toBe(201);
-    expect(spaceAccessService.requireReadAccess).toHaveBeenNthCalledWith(
-      1,
-      userId,
-      '77',
-    );
-    expect(spaceAccessService.requireReadAccess).toHaveBeenNthCalledWith(
-      2,
-      userId,
-      '77',
-    );
-    expect(spaceAccessService.requireWriteAccess).toHaveBeenCalledWith(
-      userId,
-      '77',
-    );
-    expect(
-      statementImportsService.listStatementImportsInSpace,
-    ).toHaveBeenCalledWith('77', { pageSize: 10 });
-    expect(
-      statementImportsService.getStatementImportInSpace,
-    ).toHaveBeenCalledWith('77', '400');
-    expect(
-      statementImportsService.commitReviewedStatementImportInSpace,
-    ).toHaveBeenCalledWith(userId, '77', input);
-    expect(commitResponse.headers.location).toBe(
+    expect(history.status).toBe(200);
+    expect(history.body).toMatchObject({
+      items: [
+        {
+          id: '400',
+          provider: 'bdo',
+          accountFormat: 'amex',
+          expenseCount: '1',
+        },
+      ],
+    });
+    expect(detail.status).toBe(200);
+    expect(detail.body).toMatchObject({
+      id: '400',
+      provider: 'bdo',
+      accountFormat: 'amex',
+      importedByUserId: '99',
+    });
+    expect(commit.status).toBe(201);
+    expect(commit.headers.location).toBe(
       '/api/v1/users/me/spaces/77/statement-imports/400',
     );
-    expect(
-      (commitResponse.body as { importedByUserId?: string }).importedByUserId,
-    ).toBe(userId);
-  });
-
-  it('does not invoke Space-scoped import operations when access is denied', async () => {
-    spaceAccessService.requireReadAccess.mockRejectedValueOnce(
-      new SpaceNotFoundError(),
-    );
-    spaceAccessService.requireWriteAccess.mockRejectedValueOnce(
-      new SpaceNotWritableError(),
-    );
-
-    const readResponse = await statementRequest(application)
-      .get('/api/v1/users/me/spaces/77/statement-imports')
-      .set('Authorization', 'Bearer token-c')
-      .set('Accept', 'application/json');
-    const writeResponse = await statementRequest(application)
-      .post('/api/v1/users/me/spaces/77/statement-imports')
-      .set('Authorization', 'Bearer token-c')
-      .set('Accept', 'application/json')
-      .send(statementImportInput());
-
-    expect(readResponse.status).toBe(404);
-    expect(writeResponse.status).toBe(403);
-    expect(
-      statementImportsService.listStatementImportsInSpace,
-    ).not.toHaveBeenCalled();
-    expect(
-      statementImportsService.commitReviewedStatementImportInSpace,
-    ).not.toHaveBeenCalled();
-  });
-
-  it('authorizes the destination Space before returning a Category Suggestion', async () => {
-    const response = await statementRequest(application)
-      .post('/api/v1/users/me/spaces/77/statement-imports/category-suggestions')
-      .set('Authorization', 'Bearer token-c')
-      .set('Accept', 'application/json')
-      .send({ description: 'Market purchase' });
-
-    expect(response.status).toBe(200);
-    expect(response.body).toEqual({
-      suggestions: [{ categoryId: '42', categoryName: 'Groceries' }],
+    expect(access.requireReadAccess).toHaveBeenNthCalledWith(1, '99', '77');
+    expect(access.requireReadAccess).toHaveBeenNthCalledWith(2, '99', '77');
+    expect(access.requireWriteAccess).toHaveBeenCalledWith('99', '77');
+    expect(service.listStatementImportsInSpace).toHaveBeenCalledWith('77', {
+      fromDate: '2026-08-01',
+      pageSize: 10,
     });
-    expect(spaceAccessService.requireWriteAccess).toHaveBeenCalledWith(
+    expect(service.getStatementImportInSpace).toHaveBeenCalledWith('77', '400');
+    expect(service.commitReviewedStatementImportInSpace).toHaveBeenCalledWith(
       '99',
       '77',
-    );
-    expect(categorySuggestionsService.suggestInSpace).toHaveBeenCalledWith(
-      '77',
-      'Market purchase',
+      commitInput(),
     );
   });
 
-  it('keeps suggestions optional and rejects unsupported request fields', async () => {
-    categorySuggestionsService.suggestInSpace.mockResolvedValueOnce([]);
-    const noMatchResponse = await statementRequest(application)
-      .post('/api/v1/users/me/spaces/77/statement-imports/category-suggestions')
-      .set('Authorization', 'Bearer token-c')
-      .set('Accept', 'application/json')
-      .send({ description: 'Unknown purchase' });
-    const unsupportedFieldResponse = await statementRequest(application)
-      .post('/api/v1/users/me/spaces/77/statement-imports/category-suggestions')
-      .set('Authorization', 'Bearer token-c')
-      .set('Accept', 'application/json')
-      .send({ description: 'Market purchase', amount: '25.00' });
-
-    expect(noMatchResponse.status).toBe(200);
-    expect(noMatchResponse.body).toEqual({ suggestions: [] });
-    expect(unsupportedFieldResponse.status).toBe(400);
-    expect(categorySuggestionsService.suggestInSpace).toHaveBeenCalledTimes(1);
-  });
-
-  it('does not request a suggestion for an inaccessible or unwritable Space', async () => {
-    spaceAccessService.requireWriteAccess.mockRejectedValueOnce(
+  it('does not run Space import operations when access is denied', async () => {
+    access.requireReadAccess.mockRejectedValueOnce(new SpaceNotFoundError());
+    access.requireWriteAccess.mockRejectedValueOnce(
       new SpaceNotWritableError(),
     );
-    const response = await statementRequest(application)
-      .post('/api/v1/users/me/spaces/77/statement-imports/category-suggestions')
-      .set('Authorization', 'Bearer token-c')
-      .set('Accept', 'application/json')
-      .send({ description: 'Market purchase' });
 
-    expect(response.status).toBe(403);
-    expect(categorySuggestionsService.suggestInSpace).not.toHaveBeenCalled();
+    const read = await request(httpServer(application))
+      .get('/api/v1/users/me/spaces/77/statement-imports')
+      .set('Authorization', 'Bearer token-a')
+      .set('Accept', 'application/json');
+    const write = await request(httpServer(application))
+      .post('/api/v1/users/me/spaces/77/statement-imports')
+      .set('Authorization', 'Bearer token-a')
+      .set('Accept', 'application/json')
+      .send(commitInput());
+
+    expect(read.status).toBe(404);
+    expect(write.status).toBe(403);
+    expect(service.listStatementImportsInSpace).not.toHaveBeenCalled();
+    expect(service.commitReviewedStatementImportInSpace).not.toHaveBeenCalled();
+  });
+
+  it('rejects legacy field names and category-less saved Expenses', async () => {
+    const legacy = await request(httpServer(application))
+      .post('/api/v1/users/me/spaces/77/statement-imports')
+      .set('Authorization', 'Bearer token-a')
+      .set('Accept', 'application/json')
+      .send({ ...commitInput(), bank: 'Example Bank' });
+    const missingCategory = commitInput();
+    delete (missingCategory.expenses[0] as { categoryId?: string }).categoryId;
+    const uncategorized = await request(httpServer(application))
+      .post('/api/v1/users/me/spaces/77/statement-imports')
+      .set('Authorization', 'Bearer token-a')
+      .set('Accept', 'application/json')
+      .send(missingCategory);
+
+    expect(legacy.status).toBe(400);
+    expect(uncategorized.status).toBe(400);
+    expect(service.commitReviewedStatementImportInSpace).not.toHaveBeenCalled();
   });
 });
-
-interface StatementImportsServiceMock {
-  commitReviewedStatementImport: jest.Mock;
-  commitReviewedStatementImportInSpace: jest.Mock;
-  getStatementImport: jest.Mock;
-  getStatementImportInSpace: jest.Mock;
-  listStatementImports: jest.Mock;
-  listStatementImportsInSpace: jest.Mock;
-}
-
-function createStatementImportsServiceMock(): StatementImportsServiceMock {
-  return {
-    commitReviewedStatementImport: jest
-      .fn()
-      .mockResolvedValue(statementImportRecord()),
-    commitReviewedStatementImportInSpace: jest
-      .fn()
-      .mockResolvedValue(statementImportRecord()),
-    getStatementImport: jest.fn().mockResolvedValue(statementImportRecord()),
-    getStatementImportInSpace: jest
-      .fn()
-      .mockResolvedValue(statementImportRecord()),
-    listStatementImports: jest.fn().mockResolvedValue({
-      items: [statementImportHistoryRecord()],
-      nextCursor: null,
-    }),
-    listStatementImportsInSpace: jest.fn().mockResolvedValue({
-      items: [statementImportHistoryRecord()],
-      nextCursor: null,
-    }),
-  };
-}
-
-async function createSpaceStatementImportApplication(
-  statementImportsProvider: StatementImportsServiceMock,
-  spaceAccessService: {
-    requireReadAccess: jest.Mock;
-    requireWriteAccess: jest.Mock;
-  },
-  categorySuggestionsService: { suggestInSpace: jest.Mock },
-): Promise<INestApplication> {
-  const module = await Test.createTestingModule({
-    controllers: [SpaceStatementImportsController],
-    providers: [
-      { provide: APP_CONFIG, useValue: testConfig },
-      {
-        provide: CLERK_TOKEN_VERIFIER,
-        useValue: new FakeClerkTokenVerifier(),
-      },
-      { provide: USER_STORE, useValue: new ProvisionedTestUserStore() },
-      ClerkAuthenticationGuard,
-      ProvisionedUserGuard,
-      { provide: StatementImportsService, useValue: statementImportsProvider },
-      {
-        provide: StatementCategorySuggestionsService,
-        useValue: categorySuggestionsService,
-      },
-      { provide: SpaceAccessService, useValue: spaceAccessService },
-    ],
-  }).compile();
-
-  const application = module.createNestApplication();
-  configureApp(application);
-  await application.init();
-  return application;
-}
-
-function invoke(mock: jest.Mock, ...args: unknown[]): Promise<unknown> {
-  return Promise.resolve(mock(...args) as unknown);
-}
-
-async function createStatementImportApplication(
-  statementImportsProvider:
-    | typeof StatementImportsService
-    | { provide: typeof StatementImportsService; useValue: unknown },
-  unitOfWork?: StatementImportConfirmationUnitOfWork,
-  statementImportStore?: StatementImportStore,
-): Promise<INestApplication> {
-  const providers: Provider[] = [
-    { provide: APP_CONFIG, useValue: testConfig },
-    {
-      provide: CLERK_TOKEN_VERIFIER,
-      useValue: new FakeClerkTokenVerifier(),
-    },
-    { provide: USER_STORE, useValue: new ProvisionedTestUserStore() },
-    ClerkAuthenticationGuard,
-    ProvisionedUserGuard,
-    statementImportsProvider,
-    {
-      provide: SpaceAccessService,
-      useValue: {
-        requirePersonalSpace: (userId: string) =>
-          Promise.resolve({ id: userId }),
-        requirePersonalWriteSpace: (userId: string) =>
-          Promise.resolve({ id: userId }),
-      },
-    },
-  ];
-  if (typeof statementImportsProvider !== 'function') {
-    const service =
-      statementImportsProvider.useValue as StatementImportsServiceMock;
-    service.getStatementImportInSpace = jest.fn((spaceId: string, id: string) =>
-      invoke(service.getStatementImport, spaceId, id),
-    );
-    service.listStatementImportsInSpace = jest.fn(
-      (spaceId: string, query: unknown) =>
-        invoke(service.listStatementImports, spaceId, query),
-    );
-    service.commitReviewedStatementImportInSpace = jest.fn(
-      (userId: string, _spaceId: string, input: unknown) =>
-        invoke(service.commitReviewedStatementImport, userId, input),
-    );
-  }
-  if (unitOfWork !== undefined) {
-    providers.push({
-      provide: STATEMENT_IMPORT_CONFIRMATION_UNIT_OF_WORK,
-      useValue: unitOfWork,
-    });
-  }
-  if (statementImportStore !== undefined) {
-    providers.push({
-      provide: STATEMENT_IMPORT_STORE,
-      useValue: statementImportStore,
-    });
-  }
-
-  const module = await Test.createTestingModule({
-    controllers: [StatementImportsController],
-    providers,
-  }).compile();
-
-  const application = module.createNestApplication();
-  configureApp(application);
-  await application.init();
-  return application;
-}
 
 class FakeClerkTokenVerifier implements ClerkTokenVerifier {
   verify(token: string): Promise<ClerkSession> {
-    const users: Record<string, string> = {
-      'token-a': 'user_a',
-      'token-b': 'user_b',
-      'token-c': 'user_c',
-    };
-    const userId = users[token];
-    return userId === undefined
-      ? Promise.reject(new Error('invalid token'))
-      : Promise.resolve({
-          userId,
-          sessionId: `${userId}_session`,
-          claims: { sub: userId },
-        });
-  }
-}
-
-class ProvisionedTestUserStore implements UserStore {
-  private readonly users = new Map<string, UserRecord>([
-    ['user_a', userRecord('42', 'user_a')],
-    ['user_c', userRecord('99', 'user_c')],
-  ]);
-
-  findById(id: string): Promise<UserRecord | null> {
-    return Promise.resolve(
-      [...this.users.values()].find((user) => user.id === id) ?? null,
-    );
-  }
-
-  findByClerkUserId(clerkUserId: string): Promise<UserRecord | null> {
-    return Promise.resolve(this.users.get(clerkUserId) ?? null);
-  }
-
-  findByEmail(email: string): Promise<UserRecord | null> {
-    return Promise.resolve(
-      [...this.users.values()].find((user) => user.email === email) ?? null,
-    );
-  }
-
-  create(input: NewUser): Promise<UserRecord> {
-    const timestamp = new Date('2026-08-31T00:00:00.000Z');
-    const user: UserRecord = {
-      id: String(this.users.size + 42),
-      ...input,
-      createdAt: timestamp,
-      updatedAt: timestamp,
-    };
-    this.users.set(user.clerkUserId, user);
-    return Promise.resolve(user);
-  }
-
-  update(id: string, input: UpdateUser): Promise<UserRecord | null> {
-    const current = [...this.users.values()].find((user) => user.id === id);
-    if (!current) return Promise.resolve(null);
-
-    const updated = { ...current, ...input };
-    this.users.set(updated.clerkUserId, updated);
-    return Promise.resolve(updated);
-  }
-}
-
-class StatementImportHttpFixture implements StatementImportConfirmationUnitOfWork {
-  readonly statementImports = new HttpStatementImportStore();
-  readonly importedTransactions = new HttpImportedTransactionStore();
-  readonly transactionActivities = new HttpTransactionActivityStore();
-  readonly categories = new HttpCategoryStore();
-  private readonly context: StatementImportConfirmationContext = {
-    users: new ProvisionedTestUserStore(),
-    categories: this.categories,
-    statementImports: this.statementImports,
-    importedTransactions: this.importedTransactions,
-    transactionActivities: this.transactionActivities,
-    spaces: { lockForStatementImport: () => Promise.resolve() },
-  };
-
-  execute<TResult>(
-    work: (context: StatementImportConfirmationContext) => Promise<TResult>,
-  ): Promise<TResult> {
-    return work(this.context);
-  }
-}
-
-class HttpStatementImportStore implements StatementImportStore {
-  readonly createdInputs: NewStatementImport[] = [];
-  readonly pageQueries: SpaceStatementImportHistoryPageQuery[] = [];
-  private readonly imports: StatementImportRecord[] = [];
-  private nextId = 900;
-
-  seed(...records: StatementImportRecord[]): void {
-    this.imports.push(...records);
-  }
-
-  findByIdInSpace(
-    spaceId: string,
-    statementImportId: string,
-  ): Promise<StatementImportRecord | null> {
-    return Promise.resolve(
-      this.imports.find(
-        (statementImport) =>
-          statementImport.spaceId === spaceId &&
-          statementImport.id === statementImportId,
-      ) ?? null,
-    );
-  }
-
-  findByFileHashInSpace(
-    spaceId: string,
-    fileHash: string,
-  ): Promise<StatementImportRecord | null> {
-    return Promise.resolve(
-      this.imports.find(
-        (statementImport) =>
-          statementImport.spaceId === spaceId &&
-          statementImport.fileHash === fileHash,
-      ) ?? null,
-    );
-  }
-
-  findPageInSpace(
-    query: SpaceStatementImportHistoryPageQuery,
-  ): Promise<StatementImportHistoryRecord[]> {
-    this.pageQueries.push(query);
-    const records = this.imports.filter((statementImport) => {
-      if (statementImport.spaceId !== query.spaceId) return false;
-      if (
-        query.filters.fromDate !== undefined &&
-        statementImport.statementDate < query.filters.fromDate
-      ) {
-        return false;
-      }
-      if (
-        query.filters.toDate !== undefined &&
-        statementImport.statementDate > query.filters.toDate
-      ) {
-        return false;
-      }
-      return true;
+    if (token !== 'token-a') return Promise.reject(new Error('Invalid token'));
+    return Promise.resolve({
+      userId: 'clerk_user_a',
+      sessionId: 'session_a',
+      claims: { sub: 'clerk_user_a' },
     });
-
-    return Promise.resolve(
-      records.slice(0, query.pageSize + 1).map(toHistoryRecord),
-    );
-  }
-
-  create(input: NewStatementImport): Promise<StatementImportRecord> {
-    this.createdInputs.push(input);
-    const record = statementImportRecord({
-      ...input,
-      id: String(this.nextId++),
-    });
-    this.imports.push(record);
-    return Promise.resolve(record);
   }
 }
 
-class HttpImportedTransactionStore implements SpaceImportedTransactionStore {
-  readonly createdInputs: NewImportedTransaction[] = [];
-  private readonly transactions: ImportedTransactionRecord[] = [];
-
-  seed(...records: ImportedTransactionRecord[]): void {
-    this.transactions.push(...records);
-  }
-
-  findByFingerprintInSpace(
-    spaceId: string,
-    fingerprint: string,
-  ): Promise<ImportedTransactionRecord[]> {
-    return Promise.resolve(
-      this.transactions.filter(
-        (transaction) =>
-          transaction.spaceId === spaceId &&
-          transaction.importFingerprint === fingerprint,
-      ),
-    );
-  }
-
-  findByReferenceHashInSpace(
-    spaceId: string,
-    referenceHash: string,
-  ): Promise<ImportedTransactionRecord[]> {
-    return Promise.resolve(
-      this.transactions.filter(
-        (transaction) =>
-          transaction.spaceId === spaceId &&
-          transaction.referenceHash === referenceHash,
-      ),
-    );
-  }
-
-  create(input: NewImportedTransaction): Promise<ImportedTransactionRecord> {
-    this.createdInputs.push(input);
-    const record = importedTransactionRecord({
-      ...input,
-      id: String(this.transactions.length + 1),
-    });
-    this.transactions.push(record);
-    return Promise.resolve(record);
-  }
-
-  findByIdInSpace(
-    spaceId: string,
-    id: string,
-  ): Promise<ImportedTransactionRecord | null> {
-    return Promise.resolve(
-      this.transactions.find(
-        (transaction) =>
-          transaction.spaceId === spaceId && transaction.id === id,
-      ) ?? null,
-    );
-  }
-
-  updateCategoryInSpace(): Promise<ImportedTransactionRecord | null> {
-    return Promise.resolve(null);
-  }
-}
-
-class HttpTransactionActivityStore implements TransactionActivityStore {
-  readonly createdInputs: NewTransactionActivity[] = [];
-  private nextId = 1;
-
-  create(input: NewTransactionActivity): Promise<TransactionActivityRecord> {
-    this.createdInputs.push(input);
-    return Promise.resolve({ ...input, id: String(this.nextId++) });
-  }
-}
-
-class HttpCategoryStore implements TransactionCategoryStore {
-  private readonly categories: TransactionCategoryRecord[] = [];
-
-  seed(...categories: TransactionCategoryRecord[]): void {
-    this.categories.push(...categories);
-  }
-
-  findBySpaceId(
-    spaceId: string,
-    id: string,
-  ): Promise<TransactionCategoryRecord | null> {
-    return Promise.resolve(
-      this.categories.find(
-        (category) => category.spaceId === spaceId && category.id === id,
-      ) ?? null,
-    );
-  }
-}
-
-function userRecord(id: string, clerkUserId: string): UserRecord {
-  const timestamp = new Date('2026-08-31T00:00:00.000Z');
-  return {
-    id,
-    clerkUserId,
-    name: clerkUserId === 'user_a' ? 'Ada Lovelace' : 'Grace Hopper',
-    email: `${clerkUserId}@example.com`,
-    createdAt: timestamp,
-    updatedAt: timestamp,
-  };
-}
-
-function statementRequest(application: INestApplication) {
-  return request(application.getHttpServer() as Server);
-}
-
-type StatementHttpMethod = 'GET' | 'POST';
-
-function statementRequestWithMethod(
-  application: INestApplication,
-  method: StatementHttpMethod,
-  path: string,
-) {
-  const client = statementRequest(application);
-  return method === 'GET' ? client.get(path) : client.post(path);
-}
-
-function statementImportInput() {
+function commitInput() {
   return {
     fileName: 'august.pdf',
     fileHash: 'a'.repeat(64),
     statementDate: '2026-08-31',
     statementType: 'credit_card',
-    bank: 'Example Bank',
-    cardType: 'visa',
-    transactions: [
+    provider: 'bdo',
+    accountFormat: 'amex',
+    expenses: [
       {
-        categoryId: null,
-        purchaseDate: '2026-08-01',
+        categoryId: '42',
+        expenseDate: '2026-08-01',
         description: 'Coffee',
         amount: '4.50',
-        categoryMatchConfidence: null,
       },
     ],
   };
 }
 
-function statementImportRecord(
-  overrides: Partial<StatementImportRecord> = {},
-): StatementImportRecord {
+function importRecord() {
   return {
     id: '400',
-    spaceId: '42',
-    importedByUserId: '42',
+    spaceId: '77',
+    importedByUserId: '99',
     fileName: 'august.pdf',
     fileHash: 'a'.repeat(64),
     statementDate: '2026-08-31',
-    bank: 'Example Bank',
-    cardType: 'visa',
+    provider: 'bdo',
+    accountFormat: 'amex',
     statementType: 'credit_card',
-    transactionHistoryStartDate: null,
+    historyFromDate: null,
+    historyToDate: null,
     totalDebit: null,
     importedAt: new Date('2026-08-29T00:00:00.000Z'),
-    ...overrides,
   };
 }
 
-function statementImportHistoryRecord(
-  overrides: Partial<StatementImportHistoryRecord> = {},
-): StatementImportHistoryRecord {
-  return {
-    id: '400',
-    spaceId: '42',
-    importedByUserId: '42',
-    fileName: 'august.pdf',
-    statementDate: '2026-08-31',
-    bank: 'Example Bank',
-    cardType: 'visa',
-    statementType: 'credit_card',
-    transactionHistoryStartDate: null,
-    totalDebit: null,
-    importedAt: new Date('2026-08-29T00:00:00.000Z'),
-    transactionCount: '1',
-    ...overrides,
-  };
+function historyRecord() {
+  const record = importRecord();
+  delete record.fileHash;
+  return { ...record, expenseCount: '1' };
 }
 
-function importedTransactionRecord(
-  overrides: Partial<ImportedTransactionRecord> = {},
-): ImportedTransactionRecord {
-  return {
-    id: '700',
-    spaceId: '99',
-    addedByUserId: '99',
-    categoryId: null,
-    statementImportId: '500',
-    purchaseDate: '2026-08-01',
-    description: 'Coffee',
-    amount: '4.50',
-    categoryMatchConfidence: null,
-    importFingerprint: 'c'.repeat(64),
-    source: 'imported',
-    createdAt: new Date('2026-08-29T00:00:00.000Z'),
-    updatedAt: new Date('2026-08-29T00:00:00.000Z'),
-    ...overrides,
-  };
-}
-
-function toHistoryRecord(
-  statementImport: StatementImportRecord,
-): StatementImportHistoryRecord {
-  return {
-    id: statementImport.id,
-    spaceId: statementImport.spaceId,
-    importedByUserId: statementImport.importedByUserId,
-    fileName: statementImport.fileName,
-    statementDate: statementImport.statementDate,
-    bank: statementImport.bank,
-    cardType: statementImport.cardType,
-    statementType: statementImport.statementType,
-    transactionHistoryStartDate: statementImport.transactionHistoryStartDate,
-    totalDebit: statementImport.totalDebit,
-    importedAt: statementImport.importedAt,
-    transactionCount: '0',
-  };
-}
-
-function errorCode(response: { body: unknown }): string {
-  const body = response.body;
-  if (
-    body === null ||
-    typeof body !== 'object' ||
-    !('error' in body) ||
-    body.error === null ||
-    typeof body.error !== 'object' ||
-    !('code' in body.error) ||
-    typeof body.error.code !== 'string'
-  ) {
-    throw new Error('Expected an error response');
-  }
-
-  return body.error.code;
+function httpServer(application: INestApplication): Server {
+  return application.getHttpServer() as Server;
 }
 
 const testConfig: AppConfig = {

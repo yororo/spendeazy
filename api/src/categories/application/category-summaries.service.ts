@@ -28,7 +28,7 @@ export interface CategorySummaryItem {
   name: string;
   isActive: boolean;
   totalAmount: string;
-  transactionCount: string;
+  expenseCount: string;
   budgetAmount: string | null;
   remainingAmount: string | null;
 }
@@ -38,8 +38,6 @@ export interface CategorySummaryResult {
   year: string;
   month: string | null;
   categories: CategorySummaryItem[];
-  uncategorizedTotal: string;
-  uncategorizedCount: string;
 }
 
 @Injectable()
@@ -80,8 +78,6 @@ function projectCategorySummary(
       )
       .sort((left, right) => compareIds(left.categoryId, right.categoryId))
       .map((category) => toCategorySummaryItem(category, input.period)),
-    uncategorizedTotal: normalizeMoney(summary.uncategorizedAmount),
-    uncategorizedCount: normalizeCount(summary.uncategorizedCount),
   };
 }
 
@@ -100,7 +96,7 @@ function toCategorySummaryItem(
     name: category.categoryName,
     isActive: category.categoryIsActive,
     totalAmount,
-    transactionCount: normalizeCount(category.transactionCount),
+    expenseCount: normalizeCount(category.expenseCount),
     budgetAmount,
     remainingAmount:
       budgetAmount === null ? null : subtractMoney(budgetAmount, totalAmount),

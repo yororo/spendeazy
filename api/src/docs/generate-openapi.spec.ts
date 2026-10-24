@@ -23,7 +23,9 @@ describe('OpenAPI artifact generation', () => {
       paths: Record<string, unknown>;
     };
     expect(document.info.version).toBe('1.0.0');
-    expect(document.paths['/api/v1/users/me/category-summaries']).toBeDefined();
+    expect(
+      document.paths['/api/v1/users/me/spaces/{spaceId}/category-summaries'],
+    ).toBeDefined();
     expect(document.paths['/docs']).toBeUndefined();
     expect(document.paths['/docs-json']).toBeUndefined();
     expect(document.paths['/docs-yaml']).toBeUndefined();

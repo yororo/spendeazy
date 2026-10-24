@@ -2,7 +2,6 @@ import {
   Body,
   Controller,
   Get,
-  HttpCode,
   HttpStatus,
   Param,
   Post,
@@ -27,11 +26,10 @@ import { ApiStandardErrorResponses } from '../../http/api-error.dto';
 import { POSITIVE_INTEGER_ID_PATTERN } from '../../http/validation-patterns';
 import { SpaceAccessService } from '../../spaces/application/space-access.service';
 import { SpaceParamsDto } from '../../spaces/presentation/space.dto';
-import { StatementCategorySuggestionsService } from '../application/statement-category-suggestions.service';
 import { StatementImportsService } from '../application/statement-imports.service';
 import {
   CommitReviewedStatementImportDto,
-  ReviewedStatementTransactionDto,
+  ReviewedExpenseDto,
   StatementImportCollectionQueryDto,
 } from './statement-import.dto';
 import {
@@ -39,31 +37,23 @@ import {
   StatementImportHistoryResponseDto,
   StatementImportResponseDto,
 } from './statement-import-response.dto';
-import { StatementCategorySuggestionRequestDto } from './statement-category-suggestion.dto';
-import {
-  StatementCategorySuggestionItemResponseDto,
-  StatementCategorySuggestionResponseDto,
-} from './statement-category-suggestion-response.dto';
 import {
   spaceStatementImportLocation,
   toStatementImportHistoryResponse,
   toStatementImportResponse,
-} from './statement-imports.controller';
+} from './statement-import-response.mapper';
 import { SpaceStatementImportParamsDto } from './space-statement-import.dto';
 
 @Controller('users/me/spaces/:spaceId/statement-imports')
 @ApiTags('Statement imports')
 @ApiExtraModels(
   CommitReviewedStatementImportDto,
-  ReviewedStatementTransactionDto,
+  ReviewedExpenseDto,
   StatementImportCollectionQueryDto,
   SpaceStatementImportParamsDto,
   StatementImportResponseDto,
   StatementImportHistoryResponseDto,
   StatementImportHistoryPageResponseDto,
-  StatementCategorySuggestionRequestDto,
-  StatementCategorySuggestionItemResponseDto,
-  StatementCategorySuggestionResponseDto,
 )
 @ApiParam({
   name: 'spaceId',
@@ -77,46 +67,8 @@ import { SpaceStatementImportParamsDto } from './space-statement-import.dto';
 export class SpaceStatementImportsController {
   constructor(
     private readonly statementImportsService: StatementImportsService,
-    private readonly categorySuggestionsService: StatementCategorySuggestionsService,
     private readonly spaceAccessService: SpaceAccessService,
   ) {}
-
-  @Post('category-suggestions')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: 'Suggest up to three ranked Categories for a Transaction.',
-    description:
-      'Evaluates the submitted Transaction description against active Categories in the authorized destination Space. Returns zero to three ordered suggestions and never assigns a Category or commits a Statement Import.',
-  })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Zero to three active Category suggestions in rank order.',
-    type: StatementCategorySuggestionResponseDto,
-  })
-  @ApiStandardErrorResponses(
-    'UnauthenticatedError',
-    'UserNotProvisionedError',
-    'ValidationError',
-    'NotFoundError',
-    'NotAcceptableError',
-    'InternalError',
-  )
-  async suggestCategory(
-    @Req() request: AuthenticatedRequest,
-    @Param() params: SpaceParamsDto,
-    @Body() input: StatementCategorySuggestionRequestDto,
-  ): Promise<StatementCategorySuggestionResponseDto> {
-    const userId = requireAuthenticatedUserId(request);
-    await this.spaceAccessService.requireWriteAccess(userId, params.spaceId);
-    return {
-      suggestions: [
-        ...(await this.categorySuggestionsService.suggestInSpace(
-          params.spaceId,
-          input.description,
-        )),
-      ],
-    };
-  }
 
   @Get(':statementImportId')
   @ApiOperation({
@@ -162,7 +114,7 @@ export class SpaceStatementImportsController {
   @ApiOperation({
     summary: 'List Statement Import history in an authorized Space.',
     description:
-      'Returns committed Statement Imports in the authorized Space in statementDate descending, then Statement Import ID descending order. Exact-file and probable-duplicate state is scoped to this destination Space.',
+      'Returns committed Statement Imports in the authorized Space in confirmation-time (importedAt) descending, then Statement Import ID descending order. Inclusive fromDate and toDate filters use the confirmation date in Asia/Manila. The cursor is bound to those filters.',
   })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -198,7 +150,7 @@ export class SpaceStatementImportsController {
   @ApiOperation({
     summary: 'Commit a reviewed Statement Import into an authorized Space.',
     description:
-      'Revalidates reviewed Categories and duplicate state for the destination Space, then commits the Statement Import and all selected Transactions atomically. The confirming User is recorded as immutable actor attribution on the Statement Import and its Transactions; those financial records belong to the destination Space.',
+      'Revalidates reviewed Categories and probable-duplicate state for the destination Space, then commits the Statement Import and every reviewed Expense atomically. The confirming User is recorded as immutable actor attribution on the Statement Import and its Expenses; those financial records belong to the destination Space.',
   })
   @ApiResponse({
     status: HttpStatus.CREATED,

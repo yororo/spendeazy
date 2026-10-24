@@ -10,7 +10,6 @@ Supplements [root guidance](../AGENTS.md). Paths below are relative to `api/`. S
 | Persistence, atomic workflows, schema | [Persistence/transactions](ARCHITECTURE.md#persistence-and-transactions); for schema changes also [database design](docs/DATABASE_DESIGN.md) and `src/database/migrations/` |
 | Errors or operational logging | [Errors/contracts](ARCHITECTURE.md#errors-and-contracts), [safe logging policy and implementation](docs/exception-logging.md) |
 | HTTP contracts | [OpenAPI procedure](README.md#openapi-contract), the accepted [mobile contract](../docs/specifications/mobile-expense-domain-api.md), and affected mobile adapters when they exist |
-| Category Suggestions, external data, caching, request limits | [Suggestion integration](../docs/category-suggestions.md) |
 | Setup/startup or real Clerk validation | [Setup](README.md#setup-and-run); for authenticated requests, [Clerk testing](docs/LOCAL_TESTING.md) |
 
 ## Validation
@@ -24,4 +23,4 @@ npm test -- --runInBand --runTestsByPath src/statement-imports/application/state
 npm run test:e2e -- --runInBand --runTestsByPath test/statement-imports.e2e-spec.ts
 ```
 
-Before completion, use `npm run test:postgres`, which requires all ten unique database URLs and rejects missing/shared targets. The root [isolated launcher](../docs/local-testing.md#run-the-required-isolated-apipostgresql-suite) supplies one disposable database per suite plus a separate historical-migration database. [Root guidance](../AGENTS.md) also owns independent mobile validation and delivery requirements.
+Before completion, use `npm run test:postgres`, which requires all nine unique database URLs and rejects missing/shared targets. The root [isolated launcher](../docs/local-testing.md#run-the-required-isolated-apipostgresql-suite) supplies one disposable database per suite plus a separate historical-migration database. [Root guidance](../AGENTS.md) also owns independent mobile validation and delivery requirements.

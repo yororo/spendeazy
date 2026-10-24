@@ -81,6 +81,7 @@ export const radius = {
 
 export const controlSize = {
   primaryAction: 52,
+  field: 58,
   navigation: 64,
   addAction: 64,
   minimumTarget: 44,

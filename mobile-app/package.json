@@ -55,7 +55,7 @@
     "ios": "expo start --ios",
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types --test src/navigation/active-space.test.ts src/navigation/appearance.test.ts src/navigation/google-sign-in.test.ts src/navigation/money-amount.test.ts src/navigation/private-session.test.ts"
+    "test": "node --experimental-strip-types --test src/navigation/active-space.test.ts src/navigation/appearance.test.ts src/navigation/expense-browse.test.ts src/navigation/google-sign-in.test.ts src/navigation/manual-expense-draft.test.ts src/navigation/money-amount.test.ts src/navigation/private-session.test.ts"
   },
   "private": true
 }

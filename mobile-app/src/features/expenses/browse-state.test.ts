@@ -15,7 +15,7 @@ import {
   rememberExpenseScroll,
   updateExpenseBrowse,
   type ExpensePagePayload,
-} from './expense-browse.ts';
+} from './browse-state.ts';
 
 const page = (
   expenses: ExpensePagePayload['expenses'],

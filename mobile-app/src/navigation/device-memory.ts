@@ -4,7 +4,7 @@ import {
   parseAppearancePreference,
   type AppearancePreference,
 } from '@/navigation/appearance';
-import { rememberedSpaceStorageKey } from '@/navigation/active-space';
+import { rememberedSpaceStorageKey } from '@/application/spaces/active-space';
 
 const APPEARANCE_KEY = 'appearance';
 

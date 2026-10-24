@@ -1,33 +1,26 @@
-import { API_BASE_URL } from '@/config/api';
-
-export class ExpenseApiError extends Error {
-  constructor(
-    readonly status: number,
-    readonly code: string,
-    message: string,
-    readonly details: unknown[] = [],
-  ) {
-    super(message);
-    this.name = 'ExpenseApiError';
-  }
-}
-
-export class ExpenseApiTransportError extends Error {
-  constructor() {
-    super('Could not reach the Spendeazy API');
-    this.name = 'ExpenseApiTransportError';
-  }
-}
+import { API_BASE_URL } from '../config/api.ts';
+import { ExpenseApiError, ExpenseApiTransportError } from './request-failure.ts';
+export { ExpenseApiError, ExpenseApiTransportError } from './request-failure.ts';
 
 export interface AuthorizedRequestOptions {
   getAccessToken: () => Promise<string | null>;
   baseUrl?: string | null;
+  execute?: <T>(operation: () => Promise<T>) => Promise<T>;
 }
 
 export async function authorizedRequest<T>(
   options: AuthorizedRequestOptions,
   path: string,
   init: { method?: 'GET' | 'POST' | 'PATCH' | 'DELETE'; body?: unknown; ifMatch?: string } = {},
+): Promise<T> {
+  const operation = () => sendAuthorizedRequest<T>(options, path, init);
+  return options.execute ? options.execute(operation) : operation();
+}
+
+async function sendAuthorizedRequest<T>(
+  options: AuthorizedRequestOptions,
+  path: string,
+  init: { method?: 'GET' | 'POST' | 'PATCH' | 'DELETE'; body?: unknown; ifMatch?: string },
 ): Promise<T> {
   const resolvedBaseUrl = options.baseUrl ?? API_BASE_URL;
   if (resolvedBaseUrl === null) {

@@ -1,6 +1,6 @@
 import { BodyText, Screen, StackGap } from '@/components/screen';
 import { SpaceStatus } from '@/components/space-status';
-import { useSpaces } from '@/navigation/spaces-provider';
+import { useSpaces } from '@/application/spaces/provider';
 
 export default function BudgetScreen() {
   const { refresh, loading, refreshing } = useSpaces();

@@ -1,6 +1,6 @@
 import { Stack } from 'expo-router/stack';
 
-import { SpacesProvider } from '@/navigation/spaces-provider';
+import { SpacesProvider } from '@/application/spaces/provider';
 
 export default function SignedInLayout() {
   return (

@@ -1,4 +1,4 @@
-import { useAuth, useUser } from '@clerk/expo';
+import { useUser } from '@clerk/expo';
 import { Image } from 'expo-image';
 import { useState } from 'react';
 
@@ -7,7 +7,7 @@ import { BodyText, Screen, StackGap, SupportingText } from '@/components/screen'
 import { SpaceStatus } from '@/components/space-status';
 import { type AppearancePreference } from '@/navigation/appearance';
 import { useAppTheme } from '@/navigation/app-theme';
-import { markExplicitSignOut } from '@/navigation/session-store';
+import { useSessionTransport } from '@/application/authorized-client';
 
 const appearanceOptions: { value: AppearancePreference; label: string }[] = [
   { value: 'system', label: 'System' },
@@ -16,7 +16,7 @@ const appearanceOptions: { value: AppearancePreference; label: string }[] = [
 ];
 
 export default function ProfileScreen() {
-  const { signOut } = useAuth();
+  const { signOut } = useSessionTransport();
   const { user } = useUser();
   const { preference, setPreference } = useAppTheme();
   const [appearanceError, setAppearanceError] = useState<string | null>(null);
@@ -54,10 +54,7 @@ export default function ProfileScreen() {
         <SpaceStatus />
         <PrimaryButton
           label="Sign out"
-          onPress={() => {
-            markExplicitSignOut();
-            void signOut();
-          }}
+          onPress={signOut}
         />
         <SupportingText>Deleting your sign-in identity is not available yet and has not removed any data.</SupportingText>
       </StackGap>

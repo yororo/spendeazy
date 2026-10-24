@@ -1,5 +1,9 @@
-import { ManualExpenseForm } from '@/components/manual-expense-form';
+import { useRouter } from 'expo-router';
+import { ManualExpenseForm } from '@/features/expenses/manual-view';
+import { useManualExpense } from '@/features/expenses/use-manual-expense';
 
 export default function AddExpenseScreen() {
-  return <ManualExpenseForm />;
+  const router = useRouter();
+  const controller = useManualExpense();
+  return <ManualExpenseForm controller={controller} onBack={() => router.back()} onSaved={() => router.back()} />;
 }

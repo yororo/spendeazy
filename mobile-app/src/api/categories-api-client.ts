@@ -1,4 +1,5 @@
 import { authorizedRequest, type AuthorizedRequestOptions } from '@/api/authorized-request';
+import { InvalidApiResponseError } from './request-failure';
 
 export type SpaceCategory = {
   id: string;
@@ -21,21 +22,21 @@ export function createCategoriesApiClient(options: AuthorizedRequestOptions) {
 
 export function readSpaceCategories(value: unknown): SpaceCategory[] {
   if (!Array.isArray(value)) {
-    throw new Error('Categories response must be a list');
+    throw new InvalidApiResponseError();
   }
   return value.map(readSpaceCategory);
 }
 
 function readSpaceCategory(value: unknown): SpaceCategory {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    throw new Error('Categories response must contain Category records');
+    throw new InvalidApiResponseError();
   }
   const record = value as Record<string, unknown>;
   if (typeof record.id !== 'string' || typeof record.name !== 'string') {
-    throw new Error('Categories response must include Category identity and name');
+    throw new InvalidApiResponseError();
   }
   if (typeof record.isActive !== 'boolean' || typeof record.color !== 'string') {
-    throw new Error('Categories response must include Category status and color');
+    throw new InvalidApiResponseError();
   }
   return {
     id: record.id,

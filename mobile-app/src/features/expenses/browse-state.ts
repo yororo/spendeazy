@@ -1,3 +1,6 @@
+import type { ExpensePagePayload } from '../../api/expense-response.ts';
+export { readExpensePage, readListedExpense, type ListedExpense, type ExpensePagePayload } from '../../api/expense-response.ts';
+
 export const EXPENSE_PAGE_SIZE = 20;
 
 export type ExpenseSort = 'newest' | 'oldest';
@@ -9,27 +12,6 @@ export type ExpenseBrowseSelection = {
   categoryId: string | null;
   description: string;
   sort: ExpenseSort;
-};
-
-export type ListedExpense = {
-  id: string;
-  categoryId: string;
-  expenseDate: string;
-  description: string;
-  amount: string;
-  source: 'manual' | 'imported';
-  addedByUserId: string | null;
-  statementImportId: string | null;
-  createdAt: string;
-  updatedAt: string;
-  revision: string;
-};
-
-export type ExpensePagePayload = {
-  expenses: ListedExpense[];
-  nextCursor: string | null;
-  totalCount: string;
-  totalAmount: string;
 };
 
 export type ExpenseListRequest = {
@@ -108,24 +90,6 @@ export function applyExpensePage(
   };
 }
 
-export function readExpensePage(value: unknown): ExpensePagePayload {
-  if (!isRecord(value) || !Array.isArray(value.expenses)) {
-    throw new Error('Expenses response must include an expense page');
-  }
-  if (value.nextCursor !== null && typeof value.nextCursor !== 'string') {
-    throw new Error('Expenses response must include a cursor or null');
-  }
-  if (typeof value.totalCount !== 'string' || typeof value.totalAmount !== 'string') {
-    throw new Error('Expenses response must include the full-selection totals');
-  }
-  return {
-    expenses: value.expenses.map(readListedExpense),
-    nextCursor: value.nextCursor,
-    totalCount: value.totalCount,
-    totalAmount: value.totalAmount,
-  };
-}
-
 let selection: ExpenseBrowseSelection | null = null;
 let scrollOffset = 0;
 let listRevision = 0;
@@ -195,39 +159,6 @@ export function clearExpenseBrowse(): void {
 function emit(): void {
   snapshot = { selection, listRevision };
   for (const listener of listeners) listener();
-}
-
-export function readListedExpense(value: unknown): ListedExpense {
-  if (!isRecord(value)) throw new Error('Expenses response must include expense records');
-  const source = value.source;
-  if (source !== 'manual' && source !== 'imported') {
-    throw new Error('Expenses response must name a manual or imported source');
-  }
-  return {
-    id: requiredString(value.id, 'Expense id'),
-    categoryId: requiredString(value.categoryId, 'Category id'),
-    expenseDate: requiredString(value.expenseDate, 'Expense date'),
-    description: requiredString(value.description, 'Expense description'),
-    amount: requiredString(value.amount, 'Expense amount'),
-    source,
-    addedByUserId: typeof value.addedByUserId === 'string' ? value.addedByUserId : null,
-    statementImportId:
-      typeof value.statementImportId === 'string' ? value.statementImportId : null,
-    createdAt: requiredString(value.createdAt, 'Expense created time'),
-    updatedAt: requiredString(value.updatedAt, 'Expense updated time'),
-    revision: requiredString(value.revision, 'Expense revision'),
-  };
-}
-
-function requiredString(value: unknown, label: string): string {
-  if (typeof value !== 'string' || value.length === 0) {
-    throw new Error(`Expenses response must include ${label}`);
-  }
-  return value;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function isCalendarDate(value: string): boolean {

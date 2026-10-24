@@ -3,12 +3,12 @@ import { tokenCache } from '@clerk/expo/token-cache';
 import { Stack } from 'expo-router/stack';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, type ReactNode } from 'react';
 import { Text, View } from 'react-native';
 
 import { palette, typeScale } from '@/constants/theme';
 import { AppearanceGate, useAppTheme } from '@/navigation/app-theme';
-import { observeAuthUser } from '@/navigation/session-store';
+import { observeAuthUser, useSessionSnapshot } from '@/application/session-runtime';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -36,25 +36,27 @@ function ThemedNavigation() {
 }
 
 function RootNavigator({ ready }: { ready: boolean }) {
-  const { isLoaded, isSignedIn, userId } = useAuth();
+  const { isLoaded, isSignedIn, userId, sessionId } = useAuth();
+  const session = useSessionSnapshot();
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!isLoaded) return;
-    observeAuthUser(isSignedIn ? (userId ?? null) : null);
-  }, [isLoaded, isSignedIn, userId]);
+    observeAuthUser(isSignedIn ? (userId ?? null) : null, isSignedIn ? (sessionId ?? null) : null);
+  }, [isLoaded, isSignedIn, userId, sessionId]);
 
   useEffect(() => {
     if (isLoaded && ready) void SplashScreen.hideAsync();
   }, [isLoaded, ready]);
 
   if (!isLoaded || !ready) return null;
+  const authenticated = isSignedIn === true && session.userId === userId && session.authSessionId === sessionId && session.notice === null;
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Protected guard={isSignedIn === true}>
+      <Stack.Protected guard={authenticated}>
         <Stack.Screen name="(app)" />
       </Stack.Protected>
-      <Stack.Protected guard={isSignedIn !== true}>
+      <Stack.Protected guard={!authenticated}>
         <Stack.Screen name="(auth)" />
       </Stack.Protected>
       <Stack.Screen name="parser-proof" />

@@ -1,8 +1,8 @@
 # Spendeazy mobile
 
-## Replacement specification
+## Expense API foundation
 
-Use the shared [root glossary](../GLOSSARY.md), [Expense domain and mobile API contract](../docs/specifications/mobile-expense-domain-api.md), and [replacement ADR](../docs/adr/0004-mobile-expense-domain-and-contract.md) for the accepted target. These plan the replacement; the starter instructions below are not evidence that its financial workflows or API already exist.
+Use the shared [root glossary](../GLOSSARY.md), [Expense domain and mobile API contract](../docs/specifications/mobile-expense-domain-api.md), and [replacement ADR](../docs/adr/0004-mobile-expense-domain-and-contract.md) for the accepted target. The API has implemented the canonical Expense schema and explicit Space routes. The mobile app has an authenticated Expense client, but no Clerk sign-in flow or connected user journeys; the broader target journeys are not implemented.
 
 The native client uses Expo Router and React Native. Current screens are still the Expo starter plus a local PDF.js parser prototype; the approved Expense, Budget, reporting and sharing journeys are not implemented yet.
 
@@ -39,11 +39,11 @@ The parser prototype route can be run with `npm run parser:proof` after a develo
 
 ## API and device testing
 
-The current mobile starter has no API adapter or API base-URL setting yet. Do not treat a successful parser or app build as proof that authenticated API journeys work.
+Set `EXPO_PUBLIC_API_BASE_URL` in a local `mobile-app/.env.local`; `mobile-app/.env.example` shows the setting. `src/api/expense-api-client.ts` provides authenticated Space-scoped Expense reads, edits, creation, deletion and Activity requests. Supply an access-token provider when creating the client; the app does not yet connect a Clerk sign-in flow or invoke it from a screen. Use `http://10.0.2.2:3000` for an Android emulator reaching the development computer, `http://<computer-lan-address>:3000` for a trusted local network device, or a device-reachable HTTPS URL for a hosted development API. A base URL and client code do not establish backend or device acceptance.
 
 When testing a device against a development backend, use a dedicated development API and PostgreSQL database with a real Google/Clerk test identity. Android emulator `localhost` is the emulator itself; use the emulator host mapping (`10.0.2.2`) for a service running on the development computer, or a device-reachable LAN/HTTPS endpoint for physical devices. Do not expose a production API or use an ordinary financial database. Synthetic API test identities are limited to isolated automated tests and cannot provide physical-device sign-in evidence.
 
-The API's deterministic fictional seed is for a specifically selected local development database. `db:reset-seed` drops the configured database, so use it only after verifying `DATABASE_URL` names the disposable database you intend to recreate. API PostgreSQL automation uses fresh isolated databases; see [local testing](../docs/local-testing.md).
+The API's deterministic fictional seed is restricted to a specifically named disposable local database. See the API [seed instructions](../api/README.md#development-seedreset) before using `db:seed` or `db:recreate-seed`. API PostgreSQL automation creates fresh isolated databases; see [local testing](../docs/local-testing.md).
 
 ## Release evidence
 

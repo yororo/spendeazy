@@ -1,8 +1,8 @@
 # Spendeazy
 
-Spendeazy is a personal-finance app for Android and iPhone. The browser client and its hosting have been retired. The native app is still a starter plus a parser prototype; its full financial journeys and the accepted [Expense domain and mobile API contract](docs/specifications/mobile-expense-domain-api.md) are not implemented yet.
+Spendeazy is a personal-finance app for Android and iPhone. The browser client and its hosting have been retired. The API now stores saved spending as Expenses under explicit authorized Space routes. The native app remains a starter plus a parser prototype and is not yet connected to the API; the broader [Expense domain and mobile API contract](docs/specifications/mobile-expense-domain-api.md) is only partly implemented.
 
-The mobile replacement and API share the [root domain glossary](GLOSSARY.md). The [replacement ADR](docs/adr/0004-mobile-expense-domain-and-contract.md) records the target decision; current API runtime routes and schemas remain Transaction-oriented until the API replacement is implemented.
+The mobile replacement and API share the [root domain glossary](GLOSSARY.md). The [replacement ADR](docs/adr/0004-mobile-expense-domain-and-contract.md) records the target decision and its implemented Expense foundation; it also tracks remaining mobile and contract work.
 
 ## Projects
 
@@ -17,7 +17,7 @@ The former browser client and hosting have been retired. `web/design/` remains a
 
 The mobile app handles PDF selection, password entry, extraction in a restricted local WebView, provider interpretation, reconciliation, local Category Rule matching and the review experience. Statement files and passwords stay on the device; the API does not parse PDFs or categorize statement rows.
 
-The API resolves the authenticated User, authorizes the requested Space, validates and stores financial resources in PostgreSQL, and serves reports. The approved target contract is documented in [the mobile Expense/API specification](docs/specifications/mobile-expense-domain-api.md); current runtime routes and schema still reflect the legacy Transaction model until the API replacement is implemented.
+The API resolves the authenticated User, authorizes the requested Space, validates and stores Expenses and Statement Import provenance in PostgreSQL, and serves reports. The saved-resource API uses Expense terminology; parsed statement Transactions remain on-device evidence. The implementation status and remaining target behavior are documented in [the mobile Expense/API specification](docs/specifications/mobile-expense-domain-api.md).
 
 ## Local validation
 

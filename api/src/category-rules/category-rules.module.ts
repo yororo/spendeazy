@@ -5,14 +5,10 @@ import { CATEGORY_RULE_STORE } from './application/category-rule-store';
 import { CategoryRulesService } from './application/category-rules.service';
 import { TypeOrmCategoryRuleCategoryStore } from './infrastructure/typeorm-category-rule-category-store';
 import { TypeOrmCategoryRuleStore } from './infrastructure/typeorm-category-rule-store';
-import { CategoryRulesController } from './presentation/category-rules.controller';
-import { CategoryRuleReplacementController } from './presentation/category-rule-replacement.controller';
 import { SpaceCategoryRuleReplacementController } from './presentation/space-category-rule-replacement.controller';
 import { SpaceCategoryRulesController } from './presentation/space-category-rules.controller';
 
 const controllers = [
-  CategoryRulesController,
-  CategoryRuleReplacementController,
   SpaceCategoryRulesController,
   SpaceCategoryRuleReplacementController,
 ];

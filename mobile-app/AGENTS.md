@@ -28,7 +28,7 @@ Run checks regularly. `parser:test` uses fictional fixtures; it does not establi
 
 ## API and identity boundaries
 
-The app's API adapter is not implemented yet. When it is, document its actual configuration in the project README. Device journeys need a device-reachable dedicated development API/PostgreSQL database and real Google/Clerk development identities. Never use production financial data. Synthetic identities belong only to isolated automated API tests and do not prove real sign-in on a phone.
+The app has an authenticated Expense API client that takes an access-token provider, but no Clerk sign-in flow or connected user journeys yet. `EXPO_PUBLIC_API_BASE_URL` configures that client; document new settings in the project README. Device journeys need a device-reachable dedicated development API/PostgreSQL database and real Google/Clerk development identities. Never use production financial data. Synthetic identities belong only to isolated automated API tests and do not prove real sign-in on a phone.
 
 ## Parser and privacy
 

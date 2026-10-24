@@ -4,14 +4,16 @@ import { BudgetEntity } from '../entities/budget.entity';
 import { CategoryRuleEntity } from '../entities/category-rule.entity';
 import { CategoryEntity } from '../entities/category.entity';
 import { StatementImportEntity } from '../entities/statement-import.entity';
-import { TransactionEntity } from '../entities/transaction.entity';
-import { TransactionActivityEntity } from '../entities/transaction-activity.entity';
+import { ExpenseEntity } from '../entities/expense.entity';
+import { ExpenseActivityEntity } from '../entities/expense-activity.entity';
 import { UserEntity } from '../entities/user.entity';
 import { SpaceEntity } from '../entities/space.entity';
 import { normalizeMatchingText } from '../../normalization/matching-text';
 import { TypeOrmSpaceStore } from '../../spaces/infrastructure/typeorm-space-store';
+import { toExpenseActivitySnapshot } from '../../expenses/application/expense-activity-store';
+import { TypeOrmExpenseActivityStore } from '../../expenses/infrastructure/typeorm-expense-activity-store';
 import {
-  dateInCurrentMonth,
+  SEED_DATE,
   SEED_CATEGORIES,
   SEED_CATEGORY_BUDGETS,
   SEED_CATEGORY_RULES,
@@ -27,12 +29,13 @@ interface SeedCounts {
   budgets: number;
   categoryRules: number;
   statementImports: number;
-  transactions: number;
+  expenses: number;
 }
 
 async function main(): Promise<void> {
   const shouldReset = process.argv.includes('--reset');
-  const target = validateLocalDevelopmentTarget();
+  const disposableDatabase = argumentValue('--disposable-database');
+  const target = validateLocalDevelopmentTarget(disposableDatabase);
 
   console.log(
     `${shouldReset ? 'Resetting and seeding' : 'Seeding'} PostgreSQL database ${target.database} on ${target.host}`,
@@ -51,7 +54,10 @@ async function main(): Promise<void> {
   }
 }
 
-function validateLocalDevelopmentTarget(): { host: string; database: string } {
+function validateLocalDevelopmentTarget(disposableDatabase: string | null): {
+  host: string;
+  database: string;
+} {
   const environment = process.env.NODE_ENV?.trim() || 'development';
   if (environment.toLowerCase() === 'production') {
     throw new Error('Database seed commands are disabled in production');
@@ -62,6 +68,15 @@ function validateLocalDevelopmentTarget(): { host: string; database: string } {
     throw new Error('DATABASE_URL is required for database seed commands');
   }
 
+  if (
+    !disposableDatabase ||
+    !/^spendeazy_disposable_[a-z0-9_]+$/u.test(disposableDatabase)
+  ) {
+    throw new Error(
+      'Pass --disposable-database <name> using the spendeazy_disposable_<suffix> format',
+    );
+  }
+
   const parsedUrl = new URL(databaseUrl);
   if (!LOCAL_DATABASE_HOSTS.has(parsedUrl.hostname.toLowerCase())) {
     throw new Error(
@@ -69,7 +84,20 @@ function validateLocalDevelopmentTarget(): { host: string; database: string } {
     );
   }
 
-  return { host: parsedUrl.hostname, database: parsedUrl.pathname.slice(1) };
+  const database = decodeURIComponent(parsedUrl.pathname.slice(1));
+  if (database !== disposableDatabase) {
+    throw new Error(
+      `DATABASE_URL database ${database} does not match the explicitly selected disposable database ${disposableDatabase}`,
+    );
+  }
+  return { host: parsedUrl.hostname, database };
+}
+
+function argumentValue(name: string): string | null {
+  const index = process.argv.indexOf(name);
+  if (index === -1) return null;
+  const value = process.argv[index + 1]?.trim();
+  return value && !value.startsWith('--') ? value : null;
 }
 
 async function seedDatabase(dataSource: DataSource): Promise<SeedCounts> {
@@ -95,10 +123,10 @@ async function removeExistingSeedUser(manager: EntityManager): Promise<void> {
     await manager.delete(UserEntity, { id: seedUser.id });
     return;
   }
-  await manager.delete(TransactionActivityEntity, {
+  await manager.delete(ExpenseActivityEntity, {
     spaceId: personalSpace.id,
   });
-  await manager.delete(TransactionEntity, { spaceId: personalSpace.id });
+  await manager.delete(ExpenseEntity, { spaceId: personalSpace.id });
   await manager.delete(CategoryRuleEntity, { spaceId: personalSpace.id });
   await manager
     .createQueryBuilder()
@@ -180,64 +208,76 @@ async function createSeedScenario(manager: EntityManager): Promise<SeedCounts> {
     manager.create(StatementImportEntity, {
       spaceId,
       importedByUserId: user.id,
-      fileName: 'dev-credit-card-statement.pdf',
+      fileName: 'fictional-development-statement.pdf',
       fileHash: sha256('spendeazy deterministic development statement'),
-      statementDate: dateInCurrentMonth(20),
-      bank: 'Development Bank',
-      cardType: 'visa',
+      statementDate: SEED_DATE,
+      provider: 'Example Provider',
+      accountFormat: 'credit_card',
+      statementType: 'credit_card',
+      historyFromDate: null,
+      historyToDate: null,
+      totalDebit: '74.00',
     }),
   );
 
-  await manager.save([
-    createTransaction(
+  const expenses = await manager.save([
+    createExpense(
       manager,
       spaceId,
       user.id,
       requireCategory(categoriesByName, 'Groceries').id,
       null,
       3,
-      'Grocery shopping',
-      '1250.00',
-      null,
+      'Sample Market groceries',
+      '125.00',
       null,
     ),
-    createTransaction(
+    createExpense(
       manager,
       spaceId,
       user.id,
-      null,
+      requireCategory(categoriesByName, 'Groceries').id,
       null,
       8,
-      'Cash expense',
-      '300.00',
-      null,
+      'Demo Café',
+      '30.00',
       null,
     ),
-    createTransaction(
+    createExpense(
       manager,
       spaceId,
       user.id,
       appSubscriptions.id,
       statementImport.id,
       12,
-      'Netflix',
-      '549.00',
-      '1.0000',
-      sha256('netflix|549.00|development-import'),
+      'Demo Streaming',
+      '49.00',
+      sha256('demo-streaming|49.00|development-import'),
     ),
-    createTransaction(
+    createExpense(
       manager,
       spaceId,
       user.id,
       requireCategory(categoriesByName, 'Commute').id,
       statementImport.id,
       18,
-      'Grab',
-      '275.00',
-      null,
-      sha256('grab|275.00|development-import'),
+      'Sample Transit',
+      '25.00',
+      sha256('sample-transit|25.00|development-import'),
     ),
   ]);
+
+  const activityStore = new TypeOrmExpenseActivityStore(manager);
+  for (const expense of expenses) {
+    await activityStore.create({
+      expenseId: expense.id,
+      spaceId,
+      actorUserId: user.id,
+      type: 'created',
+      occurredAt: expense.createdAt,
+      after: toExpenseActivitySnapshot(expense),
+    });
+  }
 
   return {
     users: 1,
@@ -245,31 +285,29 @@ async function createSeedScenario(manager: EntityManager): Promise<SeedCounts> {
     budgets: SEED_CATEGORY_BUDGETS.length,
     categoryRules: categoryRules.length,
     statementImports: 1,
-    transactions: 4,
+    expenses: 4,
   };
 }
 
-function createTransaction(
+function createExpense(
   manager: EntityManager,
   spaceId: string,
   addedByUserId: string,
-  categoryId: string | null,
+  categoryId: string,
   statementImportId: string | null,
   day: number,
   description: string,
   amount: string,
-  categoryMatchConfidence: string | null,
   importFingerprint: string | null,
-): TransactionEntity {
-  return manager.create(TransactionEntity, {
+): ExpenseEntity {
+  return manager.create(ExpenseEntity, {
     spaceId,
     addedByUserId,
     categoryId,
     statementImportId,
-    purchaseDate: dateInCurrentMonth(day),
+    expenseDate: `${SEED_DATE.slice(0, 8)}${String(day).padStart(2, '0')}`,
     description,
     amount,
-    categoryMatchConfidence,
     importFingerprint,
   });
 }
@@ -286,7 +324,7 @@ function requireCategory(
 function printSeedSummary(counts: SeedCounts): void {
   console.log(`Seeded ${SEED_USER.email}`);
   console.log(
-    `Created ${counts.users} user, ${counts.categories} categories, ${counts.budgets} budgets, ${counts.categoryRules} category rules, ${counts.statementImports} statement import, and ${counts.transactions} transactions`,
+    `Created ${counts.users} user, ${counts.categories} categories, ${counts.budgets} budgets, ${counts.categoryRules} category rules, ${counts.statementImports} statement import, and ${counts.expenses} Expenses`,
   );
 }
 

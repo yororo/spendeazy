@@ -9,13 +9,7 @@ import {
 
 @Entity({ name: 'statement_imports' })
 @Unique('uq_statement_imports_id_space_id', ['id', 'spaceId'])
-@Index('ux_statement_imports_space_file_hash', ['spaceId', 'fileHash'], {
-  unique: true,
-})
-@Index('ix_statement_imports_space_statement_date', [
-  'spaceId',
-  'statementDate',
-])
+@Index('ix_statement_imports_space_confirmed_at', ['spaceId', 'importedAt'])
 @Index('ix_statement_imports_imported_by_user', ['importedByUserId'])
 export class StatementImportEntity {
   @PrimaryGeneratedColumn('identity', {
@@ -37,14 +31,19 @@ export class StatementImportEntity {
   @Column({ type: 'char', length: 64, name: 'file_hash' })
   fileHash!: string;
 
-  @Column({ type: 'date', name: 'statement_date' })
-  statementDate!: string;
+  @Column({ type: 'date', nullable: true, name: 'statement_date' })
+  statementDate!: string | null;
 
   @Column({ type: 'varchar', length: 100 })
-  bank!: string;
+  provider!: string;
 
-  @Column({ type: 'varchar', length: 100, nullable: true, name: 'card_type' })
-  cardType!: string | null;
+  @Column({
+    type: 'varchar',
+    length: 100,
+    nullable: true,
+    name: 'account_format',
+  })
+  accountFormat!: string | null;
 
   @Column({ type: 'varchar', length: 30, name: 'statement_type' })
   statementType!: 'credit_card' | 'e_wallet';
@@ -52,9 +51,16 @@ export class StatementImportEntity {
   @Column({
     type: 'date',
     nullable: true,
-    name: 'transaction_history_start_date',
+    name: 'history_from_date',
   })
-  transactionHistoryStartDate!: string | null;
+  historyFromDate!: string | null;
+
+  @Column({
+    type: 'date',
+    nullable: true,
+    name: 'history_to_date',
+  })
+  historyToDate!: string | null;
 
   @Column({
     type: 'numeric',

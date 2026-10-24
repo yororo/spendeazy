@@ -19,7 +19,7 @@ import {
   CategorySummaryItemResponseDto,
   CategorySummaryResponseDto,
 } from './category-summary-response.dto';
-import { toCategorySummaryResponse } from './category-summaries.controller';
+import { toCategorySummaryResponse } from './category-summary-response.mapper';
 import { SpaceParamsDto } from '../../spaces/presentation/space.dto';
 
 @Controller('users/me/spaces/:spaceId/category-summaries')

@@ -3,29 +3,29 @@ import { normalizeAmount } from '../../normalization/amount';
 import { normalizeMatchingText } from '../../normalization/matching-text';
 
 export interface ImportFingerprintStatementFields {
-  bank: string;
-  cardType?: string | null;
+  provider: string;
+  accountFormat?: string | null;
 }
 
-export interface ImportFingerprintTransactionFields {
-  purchaseDate: string;
+export interface ImportFingerprintExpenseFields {
+  expenseDate: string;
   description: string;
   amount: string;
 }
 
 export function computeImportFingerprint(
   statement: ImportFingerprintStatementFields,
-  transaction: ImportFingerprintTransactionFields,
+  expense: ImportFingerprintExpenseFields,
 ): string {
   const resolvedTuple = [
-    'v2',
-    transaction.purchaseDate,
-    normalizeMatchingText(transaction.description),
-    normalizeAmount(transaction.amount),
-    normalizeMatchingText(statement.bank),
-    statement.cardType == null
+    'v3',
+    expense.expenseDate,
+    normalizeMatchingText(expense.description),
+    normalizeAmount(expense.amount),
+    normalizeMatchingText(statement.provider),
+    statement.accountFormat == null
       ? null
-      : normalizeMatchingText(statement.cardType),
+      : normalizeMatchingText(statement.accountFormat),
   ];
 
   return createHash('sha256')

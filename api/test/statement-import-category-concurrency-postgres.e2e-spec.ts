@@ -7,8 +7,8 @@ import {
 } from '../src/database/database-options';
 import { CategoryEntity } from '../src/database/entities/category.entity';
 import { StatementImportEntity } from '../src/database/entities/statement-import.entity';
-import { TransactionActivityEntity } from '../src/database/entities/transaction-activity.entity';
-import { TransactionEntity } from '../src/database/entities/transaction.entity';
+import { ExpenseActivityEntity } from '../src/database/entities/expense-activity.entity';
+import { ExpenseEntity } from '../src/database/entities/expense.entity';
 import { UserEntity } from '../src/database/entities/user.entity';
 import { CategoriesService } from '../src/categories/application/categories.service';
 import { TypeOrmCategoryStore } from '../src/categories/infrastructure/typeorm-category-store';
@@ -83,10 +83,10 @@ describeDatabase(
         return;
       }
 
-      await database.getRepository(TransactionActivityEntity).delete({
+      await database.getRepository(ExpenseActivityEntity).delete({
         spaceId: personalSpaceId,
       });
-      await database.getRepository(TransactionEntity).delete({
+      await database.getRepository(ExpenseEntity).delete({
         spaceId: personalSpaceId,
       });
       await database.getRepository(StatementImportEntity).delete({
@@ -154,10 +154,10 @@ describeDatabase(
         }),
       ).resolves.toBe(0);
       await expect(
-        database.getRepository(TransactionEntity).countBy({ spaceId }),
+        database.getRepository(ExpenseEntity).countBy({ spaceId }),
       ).resolves.toBe(0);
       await expect(
-        database.getRepository(TransactionActivityEntity).countBy({ spaceId }),
+        database.getRepository(ExpenseActivityEntity).countBy({ spaceId }),
       ).resolves.toBe(0);
       await expect(
         database.getRepository(CategoryEntity).findOneByOrFail({
@@ -213,10 +213,10 @@ describeDatabase(
         database.getRepository(StatementImportEntity).countBy({ spaceId }),
       ).resolves.toBe(1);
       await expect(
-        database.getRepository(TransactionEntity).countBy({ spaceId }),
+        database.getRepository(ExpenseEntity).countBy({ spaceId }),
       ).resolves.toBe(1);
       await expect(
-        database.getRepository(TransactionActivityEntity).countBy({ spaceId }),
+        database.getRepository(ExpenseActivityEntity).countBy({ spaceId }),
       ).resolves.toBe(1);
       await expect(
         database.getRepository(CategoryEntity).findOneByOrFail({
@@ -339,15 +339,14 @@ function createImportInput(
     fileHash: uniqueHash(seed),
     statementDate: '2026-09-01',
     statementType: 'credit_card',
-    bank: 'Concurrency Bank',
-    cardType: 'visa',
-    transactions: [
+    provider: 'Concurrency Bank',
+    accountFormat: 'visa',
+    expenses: [
       {
         categoryId,
-        purchaseDate: '2026-09-01',
-        description: `${seed} transaction`,
+        expenseDate: '2026-09-01',
+        description: `${seed} Expense`,
         amount: '4.50',
-        categoryMatchConfidence: '0.9000',
       },
     ],
   };

@@ -103,336 +103,6 @@ paths:
       summary: Delete the local identity and archive any active Shared Space history.
       tags:
         - Users
-  /api/v1/users/me/categories:
-    post:
-      description: Category names are trimmed before storage and uniqueness checking; uniqueness is case-insensitive.
-      operationId: Categories_createCategory
-      parameters: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CreateCategoryDto'
-      responses:
-        '201':
-          description: Category created.
-          headers:
-            Location:
-              required: true
-              description: Relative canonical URI of the created Category.
-              schema:
-                type: string
-                example: /api/v1/users/me/categories/42
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CategoryResponseDto'
-        '400':
-          $ref: '#/components/responses/ValidationError'
-        '401':
-          $ref: '#/components/responses/UnauthenticatedError'
-        '403':
-          $ref: '#/components/responses/UserNotProvisionedError'
-        '404':
-          $ref: '#/components/responses/NotFoundError'
-        '406':
-          $ref: '#/components/responses/NotAcceptableError'
-        '409':
-          $ref: '#/components/responses/ConflictError'
-        '413':
-          $ref: '#/components/responses/HttpError'
-        '415':
-          $ref: '#/components/responses/UnsupportedMediaTypeError'
-        '500':
-          $ref: '#/components/responses/InternalError'
-      summary: Create a category.
-      tags:
-        - Categories
-    get:
-      operationId: Categories_listCategories
-      parameters: []
-      responses:
-        '200':
-          description: Categories.
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/CategoryResponseDto'
-        '401':
-          $ref: '#/components/responses/UnauthenticatedError'
-        '403':
-          $ref: '#/components/responses/UserNotProvisionedError'
-        '406':
-          $ref: '#/components/responses/NotAcceptableError'
-        '500':
-          $ref: '#/components/responses/InternalError'
-      summary: List Categories in the authenticated User's Personal Space in ascending ID order.
-      tags:
-        - Categories
-  /api/v1/users/me/categories/{categoryId}:
-    get:
-      operationId: Categories_getCategory
-      parameters:
-        - name: categoryId
-          required: true
-          in: path
-          description: Positive bigint identifier encoded as a decimal JSON string.
-          schema:
-            type: string
-            pattern: ^[1-9]\d*$
-            example: '42'
-      responses:
-        '200':
-          description: Category.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CategoryResponseDto'
-        '400':
-          $ref: '#/components/responses/ValidationError'
-        '401':
-          $ref: '#/components/responses/UnauthenticatedError'
-        '403':
-          $ref: '#/components/responses/UserNotProvisionedError'
-        '404':
-          $ref: '#/components/responses/NotFoundError'
-        '406':
-          $ref: '#/components/responses/NotAcceptableError'
-        '500':
-          $ref: '#/components/responses/InternalError'
-      summary: Get a category.
-      tags:
-        - Categories
-    patch:
-      description: Inactive Categories retain their historical relationships and cannot receive a new Budget, although an existing Budget may still be replaced.
-      operationId: Categories_updateCategory
-      parameters:
-        - name: categoryId
-          required: true
-          in: path
-          description: Positive bigint identifier encoded as a decimal JSON string.
-          schema:
-            type: string
-            pattern: ^[1-9]\d*$
-            example: '42'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UpdateCategoryDto'
-      responses:
-        '200':
-          description: Category updated.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CategoryResponseDto'
-        '400':
-          $ref: '#/components/responses/ValidationError'
-        '401':
-          $ref: '#/components/responses/UnauthenticatedError'
-        '403':
-          $ref: '#/components/responses/UserNotProvisionedError'
-        '404':
-          $ref: '#/components/responses/NotFoundError'
-        '406':
-          $ref: '#/components/responses/NotAcceptableError'
-        '409':
-          $ref: '#/components/responses/ConflictError'
-        '413':
-          $ref: '#/components/responses/HttpError'
-        '415':
-          $ref: '#/components/responses/UnsupportedMediaTypeError'
-        '500':
-          $ref: '#/components/responses/InternalError'
-      summary: Edit or activate/deactivate a category.
-      tags:
-        - Categories
-  /api/v1/users/me/categories/{categoryId}/budget:
-    put:
-      description: A new Budget returns 201 with Location; replacing an existing Budget returns 200. An inactive Category cannot receive a new Budget, although an existing Budget may still be replaced.
-      operationId: Budgets_putBudget
-      parameters:
-        - name: categoryId
-          required: true
-          in: path
-          description: Positive bigint identifier encoded as a decimal JSON string.
-          schema:
-            type: string
-            pattern: ^[1-9]\d*$
-            example: '42'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UpsertBudgetDto'
-      responses:
-        '200':
-          description: Budget replaced.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/BudgetResponseDto'
-        '201':
-          description: Budget created.
-          headers:
-            Location:
-              required: true
-              description: Relative canonical URI of the created Budget.
-              schema:
-                type: string
-                example: /api/v1/users/me/categories/42/budget
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/BudgetResponseDto'
-        '400':
-          $ref: '#/components/responses/ValidationError'
-        '401':
-          $ref: '#/components/responses/UnauthenticatedError'
-        '403':
-          $ref: '#/components/responses/UserNotProvisionedError'
-        '404':
-          $ref: '#/components/responses/NotFoundError'
-        '406':
-          $ref: '#/components/responses/NotAcceptableError'
-        '409':
-          $ref: '#/components/responses/ConflictError'
-        '413':
-          $ref: '#/components/responses/HttpError'
-        '415':
-          $ref: '#/components/responses/UnsupportedMediaTypeError'
-        '500':
-          $ref: '#/components/responses/InternalError'
-      summary: Create or replace the category budget.
-      tags:
-        - Budgets
-    get:
-      operationId: Budgets_getBudget
-      parameters:
-        - name: categoryId
-          required: true
-          in: path
-          description: Positive bigint identifier encoded as a decimal JSON string.
-          schema:
-            type: string
-            pattern: ^[1-9]\d*$
-            example: '42'
-      responses:
-        '200':
-          description: Budget.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/BudgetResponseDto'
-        '400':
-          $ref: '#/components/responses/ValidationError'
-        '401':
-          $ref: '#/components/responses/UnauthenticatedError'
-        '403':
-          $ref: '#/components/responses/UserNotProvisionedError'
-        '404':
-          $ref: '#/components/responses/NotFoundError'
-        '406':
-          $ref: '#/components/responses/NotAcceptableError'
-        '500':
-          $ref: '#/components/responses/InternalError'
-      summary: Get a category budget.
-      tags:
-        - Budgets
-    delete:
-      operationId: Budgets_deleteBudget
-      parameters:
-        - name: if-match
-          required: true
-          in: header
-          description: Budget updatedAt timestamp from the last read. The delete is rejected when it is stale.
-          schema:
-            type: string
-        - name: categoryId
-          required: true
-          in: path
-          description: Positive bigint identifier encoded as a decimal JSON string.
-          schema:
-            type: string
-            pattern: ^[1-9]\d*$
-            example: '42'
-      responses:
-        '204':
-          description: Budget deleted.
-        '400':
-          $ref: '#/components/responses/ValidationError'
-        '401':
-          $ref: '#/components/responses/UnauthenticatedError'
-        '403':
-          $ref: '#/components/responses/UserNotProvisionedError'
-        '404':
-          $ref: '#/components/responses/NotFoundError'
-        '406':
-          $ref: '#/components/responses/NotAcceptableError'
-        '409':
-          $ref: '#/components/responses/ConflictError'
-        '500':
-          $ref: '#/components/responses/InternalError'
-      summary: Delete a category budget.
-      tags:
-        - Budgets
-  /api/v1/users/me/category-summaries:
-    get:
-      description: Active categories are included even with no spending; inactive categories remain only when they have spending, and results are ordered by category ID. The month requirement depends on period and is enforced at runtime because OpenAPI cannot express that cross-field rule. Unknown query parameters are rejected.
-      operationId: CategorySummaries_getCategorySummary
-      parameters:
-        - name: period
-          required: true
-          in: query
-          description: Calendar period. Monthly summaries require month and yearly summaries do not accept month.
-          schema:
-            example: monthly
-            type: string
-            enum:
-              - monthly
-              - yearly
-        - name: year
-          required: true
-          in: query
-          description: Four-digit calendar year used for the summary.
-          schema:
-            pattern: ^\d{4}$
-            example: '2026'
-            type: string
-        - name: month
-          required: false
-          in: query
-          description: Required for monthly summaries; forbidden for yearly summaries.
-          schema:
-            pattern: ^(0[1-9]|1[0-2])$
-            example: '08'
-            type: string
-      responses:
-        '200':
-          description: Category summary.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CategorySummaryResponseDto'
-        '400':
-          $ref: '#/components/responses/ValidationError'
-        '401':
-          $ref: '#/components/responses/UnauthenticatedError'
-        '403':
-          $ref: '#/components/responses/UserNotProvisionedError'
-        '406':
-          $ref: '#/components/responses/NotAcceptableError'
-        '500':
-          $ref: '#/components/responses/InternalError'
-      summary: Get a complete monthly or yearly calendar-period summary.
-      tags:
-        - Category summaries
   /api/v1/users/me/spaces/{spaceId}/categories:
     post:
       operationId: SpaceCategories_createCategory
@@ -975,239 +645,6 @@ paths:
       summary: Mark an in-app notification as read.
       tags:
         - Notifications
-  /api/v1/users/me/category-rules:
-    post:
-      description: Matching normalizes surrounding and repeated whitespace and compares case-insensitively.
-      operationId: CategoryRules_createCategoryRule
-      parameters: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CreateCategoryRuleDto'
-      responses:
-        '201':
-          description: Category rule created.
-          headers:
-            Location:
-              required: true
-              description: Relative canonical URI of the created Category rule.
-              schema:
-                type: string
-                example: /api/v1/users/me/category-rules/42
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CategoryRuleResponseDto'
-        '400':
-          $ref: '#/components/responses/ValidationError'
-        '401':
-          $ref: '#/components/responses/UnauthenticatedError'
-        '403':
-          $ref: '#/components/responses/UserNotProvisionedError'
-        '404':
-          $ref: '#/components/responses/NotFoundError'
-        '406':
-          $ref: '#/components/responses/NotAcceptableError'
-        '409':
-          $ref: '#/components/responses/ConflictError'
-        '413':
-          $ref: '#/components/responses/HttpError'
-        '415':
-          $ref: '#/components/responses/UnsupportedMediaTypeError'
-        '500':
-          $ref: '#/components/responses/InternalError'
-      summary: Create a category rule.
-      tags:
-        - Category rules
-    get:
-      operationId: CategoryRules_listCategoryRules
-      parameters: []
-      responses:
-        '200':
-          description: Category rules.
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/CategoryRuleResponseDto'
-        '401':
-          $ref: '#/components/responses/UnauthenticatedError'
-        '403':
-          $ref: '#/components/responses/UserNotProvisionedError'
-        '406':
-          $ref: '#/components/responses/NotAcceptableError'
-        '500':
-          $ref: '#/components/responses/InternalError'
-      summary: List Category Rules in the authenticated User's Personal Space in ascending ID order.
-      tags:
-        - Category rules
-  /api/v1/users/me/category-rules/{ruleId}:
-    get:
-      operationId: CategoryRules_getCategoryRule
-      parameters:
-        - name: ruleId
-          required: true
-          in: path
-          description: Positive bigint identifier encoded as a decimal JSON string.
-          schema:
-            type: string
-            pattern: ^[1-9]\d*$
-            example: '42'
-      responses:
-        '200':
-          description: Category rule.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CategoryRuleResponseDto'
-        '400':
-          $ref: '#/components/responses/ValidationError'
-        '401':
-          $ref: '#/components/responses/UnauthenticatedError'
-        '403':
-          $ref: '#/components/responses/UserNotProvisionedError'
-        '404':
-          $ref: '#/components/responses/NotFoundError'
-        '406':
-          $ref: '#/components/responses/NotAcceptableError'
-        '500':
-          $ref: '#/components/responses/InternalError'
-      summary: Get a category rule.
-      tags:
-        - Category rules
-    patch:
-      description: A category rule may be reassigned only to an active Category; assigning it to an inactive Category returns 409 Conflict.
-      operationId: CategoryRules_updateCategoryRule
-      parameters:
-        - name: ruleId
-          required: true
-          in: path
-          description: Positive bigint identifier encoded as a decimal JSON string.
-          schema:
-            type: string
-            pattern: ^[1-9]\d*$
-            example: '42'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UpdateCategoryRuleDto'
-      responses:
-        '200':
-          description: Category rule updated.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CategoryRuleResponseDto'
-        '400':
-          $ref: '#/components/responses/ValidationError'
-        '401':
-          $ref: '#/components/responses/UnauthenticatedError'
-        '403':
-          $ref: '#/components/responses/UserNotProvisionedError'
-        '404':
-          $ref: '#/components/responses/NotFoundError'
-        '406':
-          $ref: '#/components/responses/NotAcceptableError'
-        '409':
-          $ref: '#/components/responses/ConflictError'
-        '413':
-          $ref: '#/components/responses/HttpError'
-        '415':
-          $ref: '#/components/responses/UnsupportedMediaTypeError'
-        '500':
-          $ref: '#/components/responses/InternalError'
-      summary: Update or reassign a category rule.
-      tags:
-        - Category rules
-    delete:
-      operationId: CategoryRules_deleteCategoryRule
-      parameters:
-        - name: if-match
-          required: false
-          in: header
-          description: Optional Category Rule updatedAt timestamp. The delete is rejected when it is stale.
-          schema:
-            type: string
-            format: date-time
-        - name: ruleId
-          required: true
-          in: path
-          description: Positive bigint identifier encoded as a decimal JSON string.
-          schema:
-            type: string
-            pattern: ^[1-9]\d*$
-            example: '42'
-      responses:
-        '204':
-          description: Category rule deleted.
-        '400':
-          $ref: '#/components/responses/ValidationError'
-        '401':
-          $ref: '#/components/responses/UnauthenticatedError'
-        '403':
-          $ref: '#/components/responses/UserNotProvisionedError'
-        '404':
-          $ref: '#/components/responses/NotFoundError'
-        '406':
-          $ref: '#/components/responses/NotAcceptableError'
-        '500':
-          $ref: '#/components/responses/InternalError'
-      summary: Delete a category rule.
-      tags:
-        - Category rules
-  /api/v1/users/me/categories/{categoryId}/rules:
-    put:
-      description: Legacy personal compatibility route. Atomic replacement resolves the authenticated User's Personal Space; when a revision is supplied, stale replacements are rejected. Unchanged normalized pattern/match type pairs retain IDs and createdAt; unchanged display patterns also retain updatedAt. Empty rules clears the set. Returns ascending ID order. Duplicate normalized pattern/match type pairs within the request or another Personal Space Category return 409 with the conflicting categoryId and request field. Inactive Categories return 409, including empty replacements. Validation and conflict failures change nothing.
-      operationId: CategoryRuleReplacement_replaceCategoryRules
-      parameters:
-        - name: categoryId
-          required: true
-          in: path
-          schema:
-            type: string
-            pattern: ^[1-9]\d*$
-            example: '42'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ReplaceCategoryRulesDto'
-      responses:
-        '200':
-          description: Persisted rules for the selected Category.
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/CategoryRuleResponseDto'
-        '400':
-          $ref: '#/components/responses/ValidationError'
-        '401':
-          $ref: '#/components/responses/UnauthenticatedError'
-        '403':
-          $ref: '#/components/responses/UserNotProvisionedError'
-        '404':
-          $ref: '#/components/responses/NotFoundError'
-        '406':
-          $ref: '#/components/responses/NotAcceptableError'
-        '409':
-          $ref: '#/components/responses/ConflictError'
-        '413':
-          $ref: '#/components/responses/HttpError'
-        '415':
-          $ref: '#/components/responses/UnsupportedMediaTypeError'
-        '500':
-          $ref: '#/components/responses/InternalError'
-      summary: Replace the complete rule set for an active Category.
-      tags:
-        - Category rules
   /api/v1/users/me/spaces/{spaceId}/category-rules:
     post:
       description: Matching normalizes surrounding and repeated whitespace and compares case-insensitively. The rule is shared by every member of the Space.
@@ -1489,30 +926,38 @@ paths:
       summary: Replace the complete Category Rule set in an authorized Space.
       tags:
         - Category rules
-  /api/v1/users/me/transactions:
+  /api/v1/users/me/spaces/{spaceId}/expenses:
     post:
-      operationId: Transactions_createManualTransaction
-      parameters: []
+      operationId: SpaceExpenses_createExpense
+      parameters:
+        - name: spaceId
+          required: true
+          in: path
+          description: Positive bigint Space identifier encoded as a string.
+          schema:
+            type: string
+            pattern: ^[1-9]\d*$
+            example: '7'
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateManualTransactionDto'
+              $ref: '#/components/schemas/CreateManualExpenseDto'
       responses:
         '201':
-          description: Manual transaction created.
+          description: Manual expense created.
           headers:
             Location:
               required: true
-              description: Relative canonical URI of the created Transaction.
+              description: Relative canonical URI of the created Expense.
               schema:
                 type: string
-                example: /api/v1/users/me/transactions/42
+                example: /api/v1/users/me/spaces/7/expenses/42
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ManualTransactionResponseDto'
+                $ref: '#/components/schemas/ManualExpenseResponseDto'
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -1531,270 +976,272 @@ paths:
           $ref: '#/components/responses/UnsupportedMediaTypeError'
         '500':
           $ref: '#/components/responses/InternalError'
-      summary: Create a manual transaction.
+      summary: Create a manual Expense in an authorized Space.
       tags:
-        - Transactions
+        - Expenses
     get:
-      description: Returns manual and imported Transactions in the authorized Space in purchaseDate descending, then Transaction ID descending order. fromDate and toDate are inclusive valid calendar-date filters and fromDate must be on or before toDate. pageSize must be between 1 and 100 and defaults to 20. The nextCursor is opaque, binds to every filter except pageSize, and must be reused with the same filters. Unknown query parameters are rejected.
-      operationId: Transactions_listTransactions
+      description: Returns manual and imported Expenses only after authorizing the requested Space. Active pages default to expenseDate descending then Expense ID descending; sort=oldest reverses both. Cursors are bound to the Space, filters, deletion selection and sort; page size is not part of a cursor. Deleted Expense pages use deletedAt descending then Expense ID descending.
+      operationId: SpaceExpenses_listExpenses
       parameters:
-        - name: fromDate
-          required: false
-          in: query
-          description: Inclusive lower purchase date. It must be a valid calendar date in YYYY-MM-DD format and be on or before toDate when both filters are supplied.
-          schema:
-            format: date
-            pattern: ^\d{4}-\d{2}-\d{2}$
-            example: '2026-08-01'
-            type: string
-        - name: toDate
-          required: false
-          in: query
-          description: Inclusive upper purchase date. It must be a valid calendar date in YYYY-MM-DD format.
-          schema:
-            format: date
-            pattern: ^\d{4}-\d{2}-\d{2}$
-            example: '2026-08-31'
-            type: string
-        - name: categoryId
-          required: false
-          in: query
-          description: Only Transactions assigned to this positive bigint Category identifier in the authorized Space.
-          schema:
-            pattern: ^[1-9]\d*$
-            example: '42'
-            type: string
-        - name: categoryState
-          required: false
-          in: query
-          description: Whether to return categorized Transactions or Uncategorized Transactions.
-          schema:
-            example: categorized
-            type: string
-            enum:
-              - categorized
-              - uncategorized
-        - name: statementImportId
-          required: false
-          in: query
-          description: Only Transactions committed from this positive bigint Statement Import identifier in the authorized Space.
-          schema:
-            pattern: ^[1-9]\d*$
-            example: '10'
-            type: string
-        - name: source
-          required: false
-          in: query
-          description: Whether to return manually recorded or imported Transactions.
-          schema:
-            example: imported
-            type: string
-            enum:
-              - manual
-              - imported
-        - name: description
-          required: false
-          in: query
-          description: Case-insensitive text contained in the Transaction description.
-          schema:
-            minLength: 1
-            maxLength: 500
-            example: groceries
-            type: string
-        - name: accountBank
-          required: false
-          in: query
-          description: Imported Account bank name. Pair with accountCardType; use source=manual for Cash.
-          schema:
-            example: BDO
-            type: string
-        - name: accountCardType
-          required: false
-          in: query
-          description: Imported Account card or wallet type; empty for Accounts without one.
-          schema:
-            example: AMEX
-            type: string
-        - name: pageSize
-          required: false
-          in: query
-          description: Number of Transactions to return per page. Must be between 1 and 100 inclusive; defaults to 20. The cursor is not coupled to page size.
-          schema:
-            minimum: 1
-            maximum: 100
-            default: 20
-            example: 20
-            type: integer
-        - name: cursor
-          required: false
-          in: query
-          description: Opaque base64url cursor for the next page. Reuse it only with the same filters; cursors encode the fixed purchaseDate-descending, ID-descending ordering.
-          schema:
-            minLength: 1
-            pattern: ^[A-Za-z0-9_-]+$
-            example: eyJ2ZXJzaW9uIjoxLCJvcmRlcmluZyI6InB1cmNoYXNlRGF0ZTpkZXNjLG...
-            type: string
-      responses:
-        '200':
-          description: Transaction page.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/TransactionHistoryPageResponseDto'
-        '400':
-          $ref: '#/components/responses/ValidationError'
-        '401':
-          $ref: '#/components/responses/UnauthenticatedError'
-        '403':
-          $ref: '#/components/responses/UserNotProvisionedError'
-        '406':
-          $ref: '#/components/responses/NotAcceptableError'
-        '500':
-          $ref: '#/components/responses/InternalError'
-      summary: List filtered transactions in date-descending, ID-descending keyset pages.
-      tags:
-        - Transactions
-  /api/v1/users/me/transactions/history:
-    get:
-      operationId: Transactions_listDeletedTransactions
-      parameters:
-        - name: fromDate
-          required: false
-          in: query
-          description: Inclusive lower purchase date. It must be a valid calendar date in YYYY-MM-DD format and be on or before toDate when both filters are supplied.
-          schema:
-            format: date
-            pattern: ^\d{4}-\d{2}-\d{2}$
-            example: '2026-08-01'
-            type: string
-        - name: toDate
-          required: false
-          in: query
-          description: Inclusive upper purchase date. It must be a valid calendar date in YYYY-MM-DD format.
-          schema:
-            format: date
-            pattern: ^\d{4}-\d{2}-\d{2}$
-            example: '2026-08-31'
-            type: string
-        - name: categoryId
-          required: false
-          in: query
-          description: Only Transactions assigned to this positive bigint Category identifier in the authorized Space.
-          schema:
-            pattern: ^[1-9]\d*$
-            example: '42'
-            type: string
-        - name: categoryState
-          required: false
-          in: query
-          description: Whether to return categorized Transactions or Uncategorized Transactions.
-          schema:
-            example: categorized
-            type: string
-            enum:
-              - categorized
-              - uncategorized
-        - name: statementImportId
-          required: false
-          in: query
-          description: Only Transactions committed from this positive bigint Statement Import identifier in the authorized Space.
-          schema:
-            pattern: ^[1-9]\d*$
-            example: '10'
-            type: string
-        - name: source
-          required: false
-          in: query
-          description: Whether to return manually recorded or imported Transactions.
-          schema:
-            example: imported
-            type: string
-            enum:
-              - manual
-              - imported
-        - name: description
-          required: false
-          in: query
-          description: Case-insensitive text contained in the Transaction description.
-          schema:
-            minLength: 1
-            maxLength: 500
-            example: groceries
-            type: string
-        - name: accountBank
-          required: false
-          in: query
-          description: Imported Account bank name. Pair with accountCardType; use source=manual for Cash.
-          schema:
-            example: BDO
-            type: string
-        - name: accountCardType
-          required: false
-          in: query
-          description: Imported Account card or wallet type; empty for Accounts without one.
-          schema:
-            example: AMEX
-            type: string
-        - name: pageSize
-          required: false
-          in: query
-          description: Number of Transactions to return per page. Must be between 1 and 100 inclusive; defaults to 20. The cursor is not coupled to page size.
-          schema:
-            minimum: 1
-            maximum: 100
-            default: 20
-            example: 20
-            type: integer
-        - name: cursor
-          required: false
-          in: query
-          description: Opaque base64url cursor for the next page. Reuse it only with the same filters; cursors encode the fixed purchaseDate-descending, ID-descending ordering.
-          schema:
-            minLength: 1
-            pattern: ^[A-Za-z0-9_-]+$
-            example: eyJ2ZXJzaW9uIjoxLCJvcmRlcmluZyI6InB1cmNoYXNlRGF0ZTpkZXNjLG...
-            type: string
-      responses:
-        '200':
-          description: Retained deleted Transaction history page.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/TransactionHistoryPageResponseDto'
-        '400':
-          $ref: '#/components/responses/ValidationError'
-        '401':
-          $ref: '#/components/responses/UnauthenticatedError'
-        '403':
-          $ref: '#/components/responses/UserNotProvisionedError'
-        '406':
-          $ref: '#/components/responses/NotAcceptableError'
-        '500':
-          $ref: '#/components/responses/InternalError'
-      summary: List retained deleted Transactions.
-      tags:
-        - Transactions
-  /api/v1/users/me/transactions/{transactionId}/activity:
-    get:
-      operationId: Transactions_listTransactionActivity
-      parameters:
-        - name: transactionId
+        - name: spaceId
           required: true
           in: path
-          description: Positive bigint identifier encoded as a decimal JSON string.
+          description: Positive bigint Space identifier encoded as a string.
+          schema:
+            type: string
+            pattern: ^[1-9]\d*$
+            example: '7'
+        - name: fromDate
+          required: false
+          in: query
+          description: Inclusive lower Expense date in YYYY-MM-DD format; it must be on or before toDate when both filters are supplied.
+          schema:
+            format: date
+            pattern: ^\d{4}-\d{2}-\d{2}$
+            example: '2026-08-01'
+            type: string
+        - name: toDate
+          required: false
+          in: query
+          description: Inclusive upper Expense date in YYYY-MM-DD format.
+          schema:
+            format: date
+            pattern: ^\d{4}-\d{2}-\d{2}$
+            example: '2026-08-31'
+            type: string
+        - name: categoryId
+          required: false
+          in: query
+          description: Only Expenses assigned to this positive bigint Category identifier in the authorized Space.
+          schema:
+            pattern: ^[1-9]\d*$
+            example: '42'
+            type: string
+        - name: statementImportId
+          required: false
+          in: query
+          description: Only Expenses committed from this positive bigint Statement Import identifier in the authorized Space.
+          schema:
+            pattern: ^[1-9]\d*$
+            example: '10'
+            type: string
+        - name: source
+          required: false
+          in: query
+          description: Whether to return manually recorded or imported Expenses.
+          schema:
+            example: imported
+            type: string
+            enum:
+              - manual
+              - imported
+        - name: description
+          required: false
+          in: query
+          description: Case-insensitive text contained in the Expense description.
+          schema:
+            minLength: 1
+            maxLength: 500
+            example: groceries
+            type: string
+        - name: sort
+          required: false
+          in: query
+          description: Expense date ordering. Newest is the default; deleted Expenses retain their fixed deletion-time ordering.
+          schema:
+            default: newest
+            example: oldest
+            type: string
+            enum:
+              - newest
+              - oldest
+        - name: pageSize
+          required: false
+          in: query
+          description: Number of Expenses to return per page. Must be between 1 and 100 inclusive; defaults to 20. The cursor is not coupled to page size.
+          schema:
+            minimum: 1
+            maximum: 100
+            default: 20
+            example: 20
+            type: integer
+        - name: cursor
+          required: false
+          in: query
+          description: Opaque base64url cursor for the next page. Reuse it only with the same Space, filters and sort selection; page size is not part of the cursor.
+          schema:
+            minLength: 1
+            pattern: ^[A-Za-z0-9_-]+$
+            example: eyJ2ZXJzaW9uIjoxLCJvcmRlcmluZyI6InB1cmNoYXNlRGF0ZTpkZXNjLG...
+            type: string
+      responses:
+        '200':
+          description: Expense page.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExpenseHistoryPageResponseDto'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthenticatedError'
+        '403':
+          $ref: '#/components/responses/UserNotProvisionedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '406':
+          $ref: '#/components/responses/NotAcceptableError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      summary: List Expenses in an authorized Space.
+      tags:
+        - Expenses
+  /api/v1/users/me/spaces/{spaceId}/expenses/deleted:
+    get:
+      operationId: SpaceExpenses_listDeletedExpenses
+      parameters:
+        - name: spaceId
+          required: true
+          in: path
+          description: Positive bigint Space identifier encoded as a string.
+          schema:
+            type: string
+            pattern: ^[1-9]\d*$
+            example: '7'
+        - name: fromDate
+          required: false
+          in: query
+          description: Inclusive lower Expense date in YYYY-MM-DD format; it must be on or before toDate when both filters are supplied.
+          schema:
+            format: date
+            pattern: ^\d{4}-\d{2}-\d{2}$
+            example: '2026-08-01'
+            type: string
+        - name: toDate
+          required: false
+          in: query
+          description: Inclusive upper Expense date in YYYY-MM-DD format.
+          schema:
+            format: date
+            pattern: ^\d{4}-\d{2}-\d{2}$
+            example: '2026-08-31'
+            type: string
+        - name: categoryId
+          required: false
+          in: query
+          description: Only Expenses assigned to this positive bigint Category identifier in the authorized Space.
+          schema:
+            pattern: ^[1-9]\d*$
+            example: '42'
+            type: string
+        - name: statementImportId
+          required: false
+          in: query
+          description: Only Expenses committed from this positive bigint Statement Import identifier in the authorized Space.
+          schema:
+            pattern: ^[1-9]\d*$
+            example: '10'
+            type: string
+        - name: source
+          required: false
+          in: query
+          description: Whether to return manually recorded or imported Expenses.
+          schema:
+            example: imported
+            type: string
+            enum:
+              - manual
+              - imported
+        - name: description
+          required: false
+          in: query
+          description: Case-insensitive text contained in the Expense description.
+          schema:
+            minLength: 1
+            maxLength: 500
+            example: groceries
+            type: string
+        - name: sort
+          required: false
+          in: query
+          description: Expense date ordering. Newest is the default; deleted Expenses retain their fixed deletion-time ordering.
+          schema:
+            default: newest
+            example: oldest
+            type: string
+            enum:
+              - newest
+              - oldest
+        - name: pageSize
+          required: false
+          in: query
+          description: Number of Expenses to return per page. Must be between 1 and 100 inclusive; defaults to 20. The cursor is not coupled to page size.
+          schema:
+            minimum: 1
+            maximum: 100
+            default: 20
+            example: 20
+            type: integer
+        - name: cursor
+          required: false
+          in: query
+          description: Opaque base64url cursor for the next page. Reuse it only with the same Space, filters and sort selection; page size is not part of the cursor.
+          schema:
+            minLength: 1
+            pattern: ^[A-Za-z0-9_-]+$
+            example: eyJ2ZXJzaW9uIjoxLCJvcmRlcmluZyI6InB1cmNoYXNlRGF0ZTpkZXNjLG...
+            type: string
+      responses:
+        '200':
+          description: Retained deleted Expense history page.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExpenseHistoryPageResponseDto'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthenticatedError'
+        '403':
+          $ref: '#/components/responses/UserNotProvisionedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '406':
+          $ref: '#/components/responses/NotAcceptableError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      summary: List retained deleted Expenses in a Space.
+      tags:
+        - Expenses
+  /api/v1/users/me/spaces/{spaceId}/expenses/{expenseId}/activity:
+    get:
+      operationId: SpaceExpenses_listExpenseActivity
+      parameters:
+        - name: spaceId
+          required: true
+          in: path
+          description: Positive bigint Space identifier encoded as a string.
+          schema:
+            type: string
+            pattern: ^[1-9]\d*$
+            example: '7'
+        - name: expenseId
+          required: true
+          in: path
+          description: Positive bigint Expense identifier encoded as a string.
           schema:
             type: string
             pattern: ^[1-9]\d*$
             example: '42'
       responses:
         '200':
-          description: Transaction activity events.
+          description: Expense activity events.
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/TransactionActivityResponseDto'
+                  $ref: '#/components/schemas/ExpenseActivityResponseDto'
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -1807,301 +1254,43 @@ paths:
           $ref: '#/components/responses/NotAcceptableError'
         '500':
           $ref: '#/components/responses/InternalError'
-      summary: List activity for a Transaction.
+      summary: List activity for a Expense in an authorized Space.
       tags:
-        - Transactions
-  /api/v1/users/me/transactions/{transactionId}:
+        - Expenses
+  /api/v1/users/me/spaces/{spaceId}/expenses/{expenseId}:
     get:
-      operationId: Transactions_getManualTransaction
+      operationId: SpaceExpenses_getExpense
       parameters:
-        - name: transactionId
+        - name: spaceId
           required: true
           in: path
-          description: Positive bigint identifier encoded as a decimal JSON string.
+          description: Positive bigint Space identifier encoded as a string.
+          schema:
+            type: string
+            pattern: ^[1-9]\d*$
+            example: '7'
+        - name: expenseId
+          required: true
+          in: path
+          description: Positive bigint Expense identifier encoded as a string.
           schema:
             type: string
             pattern: ^[1-9]\d*$
             example: '42'
       responses:
         '200':
-          description: Manual transaction.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ManualTransactionResponseDto'
-        '400':
-          $ref: '#/components/responses/ValidationError'
-        '401':
-          $ref: '#/components/responses/UnauthenticatedError'
-        '403':
-          $ref: '#/components/responses/UserNotProvisionedError'
-        '404':
-          $ref: '#/components/responses/NotFoundError'
-        '406':
-          $ref: '#/components/responses/NotAcceptableError'
-        '500':
-          $ref: '#/components/responses/InternalError'
-      summary: Get a manual transaction.
-      tags:
-        - Transactions
-    patch:
-      description: Manual Transactions may be patched with any supplied fields. Imported Transactions may only change categoryId; their statement facts are immutable and any other field causes a 409 Conflict.
-      operationId: Transactions_updateTransaction
-      parameters:
-        - name: transactionId
-          required: true
-          in: path
-          description: Positive bigint identifier encoded as a decimal JSON string.
-          schema:
-            type: string
-            pattern: ^[1-9]\d*$
-            example: '42'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UpdateManualTransactionDto'
-      responses:
-        '200':
-          description: Transaction updated.
+          description: Expense.
           content:
             application/json:
               schema:
                 oneOf:
-                  - $ref: '#/components/schemas/ManualTransactionResponseDto'
-                  - $ref: '#/components/schemas/ImportedTransactionResponseDto'
+                  - $ref: '#/components/schemas/ManualExpenseResponseDto'
+                  - $ref: '#/components/schemas/ImportedExpenseResponseDto'
                 discriminator:
                   propertyName: source
                   mapping:
-                    manual: '#/components/schemas/ManualTransactionResponseDto'
-                    imported: '#/components/schemas/ImportedTransactionResponseDto'
-        '400':
-          $ref: '#/components/responses/ValidationError'
-        '401':
-          $ref: '#/components/responses/UnauthenticatedError'
-        '403':
-          $ref: '#/components/responses/UserNotProvisionedError'
-        '404':
-          $ref: '#/components/responses/NotFoundError'
-        '406':
-          $ref: '#/components/responses/NotAcceptableError'
-        '409':
-          $ref: '#/components/responses/ConflictError'
-        '413':
-          $ref: '#/components/responses/HttpError'
-        '415':
-          $ref: '#/components/responses/UnsupportedMediaTypeError'
-        '500':
-          $ref: '#/components/responses/InternalError'
-      summary: Update a manual transaction or recategorize an imported transaction.
-      tags:
-        - Transactions
-    delete:
-      operationId: Transactions_deleteManualTransaction
-      parameters:
-        - name: transactionId
-          required: true
-          in: path
-          description: Positive bigint identifier encoded as a decimal JSON string.
-          schema:
-            type: string
-            pattern: ^[1-9]\d*$
-            example: '42'
-        - name: if-match
-          required: false
-          in: header
-          description: Optional Transaction updatedAt timestamp. The delete is rejected when it is stale.
-          schema:
-            type: string
-      responses:
-        '204':
-          description: Manual transaction deleted.
-        '400':
-          $ref: '#/components/responses/ValidationError'
-        '401':
-          $ref: '#/components/responses/UnauthenticatedError'
-        '403':
-          $ref: '#/components/responses/UserNotProvisionedError'
-        '404':
-          $ref: '#/components/responses/NotFoundError'
-        '406':
-          $ref: '#/components/responses/NotAcceptableError'
-        '409':
-          $ref: '#/components/responses/ConflictError'
-        '500':
-          $ref: '#/components/responses/InternalError'
-      summary: Delete a manual transaction.
-      tags:
-        - Transactions
-  /api/v1/users/me/spaces/{spaceId}/transactions:
-    post:
-      operationId: SpaceTransactions_createTransaction
-      parameters:
-        - name: spaceId
-          required: true
-          in: path
-          description: Positive bigint Space identifier encoded as a string.
-          schema:
-            type: string
-            pattern: ^[1-9]\d*$
-            example: '7'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CreateManualTransactionDto'
-      responses:
-        '201':
-          description: Manual transaction created.
-          headers:
-            Location:
-              required: true
-              description: Relative canonical URI of the created Transaction.
-              schema:
-                type: string
-                example: /api/v1/users/me/spaces/7/transactions/42
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ManualTransactionResponseDto'
-        '400':
-          $ref: '#/components/responses/ValidationError'
-        '401':
-          $ref: '#/components/responses/UnauthenticatedError'
-        '403':
-          $ref: '#/components/responses/UserNotProvisionedError'
-        '404':
-          $ref: '#/components/responses/NotFoundError'
-        '406':
-          $ref: '#/components/responses/NotAcceptableError'
-        '409':
-          $ref: '#/components/responses/ConflictError'
-        '413':
-          $ref: '#/components/responses/HttpError'
-        '415':
-          $ref: '#/components/responses/UnsupportedMediaTypeError'
-        '500':
-          $ref: '#/components/responses/InternalError'
-      summary: Create a manual Transaction in an authorized Space.
-      tags:
-        - Transactions
-    get:
-      description: Returns manual and imported Transactions in the authorized Space in purchaseDate descending, then Transaction ID descending order. Filters and keyset cursors retain the same semantics as the personal collection.
-      operationId: SpaceTransactions_listTransactions
-      parameters:
-        - name: spaceId
-          required: true
-          in: path
-          description: Positive bigint Space identifier encoded as a string.
-          schema:
-            type: string
-            pattern: ^[1-9]\d*$
-            example: '7'
-        - name: fromDate
-          required: false
-          in: query
-          description: Inclusive lower purchase date. It must be a valid calendar date in YYYY-MM-DD format and be on or before toDate when both filters are supplied.
-          schema:
-            format: date
-            pattern: ^\d{4}-\d{2}-\d{2}$
-            example: '2026-08-01'
-            type: string
-        - name: toDate
-          required: false
-          in: query
-          description: Inclusive upper purchase date. It must be a valid calendar date in YYYY-MM-DD format.
-          schema:
-            format: date
-            pattern: ^\d{4}-\d{2}-\d{2}$
-            example: '2026-08-31'
-            type: string
-        - name: categoryId
-          required: false
-          in: query
-          description: Only Transactions assigned to this positive bigint Category identifier in the authorized Space.
-          schema:
-            pattern: ^[1-9]\d*$
-            example: '42'
-            type: string
-        - name: categoryState
-          required: false
-          in: query
-          description: Whether to return categorized Transactions or Uncategorized Transactions.
-          schema:
-            example: categorized
-            type: string
-            enum:
-              - categorized
-              - uncategorized
-        - name: statementImportId
-          required: false
-          in: query
-          description: Only Transactions committed from this positive bigint Statement Import identifier in the authorized Space.
-          schema:
-            pattern: ^[1-9]\d*$
-            example: '10'
-            type: string
-        - name: source
-          required: false
-          in: query
-          description: Whether to return manually recorded or imported Transactions.
-          schema:
-            example: imported
-            type: string
-            enum:
-              - manual
-              - imported
-        - name: description
-          required: false
-          in: query
-          description: Case-insensitive text contained in the Transaction description.
-          schema:
-            minLength: 1
-            maxLength: 500
-            example: groceries
-            type: string
-        - name: accountBank
-          required: false
-          in: query
-          description: Imported Account bank name. Pair with accountCardType; use source=manual for Cash.
-          schema:
-            example: BDO
-            type: string
-        - name: accountCardType
-          required: false
-          in: query
-          description: Imported Account card or wallet type; empty for Accounts without one.
-          schema:
-            example: AMEX
-            type: string
-        - name: pageSize
-          required: false
-          in: query
-          description: Number of Transactions to return per page. Must be between 1 and 100 inclusive; defaults to 20. The cursor is not coupled to page size.
-          schema:
-            minimum: 1
-            maximum: 100
-            default: 20
-            example: 20
-            type: integer
-        - name: cursor
-          required: false
-          in: query
-          description: Opaque base64url cursor for the next page. Reuse it only with the same filters; cursors encode the fixed purchaseDate-descending, ID-descending ordering.
-          schema:
-            minLength: 1
-            pattern: ^[A-Za-z0-9_-]+$
-            example: eyJ2ZXJzaW9uIjoxLCJvcmRlcmluZyI6InB1cmNoYXNlRGF0ZTpkZXNjLG...
-            type: string
-      responses:
-        '200':
-          description: Transaction page.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/TransactionHistoryPageResponseDto'
+                    manual: '#/components/schemas/ManualExpenseResponseDto'
+                    imported: '#/components/schemas/ImportedExpenseResponseDto'
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -2114,228 +1303,12 @@ paths:
           $ref: '#/components/responses/NotAcceptableError'
         '500':
           $ref: '#/components/responses/InternalError'
-      summary: List Transactions in an authorized Space.
+      summary: Get an Expense in an authorized Space.
       tags:
-        - Transactions
-  /api/v1/users/me/spaces/{spaceId}/transactions/history:
-    get:
-      operationId: SpaceTransactions_listDeletedTransactions
-      parameters:
-        - name: spaceId
-          required: true
-          in: path
-          description: Positive bigint Space identifier encoded as a string.
-          schema:
-            type: string
-            pattern: ^[1-9]\d*$
-            example: '7'
-        - name: fromDate
-          required: false
-          in: query
-          description: Inclusive lower purchase date. It must be a valid calendar date in YYYY-MM-DD format and be on or before toDate when both filters are supplied.
-          schema:
-            format: date
-            pattern: ^\d{4}-\d{2}-\d{2}$
-            example: '2026-08-01'
-            type: string
-        - name: toDate
-          required: false
-          in: query
-          description: Inclusive upper purchase date. It must be a valid calendar date in YYYY-MM-DD format.
-          schema:
-            format: date
-            pattern: ^\d{4}-\d{2}-\d{2}$
-            example: '2026-08-31'
-            type: string
-        - name: categoryId
-          required: false
-          in: query
-          description: Only Transactions assigned to this positive bigint Category identifier in the authorized Space.
-          schema:
-            pattern: ^[1-9]\d*$
-            example: '42'
-            type: string
-        - name: categoryState
-          required: false
-          in: query
-          description: Whether to return categorized Transactions or Uncategorized Transactions.
-          schema:
-            example: categorized
-            type: string
-            enum:
-              - categorized
-              - uncategorized
-        - name: statementImportId
-          required: false
-          in: query
-          description: Only Transactions committed from this positive bigint Statement Import identifier in the authorized Space.
-          schema:
-            pattern: ^[1-9]\d*$
-            example: '10'
-            type: string
-        - name: source
-          required: false
-          in: query
-          description: Whether to return manually recorded or imported Transactions.
-          schema:
-            example: imported
-            type: string
-            enum:
-              - manual
-              - imported
-        - name: description
-          required: false
-          in: query
-          description: Case-insensitive text contained in the Transaction description.
-          schema:
-            minLength: 1
-            maxLength: 500
-            example: groceries
-            type: string
-        - name: accountBank
-          required: false
-          in: query
-          description: Imported Account bank name. Pair with accountCardType; use source=manual for Cash.
-          schema:
-            example: BDO
-            type: string
-        - name: accountCardType
-          required: false
-          in: query
-          description: Imported Account card or wallet type; empty for Accounts without one.
-          schema:
-            example: AMEX
-            type: string
-        - name: pageSize
-          required: false
-          in: query
-          description: Number of Transactions to return per page. Must be between 1 and 100 inclusive; defaults to 20. The cursor is not coupled to page size.
-          schema:
-            minimum: 1
-            maximum: 100
-            default: 20
-            example: 20
-            type: integer
-        - name: cursor
-          required: false
-          in: query
-          description: Opaque base64url cursor for the next page. Reuse it only with the same filters; cursors encode the fixed purchaseDate-descending, ID-descending ordering.
-          schema:
-            minLength: 1
-            pattern: ^[A-Za-z0-9_-]+$
-            example: eyJ2ZXJzaW9uIjoxLCJvcmRlcmluZyI6InB1cmNoYXNlRGF0ZTpkZXNjLG...
-            type: string
-      responses:
-        '200':
-          description: Retained deleted Transaction history page.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/TransactionHistoryPageResponseDto'
-        '400':
-          $ref: '#/components/responses/ValidationError'
-        '401':
-          $ref: '#/components/responses/UnauthenticatedError'
-        '403':
-          $ref: '#/components/responses/UserNotProvisionedError'
-        '404':
-          $ref: '#/components/responses/NotFoundError'
-        '406':
-          $ref: '#/components/responses/NotAcceptableError'
-        '500':
-          $ref: '#/components/responses/InternalError'
-      summary: List retained deleted Transactions in a Space.
-      tags:
-        - Transactions
-  /api/v1/users/me/spaces/{spaceId}/transactions/{transactionId}/activity:
-    get:
-      operationId: SpaceTransactions_listTransactionActivity
-      parameters:
-        - name: spaceId
-          required: true
-          in: path
-          description: Positive bigint Space identifier encoded as a string.
-          schema:
-            type: string
-            pattern: ^[1-9]\d*$
-            example: '7'
-        - name: transactionId
-          required: true
-          in: path
-          description: Positive bigint Transaction identifier encoded as a string.
-          schema:
-            type: string
-            pattern: ^[1-9]\d*$
-            example: '42'
-      responses:
-        '200':
-          description: Transaction activity events.
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/TransactionActivityResponseDto'
-        '400':
-          $ref: '#/components/responses/ValidationError'
-        '401':
-          $ref: '#/components/responses/UnauthenticatedError'
-        '403':
-          $ref: '#/components/responses/UserNotProvisionedError'
-        '404':
-          $ref: '#/components/responses/NotFoundError'
-        '406':
-          $ref: '#/components/responses/NotAcceptableError'
-        '500':
-          $ref: '#/components/responses/InternalError'
-      summary: List activity for a Transaction in an authorized Space.
-      tags:
-        - Transactions
-  /api/v1/users/me/spaces/{spaceId}/transactions/{transactionId}:
-    get:
-      operationId: SpaceTransactions_getTransaction
-      parameters:
-        - name: spaceId
-          required: true
-          in: path
-          description: Positive bigint Space identifier encoded as a string.
-          schema:
-            type: string
-            pattern: ^[1-9]\d*$
-            example: '7'
-        - name: transactionId
-          required: true
-          in: path
-          description: Positive bigint Transaction identifier encoded as a string.
-          schema:
-            type: string
-            pattern: ^[1-9]\d*$
-            example: '42'
-      responses:
-        '200':
-          description: Manual transaction.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ManualTransactionResponseDto'
-        '400':
-          $ref: '#/components/responses/ValidationError'
-        '401':
-          $ref: '#/components/responses/UnauthenticatedError'
-        '403':
-          $ref: '#/components/responses/UserNotProvisionedError'
-        '404':
-          $ref: '#/components/responses/NotFoundError'
-        '406':
-          $ref: '#/components/responses/NotAcceptableError'
-        '500':
-          $ref: '#/components/responses/InternalError'
-      summary: Get a manual Transaction in an authorized Space.
-      tags:
-        - Transactions
+        - Expenses
     patch:
-      description: Manual Transactions may be patched in any writable Space. Imported Transactions in an active Shared Space may be patched with supported fields; writable Personal Spaces retain category-only imported compatibility. Imported Statement Import provenance and Added By attribution remain unchanged. The required updatedAt body field rejects stale edits.
-      operationId: SpaceTransactions_updateTransaction
+      description: Manual and imported Expenses may be edited in any writable Space. Statement Import provenance and Added By attribution remain unchanged. The required expectedRevision rejects stale edits.
+      operationId: SpaceExpenses_updateExpense
       parameters:
         - name: spaceId
           required: true
@@ -2345,10 +1318,10 @@ paths:
             type: string
             pattern: ^[1-9]\d*$
             example: '7'
-        - name: transactionId
+        - name: expenseId
           required: true
           in: path
-          description: Positive bigint Transaction identifier encoded as a string.
+          description: Positive bigint Expense identifier encoded as a string.
           schema:
             type: string
             pattern: ^[1-9]\d*$
@@ -2358,21 +1331,21 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UpdateSpaceTransactionDto'
+              $ref: '#/components/schemas/UpdateSpaceExpenseDto'
       responses:
         '200':
-          description: Transaction updated.
+          description: Expense updated.
           content:
             application/json:
               schema:
                 oneOf:
-                  - $ref: '#/components/schemas/ManualTransactionResponseDto'
-                  - $ref: '#/components/schemas/ImportedTransactionResponseDto'
+                  - $ref: '#/components/schemas/ManualExpenseResponseDto'
+                  - $ref: '#/components/schemas/ImportedExpenseResponseDto'
                 discriminator:
                   propertyName: source
                   mapping:
-                    manual: '#/components/schemas/ManualTransactionResponseDto'
-                    imported: '#/components/schemas/ImportedTransactionResponseDto'
+                    manual: '#/components/schemas/ManualExpenseResponseDto'
+                    imported: '#/components/schemas/ImportedExpenseResponseDto'
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -2391,11 +1364,11 @@ paths:
           $ref: '#/components/responses/UnsupportedMediaTypeError'
         '500':
           $ref: '#/components/responses/InternalError'
-      summary: Update a Transaction in an authorized Space.
+      summary: Update an Expense in an authorized Space.
       tags:
-        - Transactions
+        - Expenses
     delete:
-      operationId: SpaceTransactions_deleteTransaction
+      operationId: SpaceExpenses_deleteExpense
       parameters:
         - name: spaceId
           required: true
@@ -2405,10 +1378,10 @@ paths:
             type: string
             pattern: ^[1-9]\d*$
             example: '7'
-        - name: transactionId
+        - name: expenseId
           required: true
           in: path
-          description: Positive bigint Transaction identifier encoded as a string.
+          description: Positive bigint Expense identifier encoded as a string.
           schema:
             type: string
             pattern: ^[1-9]\d*$
@@ -2416,12 +1389,18 @@ paths:
         - name: if-match
           required: true
           in: header
-          description: Transaction updatedAt timestamp from the last read. The delete is rejected when it is stale.
+          description: Expense revision from the last read. The delete is rejected when it is stale.
           schema:
             type: string
       responses:
-        '204':
-          description: Transaction deleted.
+        '200':
+          description: Expense deleted and retained for history.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ManualExpenseHistoryResponseDto'
+                  - $ref: '#/components/schemas/ImportedExpenseHistoryResponseDto'
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -2436,191 +1415,9 @@ paths:
           $ref: '#/components/responses/ConflictError'
         '500':
           $ref: '#/components/responses/InternalError'
-      summary: Delete a Transaction in an authorized Space.
+      summary: Delete an Expense in an authorized Space.
       tags:
-        - Transactions
-  /api/v1/users/me/statement-imports/{statementImportId}:
-    get:
-      operationId: StatementImports_getStatementImport
-      parameters:
-        - name: statementImportId
-          required: true
-          in: path
-          description: Positive bigint identifier encoded as a decimal JSON string.
-          schema:
-            type: string
-            pattern: ^[1-9]\d*$
-            example: '42'
-      responses:
-        '200':
-          description: Statement import.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/StatementImportResponseDto'
-        '400':
-          $ref: '#/components/responses/ValidationError'
-        '401':
-          $ref: '#/components/responses/UnauthenticatedError'
-        '403':
-          $ref: '#/components/responses/UserNotProvisionedError'
-        '404':
-          $ref: '#/components/responses/NotFoundError'
-        '406':
-          $ref: '#/components/responses/NotAcceptableError'
-        '500':
-          $ref: '#/components/responses/InternalError'
-      summary: Get a statement import.
-      tags:
-        - Statement imports
-  /api/v1/users/me/statement-imports:
-    get:
-      description: Returns committed Statement Imports in the authorized Space in statementDate descending, then Statement Import ID descending order. fromDate and toDate are inclusive valid calendar-date filters and fromDate must be on or before toDate. pageSize must be between 1 and 100 and defaults to 20. The nextCursor is opaque, binds to the date filters, and must be reused with the same filters; page size is not part of the cursor. Unknown query parameters are rejected.
-      operationId: StatementImports_listStatementImports
-      parameters:
-        - name: fromDate
-          required: false
-          in: query
-          description: Inclusive lower Statement import date. It must be a valid calendar date in YYYY-MM-DD format and be on or before toDate when both filters are supplied.
-          schema:
-            format: date
-            pattern: ^\d{4}-\d{2}-\d{2}$
-            example: '2026-08-01'
-            type: string
-        - name: toDate
-          required: false
-          in: query
-          description: Inclusive upper Statement import date. It must be a valid calendar date in YYYY-MM-DD format.
-          schema:
-            format: date
-            pattern: ^\d{4}-\d{2}-\d{2}$
-            example: '2026-08-31'
-            type: string
-        - name: pageSize
-          required: false
-          in: query
-          description: Number of Statement imports to return per page. Must be between 1 and 100 inclusive; defaults to 20. The cursor is not coupled to page size.
-          schema:
-            minimum: 1
-            maximum: 100
-            default: 20
-            example: 20
-            type: integer
-        - name: cursor
-          required: false
-          in: query
-          description: Opaque base64url cursor for the next page. Reuse it only with the same date filters; cursors encode the fixed statementDate-descending, ID-descending ordering.
-          schema:
-            minLength: 1
-            pattern: ^[A-Za-z0-9_-]+$
-            example: eyJ2ZXJzaW9uIjoxLCJvcmRlcmluZyI6InN0YXRlbWVudERhdGU6ZGVzYy...
-            type: string
-      responses:
-        '200':
-          description: Statement-import history page.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/StatementImportHistoryPageResponseDto'
-        '400':
-          $ref: '#/components/responses/ValidationError'
-        '401':
-          $ref: '#/components/responses/UnauthenticatedError'
-        '403':
-          $ref: '#/components/responses/UserNotProvisionedError'
-        '406':
-          $ref: '#/components/responses/NotAcceptableError'
-        '500':
-          $ref: '#/components/responses/InternalError'
-      summary: List statement-import history in statement-date-descending, ID-descending keyset pages.
-      tags:
-        - Statement imports
-    post:
-      description: Commits the reviewed Statement import and its Transactions as one operation. File names, bank names, card types, and Transaction descriptions are trimmed before storage; amounts are normalized to canonical decimal strings. Exact-file duplicates cannot be acknowledged, while probable duplicate signals require explicit acknowledgement. Client file hashes and internal matching values are never returned.
-      operationId: StatementImports_commitReviewedStatementImport
-      parameters: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CommitReviewedStatementImportDto'
-      responses:
-        '201':
-          description: Statement import committed.
-          headers:
-            Location:
-              required: true
-              description: Relative canonical URI of the created Statement import.
-              schema:
-                type: string
-                example: /api/v1/users/me/spaces/7/statement-imports/42
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/StatementImportResponseDto'
-        '400':
-          $ref: '#/components/responses/ValidationError'
-        '401':
-          $ref: '#/components/responses/UnauthenticatedError'
-        '403':
-          $ref: '#/components/responses/UserNotProvisionedError'
-        '404':
-          $ref: '#/components/responses/NotFoundError'
-        '406':
-          $ref: '#/components/responses/NotAcceptableError'
-        '409':
-          $ref: '#/components/responses/ProbableDuplicateConflict'
-        '413':
-          $ref: '#/components/responses/HttpError'
-        '415':
-          $ref: '#/components/responses/UnsupportedMediaTypeError'
-        '500':
-          $ref: '#/components/responses/InternalError'
-      summary: Commit an already parsed and reviewed statement atomically.
-      tags:
-        - Statement imports
-  /api/v1/users/me/spaces/{spaceId}/statement-imports/category-suggestions:
-    post:
-      description: Evaluates the submitted Transaction description against active Categories in the authorized destination Space. Returns zero to three ordered suggestions and never assigns a Category or commits a Statement Import.
-      operationId: SpaceStatementImports_suggestCategory
-      parameters:
-        - name: spaceId
-          required: true
-          in: path
-          description: Positive bigint Space identifier encoded as a string.
-          schema:
-            type: string
-            pattern: ^[1-9]\d*$
-            example: '7'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/StatementCategorySuggestionRequestDto'
-      responses:
-        '200':
-          description: Zero to three active Category suggestions in rank order.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/StatementCategorySuggestionResponseDto'
-        '400':
-          $ref: '#/components/responses/ValidationError'
-        '401':
-          $ref: '#/components/responses/UnauthenticatedError'
-        '403':
-          $ref: '#/components/responses/UserNotProvisionedError'
-        '404':
-          $ref: '#/components/responses/NotFoundError'
-        '406':
-          $ref: '#/components/responses/NotAcceptableError'
-        '500':
-          $ref: '#/components/responses/InternalError'
-      summary: Suggest up to three ranked Categories for a Transaction.
-      tags:
-        - Statement imports
+        - Expenses
   /api/v1/users/me/spaces/{spaceId}/statement-imports/{statementImportId}:
     get:
       operationId: SpaceStatementImports_getStatementImport
@@ -2665,7 +1462,7 @@ paths:
         - Statement imports
   /api/v1/users/me/spaces/{spaceId}/statement-imports:
     get:
-      description: Returns committed Statement Imports in the authorized Space in statementDate descending, then Statement Import ID descending order. Exact-file and probable-duplicate state is scoped to this destination Space.
+      description: Returns committed Statement Imports in the authorized Space in confirmation-time (importedAt) descending, then Statement Import ID descending order. Inclusive fromDate and toDate filters use the confirmation date in Asia/Manila. The cursor is bound to those filters.
       operationId: SpaceStatementImports_listStatementImports
       parameters:
         - name: spaceId
@@ -2679,7 +1476,7 @@ paths:
         - name: fromDate
           required: false
           in: query
-          description: Inclusive lower Statement import date. It must be a valid calendar date in YYYY-MM-DD format and be on or before toDate when both filters are supplied.
+          description: Inclusive lower Statement confirmation date in Asia/Manila, encoded as a valid calendar date in YYYY-MM-DD format. It must be on or before toDate when both filters are supplied.
           schema:
             format: date
             pattern: ^\d{4}-\d{2}-\d{2}$
@@ -2688,7 +1485,7 @@ paths:
         - name: toDate
           required: false
           in: query
-          description: Inclusive upper Statement import date. It must be a valid calendar date in YYYY-MM-DD format.
+          description: Inclusive upper Statement confirmation date in Asia/Manila, encoded as a valid calendar date in YYYY-MM-DD format.
           schema:
             format: date
             pattern: ^\d{4}-\d{2}-\d{2}$
@@ -2707,7 +1504,7 @@ paths:
         - name: cursor
           required: false
           in: query
-          description: Opaque base64url cursor for the next page. Reuse it only with the same date filters; cursors encode the fixed statementDate-descending, ID-descending ordering.
+          description: Opaque base64url cursor for the next page. Reuse it only with the same date filters; results are ordered by confirmation time descending, then Statement Import ID descending. Page size is not part of the cursor.
           schema:
             minLength: 1
             pattern: ^[A-Za-z0-9_-]+$
@@ -2736,7 +1533,7 @@ paths:
       tags:
         - Statement imports
     post:
-      description: Revalidates reviewed Categories and duplicate state for the destination Space, then commits the Statement Import and all selected Transactions atomically. The confirming User is recorded as immutable actor attribution on the Statement Import and its Transactions; those financial records belong to the destination Space.
+      description: Revalidates reviewed Categories and probable-duplicate state for the destination Space, then commits the Statement Import and every reviewed Expense atomically. The confirming User is recorded as immutable actor attribution on the Statement Import and its Expenses; those financial records belong to the destination Space.
       operationId: SpaceStatementImports_commitReviewedStatementImport
       parameters:
         - name: spaceId
@@ -3014,7 +1811,7 @@ paths:
         - Invitations
 info:
   title: Spendeazy REST API
-  description: The Spendeazy REST API serves financial data in authorized Personal and Shared Spaces. Categories, Budgets, Category Rules, Transactions, and Statement Imports belong to a Space. Transaction Added By and Statement Import importer fields preserve actor attribution without changing Space ownership. Bigint identifiers and counts, decimal money, domain dates, and UTC timestamps use the encodings described by the schemas below.
+  description: The Spendeazy REST API serves financial data in authorized Personal and Shared Spaces through explicit Space-scoped routes. Expenses, Categories, Budgets, Category Rules, and Statement Imports belong to a Space. Expense Added By and Statement Import importer fields preserve actor attribution without changing Space ownership. Bigint identifiers and counts, decimal money, domain dates, and UTC timestamps use the encodings described by the schemas below.
   version: 1.0.0
   contact: {}
 tags:
@@ -3030,8 +1827,8 @@ tags:
     description: Recurring Category Budgets in a Space.
   - name: Category rules
     description: Exact and Contains description-matching rules used during Statement Import categorization.
-  - name: Transactions
-    description: Manual and imported expenses in a Space.
+  - name: Expenses
+    description: Manual and imported Expenses in a Space.
   - name: Statement imports
     description: Reviewed import commits and history in a Space.
   - name: Category summaries
@@ -3136,10 +1933,8 @@ components:
         - BUDGET_NOT_FOUND
         - CATEGORY_RULE_NOT_FOUND
         - CATEGORY_RULE_PATTERN_ALREADY_EXISTS
-        - TRANSACTION_NOT_FOUND
+        - EXPENSE_NOT_FOUND
         - STATEMENT_IMPORT_NOT_FOUND
-        - IMPORTED_TRANSACTION_IMMUTABLE
-        - STATEMENT_IMPORT_FILE_ALREADY_EXISTS
         - STATEMENT_IMPORT_FILE_HASH_INVALID
         - STATEMENT_IMPORT_PROBABLE_DUPLICATES
       description: Stable error code. Human-readable messages are not a compatibility contract.
@@ -3218,21 +2013,21 @@ components:
       properties:
         field:
           type: string
-          example: /transactions/0
+          example: /expenses/0
         code:
           type: string
           enum:
             - probable_duplicate
         message:
           type: string
-        transactionIndexes:
+        expenseIndexes:
           type: array
           items:
             type: integer
             minimum: 0
-        committedTransactionIds:
+        committedExpenseIds:
           type: array
-          description: Public transaction IDs encoded as strings.
+          description: Public Expense IDs encoded as strings.
           items:
             type: string
             pattern: ^[1-9]\d*$
@@ -3241,14 +2036,14 @@ components:
         - field
         - code
         - message
-        - transactionIndexes
-        - committedTransactionIds
+        - expenseIndexes
+        - committedExpenseIds
     CategoryEligibilityDetailDto:
       type: object
       properties:
         field:
           type: string
-          example: /transactions/0/categoryId
+          example: /expenses/0/categoryId
         code:
           type: string
           enum:
@@ -3260,9 +2055,9 @@ components:
           description: The inactive Category assigned to the reviewed rows.
           pattern: ^[1-9]\d*$
           example: '42'
-        transactionIndexes:
+        expenseIndexes:
           type: array
-          description: Zero-based reviewed Transaction indexes requiring correction.
+          description: Zero-based reviewed Expense indexes requiring correction.
           items:
             type: integer
             minimum: 0
@@ -3272,7 +2067,7 @@ components:
         - code
         - message
         - categoryId
-        - transactionIndexes
+        - expenseIndexes
     CategoryResponseDto:
       type: object
       properties:
@@ -3547,16 +2342,6 @@ components:
           description: Categories ordered by ascending Category ID. Active Categories are included even with no spending; inactive Categories are included only when they have spending in the requested period.
           items:
             $ref: '#/components/schemas/CategorySummaryItemResponseDto'
-        uncategorizedTotal:
-          type: string
-          description: Non-negative exact two-decimal spending total for Uncategorized Transactions, encoded as a string and zero when none exist. Aggregate totals are not limited by per-Transaction numeric precision.
-          pattern: ^\d+\.\d{2}$
-          example: '4.50'
-        uncategorizedCount:
-          type: string
-          description: Non-negative count of Uncategorized Transactions encoded as a string.
-          pattern: ^\d+$
-          example: '1'
       description: A complete monthly or yearly Category spending summary for the authorized Space.
       additionalProperties: false
       required:
@@ -3564,8 +2349,6 @@ components:
         - year
         - month
         - categories
-        - uncategorizedTotal
-        - uncategorizedCount
     CategorySummaryItemResponseDto:
       type: object
       properties:
@@ -3587,12 +2370,12 @@ components:
           example: true
         totalAmount:
           type: string
-          description: Non-negative exact two-decimal aggregate spending amount encoded as a string. Aggregate totals are not limited by per-Transaction numeric precision.
+          description: Non-negative exact two-decimal aggregate spending amount encoded as a string. Aggregate totals are not limited by per-Expense numeric precision.
           pattern: ^\d+\.\d{2}$
           example: '1250.00'
-        transactionCount:
+        expenseCount:
           type: string
-          description: Non-negative Transaction count encoded as a string.
+          description: Non-negative Expense count encoded as a string.
           pattern: ^\d+$
           example: '12'
         budgetAmount:
@@ -3614,7 +2397,7 @@ components:
         - name
         - isActive
         - totalAmount
-        - transactionCount
+        - expenseCount
         - budgetAmount
         - remainingAmount
     SpaceMemberResponseDto:
@@ -3765,7 +2548,7 @@ components:
           example: Green   Market
         matchType:
           type: string
-          description: Exact matches the entire normalized Transaction description. Contains matches a literal substring anywhere, including within a word. Matching ignores case and normalizes whitespace; punctuation remains significant. Exact Rules take precedence over Contains Rules during categorization. The mobile client evaluates rules; the normalized pattern is not returned.
+          description: Exact matches the entire normalized Expense description. Contains matches a literal substring anywhere, including within a word. Matching ignores case and normalizes whitespace; punctuation remains significant. Exact Rules take precedence over Contains Rules during categorization. The mobile client evaluates rules; the normalized pattern is not returned.
           enum:
             - exact
             - contains
@@ -3789,6 +2572,24 @@ components:
         - matchType
         - createdAt
         - updatedAt
+    CategoryRuleCollectionResponseDto:
+      type: object
+      properties:
+        rules:
+          description: Rules in ascending ID order.
+          type: array
+          items:
+            $ref: '#/components/schemas/CategoryRuleResponseDto'
+        revision:
+          type: string
+          description: Monotonic Space-scoped revision for stale replacement detection, encoded as a decimal string.
+          pattern: ^\d+$
+          example: '3'
+      description: Category Rules in an authorized Space. The revision covers the complete collection, including an empty collection.
+      additionalProperties: false
+      required:
+        - rules
+        - revision
     CreateCategoryRuleDto:
       type: object
       properties:
@@ -3798,7 +2599,7 @@ components:
             - exact
             - contains
           default: exact
-          description: Exact matches the entire normalized Transaction description. Contains matches a literal substring anywhere, including within a word. Matching ignores case and normalizes whitespace; punctuation remains significant. Exact Rules take precedence over Contains Rules during categorization. Omission creates an Exact Rule, including mobile Remember requests.
+          description: Exact matches the entire normalized Expense description. Contains matches a literal substring anywhere, including within a word. Matching ignores case and normalizes whitespace; punctuation remains significant. Exact Rules take precedence over Contains Rules during categorization. Omission creates an Exact Rule, including mobile Remember requests.
         pattern:
           type: string
           description: Original rule text. Uniqueness trims surrounding whitespace, collapses repeated whitespace, and ignores case within each match type. Rule evaluation belongs to the mobile client.
@@ -3808,7 +2609,7 @@ components:
           example: Green Market
         categoryId:
           type: string
-          description: Positive bigint Category identifier encoded as a decimal JSON string. The Category must be active in the destination Space; the legacy personal route resolves the authenticated User's Personal Space. An inactive Category causes a 409 Conflict.
+          description: Positive bigint Category identifier encoded as a decimal JSON string. The Category must be active in the destination Space. An inactive Category causes a 409 Conflict.
           pattern: ^[1-9]\d*$
           example: '42'
       additionalProperties: false
@@ -3823,7 +2624,7 @@ components:
           enum:
             - exact
             - contains
-          description: Exact matches the entire normalized Transaction description. Contains matches a literal substring anywhere, including within a word. Matching ignores case and normalizes whitespace; punctuation remains significant. Exact Rules take precedence over Contains Rules during categorization. Omission preserves the current match type.
+          description: Exact matches the entire normalized Expense description. Contains matches a literal substring anywhere, including within a word. Matching ignores case and normalizes whitespace; punctuation remains significant. Exact Rules take precedence over Contains Rules during categorization. Omission preserves the current match type.
         pattern:
           type: string
           description: Original rule text. Uniqueness trims surrounding whitespace, collapses repeated whitespace, and ignores case within each match type.
@@ -3856,45 +2657,11 @@ components:
           enum:
             - exact
             - contains
-          description: Exact matches the entire normalized Transaction description. Contains matches a literal substring anywhere, including within a word. Matching ignores case and normalizes whitespace; punctuation remains significant. Exact Rules take precedence over Contains Rules during categorization.
+          description: Exact matches the entire normalized Expense description. Contains matches a literal substring anywhere, including within a word. Matching ignores case and normalizes whitespace; punctuation remains significant. Exact Rules take precedence over Contains Rules during categorization.
       additionalProperties: false
       required:
         - pattern
         - matchType
-    ReplaceCategoryRulesDto:
-      type: object
-      properties:
-        revision:
-          type: string
-          description: The revision returned with the last Space-scoped rule collection. A stale replacement is rejected when another member changed any Rule first.
-          pattern: ^\d+$
-          example: '3'
-        rules:
-          description: Complete desired rule set. Empty removes all rules for this Category.
-          type: array
-          items:
-            $ref: '#/components/schemas/ReplacementCategoryRuleDto'
-      additionalProperties: false
-      required:
-        - rules
-    CategoryRuleCollectionResponseDto:
-      type: object
-      properties:
-        rules:
-          description: Rules in ascending ID order.
-          type: array
-          items:
-            $ref: '#/components/schemas/CategoryRuleResponseDto'
-        revision:
-          type: string
-          description: Monotonic Space-scoped revision for stale replacement detection, encoded as a decimal string.
-          pattern: ^\d+$
-          example: '3'
-      description: Category Rules in an authorized Space. The revision covers the complete collection, including an empty collection.
-      additionalProperties: false
-      required:
-        - rules
-        - revision
     SpaceReplaceCategoryRulesDto:
       type: object
       properties:
@@ -3912,246 +2679,295 @@ components:
       required:
         - revision
         - rules
-    CreateManualTransactionDto:
+    CreateManualExpenseDto:
       type: object
       properties:
-        purchaseDate:
+        expenseDate:
           type: string
-          description: Valid calendar purchase date in YYYY-MM-DD format.
+          description: Valid calendar Expense date in YYYY-MM-DD format.
           format: date
           pattern: ^\d{4}-\d{2}-\d{2}$
           example: '2026-08-01'
         description:
           type: string
-          description: Transaction description, trimmed before storage.
+          description: Expense description, trimmed before storage.
           minLength: 1
           maxLength: 500
           pattern: \S
           example: Coffee
         amount:
           type: string
-          description: Positive exact two-decimal Transaction amount encoded as a string, with up to 13 integer digits.
+          description: Positive exact two-decimal Expense amount encoded as a string, with up to 13 integer digits.
           pattern: ^(?=.*[1-9])\d{1,13}\.\d{2}$
           example: '4.50'
         categoryId:
           type: string
-          description: Positive bigint Category identifier encoded as a string. Omit or set to null to leave the Transaction Uncategorized.
+          description: Required positive bigint Category identifier encoded as a string.
           pattern: ^[1-9]\d*$
-          nullable: true
           example: '42'
       additionalProperties: false
       required:
-        - purchaseDate
+        - expenseDate
         - description
         - amount
-    UpdateManualTransactionDto:
+        - categoryId
+    UpdateManualExpenseDto:
       type: object
       properties:
-        purchaseDate:
+        expenseDate:
           type: string
-          description: Valid calendar purchase date in YYYY-MM-DD format.
+          description: Valid calendar Expense date in YYYY-MM-DD format.
           format: date
           pattern: ^\d{4}-\d{2}-\d{2}$
           example: '2026-08-01'
         description:
           type: string
-          description: Transaction description, trimmed before storage.
+          description: Expense description, trimmed before storage.
           minLength: 1
           maxLength: 500
           pattern: \S
           example: Coffee
         amount:
           type: string
-          description: Positive exact two-decimal Transaction amount encoded as a string, with up to 13 integer digits.
+          description: Positive exact two-decimal Expense amount encoded as a string, with up to 13 integer digits.
           pattern: ^(?=.*[1-9])\d{1,13}\.\d{2}$
           example: '4.50'
         categoryId:
           type: string
-          description: Positive bigint Category identifier encoded as a string. Omit or set to null to leave the Transaction Uncategorized.
+          description: Positive bigint Category identifier encoded as a string.
           pattern: ^[1-9]\d*$
-          nullable: true
           example: '42'
-        updatedAt:
+        expectedRevision:
           type: string
-          description: The UTC timestamp returned by the last read. A stale edit is rejected when another member changed this Transaction first.
-          format: date-time
-          example: '2026-08-29T00:00:00.000Z'
+          description: Opaque decimal revision returned by the last read. A stale edit is rejected.
+          pattern: ^[1-9]\d*$
+          example: '3'
       additionalProperties: false
       minProperties: 1
-    ManualTransactionResponseDto:
+    UpdateSpaceExpenseDto:
+      type: object
+      properties:
+        expenseDate:
+          type: string
+          description: Valid calendar Expense date in YYYY-MM-DD format.
+          format: date
+          pattern: ^\d{4}-\d{2}-\d{2}$
+          example: '2026-08-01'
+        description:
+          type: string
+          description: Expense description, trimmed before storage.
+          minLength: 1
+          maxLength: 500
+          pattern: \S
+          example: Coffee
+        amount:
+          type: string
+          description: Positive exact two-decimal Expense amount encoded as a string, with up to 13 integer digits.
+          pattern: ^(?=.*[1-9])\d{1,13}\.\d{2}$
+          example: '4.50'
+        categoryId:
+          type: string
+          description: Positive bigint Category identifier encoded as a string.
+          pattern: ^[1-9]\d*$
+          example: '42'
+        expectedRevision:
+          type: string
+          description: Opaque decimal revision from the last read; required for edits.
+          pattern: ^[1-9]\d*$
+          example: '3'
+      additionalProperties: false
+      minProperties: 2
+      required:
+        - expectedRevision
+    ManualExpenseResponseDto:
       type: object
       properties:
         id:
           type: string
-          description: Positive bigint Transaction identifier encoded as a string.
+          description: Positive bigint Expense identifier encoded as a string.
           pattern: ^[1-9]\d*$
           example: '100'
         categoryId:
           type: string
-          description: Positive bigint Category identifier encoded as a string, or null when the Transaction is Uncategorized.
+          description: Required positive bigint Category identifier encoded as a string.
           pattern: ^[1-9]\d*$
-          nullable: true
           example: '42'
-        purchaseDate:
+        expenseDate:
           type: string
-          description: Valid calendar purchase date encoded as YYYY-MM-DD.
+          description: Valid calendar Expense date encoded as YYYY-MM-DD.
           format: date
           pattern: ^\d{4}-\d{2}-\d{2}$
           example: '2026-08-01'
         description:
           type: string
-          description: Trimmed Transaction description.
+          description: Trimmed Expense description.
           minLength: 1
           maxLength: 500
           pattern: \S
           example: Coffee
         amount:
           type: string
-          description: Positive exact two-decimal Transaction amount encoded as a string, with up to 13 integer digits.
+          description: Positive exact two-decimal Expense amount encoded as a string, with up to 13 integer digits.
           pattern: ^(?=.*[1-9])\d{1,13}\.\d{2}$
           example: '4.50'
         source:
           type: string
-          description: The Transaction was recorded manually.
+          description: The Expense was recorded manually.
           enum:
             - manual
           example: manual
         addedByUserId:
           type: string
-          description: Positive bigint User identifier of the original Added By actor who recorded or confirmed this Transaction. It is immutable attribution and does not determine Space ownership or identify who paid.
+          description: Positive bigint User identifier of the original Added By actor who recorded or confirmed this Expense. It is immutable attribution and does not determine Space ownership or identify who paid.
           pattern: ^[1-9]\d*$
           example: '7'
         createdAt:
           type: string
-          description: UTC timestamp when the Transaction was created.
+          description: UTC timestamp when the Expense was created.
           format: date-time
           example: '2026-08-29T00:00:00.000Z'
         updatedAt:
           type: string
-          description: UTC timestamp when the Transaction was last updated.
+          description: UTC timestamp when the Expense was last updated.
           format: date-time
           example: '2026-08-29T00:00:00.000Z'
-      description: A manually recorded Transaction in the authorized Space. The original recorder is retained as Added By attribution.
+        revision:
+          type: string
+          description: Opaque decimal revision incremented on each Expense edit or deletion.
+          pattern: ^[1-9]\d*$
+          example: '3'
+      description: A manually recorded Expense in the authorized Space. The original recorder is retained as Added By attribution.
       additionalProperties: false
       required:
         - id
         - categoryId
-        - purchaseDate
+        - expenseDate
         - description
         - amount
         - source
         - createdAt
         - updatedAt
-    ImportedTransactionResponseDto:
+        - revision
+    ImportedExpenseResponseDto:
       type: object
       properties:
         id:
           type: string
-          description: Positive bigint Transaction identifier encoded as a string.
+          description: Positive bigint Expense identifier encoded as a string.
           pattern: ^[1-9]\d*$
           example: '100'
+        statementImportId:
+          type: string
+          description: Positive bigint Statement Import identifier encoded as a string.
+          pattern: ^[1-9]\d*$
+          example: '10'
         categoryId:
           type: string
-          description: Positive bigint Category identifier encoded as a string, or null when the Transaction is Uncategorized.
+          description: Required positive bigint Category identifier encoded as a string.
           pattern: ^[1-9]\d*$
-          nullable: true
           example: '42'
-        purchaseDate:
+        expenseDate:
           type: string
-          description: Valid calendar purchase date encoded as YYYY-MM-DD.
+          description: Valid calendar Expense date encoded as YYYY-MM-DD.
           format: date
           pattern: ^\d{4}-\d{2}-\d{2}$
           example: '2026-08-01'
         description:
           type: string
-          description: Trimmed Transaction description retained from the import.
+          description: Trimmed Expense description retained from the import.
           minLength: 1
           maxLength: 500
           pattern: \S
           example: Coffee
         amount:
           type: string
-          description: Positive exact two-decimal Transaction amount encoded as a string, with up to 13 integer digits.
+          description: Positive exact two-decimal Expense amount encoded as a string, with up to 13 integer digits.
           pattern: ^(?=.*[1-9])\d{1,13}\.\d{2}$
           example: '4.50'
         source:
           type: string
-          description: The Transaction was committed from a reviewed Statement import.
+          description: The Expense was committed from a reviewed Statement import.
           enum:
             - imported
           example: imported
         addedByUserId:
           type: string
-          description: Positive bigint User identifier of the original Added By actor who recorded or confirmed this Transaction. It is immutable attribution and does not determine Space ownership or identify who paid.
+          description: Positive bigint User identifier of the original Added By actor who recorded or confirmed this Expense. It is immutable attribution and does not determine Space ownership or identify who paid.
           pattern: ^[1-9]\d*$
           example: '7'
         createdAt:
           type: string
-          description: UTC timestamp when the Transaction was created.
+          description: UTC timestamp when the Expense was created.
           format: date-time
           example: '2026-08-29T00:00:00.000Z'
         updatedAt:
           type: string
-          description: UTC timestamp when the Transaction was last updated.
+          description: UTC timestamp when the Expense was last updated.
           format: date-time
           example: '2026-08-29T00:00:00.000Z'
-      description: A Transaction committed from a reviewed Statement Import in the authorized Space. The User who confirmed it remains its Added By actor.
+        revision:
+          type: string
+          description: Opaque decimal revision incremented on each Expense edit or deletion.
+          pattern: ^[1-9]\d*$
+          example: '3'
+      description: An Expense committed from a reviewed Statement Import in the authorized Space. The User who confirmed it remains its Added By actor.
       additionalProperties: false
       required:
         - id
+        - statementImportId
         - categoryId
-        - purchaseDate
+        - expenseDate
         - description
         - amount
         - source
         - createdAt
         - updatedAt
-    ManualTransactionHistoryResponseDto:
+        - revision
+    ManualExpenseHistoryResponseDto:
       type: object
       properties:
         id:
           type: string
-          description: Positive bigint Transaction identifier encoded as a string.
+          description: Positive bigint Expense identifier encoded as a string.
           pattern: ^[1-9]\d*$
           example: '100'
         categoryId:
           type: string
-          description: Positive bigint Category identifier encoded as a string, or null when the Transaction is Uncategorized.
+          description: Required positive bigint Category identifier encoded as a string.
           pattern: ^[1-9]\d*$
-          nullable: true
           example: '42'
-        purchaseDate:
+        expenseDate:
           type: string
-          description: Valid calendar purchase date encoded as YYYY-MM-DD.
+          description: Valid calendar Expense date encoded as YYYY-MM-DD.
           format: date
           pattern: ^\d{4}-\d{2}-\d{2}$
           example: '2026-08-01'
         description:
           type: string
-          description: Trimmed Transaction description.
+          description: Trimmed Expense description.
           minLength: 1
           maxLength: 500
           pattern: \S
           example: Coffee
         amount:
           type: string
-          description: Positive exact two-decimal Transaction amount encoded as a string, with up to 13 integer digits.
+          description: Positive exact two-decimal Expense amount encoded as a string, with up to 13 integer digits.
           pattern: ^(?=.*[1-9])\d{1,13}\.\d{2}$
           example: '4.50'
         source:
           type: string
-          description: The Transaction was recorded manually.
+          description: The Expense was recorded manually.
           enum:
             - manual
           example: manual
         addedByUserId:
           type: string
-          description: Positive bigint User identifier of the original Added By actor who recorded or confirmed this Transaction. It is immutable attribution and does not determine Space ownership or identify who paid.
+          description: Positive bigint User identifier of the original Added By actor who recorded or confirmed this Expense. It is immutable attribution and does not determine Space ownership or identify who paid.
           pattern: ^[1-9]\d*$
           example: '7'
         statementImportId:
           type: string
-          description: Manual Transactions are not associated with a Statement import.
+          description: Manual Expenses are not associated with a Statement import.
           enum:
             - null
           pattern: ^[1-9]\d*$
@@ -4159,72 +2975,77 @@ components:
           example: null
         createdAt:
           type: string
-          description: UTC timestamp when the Transaction was created.
+          description: UTC timestamp when the Expense was created.
           format: date-time
           example: '2026-08-29T00:00:00.000Z'
         updatedAt:
           type: string
-          description: UTC timestamp when the Transaction was last updated.
+          description: UTC timestamp when the Expense was last updated.
           format: date-time
           example: '2026-08-29T00:00:00.000Z'
+        revision:
+          type: string
+          description: Opaque decimal revision incremented on each Expense edit or deletion.
+          pattern: ^[1-9]\d*$
+          example: '3'
         deletedAt:
           type: string
-          description: UTC timestamp when the Transaction was deleted. Omitted for active Transactions.
+          description: UTC timestamp when the Expense was deleted. Omitted for active Expenses.
           format: date-time
           example: '2026-09-20T00:00:00.000Z'
-      description: A manually recorded Transaction in the history collection. Manual Transactions have no Statement import relationship.
+      description: A manually recorded Expense in the history collection. Manual Expenses have no Statement import relationship.
       additionalProperties: false
       required:
         - id
         - categoryId
-        - purchaseDate
+        - expenseDate
         - description
         - amount
         - source
         - statementImportId
         - createdAt
         - updatedAt
-    ImportedTransactionHistoryResponseDto:
+        - revision
+    ImportedExpenseHistoryResponseDto:
       type: object
       properties:
         id:
           type: string
-          description: Positive bigint Transaction identifier encoded as a string.
+          description: Positive bigint Expense identifier encoded as a string.
           pattern: ^[1-9]\d*$
           example: '100'
         categoryId:
           type: string
-          description: Positive bigint Category identifier encoded as a string, or null when the Transaction is Uncategorized.
+          description: Required positive bigint Category identifier encoded as a string.
           pattern: ^[1-9]\d*$
-          nullable: true
           example: '42'
-        purchaseDate:
+        expenseDate:
           type: string
-          description: Valid calendar purchase date encoded as YYYY-MM-DD.
+          description: Valid calendar Expense date encoded as YYYY-MM-DD.
           format: date
           pattern: ^\d{4}-\d{2}-\d{2}$
           example: '2026-08-01'
         description:
           type: string
-          description: Trimmed Transaction description retained from the import.
+          description: Trimmed Expense description retained from the import.
           minLength: 1
           maxLength: 500
           pattern: \S
           example: Coffee
         amount:
           type: string
-          description: Positive exact two-decimal Transaction amount encoded as a string, with up to 13 integer digits.
+          description: Positive exact two-decimal Expense amount encoded as a string, with up to 13 integer digits.
           pattern: ^(?=.*[1-9])\d{1,13}\.\d{2}$
           example: '4.50'
         source:
           type: string
-          description: The Transaction was committed from a reviewed Statement import.
+          description: The Expense was committed from a reviewed Statement import.
           enum:
             - imported
           example: imported
         addedByUserId:
           type: string
-          description: Positive bigint User identifier of the original Added By actor who recorded or confirmed this Transaction. It is immutable attribution and does not determine Space ownership or identify who paid.
+          description: Positive bigint User identifier of the original Added By actor who recorded or confirmed this Expense. It is immutable attribution and does not determine Space ownership or identify who paid.
           pattern: ^[1-9]\d*$
           example: '7'
         statementImportId:
@@ -4234,51 +3055,62 @@ components:
           example: '10'
         createdAt:
           type: string
-          description: UTC timestamp when the Transaction was created.
+          description: UTC timestamp when the Expense was created.
           format: date-time
           example: '2026-08-29T00:00:00.000Z'
         updatedAt:
           type: string
-          description: UTC timestamp when the Transaction was last updated.
+          description: UTC timestamp when the Expense was last updated.
           format: date-time
           example: '2026-08-29T00:00:00.000Z'
+        revision:
+          type: string
+          description: Opaque decimal revision incremented on each Expense edit or deletion.
+          pattern: ^[1-9]\d*$
+          example: '3'
         deletedAt:
           type: string
-          description: UTC timestamp when the Transaction was deleted. Omitted for active Transactions.
+          description: UTC timestamp when the Expense was deleted. Omitted for active Expenses.
           format: date-time
           example: '2026-09-20T00:00:00.000Z'
-      description: An imported Transaction in the history collection. Imported Transactions retain their Statement import relationship.
+      description: An imported Expense in the history collection. Imported Expenses retain their Statement import relationship.
       additionalProperties: false
       required:
         - id
         - categoryId
-        - purchaseDate
+        - expenseDate
         - description
         - amount
         - source
         - statementImportId
         - createdAt
         - updatedAt
-    TransactionHistoryPageResponseDto:
+        - revision
+    ExpenseHistoryPageResponseDto:
       type: object
       properties:
         totalCount:
           type: string
-          description: Total number of Transactions matching the filters across all pages.
+          description: Total number of Expenses matching the filters across all pages.
           pattern: ^\d+$
           example: '43'
-        items:
+        totalAmount:
+          type: string
+          description: Exact sum of all matching Expense amounts across the selection, in PHP. The aggregate may exceed one Expense amount.
+          pattern: ^\d+\.\d{2}$
+          example: '12500.00'
+        expenses:
           type: array
-          description: Transactions ordered by purchaseDate descending, then Transaction ID descending. The source discriminator selects manual or imported history relationships.
+          description: Expenses ordered by expenseDate descending, then Expense ID descending. The source discriminator selects manual or imported history relationships.
           items:
             oneOf:
-              - $ref: '#/components/schemas/ManualTransactionHistoryResponseDto'
-              - $ref: '#/components/schemas/ImportedTransactionHistoryResponseDto'
+              - $ref: '#/components/schemas/ManualExpenseHistoryResponseDto'
+              - $ref: '#/components/schemas/ImportedExpenseHistoryResponseDto'
             discriminator:
               propertyName: source
               mapping:
-                manual: '#/components/schemas/ManualTransactionHistoryResponseDto'
-                imported: '#/components/schemas/ImportedTransactionHistoryResponseDto'
+                manual: '#/components/schemas/ManualExpenseHistoryResponseDto'
+                imported: '#/components/schemas/ImportedExpenseHistoryResponseDto'
         nextCursor:
           type: string
           description: Opaque base64url cursor for the next page, or null when there are no more results. A cursor must be reused with the same filters; page size is not part of the cursor.
@@ -4286,47 +3118,47 @@ components:
           pattern: ^[A-Za-z0-9_-]+$
           nullable: true
           example: null
-      description: A keyset-paginated Transaction history page. Results are ordered by purchaseDate descending, then Transaction ID descending. Active pages omit deleted Transactions; retained-history pages contain only deleted Transactions.
+      description: A keyset-paginated Expense history page. Results are ordered by expenseDate descending, then Expense ID descending. Active pages omit deleted Expenses; retained-history pages contain only deleted Expenses.
       additionalProperties: false
       required:
         - totalCount
-        - items
+        - totalAmount
+        - expenses
         - nextCursor
-    TransactionActivitySnapshotDto:
+    ExpenseActivitySnapshotDto:
       type: object
       properties:
         categoryId:
           type: string
-          description: Positive bigint Category identifier encoded as a string, or null when the Transaction was Uncategorized.
+          description: Required positive bigint Category identifier encoded as a string.
           pattern: ^[1-9]\d*$
-          nullable: true
           example: '42'
-        purchaseDate:
+        expenseDate:
           type: string
-          description: Valid calendar purchase date encoded as YYYY-MM-DD.
+          description: Valid calendar Expense date encoded as YYYY-MM-DD.
           format: date
           pattern: ^\d{4}-\d{2}-\d{2}$
           example: '2026-08-01'
         description:
           type: string
-          description: Trimmed Transaction description at the time of the event.
+          description: Trimmed Expense description at the time of the event.
           minLength: 1
           maxLength: 500
           pattern: \S
           example: Coffee
         amount:
           type: string
-          description: Positive exact two-decimal Transaction amount encoded as a string.
+          description: Positive exact two-decimal Expense amount encoded as a string.
           pattern: ^(?=.*[1-9])\d{1,13}\.\d{2}$
           example: '4.50'
-      description: The editable Transaction values captured before or after an edit.
+      description: The editable Expense values captured before or after an edit.
       additionalProperties: false
       required:
         - categoryId
-        - purchaseDate
+        - expenseDate
         - description
         - amount
-    TransactionActivityResponseDto:
+    ExpenseActivityResponseDto:
       type: object
       properties:
         id:
@@ -4334,9 +3166,9 @@ components:
           description: Positive bigint activity identifier encoded as a string.
           pattern: ^[1-9]\d*$
           example: '200'
-        transactionId:
+        expenseId:
           type: string
-          description: Positive bigint Transaction identifier encoded as a string.
+          description: Positive bigint Expense identifier encoded as a string.
           pattern: ^[1-9]\d*$
           example: '100'
         type:
@@ -4358,57 +3190,21 @@ components:
           format: date-time
           example: '2026-08-29T00:00:00.000Z'
         before:
-          description: Transaction values before an edit. Present only for edited events.
+          description: Expense values before an edit or deletion. Older Activity records may omit this snapshot.
           allOf:
-            - $ref: '#/components/schemas/TransactionActivitySnapshotDto'
+            - $ref: '#/components/schemas/ExpenseActivitySnapshotDto'
         after:
-          description: Transaction values after an edit. Present only for edited events.
+          description: Expense values after creation or an edit. Older Activity records may omit this snapshot.
           allOf:
-            - $ref: '#/components/schemas/TransactionActivitySnapshotDto'
-      description: A recorded activity event for a Transaction. Legacy Transactions may have no activity records.
+            - $ref: '#/components/schemas/ExpenseActivitySnapshotDto'
+      description: A recorded activity event for an Expense. Legacy Expenses may have no activity records.
       additionalProperties: false
       required:
         - id
-        - transactionId
+        - expenseId
         - type
         - actorUserId
         - occurredAt
-    UpdateSpaceTransactionDto:
-      type: object
-      properties:
-        purchaseDate:
-          type: string
-          description: Valid calendar purchase date in YYYY-MM-DD format.
-          format: date
-          pattern: ^\d{4}-\d{2}-\d{2}$
-          example: '2026-08-01'
-        description:
-          type: string
-          description: Transaction description, trimmed before storage.
-          minLength: 1
-          maxLength: 500
-          pattern: \S
-          example: Coffee
-        amount:
-          type: string
-          description: Positive exact two-decimal Transaction amount encoded as a string, with up to 13 integer digits.
-          pattern: ^(?=.*[1-9])\d{1,13}\.\d{2}$
-          example: '4.50'
-        categoryId:
-          type: string
-          description: Positive bigint Category identifier encoded as a string. Omit or set to null to leave the Transaction Uncategorized.
-          pattern: ^[1-9]\d*$
-          nullable: true
-          example: '42'
-        updatedAt:
-          type: string
-          description: The UTC timestamp returned by the last read. A Space edit must include it so stale changes are rejected.
-          format: date-time
-          example: '2026-08-29T00:00:00.000Z'
-      additionalProperties: false
-      minProperties: 2
-      required:
-        - updatedAt
     CommitReviewedStatementImportDto:
       type: object
       properties:
@@ -4421,12 +3217,12 @@ components:
           example: august.pdf
         fileHash:
           type: string
-          description: Lowercase SHA-256 digest asserted by the client. It is used for exact-file duplicate detection and is never returned.
+          description: Lowercase SHA-256 digest asserted by the client and retained as import metadata. It is not a unique key and is never returned.
           pattern: ^[0-9a-f]{64}$
           example: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
         statementDate:
           type: string
-          description: Valid calendar statement date encoded as YYYY-MM-DD.
+          description: Valid Credit Card statement date encoded as YYYY-MM-DD.
           format: date
           pattern: ^\d{4}-\d{2}-\d{2}$
           example: '2026-08-31'
@@ -4437,85 +3233,84 @@ components:
             - credit_card
             - e_wallet
           example: credit_card
-        bank:
+        provider:
           type: string
-          description: Statement bank name, trimmed before storage.
+          description: Statement provider name, trimmed before storage.
           minLength: 1
           maxLength: 100
           pattern: \S
           example: Example Bank
-        cardType:
+        accountFormat:
           type: string
-          description: Optional card type, trimmed before storage when supplied.
+          description: Account format, trimmed before storage when supplied.
           minLength: 1
           maxLength: 100
           pattern: \S
           nullable: true
           example: visa
-        transactionHistoryStartDate:
+        historyFromDate:
           type: string
-          description: Inclusive Transaction History Period start for E-Wallet imports. The statementDate field remains the period end for ordering and filtering.
+          description: Inclusive E-Wallet history start date.
           format: date
           pattern: ^\d{4}-\d{2}-\d{2}$
           nullable: true
           example: '2026-08-09'
+        historyToDate:
+          type: string
+          description: Inclusive E-Wallet history end date.
+          format: date
+          pattern: ^\d{4}-\d{2}-\d{2}$
+          nullable: true
+          example: '2026-08-31'
         totalDebit:
           type: string
           description: Original non-negative Total Debit control for E-Wallet imports, encoded as an exact two-decimal string.
           pattern: ^\d{1,13}\.\d{2}$
           nullable: true
           example: '26696.92'
-        transactions:
+        expenses:
           type: array
-          description: Reviewed Transactions to commit. The array may be empty; each row is normalized and validated before it is stored.
+          description: Reviewed Expenses to commit. The array may be empty; each row is normalized and validated before it is stored.
           items:
-            $ref: '#/components/schemas/ReviewedStatementTransactionDto'
+            $ref: '#/components/schemas/ReviewedExpenseDto'
         acknowledgeProbableDuplicates:
           type: boolean
-          description: Acknowledge all probable-duplicate review signals. Defaults to false; exact file duplicates cannot be acknowledged.
+          description: Acknowledge probable-duplicate review signals. Defaults to false; detected duplicate groups require explicit acknowledgement.
           default: false
           example: false
       additionalProperties: false
       required:
         - fileName
         - fileHash
-        - statementDate
         - statementType
-        - bank
-        - transactions
-    ReviewedStatementTransactionDto:
+        - provider
+        - expenses
+    ReviewedExpenseDto:
       type: object
       properties:
         categoryId:
           type: string
-          description: Positive bigint Category identifier encoded as a string. Omit or set to null to leave the imported Transaction Uncategorized.
+          description: Required positive bigint Category identifier encoded as a string.
           pattern: ^[1-9]\d*$
-          nullable: true
           example: '42'
-        purchaseDate:
+        expenseDate:
           type: string
-          description: Valid calendar purchase date encoded as YYYY-MM-DD.
+          description: Valid calendar Expense date encoded as YYYY-MM-DD.
           format: date
           pattern: ^\d{4}-\d{2}-\d{2}$
           example: '2026-08-01'
         description:
           type: string
-          description: Transaction description, trimmed before storage.
+          description: Expense description, trimmed before storage.
           minLength: 1
           maxLength: 500
           pattern: \S
           example: Coffee
         amount:
           type: string
-          description: Positive exact two-decimal Transaction amount encoded as a string, normalized to remove redundant leading zeroes before storage.
+          description: Positive exact two-decimal Expense amount encoded as a string, normalized to remove redundant leading zeroes before storage.
           pattern: ^(?=.*[1-9])\d{1,13}\.\d{2}$
           example: '4.50'
-        categoryMatchConfidence:
-          type: string
-          description: Optional category-match confidence encoded as a decimal string between 0 and 1 inclusive, with up to four fractional digits.
-          pattern: ^(?:0(?:\.\d{1,4})?|1(?:\.0{1,4})?)$
-          nullable: true
-          example: '0.9000'
         reference:
           type: string
           description: Optional source reference used for GCash duplicate review. It is hashed before persistence and is never returned.
@@ -4526,7 +3321,8 @@ components:
           example: '123456789'
       additionalProperties: false
       required:
-        - purchaseDate
+        - categoryId
+        - expenseDate
         - description
         - amount
     StatementImportCollectionQueryDto:
@@ -4534,13 +3330,13 @@ components:
       properties:
         fromDate:
           type: string
-          description: Inclusive lower Statement import date. It must be a valid calendar date in YYYY-MM-DD format and be on or before toDate when both filters are supplied.
+          description: Inclusive lower Statement confirmation date in Asia/Manila, encoded as a valid calendar date in YYYY-MM-DD format. It must be on or before toDate when both filters are supplied.
           format: date
           pattern: ^\d{4}-\d{2}-\d{2}$
           example: '2026-08-01'
         toDate:
           type: string
-          description: Inclusive upper Statement import date. It must be a valid calendar date in YYYY-MM-DD format.
+          description: Inclusive upper Statement confirmation date in Asia/Manila, encoded as a valid calendar date in YYYY-MM-DD format.
           format: date
           pattern: ^\d{4}-\d{2}-\d{2}$
           example: '2026-08-31'
@@ -4553,20 +3349,26 @@ components:
           example: 20
         cursor:
           type: string
-          description: Opaque base64url cursor for the next page. Reuse it only with the same date filters; cursors encode the fixed statementDate-descending, ID-descending ordering.
+          description: Opaque base64url cursor for the next page. Reuse it only with the same date filters; results are ordered by confirmation time descending, then Statement Import ID descending. Page size is not part of the cursor.
           minLength: 1
           pattern: ^[A-Za-z0-9_-]+$
           example: eyJ2ZXJzaW9uIjoxLCJvcmRlcmluZyI6InN0YXRlbWVudERhdGU6ZGVzYy...
       additionalProperties: false
-    StatementImportParamsDto:
+    SpaceStatementImportParamsDto:
       type: object
       properties:
+        spaceId:
+          type: string
+          description: Positive bigint Space identifier encoded as a decimal string.
+          pattern: ^[1-9]\d*$
+          example: '7'
         statementImportId:
           type: string
-          description: Positive bigint Statement import identifier encoded as a string.
+          description: Positive bigint Statement import identifier encoded as a decimal string.
           pattern: ^[1-9]\d*$
           example: '42'
       required:
+        - spaceId
         - statementImportId
     StatementImportResponseDto:
       type: object
@@ -4585,20 +3387,21 @@ components:
           example: august.pdf
         statementDate:
           type: string
-          description: Valid calendar statement date encoded as YYYY-MM-DD.
+          description: Credit Card statement date; null for E-Wallet imports.
           format: date
           pattern: ^\d{4}-\d{2}-\d{2}$
+          nullable: true
           example: '2026-08-31'
-        bank:
+        provider:
           type: string
-          description: Statement bank name retained after trimming.
+          description: Statement provider retained after trimming.
           minLength: 1
           maxLength: 100
           pattern: \S
-          example: Example Bank
-        cardType:
+          example: BDO
+        accountFormat:
           type: string
-          description: Card type retained after trimming, or null when the statement did not provide one.
+          description: Account format retained after trimming, or null when it does not apply.
           minLength: 1
           maxLength: 100
           pattern: \S
@@ -4611,9 +3414,16 @@ components:
             - credit_card
             - e_wallet
           example: credit_card
-        transactionHistoryStartDate:
+        historyFromDate:
           type: string
-          description: Inclusive E-Wallet Transaction History Period start; null for Credit Card imports or legacy imports where this control is unavailable.
+          description: Inclusive E-Wallet history start date; null for Credit Card imports.
+          format: date
+          pattern: ^\d{4}-\d{2}-\d{2}$
+          nullable: true
+          example: null
+        historyToDate:
+          type: string
+          description: Inclusive E-Wallet history end date; null for Credit Card imports.
           format: date
           pattern: ^\d{4}-\d{2}-\d{2}$
           nullable: true
@@ -4640,10 +3450,11 @@ components:
         - id
         - fileName
         - statementDate
-        - bank
-        - cardType
+        - provider
+        - accountFormat
         - statementType
-        - transactionHistoryStartDate
+        - historyFromDate
+        - historyToDate
         - totalDebit
         - importedAt
         - importedByUserId
@@ -4664,20 +3475,21 @@ components:
           example: august.pdf
         statementDate:
           type: string
-          description: Valid calendar statement date encoded as YYYY-MM-DD.
+          description: Credit Card statement date; null for E-Wallet imports.
           format: date
           pattern: ^\d{4}-\d{2}-\d{2}$
+          nullable: true
           example: '2026-08-31'
-        bank:
+        provider:
           type: string
-          description: Statement bank name retained after trimming.
+          description: Statement provider retained after trimming.
           minLength: 1
           maxLength: 100
           pattern: \S
-          example: Example Bank
-        cardType:
+          example: BDO
+        accountFormat:
           type: string
-          description: Card type retained after trimming, or null when the statement did not provide one.
+          description: Account format retained after trimming, or null when it does not apply.
           minLength: 1
           maxLength: 100
           pattern: \S
@@ -4690,9 +3502,16 @@ components:
             - credit_card
             - e_wallet
           example: credit_card
-        transactionHistoryStartDate:
+        historyFromDate:
           type: string
-          description: Inclusive E-Wallet Transaction History Period start; null for Credit Card imports or legacy imports where this control is unavailable.
+          description: Inclusive E-Wallet history start date; null for Credit Card imports.
+          format: date
+          pattern: ^\d{4}-\d{2}-\d{2}$
+          nullable: true
+          example: null
+        historyToDate:
+          type: string
+          description: Inclusive E-Wallet history end date; null for Credit Card imports.
           format: date
           pattern: ^\d{4}-\d{2}-\d{2}$
           nullable: true
@@ -4713,31 +3532,32 @@ components:
           description: Positive bigint User identifier for the actor who confirmed this Statement Import. It is immutable actor attribution; the Committed Statement Import belongs to its Space.
           pattern: ^[1-9]\d*$
           example: '7'
-        transactionCount:
+        expenseCount:
           type: string
-          description: Non-negative committed Transaction count encoded as a string.
+          description: Non-negative current Expense count encoded as a string.
           pattern: ^\d+$
           example: '12'
-      description: A Statement import in the destination Space history collection, including its committed Transaction count.
+      description: A Statement import in the destination Space history collection, including its current Expense count.
       additionalProperties: false
       required:
         - id
         - fileName
         - statementDate
-        - bank
-        - cardType
+        - provider
+        - accountFormat
         - statementType
-        - transactionHistoryStartDate
+        - historyFromDate
+        - historyToDate
         - totalDebit
         - importedAt
         - importedByUserId
-        - transactionCount
+        - expenseCount
     StatementImportHistoryPageResponseDto:
       type: object
       properties:
         items:
           type: array
-          description: Statement imports ordered by statementDate descending, then Statement import ID descending.
+          description: Statement imports ordered by confirmation time (importedAt) descending, then Statement import ID descending.
           items:
             $ref: '#/components/schemas/StatementImportHistoryResponseDto'
         nextCursor:
@@ -4747,70 +3567,11 @@ components:
           pattern: ^[A-Za-z0-9_-]+$
           nullable: true
           example: null
-      description: A keyset-paginated Statement import history page. Items are ordered by statementDate descending, then Statement import ID descending.
+      description: A keyset-paginated Statement import history page. Items are ordered by confirmation time descending, then Statement import ID descending.
       additionalProperties: false
       required:
         - items
         - nextCursor
-    SpaceStatementImportParamsDto:
-      type: object
-      properties:
-        spaceId:
-          type: string
-          description: Positive bigint Space identifier encoded as a decimal string.
-          pattern: ^[1-9]\d*$
-          example: '7'
-        statementImportId:
-          type: string
-          description: Positive bigint Statement import identifier encoded as a decimal string.
-          pattern: ^[1-9]\d*$
-          example: '42'
-      required:
-        - spaceId
-        - statementImportId
-    StatementCategorySuggestionRequestDto:
-      type: object
-      properties:
-        description:
-          type: string
-          description: The reviewed Transaction description to categorize.
-          minLength: 1
-          maxLength: 500
-          pattern: \S
-          example: Market purchase
-      additionalProperties: false
-      required:
-        - description
-    StatementCategorySuggestionItemResponseDto:
-      type: object
-      properties:
-        categoryId:
-          type: string
-          description: Positive bigint Category identifier encoded as a string.
-          pattern: ^[1-9]\d*$
-          example: '42'
-        categoryName:
-          type: string
-          description: The current display name of the active Category.
-          maxLength: 100
-          example: Groceries
-      additionalProperties: false
-      required:
-        - categoryId
-        - categoryName
-    StatementCategorySuggestionResponseDto:
-      type: object
-      properties:
-        suggestions:
-          description: Zero to three ordered suggestions for distinct active Categories.
-          minItems: 0
-          maxItems: 3
-          type: array
-          items:
-            $ref: '#/components/schemas/StatementCategorySuggestionItemResponseDto'
-      additionalProperties: false
-      required:
-        - suggestions
     OutgoingInvitationResponseDto:
       type: object
       properties:
@@ -5046,49 +3807,39 @@ components:
               message: Request bodies must use application/json
               details: []
     ProbableDuplicateConflict:
-      description: Statement import conflicts are stable JSON errors. Exact file duplicates cannot be overridden; probable duplicates require explicit acknowledgement. Internal matching values are never returned.
+      description: Probable duplicate import rows require explicit acknowledgement. Internal matching values are never returned.
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorEnvelopeDto'
           examples:
-            fileAlreadyImported:
-              summary: The same file was already imported for this Space.
-              value:
-                error:
-                  code: STATEMENT_IMPORT_FILE_ALREADY_EXISTS
-                  message: The statement file has already been imported
-                  details:
-                    - field: /fileHash
-                      code: not_unique
-                      message: The statement file has already been imported
             withinSubmission:
               summary: Duplicate rows within the submitted statement only.
               value:
                 error:
                   code: STATEMENT_IMPORT_PROBABLE_DUPLICATES
-                  message: Probable duplicate imported transactions require acknowledgement
+                  message: Probable duplicate imported Expenses require acknowledgement
                   details:
-                    - field: /transactions/0
+                    - field: /expenses/0
                       code: probable_duplicate
-                      message: The reviewed transaction has a probable duplicate
-                      transactionIndexes:
+                      message: The reviewed Expense has a probable duplicate
+                      expenseIndexes:
                         - 0
                         - 2
-                      committedTransactionIds: []
+                      committedExpenseIds: []
             committedMatch:
-              summary: A submitted row matches previously committed imported Transactions.
+              summary: A submitted row matches previously committed imported Expenses.
               value:
                 error:
                   code: STATEMENT_IMPORT_PROBABLE_DUPLICATES
-                  message: Probable duplicate imported transactions require acknowledgement
+                  message: Probable duplicate imported Expenses require acknowledgement
                   details:
-                    - field: /transactions/1
+                    - field: /expenses/1
                       code: probable_duplicate
-                      message: The reviewed transaction has a probable duplicate
-                      transactionIndexes:
+                      message: The reviewed Expense has a probable duplicate
+                      expenseIndexes:
                         - 1
-                      committedTransactionIds:
+                      committedExpenseIds:
                         - '12'
                         - '18'
             categoryInactive:
@@ -5098,11 +3849,11 @@ components:
                   code: CATEGORY_INACTIVE
                   message: Category is inactive
                   details:
-                    - field: /transactions/0/categoryId
+                    - field: /expenses/0/categoryId
                       code: category_inactive
-                      message: The reviewed transaction uses an inactive Category
+                      message: The reviewed Expense uses an inactive Category
                       categoryId: '42'
-                      transactionIndexes:
+                      expenseIndexes:
                         - 0
                         - 2
     RateLimitError:

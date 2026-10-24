@@ -16,4 +16,4 @@ Research, validation reports and specification notes describe their recorded sco
 | Space ownership, membership or archival | [Personal and Shared Spaces](../adr/0002-personal-and-shared-spaces.md) | Ownership/lifecycle current; invitation details superseded by Invite Codes |
 | Invitation lifecycle or joining | [Invite Codes](../adr/0003-invite-codes-for-shared-space-invitations.md) | Current |
 | Native client ownership and browser retirement | [Retire the browser client](../adr/0005-retire-browser-client.md) | Current |
-| Expense/Transaction vocabulary and target API | [Mobile Expense contract](../adr/0004-mobile-expense-domain-and-contract.md) | Accepted target; implementation pending |
+| Expense/Transaction vocabulary and target API | [Mobile Expense contract](../adr/0004-mobile-expense-domain-and-contract.md) | Accepted; Expense foundation implemented, broader contract pending |

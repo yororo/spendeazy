@@ -6,7 +6,7 @@ import {
   SpaceNotFoundError,
   SpaceNotWritableError,
 } from '../../spaces/application/space-errors';
-import { TransactionEntity } from '../../database/entities/transaction.entity';
+import { ExpenseEntity } from '../../database/entities/expense.entity';
 import type {
   StatementImportHistoryRecord,
   StatementImportRecord,
@@ -62,39 +62,14 @@ describe('TypeOrmStatementImportStore', () => {
     });
   });
 
-  it('finds a statement import only within the requested Space scope', async () => {
-    const entity = statementImportEntity({
-      id: '108',
-      spaceId: '55',
-      importedByUserId: '42',
-    });
-    const repository = {
-      findOne: jest.fn().mockResolvedValue(entity),
-    };
-    const store = new TypeOrmStatementImportStore(entityManagerFor(repository));
-
-    await expect(
-      store.findByFileHashInSpace('55', entity.fileHash),
-    ).resolves.toEqual(
-      statementImportRecord({
-        id: '108',
-        spaceId: '55',
-        importedByUserId: '42',
-      }),
-    );
-    expect(repository.findOne).toHaveBeenCalledWith({
-      where: { spaceId: '55', fileHash: entity.fileHash },
-    });
-  });
-
-  it('queries a stable filtered page with transaction counts and a forward-only boundary', async () => {
+  it('queries a stable filtered page with Expense counts and a forward-only boundary', async () => {
     const entities = [
       statementImportEntity({ id: '3', statementDate: '2026-08-03' }),
       statementImportEntity({ id: '2', statementDate: '2026-08-03' }),
     ];
     const query = statementImportPageQuery(entities, [
-      { transactionCount: '12' },
-      { transactionCount: '0' },
+      { expenseCount: '12' },
+      { expenseCount: '0' },
     ]);
     const repository = {
       createQueryBuilder: jest.fn().mockReturnValue(query),
@@ -108,19 +83,22 @@ describe('TypeOrmStatementImportStore', () => {
           fromDate: '2026-08-01',
           toDate: '2026-08-31',
         },
-        after: { statementDate: '2026-08-15', statementImportId: '100' },
+        after: {
+          confirmedAt: '2026-08-15T00:00:00.000Z',
+          statementImportId: '100',
+        },
         pageSize: 2,
       }),
     ).resolves.toEqual([
       statementImportHistoryRecord({
         id: '3',
         statementDate: '2026-08-03',
-        transactionCount: '12',
+        expenseCount: '12',
       }),
       statementImportHistoryRecord({
         id: '2',
         statementDate: '2026-08-03',
-        transactionCount: '0',
+        expenseCount: '0',
       }),
     ]);
 
@@ -129,40 +107,38 @@ describe('TypeOrmStatementImportStore', () => {
       { spaceId: '7' },
     );
     expect(query.andWhere).toHaveBeenCalledWith(
-      'statementImport.statementDate >= :fromDate',
+      "(statementImport.importedAt AT TIME ZONE 'Asia/Manila')::date >= :fromDate",
       { fromDate: '2026-08-01' },
     );
     expect(query.andWhere).toHaveBeenCalledWith(
-      'statementImport.statementDate <= :toDate',
+      "(statementImport.importedAt AT TIME ZONE 'Asia/Manila')::date <= :toDate",
       { toDate: '2026-08-31' },
     );
     expect(query.andWhere).toHaveBeenCalledWith(
-      '(statementImport.statementDate < :cursorDate OR (statementImport.statementDate = :cursorDate AND statementImport.id < :cursorId))',
-      { cursorDate: '2026-08-15', cursorId: '100' },
+      '(statementImport.importedAt < :cursorDate OR (statementImport.importedAt = :cursorDate AND statementImport.id < :cursorId))',
+      { cursorDate: '2026-08-15T00:00:00.000Z', cursorId: '100' },
     );
     expect(query.leftJoin).toHaveBeenCalledWith(
-      TransactionEntity,
-      'transaction',
-      'transaction.statementImportId = statementImport.id AND transaction.spaceId = statementImport.spaceId AND transaction.deletedAt IS NULL',
+      ExpenseEntity,
+      'expense',
+      'expense.statementImportId = statementImport.id AND expense.spaceId = statementImport.spaceId AND expense.deletedAt IS NULL',
     );
     expect(query.addSelect).toHaveBeenCalledWith(
-      'COUNT(transaction.id)',
-      'transactionCount',
+      'COUNT(expense.id)',
+      'expenseCount',
     );
     expect(query.groupBy).toHaveBeenCalledWith('statementImport.id');
     expect(query.orderBy).toHaveBeenCalledWith(
-      'statementImport.statementDate',
+      'statementImport.importedAt',
       'DESC',
     );
     expect(query.addOrderBy).toHaveBeenCalledWith('statementImport.id', 'DESC');
     expect(query.take).toHaveBeenCalledWith(3);
   });
 
-  it('joins transaction counts within the requested Space', async () => {
+  it('joins Expense counts within the requested Space', async () => {
     const entities = [statementImportEntity({ id: '3', spaceId: '55' })];
-    const query = statementImportPageQuery(entities, [
-      { transactionCount: '2' },
-    ]);
+    const query = statementImportPageQuery(entities, [{ expenseCount: '2' }]);
     const repository = {
       createQueryBuilder: jest.fn().mockReturnValue(query),
     };
@@ -180,9 +156,9 @@ describe('TypeOrmStatementImportStore', () => {
       { spaceId: '55' },
     );
     expect(query.leftJoin).toHaveBeenCalledWith(
-      TransactionEntity,
-      'transaction',
-      'transaction.statementImportId = statementImport.id AND transaction.spaceId = statementImport.spaceId AND transaction.deletedAt IS NULL',
+      ExpenseEntity,
+      'expense',
+      'expense.statementImportId = statementImport.id AND expense.spaceId = statementImport.spaceId AND expense.deletedAt IS NULL',
     );
   });
 });
@@ -229,10 +205,11 @@ function statementImportEntity(
     fileName: 'august.pdf',
     fileHash: 'a'.repeat(64),
     statementDate: '2026-08-01',
-    bank: 'Example Bank',
-    cardType: 'visa',
+    provider: 'Example Bank',
+    accountFormat: 'visa',
     statementType: 'credit_card',
-    transactionHistoryStartDate: null,
+    historyFromDate: null,
+    historyToDate: null,
     totalDebit: null,
     importedAt: new Date('2026-08-29T00:00:00.000Z'),
     ...overrides,
@@ -249,10 +226,11 @@ function statementImportRecord(
     fileName: 'august.pdf',
     fileHash: 'a'.repeat(64),
     statementDate: '2026-08-01',
-    bank: 'Example Bank',
-    cardType: 'visa',
+    provider: 'Example Bank',
+    accountFormat: 'visa',
     statementType: 'credit_card',
-    transactionHistoryStartDate: null,
+    historyFromDate: null,
+    historyToDate: null,
     totalDebit: null,
     importedAt: new Date('2026-08-29T00:00:00.000Z'),
     ...overrides,
@@ -268,13 +246,14 @@ function statementImportHistoryRecord(
     importedByUserId: '7',
     fileName: 'august.pdf',
     statementDate: '2026-08-01',
-    bank: 'Example Bank',
-    cardType: 'visa',
+    provider: 'Example Bank',
+    accountFormat: 'visa',
     statementType: 'credit_card',
-    transactionHistoryStartDate: null,
+    historyFromDate: null,
+    historyToDate: null,
     totalDebit: null,
     importedAt: new Date('2026-08-29T00:00:00.000Z'),
-    transactionCount: '2',
+    expenseCount: '2',
     ...overrides,
   };
 }

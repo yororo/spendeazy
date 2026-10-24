@@ -19,10 +19,10 @@ describe('TypeOrmStatementImportConfirmationUnitOfWork', () => {
         expect(context).not.toHaveProperty('entityManager');
         expect(Object.keys(context).sort()).toEqual([
           'categories',
-          'importedTransactions',
+          'expenseActivities',
+          'importedExpenses',
           'spaces',
           'statementImports',
-          'transactionActivities',
           'users',
         ]);
         return Promise.resolve(expectedResult);

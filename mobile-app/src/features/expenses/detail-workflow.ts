@@ -19,9 +19,9 @@ type DetailEvent =
 function detailReducer(state: ExpenseDetailState, event: DetailEvent): ExpenseDetailState {
   switch (event.type) {
     case 'loadRequested':
-      return { ...state, operation: { id: event.id }, phase: 'loading', error: null, failure: null };
+      return { expense: null, operation: { id: event.id }, phase: 'loading', error: null, failure: null };
     case 'cancelled':
-      return { ...state, operation: null };
+      return { expense: null, operation: null, phase: 'loading', error: null, failure: null };
     case 'loadSucceeded':
       if (state.operation?.id !== event.id) return state;
       return { ...state, expense: event.expense, operation: null, phase: 'ready', error: null, failure: null };

@@ -120,6 +120,24 @@ test('a cancelled read cannot publish a success or failure', async () => {
   assert.equal(workflow.snapshot().error, null);
 });
 
+test('retry and cancellation drop a loaded Expense before a later result can return', async () => {
+  const pending = deferred<ListedExpense>();
+  let calls = 0;
+  const workflow = createExpenseDetailWorkflow({ spaceId: 'personal', expenseId: '1' }, () => true, () => {
+    calls += 1;
+    return calls === 1 ? Promise.resolve(expense('Cafe')) : pending.promise;
+  });
+  await workflow.load();
+  const retrying = workflow.retry();
+  assert.equal(workflow.snapshot().phase, 'loading');
+  assert.equal(workflow.snapshot().expense, null);
+  workflow.cancel();
+  pending.resolve(expense('later'));
+  await retrying;
+  assert.equal(workflow.snapshot().expense, null);
+  assert.equal(workflow.snapshot().error, null);
+});
+
 const expense = (description: string, id = '1'): ListedExpense => ({
   id, categoryId: 'food', description, amount: '10.00', expenseDate: '2026-10-24', source: 'manual',
   addedByUserId: 'ada', statementImportId: null, createdAt: 'now', updatedAt: 'now', revision: '1',

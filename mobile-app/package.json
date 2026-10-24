@@ -56,7 +56,7 @@
     "ios": "expo start --ios",
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types --test src/application/spaces/active-space.test.ts src/application/spaces/workflow.test.ts src/navigation/appearance.test.ts src/features/expenses/browse-state.test.ts src/navigation/google-sign-in.test.ts src/features/expenses/manual-draft.test.ts src/navigation/money-amount.test.ts src/application/session.test.ts src/application/session-request.test.ts src/application/session-resource.test.ts src/features/expenses/manual-workflow.test.ts src/api/authorized-request.test.ts src/api/expense-api-client.test.ts src/features/expenses/browse-workflow.test.ts src/features/expenses/browse-view.test.mjs"
+    "test": "node --experimental-strip-types --test src/application/spaces/active-space.test.ts src/application/spaces/workflow.test.ts src/navigation/appearance.test.ts src/features/expenses/browse-state.test.ts src/navigation/google-sign-in.test.ts src/features/expenses/manual-draft.test.ts src/navigation/money-amount.test.ts src/application/session.test.ts src/application/session-request.test.ts src/application/session-resource.test.ts src/features/expenses/manual-workflow.test.ts src/api/authorized-request.test.ts src/api/expense-api-client.test.ts src/features/expenses/browse-workflow.test.ts src/features/expenses/browse-view.test.mjs src/features/expenses/manual-view.test.mjs"
   },
   "private": true
 }

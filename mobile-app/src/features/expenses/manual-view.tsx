@@ -6,17 +6,30 @@ import { BodyText, Screen, StackGap, SupportingText } from '@/components/screen'
 import { TextField } from '@/components/text-field';
 import { space, typeScale } from '@/constants/theme';
 import { useAppTheme } from '@/navigation/app-theme';
-import type { useManualExpense } from './use-manual-expense';
+import type { ManualExpenseDraft, ManualExpenseField } from './manual-draft';
 
-export function ManualExpenseForm({ controller, onBack, onSaved }: {
-  controller: ReturnType<typeof useManualExpense>;
+export type ManualExpenseFormState = {
+  availability: 'missing-space' | 'read-only' | 'editable';
+  draft: ManualExpenseDraft;
+  issues: Partial<Record<ManualExpenseField, string>>;
+  saving: boolean;
+  canSave: boolean;
+  saveError: string | null;
+  selectedCategoryName: string | null;
+  categories: { items: readonly { id: string; name: string }[]; loading: boolean; error: string | null };
+};
+
+export function ManualExpenseForm({ state, onChange, onSave, onRetryCategories, onBack }: {
+  state: ManualExpenseFormState;
+  onChange: (patch: Partial<ManualExpenseDraft>) => void;
+  onSave: () => void;
+  onRetryCategories: () => void;
   onBack: () => void;
-  onSaved: () => void;
 }) {
-  const { active, categories, draft, issues, saving, saveError, activeCategories, selected, update, save } = controller;
+  const { availability, categories, draft, issues, saving, canSave, saveError, selectedCategoryName } = state;
   const { palette, fonts } = useAppTheme();
   const [categoryOpen, setCategoryOpen] = useState(false);
-  if (!active) {
+  if (availability === 'missing-space') {
     return (
       <Screen title="Add Expense">
         <BodyText>Choose a Space before adding an Expense.</BodyText>
@@ -24,7 +37,7 @@ export function ManualExpenseForm({ controller, onBack, onSaved }: {
     );
   }
 
-  if (active.accessLevel !== 'write') {
+  if (availability === 'read-only') {
     return (
       <Screen title="Add Expense">
         <StackGap>
@@ -41,7 +54,7 @@ export function ManualExpenseForm({ controller, onBack, onSaved }: {
         <TextField
           label="Amount"
           value={draft.amount}
-          onChangeText={(amount) => update({ amount })}
+          onChangeText={(amount) => onChange({ amount })}
           error={issues.amount}
           placeholder="12.50"
           keyboardType="decimal-pad"
@@ -49,15 +62,15 @@ export function ManualExpenseForm({ controller, onBack, onSaved }: {
         <TextField
           label="Description"
           value={draft.description}
-          onChangeText={(description) => update({ description })}
+          onChangeText={(description) => onChange({ description })}
           error={issues.description}
           placeholder="What was this Expense?"
         />
         <View style={{ gap: space.fieldLabelGap }}>
           <SupportingText>Category</SupportingText>
           <SecondaryButton
-            label={selected?.name ?? 'Choose Category'}
-            selected={selected !== null}
+            label={selectedCategoryName ?? 'Choose Category'}
+            selected={selectedCategoryName !== null}
             onPress={() => setCategoryOpen(true)}
           />
           {issues.categoryId ? (
@@ -71,7 +84,7 @@ export function ManualExpenseForm({ controller, onBack, onSaved }: {
         <TextField
           label="Date"
           value={draft.expenseDate}
-          onChangeText={(expenseDate) => update({ expenseDate })}
+          onChangeText={(expenseDate) => onChange({ expenseDate })}
           error={issues.expenseDate}
           placeholder="YYYY-MM-DD"
         />
@@ -79,28 +92,28 @@ export function ManualExpenseForm({ controller, onBack, onSaved }: {
         {categories.error ? (
           <StackGap>
             <BodyText>{categories.error}</BodyText>
-            <SecondaryButton label="Retry Categories" onPress={categories.reload} />
+            <SecondaryButton label="Retry Categories" onPress={onRetryCategories} />
           </StackGap>
         ) : null}
         {categories.loading ? <BodyText>Loading Categories.</BodyText> : null}
-        {!categories.loading && !categories.error && activeCategories.length === 0 ? (
+        {!categories.loading && !categories.error && categories.items.length === 0 ? (
           <BodyText>Add a Category in Budget before recording an Expense.</BodyText>
         ) : null}
         {saveError ? <BodyText>{saveError}</BodyText> : null}
         <PrimaryButton
           label={saveError ? 'Try again' : 'Save Expense'}
-          onPress={() => void save().then((saved) => { if (saved) onSaved(); })}
+          onPress={onSave}
           busy={saving}
-          disabled={saving || categories.loading || activeCategories.length === 0}
+          disabled={!canSave}
         />
         <ChoiceSheet title="Category" visible={categoryOpen} onDismiss={() => setCategoryOpen(false)}>
-          {activeCategories.map((category) => (
+          {categories.items.map((category) => (
             <SecondaryButton
               key={category.id}
               label={category.name}
               selected={category.id === draft.categoryId}
               onPress={() => {
-                update({ categoryId: category.id });
+                onChange({ categoryId: category.id });
                 setCategoryOpen(false);
               }}
             />

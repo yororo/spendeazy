@@ -1,5 +1,7 @@
 # Architecture
 
+This guide describes the existing implementation. The accepted [Expense domain and mobile API contract](../docs/specifications/mobile-expense-domain-api.md) specifies the planned breaking replacement, including saved Expense naming, atomic Category configuration, import operation recovery and reporting aggregates. Its [ADR](../docs/adr/0004-mobile-expense-domain-and-contract.md) identifies superseded requirements; source and generated OpenAPI have not changed yet.
+
 API code placement and dependency rules. Paths are relative to `api/`. Use the task map to locate owners; read the affected boundary sections and relevant [ADRs](docs/adr/). [Database design](docs/DATABASE_DESIGN.md) owns schema relationships; [root integration](../README.md#integration-boundary) owns browser/server responsibilities.
 
 ## Task entry points

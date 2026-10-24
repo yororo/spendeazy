@@ -1,5 +1,9 @@
 # Welcome to your Expo app 👋
 
+## Replacement specification
+
+Use the shared [root glossary](../GLOSSARY.md), [Expense domain and mobile API contract](../docs/specifications/mobile-expense-domain-api.md), and [replacement ADR](../docs/adr/0004-mobile-expense-domain-and-contract.md) for the accepted target. These plan the replacement; the starter instructions below are not evidence that its financial workflows or API already exist.
+
 This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
 
 ## Get started

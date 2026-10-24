@@ -41,6 +41,7 @@ describe('public API documentation', () => {
     configureApp(app);
     setupOpenApi(app, document);
     await app.init();
+    await app.listen(0);
   });
 
   afterAll(async () => {

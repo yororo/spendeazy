@@ -123,14 +123,14 @@ jobs:
           cache-dependency-path: mobile-app/package-lock.json
       - run: npm ci
         working-directory: mobile-app
+      - name: Check fictional parser and Category Rule fixtures
+        run: npm run parser:test
+        working-directory: mobile-app
       - name: Lint mobile
         run: npm run lint
         working-directory: mobile-app
       - name: Type-check mobile
         run: npm run typecheck
-        working-directory: mobile-app
-      - name: Check fictional parser and Category Rule fixtures
-        run: npm run parser:test
         working-directory: mobile-app
 
   validate:

@@ -299,6 +299,7 @@ describe('authenticated User routes', () => {
     application = module.createNestApplication();
     configureApp(application);
     await application.init();
+    await application.listen(0);
   });
 
   afterAll(async () => {

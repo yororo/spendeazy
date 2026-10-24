@@ -12,6 +12,42 @@ The supported automated delivery checks cover the API against PostgreSQL and the
 
 There is no browser/API synthetic acceptance stack to start. The root API PostgreSQL launcher creates a uniquely named Compose project, a disposable database volume, and a loopback port for one run. It removes only those resources at exit. Do not replace a separately managed local service when running this command.
 
+## Run a disposable API for manual testing
+
+With Docker Desktop running Linux containers, Docker Compose v2 and Bash (Git Bash
+on Windows, or Bash on Linux/macOS), run from the repository root:
+
+```bash
+bash scripts/run-disposable-api.sh
+```
+
+No host Node.js installation, npm install or `.env` file is needed. The launcher
+builds the API image, generates independent ephemeral database credentials and
+encryption/HMAC keys, starts PostgreSQL with an in-memory data directory, applies
+compiled migrations and waits for API health. It prints the API, health and Swagger
+URLs using a randomly assigned loopback port. Docker needs internet access on the
+first run to download images and npm dependencies, plus enough memory for PostgreSQL
+and the API build.
+
+For authenticated requests, export `CLERK_JWT_KEY`, `CLERK_SECRET_KEY` and
+`CLERK_AUTHORIZED_PARTIES` from a dedicated development Clerk instance before
+launching. Use a one-line PEM public key with literal `\n` separators, and origins
+matching the session token's `azp` claim. Send a short-lived development session
+token as `Authorization: Bearer <token>`. Keep these values out of source control
+and chat. Without Clerk configuration, use the public health and documentation
+routes. The launcher does not read `api/.env` or seed users/data.
+
+Keep the terminal open; Ctrl+C removes that run's containers, network, data and
+tagged API image. Repeated or concurrent invocations create independent fresh
+stacks without changing other services. Docker build caches and downloaded base
+images remain reusable. Cleanup runs on normal exit, startup failure, SIGINT and
+SIGTERM; SIGKILL, terminal crashes or Docker daemon failure can prevent cleanup.
+For such interrupted runs, find the project with `docker compose ls --all`, then
+run `docker compose -p <exact-project-name> -f local-test/disposable-api.compose.yml
+down --volumes` and `docker image rm <exact-project-name>:local` from the repository
+root. The project names begin with `spendeazy-disposable-`. All database contents
+are temporary; this launcher is for manual testing, separate from the required suite.
+
 ## Run the required isolated API/PostgreSQL suite
 
 From the repository root:

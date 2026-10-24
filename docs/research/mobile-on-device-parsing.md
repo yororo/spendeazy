@@ -2,6 +2,8 @@
 
 Research for [Identify viable on-device PDF extraction for the supported statements](https://github.com/yororo/spendeazy/issues/126), inspected 2026-10-22. Evidence report only: no extractor selected, installed or tested on devices.
 
+This report predates [ticket #141](https://github.com/yororo/spendeazy/issues/141). Its browser source paths are historical; the current selected prototype and remaining evidence gates are in [the parser proof](../../mobile-app/src/prototypes/parser-proof/README.md) and [issue #138](https://github.com/yororo/spendeazy/issues/138).
+
 ## Recommendation and limits
 
 Prototype two candidates: **bundled PDF.js in a restricted local WebView**, and **a local Expo module wrapping platform PDF APIs**. Start with the bundled engine because one extraction implementation may reduce cross-platform layout differences; this is an inference, not a measured result. The native option has an important constraint: Android page text extraction and password-capable loading require API 35. The product must explicitly decide whether that Android floor is acceptable; otherwise another embedded engine or a verified backport is needed. Do not raise the minimum OS silently.
@@ -10,13 +12,13 @@ Only BDO Amex, EastWest Visa and GCash E-Wallet PDFs are in scope. No PayPal, CS
 
 ## Existing code: reuse candidates, not portability proof
 
-Inspected repository revision [67de6bb](https://github.com/yororo/spendeazy/tree/67de6bb).
+Inspected repository revision [67de6bb](https://github.com/yororo/spendeazy/tree/67de6bb); references below are pinned to that historical source state.
 
-- [pdf-extractor.ts](../../web/src/features/statement-import/statement-parser/pdf-extractor.ts) depends on browser File, Vite base URLs and PDFParse worker assets. It uses stopAtErrors, per-page text, password errors and final cleanup. Replace this seam; installing pdf-parse under Hermes is not evidence it works there.
-- [transformer.ts](../../web/src/features/statement-import/statement-parser/transformer.ts) dispatches the three provider transformations. Copy appropriate pure transformation, reconciliation, money/date and matching logic into mobile ownership without modifying web. Adapt alias/raw fixture imports to the new tooling.
-- [GCash parsing](../../web/src/features/statement-import/statement-parser/gcash-ewallet-transformer.ts) depends on line-based table headers and column patterns. A new engine's text order and line breaks are therefore a conformance gate. Joining arbitrary text runs does not prove matching output.
-- [statement-categorizer.ts](../../web/src/features/statement-import/statement-categorizer.ts) logs full extracted text and changes amount signs. Do not transplant that logging into mobile; reassess payment/credit and sign rules under the new domain contract.
-- [Provider text fixtures](../../web/docs/pdf-parser/) and [fictional plain/encrypted browser PDFs](../../web/e2e/fixtures/README.md) are useful starting evidence, not full provider PDF coverage.
+- Historical [pdf-extractor.ts](https://github.com/yororo/spendeazy/blob/67de6bb/web/src/features/statement-import/statement-parser/pdf-extractor.ts) depended on browser File, Vite base URLs and PDFParse worker assets. It used stopAtErrors, per-page text, password errors and final cleanup. Installing pdf-parse under Hermes was not evidence it worked there.
+- Historical [transformer.ts](https://github.com/yororo/spendeazy/blob/67de6bb/web/src/features/statement-import/statement-parser/transformer.ts) dispatched the three provider transformations. Suitable pure transformation, reconciliation, money/date and matching logic has since moved to mobile ownership.
+- Historical [GCash parsing](https://github.com/yororo/spendeazy/blob/67de6bb/web/src/features/statement-import/statement-parser/gcash-ewallet-transformer.ts) depended on line-based table headers and column patterns. A new engine's text order and line breaks were a conformance gate.
+- Historical [statement-categorizer.ts](https://github.com/yororo/spendeazy/blob/67de6bb/web/src/features/statement-import/statement-categorizer.ts) logged full extracted text and changed amount signs. Do not transplant that logging; reassess payment/credit and sign rules under the new domain contract.
+- Historical [provider text fixtures](https://github.com/yororo/spendeazy/tree/67de6bb/web/docs/pdf-parser/) and [fictional PDFs](https://github.com/yororo/spendeazy/tree/67de6bb/web/e2e/fixtures/) are useful evidence inputs, not full provider PDF coverage.
 
 ## Candidate evidence
 
@@ -54,4 +56,4 @@ These are prototype requirements, not implemented guarantees:
 
 ## Validation status
 
-No runtime implementation, dependency installation, native compilation or hardware parsing test occurred. The report was checked for source links and whitespace. Parent attempted the required root command `node scripts/local-test-launcher.mjs --e2e`; it stopped before tests because the Docker Desktop Linux engine pipe was unavailable. Root checks are blocked, not passed. No mobile lint/typecheck or runtime-validation claim is made for this documentation-only change. This research resolves available approaches and required evidence; it does not close the prototype or select the production extractor.
+At report time, no runtime implementation, dependency installation, native compilation or hardware parsing test occurred. The then-required root browser launcher stopped before tests because the Docker Desktop Linux engine pipe was unavailable. That historical result was blocked, not passed; the command is retired. This research does not establish native certification or close the parser gates.

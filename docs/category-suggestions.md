@@ -1,23 +1,18 @@
-# Category Suggestions integration
+# Category Suggestions integration (legacy API capability)
 
-## Implementation entry points
+This reference describes the optional server-side TypeSafe Category Suggestions capability in the current legacy API. The browser consumer has been retired. The accepted [mobile Expense contract](specifications/mobile-expense-domain-api.md) excludes remote Category Suggestions, so this endpoint is not part of the target native workflow and has no active first-party caller.
+
+## API implementation and coverage
 
 | Boundary | Owner / coverage |
 | --- | --- |
-| Browser coordination, deduplication, cache, cancellation | [Coordinator](../web/src/features/statement-import/use-statement-category-suggestions.ts), [browser acceptance](../web/e2e/statement-import-category-suggestions.spec.ts) |
 | Authorization, selection, validation | [Application service](../api/src/statement-imports/application/statement-category-suggestions.service.ts), [Space endpoint](../api/src/statement-imports/presentation/space-statement-imports.controller.ts) |
 | External request and SDK limits | [Request builder](../api/src/statement-imports/infrastructure/typesafe-category-suggestion-request.ts), [evaluator](../api/src/statement-imports/infrastructure/typesafe-category-suggestion-evaluator.ts) |
 | Space-scoped history/catalog | [Catalog](../api/src/statement-imports/infrastructure/typeorm-statement-category-suggestion-catalog.ts), [PostgreSQL coverage](../api/test/statement-category-suggestions-postgres.e2e-spec.ts) |
 
 ## Flow and fallback
 
-During Categorize, the browser requests suggestions for included Unmapped Transactions. The API requires an authenticated User with write access to the destination Space; catalog/history queries use that authorized Space.
-
-Set **TYPESAFE_API_KEY** in the API environment to enable TypeSafe. An unset key, failed calls, or invalid responses return zero suggestions; manual Category selection remains available.
-
-## Deduplication and cache
-
-The browser coordinator deduplicates descriptions by trimming, collapsing whitespace, and ignoring case; it sends the first description value. Results are keyed by destination Space, Category catalog, and normalized description in memory for one coordinator instance, without time-based expiry. Recreating the coordinator or changing Space/catalog can cause new requests. There is no shared or persistent API-side cache. These rules do not establish measured latency/cost savings; TypeSafe retention policies have not been verified.
+The endpoint requires an authenticated User with write access to the destination Space; catalog/history queries use that authorized Space. Set `TYPESAFE_API_KEY` in the API environment to enable TypeSafe. An unset key, failed calls, or invalid responses return zero suggestions. The service never assigns a Category; callers remain responsible for explicit user choice. The current mobile app does not call this endpoint.
 
 ## Data sent to TypeSafe
 
@@ -33,6 +28,6 @@ The API allows at most 254 active Categories (255 choices including no-category)
 
 ## Validation and request limits
 
-The TypeSafe question instructs the model to treat state text as untrusted and ignore embedded directions; this guidance does not prove prompt-injection prevention. The API accepts only current Category IDs or no-category, validates exact probability keys/distribution, applies display thresholds, and rechecks that returned Categories are active in the same Space. Suggestions do not assign a Category; the User chooses during Categorize.
+The TypeSafe question instructs the model to treat state text as untrusted and ignore embedded directions; this guidance does not prove prompt-injection prevention. The API accepts only current Category IDs or no-category, validates exact probability keys/distribution, applies display thresholds, and rechecks that returned Categories are active in the same Space.
 
-TypeSafe SDK requests use a 2.5-second timeout and zero retries. Browser API requests use a 10-second timeout and at most three concurrent requests per coordinator. These establish neither an API-wide quota/concurrency limit nor a bound on the complete backend request, including authorization/database work.
+TypeSafe SDK requests use a 2.5-second timeout and zero retries. No API-wide quota/concurrency limit or bound on the complete backend request, including authorization/database work, is established. Remove this legacy capability when implementing the accepted target API, which forbids remote Category Suggestions.

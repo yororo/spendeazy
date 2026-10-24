@@ -14,7 +14,7 @@ describe('OfficialClerkTokenVerifier', () => {
     verifyTokenMock.mockReset();
   });
 
-  it('verifies with the configured PEM key and authorized frontend parties', async () => {
+  it('verifies with the configured PEM key and authorized parties', async () => {
     verifyTokenMock.mockResolvedValue({
       sub: 'user_42',
       sid: 'session_42',
@@ -48,7 +48,6 @@ function testAppConfig(): AppConfig {
     environment: 'test',
     port: 3000,
     databaseUrl: undefined,
-    corsOrigins: [],
     clerkJwtKey: 'pem-public-key',
     clerkSecretKey: 'test-secret-key',
     clerkAuthorizedParties: ['https://app.example.com'],

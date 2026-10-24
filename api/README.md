@@ -1,24 +1,24 @@
 # Spendeazy API
 
-NestJS REST backend for [Spendeazy Web](../web/README.md). Private routes use `/api/v1` and Clerk session tokens (`Authorization: Bearer <token>`); health/documentation are public. Commands and paths below are relative to `api/`.
+NestJS REST backend for the native Spendeazy client. Private routes use `/api/v1` and Clerk session tokens (`Authorization: Bearer <token>`); health and documentation routes are public. The current API still implements the legacy Transaction-oriented runtime; [the accepted mobile Expense contract](../docs/specifications/mobile-expense-domain-api.md) is a target specification, not implemented API behavior. Commands and paths below are relative to `api/`.
 
 ## Setup and run
 
 Requires Node.js, npm, and PostgreSQL.
 
 ```bash
-npm install
+npm ci
 cp .env.example .env
 ```
 
 | Setting | Requirement / meaning |
 | --- | --- |
-| `DATABASE_URL` | Local PostgreSQL database; required in production |
-| `CLERK_JWT_KEY`, `CLERK_SECRET_KEY` | Clerk PEM public key for token verification and backend secret for authoritative profiles; required in production and for ordinary authenticated development |
-| `CLERK_AUTHORIZED_PARTIES`, `CORS_ORIGINS` | Explicit allowed frontend origins; required in production. Use the same Clerk instance as web |
+| `DATABASE_URL` | PostgreSQL database; required in production |
+| `CLERK_JWT_KEY`, `CLERK_SECRET_KEY` | Clerk PEM public key for token verification and backend secret for authoritative profiles; required in production and ordinary authenticated development |
+| `CLERK_AUTHORIZED_PARTIES` | Comma-separated HTTP(S) origins accepted in Clerk `azp` claims; required in production. Configure for the identity/token flow in use |
 | `INVITATION_CODE_ENCRYPTION_KEY` | 32-byte hexadecimal key required whenever a database is configured; protects sender-only reversible Invite Code display alongside a separate HMAC lookup value |
 | `GCASH_REFERENCE_HASH_KEY` | Separate stable 32-byte hexadecimal key required whenever a database is configured; HMAC-protects persisted GCash references, which are never returned. Retain across deployments for stable duplicate detection |
-| `TYPESAFE_API_KEY` | Optional Category Suggestions; [integration reference](../docs/category-suggestions.md) owns data sent, bounds, cache, and failure behavior |
+| `TYPESAFE_API_KEY` | Optional legacy Category Suggestions integration; [integration reference](../docs/category-suggestions.md) owns data sent, bounds, cache, and failure behavior |
 
 Generate each hexadecimal secret independently with `node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"`; keep secrets outside source control. `.env.example` lists settings; `src/config/app-config.ts` validates them. Shared Space archive notifications are in-app; no email provider setup is required.
 
@@ -33,13 +33,13 @@ API: `http://localhost:3000/api/v1`; health: `http://localhost:3000/health`; doc
 
 ### Development seed/reset
 
-`npm run db:seed` loads deterministic data. `npm run db:reset-seed` removes application data from the configured local database and reloads it. Both are restricted to non-production environments and local databases; choose reset only when removing that data is intended.
+`npm run db:seed` loads deterministic data. `npm run db:reset-seed` removes application data from the configured database and reloads it. Reset is destructive: before running it, verify the complete `DATABASE_URL` resolves to a dedicated disposable local development database. Never use it against a normal shared or production database.
 
 ## Test
 
-`npm test` runs unit tests; `npm run test:e2e` runs HTTP/PostgreSQL integration suites. Default suites use test doubles for Clerk; [real Clerk testing](docs/LOCAL_TESTING.md) is separate. [API guidance](AGENTS.md#validation) owns required checks and focused commands; additional scripts are in `package.json`.
+`npm test -- --runInBand` runs unit tests. `npm run test:postgres` runs all required HTTP/PostgreSQL integration suites and fails when any required `TEST_*_DATABASE_URL` is unset or two suites share a database. Use the root [isolated API/PostgreSQL launcher](../docs/local-testing.md#run-the-required-isolated-apipostgresql-suite) to provision one disposable database per suite. The historical ownership migration suite also receives its own empty pre-Space database. Automated suites use Clerk test doubles; [real Clerk testing](docs/LOCAL_TESTING.md) is separate.
 
-PostgreSQL suites skip when their variable is unset. A skipped suite provides no coverage. Set the affected variables to disposable databases:
+The required integration database variables are:
 
 | Suite | Database URL variable |
 | --- | --- |
@@ -52,13 +52,11 @@ PostgreSQL suites skip when their variable is unset. A skipped suite provides no
 | Imported Transaction/Space provenance | `TEST_TRANSACTION_STATEMENT_IMPORT_SPACE_DATABASE_URL` |
 | Category Suggestions | `TEST_STATEMENT_CATEGORY_SUGGESTIONS_DATABASE_URL` |
 | Invitations | `TEST_INVITATIONS_DATABASE_URL` |
-| Historical ownership migration | `TEST_FINANCIAL_OWNERSHIP_MIGRATION_DATABASE_URL` — separate, empty disposable database; starts from the pre-Space schema |
-
-The [synthetic launcher](../docs/local-testing.md#run-the-isolated-browser-suite) supplies a disposable rollback-suite database and runs real browser/API acceptance. It does not configure every PostgreSQL suite above.
+| Historical ownership migration | `TEST_FINANCIAL_OWNERSHIP_MIGRATION_DATABASE_URL` — separate, empty disposable database starting from the pre-Space schema |
 
 ## OpenAPI contract
 
-Nest controller/DTO metadata and the shared document factory generate the contract. `docs/openapi.yaml` is the canonical committed YAML specification; keep it only in the API project. `docs/openapi.json` is generated from the same document for JSON tooling. Runtime `/docs`, `/docs-json`, and `/docs-yaml` use that document.
+Nest controller/DTO metadata and the shared document factory generate the contract. `docs/openapi.yaml` is the canonical committed YAML specification; `docs/openapi.json` is generated from the same document for JSON tooling. Runtime `/docs`, `/docs-json`, and `/docs-yaml` use that document.
 
 After changing a route, DTO, or contract annotation:
 
@@ -68,4 +66,4 @@ npm run openapi:generate
 npm run openapi:check
 ```
 
-The check fails if either artifact is missing or differs from deterministic regeneration. Root CI also runs it. Inspect affected paths/referenced schemas and web adapters together; update contract tests and validate both projects. [Route compatibility](docs/route-compatibility.md) owns Personal aliases, explicit Space routes, and deprecation prerequisites.
+The check fails if either artifact is missing or differs from deterministic regeneration. Root CI also runs it. Inspect affected paths and referenced schemas together; update contract tests and coordinate any mobile adapter change. [Route compatibility](docs/route-compatibility.md) describes the current legacy route surface and its supersession by the accepted target contract.

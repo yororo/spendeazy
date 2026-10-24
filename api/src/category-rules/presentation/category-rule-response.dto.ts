@@ -16,7 +16,7 @@ type ApiSchemaOptionsWithAdditionalProperties = {
 
 @ApiSchema({
   description:
-    'A Category Rule belonging to the authorized Space. The original pattern is retained for display. Rule evaluation is performed by the frontend.',
+    'A Category Rule belonging to the authorized Space. The original pattern is retained for display. Rule evaluation is performed by the mobile client.',
   additionalProperties: false,
 } as ApiSchemaOptionsWithAdditionalProperties)
 export class CategoryRuleResponseDto {
@@ -46,7 +46,7 @@ export class CategoryRuleResponseDto {
   pattern!: string;
 
   @ApiProperty({
-    description: `${CATEGORY_RULE_MATCH_TYPE_DESCRIPTION} The frontend evaluates rules; the normalized pattern is not returned.`,
+    description: `${CATEGORY_RULE_MATCH_TYPE_DESCRIPTION} The mobile client evaluates rules; the normalized pattern is not returned.`,
     enum: CATEGORY_RULE_MATCH_TYPES,
     example: EXACT_CATEGORY_RULE_MATCH_TYPE,
   })

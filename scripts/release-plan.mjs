@@ -3,10 +3,8 @@ import { appendFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const uploadSteps = {
-  web: ["Build and deploy"],
-  api: ["Deploy migration-tested container image", "Build and deploy container image"],
-};
+const apiDeploymentStep = "Deploy migration-tested container image";
+const apiJobName = "Build and deploy API";
 const sharedReleasePaths = [
   "scripts/release-plan.mjs",
   "scripts/verify-release-gates.mjs",
@@ -23,8 +21,7 @@ function readPage(path, fields) {
   }));
 }
 
-export function findPublishedRevisions(repository, fetchPage = readPage) {
-  const published = {};
+export function findLastApiPublication(repository, fetchPage = readPage) {
   // Bound history to the latest 100 main runs, fetched in small pages.
   for (let page = 1; page <= 5; page += 1) {
     const { workflow_runs: runs } = fetchPage(
@@ -38,25 +35,22 @@ export function findPublishedRevisions(repository, fetchPage = readPage) {
           `repos/${repository}/actions/runs/${run.id}/jobs?filter=latest&per_page=50&page=${jobPage}`,
           jobFields,
         );
-        for (const project of ["web", "api"]) {
-          const jobName = `Build and deploy ${project === "api" ? "API" : "web"}`;
-          if (!published[project] && jobs.some(job =>
-            (job.name === jobName || job.name.endsWith(` / ${jobName}`)) &&
-            job.steps.some(step => uploadSteps[project].includes(step.name) && step.conclusion === "success"),
-          )) published[project] = run.head_sha;
-        }
-        if ((published.web && published.api) || jobs.length < 50) break;
+        const deployed = jobs.some(job =>
+          (job.name === apiJobName || job.name.endsWith(` / ${apiJobName}`)) &&
+          job.steps.some(step => step.name === apiDeploymentStep && step.conclusion === "success"),
+        );
+        if (deployed) return run.head_sha;
+        if (jobs.length < 50) break;
       }
-      if (published.web && published.api) return published;
     }
     if (runs.length < 20) break;
   }
-  return published;
+  return undefined;
 }
 
-export function projectNeedsPublication(project, baseline, changedFiles) {
+export function apiNeedsPublication(baseline, changedFiles) {
   return !baseline || changedFiles.some(path =>
-    path.startsWith(`${project}/`) || path.startsWith(".github/workflows/") || sharedReleasePaths.includes(path),
+    path.startsWith("api/") || path.startsWith(".github/workflows/") || sharedReleasePaths.includes(path),
   );
 }
 
@@ -64,17 +58,14 @@ function main() {
   const repository = process.env.GITHUB_REPOSITORY;
   const revision = process.env.GITHUB_SHA;
   if (!repository || !revision || !process.env.GITHUB_OUTPUT) throw new Error("Release planning requires GitHub Actions context.");
-  const published = findPublishedRevisions(repository);
-  for (const project of ["web", "api"]) {
-    const baseline = published[project];
-    const files = baseline ? execFileSync("git", ["diff", "--name-only", "-z", baseline, revision], {
-      encoding: "utf8",
-      maxBuffer: 4 * 1024 * 1024,
-    }).split("\0") : [];
-    const changed = projectNeedsPublication(project, baseline, files);
-    appendFileSync(process.env.GITHUB_OUTPUT, `${project}=${changed}\n`);
-    console.log(`${project}: ${changed ? "publish" : "unchanged"}; last successful upload ${baseline ?? "unknown"}; source ${revision}`);
-  }
+  const baseline = findLastApiPublication(repository);
+  const files = baseline ? execFileSync("git", ["diff", "--name-only", "-z", baseline, revision], {
+    encoding: "utf8",
+    maxBuffer: 4 * 1024 * 1024,
+  }).split("\0") : [];
+  const changed = apiNeedsPublication(baseline, files);
+  appendFileSync(process.env.GITHUB_OUTPUT, `api=${changed}\n`);
+  console.log(`api: ${changed ? "publish" : "unchanged"}; last successful upload ${baseline ?? "unknown"}; source ${revision}`);
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main();

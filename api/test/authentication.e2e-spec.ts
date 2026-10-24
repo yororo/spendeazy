@@ -43,7 +43,7 @@ describe('Clerk authentication', () => {
     }).compile();
 
     testApp = module.createNestApplication();
-    configureApp(testApp, testConfig);
+    configureApp(testApp);
     await testApp.init();
   });
 
@@ -121,34 +121,6 @@ describe('Clerk authentication', () => {
       await request(testHttpServer()).head(path).expect(200);
     },
   );
-
-  it('allows the Authorization header only from configured CORS origins without cookies', async () => {
-    const preflight = await request(testHttpServer())
-      .options('/api/v1/users')
-      .set('Origin', 'https://app.example.com')
-      .set('Access-Control-Request-Method', 'GET')
-      .set('Access-Control-Request-Headers', 'Authorization');
-
-    expect(preflight.status).toBe(204);
-    expect(preflight.headers['access-control-allow-origin']).toBe(
-      'https://app.example.com',
-    );
-    expect(preflight.headers['access-control-allow-headers']).toContain(
-      'Authorization',
-    );
-    expect(
-      preflight.headers['access-control-allow-credentials'],
-    ).toBeUndefined();
-
-    const disallowedOrigin = await getProtectedResource(
-      'Bearer valid-session-token',
-      'https://malicious.example.com',
-    );
-    expect(disallowedOrigin.status).toBe(200);
-    expect(
-      disallowedOrigin.headers['access-control-allow-origin'],
-    ).toBeUndefined();
-  });
 });
 
 @Controller('users')
@@ -208,16 +180,12 @@ const testConfig: AppConfig = {
   environment: 'test',
   port: 3000,
   databaseUrl: undefined,
-  corsOrigins: ['https://app.example.com'],
   clerkJwtKey: 'test-jwt-key',
   clerkSecretKey: 'test-secret-key',
   clerkAuthorizedParties: ['https://app.example.com'],
 };
 
-function getProtectedResource(
-  authorization: string | undefined,
-  origin?: string,
-) {
+function getProtectedResource(authorization: string | undefined) {
   const protectedRequest = request(testHttpServer())
     .get('/api/v1/users')
     .set('Accept', 'application/json');
@@ -225,10 +193,6 @@ function getProtectedResource(
   if (authorization !== undefined) {
     protectedRequest.set('Authorization', authorization);
   }
-  if (origin !== undefined) {
-    protectedRequest.set('Origin', origin);
-  }
-
   return protectedRequest;
 }
 

@@ -1,18 +1,12 @@
-name: Deploy Spendeazy
+name: Deploy API
 
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
-    types: [opened, synchronize, reopened, closed]
   workflow_dispatch:
     inputs:
-      project:
-        description: Project to deploy
-        type: choice
-        default: all
-        options: [all, web, api]
       verify_only:
         description: Exercise release gates without publishing to Azure
         type: boolean
@@ -27,7 +21,6 @@ permissions:
 
 jobs:
   validate:
-    if: github.event_name != 'pull_request' || github.event.action != 'closed'
     # Validation is cancellable and never holds the publication lock.
     concurrency:
       group: validation-${{ github.event_name }}-${{ github.event.number || github.ref }}-${{ github.event_name == 'workflow_dispatch' && github.run_id || 'automatic' }}
@@ -37,10 +30,9 @@ jobs:
       force_failure: ${{ inputs.verify_only == true && inputs.fail_validation == true }}
 
   gate:
-    # Preserve main's existing required status-check identity.
-    name: Validate projects and isolated browser suite
+    name: Validate API, PostgreSQL and mobile
     needs: [validate]
-    if: always() && (github.event_name != 'pull_request' || github.event.action != 'closed')
+    if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -51,21 +43,16 @@ jobs:
 
   publish:
     needs: [validate, gate]
-    # Dependabot PRs validate normally but have no Actions deployment secrets.
     if: >-
       always() && !cancelled() &&
-      (github.event_name != 'pull_request' || github.event.pull_request.user.login != 'dependabot[bot]') &&
-      ((github.event_name == 'pull_request' && github.event.action == 'closed') ||
-      (needs.gate.result == 'success' && needs.validate.result == 'success'))
+      needs.gate.result == 'success' && needs.validate.result == 'success' &&
+      (github.event_name == 'workflow_dispatch' || github.event_name == 'push')
     permissions:
       contents: read
-      pull-requests: read
       actions: read
       id-token: write
     uses: ./.github/workflows/publish.yml
     secrets: inherit
     with:
-      project: ${{ inputs.project || 'all' }}
       verify_only: ${{ inputs.verify_only == true }}
       validated: ${{ needs.gate.result == 'success' && needs.validate.result == 'success' }}
-      web_artifact_id: ${{ needs.validate.outputs.web_artifact_id }}

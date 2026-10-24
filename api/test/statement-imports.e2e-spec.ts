@@ -821,7 +821,7 @@ async function createSpaceStatementImportApplication(
   }).compile();
 
   const application = module.createNestApplication();
-  configureApp(application, testConfig);
+  configureApp(application);
   await application.init();
   return application;
 }
@@ -891,7 +891,7 @@ async function createStatementImportApplication(
   }).compile();
 
   const application = module.createNestApplication();
-  configureApp(application, testConfig);
+  configureApp(application);
   await application.init();
   return application;
 }
@@ -1290,7 +1290,6 @@ const testConfig: AppConfig = {
   environment: 'test',
   port: 3000,
   databaseUrl: undefined,
-  corsOrigins: ['https://app.example.com'],
   clerkJwtKey: 'test-jwt-key',
   clerkSecretKey: 'test-secret-key',
   clerkAuthorizedParties: ['https://app.example.com'],

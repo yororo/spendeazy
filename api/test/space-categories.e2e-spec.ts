@@ -137,7 +137,7 @@ describe('Authenticated Space Category and Budget concurrency', () => {
     }).compile();
 
     application = module.createNestApplication();
-    configureApp(application, testConfig);
+    configureApp(application);
     await application.init();
   });
 
@@ -389,7 +389,6 @@ const testConfig: AppConfig = {
   environment: 'test',
   port: 3000,
   databaseUrl: undefined,
-  corsOrigins: ['https://app.example.com'],
   clerkJwtKey: 'test-jwt-key',
   clerkSecretKey: 'test-secret-key',
   clerkAuthorizedParties: ['https://app.example.com'],

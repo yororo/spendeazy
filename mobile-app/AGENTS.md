@@ -1,43 +1,41 @@
-This is an Expo/React Native mobile application. Prioritize mobile-first patterns, performance, and cross-platform compatibility.
+# Mobile agent guidance
 
-## Expo has changed — do not trust your training data
+This project is the native Android/iPhone client. There is no web platform target. `web/design/` is a legacy visual reference only. Current mobile code remains a starter plus a parser prototype; do not describe the target user journeys as shipped.
 
-Expo ships breaking changes every SDK release. APIs you remember are likely renamed, moved, or removed. Before writing any code that touches an Expo, EAS, or React Native API:
+## Expo and React Native APIs
 
-1. Read the major version of the `expo` package in `package.json`.
-2. Fetch the matching versioned docs: `https://docs.expo.dev/versions/v<major>.0.0/`
-3. For anything else, fetch https://docs.expo.dev/llms.txt — an index of all Expo docs with corrections to common LLM misconceptions. Follow its links to the specific page you need; never answer from memory.
+Expo changes between SDK releases. Before adding or changing Expo/EAS/React Native APIs, read the version matching `expo` in `package.json` at `https://docs.expo.dev/versions/v<major>.0.0/`. For other Expo topics, use the official `https://docs.expo.dev/llms.txt` index and follow its current documentation.
 
 ## Commands
 
+From the repository root:
+
 ```bash
-npx expo install <package>  # ALWAYS use instead of npm/yarn/pnpm/bun add — resolves SDK-compatible versions
-npx expo start              # start the dev server
-npx expo lint               # lint
-npx tsc --noEmit            # typecheck
-npx expo-doctor             # diagnose dependency and config issues
-npx expo install --fix      # fix incompatible package versions
+npm ci --prefix mobile-app
+npm --prefix mobile-app run lint
+npm --prefix mobile-app run typecheck
+npm --prefix mobile-app run parser:test
 ```
 
-Run lint and typecheck before declaring any task done.
+Run checks regularly. `parser:test` uses fictional fixtures; it does not establish build, device, accessibility or parser launch acceptance. See [mobile setup and evidence](README.md) and [root local testing](../docs/local-testing.md).
 
-## Navigation & Routing
+## Navigation and native builds
 
-- Use **Expo Router** for all navigation. Routes live in `src/app/` — every file there is a screen, `_layout.tsx` files define navigators. Keep non-route code (components, hooks, utils) outside `src/app/`.
-- Import `Link`, `router`, and `useLocalSearchParams` from `expo-router`.
-- Docs: https://docs.expo.dev/router/introduction.md
+- Use Expo Router. Routes live in `src/app/`; place reusable components and logic elsewhere.
+- If `ios/` and `android/` are absent, Expo generates them. Do not edit generated native projects by hand; use app config and config plugins.
+- Build a local Android development binary with `npx expo run:android`. Use an EAS internal build for physical iPhone. Expo Go is not the native validation target.
+- Do not add browser scripts, web-specific platform files, `react-native-web`, or browser CI gates. The bundled parser's WebView is an internal native component, not a browser client.
 
-## Building with EAS
+## API and identity boundaries
 
-Use EAS to build, sign, and submit the app in the cloud (`eas build`, `eas submit`) and to ship over-the-air updates (`eas update`) — no local Xcode or Android Studio required. Run EAS CLI as `npx eas-cli@latest <command>`; substitute that for bare `eas` in docs examples.
-Docs: https://docs.expo.dev/eas/index.md
+The app's API adapter is not implemented yet. When it is, document its actual configuration in the project README. Device journeys need a device-reachable dedicated development API/PostgreSQL database and real Google/Clerk development identities. Never use production financial data. Synthetic identities belong only to isolated automated API tests and do not prove real sign-in on a phone.
 
-## Rules
+## Parser and privacy
 
-- If `ios/` and `android/` directories do not exist, they are generated (Continuous Native Generation). Never create or edit them by hand — configure native behavior in `app.json` and config plugins.
-- Expo Go only includes its bundled native modules. After adding a library with native code, the app needs a development build: `npx expo run:ios|android` locally, or `eas build --profile development`.
-- Prefer recommended Expo modules over third-party libraries, and check your available skills before adding dependencies. Docs: https://docs.expo.dev/versions/latest/index.md
+PDF selection, unlocking, extraction, provider interpretation and Category Rule matching stay on-device. Do not upload statements/passwords or add remote parsing/Category Suggestions. Preserve selected engine stream order. Use fictional, sanitized fixtures in checked-in tests; keep private documents, passwords, raw text and financial screenshots out of Git and issue comments.
+
+The parser launch envelope, older-device support and temporary-file cleanup remain blocked on [issue #138](https://github.com/yororo/spendeazy/issues/138). Do not present the provisional 10 MiB/100-page proof guards as supported limits. Record native build/device evidence separately from lint, type and fixture results.
 
 ## Visual design
 
-For mobile colors, typography, spacing, component surfaces, navigation, or dialogs, read [design-token reference](design-token.md). The current visual source is [mobile-design.pen](mobile-design.pen); the copy under design/ is older.
+Read [design-token.md](design-token.md) and use the current [mobile design source](mobile-design.pen). The duplicate glossary is a pointer to the root [GLOSSARY.md](../GLOSSARY.md).

@@ -55,7 +55,7 @@ describeDatabase(
         }),
         { bodyParser: false },
       );
-      configureApp(application, testConfig(databaseUrl));
+      configureApp(application);
       await application.init();
       database = application.get(DataSource);
       await database.runMigrations();
@@ -160,7 +160,7 @@ describeDatabase(
       const creationCategoryId = await createCategory(
         identity,
         spaceId,
-        'Utilities',
+        'Household utilities',
       );
       const creations = await Promise.all([
         putBudget(identity, spaceId, creationCategoryId, {
@@ -243,7 +243,7 @@ describeDatabase(
         ),
       ]);
       try {
-        await waitForAdvisoryWaiters(database, gate.lockKey, 2);
+        await waitForAdvisoryWaiters(database, gate.lockKey, 1);
         await releaseBudgetDeleteGate(gate);
         const responses = await deleteResponses;
         expect(responses.map((response) => response.status).sort()).toEqual([
@@ -586,7 +586,6 @@ function testConfig(url: string | undefined): AppConfig {
     environment: 'test',
     port: 3000,
     databaseUrl: url,
-    corsOrigins: ['http://127.0.0.1:4173'],
     clerkJwtKey: undefined,
     clerkSecretKey: undefined,
     clerkAuthorizedParties: [],

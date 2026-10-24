@@ -45,7 +45,6 @@ const testConfig: AppConfig = {
   environment: 'test',
   port: 3000,
   databaseUrl: undefined,
-  corsOrigins: [],
   clerkJwtKey: undefined,
   clerkSecretKey: undefined,
   clerkAuthorizedParties: [],

@@ -1,4 +1,4 @@
-name: Validate Spendeazy
+name: Validate API, PostgreSQL and mobile
 
 on:
   workflow_dispatch:
@@ -7,17 +7,12 @@ on:
       force_failure:
         type: boolean
         default: false
-    outputs:
-      web_artifact_id:
-        description: Immutable web build from this validation run
-        value: ${{ jobs.web.outputs.artifact_id }}
 
 permissions:
   contents: read
 
 env:
   CI: true
-  SPENDEAZY_E2E_TEST_CLOCK: 2026-09-19T12:00:00.000Z
 
 jobs:
   preflight:
@@ -32,9 +27,34 @@ jobs:
 
   api:
     needs: [preflight]
-    name: Validate API
+    name: Validate API and PostgreSQL
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: spendeazy_test
+          POSTGRES_USER: spendeazy_test_user
+          POSTGRES_PASSWORD: spendeazy_test_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U spendeazy_test_user -d spendeazy_test"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 20
+    env:
+      TEST_SPACES_DATABASE_URL: postgres://spendeazy_test_user:spendeazy_test_password@localhost:5432/spendeazy_test_spaces
+      TEST_CATEGORY_RULES_DATABASE_URL: postgres://spendeazy_test_user:spendeazy_test_password@localhost:5432/spendeazy_test_category_rules
+      TEST_CATEGORY_COLOR_DATABASE_URL: postgres://spendeazy_test_user:spendeazy_test_password@localhost:5432/spendeazy_test_category_colors
+      TEST_SPACE_CATEGORIES_CONCURRENCY_DATABASE_URL: postgres://spendeazy_test_user:spendeazy_test_password@localhost:5432/spendeazy_test_space_categories_concurrency
+      TEST_STATEMENT_IMPORT_ROLLBACK_DATABASE_URL: postgres://spendeazy_test_user:spendeazy_test_password@localhost:5432/spendeazy_test_statement_import_rollback
+      TEST_STATEMENT_IMPORT_CATEGORY_CONCURRENCY_DATABASE_URL: postgres://spendeazy_test_user:spendeazy_test_password@localhost:5432/spendeazy_test_statement_import_category_concurrency
+      TEST_TRANSACTION_STATEMENT_IMPORT_SPACE_DATABASE_URL: postgres://spendeazy_test_user:spendeazy_test_password@localhost:5432/spendeazy_test_transaction_statement_import_space
+      TEST_STATEMENT_CATEGORY_SUGGESTIONS_DATABASE_URL: postgres://spendeazy_test_user:spendeazy_test_password@localhost:5432/spendeazy_test_category_suggestions
+      TEST_INVITATIONS_DATABASE_URL: postgres://spendeazy_test_user:spendeazy_test_password@localhost:5432/spendeazy_test_invitations
+      TEST_FINANCIAL_OWNERSHIP_MIGRATION_DATABASE_URL: postgres://spendeazy_test_user:spendeazy_test_password@localhost:5432/spendeazy_test_financial_ownership_migration
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -44,10 +64,32 @@ jobs:
           cache-dependency-path: api/package-lock.json
       - run: npm ci
         working-directory: api
+      - name: Create a separate database for every integration suite
+        run: |
+          for database in \
+            spendeazy_test_spaces \
+            spendeazy_test_category_rules \
+            spendeazy_test_category_colors \
+            spendeazy_test_space_categories_concurrency \
+            spendeazy_test_statement_import_rollback \
+            spendeazy_test_statement_import_category_concurrency \
+            spendeazy_test_transaction_statement_import_space \
+            spendeazy_test_category_suggestions \
+            spendeazy_test_invitations \
+            spendeazy_test_financial_ownership_migration; do
+            createdb --host localhost --username spendeazy_test_user "$database"
+          done
+        env:
+          PGPASSWORD: spendeazy_test_password
       - name: Verify release gates and planner
         run: |
           node scripts/verify-release-gates.mjs
-          node --test scripts/release-plan.test.mjs
+          node --test scripts/release-plan.test.mjs scripts/local-test-launcher.test.mjs
+        env:
+          CI: true
+      - name: Test PostgreSQL test-runner configuration
+        run: node --test scripts/run-required-postgres-tests.test.mjs
+        working-directory: api
       - name: Lint API
         run: npx eslint "{src,apps,libs,test}/**/*.ts"
         working-directory: api
@@ -57,101 +99,43 @@ jobs:
       - name: Verify production migration image
         run: npm run test:migration-image
         working-directory: api
-      - name: Test API
+      - name: Test API unit behavior
         run: npm test -- --runInBand
+        working-directory: api
+      - name: Test API HTTP and PostgreSQL behavior
+        run: npm run test:postgres
         working-directory: api
       - name: Check API contract artifacts
         run: npm run openapi:check
         working-directory: api
 
-  web:
+  mobile:
     needs: [preflight]
-    name: Validate and build web artifact
+    name: Validate mobile and parser fixtures
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    outputs:
-      artifact_id: ${{ steps.artifact.outputs.artifact-id }}
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24.11.1
           cache: npm
-          cache-dependency-path: web/package-lock.json
+          cache-dependency-path: mobile-app/package-lock.json
       - run: npm ci
-        working-directory: web
-      - name: Lint web
+        working-directory: mobile-app
+      - name: Lint mobile
         run: npm run lint
-        working-directory: web
-      - name: Test web
-        run: npm test -- --run
-        working-directory: web
-      - name: Build deployable web
-        run: npm run build
-        working-directory: web
-        env:
-          VITE_CLERK_PUBLISHABLE_KEY: ${{ vars.VITE_CLERK_PUBLISHABLE_KEY }}
-          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
-      - name: Verify deployment configuration
-        run: test -s web/dist/index.html && test -s web/dist/staticwebapp.config.json
-      - name: Save validated web artifact
-        id: artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: web-dist-${{ github.sha }}-${{ github.run_attempt }}
-          path: web/dist
-          if-no-files-found: error
-          retention-days: 7
-
-  e2e:
-    needs: [preflight]
-    name: Isolated browser suite (${{ matrix.shard }}/2)
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: [1, 2]
-    env:
-      SPENDEAZY_E2E_SHARD: ${{ matrix.shard }}/2
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: 24.11.1
-          cache: npm
-          cache-dependency-path: |
-            api/package-lock.json
-            web/package-lock.json
-      - name: Install dependencies
-        run: |
-          npm --prefix api ci
-          npm --prefix web ci
-      - name: Type-check browser acceptance sources
-        run: npm run typecheck:e2e
-        working-directory: web
-      - name: Verify diagnostic tooling
-        run: node --test scripts/local-test-launcher.test.mjs scripts/e2e-selection.test.mjs scripts/e2e-timing-summary.test.mjs scripts/e2e-typecheck.test.mjs
-      - name: Install Playwright Microsoft Edge
-        run: npx playwright install --with-deps msedge
-        working-directory: web
-      - name: Run isolated browser suite
-        run: node scripts/local-test-launcher.mjs --e2e
-      - name: Report shard durations and attempts
-        if: always() && !cancelled()
-        run: node scripts/e2e-timing-summary.mjs web/e2e-reports
-      - name: Save browser diagnostics
-        if: always() && !cancelled()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: browser-reports-${{ matrix.shard }}-${{ github.run_attempt }}
-          path: |
-            web/e2e-reports
-          retention-days: 7
+        working-directory: mobile-app
+      - name: Type-check mobile
+        run: npm run typecheck
+        working-directory: mobile-app
+      - name: Check fictional parser and Category Rule fixtures
+        run: npm run parser:test
+        working-directory: mobile-app
 
   validate:
     name: All validation passed
-    needs: [preflight, api, web, e2e]
+    needs: [preflight, api, mobile]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5

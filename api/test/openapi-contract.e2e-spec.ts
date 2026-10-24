@@ -16,10 +16,7 @@ import { ClerkAuthenticationGuard } from '../src/authentication/clerk-authentica
 import { ProvisionedUserGuard } from '../src/authentication/provisioned-user.guard';
 import { DATABASE_READINESS } from '../src/health/database-readiness';
 import { isValidDomainDate } from '../src/http/domain-date';
-import {
-  MAX_REQUEST_BODY_SIZE,
-  type AppConfig,
-} from '../src/config/app-config';
+import { MAX_REQUEST_BODY_SIZE } from '../src/config/app-config';
 import { ApplicationError } from '../src/errors/application-error';
 import {
   CategoryNameConflictError,
@@ -287,7 +284,7 @@ describe('runtime responses against the generated OpenAPI contract', () => {
     const module = await testingModule.compile();
 
     app = module.createNestApplication();
-    configureApp(app, testConfig);
+    configureApp(app);
     await app.init();
   });
 
@@ -1336,16 +1333,6 @@ function isRecord(value: unknown): value is JsonSchema {
 function httpServer(application: INestApplication): Server {
   return application.getHttpServer() as Server;
 }
-
-const testConfig: AppConfig = {
-  environment: 'test',
-  port: 3000,
-  databaseUrl: undefined,
-  corsOrigins: [],
-  clerkJwtKey: undefined,
-  clerkSecretKey: undefined,
-  clerkAuthorizedParties: [],
-};
 
 const CREATED_AT = '2026-08-29T00:00:00.000Z';
 const UPDATED_AT = '2026-08-30T00:00:00.000Z';

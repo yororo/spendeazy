@@ -1,6 +1,6 @@
 # Architecture
 
-API code placement and dependency rules. Paths are relative to `api/`. Use the task map to locate owners; read the affected boundary sections and relevant [ADRs](docs/adr/). [Database design](docs/DATABASE_DESIGN.md) owns schema relationships; [root integration](../README.md#integration-boundary) owns browser/server responsibilities.
+API code placement and dependency rules. Paths are relative to `api/`. Use the task map to locate owners; read the affected boundary sections and relevant [ADRs](docs/adr/). [Database design](docs/DATABASE_DESIGN.md) owns current schema relationships. The current API runtime is still Transaction-oriented; the accepted [mobile Expense contract](../docs/specifications/mobile-expense-domain-api.md) is a target, not implemented behavior.
 
 ## Task entry points
 
@@ -13,10 +13,10 @@ Start at the named owner, then follow its ports into infrastructure. Paths are r
 | Invite Codes and joining | [Invitation service](src/invitations/application/invitations.service.ts) | [Controller](src/invitations/presentation/invitations.controller.ts), [atomic acceptance](src/invitations/infrastructure/typeorm-invitation-acceptance-store.ts) | [HTTP contract](test/invitations.e2e-spec.ts), [PostgreSQL](test/invitations-postgres.e2e-spec.ts) |
 | TypeSafe Category Suggestions | [Suggestion service](src/statement-imports/application/statement-category-suggestions.service.ts), [request builder](src/statement-imports/infrastructure/typesafe-category-suggestion-request.ts) | [Space endpoint](src/statement-imports/presentation/space-statement-imports.controller.ts), [scoped catalog](src/statement-imports/infrastructure/typeorm-statement-category-suggestion-catalog.ts) | [service tests](src/statement-imports/application/statement-category-suggestions.service.spec.ts), [SDK tests](src/statement-imports/infrastructure/typesafe-category-suggestion-evaluator.spec.ts) |
 | Reporting data and Budgets | [Transaction service](src/transactions/application/transactions.service.ts), [Category service](src/categories/application/categories.service.ts) | `src/transactions/presentation/`, `src/categories/presentation/`; Budgets belong to Categories | [Space transactions](test/space-transactions.e2e-spec.ts), [Space categories](test/space-categories.e2e-spec.ts) |
-| Category Rule storage/replacement | [Rule service](src/category-rules/application/category-rules.service.ts) | `src/category-rules/presentation/`, `src/category-rules/infrastructure/`; matching belongs to the web | [PostgreSQL](test/category-rules-postgres.e2e-spec.ts), [storage ADR](docs/adr/0003-category-rule-storage-and-replacement.md) |
+| Category Rule storage/replacement | [Rule service](src/category-rules/application/category-rules.service.ts) | `src/category-rules/presentation/`, `src/category-rules/infrastructure/`; the accepted target evaluates matching on-device | [PostgreSQL](test/category-rules-postgres.e2e-spec.ts), [storage ADR](docs/adr/0003-category-rule-storage-and-replacement.md) |
 | Manual Transactions, history, attribution | [Transaction service](src/transactions/application/transactions.service.ts) | `src/transactions/presentation/`, `src/transactions/infrastructure/` | [Space transactions](test/space-transactions.e2e-spec.ts), [provenance constraint](test/transaction-statement-import-space-postgres.e2e-spec.ts) |
 
-For browser projections and their adapters, use the [web task map](../web/docs/ARCHITECTURE.md#task-entry-points).
+The mobile app is not yet an API client. Coordinate future HTTP changes with the accepted [mobile Expense contract](../docs/specifications/mobile-expense-domain-api.md) and any implemented mobile adapter.
 
 ## Shape
 

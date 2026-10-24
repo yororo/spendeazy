@@ -11,9 +11,9 @@ Repeated handling of the same Error object emits only one record.
 Records contain a UTC timestamp, error level, a fixed event category, and safe
 stack locations when available. Request-scoped records also include a generated
 request ID, HTTP method and matched route template; HTTP failures include status.
-The API returns the generated ID in `X-Request-ID`, exposed through CORS. Incoming
-request IDs are ignored. Middleware runs before body parsing so parser failures
-also receive an ID. Unmatched routes have no route field.
+The API returns the generated ID in `X-Request-ID`. Incoming request IDs are
+ignored. Middleware runs before body parsing so parser failures also receive an
+ID. Unmatched routes have no route field.
 
 Raw messages, exception names, causes, object properties, SQL, parameters,
 headers, bodies, query strings, actual URLs, user identifiers and financial data

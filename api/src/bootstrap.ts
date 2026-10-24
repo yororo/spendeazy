@@ -1,12 +1,6 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { json, raw, urlencoded } from 'express';
-import {
-  API_METHODS,
-  AppConfig,
-  CORS_ALLOWED_HEADERS,
-  CORS_EXPOSED_HEADERS,
-  MAX_REQUEST_BODY_SIZE,
-} from './config/app-config';
+import { MAX_REQUEST_BODY_SIZE } from './config/app-config';
 import { ApiExceptionFilter } from './http/api-exception.filter';
 import { JsonContractGuard } from './http/json-contract.guard';
 import { RequestValidationError } from './http/request-validation-error';
@@ -16,7 +10,7 @@ import { ClerkAuthenticationGuard } from './authentication/clerk-authentication.
 import { ProvisionedUserGuard } from './authentication/provisioned-user.guard';
 import { exceptionRequestContext } from './logging/exception-logger';
 
-export function configureApp(app: INestApplication, config: AppConfig): void {
+export function configureApp(app: INestApplication): void {
   configureApiRouting(app);
 
   app.use(exceptionRequestContext);
@@ -39,11 +33,4 @@ export function configureApp(app: INestApplication, config: AppConfig): void {
     app.get(ProvisionedUserGuard),
     new JsonContractGuard(),
   );
-  app.enableCors({
-    origin: config.corsOrigins,
-    methods: [...API_METHODS],
-    allowedHeaders: CORS_ALLOWED_HEADERS,
-    exposedHeaders: CORS_EXPOSED_HEADERS,
-    credentials: false,
-  });
 }

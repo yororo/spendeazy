@@ -6,6 +6,10 @@ NestJS REST backend for the native Spendeazy client. Private routes use `/api/v1
 
 Requires Node.js, npm, and PostgreSQL.
 
+To run the API and a fresh PostgreSQL database entirely in containers, use the
+[disposable Bash launcher](../docs/local-testing.md#run-a-disposable-api-for-manual-testing).
+It generates temporary keys, applies migrations and cleans up on Ctrl+C.
+
 ```bash
 npm ci
 cp .env.example .env

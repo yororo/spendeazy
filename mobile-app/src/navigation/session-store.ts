@@ -4,6 +4,7 @@ import {
   applyAuthTransition,
   shouldAnnounceRecovery,
 } from '@/navigation/session-transition';
+import { clearExpenseBrowse } from '@/navigation/expense-browse';
 import {
   clearFinancialSelection,
   type PrivateSession,
@@ -57,6 +58,7 @@ export function dismissRecoveryAnnouncement(): void {
 }
 
 export function clearActiveFinancialSelection(): void {
+  clearExpenseBrowse();
   if (!snapshot.held) return;
   snapshot = { ...snapshot, held: clearFinancialSelection(snapshot.held) };
   emit();

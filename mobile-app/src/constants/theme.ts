@@ -70,6 +70,8 @@ export const space = {
   sheetPaddingTop: 12,
   sheetPaddingBottom: 30,
   sheetGap: 20,
+  fieldLabelGap: 6,
+  rowGap: 4,
 } as const;
 
 export const radius = {
@@ -81,6 +83,7 @@ export const radius = {
 
 export const controlSize = {
   primaryAction: 52,
+  field: 58,
   navigation: 64,
   addAction: 64,
   minimumTarget: 44,

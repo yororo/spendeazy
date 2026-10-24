@@ -134,6 +134,8 @@ Treat each surface as a recipe combining fill, stroke, blur, and shadow. If the 
 
 The source does not declare a complete token system for focus, pressed, disabled, loading, motion, or reduced transparency. These remain implementation decisions requiring explicit documentation when introduced. Do not label newly chosen values as extracted design tokens.
 
+Add Expense and Expenses filters use a filled text field: height `controlSize.field` (58), radius `radius.control` (16), horizontal padding `space.screenBottom` (16), label gap `space.fieldLabelGap` (6), a one-unit `border.field`, and `surface.modal` as the fill because the source has no separate field-fill token. This is an implementation choice, not a Pencil variable. It is distinct from the edit-expense bottom-divider row.
+
 Sign-in and navigation decisions: a disabled or busy primary action uses 55% opacity. Sheets and signed-in stack transitions use no animation, so reduced motion does not need a second path. Screens wrap their scroll view in keyboard avoidance and use `keyboardShouldPersistTaps="handled"`. These screens do not collect typed input. Navigation icons are Lucide, size 18, in the semantic text color. The Add control uses Lucide `plus` at 22.
 
 Check readable contrast on composited surfaces in both modes, especially action foregrounds, small secondary labels, and charts. Preserve labels/icons alongside status colors, usable touch areas, font scaling, modal focus behavior, and screen-reader names. These are implementation checks, not a claim that the static mockup already satisfies accessibility requirements.

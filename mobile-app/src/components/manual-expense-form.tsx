@@ -1,15 +1,14 @@
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Text, View } from 'react-native';
 
 import { ExpenseApiError, ExpenseApiTransportError } from '@/api/authorized-request';
-import type { SpaceCategory } from '@/api/categories-api-client';
 import { createExpenseApiClient } from '@/api/expense-api-client';
 import { PrimaryButton, SecondaryButton } from '@/components/buttons';
 import { ChoiceSheet } from '@/components/choice-sheet';
 import { BodyText, Screen, StackGap, SupportingText } from '@/components/screen';
 import { TextField } from '@/components/text-field';
-import { typeScale } from '@/constants/theme';
+import { space, typeScale } from '@/constants/theme';
 import { useAuthorizedClient } from '@/navigation/authorized-client';
 import {
   defaultManualExpenseDraft,
@@ -35,6 +34,7 @@ export function ManualExpenseForm() {
   );
   const [issues, setIssues] = useState<Partial<Record<ManualExpenseField, string>>>({});
   const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [categoryOpen, setCategoryOpen] = useState(false);
   const activeCategories = categories.categories.filter((category) => category.isActive);
@@ -46,13 +46,14 @@ export function ManualExpenseForm() {
   }
 
   async function save() {
-    if (!active || saving) return;
+    if (!active || savingRef.current) return;
     const today = todayInManila(new Date());
     const nextIssues = validateManualExpenseDraft(draft, today);
     if (nextIssues.length > 0) {
       setIssues(Object.fromEntries(nextIssues.map((issue) => [issue.field, issue.message])));
       return;
     }
+    savingRef.current = true;
     setIssues({});
     setSaving(true);
     setSaveError(null);
@@ -66,6 +67,7 @@ export function ManualExpenseForm() {
     } catch (cause) {
       setSaveError(saveFailureMessage(cause));
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   }
@@ -107,7 +109,7 @@ export function ManualExpenseForm() {
           error={issues.description}
           placeholder="What was this Expense?"
         />
-        <View style={{ gap: 6 }}>
+        <View style={{ gap: space.fieldLabelGap }}>
           <SupportingText>Category</SupportingText>
           <SecondaryButton
             label={selected?.name ?? 'Choose Category'}
@@ -149,9 +151,9 @@ export function ManualExpenseForm() {
         />
         <ChoiceSheet title="Category" visible={categoryOpen} onDismiss={() => setCategoryOpen(false)}>
           {activeCategories.map((category) => (
-            <CategoryChoice
+            <SecondaryButton
               key={category.id}
-              category={category}
+              label={category.name}
               selected={category.id === draft.categoryId}
               onPress={() => {
                 update({ categoryId: category.id });
@@ -163,18 +165,6 @@ export function ManualExpenseForm() {
       </StackGap>
     </Screen>
   );
-}
-
-function CategoryChoice({
-  category,
-  selected,
-  onPress,
-}: {
-  category: SpaceCategory;
-  selected: boolean;
-  onPress: () => void;
-}) {
-  return <SecondaryButton label={category.name} selected={selected} onPress={onPress} />;
 }
 
 function saveFailureMessage(cause: unknown): string {

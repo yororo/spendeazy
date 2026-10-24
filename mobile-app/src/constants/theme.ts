@@ -70,6 +70,8 @@ export const space = {
   sheetPaddingTop: 12,
   sheetPaddingBottom: 30,
   sheetGap: 20,
+  fieldLabelGap: 6,
+  rowGap: 4,
 } as const;
 
 export const radius = {

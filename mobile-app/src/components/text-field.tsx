@@ -1,6 +1,6 @@
 import { Text, TextInput, View } from 'react-native';
 
-import { controlSize, radius, typeScale } from '@/constants/theme';
+import { controlSize, radius, space, typeScale } from '@/constants/theme';
 import { useAppTheme } from '@/navigation/app-theme';
 
 export function TextField({
@@ -22,7 +22,7 @@ export function TextField({
 }) {
   const { palette, fonts } = useAppTheme();
   return (
-    <View style={{ gap: 6 }}>
+    <View style={{ gap: space.fieldLabelGap }}>
       <Text
         style={{
           color: palette.textSecondary,
@@ -51,7 +51,7 @@ export function TextField({
           backgroundColor: palette.surfaceModal,
           fontFamily: fonts.regular,
           fontSize: typeScale.body,
-          paddingHorizontal: 16,
+          paddingHorizontal: space.screenBottom,
         }}
       />
       {error ? (

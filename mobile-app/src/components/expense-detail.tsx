@@ -7,7 +7,7 @@ import { SecondaryButton } from '@/components/buttons';
 import { MoneyAmount } from '@/components/money-amount';
 import { BodyText, Screen, StackGap, SupportingText } from '@/components/screen';
 import { useAuthorizedClient } from '@/navigation/authorized-client';
-import { readExpensePage, type ListedExpense } from '@/navigation/expense-browse';
+import { readListedExpense, type ListedExpense } from '@/navigation/expense-browse';
 import { useSpaceCategories } from '@/navigation/use-space-categories';
 import { useSpaces } from '@/navigation/spaces-provider';
 
@@ -32,13 +32,7 @@ export function ExpenseDetail({ expenseId }: { expenseId: string }) {
       .getExpense(active.id, expenseId)
       .then((payload) => {
         if (!current) return;
-        const page = readExpensePage({
-          expenses: [payload],
-          nextCursor: null,
-          totalCount: '1',
-          totalAmount: '0.00',
-        });
-        setResult({ key, expense: page.expenses[0] ?? null, error: null });
+        setResult({ key, expense: readListedExpense(payload), error: null });
       })
       .catch((cause: unknown) => {
         if (!current) return;

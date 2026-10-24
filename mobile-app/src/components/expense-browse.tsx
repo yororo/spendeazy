@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import {
   FlatList,
+  KeyboardAvoidingView,
   Pressable,
   RefreshControl,
   Text,
@@ -77,14 +78,18 @@ export function ExpenseBrowse() {
   const phase =
     issues.length > 0 ? 'ready' : currentResult === null ? 'loading' : error && !loaded ? 'error' : 'ready';
   const listRef = useRef<FlatList<ListedExpense>>(null);
+  const restoredQuery = useRef('');
 
   useEffect(() => {
-    if (!spaceId) return;
+    if (!spaceId || !loaded?.expenses.length) return;
+    const key = `${spaceId}:${queryKey}`;
+    if (restoredQuery.current === key) return;
+    restoredQuery.current = key;
     const frame = requestAnimationFrame(() => {
       listRef.current?.scrollToOffset({ offset: readExpenseScroll(), animated: false });
     });
     return () => cancelAnimationFrame(frame);
-  }, [queryKey, spaceId]);
+  }, [loaded?.expenses.length, queryKey, spaceId]);
 
   useEffect(() => {
     if (!spaceId) return;
@@ -170,13 +175,13 @@ export function ExpenseBrowse() {
           params: { expenseId: item.id },
         })
       }
-      style={{
+        style={{
         minHeight: controlSize.field,
         justifyContent: 'center',
-        gap: 4,
-        paddingVertical: 8,
+        gap: space.rowGap,
+        paddingVertical: space.fieldLabelGap,
       }}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12 }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: space.cardGap }}>
         <Text
           style={{
             flex: 1,
@@ -194,14 +199,25 @@ export function ExpenseBrowse() {
     </Pressable>
   );
 
+  const fromError = issues.find((issue) => issue.field === 'fromDate')?.message ?? null;
+  const toError =
+    issues.find((issue) => issue.field === 'toDate' || issue.field === 'range')?.message ?? null;
+
   return (
     <View style={{ flex: 1, backgroundColor: palette.canvas }}>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={process.env.EXPO_OS === 'ios' ? 'padding' : undefined}>
       <FlatList
         ref={listRef}
         data={issues.length === 0 && phase === 'ready' ? (loaded?.expenses ?? []) : []}
         keyExtractor={(expense) => expense.id}
         renderItem={renderExpense}
-        onScroll={(event) => rememberExpenseScroll(event.nativeEvent.contentOffset.y)}
+        keyboardShouldPersistTaps="handled"
+        onScroll={(event) => {
+          if ((loaded?.expenses.length ?? 0) === 0) return;
+          rememberExpenseScroll(event.nativeEvent.contentOffset.y);
+        }}
         scrollEventThrottle={32}
         refreshControl={
           <RefreshControl
@@ -237,7 +253,8 @@ export function ExpenseBrowse() {
               <ExpenseFilters
                 selection={selection}
                 categories={categories.categories}
-                issues={issues}
+                fromError={fromError}
+                toError={toError}
                 onOpenCategories={() => setCategoryOpen(true)}
               />
             ) : null}
@@ -273,6 +290,7 @@ export function ExpenseBrowse() {
           ) : undefined
         }
       />
+    </KeyboardAvoidingView>
       {selection ? (
         <ChoiceSheet title="Category" visible={categoryOpen} onDismiss={() => setCategoryOpen(false)}>
           <SecondaryButton
@@ -303,12 +321,14 @@ export function ExpenseBrowse() {
 function ExpenseFilters({
   selection,
   categories,
-  issues,
+  fromError,
+  toError,
   onOpenCategories,
 }: {
   selection: ExpenseBrowseSelection;
   categories: SpaceCategory[];
-  issues: string[];
+  fromError: string | null;
+  toError: string | null;
   onOpenCategories: () => void;
 }) {
   const selected = categories.find((category) => category.id === selection.categoryId);
@@ -318,12 +338,14 @@ function ExpenseFilters({
         label="From"
         value={selection.fromDate}
         onChangeText={(fromDate) => updateExpenseBrowse(selection.spaceId, { fromDate })}
+        error={fromError}
         placeholder="YYYY-MM-DD"
       />
       <TextField
         label="To"
         value={selection.toDate}
         onChangeText={(toDate) => updateExpenseBrowse(selection.spaceId, { toDate })}
+        error={toError}
         placeholder="YYYY-MM-DD"
       />
       <SecondaryButton
@@ -335,7 +357,7 @@ function ExpenseFilters({
         key={`${selection.spaceId}:${selection.description}`}
         selection={selection}
       />
-      <View style={{ flexDirection: 'row', gap: 12 }}>
+      <View style={{ flexDirection: 'row', gap: space.cardGap }}>
         <View style={{ flex: 1 }}>
           <SecondaryButton
             label="Newest"
@@ -351,9 +373,6 @@ function ExpenseFilters({
           />
         </View>
       </View>
-      {issues.map((issue) => (
-        <BodyText key={issue}>{issue}</BodyText>
-      ))}
       {hasExpenseFilter(selection) ? (
         <SecondaryButton
           label="Clear filters"

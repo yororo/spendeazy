@@ -53,13 +53,18 @@ export function emptyExpenseBrowse(spaceId: string): ExpenseBrowseSelection {
   };
 }
 
-export function expenseBrowseIssues(selection: ExpenseBrowseSelection): string[] {
-  const issues: string[] = [];
+export type ExpenseBrowseIssue = {
+  field: 'fromDate' | 'toDate' | 'range';
+  message: string;
+};
+
+export function expenseBrowseIssues(selection: ExpenseBrowseSelection): ExpenseBrowseIssue[] {
+  const issues: ExpenseBrowseIssue[] = [];
   if (selection.fromDate !== '' && !isCalendarDate(selection.fromDate)) {
-    issues.push('Enter the start date as YYYY-MM-DD.');
+    issues.push({ field: 'fromDate', message: 'Enter the start date as YYYY-MM-DD.' });
   }
   if (selection.toDate !== '' && !isCalendarDate(selection.toDate)) {
-    issues.push('Enter the end date as YYYY-MM-DD.');
+    issues.push({ field: 'toDate', message: 'Enter the end date as YYYY-MM-DD.' });
   }
   if (
     issues.length === 0 &&
@@ -67,7 +72,10 @@ export function expenseBrowseIssues(selection: ExpenseBrowseSelection): string[]
     selection.toDate !== '' &&
     selection.fromDate > selection.toDate
   ) {
-    issues.push('The start date must be on or before the end date.');
+    issues.push({
+      field: 'range',
+      message: 'The start date must be on or before the end date.',
+    });
   }
   return issues;
 }
@@ -189,7 +197,7 @@ function emit(): void {
   for (const listener of listeners) listener();
 }
 
-function readListedExpense(value: unknown): ListedExpense {
+export function readListedExpense(value: unknown): ListedExpense {
   if (!isRecord(value)) throw new Error('Expenses response must include expense records');
   const source = value.source;
   if (source !== 'manual' && source !== 'imported') {

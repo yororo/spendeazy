@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { createExpenseApiClient } from '@/api/expense-api-client';
-import { readListedExpense, type ListedExpense } from '@/api/expense-response';
+import { type ListedExpense } from '@/api/expense-response';
 import { useAuthorizedClient } from '@/application/authorized-client';
 import { createSessionResource } from '@/application/session-resource';
 import { session } from '@/application/session-runtime';
@@ -16,7 +16,7 @@ export function useExpenseDetail(expenseId: string) {
   const resource = useMemo(() => createSessionResource<ListedExpense>(session, authorized.scope, `${spaceId}:${expenseId}`), [authorized.scope, spaceId, expenseId]);
   const state = useSyncExternalStore(resource.subscribe, resource.snapshot, resource.snapshot);
   useEffect(() => {
-    if (spaceId) void resource.load(async () => readListedExpense(await createExpenseApiClient(authorized).getExpense(spaceId, expenseId)));
+    if (spaceId) void resource.load(() => createExpenseApiClient(authorized).getExpense(spaceId, expenseId));
     return resource.cancel;
   }, [authorized, expenseId, requestId, resource, spaceId]);
   const expense = state.data;

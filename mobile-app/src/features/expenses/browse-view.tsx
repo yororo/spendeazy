@@ -17,7 +17,7 @@ export function ExpenseBrowse({ controller, onOpenExpense, spaceStatus }: { cont
   const insets = useSafeAreaInsets();
   const { palette, fonts } = useAppTheme();
   const { spaceId, selection, categories, issues, queryKey, loaded, error, phase, refreshing, loadingMore,
-    spacesLoading, spacesRefreshing, refreshSpaces, reload, loadMore, updateSelection: onChange, readScroll, rememberScroll } = controller;
+    spacesLoading, spacesRefreshing, refreshSpaces, reload, retry, loadMore, updateSelection: onChange, readScroll, rememberScroll } = controller;
   const [categoryOpen, setCategoryOpen] = useState(false);
   const listRef = useRef<FlatList<ListedExpense>>(null);
   const restoredQuery = useRef('');
@@ -130,7 +130,7 @@ export function ExpenseBrowse({ controller, onOpenExpense, spaceStatus }: { cont
             {error ? (
               <StackGap>
                 <BodyText>{error}</BodyText>
-                <SecondaryButton label="Retry" onPress={() => void reload()} />
+                <SecondaryButton label="Retry" onPress={() => void retry()} />
               </StackGap>
             ) : null}
           </StackGap>
@@ -145,12 +145,12 @@ export function ExpenseBrowse({ controller, onOpenExpense, spaceStatus }: { cont
           ) : undefined
         }
         ListFooterComponent={
-          issues.length === 0 && loaded?.nextCursor ? (
+          issues.length === 0 && loaded?.nextCursor && !refreshing && !loadingMore ? (
             <SecondaryButton
-              label={loadingMore ? 'Loading more Expenses' : 'Load more'}
+              label="Load more"
               onPress={() => void loadMore()}
             />
-          ) : undefined
+          ) : loadingMore ? <BodyText>Loading more Expenses.</BodyText> : undefined
         }
       />
     </KeyboardAvoidingView>

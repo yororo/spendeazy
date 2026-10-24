@@ -20,7 +20,7 @@ function resourceReducer<T>(state: ResourceState<T>, event: ResourceEvent<T>): R
   }
 }
 
-/** Shared request lifecycle for Categories, Expense detail and Expense pages. */
+/** Shared request lifecycle for Categories and Expense detail. Browsing owns its pagination lifecycle. */
 export function createSessionResource<T>(session: Session, scope: SessionScope = session.capture(), key = '') {
   const empty: ResourceState<T> = { key, data: null, error: null, loading: false, appending: false, requestId: 0 };
   let state = empty;

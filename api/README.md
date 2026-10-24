@@ -1,6 +1,6 @@
 # Spendeazy API
 
-NestJS REST backend for the native Spendeazy client. Private routes use `/api/v1` and Clerk session tokens (`Authorization: Bearer <token>`); health and documentation routes are public. The current API still implements the legacy Transaction-oriented runtime; [the accepted mobile Expense contract](../docs/specifications/mobile-expense-domain-api.md) is a target specification, not implemented API behavior. Commands and paths below are relative to `api/`.
+NestJS REST backend for the native Spendeazy client. Private routes use `/api/v1` and Clerk session tokens (`Authorization: Bearer <token>`); health and documentation routes are public. Saved spending uses the canonical Expense schema and authorized Space routes. The mobile project is not yet an authenticated API client, and the broader accepted mobile contract remains partially implemented. Commands and paths below are relative to `api/`.
 
 ## Setup and run
 
@@ -18,7 +18,6 @@ cp .env.example .env
 | `CLERK_AUTHORIZED_PARTIES` | Comma-separated HTTP(S) origins accepted in Clerk `azp` claims; required in production. Configure for the identity/token flow in use |
 | `INVITATION_CODE_ENCRYPTION_KEY` | 32-byte hexadecimal key required whenever a database is configured; protects sender-only reversible Invite Code display alongside a separate HMAC lookup value |
 | `GCASH_REFERENCE_HASH_KEY` | Separate stable 32-byte hexadecimal key required whenever a database is configured; HMAC-protects persisted GCash references, which are never returned. Retain across deployments for stable duplicate detection |
-| `TYPESAFE_API_KEY` | Optional legacy Category Suggestions integration; [integration reference](../docs/category-suggestions.md) owns data sent, bounds, cache, and failure behavior |
 
 Generate each hexadecimal secret independently with `node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"`; keep secrets outside source control. `.env.example` lists settings; `src/config/app-config.ts` validates them. Shared Space archive notifications are in-app; no email provider setup is required.
 
@@ -33,7 +32,7 @@ API: `http://localhost:3000/api/v1`; health: `http://localhost:3000/health`; doc
 
 ### Development seed/reset
 
-`npm run db:seed` loads deterministic data. `npm run db:reset-seed` removes application data from the configured database and reloads it. Reset is destructive: before running it, verify the complete `DATABASE_URL` resolves to a dedicated disposable local development database. Never use it against a normal shared or production database.
+`npm run db:seed -- --disposable-database spendeazy_disposable_<suffix>` loads deterministic fictional data. To drop and recreate that database before loading it, run `npm run db:recreate-seed -- --disposable-database spendeazy_disposable_<suffix>`. Both commands require `NODE_ENV` other than production, a loopback PostgreSQL host, and an exact database-name match between `DATABASE_URL` and `--disposable-database`. Recreate is destructive by design; it cannot target a shared, production, or non-disposable database.
 
 ## Test
 
@@ -49,8 +48,7 @@ The required integration database variables are:
 | Category HTTP concurrency | `TEST_SPACE_CATEGORIES_CONCURRENCY_DATABASE_URL` |
 | Statement Import rollback/duplicates and GCash reference hashes | `TEST_STATEMENT_IMPORT_ROLLBACK_DATABASE_URL` |
 | Statement Import Category concurrency | `TEST_STATEMENT_IMPORT_CATEGORY_CONCURRENCY_DATABASE_URL` |
-| Imported Transaction/Space provenance | `TEST_TRANSACTION_STATEMENT_IMPORT_SPACE_DATABASE_URL` |
-| Category Suggestions | `TEST_STATEMENT_CATEGORY_SUGGESTIONS_DATABASE_URL` |
+| Imported Expense/Space provenance | `TEST_EXPENSE_STATEMENT_IMPORT_SPACE_DATABASE_URL` |
 | Invitations | `TEST_INVITATIONS_DATABASE_URL` |
 | Historical ownership migration | `TEST_FINANCIAL_OWNERSHIP_MIGRATION_DATABASE_URL` — separate, empty disposable database starting from the pre-Space schema |
 
@@ -66,4 +64,4 @@ npm run openapi:generate
 npm run openapi:check
 ```
 
-The check fails if either artifact is missing or differs from deterministic regeneration. Root CI also runs it. Inspect affected paths and referenced schemas together; update contract tests and coordinate any mobile adapter change. [Route compatibility](docs/route-compatibility.md) describes the current legacy route surface and its supersession by the accepted target contract.
+The check fails if either artifact is missing or differs from deterministic regeneration. Root CI also runs it. Inspect affected paths and referenced schemas together; update contract tests and coordinate any mobile adapter change. [Route compatibility](docs/route-compatibility.md) describes the current Space-only Expense route surface and removed legacy aliases.

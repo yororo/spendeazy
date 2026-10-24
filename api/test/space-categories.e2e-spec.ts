@@ -313,7 +313,7 @@ function staleEditBody() {
         'This resource changed elsewhere. Reload and review your edits before saving.',
       details: [
         {
-          field: '/updatedAt',
+          field: '/expectedRevision',
           code: 'incompatible',
           message:
             'The resource changed elsewhere. Reload and review your edits before saving.',

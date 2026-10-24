@@ -8,9 +8,6 @@ import { CATEGORY_STORE } from './application/category-store';
 import { TypeOrmBudgetStore } from './infrastructure/typeorm-budget-store';
 import { TypeOrmCategoryStore } from './infrastructure/typeorm-category-store';
 import { TypeOrmCategorySummaryStore } from './infrastructure/typeorm-category-summary-store';
-import { BudgetsController } from './presentation/budgets.controller';
-import { CategoriesController } from './presentation/categories.controller';
-import { CategorySummariesController } from './presentation/category-summaries.controller';
 import { SpaceCategoriesController } from './presentation/space-categories.controller';
 import { SpaceBudgetsController } from './presentation/space-budgets.controller';
 import { SpaceCategorySummariesController } from './presentation/space-category-summaries.controller';
@@ -23,9 +20,6 @@ import {
 } from './application/default-categories.service';
 
 const controllers = [
-  CategoriesController,
-  BudgetsController,
-  CategorySummariesController,
   SpaceCategoriesController,
   SpaceBudgetsController,
   SpaceCategorySummariesController,

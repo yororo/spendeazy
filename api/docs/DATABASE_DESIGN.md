@@ -1,65 +1,49 @@
 # Database design
 
-This is the current schema, including legacy saved-Transaction names and uniqueness rules. The accepted [mobile Expense contract](../../docs/specifications/mobile-expense-domain-api.md#domain-and-persistence) defines the target Expense schema, required Category, immutable import snapshots and operation status storage. That schema is not implemented here; no database reset or migration is performed by the specification.
-
-This document explains the API's persistence model. [Root GLOSSARY.md](../../GLOSSARY.md) owns domain definitions; [ARCHITECTURE.md](../ARCHITECTURE.md) owns persistence boundaries and the unit of work. Paths below are relative to `api/`.
-
-## Sources of truth
-
-- `src/database/migrations/` defines the schema history, constraints, and indexes.
-- `src/database/entities/` defines runtime TypeORM mappings.
-- Feature application services enforce workflow invariants; presentation DTOs and generated `docs/openapi.json` describe the HTTP contract.
-
-Read these files for exact columns, lengths, constraints, and transport validation instead of treating this overview as a second schema. Schema changes require explicit migrations.
+This describes the current API schema. [Migrations](../src/database/migrations/) define the authoritative constraints and indexes; [entities](../src/database/entities/) define TypeORM mappings. The accepted [mobile Expense contract](../../docs/specifications/mobile-expense-domain-api.md) includes additional behavior and storage that is not implemented yet.
 
 ## Relationships and ownership
 
 | Table | Purpose and relationships |
 | --- | --- |
-| `users` | Local User linked to a unique Clerk identity; email uniqueness is case-insensitive. The optional active Shared Space reference supports lifecycle cleanup for active Shared Spaces. |
-| `spaces` | Personal or Shared financial context with active/archived lifecycle. Personal Spaces have one User as their private owner; accepting an Invite Code claim atomically creates a Shared Space and writable memberships for both Users. |
-| `space_memberships` | User access to a Space, with `read` or `write` access. The Personal Space migration creates one writable membership per User. |
-| `categories` | Space-owned classifications with optional description and named color, plus active/inactive status. Names are unique per Space. |
-| `budgets` | At most one monthly or yearly Budget per Category; ownership derives through the Category. |
-| `statement_imports` | Space-owned Committed Statement Import provenance, including provider/account-type metadata and a file hash unique per Space. The `(id, space_id)` key is the target of the imported Transaction provenance constraint. `imported_by_user_id` preserves actor attribution. |
-| `transactions` | Space-owned positive expenses with optional Category and Committed Statement Import relationships. A non-null `statement_import_id` is constrained together with `space_id` to a Committed Statement Import in the same Space; `NULL` identifies a manual Transaction. `added_by_user_id` preserves actor attribution; nullable `deleted_at` retains deleted rows outside active spending. |
-| `transaction_activities` | Append-only Transaction activity events. Creation and deletion events store the actor and UTC occurrence time; edit events also retain editable Transaction values before and after the edit. Legacy Transactions have no fabricated rows. The Transaction identifier is retained without a foreign key so deletion history remains inspectable. |
+| `users` | Local User linked to a unique Clerk identity. |
+| `spaces` | Personal or Shared financial context with active/archived lifecycle. Personal Spaces have one private owner; Shared Space membership is created atomically when an Invite Code is accepted. |
+| `space_memberships` | User access to a Space, with read or write capability. |
+| `categories` | Space-owned classifications with optional description/color and active/inactive status. Names are unique per Space. |
+| `budgets` | At most one monthly or yearly Budget per Category. Ownership derives through the Category. |
 | `category_rules` | Space-owned Exact/Contains patterns related to a Category; normalized pattern and match type are unique per Space. |
-| `invitations` | Sender-owned Shared Space Invite Codes with seven-day expiry, protected lookup and display representations, and one pending invitation per sender. Pending invitations do not reserve membership; rotation replaces the pending row atomically and revocation marks it unusable. |
-| `invitation_claims` | Per-User saved incoming invitation entries. A unique invitation/User pair makes repeated code entry idempotent while allowing multiple Users to save the same active code. Rotation, revocation, and expiry delete claims in the same transaction as the lifecycle change. |
+| `statement_imports` | Committed Statement Import provenance with Space, immutable importer attribution, file hash, provider/account format, statement type/date or optional history bounds, and import timestamp. File hashes are indexed but not unique. |
+| `expenses` | Saved positive spending in a Space, with required Category, immutable Added By actor, date-only value, exact amount, revision, optional deletion timestamp, and nullable Statement Import link. A null link identifies a manual Expense. Composite keys constrain Category and imported provenance to the same Space. |
+| `expense_activities` | Append-only Expense create/edit/delete events with actor, UTC timestamp and before/after JSON snapshots. Snapshots retain Category IDs and editable values. Legacy Expenses may have no Activity. |
+| `invitations` | Sender-owned Shared Space Invite Codes with protected lookup/display values, expiry and lifecycle state. |
+| `invitation_claims` | Per-User saved invitation entries; claims do not reserve membership. |
 
-Migration `1750000000000-introduce-personal-spaces` creates a Personal Space and writable membership for every existing User and backfills `space_id` without changing financial identifiers or values. It also backfills immutable Transaction `added_by_user_id` and Statement Import `imported_by_user_id` without fabricating history. Later migrations scope names, Rule patterns, file hashes, and import fingerprints to a Space. Migration `1780000000000-scope-statement-import-duplicates-to-spaces` adds the composite foreign key that keeps each imported Transaction and its Committed Statement Import in one Space. Migrations `1790000000000-remove-legacy-financial-reference-constraints` and `1800000000000-remove-legacy-financial-provisioning-triggers` retire transitional constraints and provisioning triggers. Migration `1810000000000-remove-legacy-financial-user-ownership` removes the final financial `user_id` columns; application persistence interfaces are Space-only and actor columns remain for attribution. Migration `1880000000000-enforce-transaction-statement-import-space` validates existing imported provenance with an actionable diagnostic and adds the supporting composite index.
+Financial ownership is stored through `space_id`, not a User owner column. Actor IDs on Expenses, Activities and Statement Imports preserve attribution. Space authorization derives from authenticated membership. User- and Space-supplied IDs never grant access by themselves.
 
-Migration `1850000000000-retain-deleted-transactions` adds nullable `transactions.deleted_at`, an index for retained-history pages, and the `deleted` Transaction activity type. Deleted rows remain available to authorized Space history and activity reads while active lists and spending aggregates exclude them.
+## Expense foundation migration
 
-The reusable Space authorization boundary resolves accessible memberships from the authenticated local User; a client-supplied Space identifier is never an ownership grant. Read access and writable membership are represented separately; leaving a Shared Space preserves read-only history for both former members.
+Migration `1960000000000-adopt-expense-foundation` renames `transactions` and `transaction_activities` to the canonical Expense tables and renames `purchase_date` to `expense_date`. It adds positive Expense revisions, makes Category required, removes the old category-match-confidence field, renames provider/account/history columns, allows nullable statement dates for e-wallet imports, and removes unique file-hash enforcement. Existing Activity snapshots have their date key renamed as well.
 
-Invite Codes are generated with high entropy and normalized only for harmless case/grouping differences at code-entry boundaries. The database stores an HMAC lookup value and authenticated encryption ciphertext rather than the display code. The outgoing code is returned only from the authenticated sender's invitation response; it is never part of a URL or operational log. A partial unique index enforces one pending outgoing invitation per User even when creation requests race. Rotation, revocation, expiry, and claim creation lock the invitation row so a stale code cannot create a claim after its lifecycle changes commit.
+The migration stops with an actionable error if saved rows lack a Category. It does not guess a Category or rewrite financial classification. There is no requirement to preserve disposable development records. After adoption, Expense Category and Statement Import relationships are Space-scoped through composite foreign keys.
 
-An `invitation_claims` row records only that one authenticated User saved an invitation; it does not reserve membership or disclose the sender's code. Claim ownership is enforced by the `(invitation_id, user_id)` uniqueness boundary and by User-scoped delete operations. Declining deletes only that User's row, while deleting an invitation cascades its claims for later code rotation, revocation, and joining workflows.
-
-Transaction creation, edit, and deletion activity are written in the same persistence transaction as the corresponding manual or imported Transaction mutation. Active lists and spending summaries filter `deleted_at IS NULL`; a retained-history read explicitly selects deleted rows. Activity reads are filtered by both Space and Transaction identifier. A missing activity row means the Transaction predates detailed history rollout; it does not change immutable `added_by_user_id` or imported provenance.
-
-Account is derived from import provider/account-type metadata, or Cash for manual Transactions. There is no Account table. Existing `bank` and `card_type` columns represent provider and account type, including wallets; card/wallet identifiers and last-four digits are not stored as Account metadata. Imported descriptions may still contain identifiers present in the original statement. This describes the current legacy Transaction schema; the target Expense model is documented separately.
+Historical migrations remain in place as schema history. They explain how Spaces, membership, legacy Transactions and duplicate detection were introduced; they are not the current table contract. The migration chain can still be applied to a fresh disposable database.
 
 ## Values and lifecycle
 
-IDs use database-generated `BIGINT` identities and are represented as strings in application records. Monetary amounts use `NUMERIC(15,2)` and normalized decimal strings across the API. Expenses and Budgets are positive and single-currency. Purchase/statement dates are date-only; timestamps are UTC `timestamptz` values.
+Database-generated `BIGINT` IDs are represented as positive decimal strings at application and HTTP boundaries. Expense amounts use exact `NUMERIC(15,2)` PHP values. Expense and statement-period dates use PostgreSQL `date`; timestamps use UTC `timestamptz` with millisecond precision. Expense mutations increment a bigint revision atomically.
 
-Category deactivation preserves historical relationships and spending. Category Color is a nullable named palette identifier; the mobile client resolves a stable fallback from Category ID for legacy/unselected colors. Renaming or deactivation retains the saved color. Default Categories are copied during Personal Space provisioning, not synchronized continuously from the catalog. Shared Space creation copies the same default catalog during atomic invitation acceptance.
+Expense create/edit/delete and their Activity events are written in the same PostgreSQL transaction. Active lists and category summaries exclude deleted rows. Deleted Expenses remain available in authorized history. Both manual and imported Expenses are editable; imported provenance is immutable. A manual Expense has no import reference, and an imported Expense must reference a Statement Import in its Space.
 
-Actual foreign-key delete behavior is defined in migrations: User references restrict deletion; Category deletion cascades to Budgets and Rules and clears only a Transaction's `category_id`; imported Transactions restrict deletion of their provenance and require `(statement_import_id, space_id)` to match `(id, space_id)` on the Committed Statement Import. These database behaviors do not introduce a product workflow for physical Category or User deletion.
+Category deactivation preserves historical relationships. Existing Expenses may remain assigned to an inactive Category, while new assignment and reassignment require an active same-Space Category. Physical Category deletion is not part of the product workflow.
 
-## Statement Import persistence
+## Statement Imports
 
-The retired browser client parsed and reconciled PDFs and reviewed Transactions before sending JSON. The accepted mobile target keeps PDF selection, parsing, reconciliation and review on-device. Current API `statement-imports` resources and `statement_imports` rows represent **Committed Statement Imports**, not temporary Upload/Categorize/Review state; this is legacy runtime behavior until the target contract is implemented.
+A Statement Import row represents committed provenance, not a temporary upload or review draft. Confirmation stores the Statement Import and all reviewed Expenses through the feature-owned transaction-bound unit of work. A failed write rolls back together. PDF bytes/passwords stay on device; the API receives JSON and a client-asserted SHA-256 file hash.
 
-Commit saves provenance and the reviewed Transactions in one unit of work. All participating stores use the same transaction context; failure rolls back the operation. A manual Transaction has no `statement_import_id` or import fingerprint. An imported Transaction references its committed provenance, and PostgreSQL enforces that the provenance and Transaction share the same Space. Category assignment is optional; automatic match confidence is nullable and bounded from 0 to 1. Manual and Unmapped assignments carry no confidence.
+Exact file matches and Expense fingerprints are advisory duplicate signals, not uniqueness constraints. File hashes are nonunique after Expense foundation adoption, so an intentional reimport is possible. GCash reference identifiers are HMAC-protected before storage and are not returned.
 
-Exact File Duplicate detection uses `(space_id, file_hash)`. A client supplies the SHA-256 hash of the original file bytes; the API validates the asserted hash but does not receive or hash the PDF. File names are not duplicate identities. Provider/account type and statement date are not a unique statement key.
+The current schema stores committed import metadata and linked Expenses. Durable confirmation operation recovery, complete immutable row/evidence snapshots, and original-versus-current import projections remain part of the broader accepted contract, not this implemented foundation.
 
-Probable Duplicate detection uses a non-unique fingerprint scoped to the Space. `src/statement-imports/application/import-fingerprint.ts` defines the versioned hash of normalized date, description, amount, provider, and account type. Keep this algorithm authoritative; matching fingerprints flag review, since legitimate expenses may share those values.
+## Category Rules and reporting
 
-## Category Rules
-
-The API stores and normalizes Rule patterns. The accepted mobile target evaluates matching and precedence on-device during import review; the current mobile runtime is not yet integrated with this API. [The Category Rule ADR](adr/0003-category-rule-storage-and-replacement.md) defines Space-scoped atomic replacement, retained identity, revision-based stale-edit rejection, and inactive-Category behavior. Legacy User-scoped routes remain compatibility shims for the authenticated User's Personal Space in the current API runtime.
+The API stores Space-scoped Category Rules; matching remains on-device. Current Category summaries aggregate Expenses and budgets. Atomic whole-Category configuration, icon-key configuration, aggregate revisions and the full dashboard contract are not yet implemented. See [API architecture](../ARCHITECTURE.md) and [ADR 0004](../../docs/adr/0004-mobile-expense-domain-and-contract.md) for the implementation boundary.

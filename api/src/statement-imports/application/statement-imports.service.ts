@@ -2,6 +2,12 @@ import { Inject, Injectable, Optional } from '@nestjs/common';
 import { assertActiveCategory } from '../../categories/application/active-category';
 import { isValidDomainDate } from '../../http/domain-date';
 import {
+  isFutureManilaDate,
+  MANILA_CLOCK,
+  systemManilaClock,
+  type ManilaClock,
+} from '../../http/manila-clock';
+import {
   POSITIVE_INTEGER_ID_PATTERN,
   POSITIVE_TWO_DECIMAL_AMOUNT_PATTERN,
 } from '../../http/validation-patterns';
@@ -11,10 +17,10 @@ import {
   type StatementImportConfirmationUnitOfWork,
 } from './statement-import-confirmation';
 import { normalizeAmount } from '../../normalization/amount';
+import { toExpenseActivitySnapshot } from '../../expenses/application/expense-activity-store';
 import { computeImportFingerprint } from './import-fingerprint';
 import { findProbableDuplicateGroups } from './probable-duplicates';
 import {
-  StatementImportFileAlreadyExistsError,
   StatementImportFileHashInvalidError,
   StatementImportNotFoundError,
   StatementImportProbableDuplicatesError,
@@ -51,25 +57,25 @@ import {
 export const DEFAULT_STATEMENT_IMPORT_PAGE_SIZE = 20;
 export const MAX_STATEMENT_IMPORT_PAGE_SIZE = 100;
 
-export interface ReviewedStatementTransactionInput {
-  categoryId?: string | null;
-  purchaseDate: string;
+export interface ReviewedExpenseInput {
+  categoryId: string;
+  expenseDate: string;
   description: string;
   amount: string;
-  categoryMatchConfidence?: string | null;
   reference?: string | null;
 }
 
 export interface CommitReviewedStatementImportInput {
   fileName: string;
   fileHash: string;
-  statementDate: string;
+  statementDate?: string;
   statementType: StatementType;
-  bank: string;
-  cardType?: string | null;
-  transactionHistoryStartDate?: string | null;
+  provider: string;
+  accountFormat?: string | null;
+  historyFromDate?: string | null;
+  historyToDate?: string | null;
   totalDebit?: string | null;
-  transactions: ReviewedStatementTransactionInput[];
+  expenses: ReviewedExpenseInput[];
   acknowledgeProbableDuplicates?: boolean;
 }
 
@@ -96,6 +102,9 @@ export class StatementImportsService {
     @Optional()
     @Inject(GCASH_REFERENCE_HASHER)
     private readonly gcashReferenceHasher?: GCashReferenceHasher,
+    @Optional()
+    @Inject(MANILA_CLOCK)
+    private readonly clock: ManilaClock = systemManilaClock,
   ) {}
 
   commitReviewedStatementImportInSpace(
@@ -160,7 +169,7 @@ export class StatementImportsService {
         records.length > pageSize && lastItem
           ? encodeStatementImportCursor(
               {
-                statementDate: lastItem.statementDate,
+                confirmedAt: lastItem.importedAt.toISOString(),
                 statementImportId: lastItem.id,
               },
               filters,
@@ -175,7 +184,7 @@ export class StatementImportsService {
     spaceId: string,
     input: CommitReviewedStatementImportInput,
   ): Promise<StatementImportRecord> {
-    validateReviewedStatementInput(input);
+    validateReviewedStatementInput(input, this.clock());
 
     const user = await context.users.findById(userId);
     if (!user) {
@@ -187,28 +196,19 @@ export class StatementImportsService {
     }
     await context.spaces.lockForStatementImport(spaceId, userId);
 
-    const existingImport = await context.statementImports.findByFileHashInSpace(
-      spaceId,
-      input.fileHash,
-    );
-    if (existingImport) {
-      throw new StatementImportFileAlreadyExistsError();
-    }
-
-    await ensureCategoriesAreActive(context, spaceId, input.transactions);
-    const preparedTransactions = input.transactions.map((transaction) => {
+    await ensureCategoriesAreActive(context, spaceId, input.expenses);
+    const preparedExpenses = input.expenses.map((expense) => {
       const referenceHash =
-        transaction.reference == null
+        expense.reference == null
           ? null
-          : this.hashGcashReference(spaceId, input.bank, transaction.reference);
-      const importFingerprint = computeImportFingerprint(input, transaction);
+          : this.hashGcashReference(spaceId, input.provider, expense.reference);
+      const importFingerprint = computeImportFingerprint(input, expense);
 
       return {
-        categoryId: transaction.categoryId ?? null,
-        purchaseDate: transaction.purchaseDate,
-        description: transaction.description.trim(),
-        amount: normalizeAmount(transaction.amount),
-        categoryMatchConfidence: transaction.categoryMatchConfidence ?? null,
+        categoryId: expense.categoryId,
+        expenseDate: expense.expenseDate,
+        description: expense.description.trim(),
+        amount: normalizeAmount(expense.amount),
         importFingerprint,
         referenceHash,
         duplicateKey: referenceHash ?? importFingerprint,
@@ -218,7 +218,7 @@ export class StatementImportsService {
     const probableDuplicateGroups = await findProbableDuplicates(
       context,
       spaceId,
-      preparedTransactions,
+      preparedExpenses,
     );
     if (
       probableDuplicateGroups.length > 0 &&
@@ -232,35 +232,37 @@ export class StatementImportsService {
       spaceId,
       fileName: input.fileName,
       fileHash: input.fileHash,
-      statementDate: input.statementDate,
-      bank: input.bank,
-      cardType: input.cardType ?? null,
+      statementDate:
+        input.statementType === 'credit_card' ? input.statementDate! : null,
+      provider: input.provider,
+      accountFormat: input.accountFormat ?? null,
       statementType: input.statementType,
-      transactionHistoryStartDate: input.transactionHistoryStartDate ?? null,
+      historyFromDate: input.historyFromDate ?? null,
+      historyToDate: input.historyToDate ?? null,
       totalDebit:
         input.totalDebit == null ? null : normalizeAmount(input.totalDebit),
       importedAt: new Date(),
     });
 
-    for (const transaction of preparedTransactions) {
-      const createdTransaction = await context.importedTransactions.create({
+    for (const expense of preparedExpenses) {
+      const createdExpense = await context.importedExpenses.create({
         spaceId,
         addedByUserId: userId,
-        categoryId: transaction.categoryId ?? null,
+        categoryId: expense.categoryId,
         statementImportId: statementImport.id,
-        purchaseDate: transaction.purchaseDate,
-        description: transaction.description,
-        amount: transaction.amount,
-        categoryMatchConfidence: transaction.categoryMatchConfidence,
-        importFingerprint: transaction.importFingerprint,
-        referenceHash: transaction.referenceHash,
+        expenseDate: expense.expenseDate,
+        description: expense.description,
+        amount: expense.amount,
+        importFingerprint: expense.importFingerprint,
+        referenceHash: expense.referenceHash,
       });
-      await context.transactionActivities.create({
-        transactionId: createdTransaction.id,
+      await context.expenseActivities.create({
+        expenseId: createdExpense.id,
         spaceId,
         actorUserId: userId,
         type: 'created',
-        occurredAt: createdTransaction.createdAt,
+        occurredAt: createdExpense.createdAt,
+        after: toExpenseActivitySnapshot(createdExpense),
       });
     }
 
@@ -283,29 +285,27 @@ export class StatementImportsService {
 async function findProbableDuplicates(
   context: StatementImportConfirmationContext,
   spaceId: string,
-  preparedTransactions: readonly {
+  preparedExpenses: readonly {
     importFingerprint: string;
     referenceHash: string | null;
     duplicateKey: string;
   }[],
 ) {
   const duplicateKeys = [
-    ...new Set(
-      preparedTransactions.map((transaction) => transaction.duplicateKey),
-    ),
+    ...new Set(preparedExpenses.map((expense) => expense.duplicateKey)),
   ];
   const committedMatchesByDuplicateKey = new Map<string, { id: string }[]>();
 
   for (const duplicateKey of duplicateKeys) {
-    const transaction = preparedTransactions.find(
+    const expense = preparedExpenses.find(
       (candidate) => candidate.duplicateKey === duplicateKey,
     );
-    const committedMatches = transaction?.referenceHash
-      ? await context.importedTransactions.findByReferenceHashInSpace(
+    const committedMatches = expense?.referenceHash
+      ? await context.importedExpenses.findByReferenceHashInSpace(
           spaceId,
-          transaction.referenceHash,
+          expense.referenceHash,
         )
-      : await context.importedTransactions.findByFingerprintInSpace(
+      : await context.importedExpenses.findByFingerprintInSpace(
           spaceId,
           duplicateKey,
         );
@@ -313,9 +313,9 @@ async function findProbableDuplicates(
   }
 
   return findProbableDuplicateGroups(
-    preparedTransactions.map((transaction, transactionIndex) => ({
-      transactionIndex,
-      fingerprint: transaction.duplicateKey,
+    preparedExpenses.map((expense, expenseIndex) => ({
+      expenseIndex,
+      fingerprint: expense.duplicateKey,
     })),
     committedMatchesByDuplicateKey,
   );
@@ -324,26 +324,22 @@ async function findProbableDuplicates(
 async function ensureCategoriesAreActive(
   context: StatementImportConfirmationContext,
   spaceId: string,
-  transactions: ReviewedStatementTransactionInput[],
+  expenses: ReviewedExpenseInput[],
 ): Promise<void> {
-  const transactionIndexesByCategory = new Map<string, number[]>();
-  transactions.forEach((transaction, transactionIndex) => {
-    if (transaction.categoryId == null) return;
-
-    const indexes = transactionIndexesByCategory.get(transaction.categoryId);
+  const expenseIndexesByCategory = new Map<string, number[]>();
+  expenses.forEach((expense, expenseIndex) => {
+    const indexes = expenseIndexesByCategory.get(expense.categoryId);
     if (indexes) {
-      indexes.push(transactionIndex);
+      indexes.push(expenseIndex);
       return;
     }
 
-    transactionIndexesByCategory.set(transaction.categoryId, [
-      transactionIndex,
-    ]);
+    expenseIndexesByCategory.set(expense.categoryId, [expenseIndex]);
   });
 
   const inactiveCategories: CategoryEligibilityConflict[] = [];
 
-  for (const [categoryId, transactionIndexes] of transactionIndexesByCategory) {
+  for (const [categoryId, expenseIndexes] of expenseIndexesByCategory) {
     const category = await context.categories.findBySpaceId(
       spaceId,
       categoryId,
@@ -352,7 +348,7 @@ async function ensureCategoriesAreActive(
       assertActiveCategory(category);
     }
     if (!category.isActive) {
-      inactiveCategories.push({ categoryId, transactionIndexes });
+      inactiveCategories.push({ categoryId, expenseIndexes });
     }
   }
 
@@ -363,6 +359,7 @@ async function ensureCategoriesAreActive(
 
 function validateReviewedStatementInput(
   input: CommitReviewedStatementImportInput,
+  now: Date,
 ): void {
   if (!/^[0-9a-f]{64}$/u.test(input.fileHash)) {
     throw new StatementImportFileHashInvalidError();
@@ -370,7 +367,6 @@ function validateReviewedStatementInput(
 
   const details: ErrorDetail[] = [];
   addStringDetail(details, '/fileName', input.fileName, 255);
-  addDateDetail(details, '/statementDate', input.statementDate);
   if (!isStatementType(input.statementType)) {
     details.push({
       field: '/statementType',
@@ -378,28 +374,41 @@ function validateReviewedStatementInput(
       message: 'Statement type must be credit_card or e_wallet',
     });
   }
-  addStringDetail(details, '/bank', input.bank, 100);
-  if (input.cardType != null) {
-    addStringDetail(details, '/cardType', input.cardType, 100);
+  addStringDetail(details, '/provider', input.provider, 100);
+  if (input.accountFormat != null) {
+    addStringDetail(details, '/accountFormat', input.accountFormat, 100);
   }
   const isEWallet = input.statementType === 'e_wallet';
   if (isEWallet) {
-    addDateDetail(
-      details,
-      '/transactionHistoryStartDate',
-      input.transactionHistoryStartDate,
-    );
+    if (input.statementDate != null) {
+      details.push({
+        field: '/statementDate',
+        code: 'not_allowed',
+        message: 'Statement date is only valid for Credit Card imports',
+      });
+    }
+    addDateDetail(details, '/historyFromDate', input.historyFromDate);
     if (
-      typeof input.transactionHistoryStartDate === 'string' &&
-      isValidDomainDate(input.statementDate) &&
-      isValidDomainDate(input.transactionHistoryStartDate) &&
-      input.transactionHistoryStartDate > input.statementDate
+      typeof input.historyToDate !== 'string' ||
+      !isValidDomainDate(input.historyToDate)
     ) {
       details.push({
-        field: '/transactionHistoryStartDate',
+        field: '/historyToDate',
+        code: 'invalid_format',
+        message: 'Date must be a valid calendar date in YYYY-MM-DD format',
+      });
+    }
+    if (
+      typeof input.historyFromDate === 'string' &&
+      typeof input.historyToDate === 'string' &&
+      isValidDomainDate(input.historyFromDate) &&
+      isValidDomainDate(input.historyToDate) &&
+      input.historyFromDate > input.historyToDate
+    ) {
+      details.push({
+        field: '/historyFromDate',
         code: 'invalid_bounds',
-        message:
-          'Transaction History Period start must be on or before its end',
+        message: 'History start must be on or before its end',
       });
     }
     if (
@@ -413,12 +422,12 @@ function validateReviewedStatementInput(
       });
     }
   } else {
-    if (input.transactionHistoryStartDate != null) {
+    addDateDetail(details, '/statementDate', input.statementDate);
+    if (input.historyFromDate != null || input.historyToDate != null) {
       details.push({
-        field: '/transactionHistoryStartDate',
+        field: '/historyFromDate',
         code: 'not_allowed',
-        message:
-          'Transaction History Period is only valid for E-Wallet imports',
+        message: 'History dates are only valid for E-Wallet imports',
       });
     }
     if (input.totalDebit != null) {
@@ -440,48 +449,54 @@ function validateReviewedStatementInput(
     });
   }
 
-  if (!Array.isArray(input.transactions)) {
+  if (!Array.isArray(input.expenses)) {
     details.push({
-      field: '/transactions',
+      field: '/expenses',
       code: 'invalid_format',
-      message: 'Transactions must be an array',
+      message: 'Expenses must be an array',
     });
   } else {
-    input.transactions.forEach((transaction, index) => {
-      const fieldPrefix = `/transactions/${index}`;
-      if (transaction === null || typeof transaction !== 'object') {
+    input.expenses.forEach((expense, index) => {
+      const fieldPrefix = `/expenses/${index}`;
+      if (expense === null || typeof expense !== 'object') {
         details.push({
           field: fieldPrefix,
           code: 'invalid_format',
-          message: 'Transaction must be an object',
+          message: 'Expense must be an object',
         });
         return;
       }
       if (
-        transaction.categoryId != null &&
-        (typeof transaction.categoryId !== 'string' ||
-          !POSITIVE_INTEGER_ID_PATTERN.test(transaction.categoryId))
+        typeof expense.categoryId !== 'string' ||
+        !POSITIVE_INTEGER_ID_PATTERN.test(expense.categoryId)
       ) {
         details.push({
           field: `${fieldPrefix}/categoryId`,
           code: 'invalid_format',
-          message: 'Category ID must be a positive integer string',
+          message: 'A positive Category ID string is required',
         });
       }
-      addDateDetail(
-        details,
-        `${fieldPrefix}/purchaseDate`,
-        transaction.purchaseDate,
-      );
+      addDateDetail(details, `${fieldPrefix}/expenseDate`, expense.expenseDate);
+      if (
+        typeof expense.expenseDate === 'string' &&
+        isValidDomainDate(expense.expenseDate) &&
+        isFutureManilaDate(expense.expenseDate, now)
+      ) {
+        details.push({
+          field: `${fieldPrefix}/expenseDate`,
+          code: 'future_date',
+          message: 'Expense date cannot be after today in Asia/Manila',
+        });
+      }
       addStringDetail(
         details,
         `${fieldPrefix}/description`,
-        transaction.description,
+        expense.description,
         500,
       );
       if (
-        typeof transaction.amount !== 'string' ||
-        !POSITIVE_TWO_DECIMAL_AMOUNT_PATTERN.test(transaction.amount)
+        typeof expense.amount !== 'string' ||
+        !POSITIVE_TWO_DECIMAL_AMOUNT_PATTERN.test(expense.amount)
       ) {
         details.push({
           field: `${fieldPrefix}/amount`,
@@ -489,26 +504,13 @@ function validateReviewedStatementInput(
           message: 'Amount must be a positive two-decimal string',
         });
       }
-      if (
-        transaction.categoryMatchConfidence != null &&
-        (typeof transaction.categoryMatchConfidence !== 'string' ||
-          !/^(?:0(?:\.\d{1,4})?|1(?:\.0{1,4})?)$/u.test(
-            transaction.categoryMatchConfidence,
-          ))
-      ) {
-        details.push({
-          field: `${fieldPrefix}/categoryMatchConfidence`,
-          code: 'invalid_format',
-          message: 'Category match confidence must be between 0 and 1',
-        });
-      }
-      if (transaction.reference != null) {
+      if (expense.reference != null) {
         if (
           !isEWallet ||
-          !isEWalletProvider(input.bank) ||
-          typeof transaction.reference !== 'string' ||
-          transaction.reference.trim().length === 0 ||
-          Array.from(transaction.reference).length > 100
+          !isEWalletProvider(input.provider) ||
+          typeof expense.reference !== 'string' ||
+          expense.reference.trim().length === 0 ||
+          Array.from(expense.reference).length > 100
         ) {
           details.push({
             field: `${fieldPrefix}/reference`,

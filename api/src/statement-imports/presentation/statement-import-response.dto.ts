@@ -41,25 +41,27 @@ export class StatementImportResponseDto {
   fileName!: string;
 
   @ApiProperty({
-    description: 'Valid calendar statement date encoded as YYYY-MM-DD.',
+    description: 'Credit Card statement date; null for E-Wallet imports.',
+    type: String,
     format: 'date',
     pattern: DOMAIN_DATE_PATTERN.source,
+    nullable: true,
     example: '2026-08-31',
   })
-  statementDate!: string;
+  statementDate!: string | null;
 
   @ApiProperty({
-    description: 'Statement bank name retained after trimming.',
+    description: 'Statement provider retained after trimming.',
     minLength: 1,
     maxLength: 100,
     pattern: '\\S',
-    example: 'Example Bank',
+    example: 'BDO',
   })
-  bank!: string;
+  provider!: string;
 
   @ApiProperty({
     description:
-      'Card type retained after trimming, or null when the statement did not provide one.',
+      'Account format retained after trimming, or null when it does not apply.',
     type: String,
     minLength: 1,
     maxLength: 100,
@@ -67,7 +69,7 @@ export class StatementImportResponseDto {
     nullable: true,
     example: 'visa',
   })
-  cardType!: string | null;
+  accountFormat!: string | null;
 
   @ApiProperty({
     description: 'Automatically classified Statement type.',
@@ -78,14 +80,25 @@ export class StatementImportResponseDto {
 
   @ApiProperty({
     description:
-      'Inclusive E-Wallet Transaction History Period start; null for Credit Card imports or legacy imports where this control is unavailable.',
+      'Inclusive E-Wallet history start date; null for Credit Card imports.',
     type: String,
     format: 'date',
     pattern: DOMAIN_DATE_PATTERN.source,
     nullable: true,
     example: null,
   })
-  transactionHistoryStartDate!: string | null;
+  historyFromDate!: string | null;
+
+  @ApiProperty({
+    description:
+      'Inclusive E-Wallet history end date; null for Credit Card imports.',
+    type: String,
+    format: 'date',
+    pattern: DOMAIN_DATE_PATTERN.source,
+    nullable: true,
+    example: null,
+  })
+  historyToDate!: string | null;
 
   @ApiProperty({
     description:
@@ -114,7 +127,7 @@ export class StatementImportResponseDto {
 
 @ApiSchema({
   description:
-    'A Statement import in the destination Space history collection, including its committed Transaction count.',
+    'A Statement import in the destination Space history collection, including its current Expense count.',
   additionalProperties: false,
 } as ApiSchemaOptionsWithAdditionalProperties)
 export class StatementImportHistoryResponseDto {
@@ -136,25 +149,27 @@ export class StatementImportHistoryResponseDto {
   fileName!: string;
 
   @ApiProperty({
-    description: 'Valid calendar statement date encoded as YYYY-MM-DD.',
+    description: 'Credit Card statement date; null for E-Wallet imports.',
+    type: String,
     format: 'date',
     pattern: DOMAIN_DATE_PATTERN.source,
+    nullable: true,
     example: '2026-08-31',
   })
-  statementDate!: string;
+  statementDate!: string | null;
 
   @ApiProperty({
-    description: 'Statement bank name retained after trimming.',
+    description: 'Statement provider retained after trimming.',
     minLength: 1,
     maxLength: 100,
     pattern: '\\S',
-    example: 'Example Bank',
+    example: 'BDO',
   })
-  bank!: string;
+  provider!: string;
 
   @ApiProperty({
     description:
-      'Card type retained after trimming, or null when the statement did not provide one.',
+      'Account format retained after trimming, or null when it does not apply.',
     type: String,
     minLength: 1,
     maxLength: 100,
@@ -162,7 +177,7 @@ export class StatementImportHistoryResponseDto {
     nullable: true,
     example: 'visa',
   })
-  cardType!: string | null;
+  accountFormat!: string | null;
 
   @ApiProperty({
     description: 'Automatically classified Statement type.',
@@ -173,14 +188,25 @@ export class StatementImportHistoryResponseDto {
 
   @ApiProperty({
     description:
-      'Inclusive E-Wallet Transaction History Period start; null for Credit Card imports or legacy imports where this control is unavailable.',
+      'Inclusive E-Wallet history start date; null for Credit Card imports.',
     type: String,
     format: 'date',
     pattern: DOMAIN_DATE_PATTERN.source,
     nullable: true,
     example: null,
   })
-  transactionHistoryStartDate!: string | null;
+  historyFromDate!: string | null;
+
+  @ApiProperty({
+    description:
+      'Inclusive E-Wallet history end date; null for Credit Card imports.',
+    type: String,
+    format: 'date',
+    pattern: DOMAIN_DATE_PATTERN.source,
+    nullable: true,
+    example: null,
+  })
+  historyToDate!: string | null;
 
   @ApiProperty({
     description:
@@ -207,24 +233,23 @@ export class StatementImportHistoryResponseDto {
   importedByUserId!: string;
 
   @ApiProperty({
-    description:
-      'Non-negative committed Transaction count encoded as a string.',
+    description: 'Non-negative current Expense count encoded as a string.',
     type: String,
     pattern: '^\\d+$',
     example: '12',
   })
-  transactionCount!: string;
+  expenseCount!: string;
 }
 
 @ApiSchema({
   description:
-    'A keyset-paginated Statement import history page. Items are ordered by statementDate descending, then Statement import ID descending.',
+    'A keyset-paginated Statement import history page. Items are ordered by confirmation time descending, then Statement import ID descending.',
   additionalProperties: false,
 } as ApiSchemaOptionsWithAdditionalProperties)
 export class StatementImportHistoryPageResponseDto {
   @ApiProperty({
     description:
-      'Statement imports ordered by statementDate descending, then Statement import ID descending.',
+      'Statement imports ordered by confirmation time (importedAt) descending, then Statement import ID descending.',
     type: 'array',
     items: { $ref: getSchemaPath(StatementImportHistoryResponseDto) },
   })

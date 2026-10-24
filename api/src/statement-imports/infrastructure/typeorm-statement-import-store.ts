@@ -1,12 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { InjectEntityManager } from '@nestjs/typeorm';
-import { QueryFailedError, type EntityManager } from 'typeorm';
-import { POSTGRES_UNIQUE_VIOLATION } from '../../database/database-error-codes';
+import type { EntityManager } from 'typeorm';
 import { SpaceEntity } from '../../database/entities/space.entity';
 import { SpaceMembershipEntity } from '../../database/entities/space-membership.entity';
 import { StatementImportEntity } from '../../database/entities/statement-import.entity';
-import { TransactionEntity } from '../../database/entities/transaction.entity';
-import { StatementImportFileAlreadyExistsError } from '../application/statement-import-errors';
+import { ExpenseEntity } from '../../database/entities/expense.entity';
 import { SpaceNotFoundError } from '../../spaces/application/space-errors';
 import { assertWritableSpace } from '../../spaces/application/assert-writable-space';
 import type {
@@ -16,10 +14,6 @@ import type {
   StatementImportStore,
   SpaceStatementImportHistoryPageQuery,
 } from '../application/statement-import-store';
-
-const STATEMENT_IMPORT_FILE_HASH_UNIQUE_CONSTRAINTS = new Set([
-  'ux_statement_imports_space_file_hash',
-]);
 
 @Injectable()
 export class TypeOrmStatementImportStore implements StatementImportStore {
@@ -59,17 +53,6 @@ export class TypeOrmStatementImportStore implements StatementImportStore {
     return entity ? toRecord(entity) : null;
   }
 
-  async findByFileHashInSpace(
-    spaceId: string,
-    fileHash: string,
-  ): Promise<StatementImportRecord | null> {
-    const entity = await this.entityManager
-      .getRepository(StatementImportEntity)
-      .findOne({ where: { spaceId, fileHash } });
-
-    return entity ? toRecord(entity) : null;
-  }
-
   async findPageInSpace(
     query: SpaceStatementImportHistoryPageQuery,
   ): Promise<StatementImportHistoryRecord[]> {
@@ -77,24 +60,24 @@ export class TypeOrmStatementImportStore implements StatementImportStore {
       .getRepository(StatementImportEntity)
       .createQueryBuilder('statementImport')
       .leftJoin(
-        TransactionEntity,
-        'transaction',
-        'transaction.statementImportId = statementImport.id AND transaction.spaceId = statementImport.spaceId AND transaction.deletedAt IS NULL',
+        ExpenseEntity,
+        'expense',
+        'expense.statementImportId = statementImport.id AND expense.spaceId = statementImport.spaceId AND expense.deletedAt IS NULL',
       )
-      .addSelect('COUNT(transaction.id)', 'transactionCount')
+      .addSelect('COUNT(expense.id)', 'expenseCount')
       .where('statementImport.spaceId = :spaceId', {
         spaceId: query.spaceId,
       });
 
     if (query.filters.fromDate !== undefined) {
       statementImportQuery.andWhere(
-        'statementImport.statementDate >= :fromDate',
+        "(statementImport.importedAt AT TIME ZONE 'Asia/Manila')::date >= :fromDate",
         { fromDate: query.filters.fromDate },
       );
     }
     if (query.filters.toDate !== undefined) {
       statementImportQuery.andWhere(
-        'statementImport.statementDate <= :toDate',
+        "(statementImport.importedAt AT TIME ZONE 'Asia/Manila')::date <= :toDate",
         {
           toDate: query.filters.toDate,
         },
@@ -102,9 +85,9 @@ export class TypeOrmStatementImportStore implements StatementImportStore {
     }
     if (query.after) {
       statementImportQuery.andWhere(
-        '(statementImport.statementDate < :cursorDate OR (statementImport.statementDate = :cursorDate AND statementImport.id < :cursorId))',
+        '(statementImport.importedAt < :cursorDate OR (statementImport.importedAt = :cursorDate AND statementImport.id < :cursorId))',
         {
-          cursorDate: query.after.statementDate,
+          cursorDate: query.after.confirmedAt,
           cursorId: query.after.statementImportId,
         },
       );
@@ -112,16 +95,16 @@ export class TypeOrmStatementImportStore implements StatementImportStore {
 
     const result = await statementImportQuery
       .groupBy('statementImport.id')
-      .orderBy('statementImport.statementDate', 'DESC')
+      .orderBy('statementImport.importedAt', 'DESC')
       .addOrderBy('statementImport.id', 'DESC')
       .take(query.pageSize + 1)
       .getRawAndEntities();
 
     const rawRows = result.raw as unknown as {
-      transactionCount?: unknown;
+      expenseCount?: unknown;
     }[];
     return result.entities.map((entity, index) =>
-      toHistoryRecord(entity, rawRows[index]?.transactionCount),
+      toHistoryRecord(entity, rawRows[index]?.expenseCount),
     );
   }
 
@@ -134,27 +117,20 @@ export class TypeOrmStatementImportStore implements StatementImportStore {
         fileName: input.fileName,
         fileHash: input.fileHash,
         statementDate: input.statementDate,
-        bank: input.bank,
-        cardType: input.cardType,
+        provider: input.provider,
+        accountFormat: input.accountFormat,
         statementType: input.statementType,
-        transactionHistoryStartDate: input.transactionHistoryStartDate,
+        historyFromDate: input.historyFromDate,
+        historyToDate: input.historyToDate,
         totalDebit: input.totalDebit,
         importedAt: input.importedAt,
       });
 
-    try {
-      return toRecord(
-        await this.entityManager
-          .getRepository(StatementImportEntity)
-          .save(entity),
-      );
-    } catch (error: unknown) {
-      if (isFileHashUniqueViolation(error)) {
-        throw new StatementImportFileAlreadyExistsError();
-      }
-
-      throw error;
-    }
+    return toRecord(
+      await this.entityManager
+        .getRepository(StatementImportEntity)
+        .save(entity),
+    );
   }
 }
 
@@ -166,10 +142,11 @@ function toRecord(entity: StatementImportEntity): StatementImportRecord {
     fileName: entity.fileName,
     fileHash: entity.fileHash,
     statementDate: entity.statementDate,
-    bank: entity.bank,
-    cardType: entity.cardType,
+    provider: entity.provider,
+    accountFormat: entity.accountFormat,
     statementType: entity.statementType,
-    transactionHistoryStartDate: entity.transactionHistoryStartDate,
+    historyFromDate: entity.historyFromDate,
+    historyToDate: entity.historyToDate,
     totalDebit: entity.totalDebit,
     importedAt: entity.importedAt,
   };
@@ -177,7 +154,7 @@ function toRecord(entity: StatementImportEntity): StatementImportRecord {
 
 function toHistoryRecord(
   entity: StatementImportEntity,
-  transactionCount: unknown,
+  expenseCount: unknown,
 ): StatementImportHistoryRecord {
   return {
     id: entity.id,
@@ -185,17 +162,18 @@ function toHistoryRecord(
     importedByUserId: entity.importedByUserId,
     fileName: entity.fileName,
     statementDate: entity.statementDate,
-    bank: entity.bank,
-    cardType: entity.cardType,
+    provider: entity.provider,
+    accountFormat: entity.accountFormat,
     statementType: entity.statementType,
-    transactionHistoryStartDate: entity.transactionHistoryStartDate,
+    historyFromDate: entity.historyFromDate,
+    historyToDate: entity.historyToDate,
     totalDebit: entity.totalDebit,
     importedAt: entity.importedAt,
-    transactionCount: serializeTransactionCount(transactionCount),
+    expenseCount: serializeExpenseCount(expenseCount),
   };
 }
 
-function serializeTransactionCount(value: unknown): string {
+function serializeExpenseCount(value: unknown): string {
   if (
     typeof value === 'string' ||
     typeof value === 'number' ||
@@ -205,20 +183,4 @@ function serializeTransactionCount(value: unknown): string {
   }
 
   return '0';
-}
-
-function isFileHashUniqueViolation(error: unknown): boolean {
-  if (!(error instanceof QueryFailedError)) {
-    return false;
-  }
-
-  const driverError = error.driverError as {
-    code?: unknown;
-    constraint?: unknown;
-  };
-  return (
-    driverError.code === POSTGRES_UNIQUE_VIOLATION &&
-    typeof driverError.constraint === 'string' &&
-    STATEMENT_IMPORT_FILE_HASH_UNIQUE_CONSTRAINTS.has(driverError.constraint)
-  );
 }

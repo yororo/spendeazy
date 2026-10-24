@@ -13,26 +13,6 @@ export class StatementImportNotFoundError extends ApplicationError {
   }
 }
 
-export const STATEMENT_IMPORT_FILE_ALREADY_EXISTS_CODE =
-  'STATEMENT_IMPORT_FILE_ALREADY_EXISTS';
-
-export class StatementImportFileAlreadyExistsError extends ApplicationError {
-  constructor() {
-    const details: ErrorDetail[] = [
-      {
-        field: '/fileHash',
-        code: 'not_unique',
-        message: 'The statement file has already been imported',
-      },
-    ];
-    super(
-      STATEMENT_IMPORT_FILE_ALREADY_EXISTS_CODE,
-      'The statement file has already been imported',
-      details,
-    );
-  }
-}
-
 export const STATEMENT_IMPORT_FILE_HASH_INVALID_CODE =
   'STATEMENT_IMPORT_FILE_HASH_INVALID';
 
@@ -49,22 +29,22 @@ export const STATEMENT_IMPORT_PROBABLE_DUPLICATES_CODE =
   'STATEMENT_IMPORT_PROBABLE_DUPLICATES';
 
 export interface ProbableDuplicateErrorDetail extends ErrorDetail {
-  transactionIndexes: number[];
-  committedTransactionIds: string[];
+  expenseIndexes: number[];
+  committedExpenseIds: string[];
 }
 
 export class StatementImportProbableDuplicatesError extends ApplicationError {
   constructor(groups: readonly ProbableDuplicateGroup[]) {
     const details: ProbableDuplicateErrorDetail[] = groups.map((group) => ({
-      field: `/transactions/${group.incomingTransactionIndexes[0]}`,
+      field: `/expenses/${group.incomingExpenseIndexes[0]}`,
       code: 'probable_duplicate',
-      message: 'The reviewed transaction has a probable duplicate',
-      transactionIndexes: group.incomingTransactionIndexes,
-      committedTransactionIds: group.committedMatches.map((match) => match.id),
+      message: 'The reviewed Expense has a probable duplicate',
+      expenseIndexes: group.incomingExpenseIndexes,
+      committedExpenseIds: group.committedMatches.map((match) => match.id),
     }));
     super(
       STATEMENT_IMPORT_PROBABLE_DUPLICATES_CODE,
-      'Probable duplicate imported transactions require acknowledgement',
+      'Probable duplicate imported Expenses require acknowledgement',
       details,
     );
   }
@@ -73,27 +53,24 @@ export class StatementImportProbableDuplicatesError extends ApplicationError {
 export interface CategoryEligibilityErrorDetail extends ErrorDetail {
   code: 'category_inactive';
   categoryId: string;
-  transactionIndexes: number[];
+  expenseIndexes: number[];
 }
 
 export interface CategoryEligibilityConflict {
   categoryId: string;
-  transactionIndexes: number[];
+  expenseIndexes: number[];
 }
 
 export class StatementImportCategoryEligibilityError extends CategoryInactiveError {
   constructor(conflicts: readonly CategoryEligibilityConflict[]) {
     super(
       conflicts.map(
-        ({
-          categoryId,
-          transactionIndexes,
-        }): CategoryEligibilityErrorDetail => ({
-          field: `/transactions/${transactionIndexes[0]}/categoryId`,
+        ({ categoryId, expenseIndexes }): CategoryEligibilityErrorDetail => ({
+          field: `/expenses/${expenseIndexes[0]}/categoryId`,
           code: 'category_inactive',
-          message: 'The reviewed transaction uses an inactive Category',
+          message: 'The reviewed Expense uses an inactive Category',
           categoryId,
-          transactionIndexes,
+          expenseIndexes,
         }),
       ),
     );

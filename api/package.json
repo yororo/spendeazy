@@ -24,7 +24,7 @@
     "migration:revert": "typeorm-ts-node-commonjs migration:revert -d src/database/data-source.ts",
     "test:migration-image": "node scripts/verify-runtime-migrations.mjs",
     "db:seed": "ts-node src/database/development/seed-database.ts",
-    "db:reset-seed": "ts-node src/database/development/seed-database.ts --reset",
+    "db:recreate-seed": "ts-node src/database/development/seed-database.ts --reset",
     "openapi:generate": "ts-node src/docs/generate-openapi.ts",
     "openapi:check": "ts-node src/docs/check-openapi.ts"
   },
@@ -35,7 +35,6 @@
     "@nestjs/platform-express": "^11.0.1",
     "@nestjs/swagger": "^11.4.7",
     "@nestjs/typeorm": "^11.0.3",
-    "@typesafe-ai/sdk": "^0.6.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
     "js-yaml": "^4.3.1",

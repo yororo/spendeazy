@@ -8,7 +8,7 @@ export interface StatementImportHistoryFilters {
 }
 
 export interface StatementImportHistoryCursorPosition {
-  statementDate: string;
+  confirmedAt: string;
   statementImportId: string;
 }
 
@@ -25,11 +25,12 @@ export interface StatementImportRecord {
   importedByUserId: string;
   fileName: string;
   fileHash: string;
-  statementDate: string;
-  bank: string;
-  cardType: string | null;
+  statementDate: string | null;
+  provider: string;
+  accountFormat: string | null;
   statementType: StatementType;
-  transactionHistoryStartDate: string | null;
+  historyFromDate: string | null;
+  historyToDate: string | null;
   totalDebit: string | null;
   importedAt: Date;
 }
@@ -38,7 +39,7 @@ export interface StatementImportHistoryRecord extends Omit<
   StatementImportRecord,
   'fileHash'
 > {
-  transactionCount: string;
+  expenseCount: string;
 }
 
 export interface NewStatementImport {
@@ -46,11 +47,12 @@ export interface NewStatementImport {
   importedByUserId: string;
   fileName: string;
   fileHash: string;
-  statementDate: string;
-  bank: string;
-  cardType: string | null;
+  statementDate: string | null;
+  provider: string;
+  accountFormat: string | null;
   statementType: StatementType;
-  transactionHistoryStartDate: string | null;
+  historyFromDate: string | null;
+  historyToDate: string | null;
   totalDebit: string | null;
   importedAt: Date;
 }
@@ -59,10 +61,6 @@ export interface SpaceStatementImportStore {
   findByIdInSpace(
     spaceId: string,
     statementImportId: string,
-  ): Promise<StatementImportRecord | null>;
-  findByFileHashInSpace(
-    spaceId: string,
-    fileHash: string,
   ): Promise<StatementImportRecord | null>;
   findPageInSpace(
     query: SpaceStatementImportHistoryPageQuery,

@@ -19,8 +19,6 @@ export interface AppConfig {
   clerkAuthorizedParties: string[];
   invitationCodeEncryptionKey?: string;
   gcashReferenceHashKey?: string;
-  /** Optional credential from TYPESAFE_API_KEY; without it the API returns no Category Suggestions. */
-  typesafeApiKey?: string;
 }
 
 export function loadAppConfig(
@@ -40,7 +38,6 @@ export function loadAppConfig(
   const gcashReferenceHashKey = readGcashReferenceHashKey(
     processEnv.GCASH_REFERENCE_HASH_KEY,
   );
-  const typesafeApiKey = processEnv.TYPESAFE_API_KEY?.trim() || undefined;
 
   if (currentEnvironment === PRODUCTION_ENVIRONMENT) {
     requireProductionValue('DATABASE_URL', databaseUrl);
@@ -78,7 +75,6 @@ export function loadAppConfig(
     clerkAuthorizedParties,
     ...(invitationCodeEncryptionKey ? { invitationCodeEncryptionKey } : {}),
     ...(gcashReferenceHashKey ? { gcashReferenceHashKey } : {}),
-    ...(typesafeApiKey ? { typesafeApiKey } : {}),
   };
 }
 

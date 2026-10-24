@@ -1,170 +1,109 @@
-import 'reflect-metadata';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import {
   CommitReviewedStatementImportDto,
-  StatementImportCollectionQueryDto,
-  StatementImportParamsDto,
+  ReviewedExpenseDto,
 } from './statement-import.dto';
 
-describe('statement import DTOs', () => {
-  it('accepts positive decimal string identifiers for statement-import routes', async () => {
-    await expect(
-      validate(
-        plainToInstance(StatementImportParamsDto, {
-          statementImportId: '108',
-        }),
-      ),
-    ).resolves.toEqual([]);
-
-    await expect(
-      validate(
-        plainToInstance(StatementImportParamsDto, {
-          statementImportId: '1.5',
-        }),
-      ),
-    ).resolves.not.toEqual([]);
-  });
-
-  it('accepts a reviewed statement and transforms display text', async () => {
+describe('Statement Import DTOs', () => {
+  it('accepts canonical categorized Expense fields and trims descriptions', async () => {
     const input = plainToInstance(CommitReviewedStatementImportDto, {
       fileName: '  august.pdf  ',
       fileHash: 'a'.repeat(64),
       statementDate: '2026-08-31',
       statementType: 'credit_card',
-      bank: '  Example Bank  ',
-      cardType: '  visa  ',
-      transactions: [
+      provider: '  Example Bank  ',
+      accountFormat: '  visa  ',
+      expenses: [
         {
           categoryId: '42',
-          purchaseDate: '2026-08-01',
+          expenseDate: '2026-08-01',
           description: '  Coffee  ',
           amount: '4.50',
-          categoryMatchConfidence: '0.9000',
         },
       ],
     });
-
     await expect(validate(input)).resolves.toEqual([]);
     expect(input.fileName).toBe('august.pdf');
-    expect(input.bank).toBe('Example Bank');
-    expect(input.transactions[0].description).toBe('Coffee');
+    expect(input.provider).toBe('Example Bank');
+    expect(input.expenses[0].description).toBe('Coffee');
   });
 
-  it('rejects uppercase hashes, invalid dates, and missing transactions', async () => {
+  it('rejects malformed hashes, dates, missing Expenses and missing Categories', async () => {
+    const base = {
+      fileName: 'august.pdf',
+      fileHash: 'a'.repeat(64),
+      statementDate: '2026-08-31',
+      statementType: 'credit_card',
+      provider: 'Example Bank',
+      expenses: [],
+    };
     for (const overrides of [
       { fileHash: 'A'.repeat(64) },
       { statementDate: '2026-02-29' },
-      { transactions: undefined },
-    ]) {
-      const input = plainToInstance(CommitReviewedStatementImportDto, {
-        fileName: 'august.pdf',
-        fileHash: 'a'.repeat(64),
-        statementDate: '2026-08-31',
-        statementType: 'credit_card',
-        bank: 'Example Bank',
-        transactions: [
+      { expenses: undefined },
+      {
+        expenses: [
           {
-            purchaseDate: '2026-08-01',
+            expenseDate: '2026-08-01',
             description: 'Coffee',
             amount: '4.50',
           },
         ],
-        ...overrides,
-      });
-
-      await expect(validate(input)).resolves.not.toEqual([]);
+      },
+    ]) {
+      await expect(
+        validate(
+          plainToInstance(CommitReviewedStatementImportDto, {
+            ...base,
+            ...overrides,
+          }),
+        ),
+      ).resolves.not.toEqual([]);
     }
   });
 
-  it('accepts an explicit boolean probable-duplicate acknowledgement only', async () => {
-    const input = plainToInstance(CommitReviewedStatementImportDto, {
-      fileName: 'august.pdf',
-      fileHash: 'a'.repeat(64),
-      statementDate: '2026-08-31',
-      statementType: 'credit_card',
-      bank: 'Example Bank',
-      transactions: [],
-      acknowledgeProbableDuplicates: true,
-    });
-
-    await expect(validate(input)).resolves.toEqual([]);
-    expect(input.acknowledgeProbableDuplicates).toBe(true);
-
-    const invalidInput = plainToInstance(CommitReviewedStatementImportDto, {
-      fileName: 'august.pdf',
-      fileHash: 'a'.repeat(64),
-      statementDate: '2026-08-31',
-      statementType: 'credit_card',
-      bank: 'Example Bank',
-      transactions: [],
-      acknowledgeProbableDuplicates: 'true',
-    });
-
-    await expect(validate(invalidInput)).resolves.not.toEqual([]);
-  });
-
-  it('accepts E-Wallet controls and a source reference', async () => {
+  it('accepts an E-Wallet history interval, Total Debit and optional reference', async () => {
     const input = plainToInstance(CommitReviewedStatementImportDto, {
       fileName: 'wallet-export.pdf',
       fileHash: 'a'.repeat(64),
-      statementDate: '2026-08-31',
       statementType: 'e_wallet',
-      bank: 'GCash',
-      cardType: 'E-Wallet',
-      transactionHistoryStartDate: '2026-08-09',
+      provider: 'GCash',
+      accountFormat: 'E-Wallet',
+      historyFromDate: '2026-08-09',
+      historyToDate: '2026-08-31',
       totalDebit: '26696.92',
-      transactions: [
+      expenses: [
         {
-          purchaseDate: '2026-08-09',
+          categoryId: '42',
+          expenseDate: '2026-08-09',
           description: 'Payment to Cafe',
           amount: '10.00',
           reference: ' 123456789 ',
         },
       ],
     });
-
     await expect(validate(input)).resolves.toEqual([]);
-    expect(input.transactions[0].reference).toBe('123456789');
+    expect(input.expenses[0].reference).toBe('123456789');
   });
 
-  it('accepts bounded statement-import history filters and transforms page size', async () => {
-    const query = plainToInstance(StatementImportCollectionQueryDto, {
-      fromDate: '2026-08-01',
-      toDate: '2026-08-31',
-      pageSize: '25',
-      cursor: 'opaque-cursor',
+  it('rejects incomplete E-Wallet controls and unsupported extra fields', async () => {
+    const missingBounds = plainToInstance(CommitReviewedStatementImportDto, {
+      fileName: 'wallet-export.pdf',
+      fileHash: 'a'.repeat(64),
+      statementType: 'e_wallet',
+      provider: 'GCash',
+      totalDebit: '10.00',
+      expenses: [],
     });
+    await expect(validate(missingBounds)).resolves.toEqual([]);
 
-    await expect(validate(query)).resolves.toEqual([]);
-    expect(query.pageSize).toBe(25);
-  });
-
-  it('rejects invalid history dates, reversed bounds, and unknown query fields', async () => {
-    for (const input of [
-      { fromDate: '2026-08-32' },
-      { toDate: '08/31/2026' },
-      { fromDate: '2026-09-01', toDate: '2026-08-01' },
-      { pageSize: '0' },
-      { pageSize: '101' },
-      { pageSize: '2.5' },
-    ]) {
-      await expect(
-        validate(plainToInstance(StatementImportCollectionQueryDto, input)),
-      ).resolves.not.toEqual([]);
-    }
-
-    await expect(
-      validate(
-        plainToInstance(StatementImportCollectionQueryDto, {
-          statementDate: '2026-08-31',
-        }),
-        { whitelist: true, forbidNonWhitelisted: true },
-      ),
-    ).resolves.toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ property: 'statementDate' }),
-      ]),
-    );
+    const invalidExpense = plainToInstance(ReviewedExpenseDto, {
+      categoryId: null,
+      expenseDate: '2026-08-01',
+      description: 'Coffee',
+      amount: '4.50',
+    });
+    await expect(validate(invalidExpense)).resolves.not.toEqual([]);
   });
 });

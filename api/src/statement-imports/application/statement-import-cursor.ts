@@ -8,8 +8,8 @@ import type {
   StatementImportHistoryFilters,
 } from './statement-import-store';
 
-const CURSOR_VERSION = 1;
-const CURSOR_ORDERING = 'statementDate:desc,id:desc' as const;
+const CURSOR_VERSION = 2;
+const CURSOR_ORDERING = 'confirmedAt:desc,id:desc' as const;
 const CURSOR_FILTER_KEYS = ['fromDate', 'toDate'] as const;
 
 export interface NormalizedStatementImportFilters {
@@ -129,9 +129,11 @@ function isCursorPosition(
   return (
     isRecord(value) &&
     Object.keys(value).length === 2 &&
-    Object.hasOwn(value, 'statementDate') &&
+    Object.hasOwn(value, 'confirmedAt') &&
     Object.hasOwn(value, 'statementImportId') &&
-    isValidDomainDate(value.statementDate) &&
+    typeof value.confirmedAt === 'string' &&
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/u.test(value.confirmedAt) &&
+    !Number.isNaN(Date.parse(value.confirmedAt)) &&
     typeof value.statementImportId === 'string' &&
     /^[1-9]\d*$/u.test(value.statementImportId)
   );

@@ -1,8 +1,8 @@
-import type { TransactionCategoryStore } from '../../transactions/application/transaction-category-store';
-import type { SpaceImportedTransactionStore } from '../../transactions/application/imported-transaction-store';
+import type { ExpenseCategoryStore } from '../../expenses/application/expense-category-store';
+import type { SpaceImportedExpenseStore } from '../../expenses/application/imported-expense-store';
 import type { UserStore } from '../../users/application/user-store';
 import type { StatementImportStore } from './statement-import-store';
-import type { TransactionActivityStore } from '../../transactions/application/transaction-activity-store';
+import type { ExpenseActivityStore } from '../../expenses/application/expense-activity-store';
 
 export const STATEMENT_IMPORT_CONFIRMATION_UNIT_OF_WORK = Symbol(
   'STATEMENT_IMPORT_CONFIRMATION_UNIT_OF_WORK',
@@ -11,22 +11,22 @@ export const STATEMENT_IMPORT_CONFIRMATION_UNIT_OF_WORK = Symbol(
 export type StatementImportConfirmationUserStore = Pick<UserStore, 'findById'>;
 
 export type StatementImportConfirmationCategoryStore = Pick<
-  TransactionCategoryStore,
+  ExpenseCategoryStore,
   'findBySpaceId'
 >;
 
 export type StatementImportConfirmationStore = Pick<
   StatementImportStore,
-  'findByFileHashInSpace' | 'create'
+  'create'
 >;
 
-export type StatementImportConfirmationTransactionStore = Pick<
-  SpaceImportedTransactionStore,
+export type StatementImportConfirmationExpenseStore = Pick<
+  SpaceImportedExpenseStore,
   'findByFingerprintInSpace' | 'findByReferenceHashInSpace' | 'create'
 >;
 
 export type StatementImportConfirmationActivityStore = Pick<
-  TransactionActivityStore,
+  ExpenseActivityStore,
   'create'
 >;
 
@@ -38,8 +38,8 @@ export interface StatementImportConfirmationContext {
   readonly users: StatementImportConfirmationUserStore;
   readonly categories: StatementImportConfirmationCategoryStore;
   readonly statementImports: StatementImportConfirmationStore;
-  readonly importedTransactions: StatementImportConfirmationTransactionStore;
-  readonly transactionActivities: StatementImportConfirmationActivityStore;
+  readonly importedExpenses: StatementImportConfirmationExpenseStore;
+  readonly expenseActivities: StatementImportConfirmationActivityStore;
   readonly spaces?: StatementImportConfirmationSpaceStore;
 }
 

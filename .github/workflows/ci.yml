@@ -51,8 +51,7 @@ jobs:
       TEST_SPACE_CATEGORIES_CONCURRENCY_DATABASE_URL: postgres://spendeazy_test_user:spendeazy_test_password@localhost:5432/spendeazy_test_space_categories_concurrency
       TEST_STATEMENT_IMPORT_ROLLBACK_DATABASE_URL: postgres://spendeazy_test_user:spendeazy_test_password@localhost:5432/spendeazy_test_statement_import_rollback
       TEST_STATEMENT_IMPORT_CATEGORY_CONCURRENCY_DATABASE_URL: postgres://spendeazy_test_user:spendeazy_test_password@localhost:5432/spendeazy_test_statement_import_category_concurrency
-      TEST_TRANSACTION_STATEMENT_IMPORT_SPACE_DATABASE_URL: postgres://spendeazy_test_user:spendeazy_test_password@localhost:5432/spendeazy_test_transaction_statement_import_space
-      TEST_STATEMENT_CATEGORY_SUGGESTIONS_DATABASE_URL: postgres://spendeazy_test_user:spendeazy_test_password@localhost:5432/spendeazy_test_category_suggestions
+      TEST_EXPENSE_STATEMENT_IMPORT_SPACE_DATABASE_URL: postgres://spendeazy_test_user:spendeazy_test_password@localhost:5432/spendeazy_test_expense_statement_import_space
       TEST_INVITATIONS_DATABASE_URL: postgres://spendeazy_test_user:spendeazy_test_password@localhost:5432/spendeazy_test_invitations
       TEST_FINANCIAL_OWNERSHIP_MIGRATION_DATABASE_URL: postgres://spendeazy_test_user:spendeazy_test_password@localhost:5432/spendeazy_test_financial_ownership_migration
     steps:

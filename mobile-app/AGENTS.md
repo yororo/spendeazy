@@ -2,6 +2,10 @@
 
 This project is the native Android/iPhone client. There is no web platform target. `web/design/` is a legacy visual reference only. The app has Google sign-in, Dashboard, Expenses, Budget, and Profile navigation, device Appearance, and an authorized Space switcher. Expense, Budget, reporting, import, and sharing workflows are not implemented; do not describe those journeys as shipped. A local PDF.js parser prototype remains on `/parser-proof` and is not a product tab.
 
+## Coding standards
+
+For mobile code creation, modification, or review, read [coding standards](docs/CODING_STANDARDS.md).
+
 ## Expo and React Native APIs
 
 Expo changes between SDK releases. Before adding or changing Expo/EAS/React Native APIs, read the version matching `expo` in `package.json` at `https://docs.expo.dev/versions/v<major>.0.0/`. For other Expo topics, use the official `https://docs.expo.dev/llms.txt` index and follow its current documentation.

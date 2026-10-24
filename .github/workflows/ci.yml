@@ -72,8 +72,7 @@ jobs:
             spendeazy_test_space_categories_concurrency \
             spendeazy_test_statement_import_rollback \
             spendeazy_test_statement_import_category_concurrency \
-            spendeazy_test_transaction_statement_import_space \
-            spendeazy_test_category_suggestions \
+            spendeazy_test_expense_statement_import_space \
             spendeazy_test_invitations \
             spendeazy_test_financial_ownership_migration; do
             createdb --host localhost --username spendeazy_test_user "$database"

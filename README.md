@@ -1,6 +1,8 @@
 # Spendeazy
 
-Spendeazy is a personal-finance app for Android and iPhone. The mobile app owns presentation, local statement-file review and Category Rule matching; the REST API owns identity, Space authorization, financial persistence and reporting.
+Spendeazy is a personal-finance app for Android and iPhone. The browser client and its hosting have been retired. The native app is still a starter plus a parser prototype; its full financial journeys and the accepted [Expense domain and mobile API contract](docs/specifications/mobile-expense-domain-api.md) are not implemented yet.
+
+The mobile replacement and API share the [root domain glossary](GLOSSARY.md). The [replacement ADR](docs/adr/0004-mobile-expense-domain-and-contract.md) records the target decision; current API runtime routes and schemas remain Transaction-oriented until the API replacement is implemented.
 
 ## Projects
 

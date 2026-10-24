@@ -1,6 +1,8 @@
 # Architecture
 
-API code placement and dependency rules. Paths are relative to `api/`. Use the task map to locate owners; read the affected boundary sections and relevant [ADRs](docs/adr/). [Database design](docs/DATABASE_DESIGN.md) owns current schema relationships. The current API runtime is still Transaction-oriented; the accepted [mobile Expense contract](../docs/specifications/mobile-expense-domain-api.md) is a target, not implemented behavior.
+This guide describes the existing implementation and API code placement/dependency rules. Paths are relative to `api/`. Use the task map to locate owners; read the affected boundary sections and relevant [ADRs](docs/adr/). [Database design](docs/DATABASE_DESIGN.md) owns current schema relationships.
+
+The current API runtime and generated OpenAPI remain Transaction-oriented. The accepted [Expense domain and mobile API contract](../docs/specifications/mobile-expense-domain-api.md) describes a planned breaking replacement, including saved Expense naming, atomic Category configuration, import operation recovery and reporting aggregates; its [ADR](../docs/adr/0004-mobile-expense-domain-and-contract.md) identifies superseded requirements. These target changes are not implemented yet.
 
 ## Task entry points
 

@@ -1,5 +1,7 @@
 # Separate financial ownership into Personal and Shared Spaces
 
+The accepted [mobile Expense target decision](0004-mobile-expense-domain-and-contract.md) supersedes this document's conflicting terminology, Personal imported-Expense restrictions, compatibility-window and development-data-preservation requirements for the planned replacement. It also specifies complete account-deletion cleanup. Implementation is pending; the existing runtime and historical rationale below are preserved. Space privacy, equal Shared authority, permanent archives and immutable attribution remain required.
+
 The email invitation and archival email notification decisions in this ADR are superseded by [Invite Codes for Shared Space Invitations](0003-invite-codes-for-shared-space-invitations.md). The remaining Space ownership and lifecycle decisions still apply.
 
 Accepted design, implemented through the financial ownership migration completed on 2026-09-21. The shared glossary records the agreed vocabulary.

@@ -2,6 +2,8 @@
 
 This decision describes the current API storage behavior. The accepted [mobile Expense contract](../../../docs/specifications/mobile-expense-domain-api.md) assigns rule evaluation to the on-device mobile workflow and removes Personal financial aliases from the target API.
 
+The accepted [mobile Expense target decision](../../../docs/adr/0004-mobile-expense-domain-and-contract.md) extends this boundary to atomic Category/Budget/Rules configuration and atomic import-time remembered Rules, with full inactive configuration maintenance. It retains Space locking, normalized uniqueness and stable Rule identities. Implementation is pending; this ADR's separate endpoints, active-only replacement and Personal aliases describe the existing API rather than the target.
+
 This decision supersedes the earlier per-User serialization scope and last-write-wins behavior. Category Rules belong to a Space, and every explicit Space route authorizes the authenticated User's membership before reading or mutating that Space. Legacy personal routes remain compatibility shims that resolve the authenticated User's Personal Space.
 
 The API stores Exact and Contains Category Rules; the mobile client owns on-device rule evaluation, overlap precedence, and Remember (which creates Exact Rules). Statement Import continues accepting reviewed Category assignments. This keeps categorization policy with the review workflow rather than introducing a second matching implementation in the API.

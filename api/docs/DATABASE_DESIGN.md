@@ -1,5 +1,7 @@
 # Database design
 
+This is the current schema, including legacy saved-Transaction names and uniqueness rules. The accepted [mobile Expense contract](../../docs/specifications/mobile-expense-domain-api.md#domain-and-persistence) defines the target Expense schema, required Category, immutable import snapshots and operation status storage. That schema is not implemented here; no database reset or migration is performed by the specification.
+
 This document explains the API's persistence model. [Root GLOSSARY.md](../../GLOSSARY.md) owns domain definitions; [ARCHITECTURE.md](../ARCHITECTURE.md) owns persistence boundaries and the unit of work. Paths below are relative to `api/`.
 
 ## Sources of truth

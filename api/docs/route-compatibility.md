@@ -1,6 +1,8 @@
 # Current API route compatibility
 
-This guide inventories the current legacy API surface. The browser client has been retired and no active first-party client consumes these routes. The routes remain part of the API until the breaking target contract is implemented; this document does not imply an active browser adapter or a compatibility commitment for the target API.
+This guide inventories the current API surface. Personal compatibility aliases remain active in API v1 and are not marked as deprecated in OpenAPI. No active first-party browser client consumes these routes, and issue #100 did not remove or change them. They remain part of the current API until the breaking target contract is implemented.
+
+**Replacement boundary:** the accepted [mobile Expense target decision](../../docs/adr/0004-mobile-expense-domain-and-contract.md) removes Personal financial aliases and old Transaction names without a compatibility window in the planned development replacement. That implementation has not shipped. This guide records current API behavior; it does not require preserving aliases in the target.
 
 The accepted [mobile Expense contract](../../docs/specifications/mobile-expense-domain-api.md), recorded in [ADR 0004](../../docs/adr/0004-mobile-expense-domain-and-contract.md), intentionally replaces Transaction-oriented routes and Personal financial aliases with the new contract. It does not require a deprecation period or old-client coexistence. This ticket retires the web client and its delivery gates; separate work implements that target contract.
 

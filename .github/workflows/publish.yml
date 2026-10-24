@@ -137,7 +137,7 @@ jobs:
           subscription-id: ${{ secrets.SPENDEAZYAPI2_AZURE_SUBSCRIPTION_ID }}
       - name: Deploy migration-tested container image
         if: ${{ !inputs.verify_only }}
-        uses: azure/container-apps-deploy-action@e742a7f97d8adfc2aa3486b2b4a1b7a9a110340b # v2.5.0
+        uses: azure/container-apps-deploy-action@8dff69dac3367c32ceb2690d8f13adbeab462703 # v2
         with:
           containerAppName: spendeazy-api
           resourceGroup: spendeazy-dev

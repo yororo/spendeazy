@@ -12,6 +12,7 @@ export type ListedExpense = {
   createdAt: string;
   updatedAt: string;
   revision: string;
+  deletedAt?: string;
 };
 
 export type ExpensePagePayload = {
@@ -28,14 +29,14 @@ export function readExpensePage(value: unknown): ExpensePagePayload {
   if (value.nextCursor !== null && typeof value.nextCursor !== 'string') {
     throw new InvalidApiResponseError();
   }
-  if (typeof value.totalCount !== 'string' || typeof value.totalAmount !== 'string') {
+  if (typeof value.totalCount !== 'string' || !/^(?:0|[1-9]\d*)$/.test(value.totalCount)) {
     throw new InvalidApiResponseError();
   }
   return {
     expenses: value.expenses.map(readListedExpense),
     nextCursor: value.nextCursor,
     totalCount: value.totalCount,
-    totalAmount: value.totalAmount,
+    totalAmount: readMoney(value.totalAmount),
   };
 }
 
@@ -50,7 +51,7 @@ export function readListedExpense(value: unknown): ListedExpense {
     categoryId: requiredString(value.categoryId, 'Category id'),
     expenseDate: requiredString(value.expenseDate, 'Expense date'),
     description: requiredString(value.description, 'Expense description'),
-    amount: requiredString(value.amount, 'Expense amount'),
+    amount: readMoney(value.amount, true),
     source,
     addedByUserId: typeof value.addedByUserId === 'string' ? value.addedByUserId : null,
     statementImportId:
@@ -58,11 +59,19 @@ export function readListedExpense(value: unknown): ListedExpense {
     createdAt: requiredString(value.createdAt, 'Expense created time'),
     updatedAt: requiredString(value.updatedAt, 'Expense updated time'),
     revision: requiredString(value.revision, 'Expense revision'),
+    ...(value.deletedAt === undefined || value.deletedAt === null ? {} : { deletedAt: requiredString(value.deletedAt, 'Expense deletion time') }),
   };
 }
 
 function requiredString(value: unknown, label: string): string {
   if (typeof value !== 'string' || value.length === 0) {
+    throw new InvalidApiResponseError();
+  }
+  return value;
+}
+
+function readMoney(value: unknown, positive = false): string {
+  if (typeof value !== 'string' || !/^(?:0|[1-9]\d*)(?:\.\d{1,2})?$/.test(value) || (positive && !/[1-9]/.test(value))) {
     throw new InvalidApiResponseError();
   }
   return value;

@@ -3,28 +3,15 @@ import {
   ExpenseApiError,
   ExpenseApiTransportError,
   type AuthorizedRequestOptions,
-} from '@/api/authorized-request';
+} from './authorized-request.ts';
 
-import { readExpensePage, readListedExpense } from './expense-response';
+import { readExpensePage, readListedExpense, type ListedExpense, type ExpensePagePayload } from './expense-response.ts';
 export { ExpenseApiError, ExpenseApiTransportError };
 
 export type ExpenseSource = 'manual' | 'imported';
 export type ExpenseSort = 'newest' | 'oldest';
 
-export interface Expense {
-  id: string;
-  categoryId: string;
-  expenseDate: string;
-  description: string;
-  amount: string;
-  source: ExpenseSource;
-  statementImportId: string | null;
-  addedByUserId?: string;
-  createdAt: string;
-  updatedAt: string;
-  revision: string;
-  deletedAt?: string;
-}
+export type Expense = ListedExpense;
 
 export interface ExpenseActivitySnapshot {
   categoryId: string;
@@ -43,12 +30,7 @@ export interface ExpenseActivity {
   after?: ExpenseActivitySnapshot;
 }
 
-export interface ExpensePage {
-  expenses: Expense[];
-  nextCursor: string | null;
-  totalCount: string;
-  totalAmount: string;
-}
+export type ExpensePage = ExpensePagePayload;
 
 export interface ExpenseListQuery {
   fromDate?: string;
@@ -115,24 +97,19 @@ export function createExpenseApiClient(
   return {
     listExpenses: async (spaceId, query) => {
       const payload = await request<ExpensePage>(`${expenseCollectionPath(spaceId)}${queryString(query)}`);
-      readExpensePage(payload);
-      return payload;
+      return readExpensePage(payload);
     },
-    listDeletedExpenses: (spaceId, query) =>
-      request(
-        `${expenseCollectionPath(spaceId)}/deleted${queryString(query)}`,
-      ),
+    listDeletedExpenses: async (spaceId, query) =>
+      readExpensePage(await request(`${expenseCollectionPath(spaceId)}/deleted${queryString(query)}`)),
     getExpense: async (spaceId, expenseId) => {
       const payload = await request<Expense>(expenseItemPath(spaceId, expenseId));
-      readListedExpense(payload);
-      return payload;
+      return readListedExpense(payload);
     },
     listExpenseActivity: (spaceId, expenseId) =>
       request(`${expenseItemPath(spaceId, expenseId)}/activity`),
     createManualExpense: async (spaceId, input) => {
       const payload = await request<Expense>(expenseCollectionPath(spaceId), { method: 'POST', body: input });
-      readListedExpense(payload);
-      return payload;
+      return readListedExpense(payload);
     },
     updateExpense: (spaceId, expenseId, input) =>
       request(expenseItemPath(spaceId, expenseId), {

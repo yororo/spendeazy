@@ -20,7 +20,33 @@ permissions:
   contents: read
 
 jobs:
+  detect_changes:
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    name: Classify automatic change set
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      documentation_only: ${{ steps.classify.outputs.documentation_only }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24.11.1
+      - name: Classify the complete change set
+        id: classify
+        run: node scripts/documentation-changes.mjs
+
   validate:
+    needs: [detect_changes]
+    if: >-
+      always() &&
+      (github.event_name == 'workflow_dispatch' ||
+      needs.detect_changes.result != 'success' ||
+      needs.detect_changes.outputs.documentation_only != 'true')
     # Validation is cancellable and never holds the publication lock.
     concurrency:
       group: validation-${{ github.event_name }}-${{ github.event.number || github.ref }}-${{ github.event_name == 'workflow_dispatch' && github.run_id || 'automatic' }}
@@ -31,15 +57,22 @@ jobs:
 
   gate:
     name: Validate API, PostgreSQL and mobile
-    needs: [validate]
+    needs: [detect_changes, validate]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Require successful validation
+      - name: Require documentation classification or full validation
         env:
+          DETECTION_RESULT: ${{ needs.detect_changes.result }}
+          DOCUMENTATION_ONLY: ${{ needs.detect_changes.outputs.documentation_only }}
           VALIDATION_RESULT: ${{ needs.validate.result }}
-        run: test "$VALIDATION_RESULT" = success
+        run: |
+          if [ "$DETECTION_RESULT" = success ] && [ "$DOCUMENTATION_ONLY" = true ]; then
+            echo "Documentation-only changes completed the required check."
+            exit 0
+          fi
+          test "$VALIDATION_RESULT" = success
 
   publish:
     needs: [validate, gate]

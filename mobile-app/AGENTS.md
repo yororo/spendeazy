@@ -33,6 +33,8 @@ Run checks regularly. `parser:test` uses fictional fixtures; it does not establi
 
 ## API and identity boundaries
 
+Mobile documents describe API features by the exposed endpoints in the [OpenAPI contract](../api/docs/openapi.yaml), the source of truth for shipped API behavior. API source paths and code stay in the API project.
+
 The app signs in with Clerk Google authentication and sends that session token to the Expense and Spaces API clients. `EXPO_PUBLIC_API_BASE_URL` and the Clerk/Google settings in `.env.example` configure the client; document new settings in the project README. The API derives the actor from that token. Device-remembered Appearance is shared on the device. The last active Space is stored per signed-in identity and falls back to Personal. Explicit sign-out drops in-memory private state; session expiry keeps it for the same identity only. Device journeys need a device-reachable dedicated development API/PostgreSQL database and real Google/Clerk development identities. Never use production financial data. Synthetic identities belong only to isolated automated API tests and do not prove real sign-in on a phone.
 
 ## Parser and privacy

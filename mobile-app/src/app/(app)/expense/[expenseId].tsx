@@ -14,5 +14,5 @@ export default function ExpenseDetailScreen() {
 function ExpenseDetailContainer({ expenseId }: { expenseId: string }) {
   const router = useRouter();
   const controller = useExpenseDetail(expenseId);
-  return <ExpenseDetail controller={controller} onBack={() => router.back()} />;
+  return <ExpenseDetail state={controller.state} onRetry={() => { void controller.retry(); }} onBack={() => router.back()} />;
 }

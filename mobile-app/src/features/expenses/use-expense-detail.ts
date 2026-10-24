@@ -1,30 +1,41 @@
-import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useSyncExternalStore } from 'react';
 import { createExpenseApiClient } from '@/api/expense-api-client';
-import { type ListedExpense } from '@/api/expense-response';
 import { useAuthorizedClient } from '@/application/authorized-client';
-import { createSessionResource } from '@/application/session-resource';
-import { session } from '@/application/session-runtime';
 import { useSpaces } from '@/application/spaces/provider';
+import type { ExpenseDetailViewState } from './detail-view';
+import { createExpenseDetailWorkflow } from './detail-workflow';
 import { useSpaceCategories } from './use-space-categories';
 
 export function useExpenseDetail(expenseId: string) {
   const { active } = useSpaces();
   const authorized = useAuthorizedClient();
-  const categories = useSpaceCategories(active?.id ?? null);
-  const [requestId, setRequestId] = useState(0);
   const spaceId = active?.id ?? null;
-  const resource = useMemo(() => createSessionResource<ListedExpense>(session, authorized.scope, `${spaceId}:${expenseId}`), [authorized.scope, spaceId, expenseId]);
-  const state = useSyncExternalStore(resource.subscribe, resource.snapshot, resource.snapshot);
+  const categories = useSpaceCategories(spaceId);
+  const workflow = useMemo(() => createExpenseDetailWorkflow(
+    { spaceId: spaceId ?? '', expenseId },
+    () => authorized.isCurrent() && spaceId !== null && authorized.scope.spaceId === spaceId,
+    (space, id) => createExpenseApiClient(authorized).getExpense(space, id),
+  ), [authorized, expenseId, spaceId]);
+  const loaded = useSyncExternalStore(workflow.subscribe, workflow.snapshot, workflow.snapshot);
   useEffect(() => {
-    if (spaceId) void resource.load(() => createExpenseApiClient(authorized).getExpense(spaceId, expenseId));
-    return resource.cancel;
-  }, [authorized, expenseId, requestId, resource, spaceId]);
-  const expense = state.data;
-  return {
-    expense, error: state.error,
-    phase: !active || (expense === null && state.error === null) ? 'loading' : state.error ? 'error' : 'ready',
-    category: categories.categories.find((item) => item.id === expense?.categoryId),
-    addedBy: active?.members.find((member) => member.id === expense?.addedByUserId),
-    retry: () => setRequestId((id) => id + 1),
+    if (!spaceId) return;
+    void workflow.load();
+    return workflow.cancel;
+  }, [spaceId, workflow]);
+  const expense = loaded.phase === 'ready' ? loaded.expense : null;
+  const category = categories.categories.find((item) => item.id === expense?.categoryId);
+  const addedBy = active?.members.find((member) => member.id === expense?.addedByUserId);
+  const state: ExpenseDetailViewState = {
+    phase: !spaceId || loaded.phase === 'loading' ? 'loading' : loaded.phase,
+    error: loaded.phase === 'error' ? loaded.error : null,
+    expense: expense ? {
+      description: expense.description,
+      amount: expense.amount,
+      expenseDate: expense.expenseDate,
+      categoryName: category?.name ?? 'Category',
+      source: expense.source,
+      addedByName: addedBy?.name ?? null,
+    } : null,
   };
+  return { state, load: workflow.load, retry: workflow.retry };
 }

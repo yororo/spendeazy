@@ -8,6 +8,10 @@ The native client uses Expo Router and React Native. `npx expo install` selected
 
 Android emulator and physical-iPhone sign-in evidence is still required before this journey is accepted. Lint, typecheck, and the navigation tests do not replace that device run.
 
+## Coding standards
+
+For mobile implementation and review, follow the [coding standards](docs/CODING_STANDARDS.md).
+
 ## Setup and checks
 
 Use Node.js 24.11.1 to match CI. From the repository root:

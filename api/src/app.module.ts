@@ -10,14 +10,12 @@ import { DatabaseModule } from './database/database.module';
 import { DocsController } from './docs/docs.controller';
 import { OpenApiDocumentService } from './docs/openapi-document.service';
 import { createApiFeatureModules } from './api-feature-modules';
-import type { CategorySuggestionEvaluator } from './statement-imports/application/statement-category-suggestions';
 
 @Module({})
 export class AppModule {}
 
 export interface AppModuleOptions {
   readonly authentication?: AuthenticationModuleOptions;
-  readonly categorySuggestionEvaluator?: CategorySuggestionEvaluator;
 }
 
 export function createAppModule(
@@ -38,18 +36,7 @@ export function createAppModule(
         provide: DATABASE_READINESS,
         useClass: PostgresDatabaseReadiness,
       }),
-      ...createApiFeatureModules(
-        Boolean(config.databaseUrl),
-        {
-          ...(options.categorySuggestionEvaluator
-            ? {
-                categorySuggestionEvaluator:
-                  options.categorySuggestionEvaluator,
-              }
-            : {}),
-        },
-        config,
-      ),
+      ...createApiFeatureModules(Boolean(config.databaseUrl), {}, config),
     ],
     controllers: [DocsController],
     providers: [ProvisionedUserGuard, OpenApiDocumentService],

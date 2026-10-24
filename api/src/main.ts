@@ -16,7 +16,7 @@ export async function bootstrap(): Promise<void> {
   });
   const document = await app.get(OpenApiDocumentService).getDocument();
   app.useLogger(new SafeNestLogger());
-  configureApp(app, config);
+  configureApp(app);
   setupOpenApi(app, document);
   await app.listen(config.port);
 }

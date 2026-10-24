@@ -2,6 +2,8 @@
 
 Research date: 2026-10-22 (Asia/Manila). Evidence for [Verify the official Expo stack and Windows-to-iPhone development workflow](https://github.com/yororo/spendeazy/issues/125), within [Chart the Spendeazy mobile replacement specification](https://github.com/yororo/spendeazy/issues/124).
 
+This report predates [ticket #141](https://github.com/yororo/spendeazy/issues/141). Its synthetic browser-launcher descriptions and commands are historical; the browser app and its acceptance stack have since been retired. Use [current local testing guidance](../local-testing.md) and the [mobile README](../../mobile-app/README.md) for current setup.
+
 ## Conclusion
 
 Target stable **Expo SDK 58, React Native 0.88 and React 19.3.0**, using Expo Router and development builds. SDK 58 was released on October 15, 2026; this is a published release, not an inference from the starter manifest. Its release announcement still warns that SDK 58 Expo Go store binaries will arrive later. Do not make Expo Go a prerequisite for this project. [Expo SDK 58 release](https://expo.dev/changelog/sdk-58)
@@ -46,7 +48,7 @@ React Native supports `fetch`. iOS ATS and modern Android cleartext defaults con
 
 For an Android emulator, `10.0.2.2` is the special alias for the Windows host's loopback interface. The physical iPhone needs its own reachable API address; the emulator alias is not an iPhone solution. [Android emulator address space](https://developer.android.com/studio/run/emulator-networking-address)
 
-The existing synthetic launcher binds its API to loopback and supplies test-only identities. It is not already a physical-iPhone backend. Define a deliberate mobile test environment later rather than exposing that synthetic service indiscriminately. [Repository local testing guidance](https://github.com/yororo/spendeazy/blob/67de6bbd85c2fe00a6bca69fbe0995f9f9ad0d4f/docs/local-testing.md)
+At report time, the synthetic launcher bound its API to loopback and supplied test-only identities; it was not a physical-iPhone backend. The launcher has since been retired, and mobile device checks use a separately configured, device-reachable development API. [Repository local testing guidance at the time of research](https://github.com/yororo/spendeazy/blob/67de6bbd85c2fe00a6bca69fbe0995f9f9ad0d4f/docs/local-testing.md)
 
 Recommendation: store authentication secrets through the authentication SDK's supported secure-storage integration, backed by SecureStore where appropriate. SecureStore supplies encrypted local key/value storage; it is not a statement-file store. The exact Clerk mobile integration, refresh/revocation behavior and deep links still need their own implementation contract and tests. [SecureStore](https://docs.expo.dev/versions/v58.0.0/sdk/securestore/)
 
@@ -80,4 +82,4 @@ Primary official documentation was read on the research date; generic search res
 
 Only this Markdown report is changed. No dependency installation, source changes, credentials provisioning, native builds or device tests were performed. Apple membership, device OS, Android toolchain, API reachability and native parser compatibility are unverified prerequisites, not research blockers.
 
-`npm --prefix mobile-app run lint` was attempted in the isolated worktree and could not start because `expo` is not installed there. The TypeScript dependency preflight likewise found no installed compiler. Installing dependencies was excluded from this research task. The parent session attempted the repository-required `node scripts/local-test-launcher.mjs --e2e`; it stopped before tests because Docker Desktop's Linux engine named pipe was unavailable. No runtime check is claimed as passing. The document diff is checked for whitespace and task-only scope before commit.
+At report time, mobile lint and type checks could not start because dependencies were absent from the isolated research worktree. The then-required browser launcher also stopped before tests because Docker Desktop's Linux engine pipe was unavailable. Those historical attempts were not passes; current commands and checks are recorded in [local testing](../local-testing.md).

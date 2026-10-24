@@ -10,28 +10,10 @@ export const DEFAULT_PORT = 3000;
 export const DATABASE_POOL_SIZE = 1;
 export const DATABASE_CONNECTION_TIMEOUT_MS = 1000;
 export const DATABASE_IDLE_TIMEOUT_MS = 10000;
-export const CORS_ALLOWED_HEADERS = [
-  'Content-Type',
-  'Authorization',
-  'If-Match',
-];
-export const CORS_EXPOSED_HEADERS = ['Location', 'X-Request-ID'];
-
-export const API_METHODS = [
-  'GET',
-  'HEAD',
-  'POST',
-  'PUT',
-  'PATCH',
-  'DELETE',
-  'OPTIONS',
-] as const;
-
 export interface AppConfig {
   environment: string;
   port: number;
   databaseUrl: string | undefined;
-  corsOrigins: string[];
   clerkJwtKey: string | undefined;
   clerkSecretKey: string | undefined;
   clerkAuthorizedParties: string[];
@@ -47,7 +29,6 @@ export function loadAppConfig(
   const currentEnvironment = processEnv.NODE_ENV?.trim() || DEFAULT_ENVIRONMENT;
   const port = parsePort(processEnv.PORT);
   const databaseUrl = parseDatabaseUrl(processEnv.DATABASE_URL);
-  const corsOrigins = readCorsOrigins(processEnv.CORS_ORIGINS);
   const clerkJwtKey = readClerkJwtKey(processEnv.CLERK_JWT_KEY);
   const clerkSecretKey = readClerkSecretKey(processEnv.CLERK_SECRET_KEY);
   const clerkAuthorizedParties = readClerkAuthorizedParties(
@@ -63,7 +44,6 @@ export function loadAppConfig(
 
   if (currentEnvironment === PRODUCTION_ENVIRONMENT) {
     requireProductionValue('DATABASE_URL', databaseUrl);
-    requireProductionValue('CORS_ORIGINS', processEnv.CORS_ORIGINS?.trim());
     requireProductionValue('CLERK_JWT_KEY', clerkJwtKey);
     requireProductionValue('CLERK_SECRET_KEY', clerkSecretKey);
     requireProductionValue(
@@ -93,7 +73,6 @@ export function loadAppConfig(
     environment: currentEnvironment,
     port,
     databaseUrl,
-    corsOrigins,
     clerkJwtKey,
     clerkSecretKey,
     clerkAuthorizedParties,
@@ -114,10 +93,6 @@ function parsePort(value: string | undefined): number {
   }
 
   return port;
-}
-
-function readCorsOrigins(value: string | undefined): string[] {
-  return readExplicitHttpOrigins(value, 'CORS_ORIGINS');
 }
 
 function readClerkAuthorizedParties(value: string | undefined): string[] {

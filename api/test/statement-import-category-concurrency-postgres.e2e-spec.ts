@@ -338,6 +338,7 @@ function createImportInput(
     fileName: `${seed}.pdf`,
     fileHash: uniqueHash(seed),
     statementDate: '2026-09-01',
+    statementType: 'credit_card',
     bank: 'Concurrency Bank',
     cardType: 'visa',
     transactions: [

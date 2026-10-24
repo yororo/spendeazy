@@ -3,11 +3,7 @@ import {
   RequestMethod,
   ValidationPipe,
 } from '@nestjs/common';
-import {
-  API_METHODS,
-  API_PREFIX,
-  MAX_REQUEST_BODY_SIZE,
-} from './config/app-config';
+import { API_PREFIX, MAX_REQUEST_BODY_SIZE } from './config/app-config';
 import { configureApp } from './bootstrap';
 import { ClerkAuthenticationGuard } from './authentication/clerk-authentication.guard';
 import { ProvisionedUserGuard } from './authentication/provisioned-user.guard';
@@ -16,14 +12,13 @@ import { JsonContractGuard } from './http/json-contract.guard';
 import { exceptionRequestContext } from './logging/exception-logger';
 
 describe('configureApp', () => {
-  it('applies the versioned route, strict validation, body limit, and CORS policy', () => {
+  it('applies the versioned route, strict validation and body limit', () => {
     const setGlobalPrefix = jest.fn();
     const use = jest.fn();
     const useGlobalPipes = jest.fn();
     const useGlobalFilters = jest.fn();
     const useGlobalGuards = jest.fn();
     const get = jest.fn().mockReturnValue({ canActivate: jest.fn() });
-    const enableCors = jest.fn();
     const app = {
       setGlobalPrefix,
       use,
@@ -31,18 +26,9 @@ describe('configureApp', () => {
       useGlobalFilters,
       useGlobalGuards,
       get,
-      enableCors,
     } as unknown as INestApplication;
 
-    configureApp(app, {
-      environment: 'test',
-      port: 3000,
-      databaseUrl: undefined,
-      corsOrigins: ['https://app.example.com'],
-      clerkJwtKey: 'test-jwt-key',
-      clerkSecretKey: 'test-secret-key',
-      clerkAuthorizedParties: ['https://app.example.com'],
-    });
+    configureApp(app);
 
     expect(setGlobalPrefix).toHaveBeenCalledWith(API_PREFIX, {
       exclude: [
@@ -69,13 +55,6 @@ describe('configureApp', () => {
       get.mock.results[1]?.value,
       expect.any(JsonContractGuard),
     );
-    expect(enableCors).toHaveBeenCalledWith({
-      origin: ['https://app.example.com'],
-      methods: [...API_METHODS],
-      allowedHeaders: ['Content-Type', 'Authorization', 'If-Match'],
-      exposedHeaders: ['Location', 'X-Request-ID'],
-      credentials: false,
-    });
     expect(MAX_REQUEST_BODY_SIZE).toBe(1024 * 1024);
   });
 });

@@ -5,6 +5,7 @@ import {
   DATABASE_ENTITIES,
   DATABASE_MIGRATIONS,
 } from '../src/database/database-options';
+import { EnforceTransactionStatementImportSpace1880000000000 } from '../src/database/migrations/1880000000000-enforce-transaction-statement-import-space';
 import { StatementImportEntity } from '../src/database/entities/statement-import.entity';
 import { TransactionEntity } from '../src/database/entities/transaction.entity';
 import { UserEntity } from '../src/database/entities/user.entity';
@@ -208,42 +209,107 @@ describeDatabase(
       });
     });
 
-    it('fails the migration before adding the constraint and reports a repairable example', async () => {
+    it('fails before adding the provenance index and resumes after repair', async () => {
       if (firstUserId === undefined || firstSpaceId === undefined) {
         throw new Error('The migration fixture was not created');
       }
 
-      await database.undoLastMigration();
-      const [invalid] = await rows<{ id: string }>(
-        `INSERT INTO transactions
-           (space_id, added_by_user_id, statement_import_id, purchase_date, description, amount, import_fingerprint)
-         VALUES ($1, $2, $3, '2026-09-06', 'Invalid historical provenance', '3.00', $4)
-         RETURNING id`,
-        [secondSpaceId, firstUserId, firstImportId, 'f'.repeat(64)],
-      );
+      const migrationHistoryTable =
+        'transaction_statement_import_space_test_migrations';
+      const migrationDatabase = await new DataSource({
+        type: 'postgres',
+        url: databaseUrl,
+        migrations: [EnforceTransactionStatementImportSpace1880000000000],
+        migrationsTableName: migrationHistoryTable,
+        migrationsTransactionMode: 'all',
+        synchronize: false,
+      }).initialize();
+      let invalidTransactionId: string | undefined;
+      let foreignKeyDropped = false;
+      let provenanceIndexDropped = false;
 
-      await expect(database.runMigrations()).rejects.toThrow(
-        /Cannot enforce Transaction-to-Statement Import Space integrity.*transaction/i,
-      );
+      try {
+        await database.query(
+          'DROP INDEX IF EXISTS ix_transactions_statement_import_space',
+        );
+        provenanceIndexDropped = true;
+        await database.query(
+          'ALTER TABLE transactions DROP CONSTRAINT fk_transactions_statement_import_space',
+        );
+        foreignKeyDropped = true;
+        const [invalid] = await rows<{ id: string }>(
+          `INSERT INTO transactions
+             (space_id, added_by_user_id, statement_import_id, purchase_date, description, amount, import_fingerprint)
+           VALUES ($1, $2, $3, '2026-09-06', 'Invalid historical provenance', '3.00', $4)
+           RETURNING id`,
+          [secondSpaceId, firstUserId, firstImportId, 'f'.repeat(64)],
+        );
+        invalidTransactionId = invalid.id;
 
-      const constraints = await rows<{ constraint_name: string }>(
-        `SELECT constraint_name
-           FROM information_schema.table_constraints
-          WHERE table_name = 'transactions'
-            AND constraint_name = 'fk_transactions_statement_import_space'`,
-      );
-      expect(constraints).toEqual([]);
+        await expect(migrationDatabase.runMigrations()).rejects.toThrow(
+          /Cannot enforce Transaction-to-Statement Import Space integrity.*transaction/i,
+        );
 
-      await database.query('DELETE FROM transactions WHERE id = $1', [
-        invalid.id,
-      ]);
-      await expect(database.runMigrations()).resolves.toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            name: 'EnforceTransactionStatementImportSpace1880000000000',
-          }),
-        ]),
-      );
+        const indexesBeforeRepair = await rows<{ indexname: string }>(
+          `SELECT indexname FROM pg_indexes
+            WHERE schemaname = current_schema()
+              AND indexname = 'ix_transactions_statement_import_space'`,
+        );
+        expect(indexesBeforeRepair).toEqual([]);
+
+        await database.query('DELETE FROM transactions WHERE id = $1', [
+          invalidTransactionId,
+        ]);
+        invalidTransactionId = undefined;
+        await addStatementImportSpaceConstraint(database);
+        foreignKeyDropped = false;
+
+        await expect(migrationDatabase.runMigrations()).resolves.toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              name: 'EnforceTransactionStatementImportSpace1880000000000',
+            }),
+          ]),
+        );
+        provenanceIndexDropped = false;
+        const indexesAfterRepair = await rows<{ indexname: string }>(
+          `SELECT indexname FROM pg_indexes
+            WHERE schemaname = current_schema()
+              AND indexname = 'ix_transactions_statement_import_space'`,
+        );
+        expect(indexesAfterRepair).toHaveLength(1);
+      } finally {
+        if (invalidTransactionId !== undefined) {
+          await database.query('DELETE FROM transactions WHERE id = $1', [
+            invalidTransactionId,
+          ]);
+        }
+        if (foreignKeyDropped) {
+          await addStatementImportSpaceConstraint(database);
+        }
+        if (provenanceIndexDropped) {
+          await database.query(`
+            CREATE INDEX IF NOT EXISTS ix_transactions_statement_import_space
+              ON transactions (statement_import_id, space_id)
+          `);
+        }
+        await migrationDatabase.query(
+          `DROP TABLE IF EXISTS ${migrationHistoryTable}`,
+        );
+        await migrationDatabase.destroy();
+      }
     });
   },
 );
+
+async function addStatementImportSpaceConstraint(
+  database: DataSource,
+): Promise<void> {
+  await database.query(`
+    ALTER TABLE transactions
+      ADD CONSTRAINT fk_transactions_statement_import_space
+      FOREIGN KEY (statement_import_id, space_id)
+      REFERENCES statement_imports (id, space_id)
+      ON DELETE RESTRICT
+  `);
+}

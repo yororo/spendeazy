@@ -14,6 +14,11 @@ export class InMemoryInvitationAttemptLimiter implements InvitationAttemptLimite
   private readonly attemptsByUser = new Map<string, number[]>();
   private readonly attemptsByNetwork = new Map<string, number[]>();
 
+  clear(): void {
+    this.attemptsByUser.clear();
+    this.attemptsByNetwork.clear();
+  }
+
   consume(userId: string, networkSource: string, now: Date): boolean {
     const timestamp = now.getTime();
     const userAttempts = activeAttempts(

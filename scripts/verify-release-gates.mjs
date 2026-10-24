@@ -1,111 +1,106 @@
-import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { createRequire } from "node:module";
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 
-const require = createRequire(new URL("../api/package.json", import.meta.url));
-const { load } = require("js-yaml");
-const workflow = load(readFileSync(new URL("../.github/workflows/publish.yml", import.meta.url), "utf8"));
-const entry = load(readFileSync(new URL("../.github/workflows/deploy.yml", import.meta.url), "utf8"));
-const ci = load(readFileSync(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8"));
+const require = createRequire(new URL('../api/package.json', import.meta.url));
+const { load } = require('js-yaml');
+const deploy = load(readFileSync(new URL('../.github/workflows/deploy.yml', import.meta.url), 'utf8'));
+const publish = load(readFileSync(new URL('../.github/workflows/publish.yml', import.meta.url), 'utf8'));
+const ci = load(readFileSync(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8'));
+const mobilePackage = JSON.parse(readFileSync(new URL('../mobile-app/package.json', import.meta.url), 'utf8'));
+const releaseDocs = readFileSync(new URL('../docs/releases.md', import.meta.url), 'utf8');
 
-// Evaluate the actual workflow conditions against release scenarios. This does
-// not replace GitHub execution; it makes failure and skip combinations reviewable.
-function permitted(job, { event = "workflow_dispatch", project = "all", validation = "success", changes = "success", migrate = "success", api = "success", webChanged = "true", apiChanged = "true", verifyOnly = false, cancelled = false, action = "opened" } = {}) {
+function permitted(jobName, { event = 'push', validation = 'success', changed = 'true', migrate = 'success', verifyOnly = false, cancelled = false } = {}) {
+  const job = publish.jobs[jobName];
   const needs = {
-    validate: { result: validation },
-    changes: { result: changes, outputs: { web: webChanged, api: apiChanged } },
-    migrate: { result: migrate, outputs: { digest: "sha256:digest" } },
-    api: { result: api },
+    changes: { result: 'success', outputs: { api: changed } },
+    migrate: { result: migrate, outputs: { digest: 'sha256:digest' } },
   };
-  // GitHub applies success() implicitly unless a status function is explicit.
-  const expression = workflow.jobs[job].if;
-  if (!expression.includes("always()") && (validation !== "success" || changes !== "success" || cancelled)) return false;
-  return Boolean(new Function("github", "inputs", "needs", "always", "cancelled", `return (${expression});`)(
-    { event_name: event, event: { action } }, { project, verify_only: verifyOnly, validated: validation === "success" }, needs, () => true, () => cancelled,
+  const expression = job.if;
+  if (!expression.includes('always()') && (validation !== 'success' || cancelled)) return false;
+  return Boolean(new Function('github', 'inputs', 'needs', 'always', 'cancelled', `return (${expression});`)(
+    { event_name: event }, { validated: validation === 'success', verify_only: verifyOnly }, needs, () => true, () => cancelled,
   ));
 }
 
-for (const validation of ["failure", "cancelled", "skipped", "pending", "in_progress"]) {
-  for (const job of ["web", "api", "migrate"]) assert.equal(permitted(job, { validation }), false, `${job}: ${validation} validation`);
+assert.deepEqual(Object.keys(ci.jobs).sort(), ['api', 'mobile', 'preflight', 'validate']);
+assert.deepEqual(ci.jobs.validate.needs, ['preflight', 'api', 'mobile']);
+assert.equal(ci.jobs.validate.if, 'always()');
+assert.equal(ci.jobs.validate.steps[0].run.includes('all(.[]; .result == "success")'), true);
+assert.equal(deploy.jobs.validate.uses, './.github/workflows/ci.yml');
+assert.equal(deploy.jobs.gate.name, 'Validate API, PostgreSQL and mobile');
+assert.equal(deploy.jobs.gate.if, 'always()');
+assert.deepEqual(ci.jobs.api.needs, ['preflight']);
+assert.equal(ci.jobs.api.services.postgres.image, 'postgres:16-alpine');
+for (const name of [
+  'TEST_SPACES_DATABASE_URL',
+  'TEST_CATEGORY_RULES_DATABASE_URL',
+  'TEST_CATEGORY_COLOR_DATABASE_URL',
+  'TEST_SPACE_CATEGORIES_CONCURRENCY_DATABASE_URL',
+  'TEST_STATEMENT_IMPORT_ROLLBACK_DATABASE_URL',
+  'TEST_STATEMENT_IMPORT_CATEGORY_CONCURRENCY_DATABASE_URL',
+  'TEST_TRANSACTION_STATEMENT_IMPORT_SPACE_DATABASE_URL',
+  'TEST_STATEMENT_CATEGORY_SUGGESTIONS_DATABASE_URL',
+  'TEST_INVITATIONS_DATABASE_URL',
+  'TEST_FINANCIAL_OWNERSHIP_MIGRATION_DATABASE_URL',
+]) assert.ok(ci.jobs.api.env[name], `Required PostgreSQL database missing for ${name}`);
+assert.notEqual(
+  ci.jobs.api.env.TEST_FINANCIAL_OWNERSHIP_MIGRATION_DATABASE_URL,
+  ci.jobs.api.env.TEST_SPACES_DATABASE_URL,
+);
+assert.equal(
+  new Set(Object.values(ci.jobs.api.env)).size,
+  Object.values(ci.jobs.api.env).length,
+  'Every required API PostgreSQL suite must have a unique database URL',
+);
+assert.ok(ci.jobs.api.steps.some(step => step.run === 'npm run test:postgres'));
+for (const command of ['npx eslint', 'npm run build', 'npm test -- --runInBand', 'npm run openapi:check']) {
+  assert.ok(ci.jobs.api.steps.some(step => step.run?.includes(command)), `API validation is missing ${command}`);
 }
-for (const changes of ["failure", "cancelled", "skipped"]) {
-  for (const job of ["web", "api", "migrate"]) assert.equal(permitted(job, { changes }), false);
+assert.ok(ci.jobs.mobile.steps.some(step => step.run === 'npm run lint'));
+assert.ok(ci.jobs.mobile.steps.some(step => step.run === 'npm run typecheck'));
+assert.ok(ci.jobs.mobile.steps.some(step => step.run === 'npm run parser:test'));
+assert.equal(mobilePackage.scripts.web, undefined);
+assert.ok(mobilePackage.scripts.typecheck);
+
+assert.deepEqual(Object.keys(publish.jobs).sort(), ['api', 'changes', 'migrate']);
+assert.equal(publish.jobs.changes.steps.some(step => step.run?.includes('test "$GITHUB_REF" = refs/heads/main')), true);
+assert.equal(publish.jobs.changes.steps.some(step => step.run === 'node scripts/release-plan.mjs'), true);
+assert.deepEqual(publish.jobs.migrate.needs, ['changes']);
+assert.deepEqual(publish.jobs.api.needs, ['changes', 'migrate']);
+assert.equal(publish.jobs.migrate.outputs.digest, '${{ steps.image.outputs.digest }}');
+const apiImage = publish.jobs.migrate.steps.find(step => step.name === 'Build and publish API image');
+assert.equal(apiImage.with.tags, 'syoro/spendeazy-api:${{ github.sha }}');
+const migration = publish.jobs.migrate.steps.find(step => step.name === 'Run migrations with the published image');
+assert.equal(migration.env.MIGRATION_IMAGE, 'syoro/spendeazy-api@${{ steps.image.outputs.digest }}');
+const apiDeploy = publish.jobs.api.steps.find(step => step.name === 'Deploy migration-tested container image');
+assert.equal(apiDeploy.with.imageToDeploy, 'syoro/spendeazy-api@${{ needs.migrate.outputs.digest }}');
+for (const validation of ['failure', 'cancelled', 'skipped', 'pending']) {
+  assert.equal(permitted('migrate', { validation }), false);
+  assert.equal(permitted('api', { validation }), false);
 }
-for (const api of ["failure", "cancelled", "pending"]) assert.equal(permitted("web", { api }), false);
-for (const job of ["web", "api"]) assert.equal(permitted(job, { cancelled: true }), false);
-for (const job of ["web", "api"]) assert.equal(permitted(job, { migrate: "failure", api: "skipped" }), false, `${job}: migration failure`);
-assert.equal(permitted("migrate", { event: "push", apiChanged: "true" }), true);
-assert.equal(permitted("migrate", { event: "push", apiChanged: "false" }), false);
-assert.equal(permitted("migrate", { event: "workflow_dispatch", project: "web" }), false);
-assert.equal(permitted("migrate", { event: "workflow_dispatch", verifyOnly: true }), false);
-assert.equal(permitted("api", { event: "workflow_dispatch", verifyOnly: true, migrate: "skipped" }), true);
-assert.equal(permitted("web", { event: "workflow_dispatch", verifyOnly: true, migrate: "skipped" }), true);
-for (const [project, web, api] of [["all", true, true], ["web", true, false], ["api", false, true]]) {
-  assert.equal(permitted("api", { project, migrate: api ? "success" : "skipped" }), api);
-  assert.equal(permitted("web", { project, migrate: api ? "success" : "skipped", api: api ? "success" : "skipped" }), web);
+for (const migrate of ['failure', 'cancelled', 'pending', 'skipped']) {
+  assert.equal(permitted('api', { migrate }), false);
 }
-for (const [webChanged, apiChanged, web, api] of [["true", "true", true, true], ["true", "false", true, false], ["false", "true", false, true], ["false", "false", false, false]]) {
-  const scenario = { event: "push", webChanged, apiChanged, migrate: api ? "success" : "skipped", api: api ? "success" : "skipped" };
-  assert.equal(permitted("migrate", scenario), api);
-  assert.equal(permitted("api", scenario), api);
-  assert.equal(permitted("web", scenario), web);
-}
-assert.equal(permitted("web", { event: "pull_request", migrate: "skipped", api: "skipped" }), true);
-assert.equal(permitted("api", { event: "pull_request" }), false);
-assert.equal(permitted("web", { event: "pull_request", action: "closed", migrate: "skipped", api: "skipped" }), false);
-assert.equal(workflow.jobs.close_web_preview.needs, undefined);
-assert.deepEqual(workflow.jobs.web.needs, ["changes", "migrate", "api"]);
-assert.deepEqual(workflow.jobs.api.needs, ["changes", "migrate"]);
-assert.deepEqual(workflow.jobs.migrate.needs, ["changes"]);
-assert.equal(entry.jobs.validate.uses, "./.github/workflows/ci.yml");
-assert.equal(entry.jobs.publish.uses, "./.github/workflows/publish.yml");
-assert.equal(entry.concurrency, undefined);
-assert.equal(entry.jobs.validate.concurrency["cancel-in-progress"], true);
-assert.equal(workflow.concurrency["cancel-in-progress"], false);
-assert.equal(ci.on.push, undefined);
-assert.equal(ci.on.pull_request, undefined);
-assert.equal(entry.jobs.gate.name, "Validate projects and isolated browser suite");
-assert.deepEqual(ci.jobs.validate.needs, ["preflight", "api", "web", "e2e"]);
-assert.deepEqual(ci.jobs.e2e.strategy.matrix.shard, [1, 2]);
-const browserSteps = ci.jobs.e2e.steps;
-const compilerIndex = browserSteps.findIndex(step => step.run === "npm run typecheck:e2e" && step["working-directory"] === "web");
-assert.ok(compilerIndex >= 0, "Browser jobs must require the E2E compiler");
-assert.equal(browserSteps[compilerIndex]["continue-on-error"], undefined);
-assert.ok(compilerIndex < browserSteps.findIndex(step => step.name === "Install Playwright Microsoft Edge"));
-assert.ok(compilerIndex < browserSteps.findIndex(step => step.run === "node scripts/local-test-launcher.mjs --e2e"));
-assert.equal(ci.jobs.e2e.strategy["fail-fast"], false);
-assert.ok(entry.jobs.gate.if.startsWith("always()"));
-assert.equal(entry.jobs.gate.steps[0].run, 'test "$VALIDATION_RESULT" = success');
-assert.ok(ci.jobs.validate.steps[0].run.includes('all(.[]; .result == "success")'));
-const publicationExpression = new Function("github", "needs", "always", "cancelled", `return (${entry.jobs.publish.if});`);
-for (const result of ["failure", "cancelled", "skipped", "pending", "in_progress"]) {
-  for (const [validation, gate] of [[result, "success"], ["success", result]]) {
-    assert.equal(publicationExpression({ event_name: "push", event: {} }, { validate: { result: validation }, gate: { result: gate } }, () => true, () => false), false);
-  }
-}
-assert.equal(publicationExpression({ event_name: "pull_request", event: { action: "closed", pull_request: { user: { login: "maintainer" } } } }, { validate: { result: "skipped" }, gate: { result: "skipped" } }, () => true, () => false), true);
-for (const login of ["dependabot[bot]", "maintainer"]) {
-  for (const action of ["opened", "synchronize", "reopened", "closed"]) {
-    const github = { event_name: "pull_request", event: { action, pull_request: { user: { login } } } };
-    const result = action === "closed" ? "skipped" : "success";
-    assert.equal(publicationExpression(github, { validate: { result }, gate: { result } }, () => true, () => false), login !== "dependabot[bot]", `${login}: ${action} publication`);
-    const validationExpression = new Function("github", `return (${entry.jobs.validate.if});`);
-    assert.equal(validationExpression(github), action !== "closed", `${login}: ${action} validation`);
-  }
-}
-assert.equal(workflow.jobs.migrate.outputs.digest, "${{ steps.image.outputs.digest }}");
-assert.equal(workflow.jobs.migrate.outputs.image, undefined);
-const apiDeploy = workflow.jobs.api.steps.find(step => step.name === "Deploy migration-tested container image");
-assert.equal(apiDeploy.with.imageToDeploy, "syoro/spendeazy-api@${{ needs.migrate.outputs.digest }}");
-const webUpload = workflow.jobs.web.steps.find(step => step.name === "Build and deploy");
-assert.equal(webUpload.with.skip_app_build, true);
-assert.equal(webUpload.with.app_location, "web/dist");
-assert.equal(webUpload.with.output_location, "");
-for (const configuration of [entry, ci, workflow]) {
-  for (const job of Object.values(configuration.jobs)) {
+assert.equal(permitted('migrate', { event: 'push', changed: 'false' }), false);
+assert.equal(permitted('api', { event: 'push', changed: 'false', migrate: 'skipped' }), false);
+assert.equal(permitted('migrate', { event: 'workflow_dispatch', verifyOnly: true, changed: 'true' }), false);
+assert.equal(permitted('api', { event: 'workflow_dispatch', verifyOnly: true, migrate: 'skipped' }), true);
+assert.equal(permitted('api', { event: 'workflow_dispatch', verifyOnly: false, migrate: 'success' }), true);
+
+for (const workflow of [deploy, publish, ci]) {
+  for (const job of Object.values(workflow.jobs)) {
     for (const step of job.steps ?? []) {
       if (step.uses) assert.match(step.uses, /^[\w-]+\/[\w-]+@[a-f0-9]{40}$/, `Unpinned action ${step.uses}`);
     }
   }
 }
-console.log("Release gates verified: one automatic validation, complete aggregate checks, isolated shards, immutable web artifact, protected publication ordering, and failure/skip/cleanup scenarios.");
+const workflowSource = ['../.github/workflows/ci.yml', '../.github/workflows/deploy.yml', '../.github/workflows/publish.yml']
+  .map(path => readFileSync(new URL(path, import.meta.url), 'utf8')).join('\n');
+assert.doesNotMatch(workflowSource, /web_artifact|staticwebapps-deploy|Playwright|Vite|browser suite|web\/dist/iu);
+assert.match(releaseDocs, /#138/u);
+assert.match(releaseDocs, /physical iPhone/u);
+assert.match(releaseDocs, /Android emulator/u);
+assert.match(releaseDocs, /native build/u);
+assert.match(releaseDocs, /lint and type checks do not establish device certification/iu);
+console.log('Release gates verified: isolated API/PostgreSQL checks, mobile/parser checks, current-source API deployment, and blocking migration safeguards.');

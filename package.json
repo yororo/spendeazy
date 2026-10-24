@@ -1,6 +1,6 @@
 {
   "scripts": {
-    "install:spendeazy": "npm install --prefix web && npm install --prefix api"
+    "install:spendeazy": "npm ci --prefix api && npm ci --prefix mobile-app"
   },
   "devDependencies": {
     "tsx": "^4.23.15"

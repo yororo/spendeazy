@@ -103,7 +103,6 @@ function testConfig(): AppConfig {
     environment: 'test',
     port: 3000,
     databaseUrl: undefined,
-    corsOrigins: [],
     clerkJwtKey: 'test-jwt-key',
     clerkSecretKey: 'sk_test_secret',
     clerkAuthorizedParties: [],

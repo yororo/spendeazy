@@ -53,7 +53,7 @@ export class CreateCategoryRuleDto {
   @ApiPropertyOptional({
     enum: CATEGORY_RULE_MATCH_TYPES,
     default: 'exact',
-    description: `${CATEGORY_RULE_MATCH_TYPE_DESCRIPTION} Omission creates an Exact Rule, including frontend Remember requests.`,
+    description: `${CATEGORY_RULE_MATCH_TYPE_DESCRIPTION} Omission creates an Exact Rule, including mobile Remember requests.`,
   })
   matchType?: CategoryRuleMatchType;
 
@@ -63,7 +63,7 @@ export class CreateCategoryRuleDto {
   @Length(1, CATEGORY_RULE_PATTERN_MAX_LENGTH)
   @ApiProperty({
     description:
-      'Original rule text. Uniqueness trims surrounding whitespace, collapses repeated whitespace, and ignores case within each match type. Rule evaluation belongs to the frontend.',
+      'Original rule text. Uniqueness trims surrounding whitespace, collapses repeated whitespace, and ignores case within each match type. Rule evaluation belongs to the mobile client.',
     minLength: 1,
     maxLength: CATEGORY_RULE_PATTERN_MAX_LENGTH,
     pattern: '\\S',

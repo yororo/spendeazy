@@ -17,7 +17,6 @@ import {
   setupOpenApi,
 } from '../src/docs/openapi-document.factory';
 import { OpenApiDocumentService } from '../src/docs/openapi-document.service';
-import type { AppConfig } from '../src/config/app-config';
 
 describe('public API documentation', () => {
   let app: INestApplication;
@@ -39,9 +38,10 @@ describe('public API documentation', () => {
     }).compile();
 
     app = module.createNestApplication();
-    configureApp(app, testConfig);
+    configureApp(app);
     setupOpenApi(app, document);
     await app.init();
+    await app.listen(0);
   });
 
   afterAll(async () => {
@@ -97,16 +97,6 @@ describe('public API documentation', () => {
 function fakeVerifier(): ClerkTokenVerifier {
   return { verify: () => Promise.reject(new Error('not used')) };
 }
-
-const testConfig: AppConfig = {
-  environment: 'test',
-  port: 3000,
-  databaseUrl: undefined,
-  corsOrigins: [],
-  clerkJwtKey: undefined,
-  clerkSecretKey: undefined,
-  clerkAuthorizedParties: [],
-};
 
 function httpServer(application: INestApplication): Server {
   return application.getHttpServer() as Server;

@@ -5462,7 +5462,7 @@
           },
           "matchType": {
             "type": "string",
-            "description": "Exact matches the entire normalized Transaction description. Contains matches a literal substring anywhere, including within a word. Matching ignores case and normalizes whitespace; punctuation remains significant. Exact Rules take precedence over Contains Rules during categorization. The frontend evaluates rules; the normalized pattern is not returned.",
+            "description": "Exact matches the entire normalized Transaction description. Contains matches a literal substring anywhere, including within a word. Matching ignores case and normalizes whitespace; punctuation remains significant. Exact Rules take precedence over Contains Rules during categorization. The mobile client evaluates rules; the normalized pattern is not returned.",
             "enum": [
               "exact",
               "contains"
@@ -5482,7 +5482,7 @@
             "example": "2026-08-29T00:00:00.000Z"
           }
         },
-        "description": "A Category Rule belonging to the authorized Space. The original pattern is retained for display. Rule evaluation is performed by the frontend.",
+        "description": "A Category Rule belonging to the authorized Space. The original pattern is retained for display. Rule evaluation is performed by the mobile client.",
         "additionalProperties": false,
         "required": [
           "id",
@@ -5503,11 +5503,11 @@
               "contains"
             ],
             "default": "exact",
-            "description": "Exact matches the entire normalized Transaction description. Contains matches a literal substring anywhere, including within a word. Matching ignores case and normalizes whitespace; punctuation remains significant. Exact Rules take precedence over Contains Rules during categorization. Omission creates an Exact Rule, including frontend Remember requests."
+            "description": "Exact matches the entire normalized Transaction description. Contains matches a literal substring anywhere, including within a word. Matching ignores case and normalizes whitespace; punctuation remains significant. Exact Rules take precedence over Contains Rules during categorization. Omission creates an Exact Rule, including mobile Remember requests."
           },
           "pattern": {
             "type": "string",
-            "description": "Original rule text. Uniqueness trims surrounding whitespace, collapses repeated whitespace, and ignores case within each match type. Rule evaluation belongs to the frontend.",
+            "description": "Original rule text. Uniqueness trims surrounding whitespace, collapses repeated whitespace, and ignores case within each match type. Rule evaluation belongs to the mobile client.",
             "minLength": 1,
             "maxLength": 500,
             "pattern": "\\S",

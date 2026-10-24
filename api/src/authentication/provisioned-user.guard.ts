@@ -7,8 +7,6 @@ import {
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { API_PREFIX } from '../config/app-config';
-import { APP_CONFIG } from '../config/app-config';
-import type { AppConfig } from '../config/app-config';
 import { USER_STORE, type UserStore } from '../users/application/user-store';
 import {
   type AuthenticatedRequest,
@@ -27,20 +25,12 @@ export class ProvisionedUserGuard implements CanActivate {
     @Optional()
     @Inject(USER_STORE)
     private readonly userStore: UserStore | undefined,
-    @Optional()
-    @Inject(APP_CONFIG)
-    private readonly appConfig: AppConfig | undefined,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
 
-    if (
-      isPublicRoute(request) ||
-      isProvisioningRoute(request) ||
-      (this.appConfig?.environment === 'test' &&
-        isLocalTestSessionRoute(request))
-    ) {
+    if (isPublicRoute(request) || isProvisioningRoute(request)) {
       return true;
     }
 
@@ -70,16 +60,5 @@ function isProvisioningRoute(request: Request): boolean {
   return (
     request.method === 'PUT' &&
     normalizeRequestPath(request.path) === `/${API_PREFIX}/users/me`
-  );
-}
-
-function isLocalTestSessionRoute(request: Request): boolean {
-  const localTestSessionPath = `/${API_PREFIX}/users/me/local-test/sessions`;
-  const path = normalizeRequestPath(request.path);
-
-  return (
-    request.method === 'POST' &&
-    (path === localTestSessionPath ||
-      path.startsWith(`${localTestSessionPath}/`))
   );
 }

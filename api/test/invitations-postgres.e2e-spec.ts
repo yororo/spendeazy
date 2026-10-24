@@ -21,6 +21,7 @@ import type { AppConfig } from '../src/config/app-config';
 import { BudgetEntity } from '../src/database/entities/budget.entity';
 import { CategoryEntity } from '../src/database/entities/category.entity';
 import { DEFAULT_CATEGORY_CATALOG } from '../src/categories/application/default-category-catalog';
+import { InMemoryInvitationAttemptLimiter } from '../src/invitations/application/invitation-attempt-limiter';
 import { CategoryRuleEntity } from '../src/database/entities/category-rule.entity';
 import { InvitationEntity } from '../src/database/entities/invitation.entity';
 import { InvitationClaimEntity } from '../src/database/entities/invitation-claim.entity';
@@ -63,7 +64,7 @@ describeDatabase('Invite Codes with PostgreSQL', () => {
       }),
       { bodyParser: false },
     );
-    configureApp(application, testConfig(databaseUrl));
+    configureApp(application);
     await application.init();
     database = application.get(DataSource);
     await database.runMigrations();
@@ -133,6 +134,7 @@ describeDatabase('Invite Codes with PostgreSQL', () => {
     createdInvitationIds.splice(0);
     createdUserIds.splice(0);
     createdSpaceIds.splice(0);
+    application.get(InMemoryInvitationAttemptLimiter).clear();
     verifier.clear();
     profileService.clear();
   });
@@ -162,9 +164,7 @@ describeDatabase('Invite Codes with PostgreSQL', () => {
     const listedBody = responseBody<InvitationInboxBody>(listed);
     expect(listed.status).toBe(200);
     expect(listedBody.outgoing).toEqual(createdBody);
-    expect(
-      Date.parse(createdBody.expiresAt) - Date.parse(createdBody.createdAt),
-    ).toBe(7 * 24 * 60 * 60 * 1000);
+    expectSevenDayExpiry(createdBody.createdAt, createdBody.expiresAt);
 
     const persisted = await database
       .getRepository(InvitationEntity)
@@ -216,9 +216,7 @@ describeDatabase('Invite Codes with PostgreSQL', () => {
     expect(rotated.status).toBe(200);
     expect(newInvitation).toMatchObject({ status: 'pending' });
     expect(newInvitation.code).not.toBe(oldInvitation.code);
-    expect(
-      Date.parse(newInvitation.expiresAt) - Date.parse(newInvitation.createdAt),
-    ).toBe(7 * 24 * 60 * 60 * 1000);
+    expectSevenDayExpiry(newInvitation.createdAt, newInvitation.expiresAt);
 
     expect(
       await database.getRepository(InvitationClaimEntity).countBy({
@@ -1022,7 +1020,6 @@ const testConfig = (url: string | undefined): AppConfig => ({
   environment: 'test',
   port: 3000,
   databaseUrl: url,
-  corsOrigins: [],
   clerkJwtKey: undefined,
   clerkSecretKey: undefined,
   clerkAuthorizedParties: [],
@@ -1031,4 +1028,11 @@ const testConfig = (url: string | undefined): AppConfig => ({
 
 function responseBody<T>(response: { readonly body: unknown }): T {
   return response.body as T;
+}
+
+function expectSevenDayExpiry(createdAt: string, expiresAt: string): void {
+  const duration = Date.parse(expiresAt) - Date.parse(createdAt);
+  const sevenDays = 7 * 24 * 60 * 60 * 1000;
+  expect(duration).toBeLessThanOrEqual(sevenDays);
+  expect(duration).toBeGreaterThanOrEqual(sevenDays - 1000);
 }

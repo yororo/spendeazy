@@ -7,14 +7,13 @@ import { loadAppConfig } from './app-config';
 import { loadLocalEnvironment } from './load-local-environment';
 
 describe('loadAppConfig', () => {
-  it('loads a production configuration with a database URL and CORS allowlist', () => {
+  it('loads a production configuration without browser CORS settings', () => {
     const jwtKey = validJwtKey();
     const config = loadAppConfig({
       NODE_ENV: 'production',
       PORT: '4000',
       DATABASE_URL:
         'postgresql://expense-user:secret@db.example.com:5432/expenses',
-      CORS_ORIGINS: 'https://app.example.com/, https://admin.example.com',
       CLERK_JWT_KEY: jwtKey,
       CLERK_SECRET_KEY: 'sk_test_secret',
       CLERK_AUTHORIZED_PARTIES:
@@ -28,7 +27,6 @@ describe('loadAppConfig', () => {
       port: 4000,
       databaseUrl:
         'postgresql://expense-user:secret@db.example.com:5432/expenses',
-      corsOrigins: ['https://app.example.com', 'https://admin.example.com'],
       clerkJwtKey: jwtKey.trim(),
       clerkSecretKey: 'sk_test_secret',
       clerkAuthorizedParties: [
@@ -40,20 +38,12 @@ describe('loadAppConfig', () => {
     });
   });
 
-  it('rejects malformed database URLs and origins', () => {
+  it('rejects malformed database URLs', () => {
     expect(() =>
       loadAppConfig({
         DATABASE_URL: 'mysql://localhost/expenses',
-        CORS_ORIGINS: 'https://app.example.com',
       }),
     ).toThrow('DATABASE_URL must be a PostgreSQL connection URL');
-
-    expect(() =>
-      loadAppConfig({
-        DATABASE_URL: 'postgresql://localhost/expenses',
-        CORS_ORIGINS: '*',
-      }),
-    ).toThrow('CORS_ORIGINS must contain explicit HTTP(S) origins');
   });
 
   it('rejects malformed Clerk verification configuration', () => {
@@ -100,7 +90,6 @@ describe('loadAppConfig', () => {
       environment: 'test',
       port: 3000,
       databaseUrl: undefined,
-      corsOrigins: [],
       clerkJwtKey: undefined,
       clerkSecretKey: undefined,
       clerkAuthorizedParties: [],
@@ -128,7 +117,6 @@ describe('loadAppConfig', () => {
 
   it.each([
     'DATABASE_URL',
-    'CORS_ORIGINS',
     'CLERK_JWT_KEY',
     'CLERK_SECRET_KEY',
     'CLERK_AUTHORIZED_PARTIES',
@@ -139,7 +127,6 @@ describe('loadAppConfig', () => {
       NODE_ENV: 'production',
       DATABASE_URL:
         'postgresql://expense-user:secret@db.example.com:5432/expenses',
-      CORS_ORIGINS: 'https://app.example.com',
       CLERK_JWT_KEY: validJwtKey(),
       CLERK_SECRET_KEY: 'sk_test_secret',
       CLERK_AUTHORIZED_PARTIES: 'https://app.example.com',
@@ -169,7 +156,6 @@ describe('loadAppConfig', () => {
       environment: 'test',
       port: 3000,
       databaseUrl: undefined,
-      corsOrigins: [],
       clerkJwtKey: undefined,
       clerkSecretKey: undefined,
       clerkAuthorizedParties: [],

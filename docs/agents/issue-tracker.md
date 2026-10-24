@@ -11,7 +11,7 @@ Issues and specs for this repo live as GitHub issues. Use the `gh` CLI for all o
 - **Apply / remove labels**: `gh issue edit <number> --add-label "..."` / `--remove-label "..."`
 - **Close**: `gh issue close <number> --comment "..."`
 
-Infer the repository from `git remote -v`; both `web/` and `api/` belong to this clone. For historical issue references, verify the source repository rather than assuming the same issue number survived consolidation.
+Infer the repository from `git remote -v`; `mobile-app/` and `api/` belong to this clone. For historical issue references, verify the source repository rather than assuming the same issue number survived consolidation.
 
 ## Pull requests as a triage surface
 

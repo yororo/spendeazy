@@ -6,6 +6,14 @@
 
 API publication is the only production publication. Main pushes publish only when API source or delivery inputs differ from the last successful API publication; missing history selects publication conservatively. Mobile-only changes do not publish the API. Workflow and release-script changes select API publication. History recognizes previous deploy steps and checks compact pages. Failed, canceled, skipped, or incomplete validation cannot publish. Verification-only publications remain Azure-free.
 
+## Documentation-only changes
+
+Automatic pull request and push runs classify the complete change set in `scripts/documentation-changes.mjs`. When every changed path is documentation, the expensive API/mobile validation and publication jobs are skipped while the required `Validate API, PostgreSQL and mobile` check completes successfully. Manual workflow runs always use full validation and retain the existing verification and publication safeguards. A missing comparison commit, an unreadable diff, or any classifier error falls back to full validation; it cannot request a documentation-only skip.
+
+The classifier treats Markdown and MDX, Pencil `.pen` designs, and `LICENSE`/`NOTICE` files as documentation unless they are under a source, test, build, native-platform, script, workflow, or other explicitly excluded directory. Documentation reference assets are allowed only under `docs/`, `api/docs/`, `mobile-app/docs/`, `web/design/`, and `.agents/skills/`. The asset extension allowlist covers text references, diagrams, images, media, and fonts. The API OpenAPI JSON/YAML contracts, executable files, build and test configuration, dependencies, schemas, migrations, seeds, runtime assets, and unknown file types remain non-documentation. Retired `web/` source and hosting remain retired; only `web/design/` reference files can qualify.
+
+To change the policy, update the directory prefixes, allowed asset extensions, or excluded directory names in `scripts/documentation-changes.mjs`, then update `scripts/documentation-changes.test.mjs`. Add a new file type only after confirming its contents are not consumed by application builds or tests. Unknown formats should keep selecting normal validation.
+
 All production publications share one concurrency group in `.github/workflows/publish.yml`. Validation runs outside the lock. After acquiring the lock, publication verifies that its source SHA is the current `main` tip. Older reruns and non-main manual publications fail this check. The API image is built once; the migration job runs from its digest, and deployment uses that same digest. A failed or timed-out migration blocks API deployment.
 
 ## Deployment entry points and packaging

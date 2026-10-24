@@ -6,7 +6,7 @@ import {
   manualExpenseRequest,
   todayInManila,
   validateManualExpenseDraft,
-} from './manual-expense-draft.ts';
+} from './manual-draft.ts';
 
 const TODAY = '2026-10-24';
 

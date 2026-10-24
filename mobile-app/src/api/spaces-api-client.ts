@@ -1,11 +1,12 @@
 import { authorizedRequest, type AuthorizedRequestOptions } from '@/api/authorized-request';
-import { parseAccessibleSpaces, type AccessibleSpace } from '@/navigation/active-space';
+import { parseAccessibleSpaces, type AccessibleSpace } from '@/application/spaces/active-space';
+import { decodeApiResponse } from './request-failure';
 
 export function createSpacesApiClient(options: AuthorizedRequestOptions) {
   return {
     async listSpaces(): Promise<AccessibleSpace[]> {
       const payload = await authorizedRequest<unknown>(options, '/api/v1/users/me/spaces');
-      return parseAccessibleSpaces(payload);
+      return decodeApiResponse(() => parseAccessibleSpaces(payload));
     },
   };
 }

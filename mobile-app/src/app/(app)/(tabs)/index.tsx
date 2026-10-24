@@ -4,8 +4,8 @@ import { BodyText, Screen, StackGap } from '@/components/screen';
 import { SpaceStatus } from '@/components/space-status';
 import { typeScale } from '@/constants/theme';
 import { useAppTheme } from '@/navigation/app-theme';
-import { dismissRecoveryAnnouncement, useSessionSnapshot } from '@/navigation/session-store';
-import { useSpaces } from '@/navigation/spaces-provider';
+import { dismissRecoveryAnnouncement, useSessionSnapshot } from '@/application/session-runtime';
+import { useSpaces } from '@/application/spaces/provider';
 
 export default function DashboardScreen() {
   const { refresh, loading, refreshing } = useSpaces();

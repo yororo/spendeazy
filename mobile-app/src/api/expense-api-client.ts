@@ -5,6 +5,7 @@ import {
   type AuthorizedRequestOptions,
 } from '@/api/authorized-request';
 
+import { readExpensePage, readListedExpense } from './expense-response';
 export { ExpenseApiError, ExpenseApiTransportError };
 
 export type ExpenseSource = 'manual' | 'imported';
@@ -112,18 +113,27 @@ export function createExpenseApiClient(
   }
 
   return {
-    listExpenses: (spaceId, query) =>
-      request(`${expenseCollectionPath(spaceId)}${queryString(query)}`),
+    listExpenses: async (spaceId, query) => {
+      const payload = await request<ExpensePage>(`${expenseCollectionPath(spaceId)}${queryString(query)}`);
+      readExpensePage(payload);
+      return payload;
+    },
     listDeletedExpenses: (spaceId, query) =>
       request(
         `${expenseCollectionPath(spaceId)}/deleted${queryString(query)}`,
       ),
-    getExpense: (spaceId, expenseId) =>
-      request(expenseItemPath(spaceId, expenseId)),
+    getExpense: async (spaceId, expenseId) => {
+      const payload = await request<Expense>(expenseItemPath(spaceId, expenseId));
+      readListedExpense(payload);
+      return payload;
+    },
     listExpenseActivity: (spaceId, expenseId) =>
       request(`${expenseItemPath(spaceId, expenseId)}/activity`),
-    createManualExpense: (spaceId, input) =>
-      request(expenseCollectionPath(spaceId), { method: 'POST', body: input }),
+    createManualExpense: async (spaceId, input) => {
+      const payload = await request<Expense>(expenseCollectionPath(spaceId), { method: 'POST', body: input });
+      readListedExpense(payload);
+      return payload;
+    },
     updateExpense: (spaceId, expenseId, input) =>
       request(expenseItemPath(spaceId, expenseId), {
         method: 'PATCH',

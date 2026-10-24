@@ -44,6 +44,13 @@ Expose a small feature interface that hides its workflow details. Add separate m
 
 ## Review and verification
 
+### Current application owners and migration gaps
+
+- `src/application/session.ts` owns expiry, explicit sign-out, identity/Clerk-session changes, Space changes and retained manual Expense work. `session-runtime.ts` binds the single application instance to React; `authorized-client.ts` is its Clerk adapter. Controllers use these interfaces rather than interpreting HTTP 401 or matching error messages.
+- `src/api/request-failure.ts` classifies missing credentials, expiry, transport, invalid-response and application rejection failures. `session-request.ts` rejects obsolete successes and failures before initiating recovery. API adapters decode external data before returning it.
+- `src/application/spaces/` owns Space loading, authorized selection and ordered device-memory writes. `src/features/expenses/` owns manual submission, Categories, browse state and detail controllers, with views driven by controller results and route-owned navigation callbacks.
+- The parser proof and existing Profile/Appearance presentation have not been reorganized into production feature modules. Expense editing/deletion, Budget, reporting, Statement Import and sharing remain future workflows. Their state and async operations must join the owning capabilities as implemented; this migration does not certify native-device behavior.
+
 For each changed workflow, verify responsibility ownership and dependency direction against the table. Every view must be renderable from supplied feature state without a live backend or authenticated session; theme/layout context remains appropriate. Import restrictions can enforce these dependencies when introduced; their enforcement is not currently claimed by this document.
 
 Test observable rules and workflow outcomes through the owning module's interface. For affected async flows, cover obsolete completions, retry, refresh during pagination, repeated save and identity/Space changes. View checks cover rendering, user intent and accessibility rather than duplicating business-rule tests. Keep test dependencies injectable at existing seams and avoid assertions about private state or mocked call choreography.

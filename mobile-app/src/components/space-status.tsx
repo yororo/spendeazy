@@ -3,8 +3,8 @@ import { useState } from 'react';
 import { SecondaryButton } from '@/components/buttons';
 import { ChoiceSheet } from '@/components/choice-sheet';
 import { BodyText, StackGap, SupportingText } from '@/components/screen';
-import { spaceIdentityLabel } from '@/navigation/active-space';
-import { useSpaces } from '@/navigation/spaces-provider';
+import { spaceIdentityLabel } from '@/application/spaces/active-space';
+import { useSpaces } from '@/application/spaces/provider';
 
 export function SpaceStatus() {
   const { spaces, active, loading, error, memoryError, refresh, selectSpace } = useSpaces();

@@ -56,9 +56,19 @@ assert.ok(ci.jobs.api.steps.some(step => step.run === 'npm run test:postgres'));
 for (const command of ['npx eslint', 'npm run build', 'npm test -- --runInBand', 'npm run openapi:check']) {
   assert.ok(ci.jobs.api.steps.some(step => step.run?.includes(command)), `API validation is missing ${command}`);
 }
-assert.ok(ci.jobs.mobile.steps.some(step => step.run === 'npm run lint'));
-assert.ok(ci.jobs.mobile.steps.some(step => step.run === 'npm run typecheck'));
-assert.ok(ci.jobs.mobile.steps.some(step => step.run === 'npm run parser:test'));
+export function requireMobileChecks(job) {
+  for (const command of ['npm run lint', 'npm run typecheck', 'npm run parser:test', 'npm test']) {
+    assert.ok(
+      job.steps?.some(step => step.run === command && step['working-directory'] === 'mobile-app'),
+      `Mobile validation is missing ${command}`,
+    );
+  }
+}
+requireMobileChecks(ci.jobs.mobile);
+assert.ok(
+  ci.jobs.api.steps.some(step => step.run?.includes('scripts/verify-release-gates.test.mjs')),
+  'Release-gate verification must run the mobile application-test omission check',
+);
 assert.equal(mobilePackage.scripts.web, undefined);
 assert.ok(mobilePackage.scripts.typecheck);
 
@@ -101,5 +111,5 @@ assert.match(releaseDocs, /#138/u);
 assert.match(releaseDocs, /physical iPhone/u);
 assert.match(releaseDocs, /Android emulator/u);
 assert.match(releaseDocs, /native build/u);
-assert.match(releaseDocs, /lint and type checks do not establish device certification/iu);
-console.log('Release gates verified: isolated API/PostgreSQL checks, mobile/parser checks, current-source API deployment, and blocking migration safeguards.');
+assert.match(releaseDocs, /application tests, lint, and type checks do not establish device certification/iu);
+console.log('Release gates verified: isolated API/PostgreSQL checks, mobile application/parser/lint/type checks, current-source API deployment, and blocking migration safeguards. These checks do not certify a native emulator or release.');

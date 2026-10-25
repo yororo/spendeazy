@@ -37,8 +37,8 @@ and chat. Without Clerk configuration, use the public health and documentation
 routes. The launcher does not read `api/.env` or seed users/data.
 
 Keep the terminal open; Ctrl+C removes that run's containers, network, data and
-tagged API image. Repeated or concurrent invocations create independent fresh
-stacks without changing other services. Docker build caches and downloaded base
+tagged API image. That script treats an API exit as the end of the whole stack.
+Repeated or concurrent invocations create independent fresh stacks without changing other services. Docker build caches and downloaded base
 images remain reusable. Cleanup runs on normal exit, startup failure, SIGINT and
 SIGTERM; SIGKILL, terminal crashes or Docker daemon failure can prevent cleanup.
 For such interrupted runs, find the project with `docker compose ls --all`, then
@@ -46,6 +46,30 @@ run `docker compose -p <exact-project-name> -f local-test/disposable-api.compose
 down --volumes` and `docker image rm <exact-project-name>:local` from the repository
 root. The project names begin with `spendeazy-disposable-`. All database contents
 are temporary; this launcher is for manual testing, separate from the required suite.
+
+## Managed native-verification environment
+
+Use this when an agent needs an owned API and database that can be inspected, reused, and stopped without touching anything else. The API process can be rebuilt or replaced while the same database volume stays up. `scripts/run-disposable-api.sh` is a separate manual stack that deletes its data on exit; this command is the one later device and journey checks attach to.
+
+Windows host prerequisites:
+
+- Windows 10 or 11, with PowerShell, from the repository root
+- Node.js 24.11.1 and Git on `PATH`
+- Docker Desktop running Linux containers
+
+The command does not modify `api\.env` or `%USERPROFILE%\.spendeazy\api.env`. Run-scoped configuration stays in the state directory. The nonsecret manifest is `%LOCALAPPDATA%\spendeazy\native-verification\runs\<run-id>\manifest.json`. On Linux and macOS the state directory is `~/.spendeazy/native-verification`. Override it with `SPENDEAZY_NATIVE_VERIFICATION_STATE` or `--state-dir`.
+
+```powershell
+node .\scripts\native-verification.mjs start
+node .\scripts\native-verification.mjs status
+node .\scripts\native-verification.mjs attach
+node .\scripts\native-verification.mjs replace-api
+node .\scripts\native-verification.mjs stop
+```
+
+The API container uses the database container's network namespace, so the host reaches both through the published loopback ports. `start` reuses the one compatible live run for this checkout. `start --new` creates another run. Pass `--api-port` and `--database-port` to select loopback ports; a busy port fails and the existing listener stays in place. `attach --run <id>` succeeds only when the manifest schema and checkout match and the database container is still the owned one. A matching port or process id is not accepted on its own. `status --run <id>` reports `running`, `api-stopped`, or `stale` and does not change resources. `stop` and `stop --run <id>` remove a container, volume, network, or API image only after its id and ownership token still match the manifest. `replace-api` rebuilds the API image, replaces that container, and keeps the database.
+
+The manifest records run identity, ports, source revision and fingerprint, runtime versions, and verified resource ids. `extensions.device`, `extensions.nativeBuild`, and `extensions.evidence` are reserved for later checks. Credentials and hashes of credentials are not written to the manifest or command output. If a start is interrupted, rerun `stop --run <id>` for that manifest; it ignores resources that no longer match.
 
 ## Run the required isolated API/PostgreSQL suite
 

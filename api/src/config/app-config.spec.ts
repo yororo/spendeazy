@@ -7,6 +7,20 @@ import { loadAppConfig } from './app-config';
 import { loadLocalEnvironment } from './load-local-environment';
 
 describe('loadAppConfig', () => {
+  it('starts the native-only API in production without browser-origin configuration', () => {
+    expect(() =>
+      loadAppConfig({
+        NODE_ENV: 'production',
+        DATABASE_URL:
+          'postgresql://expense-user:secret@db.example.com:5432/expenses',
+        CLERK_JWT_KEY: validJwtKey(),
+        CLERK_SECRET_KEY: 'sk_test_secret',
+        INVITATION_CODE_ENCRYPTION_KEY: '0123456789abcdef'.repeat(4),
+        GCASH_REFERENCE_HASH_KEY: 'abcdef0123456789'.repeat(4),
+      }),
+    ).not.toThrow();
+  });
+
   it('loads a production configuration without browser CORS settings', () => {
     const jwtKey = validJwtKey();
     const config = loadAppConfig({
@@ -16,8 +30,6 @@ describe('loadAppConfig', () => {
         'postgresql://expense-user:secret@db.example.com:5432/expenses',
       CLERK_JWT_KEY: jwtKey,
       CLERK_SECRET_KEY: 'sk_test_secret',
-      CLERK_AUTHORIZED_PARTIES:
-        'https://app.example.com/, https://admin.example.com',
       INVITATION_CODE_ENCRYPTION_KEY: '0123456789abcdef'.repeat(4),
       GCASH_REFERENCE_HASH_KEY: 'abcdef0123456789'.repeat(4),
     });
@@ -29,10 +41,6 @@ describe('loadAppConfig', () => {
         'postgresql://expense-user:secret@db.example.com:5432/expenses',
       clerkJwtKey: jwtKey.trim(),
       clerkSecretKey: 'sk_test_secret',
-      clerkAuthorizedParties: [
-        'https://app.example.com',
-        'https://admin.example.com',
-      ],
       invitationCodeEncryptionKey: '0123456789abcdef'.repeat(4),
       gcashReferenceHashKey: 'abcdef0123456789'.repeat(4),
     });
@@ -51,17 +59,8 @@ describe('loadAppConfig', () => {
       loadAppConfig({
         NODE_ENV: 'test',
         CLERK_JWT_KEY: 'not a PEM public key',
-        CLERK_AUTHORIZED_PARTIES: 'https://app.example.com',
       }),
     ).toThrow('CLERK_JWT_KEY must be a valid PEM public key');
-
-    expect(() =>
-      loadAppConfig({
-        NODE_ENV: 'test',
-        CLERK_JWT_KEY: validJwtKey(),
-        CLERK_AUTHORIZED_PARTIES: '*',
-      }),
-    ).toThrow('CLERK_AUTHORIZED_PARTIES must contain explicit HTTP(S) origins');
 
     expect(() =>
       loadAppConfig({
@@ -92,7 +91,6 @@ describe('loadAppConfig', () => {
       databaseUrl: undefined,
       clerkJwtKey: undefined,
       clerkSecretKey: undefined,
-      clerkAuthorizedParties: [],
     });
   });
 
@@ -109,7 +107,6 @@ describe('loadAppConfig', () => {
         loadAppConfig({
           NODE_ENV: 'test',
           CLERK_JWT_KEY: clerkJwtKey,
-          CLERK_AUTHORIZED_PARTIES: 'https://app.example.com',
         }),
       ).toThrow('CLERK_JWT_KEY must be a valid PEM public key');
     }
@@ -119,7 +116,6 @@ describe('loadAppConfig', () => {
     'DATABASE_URL',
     'CLERK_JWT_KEY',
     'CLERK_SECRET_KEY',
-    'CLERK_AUTHORIZED_PARTIES',
     'INVITATION_CODE_ENCRYPTION_KEY',
     'GCASH_REFERENCE_HASH_KEY',
   ])('rejects production startup when %s is missing', (missingVariable) => {
@@ -129,7 +125,6 @@ describe('loadAppConfig', () => {
         'postgresql://expense-user:secret@db.example.com:5432/expenses',
       CLERK_JWT_KEY: validJwtKey(),
       CLERK_SECRET_KEY: 'sk_test_secret',
-      CLERK_AUTHORIZED_PARTIES: 'https://app.example.com',
       INVITATION_CODE_ENCRYPTION_KEY: '0123456789abcdef'.repeat(4),
       GCASH_REFERENCE_HASH_KEY: 'abcdef0123456789'.repeat(4),
     };
@@ -158,7 +153,6 @@ describe('loadAppConfig', () => {
       databaseUrl: undefined,
       clerkJwtKey: undefined,
       clerkSecretKey: undefined,
-      clerkAuthorizedParties: [],
     });
   });
 });

@@ -1,6 +1,7 @@
 import { useAuth } from '@clerk/expo';
 import { createContext, use, useEffect, useMemo, useSyncExternalStore, type ReactNode } from 'react';
 import { createSpacesApiClient } from '@/api/spaces-api-client';
+import { createUserApiClient } from '@/api/user-api-client';
 import { readRememberedSpaceId, writeRememberedSpaceId } from '@/navigation/device-memory';
 import { session } from '../session-runtime';
 import { useSessionTransport } from '../authorized-client';
@@ -20,6 +21,7 @@ export function SpacesProvider({ children }: { children: ReactNode }) {
     // The route mounts this provider only after the session observes Clerk.
     if (session.snapshot().userId !== userId) throw new Error('Spaces requires the current identity');
     return createSpacesWorkflow(session, {
+      provision: () => createUserApiClient(transport.forScope(session.capture())).provisionUser(),
       list: () => createSpacesApiClient(transport.forScope(session.capture())).listSpaces(),
       read: readRememberedSpaceId,
       write: writeRememberedSpaceId,

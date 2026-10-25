@@ -16,7 +16,6 @@ export interface AppConfig {
   databaseUrl: string | undefined;
   clerkJwtKey: string | undefined;
   clerkSecretKey: string | undefined;
-  clerkAuthorizedParties: string[];
   invitationCodeEncryptionKey?: string;
   gcashReferenceHashKey?: string;
 }
@@ -29,9 +28,6 @@ export function loadAppConfig(
   const databaseUrl = parseDatabaseUrl(processEnv.DATABASE_URL);
   const clerkJwtKey = readClerkJwtKey(processEnv.CLERK_JWT_KEY);
   const clerkSecretKey = readClerkSecretKey(processEnv.CLERK_SECRET_KEY);
-  const clerkAuthorizedParties = readClerkAuthorizedParties(
-    processEnv.CLERK_AUTHORIZED_PARTIES,
-  );
   const invitationCodeEncryptionKey = readInvitationCodeEncryptionKey(
     processEnv.INVITATION_CODE_ENCRYPTION_KEY,
   );
@@ -43,10 +39,6 @@ export function loadAppConfig(
     requireProductionValue('DATABASE_URL', databaseUrl);
     requireProductionValue('CLERK_JWT_KEY', clerkJwtKey);
     requireProductionValue('CLERK_SECRET_KEY', clerkSecretKey);
-    requireProductionValue(
-      'CLERK_AUTHORIZED_PARTIES',
-      clerkAuthorizedParties.length > 0 ? 'configured' : undefined,
-    );
     requireProductionValue(
       'INVITATION_CODE_ENCRYPTION_KEY',
       invitationCodeEncryptionKey,
@@ -72,7 +64,6 @@ export function loadAppConfig(
     databaseUrl,
     clerkJwtKey,
     clerkSecretKey,
-    clerkAuthorizedParties,
     ...(invitationCodeEncryptionKey ? { invitationCodeEncryptionKey } : {}),
     ...(gcashReferenceHashKey ? { gcashReferenceHashKey } : {}),
   };
@@ -89,29 +80,6 @@ function parsePort(value: string | undefined): number {
   }
 
   return port;
-}
-
-function readClerkAuthorizedParties(value: string | undefined): string[] {
-  return readExplicitHttpOrigins(value, 'CLERK_AUTHORIZED_PARTIES');
-}
-
-function readExplicitHttpOrigins(
-  value: string | undefined,
-  variableName: string,
-): string[] {
-  const configuredOrigins = value?.trim();
-  if (!configuredOrigins) {
-    return [];
-  }
-
-  const origins = configuredOrigins
-    .split(',')
-    .map((origin) => normalizeExplicitHttpOrigin(origin.trim()));
-  if (origins.some((origin) => origin === undefined)) {
-    throw new Error(`${variableName} must contain explicit HTTP(S) origins`);
-  }
-
-  return origins as string[];
 }
 
 function readInvitationCodeEncryptionKey(
@@ -177,31 +145,6 @@ function readClerkSecretKey(value: string | undefined): string | undefined {
   }
 
   return secretKey;
-}
-
-function normalizeExplicitHttpOrigin(origin: string): string | undefined {
-  if (!origin || origin === '*') {
-    return undefined;
-  }
-
-  try {
-    const parsedOrigin = new URL(origin);
-    if (
-      ['http:', 'https:'].includes(parsedOrigin.protocol) &&
-      Boolean(parsedOrigin.hostname) &&
-      parsedOrigin.pathname === '/' &&
-      !parsedOrigin.search &&
-      !parsedOrigin.hash &&
-      !parsedOrigin.username &&
-      !parsedOrigin.password
-    ) {
-      return parsedOrigin.origin;
-    }
-
-    return undefined;
-  } catch {
-    return undefined;
-  }
 }
 
 function requireProductionValue(name: string, value: string | undefined): void {

@@ -59,7 +59,6 @@ describe('Clerk authentication', () => {
     ['an invalid token', 'Bearer invalid-session-token'],
     ['an expired token', 'Bearer expired-session-token'],
     ['a not-yet-valid token', 'Bearer not-yet-valid-session-token'],
-    ['a token from an unauthorized party', 'Bearer unauthorized-party-token'],
   ])('returns one opaque 401 response for %s', async (_case, authorization) => {
     const response = await getProtectedResource(authorization);
 
@@ -182,7 +181,6 @@ const testConfig: AppConfig = {
   databaseUrl: undefined,
   clerkJwtKey: 'test-jwt-key',
   clerkSecretKey: 'test-secret-key',
-  clerkAuthorizedParties: ['https://app.example.com'],
 };
 
 function getProtectedResource(authorization: string | undefined) {

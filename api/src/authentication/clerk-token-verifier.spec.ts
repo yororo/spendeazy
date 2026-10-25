@@ -14,7 +14,7 @@ describe('OfficialClerkTokenVerifier', () => {
     verifyTokenMock.mockReset();
   });
 
-  it('verifies with the configured PEM key and authorized parties', async () => {
+  it('verifies a native session with the configured PEM key', async () => {
     verifyTokenMock.mockResolvedValue({
       sub: 'user_42',
       sid: 'session_42',
@@ -28,7 +28,6 @@ describe('OfficialClerkTokenVerifier', () => {
     });
     expect(verifyTokenMock).toHaveBeenCalledWith('clerk-session-token', {
       jwtKey: 'pem-public-key',
-      authorizedParties: ['https://app.example.com'],
       headerType: 'JWT',
     });
   });
@@ -50,6 +49,5 @@ function testAppConfig(): AppConfig {
     databaseUrl: undefined,
     clerkJwtKey: 'pem-public-key',
     clerkSecretKey: 'test-secret-key',
-    clerkAuthorizedParties: ['https://app.example.com'],
   };
 }

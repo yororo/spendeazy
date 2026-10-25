@@ -12,6 +12,7 @@ test('Spaces rejects a load when identity changes during device memory lookup', 
   let finish!: (id: string | null) => void;
   const memory = new Promise<string | null>((resolve) => { finish = resolve; });
   const spaces = createSpacesWorkflow(session, {
+    provision: async () => {},
     list: async () => [personal], read: async () => memory, write: async () => true,
   });
   const result = spaces.load();
@@ -24,7 +25,7 @@ test('Spaces rejects a load when identity changes during device memory lookup', 
 
 test('Spaces selects only accessible Spaces and preserves the latest choice during refresh', async () => {
   const session = createSession(); session.observeIdentity('ada');
-  const spaces = createSpacesWorkflow(session, { list: async () => [personal, shared], read: async () => '1', write: async () => true });
+  const spaces = createSpacesWorkflow(session, { provision: async () => {}, list: async () => [personal, shared], read: async () => '1', write: async () => true });
   await spaces.load();
   await spaces.select('2');
   await spaces.load();
@@ -33,4 +34,64 @@ test('Spaces selects only accessible Spaces and preserves the latest choice duri
   assert.equal(session.snapshot().spaceId, '2');
   session.signOut();
   assert.deepEqual(spaces.snapshot().spaces, []);
+});
+
+test('Spaces retries failed provisioning before reading private data and reuses success on refresh', async () => {
+  const session = createSession(); session.observeIdentity('ada');
+  let attempts = 0;
+  let lists = 0;
+  const spaces = createSpacesWorkflow(session, {
+    provision: async () => { if (++attempts === 1) throw new Error('Profile temporarily unavailable'); },
+    list: async () => { lists++; return [personal]; },
+    read: async () => null, write: async () => true,
+  });
+  await spaces.load();
+  assert.notEqual(spaces.snapshot().error, null);
+  assert.equal(lists, 0);
+  await spaces.load();
+  assert.equal(spaces.snapshot().error, null);
+  assert.equal(spaces.snapshot().active?.id, personal.id);
+  await spaces.load();
+  assert.equal(attempts, 2);
+  assert.equal(lists, 2);
+});
+
+test('overlapping refreshes share provisioning and only the latest load reads Spaces', async () => {
+  const session = createSession(); session.observeIdentity('ada');
+  let finish!: () => void;
+  const provisioning = new Promise<void>(resolve => { finish = resolve; });
+  let provisions = 0;
+  let lists = 0;
+  const spaces = createSpacesWorkflow(session, {
+    provision: () => { provisions++; return provisioning; },
+    list: async () => { lists++; return [personal]; },
+    read: async () => null, write: async () => true,
+  });
+  const first = spaces.load();
+  const second = spaces.load();
+  assert.equal(lists, 0);
+  finish();
+  await Promise.all([first, second]);
+  assert.equal(provisions, 1);
+  assert.equal(lists, 1);
+  assert.equal(spaces.snapshot().active?.id, personal.id);
+});
+
+test('identity changes during provisioning prevent the old workflow from reading private data', async () => {
+  const session = createSession(); session.observeIdentity('ada');
+  let finish!: () => void;
+  const provisioning = new Promise<void>(resolve => { finish = resolve; });
+  let lists = 0;
+  const spaces = createSpacesWorkflow(session, {
+    provision: () => provisioning,
+    list: async () => { lists++; return [personal]; },
+    read: async () => null, write: async () => true,
+  });
+  const pending = spaces.load();
+  session.observeIdentity('grace');
+  finish();
+  await pending;
+  assert.equal(lists, 0);
+  assert.equal(spaces.snapshot().active, null);
+  assert.equal(session.snapshot().spaceId, null);
 });

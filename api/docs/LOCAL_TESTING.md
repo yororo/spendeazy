@@ -6,7 +6,7 @@ Commands run from `api/`. Examples use Bash; on Windows use Git Bash/WSL or equi
 
 ## 1. Start the configured API
 
-Complete [API setup](../README.md#setup-and-run), including database-backed encryption/hash keys, migrations, and Clerk settings. Set `CLERK_AUTHORIZED_PARTIES` to the HTTP(S) origin allowed in the token's Clerk `azp` claim. This setting validates token provenance; the API does not enable browser CORS.
+Complete [API setup](../README.md#setup-and-run), including database-backed encryption/hash keys, migrations, and the Clerk verification key and secret. The API authenticates native bearer sessions by their verified JWT signature, header type, validity window and User identity. It has no browser-origin allowlist and accepts native sessions without `azp`; see the [native session provenance decision](adr/0004-native-clerk-session-provenance.md).
 
 Confirm readiness with `curl http://localhost:3000/health`. Public contract views are at `http://localhost:3000/docs` and `/docs-json`.
 
@@ -59,7 +59,7 @@ Initial provisioning returns `201`; later synchronization returns `200`. The Cle
 
 | Result | Check / next action |
 | --- | --- |
-| `401 Unauthorized` | Missing/malformed/expired token, wrong Clerk instance, `CLERK_JWT_KEY`, or token `azp` absent from `CLERK_AUTHORIZED_PARTIES` |
+| `401 Unauthorized` | Missing/malformed/expired token, wrong Clerk instance, `CLERK_JWT_KEY`, JWT header type or missing User identity |
 | `404 UserNotProvisionedError` | Call `PUT /api/v1/users/me` with the same identity |
 | `404` during provisioning | Clerk User exists in the configured instance |
 | `406` during provisioning | Primary verified email is usable |

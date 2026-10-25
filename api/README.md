@@ -19,7 +19,6 @@ cp .env.example .env
 | --- | --- |
 | `DATABASE_URL` | PostgreSQL database; required in production |
 | `CLERK_JWT_KEY`, `CLERK_SECRET_KEY` | Clerk PEM public key for token verification and backend secret for authoritative profiles; required in production and ordinary authenticated development |
-| `CLERK_AUTHORIZED_PARTIES` | Comma-separated HTTP(S) origins accepted in Clerk `azp` claims; required in production. Configure for the identity/token flow in use |
 | `INVITATION_CODE_ENCRYPTION_KEY` | 32-byte hexadecimal key required whenever a database is configured; protects sender-only reversible Invite Code display alongside a separate HMAC lookup value |
 | `GCASH_REFERENCE_HASH_KEY` | Separate stable 32-byte hexadecimal key required whenever a database is configured; HMAC-protects persisted GCash references, which are never returned. Retain across deployments for stable duplicate detection |
 

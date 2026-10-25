@@ -105,6 +105,5 @@ function testConfig(): AppConfig {
     databaseUrl: undefined,
     clerkJwtKey: 'test-jwt-key',
     clerkSecretKey: 'sk_test_secret',
-    clerkAuthorizedParties: [],
   };
 }

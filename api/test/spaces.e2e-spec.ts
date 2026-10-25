@@ -175,5 +175,4 @@ const testConfig: AppConfig = {
   databaseUrl: undefined,
   clerkJwtKey: 'test-jwt-key',
   clerkSecretKey: 'test-secret-key',
-  clerkAuthorizedParties: ['https://app.example.com'],
 };

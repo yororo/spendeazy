@@ -34,3 +34,11 @@ Native acceptance requires installable Android/iPhone builds, device evidence an
 
 - **Issues/specs:** use `gh` against this repository and [issue-tracker guidance](docs/agents/issue-tracker.md). Verify project-local historical issue references belong to this repository.
 - **Triage:** use [triage labels](docs/agents/triage-labels.md).
+
+## Cursor Cloud specific instructions
+
+Node.js 24.11.1 is installed at `/usr/local/lib/nodejs` (the version pinned in `.github/workflows/ci.yml`). `install` and `start` prepend it. If `node -v` is not 24.11.1, export `PATH="/usr/local/lib/nodejs/bin:$PATH"` before API or mobile commands.
+
+`start` launches PostgreSQL 16 and Docker, copies `~/.spendeazy/api.env` to `api/.env`, applies migrations, and runs `npm --prefix api run start:dev`. Health is `http://127.0.0.1:3000/health`. The development database name is `spendeazy_disposable_dev`. Clerk settings in that env file are empty; authenticated calls need a development Clerk instance as described in [API setup](api/README.md).
+
+Run the required API/PostgreSQL suite with `node scripts/local-test-launcher.mjs --api-postgres` from the repository root. That launcher starts a disposable Docker database. Other API and mobile validation commands are in [local testing](docs/local-testing.md). Docker uses `fuse-overlayfs` because this VM has no nested overlay support; `dockerd` and `containerd` are started from `start` because systemd is not the init.

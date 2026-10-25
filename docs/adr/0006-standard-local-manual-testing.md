@@ -1,0 +1,5 @@
+# Use standard commands for local manual testing
+
+Use Docker Compose for a retained disposable PostgreSQL database, host Nest watch mode for the API, and Expo CLI development builds for the mobile app. Humans and AI agents follow the same [local runbook](../local-testing.md). Generate development encryption/hash keys once and retain them with the database; reset data explicitly.
+
+This replaces the managed native-verification approach requested in [issue #180](https://github.com/yororo/spendeazy/issues/180) and its follow-ups. The user clarified that straightforward manual setup takes priority over automated mobile verification. Remove the custom lifecycle manager, build cache, bundle certification, journey runner and disposable API launcher rather than maintaining competing workflows. Accept the loss of automated provenance, resource-ownership checks and resumable UI assertions; use explicit project/device selection and record observed manual results. Existing software checks, isolated API database tests and native release acceptance remain separate.

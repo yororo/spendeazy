@@ -14,6 +14,8 @@ The current dependency baseline is PDF.js `5.4.296` and `react-native-webview` `
 
 ## Local checks
 
+Use the shared [manual runbook](../../../../docs/local-testing.md) to prepare assets and open `/parser-proof` in the native development build.
+
 Run from `mobile-app/`:
 
 ```powershell

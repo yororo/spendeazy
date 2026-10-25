@@ -1,207 +1,182 @@
-# Local API and native testing
+# Test the app locally
 
-The supported automated delivery checks cover the API against PostgreSQL and the native mobile project independently. The retired browser application and its browser acceptance suite are no longer built or used as release gates. Native-device acceptance remains a separate product gate.
+Humans and AI agents use the same workflow: PostgreSQL in Docker, the API in one terminal, and Expo in another. Data survives shutdown. Start with **First-time setup**, then use **Daily startup** on subsequent visits. Existing automated checks are in [local checks](local-checks.md); they are not prerequisites to opening the app.
 
-## Prerequisites
+## First-time setup
 
-- Node.js 24 and npm
-- Docker Desktop with Docker Compose (`docker compose`) for PostgreSQL integration tests
-- Dependencies installed in `api/` and `mobile-app/` with `npm ci`
+### 1. Install the tools
 
-## Cloud boot environment
+- Git, Node.js **24.11.1** and npm (matching CI).
+- Docker Desktop with Linux containers and `docker compose`.
+- For Android: [Android Studio, SDK and JDK setup](https://docs.expo.dev/get-started/set-up-your-environment/). Set `ANDROID_HOME` to your SDK and put its `platform-tools` on `PATH`. Start an emulator with a **Google Play** image in Android Studio's Device Manager; native Google sign-in needs Google Play services. `adb devices` must list it as `device`.
+- For a physical iPhone: an Expo account, Apple Developer membership and the [iPhone instructions below](#physical-iphone).
 
-There is no browser/API synthetic acceptance stack to start. The root API PostgreSQL launcher creates a uniquely named Compose project, a disposable database volume, and a loopback port for one run. It removes only those resources at exit. Do not replace a separately managed local service when running this command.
+Examples work in PowerShell and Bash unless labeled. Every command block names its working directory. Docker must be running before database commands.
 
-## Run a disposable API for manual testing
-
-With Docker Desktop running Linux containers, Docker Compose v2 and Bash (Git Bash
-on Windows, or Bash on Linux/macOS), run from the repository root:
-
-```bash
-bash scripts/run-disposable-api.sh
-```
-
-No host Node.js installation, npm install or `.env` file is needed. The launcher
-builds the API image, generates independent ephemeral database credentials and
-encryption/HMAC keys, starts PostgreSQL with an in-memory data directory, applies
-compiled migrations and waits for API health. It prints the API, health and Swagger
-URLs using a randomly assigned loopback port. Docker needs internet access on the
-first run to download images and npm dependencies, plus enough memory for PostgreSQL
-and the API build.
-
-For authenticated requests, export `CLERK_JWT_KEY` and `CLERK_SECRET_KEY`
-from a dedicated development Clerk instance before
-launching. Use a one-line PEM public key with literal `\n` separators. Send a short-lived development session
-token as `Authorization: Bearer <token>`. Keep these values out of source control
-and chat. Without Clerk configuration, use the public health and documentation
-routes. The launcher does not read `api/.env` or seed users/data.
-
-Keep the terminal open; Ctrl+C removes that run's containers, network, data and
-tagged API image. That script treats an API exit as the end of the whole stack.
-Repeated or concurrent invocations create independent fresh stacks without changing other services. Docker build caches and downloaded base
-images remain reusable. Cleanup runs on normal exit, startup failure, SIGINT and
-SIGTERM; SIGKILL, terminal crashes or Docker daemon failure can prevent cleanup.
-For such interrupted runs, find the project with `docker compose ls --all`, then
-run `docker compose -p <exact-project-name> -f local-test/disposable-api.compose.yml
-down --volumes` and `docker image rm <exact-project-name>:local` from the repository
-root. The project names begin with `spendeazy-disposable-`. All database contents
-are temporary; this launcher is for manual testing, separate from the required suite.
-
-## Managed native-verification environment
-
-Use this when an agent needs an owned API and database that can be inspected, reused, and stopped without touching anything else. The API process can be rebuilt or replaced while the same database volume stays up. `scripts/run-disposable-api.sh` is a separate manual stack that deletes its data on exit; this command is the one later device and journey checks attach to.
-
-The working sequence is `start`, `launch`, `refresh` after the checkout changes, then `journey` or `resume`. Read `status` for ownership and `revisionCertified`. `stop` removes only resources this run still owns. The sections below are the runbook for prerequisites, lifecycle, refresh, journey selection, checkpoints, ownership recovery, and report interpretation. Executable configuration stays in those commands; do not copy it into agent guidance.
-
-Windows host prerequisites:
-
-- Windows 10 or 11, with PowerShell, from the repository root
-- Node.js 24.11.1 and Git on `PATH`
-- Docker Desktop running Linux containers
-
-The command does not modify `api\.env` or `%USERPROFILE%\.spendeazy\api.env`. Run-scoped configuration stays in the state directory. The nonsecret manifest is `%LOCALAPPDATA%\spendeazy\native-verification\runs\<run-id>\manifest.json`. On Linux and macOS the state directory is `~/.spendeazy/native-verification`. Override it with `SPENDEAZY_NATIVE_VERIFICATION_STATE` or `--state-dir`.
-
-```powershell
-node .\scripts\native-verification.mjs start
-node .\scripts\native-verification.mjs status
-node .\scripts\native-verification.mjs attach
-node .\scripts\native-verification.mjs replace-api
-node .\scripts\native-verification.mjs launch
-node .\scripts\native-verification.mjs reload
-node .\scripts\native-verification.mjs refresh
-node .\scripts\native-verification.mjs stop
-```
-
-The API container uses the database container's network namespace, so the host reaches both through the published loopback ports. `start` reuses the one compatible live run for this checkout. `start --new` creates another run. Pass `--api-port` and `--database-port` to select loopback ports; a busy port fails and the existing listener stays in place. `attach --run <id>` succeeds only when the manifest schema and checkout match and the database container is still the owned one. A matching port or process id is not accepted on its own. `status --run <id>` reports `running`, `api-stopped`, or `stale` and does not change resources. `stop` and `stop --run <id>` remove a container, volume, network, or API image only after its id and ownership token still match the manifest. `replace-api` rebuilds the API image, replaces that container, and keeps the database.
-
-The manifest records run identity, ports, source revision and fingerprint, runtime versions, and verified resource ids. `launch` fills `extensions.device`, `extensions.nativeBuild`, and `extensions.evidence`. Credentials and hashes of credentials are not written to the manifest or command output.
-
-### Ownership recovery
-
-If a start is interrupted, rerun `stop --run <id>` for that manifest; it ignores resources that no longer match. A stale manifest, a reused process id, or a container whose ownership token no longer matches is not authority to clean up. `status --run <id>` reports `stale` without changing resources. `attach` fails closed when the checkout or the owned database does not match. Leave unrelated processes, databases, devices, and other runs alone.
-
-## Launch the native build against that API
-
-`launch` is the readiness step for an owned run. It selects the Android device, checks the running API, installs the app through Expo, and starts that run's Metro server. `reload` sends Expo's Metro reload message to the recorded server. `refresh` is the command to use after the checkout changes: it reloads JavaScript when native inputs and launch configuration are unchanged, and rebuilds or reinstalls when they are not. The JSON result has `outcome` of `launched`, `reloaded`, `refreshed`, `blocked`, or `failed`. `authenticatedJourneyCertified` is false. A launch or refresh is not an authenticated journey.
-
-Export the development Clerk values before `start`, so the running API receives them. Export `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` before `launch`. The publishable key must be a development key (`pk_test_`) whose public instance matches the running API verification key. Optional: `EXPO_PUBLIC_CLERK_GOOGLE_ANDROID_CLIENT_ID`. `launch` sets `EXPO_NO_DOTENV=1` for Expo, so `mobile-app\.env.local` is not the running configuration. Editing `api\.env` or the run's secret file does not change an API that is already running. To apply different Clerk values, `stop` the run, export the values, and `start` again.
-
-Windows host tools, in addition to the environment prerequisites:
-
-- Android SDK at `ANDROID_HOME`, `ANDROID_SDK_ROOT`, or `SPENDEAZY_NV_ANDROID_SDK`
-- `adb` on that SDK, or `SPENDEAZY_NV_ADB`
-- A JDK on `PATH`, or `SPENDEAZY_NV_JAVA`
-- One authorized emulator or device. Several attached devices need `--serial`. An unauthorized device needs the USB debugging approval; the command does not retry it
-- Mobile dependencies installed with `npm ci --prefix mobile-app`
-
-```powershell
-node .\scripts\native-verification.mjs launch
-node .\scripts\native-verification.mjs launch --serial emulator-5554 --metro-port 8081
-node .\scripts\native-verification.mjs reload
-node .\scripts\native-verification.mjs refresh
-node .\scripts\native-verification.mjs launch --boot-avd Pixel_7
-```
-
-`--boot-avd` starts that AVD only when nothing is attached. `SPENDEAZY_NV_EMULATOR_HEADLESS=1` adds a headless emulator launch. `SPENDEAZY_NV_BOOT_TIMEOUT_MS` bounds that wait. `SPENDEAZY_NV_METRO_PORT` and `--metro-port` select Metro; the default is 8081. A busy port that is not this run's Metro process is an error, and that process is left running. `SPENDEAZY_NV_DEVICE_API_HOST` or `--device-api-host` sets the host the device uses. Emulators try `10.0.2.2` first. When that alias is unreachable, `launch` adds one `adb reverse` for the owned API port and uses `http://127.0.0.1:<api-port>` on the device. An explicit host that fails is not replaced. `SPENDEAZY_NV_GRADLE_MAX_WORKERS`, `SPENDEAZY_NV_LAUNCH_TIMEOUT_MS`, and `SPENDEAZY_NV_BUNDLE_TIMEOUT_MS` bound the native build. `SPENDEAZY_NV_EXPO` and `SPENDEAZY_NV_EMULATOR` override those executables.
-
-The result records the source revision and dirty-checkout fingerprint, API image id, native build fingerprint, device serial and ABI, Metro endpoint, and run id. The served bundle must contain the launch API address and publishable key. A recorded device, ABI, configuration, or installed build that does not match this launch is `identity-mismatch`; stop that run and start another rather than treating the old install as updated. `stop` ends the Metro process only when its command still belongs to that run, and removes only the `adb reverse` this launch added.
-
-`refresh` certifies the current checkout only after the emulator has logged a JavaScript reload and fetched the same bundle Metro is serving. `revisionCertified` is true only when that evidence matches the current source fingerprint, native-input fingerprint, and JavaScript-input fingerprint. The JavaScript fingerprint covers `mobile-app/src` and `babel.config.js`, `metro.config.js`, and `tsconfig.json`. The native fingerprint covers the package manifest, Expo config, plugins, assets, and native projects. Evidence also records whether the git checkout is dirty. A content change inside those inputs invalidates certification even when the git status line stays the same. `status` reports `revisionCertified: false` for that stale evidence. The stored flag inside an older evidence record is not certification by itself.
-
-JavaScript-only changes use the recorded Metro server and Expo's reload message. `readiness.mode` is `javascript-reload`. Changes to native dependencies, plugins, `app.json`, `app.config.ts`, `eas.json`, packaged assets, or the native project require a rebuild. Launch configuration changes (API address, publishable key, or Android client id) do too. `readiness.mode` is then `native-rebuild`, and `readiness.invalidatedBy` is `native-inputs` or `configuration`. The native build targets the selected device ABI through `ORG_GRADLE_PROJECT_reactNativeArchitectures`. `SPENDEAZY_NV_GRADLE_MAX_WORKERS` sets `org.gradle.workers.max` when it is present. When it is absent, refresh does not invent a worker count.
-
-A compatible cached installable for that ABI and native-input fingerprint is reinstalled with `adb install` instead of running Gradle again. When the build directory contains several APKs, refresh caches the newest one whose path names the selected ABI. An APK named for a different ABI is not cached. `readiness.nativeBuildReused` is true. An artifact whose ABI, package, or native-input fingerprint does not match is left in the cache and is not installed. `readiness.incompatibleArtifactRejected` is true, and refresh builds the selected ABI. The cache lives under the state directory in `build-cache/<abi>/<native-input-fingerprint>/`.
-
-If `launch` or `refresh` stops before Metro is ready, read the run's `launch.log` under the state directory and run the same command again after the reported prerequisite is fixed. `reload` and a JavaScript `refresh` require the recorded Metro process and a running app process. They do not install a build and they do not open a deep link. `refresh` keeps the recorded Metro port and device API address; pass those to `launch` instead. `bundle-not-active` means the reload request was not accepted as evidence: the emulator did not log a reload, or the bundle it fetched does not match Metro. The previous manifest evidence does not certify the new revision. Fix the emulator or Metro problem described in the message, then run `refresh` again. A failed refresh does not rewrite the certified evidence and does not replace the cached installable. An incompatible artifact remains unused.
-
-## Run an emulator journey
-
-`journey` drives the launched app through Android's UI Automator accessibility tree. Select one definition with `--journey`. Definitions live in `scripts/native-journeys/<id>.mjs` and are the only place for screen selectors and expected text. The runner does not contain feature selectors. `SPENDEAZY_NV_JOURNEY_DIR` points at another directory when a fixture journey is under test. Adding or replacing a definition does not require a runner change.
-
-```powershell
-node .\scripts\native-verification.mjs journey --journey sign-in-visible
-node .\scripts\native-verification.mjs resume --journey sign-in-visible
-```
-
-`sign-in-visible` waits until the signed-out screen shows Spendeazy and the Google sign-in control. It does not tap Google, and a pass does not certify an authenticated journey. `authenticatedJourneyCertified` stays false.
-
-`google-sign-in` is the authenticated journey. It uses the owned API and a dedicated development Google/Clerk identity. Synthetic API users and injected sessions are not a pass. Prepare that identity before the run:
-
-- Export the development `CLERK_JWT_KEY` and `CLERK_SECRET_KEY` before `start`, and export `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` (`pk_test_`) before `launch`. The publishable key's instance must match the API verification key.
-- Export `SPENDEAZY_NV_GOOGLE_ACCOUNT_LABEL` as the exact accessibility text of the dedicated account row on the Google chooser. Use at least 8 characters so reports and captures can remove it. Do not commit it, and do not put a token, email, or name in the journey file.
-- Start from the signed-out Spendeazy screen. An existing Dashboard is not sign-in proof. Sign out only that dedicated Spendeazy session. Do not clear Google account data, `pm clear` Google or other apps, or reset unrelated sessions.
-- If the account label is unset, the journey fails. That is unavailable sign-in coverage, and resuming it does not certify a session.
-- A password, passkey, or MFA challenge stops with `human-pending`. Complete that challenge for the dedicated identity, then `resume`. The report keeps that checkpoint as completed by a person. A chooser that never shows the account row or one of those challenges fails. Ordinary taps and the remaining checks stay with the agent.
-
-```powershell
-node .\scripts\native-verification.mjs journey --journey google-sign-in
-node .\scripts\native-verification.mjs resume --journey google-sign-in
-```
-
-A pass waits until Dashboard, Active Space, and Personal are all on screen, `Loading Spaces.` is gone, and that screen stays up. Personal on screen is the observable evidence that User provisioning and the Personal Space request finished. The journey then cold-restarts that same app with `am force-stop` and the launcher category. It does not run `pm clear`, and it does not remove Google accounts or other app sessions. The restart counts only after the emulator logs a JavaScript start and fetches the same bundle Metro is serving, and only when the recorded source, JavaScript inputs, native inputs, installed build, API image, and device still match. Run `refresh` first when those inputs changed. A reload request, a stored flag, or an older evidence record is not that proof.
-
-After the restart, the journey waits again until Dashboard, Active Space, and Personal stay up and `Loading Spaces.` is gone. That is the retention check for the session and the remembered Personal Space. Session-expiry notices, an unmatched route, a storage warning, a crash, a React update loop, or a load that never finishes fail the journey. Quiet logs are not a pass. `authenticatedJourneyCertified` is true only for that passing run. `sign-in-visible` does not set it. `extensions.evidence.refresh.authenticatedJourneyCertified` stays false; the journey field is the authenticated claim. `revisionCertified` is true only when the latest refresh evidence matches the current source, JavaScript inputs, and native inputs. A cold restart that cannot prove the bundle clears that certification.
-
-When the sign-in screen or Space status changes, edit `scripts/native-journeys/google-sign-in.mjs`. Keep the selectors and expected text in that file. An obsolete selector fails the assertion. A journey you no longer want exports `retired` with a reason and has no steps; that run is `skipped`, not passed. Neither change belongs in the runner. If a check has no accessibility text, report a separate instrumentation task. Do not add a product hook, a test-only sign-in bypass, or a copied lower-level route, subscription, API, or storage test to make this journey pass. The lower-level suites remain the regression coverage for those behaviors. Do not put tokens, personal identifiers, financial payloads, or real statements in the journey, the report, or an issue comment. This journey verifies that selected development path only. It does not certify every feature, accessibility, a physical iPhone, parser launch acceptance, or native release readiness.
-
-A definition exports `id`, a short `summary`, and `steps`. A step is `see` or `tap` with a `selector`, `absent` with a `selector`, `settle` with a `selector`, `holdMs`, and optional `also`, `gone`, `reject`, and `failIfLog` lists, `log` with `source` (`metro`, `api`, or `device`) and `includes`, `checkpoint` with a `reason`, `tap-or-checkpoint` with a `reason` and an optional `selector` and `challenges`, or `cold-reload` with no selector. `see` may set `missingReason` and `reject`. Selectors match the accessibility node's `text`, `description` (Android content description, including React Native accessibility labels), or `resourceId`. Matches are exact. `timeoutMs` is bounded. `holdMs` is from 100 to 30000. `cold-reload` uses `SPENDEAZY_NV_BUNDLE_TIMEOUT_MS` for the bundle proof. `required: false` records a miss as skipped. A required assertion that is skipped, failed, blocked, or human-pending keeps `certified` false and the command exits 1. A `cold-reload` step that includes a screen selector is `invalid-journey`.
-
-`absent` fails when its selector appears or when the UI dump never succeeds. `settle` passes only after every required selector stays visible for `holdMs` while every `gone` selector stays away. A `reject` selector fails immediately. `failIfLog` fails when an available log contains the named text. A missing log does not pass or fail the step; the screen assertions still have to pass, and the capture index records the missing source. `tap-or-checkpoint` taps its selector when that row is showing. A listed challenge stops at the human checkpoint. A missing selector or a timeout with no challenge fails.
-
-Retire a journey by exporting `retired: { reason: '...' }` and deleting its steps. Running that id is `skipped` with the reason, exit 1. A missing file, a broken definition, or a selector that is no longer on screen is `journey-not-found`, `invalid-journey`, or a failed assertion. None of those are a pass. When the app has no accessibility text for a check, report a separate instrumentation task. Do not add a product hook in a journey change.
-
-`checkpoint` stops the command with outcome `human-pending`. The person completes the credential or consent step. `resume` checks the checkout fingerprint, native configuration, installed build, API image, and device against the checkpoint and the recorded launch, then continues at the next step. A mismatch is `incompatible-resume` and does not certify the earlier steps. `journey` starts at the first step again and replaces a stored checkpoint.
-
-The command reads bounded tails of the Metro `launch.log`, the owned API container log, and `adb logcat` from those processes' existing output. It also stores the latest UI dump. Raw captures stay under the run's `nv-captures/<attempt-id>/` directory in the state directory. That directory is gitignored. Reports name those files and do not inline them. Clerk keys, bearer tokens, the dedicated account label, and known run secrets are removed before a capture or the command output is written.
-
-`extensions.evidence.journey` keeps the latest attempt and its source fingerprint. `matchesCurrentSource` is false when the checkout has moved. A stored pass is not a result for the new checkout.
-
-### Report interpretation
-
-The JSON result separates three claims. `softwareChecks` is `not-run` here; run the project checks and record that outcome separately. `buildInstallation` is the recorded launch fingerprint, and it does not by itself certify the screen. `uiAssertions` is the journey outcome. `certified` is true only when every required UI assertion passed. `authenticatedJourneyCertified` is a separate field and is not implied by `revisionCertified` or by a recorded build. `identity` repeats the source fingerprint, API image, device, configuration fingerprint, native build fingerprint, and run id. A result from another run or configuration is not a result for this launch. Exit 0 is only `passed`. `failed`, `blocked`, `human-pending`, `skipped`, and assertions left `not-run` are never passed claims. A journey that did not execute is not a pass.
-
-`SPENDEAZY_NV_JOURNEY_STEP_TIMEOUT_MS` (default 15000, maximum 120000) and `SPENDEAZY_NV_JOURNEY_POLL_MS` (default 500) bound waits. The journey uses `adb` UI Automator and `input tap`. It does not attach a debugger.
-
-## Run the required isolated API/PostgreSQL suite
+### 2. Install the two projects
 
 From the repository root:
 
-```powershell
-node .\scripts\local-test-launcher.mjs --api-postgres
+```sh
+npm ci --prefix api
+npm ci --prefix mobile-app
 ```
 
-The launcher starts PostgreSQL with random per-run credentials and a random available loopback port. It creates one empty database for each API integration suite plus a separate empty pre-Space database for the historical ownership migration test, supplies every required `TEST_*_DATABASE_URL`, and runs the unfiltered API HTTP/PostgreSQL Jest configuration. Missing or shared database URLs fail in `api/scripts/run-required-postgres-tests.mjs`; required suites cannot be counted as passing when skipped or pointed at the same schema. The launcher always removes its own container and volume, including after test failure or supported Ctrl+C/SIGTERM interruption. It does not inspect, reset, or stop another database or Compose project.
+Copy `api/.env.example` to `api/.env`, and `mobile-app/.env.example` to `mobile-app/.env.local`. Keep existing local files when returning to the repo; these ignored files hold your development settings.
 
-Run API checks separately as needed:
+### 3. Configure the API
 
-```powershell
-npm --prefix api test -- --runInBand
-npm --prefix api run build
-npm --prefix api run openapi:check
-npx --prefix api eslint "{src,apps,libs,test}/**/*.ts"
+Edit `api/.env`. Its example database URL matches the root Compose file: host `127.0.0.1`, port `55433`, database `spendeazy_disposable_manual`. The database's public development password is only for this loopback-bound local service.
+
+Generate a value **twice**, independently, with:
+
+```sh
+node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
 ```
 
-The read-only ESLint invocation avoids `npm run lint`, which applies fixes.
+Save one value as `INVITATION_CODE_ENCRYPTION_KEY` and the other as `GCASH_REFERENCE_HASH_KEY`. Retain both while retaining the database; do not regenerate them on normal startup.
 
-## Run mobile checks
+Use a dedicated **Clerk development instance**. Copy its `sk_test_` secret key to `CLERK_SECRET_KEY` and its RSA PEM public verification key to `CLERK_JWT_KEY`. For a single-line PEM value, use literal `\n` between lines. Without Clerk configuration `/health` can work while authenticated requests fail.
+
+Do not invent these values. Confirm with developer if you don't have access to these.
+
+### 4. Configure mobile sign-in and connectivity
+
+Edit `mobile-app/.env.local`:
+
+| Setting | Value |
+| --- | --- |
+| `EXPO_PUBLIC_API_BASE_URL` | `http://10.0.2.2:3000` for the standard Android emulator |
+| `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` | `pk_test_` key from the **same** Clerk instance as the API |
+| `EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID` | Google web OAuth client ID used by the native sign-in integration |
+| `EXPO_PUBLIC_CLERK_GOOGLE_ANDROID_CLIENT_ID` | Android OAuth client ID matching `com.seyfsasy.spendeazymobile` and the installed build's signing SHA-1 |
+| iOS client ID and URL scheme | Required when building/testing iPhone; see below |
+
+For a local Android debug build, obtain the signing SHA-1 with `./gradlew signingReport` from `mobile-app/android/` (`.\gradlew.bat signingReport` in PowerShell). If that directory is absent, generate it first with `npx expo prebuild --platform android` from `mobile-app/`. A different signing certificate needs its corresponding Google configuration.
+
+Only public identifiers belong in `EXPO_PUBLIC_*`. Backend secret keys stay in `api/.env`.
+
+Do not invent these values. Confirm with developer if you don't have access to these.
+
+## Daily startup
+
+Before starting, check that `api/.env` points to the Compose database (`127.0.0.1:55433/spendeazy_disposable_manual` by default) and that the mobile API URL uses the API's `PORT` (`3000` by default). Existing local env files may still contain settings from an older setup.
+
+### 1. Start PostgreSQL
 
 From the repository root:
 
-```powershell
-npm --prefix mobile-app run lint
-npm --prefix mobile-app run typecheck
-npm --prefix mobile-app run parser:test
-npm --prefix mobile-app test
+```sh
+docker compose up -d --wait
 ```
 
-The mobile CI job runs the same four commands. `npm test` is the existing application regression suite. Parser fixtures stay fictional. None of these commands sign in with Google, drive an emulator, or certify a native release. Android emulator and physical iPhone evidence stay outside this deterministic path.
+Wait for PostgreSQL to be healthy. This starts the `spendeazy-manual` project and reuses its `manual-data` volume. It is separate from the disposable automated-test databases.
 
-## Device acceptance and backend boundaries
+### 2. Start the API
 
-Follow [the mobile README](../mobile-app/README.md) for device URL examples and native build evidence. `EXPO_PUBLIC_API_BASE_URL` is endpoint configuration, not evidence that a journey passed. Use a dedicated development Clerk instance, real dedicated development identities, and a dedicated disposable backend/database when exercising authenticated API behavior. The `google-sign-in` journey above is the emulator check for that sign-in. Seed commands require an explicitly named loopback database; never run migration experiments against a normal, shared, or production database.
+In an API terminal, working directory `api/`:
 
-Record only sanitized outcomes, device/OS/build identifiers, counts and timings. Keep statements, passwords, session credentials, tokens, private screenshots and account identifiers local. Device evidence and the remaining parser limits/older-device/temporary-file work in [issue #138](https://github.com/yororo/spendeazy/issues/138) remain release gates. Lint, type checks and fixture tests do not establish device certification.
+```sh
+npm run migration:run
+npm run start:dev
+```
 
-## Real Clerk API checks
+Continue only after migrations succeed. Leave watch mode running. Open [health](http://localhost:3000/health) to verify connection status. The API base path is `/api/v1`; the mobile base URL is the origin without that path.
 
-Automated API suites use Clerk test doubles and isolated databases. For a focused real-authentication check against a dedicated development API, use [the API Clerk runbook](../api/docs/LOCAL_TESTING.md). Obtain a short-lived session token from a dedicated development identity; keep it out of source control and chat. The mobile app currently has no configured API integration.
+### 3. Open the native app
+
+Start your Android emulator. In a second terminal, working directory `mobile-app/`, use an already installed development build for normal daily work:
+
+```sh
+npm run parser:prepare
+npx expo start --dev-client
+```
+
+Press `a` to open Android (`Shift+A` to choose a device). If Expo reports no development build, or native dependencies/configuration changed, stop Metro and build/install instead:
+
+```sh
+npx expo run:android --device
+```
+
+Choose the intended device. Expo builds, installs and starts Metro. Parser preparation creates an ignored PDF.js module needed by the bundle, even if you are testing another screen. Expo Go cannot run this app's native Google integration.
+
+Keep one Metro server for this checkout. Confirm that the app reaches its sign-in screen or Dashboard before considering startup complete. The package's `npm run android`/`ios` commands open an installed build; they do not compile one.
+
+## Test the behavior
+
+1. Sign out of Spendeazy if testing fresh sign-in. Sign in with the Google test account `spendeazytestuser@gmail.com`; complete any credential/consent/MFA prompt (requires human verification). Wait until Dashboard and Personal Space have loaded and remain usable.
+2. Test the changed feature with fictional or provided test data. For example, create a manual Expense and find it in the list/detail screen; exercise retry or cancellation when relevant.
+3. For session/storage changes, stop the app process and reopen it **without clearing app data**. Confirm the expected session and Space are retained. On Android, `adb -s <serial> shell am force-stop com.seyfsasy.spendeazymobile`, then reopen from the launcher. Keep Metro running for a development build.
+4. Exercise sign-out, API unavailable/retry, background/foreground, keyboard/back and accessibility as relevant to the change.
+
+Record the revision (and whether edited), device/OS, native build/profile, steps, and observed result. A healthy API, installed build or briefly visible screen is not a completed test. Agents can interact with the emulator using ADB commands or computer-use tools when available. Agents use the same commands and device controls; report unavailable device access or an actual credential challenge instead of claiming a pass. Keep tokens, account identifiers, statements and private screenshots out of reports.
+
+## After changing code or configuration
+
+| Change | Action |
+| --- | --- |
+| JavaScript/TypeScript UI or logic | Fast Refresh; press `r` in Expo for a full reload when needed |
+| Mobile API URL or publishable key in `.env.local` | Full reload; no native rebuild needed for these JavaScript values |
+| API source | Nest watch restarts it |
+| API `.env` | Stop and restart `npm run start:dev` |
+| Database migrations | Stop API, run `npm run migration:run`, restart API |
+| Project dependencies | Run `npm ci` in the changed project; rebuild mobile when native dependencies changed |
+| Native dependencies, plugins or native app settings | Stop Metro; in `mobile-app/`, run `npx expo prebuild --clean`, then `npx expo run:android --device` (or rebuild with EAS for iPhone) |
+| Parser implementation/assets | Run `npm run parser:prepare`, then reload |
+
+`prebuild --clean` replaces the ignored generated native projects. Keep native changes in app config/plugins. Ordinary JS edits do not need native regeneration or cache clearing. [Expo environment behavior](https://docs.expo.dev/guides/environment-variables/), [native generation](https://docs.expo.dev/workflow/continuous-native-generation/).
+
+## Physical devices
+
+### Physical iPhone
+
+From Windows, use EAS cloud builds; local iOS builds/simulator require macOS and Xcode. Configure the Google iOS client ID and reversed-client-ID URL scheme from `.env.example`. Put the same public Clerk/Google build settings in the EAS **development** environment so the remote config plugin receives the iOS URL scheme. Local `.env.local` still configures the Metro-served JavaScript; a gitignored file is not automatically available to the remote build. [EAS environment setup](https://docs.expo.dev/eas/environment-variables/manage/).
+
+From `mobile-app/`:
+
+```sh
+npx eas-cli@latest device:create
+npx eas-cli@latest build --profile development --platform ios
+```
+
+Install the build on the registered iPhone, enable Developer Mode when prompted, run `npm run parser:prepare` and `npx expo start --dev-client`, and open the development server from the device. Use a LAN/HTTPS API URL reachable by the iPhone. Native configuration changes require another build. [Internal distribution](https://docs.expo.dev/build/internal-distribution/).
+
+For milestone checks without Metro, use the existing EAS `preview` profile, configuring its build environment for the dedicated development backend. Android/iPhone device acceptance and the parser limits/device/cleanup work in [#138](https://github.com/yororo/spendeazy/issues/138) remain separate release checks.
+
+## Shutdown and reset
+
+Stop Expo and Nest with Ctrl+C in their terminals. From the repository root:
+
+```sh
+docker compose stop
+```
+
+Data and keys remain available for the next session. `docker compose down` also removes containers/network while retaining the named database volume.
+
+**Reset only when you want to delete all data in this manual database.** Stop the API, then from the repository root:
+
+```sh
+docker compose down --volumes
+docker compose up -d --wait
+```
+
+Run migrations and restart the API using Daily startup. Keep your API keys; resetting PostgreSQL does not sign the device out of Clerk. Sign out/in to exercise fresh User provisioning against the empty database. Optional synthetic fixtures are described in [API seed/reset](../api/README.md#development-seedreset); they do not populate the real Google identity's Personal Space.
+
+## Troubleshooting
+
+| Symptom | Check |
+| --- | --- |
+| Docker unavailable/database not healthy | Start Docker Desktop in Linux-container mode; from root, `docker compose ps` and `docker compose logs postgres` |
+| Database connection refused | Confirm Compose is healthy and `api/.env` uses port `55433`; run API commands from `api/` |
+| Missing encryption/hash key | Fill both independent 64-hex-character values in `api/.env`; retain them with the data |
+| API health works, private requests fail | Confirm matching development Clerk keys, Google setup, and completed sign-in; see [API auth troubleshooting](../api/docs/LOCAL_TESTING.md) |
+| Google configuration/developer error | Check web/native client IDs, Android package/signing SHA-1 or iOS bundle/URL scheme against the installed build |
+| Host API works, device cannot connect | Check device-specific API URL, API terminal and firewall; try Android USB reverse |
+| App cannot connect to Metro | Confirm the intended development build/server, LAN or USB connectivity, and Expo's displayed port |
+| Old verification stack still running | Stop it from its original checkout before switching workflows; the new Compose project does not adopt or remove old runs |
+| Old configuration | Remove stale exported environment overrides; full reload mobile, restart API after API env changes |
+| Missing generated parser module | In `mobile-app/`, run `npm run parser:prepare`, then reload |
+| API cannot bind a free-looking port (`EACCES` on Windows) | Windows may reserve the port; choose another API `PORT` (for example `3307`) and update the mobile API URL to match |
+| Busy API/Metro/database port | Stop only the instance you recognize, or select another port; do not kill unrelated listeners |
+
+Alternative ports: set `PORT` in `api/.env` and update the mobile URL/reverse rule; use Expo `--port 8082` for Metro. For PostgreSQL set `SPENDEAZY_MANUAL_DB_PORT` in the shell (`$env:SPENDEAZY_MANUAL_DB_PORT='55434'` in PowerShell, `export SPENDEAZY_MANUAL_DB_PORT=55434` in Bash), rerun Compose, and match the port in `DATABASE_URL`. For concurrent checkouts use a distinct `docker compose -p <name>` project and ports consistently for startup/shutdown/reset. One shared emulator install can only run one checkout's app at a time.

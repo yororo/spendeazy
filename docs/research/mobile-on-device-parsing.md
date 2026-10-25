@@ -1,3 +1,7 @@
+# Historical parser research
+
+For current local startup use [the local runbook](../local-testing.md). Commands and environment observations below describe the dated experiment, not another supported setup.
+
 # On-device statement PDF extraction
 
 Research for [Identify viable on-device PDF extraction for the supported statements](https://github.com/yororo/spendeazy/issues/126), inspected 2026-10-22. Evidence report only: no extractor selected, installed or tested on devices.

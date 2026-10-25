@@ -22,13 +22,13 @@ npm --prefix mobile-app run parser:test
 npm --prefix mobile-app test
 ```
 
-Run checks regularly. The mobile CI job runs these four commands, and a failure fails the job. `parser:test` uses fictional fixtures. `npm test` is the application regression suite. Neither command, nor a green CI run, establishes build, device, accessibility, emulator, or parser launch acceptance. See [mobile setup and evidence](README.md) and [root local testing](../docs/local-testing.md).
+Run checks regularly. The mobile CI job runs these four commands, and a failure fails the job. `parser:test` uses fictional fixtures. `npm test` is the application regression suite. Neither command, nor a green CI run, establishes build, device, accessibility, emulator, or parser launch acceptance. See [automated checks](../docs/local-checks.md) and the [manual runbook](../docs/local-testing.md).
 
 ## Navigation and native builds
 
 - Use Expo Router. Routes live in `src/app/`; place reusable components and logic elsewhere.
 - If `ios/` and `android/` are absent, Expo generates them. Do not edit generated native projects by hand; use app config and config plugins.
-- Build a local Android development binary with `npx expo run:android`. Use an EAS internal build for physical iPhone. Expo Go is not the native validation target.
+- Follow the [manual runbook](../docs/local-testing.md) for parser asset preparation, Android builds, Expo reload/rebuild decisions and physical iPhone setup. Expo Go is not the native validation target.
 - Do not add browser scripts, web-specific platform files, `react-native-web`, or browser CI gates. The bundled parser's WebView is an internal native component, not a browser client.
 
 ## API and identity boundaries

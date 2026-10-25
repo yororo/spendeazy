@@ -2,6 +2,10 @@
 
 One product, two independently built npm projects: a native mobile app and a REST API. This file owns repository policy; project `AGENTS.md` files add local guidance. Paths in project documents are relative to that project unless stated otherwise.
 
+## Project status
+
+Project is currently in **ACTIVE DEVELOPMENT** status which means requirements are constantly changing and there are plenty of experimentations. There are no actual users yet - only developers and testers. The priority is to test and iterate quickly; edge cases can be deprioritized. During code changes or design considerations, prefer the simpler approach that does not have major compromises. Overall, basic security discipline should not be compromised. 
+
 ## Choose the project
 
 | Task | Guidance / implementation map |
@@ -19,7 +23,7 @@ When a document in one project describes the other, cite that project's stable p
 
 ## Workflow when implementing code changes
 
-1. Switch to the `main` branch if in a dfferent branch, and get the latest commits `git pull`.
+1. Switch to the `main` branch if in a different branch, and get the latest commits `git pull`.
 2. Read the owning project's guidance and relevant GitHub issue. Read the glossary before changing domain behavior or names. Use `rg` within the owner.
 3. Before editing, create a fresh `dev/<task>-<unique-suffix>` branch. Commit only task changes.
 4. Update owning documentation if there are changes in shared terms in the glossary, implementation guidance in project docs, and decisions in the owning ADR directory.
@@ -34,14 +38,8 @@ Native acceptance requires installable Android/iPhone builds, device evidence an
 
 - **Issues/specs:** use `gh` against this repository and [issue-tracker guidance](docs/agents/issue-tracker.md). Verify project-local historical issue references belong to this repository.
 - **Triage:** use [triage labels](docs/agents/triage-labels.md).
-- **Native verification environment:** start, attach, status, replace, or stop the owned API and database — [local testing](docs/local-testing.md#managed-native-verification-environment). Launch, reload, or refresh the native build against that API — [launch readiness](docs/local-testing.md#launch-the-native-build-against-that-api). Run or resume a selected emulator journey, including cold-restart retention kept in the journey definition — [emulator journeys](docs/local-testing.md#run-an-emulator-journey). Read the report's separate claims before treating a result as a pass — [report interpretation](docs/local-testing.md#report-interpretation).
+- **Local manual testing:** first-time setup, API/database startup, native install/reload, device checks, shutdown and reset — [local runbook](docs/local-testing.md). Humans and agents follow the same steps and report observed results. Existing software checks — [local checks](docs/local-checks.md).
 
-## Cursor Cloud specific instructions
+## Cursor Cloud environment
 
-Node.js 24.11.1 is installed at `/usr/local/lib/nodejs` (the version pinned in `.github/workflows/ci.yml`). `install` and `start` prepend it. If `node -v` is not 24.11.1, export `PATH="/usr/local/lib/nodejs/bin:$PATH"` before API or mobile commands.
-
-`start` launches PostgreSQL 16 and Docker, copies `~/.spendeazy/api.env` to `api/.env`, applies migrations, and runs `npm --prefix api run start:dev`. Health is `http://127.0.0.1:3000/health`. The development database name is `spendeazy_disposable_dev`. Clerk settings in that env file are empty; authenticated calls need a development Clerk instance as described in [API setup](api/README.md).
-
-Run the required API/PostgreSQL suite with `node scripts/local-test-launcher.mjs --api-postgres` from the repository root. That launcher starts a disposable Docker database. Other API and mobile validation commands are in [local testing](docs/local-testing.md). Docker uses `fuse-overlayfs` because this VM has no nested overlay support; `dockerd` and `containerd` are started from `start` because systemd is not the init.
-
-The Android SDK lives at `/opt/android-sdk`. Set `ANDROID_HOME` and `ANDROID_SDK_ROOT` to that path when a shell does not already export them (`/etc/profile.d/android-sdk.sh` does this for login shells). `adb` and `emulator` are on the default PATH. The AVD name is `spendeazy`: Android 16, API 36, Google Play, x86_64, matching Expo SDK 58's compile SDK. `start` boots it headless (`-no-window -no-audio -gpu swiftshader_indirect -no-accel -cores 1`). Software CPU emulation is required here: creating a KVM vCPU faults in `kvm_arch_vcpu_create` on this kernel. Cold boot is about ten minutes; `adb shell getprop sys.boot_completed` prints `1` when the home screen is up. From the emulator, this machine's API is `http://10.0.2.2:3000`. Installing the native app is still `npx expo run:android` from `mobile-app/`, as described in the mobile README. A booted emulator does not by itself satisfy native sign-in acceptance.
+Node.js 24.11.1 is installed at `/usr/local/lib/nodejs`; prepend its `bin` to `PATH` if the shell selects another version. The Android SDK is at `/opt/android-sdk`; set `ANDROID_HOME` and `ANDROID_SDK_ROOT` accordingly. The `spendeazy` AVD uses a Google Play image. This host requires software emulation (no KVM); boot can take about ten minutes. Confirm `adb shell getprop sys.boot_completed` prints `1`. Use the same local runbook once Docker and the emulator are available; the emulator reaches the host API at `10.0.2.2`.

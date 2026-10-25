@@ -35,6 +35,7 @@ function spacesReducer(state: SpacesState, event: SpacesEvent): SpacesState {
   }
 }
 type SpacesAdapters = {
+  provision: () => Promise<void>;
   list: () => Promise<AccessibleSpace[]>;
   read: (userId: string) => Promise<string | null>;
   write: (userId: string, spaceId: string) => Promise<boolean>;
@@ -46,6 +47,7 @@ export function createSpacesWorkflow(session: Session, adapters: SpacesAdapters)
   let state = empty;
   let scope = session.capture();
   let writes = Promise.resolve();
+  let provisioning: Promise<void> | null = null;
   const listeners = new Set<() => void>();
   function dispatch(event: SpacesEvent) {
     state = spacesReducer(state, event);
@@ -53,6 +55,14 @@ export function createSpacesWorkflow(session: Session, adapters: SpacesAdapters)
   }
   function currentOwner() {
     return ownerUserId !== null && session.snapshot().userId === ownerUserId && session.snapshot().notice === null;
+  }
+  function ensureProvisioned() {
+    // Share an in-flight attempt across refreshes; a failed attempt remains retryable.
+    provisioning ??= adapters.provision().catch(cause => {
+      provisioning = null;
+      throw cause;
+    });
+    return provisioning;
   }
   function remember(space: AccessibleSpace) {
     const selectedScope = session.capture();
@@ -74,6 +84,8 @@ export function createSpacesWorkflow(session: Session, adapters: SpacesAdapters)
       const requestId = state.requestId;
       const started = session.capture();
       try {
+        await ensureProvisioned();
+        if (requestId !== state.requestId || !session.isCurrent(started)) return;
         const spaces = await adapters.list();
         if (requestId !== state.requestId || !session.isCurrent(started)) return;
         const remembered = await adapters.read(ownerUserId);

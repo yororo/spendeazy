@@ -17,6 +17,8 @@ async function mountSpaces(t) {
   const clerk = { user: { id: 'ada' }, session: { id: 'session-1' } };
   let renders = 0;
   let requests = 0;
+  let provisions = 0;
+  const provisionedUsers = new Set();
   let tokenOverride = null;
   let value;
   let transport;
@@ -62,8 +64,16 @@ async function mountSpaces(t) {
     return require(name);
   }, compiledModule);
   const { SpacesProvider, useSpaces, useSessionTransport } = compiledModule.exports;
-  t.mock.method(globalThis, 'fetch', async () => {
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    if (url.endsWith('/api/v1/users/me') && options.method === 'PUT') {
+      provisions++;
+      provisionedUsers.add(clerk.user.id);
+      return new Response(JSON.stringify({ id: '1' }), { status: 201 });
+    }
     requests++;
+    if (!provisionedUsers.has(clerk.user.id)) {
+      return new Response(JSON.stringify({ error: { code: 'USER_NOT_PROVISIONED', message: 'User is not provisioned', details: [] } }), { status: 403 });
+    }
     return new Response(JSON.stringify([personal]));
   });
   function Consumer() {
@@ -87,6 +97,7 @@ async function mountSpaces(t) {
     get value() { return value; },
     get transport() { return transport; },
     get requests() { return requests; },
+    get provisions() { return provisions; },
     errors,
     rotateToken: token => { tokenOverride = token; },
     rerender: async () => { await act(async () => renderer.update(tree())); },
@@ -97,6 +108,8 @@ test('Spaces settles after one load despite new Clerk callback references on eve
   const app = await mountSpaces(t);
   assert.deepEqual(app.errors, []);
   assert.equal(app.requests, 1);
+  assert.equal(app.value.error, null);
+  assert.equal(app.provisions, 1);
   assert.equal(app.value.active?.id, personal.id);
   assert.equal(app.value.loading, false);
   const transport = app.transport;
@@ -107,6 +120,7 @@ test('Spaces settles after one load despite new Clerk callback references on eve
   assert.equal(await transport.forScope(app.session.capture()).getAccessToken(), 'renewed-token');
   await act(async () => { app.value.refresh(); });
   assert.equal(app.requests, 2);
+  assert.equal(app.provisions, 1);
   assert.equal(app.value.active?.id, personal.id);
 });
 
@@ -120,6 +134,7 @@ test('a replacement Clerk session reloads Spaces and rejects the previous sessio
   assert.deepEqual(app.errors, []);
   assert.notEqual(app.transport, transport);
   assert.equal(app.requests, 2);
+  assert.equal(app.provisions, 2);
   assert.equal(app.value.active?.id, personal.id);
   const tokenCalls = app.tokenCalls.length;
   await assert.rejects(previous.execute(() => previous.getAccessToken()), { name: 'ObsoleteRequestError' });

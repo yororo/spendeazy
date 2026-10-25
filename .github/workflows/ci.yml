@@ -82,7 +82,7 @@ jobs:
       - name: Verify release gates and planner
         run: |
           node scripts/verify-release-gates.mjs
-          node --test scripts/release-plan.test.mjs scripts/local-test-launcher.test.mjs scripts/documentation-changes.test.mjs scripts/verify-release-gates.test.mjs scripts/native-verification.test.mjs
+          node --test scripts/release-plan.test.mjs scripts/local-test-launcher.test.mjs scripts/documentation-changes.test.mjs scripts/verify-release-gates.test.mjs scripts/native-verification.test.mjs scripts/native-verification-journey.test.mjs
         env:
           CI: true
       - name: Test PostgreSQL test-runner configuration

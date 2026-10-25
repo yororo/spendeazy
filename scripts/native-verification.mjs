@@ -15,11 +15,11 @@ const labelPrefix = 'io.spendeazy.native-verification';
 const emptyExtensions = { device: null, nativeBuild: null, evidence: null };
 
 export class VerificationError extends Error {
-  constructor(code, message, outcome = null) {
+  constructor(code, message, outcome = null, statement = null) {
     super(message);
     this.code = code;
     this.outcome = outcome;
-    this.statement = outcome ? 'Launch alone does not certify an authenticated journey.' : null;
+    this.statement = statement ?? (outcome ? 'Launch alone does not certify an authenticated journey.' : null);
   }
 }
 
@@ -37,6 +37,7 @@ export function parseArguments(args) {
     metroPort: null,
     deviceApiHost: null,
     bootAvd: null,
+    journey: null,
   };
   const positionals = [];
   for (let index = 0; index < args.length; index += 1) {
@@ -59,6 +60,7 @@ export function parseArguments(args) {
       '--metro-port': 'metroPort',
       '--device-api-host': 'deviceApiHost',
       '--boot-avd': 'bootAvd',
+      '--journey': 'journey',
     };
     const field = valueOptions[arg];
     if (field) {
@@ -77,10 +79,10 @@ export function parseArguments(args) {
   }
   if (options.help && positionals.length === 0) return options;
   if (positionals.length !== 1) {
-    throw new VerificationError('usage', 'Specify one operation: start, attach, status, stop, replace-api, launch, or reload.');
+    throw new VerificationError('usage', 'Specify one operation: start, attach, status, stop, replace-api, launch, reload, journey, or resume.');
   }
   const operation = positionals[0];
-  if (!['start', 'attach', 'status', 'stop', 'replace-api', 'launch', 'reload'].includes(operation)) {
+  if (!['start', 'attach', 'status', 'stop', 'replace-api', 'launch', 'reload', 'journey', 'resume'].includes(operation)) {
     throw new VerificationError('usage', `Unknown operation ${operation}.`);
   }
   if (options.fresh && operation !== 'start') {
@@ -106,6 +108,15 @@ export function parseArguments(args) {
   }
   if (options.bootAvd && !/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(options.bootAvd)) {
     throw new VerificationError('usage', '--boot-avd contains unsupported characters.');
+  }
+  if (options.journey && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(options.journey)) {
+    throw new VerificationError('usage', '--journey must be a lowercase id such as sign-in-visible.');
+  }
+  if ((operation === 'journey' || operation === 'resume') && !options.journey) {
+    throw new VerificationError('usage', 'Pass --journey with the journey id.');
+  }
+  if (options.journey && operation !== 'journey' && operation !== 'resume') {
+    throw new VerificationError('usage', '--journey applies only to journey and resume.');
   }
   options.operation = operation;
   return options;
@@ -149,6 +160,8 @@ Operations:
   replace-api   Rebuild and replace the API, keeping its database
   launch        Install and launch the native build against that API
   reload        Reload the launched app through the owned Metro server
+  journey       Run one selected emulator journey and write a report
+  resume        Continue a journey after its human checkpoint
 
 Options:
   --run <id>            Select a run (nv- plus 12 hex characters)
@@ -161,6 +174,7 @@ Options:
   --device-api-host <host>
                         With launch, device-reachable API host
   --boot-avd <name>     With launch, start this AVD when no device is attached
+  --journey <id>        With journey or resume, select one journey definition
   --state-dir <path>    Manifest and run-scoped configuration directory
   --help
 
@@ -171,6 +185,8 @@ Windows host, from the repository root in PowerShell:
   node .\\scripts\\native-verification.mjs replace-api
   node .\\scripts\\native-verification.mjs launch
   node .\\scripts\\native-verification.mjs reload
+  node .\\scripts\\native-verification.mjs journey --journey sign-in-visible
+  node .\\scripts\\native-verification.mjs resume --journey sign-in-visible
   node .\\scripts\\native-verification.mjs stop
 
 Prerequisites on Windows: Node.js 24, Git, and Docker Desktop with the Linux
@@ -217,7 +233,14 @@ function credentialValues(secrets) {
 }
 
 export function redact(text, secrets) {
-  let redacted = text;
+  let redacted = String(text);
+  const patterns = [
+    /sk_(?:test|live)_[A-Za-z0-9]+/g,
+    /pk_(?:test|live)_[A-Za-z0-9_-]+/g,
+    /Bearer\s+[A-Za-z0-9._~+/=-]{8,}/gi,
+    /eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/g,
+  ];
+  for (const pattern of patterns) redacted = redacted.replace(pattern, '[redacted]');
   for (const secret of credentialValues(secrets)) {
     redacted = redacted.split(secret).join('[redacted]');
     const digest = createHash('sha256').update(secret).digest('hex');
@@ -709,8 +732,24 @@ export async function publicBody(context, manifest, { operation, reused = false,
         },
       },
     },
-    extensions: manifest.extensions ?? emptyExtensions,
+    extensions: reportedExtensions(manifest, source),
     ...extra,
+  };
+}
+
+function reportedExtensions(manifest, source) {
+  const extensions = manifest.extensions ?? emptyExtensions;
+  const journey = extensions.evidence?.journey;
+  if (!journey) return extensions;
+  return {
+    ...extensions,
+    evidence: {
+      ...extensions.evidence,
+      journey: {
+        ...journey,
+        matchesCurrentSource: journey.sourceFingerprint === source.fingerprint,
+      },
+    },
   };
 }
 
@@ -1163,7 +1202,7 @@ export async function execute(args, environment = process.env) {
     };
     await mkdir(context.stateDir, { recursive: true });
     let launchModule = null;
-    if (operation === 'launch' || operation === 'reload') {
+    if (operation === 'launch' || operation === 'reload' || operation === 'journey' || operation === 'resume') {
       launchModule = await import('./native-verification-launch.mjs');
       await launchModule.preflightHost(context, { requireBuildTools: operation === 'launch' });
     }
@@ -1181,7 +1220,10 @@ export async function execute(args, environment = process.env) {
     else if (operation === 'stop') result = await stop(context, options);
     else if (operation === 'launch') result = await launchModule.launchNative(context, options);
     else if (operation === 'reload') result = await launchModule.reloadNative(context, options);
-    else result = await replaceApi(context, options);
+    else if (operation === 'journey' || operation === 'resume') {
+      const journeyModule = await import('./native-verification-journey.mjs');
+      result = await journeyModule.runSelectedJourney(context, options, { resume: operation === 'resume' });
+    } else result = await replaceApi(context, options);
     if (result.body) assertNoCredentials('command output', JSON.stringify(result.body), secrets);
     return result;
   } catch (error) {
@@ -1193,6 +1235,7 @@ export async function execute(args, environment = process.env) {
       body.outcome = error.outcome;
       body.authenticatedJourneyCertified = false;
       body.statement = error.statement;
+      if (operation === 'journey' || operation === 'resume') body.certified = false;
     }
     return {
       exitCode: code === 'usage' ? 2 : 1,

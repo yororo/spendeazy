@@ -34,7 +34,7 @@ Native acceptance requires installable Android/iPhone builds, device evidence an
 
 - **Issues/specs:** use `gh` against this repository and [issue-tracker guidance](docs/agents/issue-tracker.md). Verify project-local historical issue references belong to this repository.
 - **Triage:** use [triage labels](docs/agents/triage-labels.md).
-- **Native verification environment:** start, attach, status, replace, or stop the owned API and database — [local testing](docs/local-testing.md#managed-native-verification-environment). Launch or reload the native build against that API — [launch readiness](docs/local-testing.md#launch-the-native-build-against-that-api).
+- **Native verification environment:** start, attach, status, replace, or stop the owned API and database — [local testing](docs/local-testing.md#managed-native-verification-environment). Launch or reload the native build against that API — [launch readiness](docs/local-testing.md#launch-the-native-build-against-that-api). Run or resume a selected emulator journey — [emulator journeys](docs/local-testing.md#run-an-emulator-journey).
 
 ## Cursor Cloud specific instructions
 

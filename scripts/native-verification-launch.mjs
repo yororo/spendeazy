@@ -229,7 +229,7 @@ async function deviceProperty(context, serial, name) {
   return result.stdout.trim();
 }
 
-function configurationFingerprint(parts) {
+export function configurationFingerprint(parts) {
   return createHash('sha256').update([
     parts.packageName,
     parts.abi,
@@ -239,7 +239,7 @@ function configurationFingerprint(parts) {
   ].join('\0')).digest('hex');
 }
 
-function installedFingerprint(configuration, installed) {
+export function installedFingerprint(configuration, installed) {
   return createHash('sha256').update([
     installed.packageName,
     installed.versionName,
@@ -1103,4 +1103,65 @@ export async function reloadNative(context, options) {
     };
     return { exitCode: 0, body: await publicLaunch(context, manifest, 'reload', readiness) };
   });
+}
+
+export async function assertRecordedLaunch(context, manifest, source) {
+  const build = manifest.extensions?.nativeBuild;
+  const device = manifest.extensions?.device;
+  if (!build?.fingerprint || !build.configurationFingerprint || !build.sourceFingerprint || !build.metro?.port || !build.packageName || !device?.serial || !device.apiUrl || !build.abi) {
+    block('launch-required', `Run ${manifest.runId} has no recorded native launch. A journey was not started.`);
+  }
+  if (source.fingerprint !== build.sourceFingerprint) {
+    block('identity-mismatch', `The checkout fingerprint does not match the launch recorded for ${manifest.runId}.`);
+  }
+  const publishableKey = context.processEnv.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY?.trim() || '';
+  if (!publishableKey) {
+    block('missing-configuration', 'Set EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY. A mobile env file is not the running configuration.');
+  }
+  const androidClientId = context.processEnv.EXPO_PUBLIC_CLERK_GOOGLE_ANDROID_CLIENT_ID?.trim() || '';
+  const configFingerprint = configurationFingerprint({
+    packageName: build.packageName,
+    abi: build.abi,
+    apiBaseUrl: device.apiUrl,
+    publishableKey,
+    androidClientId,
+  });
+  if (configFingerprint !== build.configurationFingerprint) {
+    block('identity-mismatch', `The current configuration does not match the launch recorded for ${manifest.runId}.`);
+  }
+  const ready = (await listDevices(context)).filter((item) => item.state === 'device');
+  if (!ready.some((item) => item.serial === device.serial)) {
+    block('identity-mismatch', `Recorded device ${device.serial} is not an authorized attached device. Another device was not selected.`);
+  }
+  const abi = await deviceProperty(context, device.serial, 'ro.product.cpu.abi');
+  if (abi !== device.abi || abi !== build.abi) {
+    block('identity-mismatch', `Device ${device.serial} ABI does not match the launch recorded for ${manifest.runId}.`);
+  }
+  const installed = await readInstalledPackage(context, device.serial, build.packageName);
+  const currentBuild = installed ? installedFingerprint(configFingerprint, installed) : '';
+  if (!installed || currentBuild !== build.fingerprint) {
+    block('identity-mismatch', `The installed ${build.packageName} build does not match run ${manifest.runId}.`);
+  }
+  if (!await appRunning(context, device.serial, build.packageName)) {
+    block('launch-required', `${build.packageName} is not running on ${device.serial}. Launch it again before this journey.`);
+  }
+  const listeners = await listenerPids(build.metro.port);
+  let owned = false;
+  for (const pid of listeners) {
+    if (await ownedLauncherPid(pid, manifest.runId)) owned = true;
+  }
+  if (!owned) block('identity-mismatch', `Metro port ${build.metro.port} is not the Metro server recorded for ${manifest.runId}.`);
+  if (!await metroStatus(build.metro.port)) fail('journey-failed', 'The recorded Metro server is not responding.');
+  const observation = await observe(context, manifest);
+  if (!observation.api.identityMatches || observation.api.status !== 'running') {
+    block('api-unready', `Run ${manifest.runId} has no running owned API.`);
+  }
+  const imageId = observation.api.imageId || '';
+  if (manifest.resources?.api?.imageId && imageId && imageId !== manifest.resources.api.imageId) {
+    block('identity-mismatch', `The running API image does not match the image recorded for ${manifest.runId}.`);
+  }
+  if (build.apiImageId && imageId && imageId !== build.apiImageId) {
+    block('identity-mismatch', `The running API image does not match the launch recorded for ${manifest.runId}.`);
+  }
+  return { build, device, source, apiImageId: imageId || build.apiImageId || manifest.resources?.api?.imageId || '' };
 }

@@ -1284,6 +1284,20 @@ async function proveActiveBundle(context, { serial, port, expected, timeoutMs })
   return bundle;
 }
 
+async function dropRevisionCertification(context, manifest) {
+  const refresh = manifest.extensions?.evidence?.refresh;
+  if (!refresh?.certifiesCurrentRevision) return;
+  refresh.certifiesCurrentRevision = false;
+  refresh.bundleObservedOnDevice = false;
+  manifest.updatedAt = new Date().toISOString();
+  await writeManifest(context, manifest);
+}
+
+async function failUncertified(context, manifest, code, message) {
+  await dropRevisionCertification(context, manifest);
+  fail(code, message);
+}
+
 export async function coldRestartPreservingState(context, manifest, launch) {
   const publishableKey = context.processEnv.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY?.trim() || '';
   if (!publishableKey) {
@@ -1297,7 +1311,7 @@ export async function coldRestartPreservingState(context, manifest, launch) {
     || build.nativeInputFingerprint !== nativeInputFingerprint
     || build.jsInputFingerprint !== jsInputFingerprint
     || source.fingerprint !== build.sourceFingerprint) {
-    fail('revision-not-certified', 'The recorded launch does not match the current source, JavaScript inputs, and native inputs. Run refresh before this journey. Previous evidence does not certify this revision.');
+    await failUncertified(context, manifest, 'revision-not-certified', 'The recorded launch does not match the current source, JavaScript inputs, and native inputs. Run refresh before this journey. Previous evidence does not certify this revision.');
   }
   const timeoutMs = configuredInt(context.processEnv.SPENDEAZY_NV_BUNDLE_TIMEOUT_MS, 180_000, 'SPENDEAZY_NV_BUNDLE_TIMEOUT_MS', 1_800_000);
   const serial = device.serial;
@@ -1305,11 +1319,11 @@ export async function coldRestartPreservingState(context, manifest, launch) {
   const deadline = Date.now() + timeoutMs;
   await adb(context, ['-s', serial, 'logcat', '-c'], { allowFailure: true });
   const stopped = await adb(context, ['-s', serial, 'shell', 'am', 'force-stop', packageName], { allowFailure: true });
-  if (stopped.code !== 0) fail('reload-failed', `${packageName} could not be force-stopped. App data was not cleared.`);
+  if (stopped.code !== 0) await failUncertified(context, manifest, 'reload-failed', `${packageName} could not be force-stopped. App data was not cleared.`);
   const started = await adb(context, [
     '-s', serial, 'shell', 'monkey', '-p', packageName, '-c', 'android.intent.category.LAUNCHER', '1',
   ], { allowFailure: true, timeoutMs: 30_000 });
-  if (started.code !== 0) fail('reload-failed', `${packageName} did not start after the cold restart. App data was not cleared.`);
+  if (started.code !== 0) await failUncertified(context, manifest, 'reload-failed', `${packageName} did not start after the cold restart. App data was not cleared.`);
   let running = false;
   while (Date.now() < deadline) {
     if (await appRunning(context, serial, packageName)) {
@@ -1318,18 +1332,18 @@ export async function coldRestartPreservingState(context, manifest, launch) {
     }
     await delay(200);
   }
-  if (!running) fail('reload-failed', `${packageName} was not running after the cold restart. App data was not cleared.`);
+  if (!running) await failUncertified(context, manifest, 'reload-failed', `${packageName} was not running after the cold restart. App data was not cleared.`);
   const remaining = () => Math.max(1_000, deadline - Date.now());
   const expected = [device.apiUrl, publishableKey];
   const bundle = await fetchBundle(build.metro.port, expected, remaining());
   if (!bundle) {
-    fail('bundle-not-active', `After the cold restart, the Metro bundle does not contain the recorded launch configuration. ${bundleNotActive}`);
+    await failUncertified(context, manifest, 'bundle-not-active', `After the cold restart, the Metro bundle does not contain the recorded launch configuration. ${bundleNotActive}`);
   }
   const reloaded = await waitForReloadLog(context, serial, remaining());
-  if (!reloaded) fail('bundle-not-active', `The emulator did not log a JavaScript start after the cold restart. ${bundleNotActive}`);
+  if (!reloaded) await failUncertified(context, manifest, 'bundle-not-active', `The emulator did not log a JavaScript start after the cold restart. ${bundleNotActive}`);
   const observed = await deviceBundleDigest(context, serial, build.metro.port, bundle.path, remaining());
   if (observed !== bundle.digest) {
-    fail('bundle-not-active', `The bundle fetched on the emulator after the cold restart does not match Metro. ${bundleNotActive}`);
+    await failUncertified(context, manifest, 'bundle-not-active', `The bundle fetched on the emulator after the cold restart does not match Metro. ${bundleNotActive}`);
   }
   const androidClientId = context.processEnv.EXPO_PUBLIC_CLERK_GOOGLE_ANDROID_CLIENT_ID?.trim() || '';
   const configFingerprint = configurationFingerprint({
@@ -1342,7 +1356,7 @@ export async function coldRestartPreservingState(context, manifest, launch) {
   const installed = await readInstalledPackage(context, serial, packageName);
   const currentBuild = installed ? installedFingerprint(configFingerprint, installed) : '';
   if (configFingerprint !== build.configurationFingerprint || !installed || currentBuild !== build.fingerprint) {
-    fail('identity-mismatch', `The installed ${packageName} build does not match the launch recorded for ${manifest.runId}.`);
+    await failUncertified(context, manifest, 'identity-mismatch', `The installed ${packageName} build does not match the launch recorded for ${manifest.runId}.`);
   }
   const previousSourceFingerprint = manifest.extensions?.evidence?.refresh?.sourceFingerprint || build.sourceFingerprint || null;
   applyRefreshEvidence(manifest, source, {

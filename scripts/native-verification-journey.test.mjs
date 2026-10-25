@@ -922,6 +922,19 @@ createServer((request, response) => {
     assert.equal(flashed.authenticatedJourneyCertified, false);
     assert.match(flashed.journey.assertions.find((item) => item.id === 'personal-space-settled').reason, /session expired/);
 
+    const seededPath = join(stateDir, 'runs', runId, 'manifest.json');
+    const seeded = JSON.parse(await readFile(seededPath, 'utf8'));
+    seeded.extensions.evidence = {
+      refresh: {
+        certifiesCurrentRevision: true,
+        bundleObservedOnDevice: true,
+        sourceFingerprint: source.fingerprint,
+        jsInputFingerprint,
+        nativeInputFingerprint,
+        mode: 'javascript-reload',
+      },
+    };
+    await writeFile(seededPath, `${JSON.stringify(seeded, null, 2)}\n`);
     await setMode('pass');
     const mismatchScenario = JSON.parse(await readFile(scenarioPath, 'utf8'));
     mismatchScenario.deviceBundleBody = 'not-the-metro-bundle';
@@ -931,7 +944,8 @@ createServer((request, response) => {
     assert.equal(mismatch.certified, false);
     assert.equal(mismatch.authenticatedJourneyCertified, false);
     assert.equal(mismatch.revisionCertified, false);
-    assert.equal(mismatch.extensions.evidence.refresh, undefined);
+    assert.equal(mismatch.extensions.evidence.refresh.certifiesCurrentRevision, false);
+    assert.equal(mismatch.extensions.evidence.refresh.bundleObservedOnDevice, false);
     assert.match(mismatch.journey.assertions.find((item) => item.id === 'cold-restart').reason, /does not match Metro/);
     assert.equal(mismatch.journey.assertions.find((item) => item.id === 'session-retained').outcome, 'not-run');
 

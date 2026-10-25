@@ -316,10 +316,8 @@ function validateDefinition(definition, id) {
     seen.add(step.id);
     if (!stepActions.has(step.action)) block('invalid-journey', `Journey step ${step.id} has an unsupported action.`);
     if (step.action === 'see' || step.action === 'tap' || step.action === 'absent') validateSelector(step);
-    if (step.action === 'see' || step.action === 'tap' || step.action === 'settle') {
+    if (step.action === 'see' || step.action === 'settle') {
       validateSelectorList(step, 'reject');
-      validateSelectorList(step, 'also');
-      validateSelectorList(step, 'gone');
       validateLogRules(step);
     }
     if (step.action === 'see' && step.missingReason !== undefined && (typeof step.missingReason !== 'string' || !step.missingReason.trim())) {
@@ -327,6 +325,8 @@ function validateDefinition(definition, id) {
     }
     if (step.action === 'settle') {
       validateSelector(step);
+      validateSelectorList(step, 'also');
+      validateSelectorList(step, 'gone');
       if (!Number.isInteger(step.holdMs) || step.holdMs < 100 || step.holdMs > 30_000) {
         block('invalid-journey', `Settle step ${step.id} needs holdMs from 100 to 30000.`);
       }
@@ -459,7 +459,7 @@ async function diagnosticFailure(context, manifest, serial, rules) {
   const diagnostics = await collectDiagnostics(context, manifest, serial);
   for (const rule of rules) {
     const source = diagnostics[rule.source];
-    if (!source?.available) return `${rule.source} diagnostics were unavailable`;
+    if (!source?.available) continue;
     if (source.text.includes(rule.includes)) return `${rule.source} log included ${rule.includes}`;
   }
   return '';
@@ -547,6 +547,10 @@ async function executeJourney(context, options, { resume }) {
     start = checkpoint.nextStep;
     attemptId = checkpoint.attemptId;
     completed = Array.isArray(checkpoint.assertions) ? checkpoint.assertions : [];
+    const prior = loaded.definition.steps[start - 1];
+    if (prior && (prior.action === 'checkpoint' || prior.action === 'tap-or-checkpoint') && !completed.some((item) => item.id === prior.id)) {
+      completed.push(assertion(prior, 'passed', 'Human checkpoint completed before resume'));
+    }
   } else {
     await rm(checkpointPath(context, manifest.runId), { force: true });
   }
@@ -565,7 +569,7 @@ async function executeJourney(context, options, { resume }) {
       break;
     }
     if (step.action === 'tap-or-checkpoint' && !step.selector) {
-      await holdForHuman(context, manifest, options, loaded, attemptId, identity, assertions, steps, index, step);
+      stopFailed(assertions, steps, index, step, step.reason);
       break;
     }
     if (step.action === 'absent') {
@@ -694,11 +698,14 @@ async function executeJourney(context, options, { resume }) {
       }
       if (assertions.at(-1)?.outcome === 'failed' && assertions.at(-1)?.id === step.id) break;
       if (tapped) continue;
-      if (challenge || !last.error) {
+      if (challenge) {
         await holdForHuman(context, manifest, options, loaded, attemptId, identity, assertions, steps, index, step);
         break;
       }
-      stopFailed(assertions, steps, index, step, `${last.error} while looking for ${selectorLabel(step.selector)}`);
+      const reason = last.error
+        ? `${last.error} while looking for ${selectorLabel(step.selector)}`
+        : `${selectorLabel(step.selector)} was not on screen before the timeout`;
+      stopFailed(assertions, steps, index, step, reason);
       break;
     }
     if (step.action === 'log') {

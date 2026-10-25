@@ -486,6 +486,27 @@ createServer((request, response) => {
     assert.equal(driftedBody.certified, false);
     assert.notEqual(driftedBody.outcome, 'passed');
 
+    env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY = publishableKey;
+    await writeFile(join(journeyDir, 'chooser-timeout.mjs'), `export default {
+  id: 'chooser-timeout',
+  summary: 'The account row never appears and no challenge is showing.',
+  steps: [{
+    id: 'account',
+    action: 'tap-or-checkpoint',
+    selector: { text: 'Missing account row' },
+    challenges: [{ text: 'Enter your password' }],
+    reason: 'Complete the credential challenge.',
+    timeoutMs: 200,
+  }],
+};
+`);
+    const chooserTimeout = parseJson(await invoke(['journey', '--journey', 'chooser-timeout', '--run', runId, '--state-dir', stateDir]));
+    assert.equal(chooserTimeout.outcome, 'failed');
+    assert.equal(chooserTimeout.certified, false);
+    assert.equal(chooserTimeout.authenticatedJourneyCertified, false);
+    assert.match(chooserTimeout.journey.assertions[0].reason, /Missing account row/);
+    assert.match(chooserTimeout.journey.assertions[0].reason, /timeout/);
+
     const sensitive = [marker, markerHash, 'bank-password-fictional', publishableKey];
     for (const transcript of transcripts) {
       for (const secret of sensitive) assert.equal(transcript.includes(secret), false, 'command output included a sensitive marker');
@@ -820,9 +841,12 @@ createServer((request, response) => {
 
     await setMode('no-device-log');
     const quiet = parseJson(await invoke(journeyArgs));
-    assert.equal(quiet.outcome, 'failed');
-    assert.equal(quiet.authenticatedJourneyCertified, false);
-    assert.match(quiet.journey.assertions.find((item) => item.id === 'personal-space-settled').reason, /device diagnostics were unavailable/);
+    assert.equal(quiet.outcome, 'passed');
+    assert.equal(quiet.certified, true);
+    assert.equal(quiet.authenticatedJourneyCertified, true);
+    const quietIndex = quiet.evidence.find((item) => item.kind === 'index');
+    const quietCapture = JSON.parse(await readFile(join(stateDir, 'runs', runId, quietIndex.ref), 'utf8'));
+    assert.equal(quietCapture.sources.device, 'unavailable');
 
     await setMode('flash');
     const flashed = parseJson(await invoke(journeyArgs));
@@ -864,19 +888,19 @@ createServer((request, response) => {
     assert.equal(resumedBody.outcome, 'passed');
     assert.equal(resumedBody.authenticatedJourneyCertified, true);
     assert.equal(resumedBody.journey.assertions.some((item) => item.outcome === 'human-pending'), false);
+    assert.equal(resumedBody.journey.assertions.find((item) => item.id === 'dedicated-account').outcome, 'passed');
+    assert.match(resumedBody.journey.assertions.find((item) => item.id === 'dedicated-account').reason, /Human checkpoint completed/);
 
     const unlabeled = { ...env };
     delete unlabeled.SPENDEAZY_NV_GOOGLE_ACCOUNT_LABEL;
     await setMode('pass');
-    const unlabeledPending = parseJson(await invoke(journeyArgs, unlabeled));
-    assert.equal(unlabeledPending.outcome, 'human-pending');
-    assert.equal(unlabeledPending.authenticatedJourneyCertified, false);
-    assert.match(unlabeledPending.journey.assertions.find((item) => item.id === 'dedicated-account').reason, /ACCOUNT_LABEL is unset/);
+    const unlabeledRun = parseJson(await invoke(journeyArgs, unlabeled));
+    assert.equal(unlabeledRun.outcome, 'failed');
+    assert.equal(unlabeledRun.certified, false);
+    assert.equal(unlabeledRun.authenticatedJourneyCertified, false);
+    assert.match(unlabeledRun.journey.assertions.find((item) => item.id === 'dedicated-account').reason, /ACCOUNT_LABEL is unset/);
+    assert.equal(unlabeledRun.journey.assertions.find((item) => item.id === 'personal-space-settled').outcome, 'not-run');
     assert.deepEqual(JSON.parse(await readFile(scenarioPath, 'utf8')).taps, ['110,120']);
-    await setMode('settled');
-    const unlabeledResume = parseJson(await invoke(['resume', '--journey', 'google-sign-in', '--run', runId, '--state-dir', stateDir], unlabeled));
-    assert.equal(unlabeledResume.outcome, 'passed');
-    assert.equal(unlabeledResume.authenticatedJourneyCertified, true);
 
     for (const transcript of transcripts) assert.equal(transcript.includes(accountLabel), false, 'command output included the dedicated account label');
     const captureRoot = join(stateDir, 'runs', runId, 'nv-captures');

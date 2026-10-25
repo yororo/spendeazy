@@ -910,6 +910,8 @@ test('refresh reloads JavaScript with device evidence and rebuilds native inputs
     assert.match(rebuildLog.args.join(' '), /run:android/);
     const adbBeforeReuse = await readFile(tools.adbLog, 'utf8');
     assert.equal(adbBeforeReuse.includes('arm64-v8a'), false);
+    const cachedApk = await readFile(join(stateDir, 'build-cache', 'x86_64', rebuiltBody.readiness.nativeInputFingerprint, 'app.apk'), 'utf8');
+    assert.equal(cachedApk, 'tooling-owned-apk');
 
     const cachedManifest = JSON.parse(await readFile(join(stateDir, 'runs', runId, 'manifest.json'), 'utf8'));
     cachedManifest.extensions.nativeBuild.nativeInputFingerprint = '0'.repeat(64);
@@ -1191,6 +1193,7 @@ const startup = JSON.parse(readFileSync(process.env.SPENDEAZY_NV_ADB_SCENARIO, '
 if (startup.writeApk) {
   mkdirSync('android/app/build/outputs/apk/debug', { recursive: true });
   writeFileSync('android/app/build/outputs/apk/debug/app-debug.apk', 'tooling-owned-apk');
+  writeFileSync('android/app/build/outputs/apk/debug/app-arm64-v8a-debug.apk', 'wrong-abi-apk');
 }
 const port = Number(args[args.indexOf('--port') + 1]);
 const server = createServer((request, response) => {

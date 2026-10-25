@@ -1255,7 +1255,19 @@ async function inspectBuildCache(context, { abi, fingerprint, packageName }) {
   return { compatible, rejected };
 }
 
-async function findBuiltApk(context) {
+const apkAbis = ['arm64-v8a', 'armeabi-v7a', 'x86_64', 'x86'];
+
+function apkNamesAbi(relative, abi) {
+  const text = String(relative).replaceAll('\\', '/');
+  if (abi === 'x86') return /(?:^|[/._-])x86(?:[/._-]|$)/.test(text.replaceAll('x86_64', ''));
+  return text.includes(abi);
+}
+
+function apkNamedAbi(relative) {
+  return apkAbis.find((abi) => apkNamesAbi(relative, abi)) || null;
+}
+
+async function findBuiltApk(context, abi) {
   const root = join(appRoot(context), 'android', 'app', 'build', 'outputs', 'apk');
   if (!await pathExists(root)) return null;
   const entries = await readdir(root, { recursive: true });
@@ -1265,15 +1277,18 @@ async function findBuiltApk(context) {
     if (!relative.endsWith('.apk')) continue;
     const absolute = join(root, relative);
     const info = await stat(absolute);
-    if (info.isFile()) found.push({ absolute, mtimeMs: info.mtimeMs });
+    if (info.isFile()) found.push({ absolute, relative, mtimeMs: info.mtimeMs });
   }
-  found.sort((left, right) => right.mtimeMs - left.mtimeMs);
-  return found[0]?.absolute || null;
+  const named = found.filter((item) => apkNamesAbi(item.relative, abi));
+  const unnamed = found.filter((item) => apkNamedAbi(item.relative) === null);
+  const pool = named.length > 0 ? named : unnamed;
+  pool.sort((left, right) => right.mtimeMs - left.mtimeMs);
+  return pool[0]?.absolute || null;
 }
 
 async function storeCompatibleApk(context, { abi, fingerprint, packageName }) {
   if (!/^[0-9a-f]{64}$/.test(fingerprint) || !/^(?:armeabi-v7a|arm64-v8a|x86|x86_64)$/.test(abi)) return false;
-  const built = await findBuiltApk(context);
+  const built = await findBuiltApk(context, abi);
   if (!built) return false;
   const directory = join(context.stateDir, 'build-cache', abi, fingerprint);
   await mkdir(directory, { recursive: true });

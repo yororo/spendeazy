@@ -1,6 +1,6 @@
 import { createHash, createPublicKey, randomBytes } from 'node:crypto';
 import { spawn } from 'node:child_process';
-import { access, mkdir, readFile, readlink, readdir, rm, stat, writeFile } from 'node:fs/promises';
+import { access, copyFile, mkdir, readFile, readlink, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import { request as httpRequest } from 'node:http';
 import { createServer } from 'node:net';
 import { join } from 'node:path';
@@ -18,6 +18,8 @@ import {
   sourceIdentity,
   tail,
   writeManifest,
+  nativeInputFingerprintOf,
+  jsInputFingerprintOf,
 } from './native-verification.mjs';
 
 const statement = 'Launch alone does not certify an authenticated journey.';
@@ -602,7 +604,7 @@ async function metroStatus(port) {
   }
 }
 
-async function bundleContains(port, expected, timeoutMs) {
+async function fetchBundle(port, expected, timeoutMs) {
   const paths = [
     '/.expo/.virtual-metro-entry.bundle?platform=android&dev=true&minify=false',
     '/index.bundle?platform=android&dev=true&minify=false',
@@ -615,14 +617,20 @@ async function bundleContains(port, expected, timeoutMs) {
         const response = await fetch(`http://127.0.0.1:${port}${path}`, { signal: AbortSignal.timeout(20_000) });
         if (!response.ok) continue;
         const body = await response.text();
-        if (expected.every((value) => value && body.includes(value))) return true;
+        if (expected.every((value) => value && body.includes(value))) {
+          return { path, digest: createHash('sha256').update(body).digest('hex') };
+        }
       } catch {
         // The bundle is still compiling.
       }
     }
     await delay(500);
   }
-  return false;
+  return null;
+}
+
+async function bundleContains(port, expected, timeoutMs) {
+  return Boolean(await fetchBundle(port, expected, timeoutMs));
 }
 
 function maskedWebsocketFrame(opcode, payload) {
@@ -680,6 +688,43 @@ async function reloadSocket(port) {
   });
 }
 
+function gradleMaxWorkers(context) {
+  const workers = context.processEnv.SPENDEAZY_NV_GRADLE_MAX_WORKERS;
+  if (workers === undefined || workers === '') return null;
+  return configuredInt(workers, 1, 'SPENDEAZY_NV_GRADLE_MAX_WORKERS', 64);
+}
+
+function appRoot(context) {
+  return join(context.repoRoot, 'mobile-app');
+}
+
+function httpBodyDigest(stdout) {
+  let index = stdout.indexOf('\r\n\r\n');
+  let separator = 4;
+  if (index === -1) {
+    index = stdout.indexOf('\n\n');
+    separator = 2;
+  }
+  if (index === -1) return '';
+  return createHash('sha256').update(stdout.slice(index + separator)).digest('hex');
+}
+
+function previousEvidenceCertifies(manifest, source, { nativeChanged, configChanged, jsInputFingerprint, nativeInputFingerprint }) {
+  if (nativeChanged || configChanged) return false;
+  const refresh = manifest.extensions?.evidence?.refresh;
+  if (refresh) {
+    return refresh.certifiesCurrentRevision === true
+      && refresh.sourceFingerprint === source.fingerprint
+      && refresh.jsInputFingerprint === jsInputFingerprint
+      && refresh.nativeInputFingerprint === nativeInputFingerprint;
+  }
+  const build = manifest.extensions?.nativeBuild;
+  return manifest.extensions?.evidence?.launch?.certifiesCurrentRevision === true
+    && build?.sourceFingerprint === source.fingerprint
+    && build?.jsInputFingerprint === jsInputFingerprint
+    && build?.nativeInputFingerprint === nativeInputFingerprint;
+}
+
 function launchEnvironment(context, manifest, config) {
   const env = { ...context.processEnv };
   for (const name of ['CLERK_SECRET_KEY', 'CLERK_JWT_KEY', 'SPENDEAZY_NV_DB_PASSWORD', 'CI']) delete env[name];
@@ -695,11 +740,11 @@ function launchEnvironment(context, manifest, config) {
   env.SPENDEAZY_NV_RUN_ID = manifest.runId;
   env.SPENDEAZY_NV_METRO_PID_FILE = join(runDirectory(context, manifest.runId), 'metro.pid');
   env.SPENDEAZY_NV_LAUNCH_LOG = join(runDirectory(context, manifest.runId), 'launch.log');
-  const workers = context.processEnv.SPENDEAZY_NV_GRADLE_MAX_WORKERS;
+  const workers = gradleMaxWorkers(context);
   if (workers) {
-    const count = configuredInt(workers, 1, 'SPENDEAZY_NV_GRADLE_MAX_WORKERS', 64);
-    env.GRADLE_OPTS = `${env.GRADLE_OPTS || ''} -Dorg.gradle.workers.max=${count}`.trim();
+    env.GRADLE_OPTS = `${env.GRADLE_OPTS || ''} -Dorg.gradle.workers.max=${workers}`.trim();
   }
+  if (config.abi) env.ORG_GRADLE_PROJECT_reactNativeArchitectures = config.abi;
   const pathKey = process.platform === 'win32' ? 'Path' : 'PATH';
   const tools = join(sdk, 'platform-tools');
   env[pathKey] = `${tools}${process.platform === 'win32' ? ';' : ':'}${env[pathKey] || env.PATH || ''}`;
@@ -732,8 +777,8 @@ async function waitForLaunch(context, { manifest, serial, packageName, port, exp
   if (!statusSeen) {
     fail('launch-failed', `Metro did not become ready on 127.0.0.1:${port}.\n${tail(await readLaunchLog(context, manifest.runId), 30)}`);
   }
-  const observed = await bundleContains(port, expected, Math.min(bundleTimeout, Math.max(1_000, deadline - Date.now())));
-  if (!observed) {
+  const bundle = await fetchBundle(port, expected, Math.min(bundleTimeout, Math.max(1_000, deadline - Date.now())));
+  if (!bundle) {
     fail('running-config-mismatch', 'The Metro bundle does not contain the launch API address and publishable key. An environment-file edit was not accepted as the running configuration.');
   }
   const installedDeadline = Date.now() + Math.max(1_000, deadline - Date.now());
@@ -747,7 +792,7 @@ async function waitForLaunch(context, { manifest, serial, packageName, port, exp
   if (!installed) {
     fail('launch-failed', `Expo did not leave ${packageName} installed and running on ${serial}.\n${tail(await readLaunchLog(context, manifest.runId), 30)}`);
   }
-  return installed;
+  return { installed, bundle };
 }
 
 async function killPid(pid) {
@@ -815,11 +860,12 @@ export async function stopOwnedMetro(context, manifest, report) {
   }
 }
 
-function publicLaunch(context, manifest, operation, readiness) {
+function publicLaunch(context, manifest, operation, readiness, outcome = null) {
+  const resolvedOutcome = outcome || (operation === 'reload' ? 'reloaded' : 'launched');
   return publicBody(context, manifest, {
     operation,
     extra: {
-      outcome: operation === 'reload' ? 'reloaded' : 'launched',
+      outcome: resolvedOutcome,
       authenticatedJourneyCertified: false,
       statement,
       readiness,
@@ -836,6 +882,39 @@ async function withLaunchOutcome(work) {
     }
     throw error;
   }
+}
+
+async function startOwnedExpo(context, manifest, { config, expoArgs, resetLog }) {
+  const directory = runDirectory(context, manifest.runId);
+  await mkdir(directory, { recursive: true });
+  const launcher = join(directory, 'metro-launcher.mjs');
+  await writeFile(launcher, launcherSource);
+  await rm(join(directory, 'metro.pid'), { force: true });
+  if (resetLog) await rm(join(directory, 'launch.log'), { force: true });
+  const launchEnv = launchEnvironment(context, manifest, config);
+  const expoBin = context.processEnv.SPENDEAZY_NV_EXPO || join(context.repoRoot, 'mobile-app', 'node_modules', 'expo', 'bin', 'cli');
+  const mode = context.processEnv.SPENDEAZY_NV_EXPO ? '--direct' : '--node';
+  const child = spawn(process.execPath, [launcher, expoBin, mode, ...expoArgs], {
+    cwd: appRoot(context),
+    env: launchEnv,
+    detached: true,
+    stdio: 'ignore',
+    windowsHide: true,
+  });
+  child.unref();
+  const pidDeadline = Date.now() + 15_000;
+  let launcherPid = 0;
+  while (Date.now() < pidDeadline) {
+    try {
+      launcherPid = Number((await readFile(join(directory, 'metro.pid'), 'utf8')).trim());
+    } catch {
+      launcherPid = 0;
+    }
+    if (launcherPid > 1) break;
+    await delay(100);
+  }
+  if (!launcherPid) fail('launch-failed', 'The Expo launcher did not record its process id.');
+  return launcherPid;
 }
 
 export async function launchNative(context, options) {
@@ -917,49 +996,17 @@ export async function launchNative(context, options) {
       if (!await portFree(metroPort)) {
         block('port-conflict', `Metro port ${metroPort} is held by another process. Pass --metro-port to select a free port. The existing listener was left untouched.`);
       }
-      const directory = runDirectory(context, manifest.runId);
-      await mkdir(directory, { recursive: true });
-      const launcher = join(directory, 'metro-launcher.mjs');
-      await writeFile(launcher, launcherSource);
-      await rm(join(directory, 'metro.pid'), { force: true });
-      await rm(join(directory, 'launch.log'), { force: true });
-      const launchEnv = launchEnvironment(context, manifest, {
-        apiBaseUrl: deviceApi.apiUrl,
-        publishableKey,
-        androidClientId,
+      const launcherPid = await startOwnedExpo(context, manifest, {
+        config: {
+          apiBaseUrl: deviceApi.apiUrl,
+          publishableKey,
+          androidClientId,
+          abi,
+        },
+        expoArgs: ['run:android', '--device', selected.serial, '--port', String(metroPort)],
+        resetLog: true,
       });
-      const expoBin = context.processEnv.SPENDEAZY_NV_EXPO || join(context.repoRoot, 'mobile-app', 'node_modules', 'expo', 'bin', 'cli');
-      const mode = context.processEnv.SPENDEAZY_NV_EXPO ? '--direct' : '--node';
-      const child = spawn(process.execPath, [
-        launcher,
-        expoBin,
-        mode,
-        'run:android',
-        '--device',
-        selected.serial,
-        '--port',
-        String(metroPort),
-      ], {
-        cwd: join(context.repoRoot, 'mobile-app'),
-        env: launchEnv,
-        detached: true,
-        stdio: 'ignore',
-        windowsHide: true,
-      });
-      child.unref();
-      const pidDeadline = Date.now() + 15_000;
-      let launcherPid = 0;
-      while (Date.now() < pidDeadline) {
-        try {
-          launcherPid = Number((await readFile(join(directory, 'metro.pid'), 'utf8')).trim());
-        } catch {
-          launcherPid = 0;
-        }
-        if (launcherPid > 1) break;
-        await delay(100);
-      }
-      if (!launcherPid) fail('launch-failed', 'The Expo launcher did not record its process id.');
-      const installed = await waitForLaunch(context, {
+      const launchedApp = await waitForLaunch(context, {
         manifest,
         serial: selected.serial,
         packageName,
@@ -967,7 +1014,10 @@ export async function launchNative(context, options) {
         expected: [deviceApi.apiUrl, publishableKey],
         launcherPid,
       });
+      const installed = launchedApp.installed;
       const fingerprint = installedFingerprint(configFingerprint, installed);
+      const nativeInputFingerprint = await nativeInputFingerprintOf(context);
+      const jsInputFingerprint = await jsInputFingerprintOf(context);
       manifest.extensions = {
         device: {
           serial: selected.serial,
@@ -988,6 +1038,9 @@ export async function launchNative(context, options) {
           configurationFingerprint: configFingerprint,
           sourceFingerprint: source.fingerprint,
           sourceRevision: source.revision,
+          nativeInputFingerprint,
+          jsInputFingerprint,
+          bundleDigest: launchedApp.bundle.digest,
           apiImageId: manifest.resources.api.imageId,
           metro: {
             port: metroPort,
@@ -1004,6 +1057,10 @@ export async function launchNative(context, options) {
             deviceApiReachable: true,
             clerkInstanceCompatible: true,
             clerkFrontendApi,
+            certifiesCurrentRevision: true,
+            sourceFingerprint: source.fingerprint,
+            sourceDirty: source.dirty,
+            bundleDigest: launchedApp.bundle.digest,
           },
         },
       };
@@ -1102,5 +1159,454 @@ export async function reloadNative(context, options) {
       authenticatedJourneyCertified: false,
     };
     return { exitCode: 0, body: await publicLaunch(context, manifest, 'reload', readiness) };
+  });
+}
+
+const bundleNotActive = 'A reload request alone does not certify the running bundle. Read the run launch.log and run refresh again. Previous source, build, and configuration evidence does not certify this revision.';
+
+async function waitForReloadLog(context, serial, timeoutMs) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const result = await adb(context, ['-s', serial, 'logcat', '-d', '-t', '200'], { allowFailure: true });
+    if (/Running application|Running ["']/.test(result.stdout)) return true;
+    await delay(200);
+  }
+  return false;
+}
+
+async function readDeviceBundle(context, serial, host, port, bundlePath, idle) {
+  const script = `: nv-bundle-raw; (printf 'GET ${bundlePath} HTTP/1.0\\r\\nHost: ${host}\\r\\n\\r\\n'; sleep 1) | nc -W ${idle} -w 10 ${host} ${port}`;
+  const result = await runProcess(adbBin(context), ['-s', serial, 'exec-out', 'sh', '-c', script], {
+    cwd: context.repoRoot,
+    env: context.processEnv,
+    secrets: context.secrets,
+    timeoutMs: (idle + 20) * 1000,
+    redactOutput: false,
+  });
+  if (result.code !== 0) return '';
+  return httpBodyDigest(result.stdout);
+}
+
+async function deviceBundleDigest(context, serial, port, bundlePath, timeoutMs) {
+  const idle = Math.max(5, Math.min(120, Math.ceil(timeoutMs / 1000)));
+  const direct = await readDeviceBundle(context, serial, '10.0.2.2', port, bundlePath, idle);
+  if (direct) return direct;
+  const listed = await reverseListed(context, serial, port);
+  let added = false;
+  if (!listed) {
+    const reversed = await adb(context, ['-s', serial, 'reverse', `tcp:${port}`, `tcp:${port}`], { allowFailure: true });
+    if (reversed.code !== 0) return '';
+    added = true;
+  }
+  try {
+    return await readDeviceBundle(context, serial, '127.0.0.1', port, bundlePath, idle);
+  } finally {
+    if (added) {
+      await adb(context, ['-s', serial, 'reverse', '--remove', `tcp:${port}`], { allowFailure: true });
+    }
+  }
+}
+
+async function proveActiveBundle(context, { serial, port, expected, previousDigest, jsChanged, timeoutMs }) {
+  await adb(context, ['-s', serial, 'logcat', '-c'], { allowFailure: true });
+  await reloadSocket(port);
+  const bundle = await fetchBundle(port, expected, timeoutMs);
+  if (!bundle) {
+    fail('running-config-mismatch', `After refresh, the Metro bundle does not contain the recorded launch configuration. ${bundleNotActive}`);
+  }
+  if (jsChanged && previousDigest && bundle.digest === previousDigest) {
+    fail('stale-bundle', `The served bundle still matches the previously certified bundle after the JavaScript inputs changed. ${bundleNotActive}`);
+  }
+  const reloaded = await waitForReloadLog(context, serial, timeoutMs);
+  if (!reloaded) fail('bundle-not-active', `The emulator did not log a JavaScript reload. ${bundleNotActive}`);
+  const observed = await deviceBundleDigest(context, serial, port, bundle.path, timeoutMs);
+  if (observed !== bundle.digest) {
+    fail('bundle-not-active', `The bundle fetched on the emulator does not match the Metro bundle. ${bundleNotActive}`);
+  }
+  return bundle;
+}
+
+async function inspectBuildCache(context, { abi, fingerprint, packageName }) {
+  const root = join(context.stateDir, 'build-cache');
+  const rejected = [];
+  let compatible = null;
+  if (!await pathExists(root)) return { compatible, rejected };
+  const abiEntries = await readdir(root, { withFileTypes: true });
+  for (const abiEntry of abiEntries) {
+    if (!abiEntry.isDirectory()) continue;
+    const fingerprintEntries = await readdir(join(root, abiEntry.name), { withFileTypes: true });
+    for (const fingerprintEntry of fingerprintEntries) {
+      if (!fingerprintEntry.isDirectory()) continue;
+      const directory = join(root, abiEntry.name, fingerprintEntry.name);
+      const artifact = join(directory, 'app.apk');
+      if (!await pathExists(artifact)) continue;
+      let metadata = {};
+      try {
+        metadata = JSON.parse(await readFile(join(directory, 'metadata.json'), 'utf8'));
+      } catch {
+        metadata = {};
+      }
+      const matches = metadata.nativeInputFingerprint === fingerprint
+        && metadata.abi === abi
+        && metadata.packageName === packageName
+        && abiEntry.name === abi
+        && fingerprintEntry.name === fingerprint;
+      if (matches) compatible = { artifact };
+      else rejected.push({ abi: abiEntry.name, nativeInputFingerprint: fingerprintEntry.name });
+    }
+  }
+  return { compatible, rejected };
+}
+
+async function findBuiltApk(context) {
+  const root = join(appRoot(context), 'android', 'app', 'build', 'outputs', 'apk');
+  if (!await pathExists(root)) return null;
+  const entries = await readdir(root, { recursive: true });
+  const found = [];
+  for (const entry of entries) {
+    const relative = String(entry);
+    if (!relative.endsWith('.apk')) continue;
+    const absolute = join(root, relative);
+    const info = await stat(absolute);
+    if (info.isFile()) found.push({ absolute, mtimeMs: info.mtimeMs });
+  }
+  found.sort((left, right) => right.mtimeMs - left.mtimeMs);
+  return found[0]?.absolute || null;
+}
+
+async function storeCompatibleApk(context, { abi, fingerprint, packageName }) {
+  if (!/^[0-9a-f]{64}$/.test(fingerprint) || !/^(?:armeabi-v7a|arm64-v8a|x86|x86_64)$/.test(abi)) return false;
+  const built = await findBuiltApk(context);
+  if (!built) return false;
+  const directory = join(context.stateDir, 'build-cache', abi, fingerprint);
+  await mkdir(directory, { recursive: true });
+  await copyFile(built, join(directory, 'app.apk'));
+  await writeFile(join(directory, 'metadata.json'), `${JSON.stringify({
+    nativeInputFingerprint: fingerprint,
+    abi,
+    packageName,
+    artifactName: 'app.apk',
+  }, null, 2)}\n`);
+  return true;
+}
+
+async function ensureAppRunning(context, serial, packageName) {
+  if (await appRunning(context, serial, packageName)) return;
+  const started = await adb(context, [
+    '-s', serial, 'shell', 'monkey', '-p', packageName, '-c', 'android.intent.category.LAUNCHER', '1',
+  ], { allowFailure: true });
+  if (started.code !== 0 || !await appRunning(context, serial, packageName)) {
+    fail('launch-failed', `${packageName} is not running on ${serial} after the native install. Launch it again through Expo; a deep link was not used.`);
+  }
+}
+
+async function restartOwnedMetro(context, manifest, { port, config, forceRestart, launcherPid }) {
+  const listeners = await listenerPids(port);
+  let owned = false;
+  for (const pid of listeners) {
+    if (await ownedLauncherPid(pid, manifest.runId)) owned = true;
+  }
+  if (owned && !forceRestart && await metroStatus(port)) return launcherPid;
+  if (listeners.length > 0) {
+    const report = { removed: { processes: [] }, skipped: [] };
+    await stopOwnedMetro(context, manifest, report);
+    if (report.skipped.some((entry) => entry.type === 'metro')) {
+      block('port-conflict', `Metro port ${port} is still held. The refresh did not replace that process.`);
+    }
+  }
+  if (!await portFree(port)) {
+    block('port-conflict', `Metro port ${port} is held by another process. The existing listener was left untouched.`);
+  }
+  return startOwnedExpo(context, manifest, {
+    config,
+    expoArgs: ['start', '--dev-client', '--port', String(port)],
+    resetLog: false,
+  });
+}
+
+function applyRefreshEvidence(manifest, source, details) {
+  const launchEvidence = manifest.extensions?.evidence?.launch;
+  manifest.source = {
+    root: source.root,
+    revision: source.revision,
+    dirty: source.dirty,
+    fingerprint: source.fingerprint,
+  };
+  manifest.extensions.evidence = {
+    ...(manifest.extensions.evidence || {}),
+    launch: launchEvidence ? { ...launchEvidence, certifiesCurrentRevision: false } : launchEvidence,
+    refresh: {
+      at: new Date().toISOString(),
+      outcome: 'refreshed',
+      certifiesCurrentRevision: true,
+      authenticatedJourneyCertified: false,
+      bundleObservedOnDevice: true,
+      configurationObservedInBundle: true,
+      ...details,
+      sourceFingerprint: source.fingerprint,
+      sourceRevision: source.revision,
+      sourceDirty: source.dirty,
+    },
+  };
+  manifest.updatedAt = new Date().toISOString();
+}
+
+export async function refreshNative(context, options) {
+  return withLaunchOutcome(async () => {
+    const publishableKey = context.processEnv.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY?.trim() || '';
+    if (!publishableKey) {
+      block('missing-configuration', 'Set EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY in the refresh environment. A mobile env file is not the running configuration.');
+    }
+    const frontendApi = decodePublishableKey(publishableKey);
+    const androidClientId = context.processEnv.EXPO_PUBLIC_CLERK_GOOGLE_ANDROID_CLIENT_ID?.trim() || '';
+    const packageName = await readAppIdentity(context);
+    const source = await sourceIdentity(context);
+    const manifest = await resolveSelected(context, options, source, { requireCompatible: true });
+    await requireOwnedDatabase(context, manifest);
+    const build = manifest.extensions?.nativeBuild;
+    const device = manifest.extensions?.device;
+    if (!build?.metro?.port || !build.fingerprint || !device?.serial || !device.apiUrl) {
+      block('identity-mismatch', `Run ${manifest.runId} has no recorded native launch to refresh.`);
+    }
+    const selected = await selectDevice(context, { ...options, serial: options.serial || device.serial });
+    if (selected.serial !== device.serial) {
+      block('identity-mismatch', `Run ${manifest.runId} is recorded on ${device.serial}. ${selected.serial} was not accepted as that device.`);
+    }
+    const abi = await deviceProperty(context, selected.serial, 'ro.product.cpu.abi');
+    if (!abi) block('host-capability', `adb could not read the ABI for ${selected.serial}.`);
+    if (options.abi && options.abi !== abi) {
+      block('identity-mismatch', `Device ${selected.serial} is ${abi}. The requested ABI was ${options.abi}.`);
+    }
+    if (build.abi !== abi || device.abi !== abi) {
+      block('identity-mismatch', `Run ${manifest.runId} is recorded for ABI ${build.abi}. This device is ${abi}.`);
+    }
+    const nativeInputFingerprint = await nativeInputFingerprintOf(context);
+    const jsInputFingerprint = await jsInputFingerprintOf(context);
+    const configFingerprint = configurationFingerprint({
+      packageName,
+      abi,
+      apiBaseUrl: device.apiUrl,
+      publishableKey,
+      androidClientId,
+    });
+    const nativeChanged = nativeInputFingerprint !== build.nativeInputFingerprint;
+    const configChanged = configFingerprint !== build.configurationFingerprint;
+    const previousSourceFingerprint = manifest.extensions?.evidence?.refresh?.sourceFingerprint || build.sourceFingerprint || null;
+    const previousEvidenceCertifiesRevision = previousEvidenceCertifies(manifest, source, {
+      nativeChanged,
+      configChanged,
+      jsInputFingerprint,
+      nativeInputFingerprint,
+    });
+    const workers = gradleMaxWorkers(context);
+    const bundleTimeout = configuredInt(context.processEnv.SPENDEAZY_NV_BUNDLE_TIMEOUT_MS, 180_000, 'SPENDEAZY_NV_BUNDLE_TIMEOUT_MS', 1_800_000);
+    const expected = [device.apiUrl, publishableKey];
+    const config = {
+      apiBaseUrl: device.apiUrl,
+      publishableKey,
+      androidClientId,
+      abi,
+    };
+
+    if (!nativeChanged && !configChanged) {
+      const listeners = await listenerPids(build.metro.port);
+      let owned = false;
+      for (const pid of listeners) {
+        if (await ownedLauncherPid(pid, manifest.runId)) owned = true;
+      }
+      if (!owned) block('identity-mismatch', `Metro port ${build.metro.port} is not the Metro server recorded for ${manifest.runId}.`);
+      if (!await metroStatus(build.metro.port)) fail('reload-failed', 'The recorded Metro server is not responding.');
+      if (!await appRunning(context, device.serial, packageName)) {
+        fail('reload-failed', `${packageName} is not running on ${device.serial}. Launch it again through Expo; a deep link was not used.`);
+      }
+      const bundle = await proveActiveBundle(context, {
+        serial: device.serial,
+        port: build.metro.port,
+        expected,
+        previousDigest: build.bundleDigest,
+        jsChanged: jsInputFingerprint !== build.jsInputFingerprint,
+        timeoutMs: bundleTimeout,
+      });
+      manifest.extensions.nativeBuild = {
+        ...build,
+        sourceFingerprint: source.fingerprint,
+        sourceRevision: source.revision,
+        jsInputFingerprint,
+        bundleDigest: bundle.digest,
+        nativeInputFingerprint,
+      };
+      applyRefreshEvidence(manifest, source, {
+        mode: 'javascript-reload',
+        previousEvidenceCertifiesRevision,
+        previousSourceFingerprint,
+        nativeInputFingerprint,
+        jsInputFingerprint,
+        bundleDigest: bundle.digest,
+        nativeBuildReused: false,
+        incompatibleArtifactRejected: false,
+        gradleMaxWorkers: workers,
+        abi,
+        invalidatedBy: null,
+      });
+      await writeManifest(context, manifest);
+      return {
+        exitCode: 0,
+        body: await publicLaunch(context, manifest, 'refresh', {
+          mode: 'javascript-reload',
+          certifiesCurrentRevision: true,
+          previousEvidenceCertifiesRevision,
+          previousSourceFingerprint,
+          sourceFingerprint: source.fingerprint,
+          sourceDirty: source.dirty,
+          bundleObservedOnDevice: true,
+          configurationObservedInBundle: true,
+          bundleDigest: bundle.digest,
+          nativeInputFingerprint,
+          jsInputFingerprint,
+          nativeBuildReused: false,
+          incompatibleArtifactRejected: false,
+          gradleMaxWorkers: workers,
+          abi,
+          invalidatedBy: null,
+          device: { serial: device.serial, abi, emulator: device.emulator },
+          metro: build.metro,
+          nativeBuildFingerprint: build.fingerprint,
+          authenticatedJourneyCertified: false,
+        }, 'refreshed'),
+      };
+    }
+
+    await preflightHost(context, { requireBuildTools: true });
+    const observation = await observe(context, manifest);
+    if (!observation.api.identityMatches || observation.api.status !== 'running') {
+      block('api-unready', `Run ${manifest.runId} has no running owned API. Start or replace the API before refreshing native inputs.`);
+    }
+    await hostApiReady(manifest.ports.api);
+    const env = await containerEnv(context, observation.api.id);
+    await clerkCompatible(context, env, frontendApi);
+    const cache = await inspectBuildCache(context, { abi, fingerprint: nativeInputFingerprint, packageName });
+    const incompatibleArtifactRejected = cache.rejected.length > 0;
+    let installed;
+    let launcherPid = build.metro.launcherPid;
+    let nativeBuildReused = false;
+    if (cache.compatible) {
+      const installedApk = await adb(context, ['-s', device.serial, 'install', '-r', cache.compatible.artifact], {
+        allowFailure: true,
+        timeoutMs: 180_000,
+      });
+      if (installedApk.code !== 0) {
+        fail('launch-failed', `The compatible cached build could not be installed on ${device.serial}. ${bundleNotActive}`);
+      }
+      nativeBuildReused = true;
+      installed = await readInstalledPackage(context, device.serial, packageName);
+      if (!installed) fail('launch-failed', `The cached build did not leave ${packageName} installed on ${device.serial}.`);
+      await ensureAppRunning(context, device.serial, packageName);
+      launcherPid = await restartOwnedMetro(context, manifest, {
+        port: build.metro.port,
+        config,
+        forceRestart: configChanged,
+        launcherPid,
+      });
+      const ready = await fetchBundle(build.metro.port, expected, bundleTimeout);
+      if (!ready) {
+        fail('running-config-mismatch', `After installing the cached build, the Metro bundle does not contain the launch configuration. ${bundleNotActive}`);
+      }
+    } else {
+      if ((await listenerPids(build.metro.port)).length > 0) {
+        const report = { removed: { processes: [] }, skipped: [] };
+        await stopOwnedMetro(context, manifest, report);
+        if (report.skipped.some((entry) => entry.type === 'metro')) {
+          block('port-conflict', `Metro port ${build.metro.port} is still held. The refresh did not start a second Metro server.`);
+        }
+      }
+      if (!await portFree(build.metro.port)) {
+        block('port-conflict', `Metro port ${build.metro.port} is held by another process. The existing listener was left untouched.`);
+      }
+      launcherPid = await startOwnedExpo(context, manifest, {
+        config,
+        expoArgs: ['run:android', '--device', device.serial, '--port', String(build.metro.port)],
+        resetLog: false,
+      });
+      const launchedApp = await waitForLaunch(context, {
+        manifest,
+        serial: device.serial,
+        packageName,
+        port: build.metro.port,
+        expected,
+        launcherPid,
+      });
+      installed = launchedApp.installed;
+      await storeCompatibleApk(context, { abi, fingerprint: nativeInputFingerprint, packageName });
+    }
+    if (installed.primaryCpuAbi !== abi) {
+      fail('launch-failed', `The installed build is ${installed.primaryCpuAbi}. The selected emulator ABI is ${abi}. That artifact was not certified.`);
+    }
+    const bundle = await proveActiveBundle(context, {
+      serial: device.serial,
+      port: build.metro.port,
+      expected,
+      previousDigest: build.bundleDigest,
+      jsChanged: jsInputFingerprint !== build.jsInputFingerprint,
+      timeoutMs: bundleTimeout,
+    });
+    const fingerprint = installedFingerprint(configFingerprint, installed);
+    manifest.extensions.nativeBuild = {
+      ...build,
+      abi,
+      versionName: installed.versionName,
+      versionCode: installed.versionCode,
+      fingerprint,
+      configurationFingerprint: configFingerprint,
+      sourceFingerprint: source.fingerprint,
+      sourceRevision: source.revision,
+      nativeInputFingerprint,
+      jsInputFingerprint,
+      bundleDigest: bundle.digest,
+      metro: {
+        ...build.metro,
+        launcherPid,
+      },
+    };
+    manifest.extensions.device = { ...device, abi };
+    applyRefreshEvidence(manifest, source, {
+      mode: 'native-rebuild',
+      previousEvidenceCertifiesRevision,
+      previousSourceFingerprint,
+      nativeInputFingerprint,
+      jsInputFingerprint,
+      bundleDigest: bundle.digest,
+      nativeBuildReused,
+      incompatibleArtifactRejected,
+      gradleMaxWorkers: workers,
+      abi,
+      invalidatedBy: nativeChanged ? 'native-inputs' : 'configuration',
+      nativeBuildFingerprint: fingerprint,
+    });
+    await writeManifest(context, manifest);
+    return {
+      exitCode: 0,
+      body: await publicLaunch(context, manifest, 'refresh', {
+        mode: 'native-rebuild',
+        certifiesCurrentRevision: true,
+        previousEvidenceCertifiesRevision,
+        previousSourceFingerprint,
+        sourceFingerprint: source.fingerprint,
+        sourceDirty: source.dirty,
+        bundleObservedOnDevice: true,
+        configurationObservedInBundle: true,
+        bundleDigest: bundle.digest,
+        nativeInputFingerprint,
+        jsInputFingerprint,
+        nativeBuildReused,
+        incompatibleArtifactRejected,
+        gradleMaxWorkers: workers,
+        abi,
+        invalidatedBy: nativeChanged ? 'native-inputs' : 'configuration',
+        device: { serial: device.serial, abi, emulator: device.emulator },
+        metro: manifest.extensions.nativeBuild.metro,
+        nativeBuildFingerprint: fingerprint,
+        authenticatedJourneyCertified: false,
+      }, 'refreshed'),
+    };
   });
 }

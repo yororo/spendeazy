@@ -22,7 +22,7 @@ npm --prefix mobile-app run parser:test
 npm --prefix mobile-app test
 ```
 
-Run checks regularly. `parser:test` uses fictional fixtures; it does not establish build, device, accessibility or parser launch acceptance. See [mobile setup and evidence](README.md) and [root local testing](../docs/local-testing.md).
+Run checks regularly. The mobile CI job runs these four commands, and a failure fails the job. `parser:test` uses fictional fixtures. `npm test` is the application regression suite. Neither command, nor a green CI run, establishes build, device, accessibility, emulator, or parser launch acceptance. See [mobile setup and evidence](README.md) and [root local testing](../docs/local-testing.md).
 
 ## Navigation and native builds
 

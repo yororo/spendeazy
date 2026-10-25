@@ -82,7 +82,7 @@ jobs:
       - name: Verify release gates and planner
         run: |
           node scripts/verify-release-gates.mjs
-          node --test scripts/release-plan.test.mjs scripts/local-test-launcher.test.mjs scripts/documentation-changes.test.mjs
+          node --test scripts/release-plan.test.mjs scripts/local-test-launcher.test.mjs scripts/documentation-changes.test.mjs scripts/verify-release-gates.test.mjs
         env:
           CI: true
       - name: Test PostgreSQL test-runner configuration
@@ -129,6 +129,9 @@ jobs:
         working-directory: mobile-app
       - name: Type-check mobile
         run: npm run typecheck
+        working-directory: mobile-app
+      - name: Test mobile application behavior
+        run: npm test
         working-directory: mobile-app
 
   validate:

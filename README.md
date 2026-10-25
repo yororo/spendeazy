@@ -21,4 +21,4 @@ The API resolves the authenticated User, authorizes the requested Space, validat
 
 ## Local validation
 
-Install dependencies in the owning project. API unit/HTTP/PostgreSQL checks and mobile lint/type/parser checks run independently. The root [local testing guide](docs/local-testing.md) documents commands, disposable databases and device setup. Lint, type checks and parser fixtures are software checks; native build/device review and the parser launch gate in issue [#138](https://github.com/yororo/spendeazy/issues/138) remain separate release evidence.
+Install dependencies in the owning project. API unit/HTTP/PostgreSQL checks and mobile application, lint, type, and parser checks run independently. The root [local testing guide](docs/local-testing.md) documents commands, disposable databases and device setup. Application tests, lint, type checks, and parser fixtures are software checks; native build/device review and the parser launch gate in issue [#138](https://github.com/yororo/spendeazy/issues/138) remain separate release evidence.

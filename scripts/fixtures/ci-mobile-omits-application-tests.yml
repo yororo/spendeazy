@@ -1,0 +1,11 @@
+# Test-owned workflow fragment. It keeps parser, lint, and type checks and
+# omits the mobile application test command so the release-gate check must fail.
+jobs:
+  mobile:
+    steps:
+      - run: npm run parser:test
+        working-directory: mobile-app
+      - run: npm run lint
+        working-directory: mobile-app
+      - run: npm run typecheck
+        working-directory: mobile-app

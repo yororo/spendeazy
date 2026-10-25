@@ -76,9 +76,10 @@ From the repository root:
 npm --prefix mobile-app run lint
 npm --prefix mobile-app run typecheck
 npm --prefix mobile-app run parser:test
+npm --prefix mobile-app test
 ```
 
-These checks establish static code and local parser-fixture behavior. They do not establish that the app builds and works on supported native devices.
+The mobile CI job runs the same four commands. `npm test` is the existing application regression suite. Parser fixtures stay fictional. None of these commands sign in with Google, drive an emulator, or certify a native release. Android emulator and physical iPhone evidence stay outside this deterministic path.
 
 ## Device acceptance and backend boundaries
 

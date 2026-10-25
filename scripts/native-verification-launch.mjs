@@ -1317,13 +1317,22 @@ export async function coldRestartPreservingState(context, manifest, launch) {
   const serial = device.serial;
   const packageName = build.packageName;
   const deadline = Date.now() + timeoutMs;
+  const observation = await observe(context, manifest);
+  const imageId = observation.api.imageId || '';
+  if (!observation.api.identityMatches || observation.api.status !== 'running') {
+    fail('api-unready', `Run ${manifest.runId} has no running owned API. The cold restart was not performed.`);
+  }
+  if ((manifest.resources?.api?.imageId && imageId && imageId !== manifest.resources.api.imageId)
+    || (build.apiImageId && imageId && imageId !== build.apiImageId)) {
+    await failUncertified(context, manifest, 'identity-mismatch', `The running API image does not match the image recorded for ${manifest.runId}.`);
+  }
   await adb(context, ['-s', serial, 'logcat', '-c'], { allowFailure: true });
   const stopped = await adb(context, ['-s', serial, 'shell', 'am', 'force-stop', packageName], { allowFailure: true });
-  if (stopped.code !== 0) await failUncertified(context, manifest, 'reload-failed', `${packageName} could not be force-stopped. App data was not cleared.`);
+  if (stopped.code !== 0) fail('reload-failed', `${packageName} could not be force-stopped. App data was not cleared.`);
   const started = await adb(context, [
     '-s', serial, 'shell', 'monkey', '-p', packageName, '-c', 'android.intent.category.LAUNCHER', '1',
   ], { allowFailure: true, timeoutMs: 30_000 });
-  if (started.code !== 0) await failUncertified(context, manifest, 'reload-failed', `${packageName} did not start after the cold restart. App data was not cleared.`);
+  if (started.code !== 0) fail('reload-failed', `${packageName} did not start after the cold restart. App data was not cleared.`);
   let running = false;
   while (Date.now() < deadline) {
     if (await appRunning(context, serial, packageName)) {
@@ -1332,7 +1341,7 @@ export async function coldRestartPreservingState(context, manifest, launch) {
     }
     await delay(200);
   }
-  if (!running) await failUncertified(context, manifest, 'reload-failed', `${packageName} was not running after the cold restart. App data was not cleared.`);
+  if (!running) fail('reload-failed', `${packageName} was not running after the cold restart. App data was not cleared.`);
   const remaining = () => Math.max(1_000, deadline - Date.now());
   const expected = [device.apiUrl, publishableKey];
   const bundle = await fetchBundle(build.metro.port, expected, remaining());
@@ -1360,6 +1369,7 @@ export async function coldRestartPreservingState(context, manifest, launch) {
   }
   const previousSourceFingerprint = manifest.extensions?.evidence?.refresh?.sourceFingerprint || build.sourceFingerprint || null;
   applyRefreshEvidence(manifest, source, {
+    outcome: 'cold-restart',
     mode: 'cold-restart',
     previousEvidenceCertifiesRevision: previousEvidenceCertifies(manifest, source, {
       nativeChanged: false,
@@ -1508,7 +1518,7 @@ function applyRefreshEvidence(manifest, source, details) {
     launch: launchEvidence ? { ...launchEvidence, certifiesCurrentRevision: false } : launchEvidence,
     refresh: {
       at: new Date().toISOString(),
-      outcome: 'refreshed',
+      outcome: details.outcome || 'refreshed',
       certifiesCurrentRevision: true,
       authenticatedJourneyCertified: false,
       bundleObservedOnDevice: true,

@@ -979,6 +979,7 @@ createServer((request, response) => {
     assert.equal(passedBody.journey.claims.softwareChecks.certifies, false);
     assert.equal(passedBody.journey.claims.buildInstallation.certifies, false);
     assert.equal(passedBody.journey.claims.uiAssertions.certifies, true);
+    assert.equal(passedBody.extensions.evidence.refresh.outcome, 'cold-restart');
     assert.equal(passedBody.extensions.evidence.refresh.mode, 'cold-restart');
     assert.equal(passedBody.extensions.evidence.refresh.dataCleared, false);
     assert.equal(passedBody.extensions.evidence.refresh.certifiesCurrentRevision, true);

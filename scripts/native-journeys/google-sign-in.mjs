@@ -14,6 +14,7 @@ const rejectedScreens = [
   { text: 'Could not reach Spendeazy. Check your connection and try again.' },
   { text: 'The API response could not be read. Try again.' },
   { text: 'The request could not be completed. Try again.' },
+  { text: 'This device could not remember the active Space.' },
 ];
 
 const failureLogs = [
@@ -28,7 +29,7 @@ const accountReason = accountLabel
 
 export default {
   id: 'google-sign-in',
-  summary: 'Signs in from the Google sign-in screen with the dedicated development account, then waits until Personal Space has loaded and Dashboard stays up. An existing session is not sign-in proof. It does not clear Google accounts or other app sessions.',
+  summary: 'Signs in from the Google sign-in screen with the dedicated development account, waits until Personal Space has loaded and Dashboard stays up, then cold-restarts the app without clearing its data and checks that the session and remembered Personal Space are still there. An existing session is not sign-in proof. It does not clear Google accounts or other app sessions.',
   certifiesAuthenticatedSignIn: true,
   steps: [
     {
@@ -77,6 +78,28 @@ export default {
     },
     {
       id: 'dashboard-remains',
+      action: 'see',
+      selector: { text: 'Dashboard' },
+      reject: rejectedScreens,
+      timeoutMs: 5000,
+    },
+    {
+      id: 'cold-restart',
+      action: 'cold-reload',
+    },
+    {
+      id: 'session-retained',
+      action: 'settle',
+      selector: { text: 'Dashboard' },
+      also: [{ text: 'Personal' }, { text: 'Active Space' }],
+      gone: [{ text: 'Loading Spaces.' }],
+      reject: rejectedScreens,
+      failIfLog: failureLogs,
+      holdMs: 2500,
+      timeoutMs: 20000,
+    },
+    {
+      id: 'dashboard-after-restart',
       action: 'see',
       selector: { text: 'Dashboard' },
       reject: rejectedScreens,

@@ -1284,6 +1284,114 @@ async function proveActiveBundle(context, { serial, port, expected, timeoutMs })
   return bundle;
 }
 
+async function dropRevisionCertification(context, manifest) {
+  const refresh = manifest.extensions?.evidence?.refresh;
+  if (!refresh?.certifiesCurrentRevision) return;
+  refresh.certifiesCurrentRevision = false;
+  refresh.bundleObservedOnDevice = false;
+  manifest.updatedAt = new Date().toISOString();
+  await writeManifest(context, manifest);
+}
+
+async function failUncertified(context, manifest, code, message) {
+  await dropRevisionCertification(context, manifest);
+  fail(code, message);
+}
+
+export async function coldRestartPreservingState(context, manifest, launch) {
+  const publishableKey = context.processEnv.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY?.trim() || '';
+  if (!publishableKey) {
+    block('missing-configuration', 'Set EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY. A mobile env file is not the running configuration.');
+  }
+  const { build, device } = launch;
+  const nativeInputFingerprint = await nativeInputFingerprintOf(context);
+  const jsInputFingerprint = await jsInputFingerprintOf(context);
+  const source = await sourceIdentity(context);
+  if (!build.nativeInputFingerprint || !build.jsInputFingerprint
+    || build.nativeInputFingerprint !== nativeInputFingerprint
+    || build.jsInputFingerprint !== jsInputFingerprint
+    || source.fingerprint !== build.sourceFingerprint) {
+    await failUncertified(context, manifest, 'revision-not-certified', 'The recorded launch does not match the current source, JavaScript inputs, and native inputs. Run refresh before this journey. Previous evidence does not certify this revision.');
+  }
+  const timeoutMs = configuredInt(context.processEnv.SPENDEAZY_NV_BUNDLE_TIMEOUT_MS, 180_000, 'SPENDEAZY_NV_BUNDLE_TIMEOUT_MS', 1_800_000);
+  const serial = device.serial;
+  const packageName = build.packageName;
+  const deadline = Date.now() + timeoutMs;
+  const observation = await observe(context, manifest);
+  const imageId = observation.api.imageId || '';
+  if (!observation.api.identityMatches || observation.api.status !== 'running') {
+    fail('api-unready', `Run ${manifest.runId} has no running owned API. The cold restart was not performed.`);
+  }
+  if ((manifest.resources?.api?.imageId && imageId && imageId !== manifest.resources.api.imageId)
+    || (build.apiImageId && imageId && imageId !== build.apiImageId)) {
+    await failUncertified(context, manifest, 'identity-mismatch', `The running API image does not match the image recorded for ${manifest.runId}.`);
+  }
+  await adb(context, ['-s', serial, 'logcat', '-c'], { allowFailure: true });
+  const stopped = await adb(context, ['-s', serial, 'shell', 'am', 'force-stop', packageName], { allowFailure: true });
+  if (stopped.code !== 0) fail('reload-failed', `${packageName} could not be force-stopped. App data was not cleared.`);
+  const started = await adb(context, [
+    '-s', serial, 'shell', 'monkey', '-p', packageName, '-c', 'android.intent.category.LAUNCHER', '1',
+  ], { allowFailure: true, timeoutMs: 30_000 });
+  if (started.code !== 0) fail('reload-failed', `${packageName} did not start after the cold restart. App data was not cleared.`);
+  let running = false;
+  while (Date.now() < deadline) {
+    if (await appRunning(context, serial, packageName)) {
+      running = true;
+      break;
+    }
+    await delay(200);
+  }
+  if (!running) fail('reload-failed', `${packageName} was not running after the cold restart. App data was not cleared.`);
+  const remaining = () => Math.max(1_000, deadline - Date.now());
+  const expected = [device.apiUrl, publishableKey];
+  const bundle = await fetchBundle(build.metro.port, expected, remaining());
+  if (!bundle) {
+    await failUncertified(context, manifest, 'bundle-not-active', `After the cold restart, the Metro bundle does not contain the recorded launch configuration. ${bundleNotActive}`);
+  }
+  const reloaded = await waitForReloadLog(context, serial, remaining());
+  if (!reloaded) await failUncertified(context, manifest, 'bundle-not-active', `The emulator did not log a JavaScript start after the cold restart. ${bundleNotActive}`);
+  const observed = await deviceBundleDigest(context, serial, build.metro.port, bundle.path, remaining());
+  if (observed !== bundle.digest) {
+    await failUncertified(context, manifest, 'bundle-not-active', `The bundle fetched on the emulator after the cold restart does not match Metro. ${bundleNotActive}`);
+  }
+  const androidClientId = context.processEnv.EXPO_PUBLIC_CLERK_GOOGLE_ANDROID_CLIENT_ID?.trim() || '';
+  const configFingerprint = configurationFingerprint({
+    packageName,
+    abi: build.abi,
+    apiBaseUrl: device.apiUrl,
+    publishableKey,
+    androidClientId,
+  });
+  const installed = await readInstalledPackage(context, serial, packageName);
+  const currentBuild = installed ? installedFingerprint(configFingerprint, installed) : '';
+  if (configFingerprint !== build.configurationFingerprint || !installed || currentBuild !== build.fingerprint) {
+    await failUncertified(context, manifest, 'identity-mismatch', `The installed ${packageName} build does not match the launch recorded for ${manifest.runId}.`);
+  }
+  const previousSourceFingerprint = manifest.extensions?.evidence?.refresh?.sourceFingerprint || build.sourceFingerprint || null;
+  applyRefreshEvidence(manifest, source, {
+    outcome: 'cold-restart',
+    mode: 'cold-restart',
+    previousEvidenceCertifiesRevision: previousEvidenceCertifies(manifest, source, {
+      nativeChanged: false,
+      configChanged: false,
+      jsInputFingerprint,
+      nativeInputFingerprint,
+    }),
+    previousSourceFingerprint,
+    nativeInputFingerprint,
+    jsInputFingerprint,
+    bundleDigest: bundle.digest,
+    nativeBuildReused: true,
+    incompatibleArtifactRejected: false,
+    gradleMaxWorkers: gradleMaxWorkers(context),
+    abi: build.abi,
+    invalidatedBy: null,
+    dataCleared: false,
+  });
+  await writeManifest(context, manifest);
+  return { bundleDigest: bundle.digest, packageName, dataCleared: false };
+}
+
 async function inspectBuildCache(context, { abi, fingerprint, packageName }) {
   const root = join(context.stateDir, 'build-cache');
   const rejected = [];
@@ -1410,7 +1518,7 @@ function applyRefreshEvidence(manifest, source, details) {
     launch: launchEvidence ? { ...launchEvidence, certifiesCurrentRevision: false } : launchEvidence,
     refresh: {
       at: new Date().toISOString(),
-      outcome: 'refreshed',
+      outcome: details.outcome || 'refreshed',
       certifiesCurrentRevision: true,
       authenticatedJourneyCertified: false,
       bundleObservedOnDevice: true,

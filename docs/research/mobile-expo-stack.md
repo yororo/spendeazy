@@ -1,5 +1,7 @@
 # Official Expo stack and Windows-to-iPhone workflow
 
+Current local startup and device instructions are maintained in [the local runbook](../local-testing.md); this report records the original stack research.
+
 Research date: 2026-10-22 (Asia/Manila). Evidence for [Verify the official Expo stack and Windows-to-iPhone development workflow](https://github.com/yororo/spendeazy/issues/125), within [Chart the Spendeazy mobile replacement specification](https://github.com/yororo/spendeazy/issues/124).
 
 This report predates [ticket #141](https://github.com/yororo/spendeazy/issues/141). Its synthetic browser-launcher descriptions and commands are historical; the browser app and its acceptance stack have since been retired. Use [current local testing guidance](../local-testing.md) and the [mobile README](../../mobile-app/README.md) for current setup.

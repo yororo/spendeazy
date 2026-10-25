@@ -1,0 +1,22 @@
+# Local manual testing only. These credentials are public development defaults.
+name: spendeazy-manual
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: spendeazy_disposable_manual
+      POSTGRES_USER: spendeazy
+      POSTGRES_PASSWORD: spendeazy_local_only
+    ports:
+      - "127.0.0.1:${SPENDEAZY_MANUAL_DB_PORT:-55433}:5432"
+    volumes:
+      - manual-data:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U spendeazy -d spendeazy_disposable_manual"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  manual-data:

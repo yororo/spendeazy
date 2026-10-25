@@ -12,43 +12,17 @@ Android emulator and physical-iPhone sign-in evidence is still required before t
 
 For mobile implementation and review, follow the [coding standards](docs/CODING_STANDARDS.md).
 
-## Setup and checks
+## Local development and testing
 
-Use Node.js 24.11.1 to match CI. From the repository root:
+Use [the local runbook](../docs/local-testing.md) for first-time setup, daily startup, native build/reload, Google configuration, device networking, manual checks, shutdown and reset. Humans and agents use the same standard commands. Run [software checks](../docs/local-checks.md#mobile) separately.
 
-```bash
-npm ci --prefix mobile-app
-npm --prefix mobile-app run lint
-npm --prefix mobile-app run typecheck
-npm --prefix mobile-app run parser:test
-npm --prefix mobile-app test
-```
-
-`parser:test` prepares the bundled parser prototype and runs fictional provider/Category Rule regressions. It does not establish native build or device acceptance. The internal PDF.js parser runs inside a native WebView; this is not a browser app.
-
-## Native development
-
-Install Android Studio and create an Android emulator, then generate and run a native development build from `mobile-app/`:
-
-```bash
-npx expo run:android
-```
-
-For a physical iPhone, build an internal native binary with EAS from `mobile-app/`:
-
-```bash
-npx eas-cli@latest build --profile development --platform ios
-```
-
-Use `npx expo start --dev-client` to run JavaScript in an installed development build. Expo Go is not a substitute for the native modules used by this app. iOS simulator and local Xcode builds require macOS.
-
-The parser prototype route can be run with `npm run parser:proof` after a development build is installed. `npm run parser:prepare` bundles PDF.js, its worker and resources for the local WebView; EAS runs it through `eas-build-post-install`.
+`npm run parser:prepare` bundles the on-device PDF.js worker/resources before local bundling; EAS runs the same preparation through `eas-build-post-install`. The prototype is accessible at `/parser-proof` and remains outside the signed-in product tabs.
 
 ## API and device testing
 
-Set `EXPO_PUBLIC_API_BASE_URL`, `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY`, and the Google client IDs in a local `mobile-app/.env.local`; `mobile-app/.env.example` lists them. The signed-in client calls the [OpenAPI contract](../api/docs/openapi.yaml): `PUT /api/v1/users/me` provisions or synchronizes the User before `GET /api/v1/users/me/spaces` lists Spaces; `GET` and `POST /api/v1/users/me/spaces/{spaceId}/expenses` list and create Expenses; `GET`, `PATCH`, and `DELETE /api/v1/users/me/spaces/{spaceId}/expenses/{expenseId}` read, edit, and delete an Expense; `GET /api/v1/users/me/spaces/{spaceId}/expenses/{expenseId}/activity` lists Activity. The sign-in screen supplies the Clerk session token; requests do not send a User id. Use `http://10.0.2.2:3000` for an Android emulator reaching the development computer, `http://<computer-lan-address>:3000` for a trusted local network device, or a device-reachable HTTPS URL for a hosted development API. A base URL and client code do not establish backend or device acceptance.
+The signed-in client uses the [OpenAPI contract](../api/docs/openapi.yaml): `PUT /api/v1/users/me` provisions/synchronizes the User, `GET /api/v1/users/me/spaces` lists authorized Spaces, `GET`/`POST /api/v1/users/me/spaces/{spaceId}/expenses` browse/create Expenses, and `GET /api/v1/users/me/spaces/{spaceId}/expenses/{expenseId}` reads detail. The app supplies a Clerk session token, not a User id. Other contract endpoints do not imply that their mobile UI is implemented.
 
-Google sign-in uses the native Clerk flow and requires a development build. Put the public client IDs and `EXPO_PUBLIC_CLERK_GOOGLE_IOS_URL_SCHEME` in the EAS environment when building a physical iPhone. The `@clerk/expo-google-signin` config plugin reads that scheme from the environment or Expo `extra` during prebuild and adds the iOS URL type. Configure the [API authentication settings](../api/README.md#setup-and-run) for the same Clerk development instance as the app.
+Google sign-in uses the native Clerk flow and requires a development build. API and app must use the same Clerk development instance; configuration and platform setup are in the runbook.
 
 The root navigator protects the `(app)` and `(auth)` layouts using the current session. Keep an explicit layout in each group so Expo Router registers the group names targeted by those guards; without the auth layout, the sign-in screen is registered as `(auth)/sign-in` and bypasses the `(auth)` guard. The signed-out redirect explicitly targets `/(auth)/sign-in`: the auth group has no index screen, so its group-only URL can resolve to the generated not-found screen. Route-discovery and guard-destination regressions run with `npm test`.
 
@@ -70,9 +44,7 @@ The [Expense detail workflow](src/features/expenses/detail-workflow.ts) loads on
 
 The [manual Expense feature](src/features/expenses/use-manual-expense.ts) owns Category loading/retry and submission. Its [preparation operation](src/features/expenses/manual-draft.ts) returns field issues or normalized input using explicit time and destination-scoped Category eligibility. The view receives display state and intent callbacks; the route handles successful navigation after checking the initiating scope and form lifetime. Disposing the form invalidates its pending completion, including same-Space re-entry, without clearing retained draft work. Submission accepts one save at a time and remains completed after success. Expected failures preserve entered values; transport and invalid-response errors explain that the Expense may already exist. Retrying creation is an explicit User action, never an automatic replay. The API still enforces authorization, writable Space access and Category eligibility at save time. Manual preparation, workflow races, creation response decoding and supplied-state view checks run in `npm test`.
 
-When testing a device against a development backend, use a dedicated development API and PostgreSQL database with a real Google/Clerk test identity. Android emulator `localhost` is the emulator itself; use the emulator host mapping (`10.0.2.2`) for a service running on the development computer, or a device-reachable LAN/HTTPS endpoint for physical devices. Do not expose a production API or use an ordinary financial database. Synthetic API test identities are limited to isolated automated tests and cannot provide physical-device sign-in evidence.
-
-The API's deterministic fictional seed is restricted to a specifically named disposable local database. See the API [seed instructions](../api/README.md#development-seedreset) before using `db:seed` or `db:recreate-seed`. API PostgreSQL automation creates fresh isolated databases; see [local testing](../docs/local-testing.md).
+The API's deterministic fictional seed is restricted to a specifically named disposable local database. See the API [seed instructions](../api/README.md#development-seedreset) before using `db:seed` or `db:recreate-seed`. API PostgreSQL automation creates fresh isolated databases; see [local checks](../docs/local-checks.md).
 
 ## Release evidence
 

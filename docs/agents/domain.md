@@ -12,6 +12,7 @@ Research, validation reports and specification notes describe their recorded sco
 
 | Change | Decision to read | Status |
 | --- | --- | --- |
+| Local manual testing and retired agent verification | [Standard local commands](../adr/0006-standard-local-manual-testing.md) | Current |
 | Synthetic identity and isolated test environment | [Isolated API test identity](../adr/0001-isolated-local-synthetic-identity.md) | Current for automated tests only |
 | Space ownership, membership or archival | [Personal and Shared Spaces](../adr/0002-personal-and-shared-spaces.md) | Ownership/lifecycle current; invitation details superseded by Invite Codes |
 | Invitation lifecycle or joining | [Invite Codes](../adr/0003-invite-codes-for-shared-space-invitations.md) | Current |

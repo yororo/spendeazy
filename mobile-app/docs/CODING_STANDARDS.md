@@ -50,4 +50,4 @@ For each changed workflow, verify responsibility ownership and dependency direct
 
 Test observable rules and workflow outcomes through the owning module's interface. For affected async flows, cover obsolete completions, retry, refresh during pagination, repeated save and identity/Space changes. View checks cover rendering, user intent and accessibility rather than duplicating business-rule tests. Keep test dependencies injectable at existing seams and avoid assertions about private state or mocked call choreography.
 
-Use [mobile checks](../AGENTS.md#commands) and [repository validation and delivery](../../AGENTS.md#workflow) for execution requirements. Link remaining migration work to its tracking issues; documentation, unit tests and static checks do not establish native-device acceptance.
+Use [mobile checks](../AGENTS.md#commands) and [repository validation and delivery](../../AGENTS.md#workflow-when-implementing-code-changes) for execution requirements. Link remaining migration work to its tracking issues; documentation, unit tests and static checks do not establish native-device acceptance.

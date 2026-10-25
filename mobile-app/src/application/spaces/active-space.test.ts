@@ -57,7 +57,7 @@ test('labels Personal and Shared Spaces explicitly', () => {
 });
 
 test('remembers the last Space separately for each signed-in identity', () => {
-  assert.equal(rememberedSpaceStorageKey('user_a'), 'active-space:user_a');
+  assert.match(rememberedSpaceStorageKey('user_a'), /^[A-Za-z0-9._-]+$/);
   assert.notEqual(
     rememberedSpaceStorageKey('user_a'),
     rememberedSpaceStorageKey('user_b'),

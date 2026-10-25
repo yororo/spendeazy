@@ -36,7 +36,7 @@ export function spaceIdentityLabel(space: AccessibleSpace): string {
 }
 
 export function rememberedSpaceStorageKey(userId: string): string {
-  return `active-space:${userId}`;
+  return `active-space.${userId}`;
 }
 
 export function parseAccessibleSpaces(value: unknown): AccessibleSpace[] {

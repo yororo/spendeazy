@@ -11,7 +11,7 @@ export interface AuthorizedRequestOptions {
 export async function authorizedRequest<T>(
   options: AuthorizedRequestOptions,
   path: string,
-  init: { method?: 'GET' | 'POST' | 'PATCH' | 'DELETE'; body?: unknown; ifMatch?: string } = {},
+  init: { method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'; body?: unknown; ifMatch?: string } = {},
 ): Promise<T> {
   const operation = () => sendAuthorizedRequest<T>(options, path, init);
   return options.execute ? options.execute(operation) : operation();
@@ -20,7 +20,7 @@ export async function authorizedRequest<T>(
 async function sendAuthorizedRequest<T>(
   options: AuthorizedRequestOptions,
   path: string,
-  init: { method?: 'GET' | 'POST' | 'PATCH' | 'DELETE'; body?: unknown; ifMatch?: string },
+  init: { method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'; body?: unknown; ifMatch?: string },
 ): Promise<T> {
   const resolvedBaseUrl = options.baseUrl ?? API_BASE_URL;
   if (resolvedBaseUrl === null) {

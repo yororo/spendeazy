@@ -47,5 +47,4 @@ const testConfig: AppConfig = {
   databaseUrl: undefined,
   clerkJwtKey: undefined,
   clerkSecretKey: undefined,
-  clerkAuthorizedParties: [],
 };

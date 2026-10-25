@@ -4,7 +4,7 @@ set -euo pipefail
 if [[ ${1:-} == --help ]]; then
   echo 'Usage: bash scripts/run-disposable-api.sh'
   echo 'Runs a fresh API and PostgreSQL until Ctrl+C; removes its containers, network and image on exit.'
-  echo 'Optional exported variables: CLERK_JWT_KEY, CLERK_SECRET_KEY, CLERK_AUTHORIZED_PARTIES.'
+  echo 'Optional exported variables: CLERK_JWT_KEY, CLERK_SECRET_KEY.'
   exit 0
 fi
 if (( $# )); then

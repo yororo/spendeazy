@@ -588,6 +588,5 @@ function testConfig(url: string | undefined): AppConfig {
     databaseUrl: url,
     clerkJwtKey: undefined,
     clerkSecretKey: undefined,
-    clerkAuthorizedParties: [],
   };
 }

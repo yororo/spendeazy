@@ -2,7 +2,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { isAbsolute, join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { assertRecordedLaunch } from './native-verification-launch.mjs';
+import { assertRecordedLaunch, coldRestartPreservingState } from './native-verification-launch.mjs';
 import {
   VerificationError,
   docker,
@@ -19,8 +19,8 @@ import {
 } from './native-verification.mjs';
 
 const statement = 'A passed journey certifies only its UI assertions on the recorded launch. Software checks and authenticated sign-in stay separate.';
-const authenticatedStatement = 'A passed authenticated sign-in journey certifies its listed UI assertions for this launch after the authenticated screen stays up. Software checks stay separate. An existing session or a human checkpoint is not a pass.';
-const stepActions = new Set(['see', 'tap', 'checkpoint', 'log', 'absent', 'settle', 'tap-or-checkpoint']);
+const authenticatedStatement = 'A passed authenticated sign-in journey certifies its listed UI assertions for this launch, including the retention checks in that journey after a cold restart that does not clear app data. Software checks and native build installation are separate claims and are not certified here. An existing session or a human checkpoint is not a pass. This result does not certify every feature, accessibility, a physical iPhone, parser launch acceptance, or native release readiness.';
+const stepActions = new Set(['see', 'tap', 'checkpoint', 'log', 'absent', 'settle', 'tap-or-checkpoint', 'cold-reload']);
 const logSources = new Set(['metro', 'api', 'device']);
 
 function block(code, message) {
@@ -343,6 +343,9 @@ function validateDefinition(definition, id) {
         block('invalid-journey', `Log step ${step.id} needs a metro, api, or device source and text.`);
       }
     }
+    if (step.action === 'cold-reload' && (step.selector !== undefined || step.reject !== undefined || step.also !== undefined || step.gone !== undefined)) {
+      block('invalid-journey', `Cold reload ${step.id} cannot carry screen selectors. Put retention checks in the following steps.`);
+    }
   }
 }
 
@@ -567,6 +570,21 @@ async function executeJourney(context, options, { resume }) {
     if (step.action === 'checkpoint') {
       await holdForHuman(context, manifest, options, loaded, attemptId, identity, assertions, steps, index, step);
       break;
+    }
+    if (step.action === 'cold-reload') {
+      try {
+        const proof = await coldRestartPreservingState(context, manifest, launch);
+        assertions.push(assertion(step, 'passed', `Cold restart of ${proof.packageName} kept app data and the device bundle matched Metro.`));
+      } catch (error) {
+        if (!(error instanceof VerificationError)) throw error;
+        if (step.required === false) {
+          assertions.push(assertion(step, 'skipped', error.message));
+          continue;
+        }
+        stopFailed(assertions, steps, index, step, error.message);
+        break;
+      }
+      continue;
     }
     if (step.action === 'tap-or-checkpoint' && !step.selector) {
       stopFailed(assertions, steps, index, step, step.reason);

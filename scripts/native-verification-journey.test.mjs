@@ -8,7 +8,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import { configurationFingerprint, installedFingerprint } from './native-verification-launch.mjs';
-import { sourceIdentity } from './native-verification.mjs';
+import { jsInputFingerprintOf, nativeInputFingerprintOf, sourceIdentity } from './native-verification.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const commandPath = join(repoRoot, 'scripts', 'native-verification.mjs');
@@ -372,6 +372,18 @@ createServer((request, response) => {
     assert.equal(broken.outcome, 'blocked');
     assert.equal(broken.certified, false);
 
+    await writeFile(join(journeyDir, 'selector-on-reload.mjs'), `export default {
+  id: 'selector-on-reload',
+  summary: 'A cold reload step must not carry a screen selector.',
+  steps: [{ id: 'reload', action: 'cold-reload', selector: { text: 'Dashboard' } }],
+};
+`);
+    const selectorOnReload = parseJson(await invoke(['journey', '--journey', 'selector-on-reload', '--run', runId, '--state-dir', stateDir]));
+    assert.equal(selectorOnReload.code, 'invalid-journey');
+    assert.equal(selectorOnReload.outcome, 'blocked');
+    assert.equal(selectorOnReload.certified, false);
+    assert.match(selectorOnReload.message, /cannot carry screen selectors/);
+
     const started = Date.now();
     const failed = await invoke(['journey', '--journey', 'fixture-screen', '--run', runId, '--state-dir', stateDir]);
     const failedBody = parseJson(failed);
@@ -535,10 +547,17 @@ test('google sign-in journey certifies only a settled dedicated account', { time
   assert.match(definition, /Unmatched Route/);
   assert.match(definition, /Maximum update depth/);
   assert.equal(definition.includes(accountLabel), false);
+  assert.match(definition, /action: 'cold-reload'/);
+  assert.match(definition, /could not remember the active Space/);
   assert.equal(definition.includes('pm clear'), false);
   assert.equal(engine.includes('Sign in with Google'), false);
   assert.equal(engine.includes('Loading Spaces.'), false);
+  assert.equal(engine.includes('could not remember the active Space'), false);
   assert.equal(engine.includes('pm clear'), false);
+  const launchSource = await readFile(join(repoRoot, 'scripts', 'native-verification-launch.mjs'), 'utf8');
+  assert.equal(launchSource.includes('pm clear'), false);
+  assert.equal(launchSource.includes('Personal Space'), false);
+  assert.match(launchSource, /force-stop/);
 
   const directory = await mkdtemp(join(tmpdir(), 'spendeazy-nv-google-'));
   const stateDir = join(directory, 'state');
@@ -549,7 +568,10 @@ test('google sign-in journey certifies only a settled dedicated account', { time
   const scenarioPath = join(directory, 'scenario.json');
   const runId = 'nv-abc123abc124';
   const token = 'f'.repeat(32);
-  const source = await sourceIdentity({ repoRoot, processEnv: process.env, secrets: new Set() });
+  const inputContext = { repoRoot, processEnv: process.env, secrets: new Set() };
+  const source = await sourceIdentity(inputContext);
+  const jsInputFingerprint = await jsInputFingerprintOf(inputContext);
+  const nativeInputFingerprint = await nativeInputFingerprintOf(inputContext);
   const publishableKey = `pk_test_${Buffer.from('example.clerk.accounts.dev$').toString('base64url')}`;
   const apiPort = 3011;
   const apiUrl = `http://10.0.2.2:${apiPort}`;
@@ -585,9 +607,11 @@ const password = screen(node('Enter your password', '', '[10,80][320,140]'));
 const loading = screen(node('Dashboard', '', '[10,20][200,80]') + node('Loading Spaces.', '', '[10,90][240,130]') + node('Active Space', '', '[10,140][220,180]'));
 const settled = screen(node('Dashboard', '', '[10,20][200,80]') + node('Active Space', '', '[10,90][220,130]') + node('Personal', '', '[10,140][220,180]') + node('Dashboard', 'Dashboard', '[10,400][80,460]'));
 const expiredDash = screen(node('Your session expired. Sign in again to continue.', '', '[10,80][420,140]'));
+const forgotten = screen(node('Dashboard', '', '[10,20][200,80]') + node('Personal Space is unavailable.', '', '[10,90][420,140]'));
 const chooser = screen(node(process.env.SPENDEAZY_NV_GOOGLE_ACCOUNT_LABEL || 'missing-label', '', '[10,200][410,280]'));
 function frame() {
   const taps = (scenario.taps || []).length;
+  if ((scenario.restarts || 0) > 0 && scenario.uiMode === 'reload-forgets-space') return forgotten;
   if (scenario.uiMode === 'already-in') return already;
   if (scenario.uiMode === 'expiry-notice') return expiredSignIn;
   if (scenario.uiMode === 'settled') return settled;
@@ -630,16 +654,42 @@ if (joined.includes('uiautomator')) {
   console.log('UI hierchary dumped to: ' + args.at(-1));
   process.exit(0);
 }
+if (args.includes('exec-out') && joined.includes('nv-bundle-raw')) {
+  const body = scenario.deviceBundleBody || scenario.bundleBody || '';
+  process.stdout.write('HTTP/1.0 200 OK\\r\\n\\r\\n' + body);
+  process.exit(0);
+}
 if (args.includes('exec-out')) {
   console.log(scenario.uiXml || '');
   process.exit(0);
 }
+if (joined.includes('force-stop')) {
+  scenario.commands = scenario.commands || [];
+  scenario.commands.push('force-stop');
+  scenario.restarts = (scenario.restarts || 0) + 1;
+  save();
+  process.exit(0);
+}
+if (joined.includes('monkey')) {
+  scenario.commands = scenario.commands || [];
+  scenario.commands.push('monkey');
+  save();
+  process.exit(0);
+}
+if (joined.includes('pm') && joined.includes('clear')) {
+  scenario.commands = scenario.commands || [];
+  scenario.commands.push('pm-clear');
+  save();
+  process.exit(0);
+}
+if (joined.includes('logcat') && args.includes('-c')) process.exit(0);
 if (joined.includes('logcat')) {
   if (scenario.uiMode === 'no-device-log') process.exit(1);
   if (scenario.uiMode === 'fatal') {
     console.log('FATAL EXCEPTION: main');
     process.exit(0);
   }
+  console.log('Running "main"');
   console.log('ReactNativeJS: screen ready');
   process.exit(0);
 }
@@ -705,6 +755,10 @@ process.exit(1);
     uiMode: 'pass',
     uiXml: '',
     taps: [],
+    commands: [],
+    restarts: 0,
+    bundleBody: `${apiUrl}\n${publishableKey}\n`,
+    deviceBundleBody: '',
     containers: [
       { id: 'db1234567890', role: 'database' },
       { id: 'api1234567890', role: 'api' },
@@ -715,7 +769,12 @@ process.exit(1);
   await mkdir(dirname(launcher), { recursive: true });
   await writeFile(launcher, `import { createServer } from 'node:http';
 const port = Number(process.argv[2]);
+const bundle = ${JSON.stringify(`${apiUrl}\n${publishableKey}\n`)};
 createServer((request, response) => {
+  if ((request.url || '').includes('.bundle')) {
+    response.end(bundle);
+    return;
+  }
   response.end('packager-status:running');
 }).listen(port, '127.0.0.1');
 `);
@@ -764,6 +823,8 @@ createServer((request, response) => {
         fingerprint: buildFingerprint,
         configurationFingerprint: configFingerprint,
         sourceFingerprint: source.fingerprint,
+        jsInputFingerprint,
+        nativeInputFingerprint,
         apiImageId: 'sha256:image',
         metro: { port: metroPort, endpoint: `http://127.0.0.1:${metroPort}`, launcherPid: 0 },
       },
@@ -782,6 +843,7 @@ createServer((request, response) => {
     SPENDEAZY_NV_JOURNEY_DIR: join(repoRoot, 'scripts', 'native-journeys'),
     SPENDEAZY_NV_JOURNEY_POLL_MS: '40',
     SPENDEAZY_NV_GOOGLE_ACCOUNT_LABEL: accountLabel,
+    SPENDEAZY_NV_BUNDLE_TIMEOUT_MS: '3000',
     EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: publishableKey,
   };
   const child = spawn(process.execPath, [launcher, String(metroPort)], { stdio: 'ignore' });
@@ -798,6 +860,9 @@ createServer((request, response) => {
     current.uiMode = uiMode;
     current.taps = [];
     current.settledDumps = 0;
+    current.restarts = 0;
+    current.commands = [];
+    current.deviceBundleBody = '';
     await writeFile(scenarioPath, JSON.stringify(current));
   };
   try {
@@ -841,9 +906,12 @@ createServer((request, response) => {
 
     await setMode('no-device-log');
     const quiet = parseJson(await invoke(journeyArgs));
-    assert.equal(quiet.outcome, 'passed');
-    assert.equal(quiet.certified, true);
-    assert.equal(quiet.authenticatedJourneyCertified, true);
+    assert.equal(quiet.outcome, 'failed');
+    assert.equal(quiet.certified, false);
+    assert.equal(quiet.authenticatedJourneyCertified, false);
+    assert.equal(quiet.journey.assertions.find((item) => item.id === 'cold-restart').outcome, 'failed');
+    assert.match(quiet.journey.assertions.find((item) => item.id === 'cold-restart').reason, /did not log a JavaScript start/);
+    assert.equal(quiet.journey.assertions.find((item) => item.id === 'session-retained').outcome, 'not-run');
     const quietIndex = quiet.evidence.find((item) => item.kind === 'index');
     const quietCapture = JSON.parse(await readFile(join(stateDir, 'runs', runId, quietIndex.ref), 'utf8'));
     assert.equal(quietCapture.sources.device, 'unavailable');
@@ -855,18 +923,64 @@ createServer((request, response) => {
     assert.match(flashed.journey.assertions.find((item) => item.id === 'personal-space-settled').reason, /session expired/);
 
     await setMode('pass');
+    const mismatchScenario = JSON.parse(await readFile(scenarioPath, 'utf8'));
+    mismatchScenario.deviceBundleBody = 'not-the-metro-bundle';
+    await writeFile(scenarioPath, JSON.stringify(mismatchScenario));
+    const mismatch = parseJson(await invoke(journeyArgs));
+    assert.equal(mismatch.outcome, 'failed');
+    assert.equal(mismatch.certified, false);
+    assert.equal(mismatch.authenticatedJourneyCertified, false);
+    assert.equal(mismatch.revisionCertified, false);
+    assert.equal(mismatch.extensions.evidence.refresh, undefined);
+    assert.match(mismatch.journey.assertions.find((item) => item.id === 'cold-restart').reason, /does not match Metro/);
+    assert.equal(mismatch.journey.assertions.find((item) => item.id === 'session-retained').outcome, 'not-run');
+
+    const stalePath = join(stateDir, 'runs', runId, 'manifest.json');
+    const staleManifest = JSON.parse(await readFile(stalePath, 'utf8'));
+    staleManifest.extensions.nativeBuild.jsInputFingerprint = '0'.repeat(64);
+    await writeFile(stalePath, `${JSON.stringify(staleManifest, null, 2)}\n`);
+    await setMode('pass');
+    const stale = parseJson(await invoke(journeyArgs));
+    assert.equal(stale.outcome, 'failed');
+    assert.equal(stale.authenticatedJourneyCertified, false);
+    assert.match(stale.journey.assertions.find((item) => item.id === 'cold-restart').reason, /Run refresh/);
+    assert.equal(JSON.parse(await readFile(scenarioPath, 'utf8')).commands.includes('force-stop'), false);
+    staleManifest.extensions.nativeBuild.jsInputFingerprint = jsInputFingerprint;
+    await writeFile(stalePath, `${JSON.stringify(staleManifest, null, 2)}\n`);
+
+    await setMode('pass');
     const started = Date.now();
     const passed = await invoke(journeyArgs);
     const passedBody = parseJson(passed);
-    assert.equal(passed.code, 0, passed.stderr);
+    assert.equal(passed.code, 0, `${passed.stderr}\n${passed.stdout}`);
     assert.equal(passedBody.outcome, 'passed');
     assert.equal(passedBody.certified, true);
     assert.equal(passedBody.authenticatedJourneyCertified, true);
+    assert.equal(passedBody.revisionCertified, true);
     assert.match(passedBody.statement, /existing session or a human checkpoint is not a pass/);
-    assert.ok(Date.now() - started >= 2_000, 'settled screen was accepted before the hold');
-    assert.deepEqual(passedBody.journey.assertions.map((item) => item.outcome), ['passed', 'passed', 'passed', 'passed', 'passed', 'passed']);
+    assert.match(passedBody.statement, /does not certify every feature/);
+    assert.ok(Date.now() - started >= 4_500, 'retention hold was accepted before both settles finished');
+    assert.deepEqual(passedBody.journey.assertions.map((item) => item.outcome), ['passed', 'passed', 'passed', 'passed', 'passed', 'passed', 'passed', 'passed', 'passed']);
+    assert.equal(passedBody.journey.claims.softwareChecks.outcome, 'not-run');
     assert.equal(passedBody.journey.claims.softwareChecks.certifies, false);
+    assert.equal(passedBody.journey.claims.buildInstallation.certifies, false);
     assert.equal(passedBody.journey.claims.uiAssertions.certifies, true);
+    assert.equal(passedBody.extensions.evidence.refresh.mode, 'cold-restart');
+    assert.equal(passedBody.extensions.evidence.refresh.dataCleared, false);
+    assert.equal(passedBody.extensions.evidence.refresh.certifiesCurrentRevision, true);
+    assert.equal(passedBody.extensions.evidence.refresh.authenticatedJourneyCertified, false);
+    const restartCommands = JSON.parse(await readFile(scenarioPath, 'utf8')).commands;
+    assert.equal(restartCommands.filter((item) => item === 'force-stop').length, 1);
+    assert.equal(restartCommands.includes('monkey'), true);
+    assert.equal(restartCommands.includes('pm-clear'), false);
+
+    await setMode('reload-forgets-space');
+    const forgotten = parseJson(await invoke(journeyArgs));
+    assert.equal(forgotten.outcome, 'failed');
+    assert.equal(forgotten.certified, false);
+    assert.equal(forgotten.authenticatedJourneyCertified, false);
+    assert.equal(forgotten.journey.assertions.find((item) => item.id === 'cold-restart').outcome, 'passed');
+    assert.match(forgotten.journey.assertions.find((item) => item.id === 'session-retained').reason, /Personal Space is unavailable/);
     assert.equal(passedBody.journey.identity.runId, runId);
     assert.equal(passedBody.journey.identity.serial, 'emulator-5554');
     assert.equal(passedBody.journey.identity.nativeBuildFingerprint, buildFingerprint);

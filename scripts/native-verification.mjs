@@ -14,10 +14,12 @@ const runIdPattern = /^nv-[0-9a-f]{12}$/;
 const labelPrefix = 'io.spendeazy.native-verification';
 const emptyExtensions = { device: null, nativeBuild: null, evidence: null };
 
-class VerificationError extends Error {
-  constructor(code, message) {
+export class VerificationError extends Error {
+  constructor(code, message, outcome = null) {
     super(message);
     this.code = code;
+    this.outcome = outcome;
+    this.statement = outcome ? 'Launch alone does not certify an authenticated journey.' : null;
   }
 }
 
@@ -30,6 +32,11 @@ export function parseArguments(args) {
     apiPort: null,
     databasePort: null,
     stateDir: null,
+    serial: null,
+    abi: null,
+    metroPort: null,
+    deviceApiHost: null,
+    bootAvd: null,
   };
   const positionals = [];
   for (let index = 0; index < args.length; index += 1) {
@@ -47,6 +54,11 @@ export function parseArguments(args) {
       '--api-port': 'apiPort',
       '--database-port': 'databasePort',
       '--state-dir': 'stateDir',
+      '--serial': 'serial',
+      '--abi': 'abi',
+      '--metro-port': 'metroPort',
+      '--device-api-host': 'deviceApiHost',
+      '--boot-avd': 'bootAvd',
     };
     const field = valueOptions[arg];
     if (field) {
@@ -65,10 +77,10 @@ export function parseArguments(args) {
   }
   if (options.help && positionals.length === 0) return options;
   if (positionals.length !== 1) {
-    throw new VerificationError('usage', 'Specify one operation: start, attach, status, stop, or replace-api.');
+    throw new VerificationError('usage', 'Specify one operation: start, attach, status, stop, replace-api, launch, or reload.');
   }
   const operation = positionals[0];
-  if (!['start', 'attach', 'status', 'stop', 'replace-api'].includes(operation)) {
+  if (!['start', 'attach', 'status', 'stop', 'replace-api', 'launch', 'reload'].includes(operation)) {
     throw new VerificationError('usage', `Unknown operation ${operation}.`);
   }
   if (options.fresh && operation !== 'start') {
@@ -80,8 +92,30 @@ export function parseArguments(args) {
   if (options.runId && !runIdPattern.test(options.runId)) {
     throw new VerificationError('usage', 'Run identity must look like nv-0123456789ab.');
   }
+  if (operation !== 'launch' && (options.serial || options.abi || options.metroPort || options.deviceApiHost || options.bootAvd)) {
+    throw new VerificationError('usage', 'Device and Metro options apply only to launch.');
+  }
+  if (options.serial && !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(options.serial)) {
+    throw new VerificationError('usage', '--serial contains unsupported characters.');
+  }
+  if (options.abi && !/^(?:armeabi-v7a|arm64-v8a|x86|x86_64)$/.test(options.abi)) {
+    throw new VerificationError('usage', '--abi must be armeabi-v7a, arm64-v8a, x86, or x86_64.');
+  }
+  if (options.deviceApiHost && !isDeviceHost(options.deviceApiHost)) {
+    throw new VerificationError('usage', '--device-api-host must be a hostname or IPv4 address.');
+  }
+  if (options.bootAvd && !/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(options.bootAvd)) {
+    throw new VerificationError('usage', '--boot-avd contains unsupported characters.');
+  }
   options.operation = operation;
   return options;
+}
+
+function isDeviceHost(value) {
+  if (/^(?:\d{1,3}\.){3}\d{1,3}$/.test(value)) {
+    return value.split('.').every((octet) => Number(octet) <= 255);
+  }
+  return /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,62}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,62}[A-Za-z0-9])?)*$/.test(value);
 }
 
 function parsePort(value, flag) {
@@ -113,12 +147,20 @@ Operations:
   status        Inspect a run without changing it
   stop          Remove only verified owned resources
   replace-api   Rebuild and replace the API, keeping its database
+  launch        Install and launch the native build against that API
+  reload        Reload the launched app through the owned Metro server
 
 Options:
   --run <id>            Select a run (nv- plus 12 hex characters)
   --new                 With start, create another run
   --api-port <port>     Bind the API on 127.0.0.1
   --database-port <port>
+  --serial <serial>     With launch, select one attached Android device
+  --abi <abi>           With launch, require armeabi-v7a, arm64-v8a, x86, or x86_64
+  --metro-port <port>   With launch, Metro port (default 8081, or SPENDEAZY_NV_METRO_PORT)
+  --device-api-host <host>
+                        With launch, device-reachable API host
+  --boot-avd <name>     With launch, start this AVD when no device is attached
   --state-dir <path>    Manifest and run-scoped configuration directory
   --help
 
@@ -127,14 +169,19 @@ Windows host, from the repository root in PowerShell:
   node .\\scripts\\native-verification.mjs status
   node .\\scripts\\native-verification.mjs attach
   node .\\scripts\\native-verification.mjs replace-api
+  node .\\scripts\\native-verification.mjs launch
+  node .\\scripts\\native-verification.mjs reload
   node .\\scripts\\native-verification.mjs stop
 
 Prerequisites on Windows: Node.js 24, Git, and Docker Desktop with the Linux
-containers engine running. The default state directory is
-%LOCALAPPDATA%\\spendeazy\\native-verification. On Linux and macOS it is
-~/.spendeazy/native-verification. The command does not modify api/.env or
-the personal api.env file. A busy selected port is an error. Process ids and
-ports are not ownership proof.
+containers engine running. Launch also needs an Android SDK
+(ANDROID_HOME, ANDROID_SDK_ROOT, or SPENDEAZY_NV_ANDROID_SDK), adb
+(SPENDEAZY_NV_ADB), and a JDK (java or SPENDEAZY_NV_JAVA). The default state
+directory is %LOCALAPPDATA%\\spendeazy\\native-verification. On Linux and
+macOS it is ~/.spendeazy/native-verification. The command does not modify
+api/.env, the personal api.env file, or mobile env files. A busy selected
+port is an error. Process ids and ports are not ownership proof. Launch
+alone does not certify an authenticated journey.
 `;
 }
 
@@ -169,7 +216,7 @@ function credentialValues(secrets) {
   return [...secrets].filter((value) => typeof value === 'string' && value.length >= 8);
 }
 
-function redact(text, secrets) {
+export function redact(text, secrets) {
   let redacted = text;
   for (const secret of credentialValues(secrets)) {
     redacted = redacted.split(secret).join('[redacted]');
@@ -196,39 +243,70 @@ function singleLine(value) {
   return String(value).replaceAll('\r\n', '\n').replaceAll('\n', '\\n');
 }
 
-function rememberCredential(secrets, value) {
+export function rememberCredential(secrets, value) {
   if (typeof value !== 'string' || value.length < 8) return;
   secrets.add(value);
   const encoded = singleLine(value);
   if (encoded !== value) secrets.add(encoded);
 }
 
-function tail(text, lines = 30) {
+export function tail(text, lines = 30) {
   return text.trim().split(/\r?\n/).slice(-lines).join('\n');
 }
 
-function runProcess(command, args, { cwd, env, secrets, echoStderr = false }) {
+export function runProcess(command, args, { cwd, env, secrets, echoStderr = false, input = null, timeoutMs = 0, redactOutput = true } = {}) {
   return new Promise((resolveRun) => {
-    const child = spawn(command, args, { cwd, env, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
+    let settled = false;
+    let timer = null;
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      if (timer) clearTimeout(timer);
+      resolveRun(result);
+    };
+    const child = spawn(command, args, {
+      cwd,
+      env,
+      stdio: [input === null ? 'ignore' : 'pipe', 'pipe', 'pipe'],
+      windowsHide: true,
+    });
+    if (input !== null) {
+      child.stdin.on('error', () => {});
+      child.stdin.end(input);
+    }
     const stdout = [];
     const stderr = [];
-    child.stdout.on('data', (chunk) => stdout.push(redact(chunk.toString('utf8'), secrets)));
+    const protect = (text) => redactOutput ? redact(text, secrets) : text;
+    child.stdout.on('data', (chunk) => stdout.push(protect(chunk.toString('utf8'))));
     child.stderr.on('data', (chunk) => {
-      const text = redact(chunk.toString('utf8'), secrets);
+      const text = protect(chunk.toString('utf8'));
       stderr.push(text);
       if (echoStderr) process.stderr.write(text);
     });
+    if (timeoutMs > 0) {
+      timer = setTimeout(() => {
+        child.kill('SIGTERM');
+        finish({
+          code: 124,
+          stdout: stdout.join(''),
+          stderr: `${stderr.join('')}\nThe command timed out.`,
+          missing: false,
+          timedOut: true,
+        });
+      }, timeoutMs);
+    }
     child.once('error', (error) => {
-      resolveRun({ code: 127, stdout: '', stderr: redact(error.message, secrets), missing: error.code === 'ENOENT' });
+      finish({ code: 127, stdout: '', stderr: redact(error.message, secrets), missing: error.code === 'ENOENT', timedOut: false });
     });
     child.once('close', (code) => {
-      resolveRun({ code: code ?? 1, stdout: stdout.join(''), stderr: stderr.join(''), missing: false });
+      finish({ code: code ?? 1, stdout: stdout.join(''), stderr: stderr.join(''), missing: false, timedOut: false });
     });
   });
 }
 
-async function docker(args, context, { allowFailure = false, echoStderr = false, env } = {}) {
-  const result = await runProcess('docker', args, {
+export async function docker(args, context, { allowFailure = false, echoStderr = false, env, redactOutput = true } = {}) {
+  const result = await runProcess(context.processEnv.SPENDEAZY_NV_DOCKER || 'docker', args, {
+    redactOutput,
     cwd: context.repoRoot,
     env: env ?? context.processEnv,
     secrets: context.secrets,
@@ -330,7 +408,7 @@ function secretsPath(context, runId) {
   return join(runDirectory(context, runId), 'secrets.env');
 }
 
-async function writeManifest(context, manifest) {
+export async function writeManifest(context, manifest) {
   const text = `${JSON.stringify(manifest, null, 2)}\n`;
   assertNoCredentials('manifest', text, context.secrets);
   const directory = runDirectory(context, manifest.runId);
@@ -364,7 +442,7 @@ async function rememberStoredSecrets(context, runId) {
   }
 }
 
-async function readManifest(context, runId) {
+export async function readManifest(context, runId) {
   try {
     return JSON.parse(await readFile(manifestPath(context, runId), 'utf8'));
   } catch (error) {
@@ -403,7 +481,7 @@ async function git(context, args) {
   return result.stdout;
 }
 
-async function sourceIdentity(context) {
+export async function sourceIdentity(context) {
   const root = await realpath((await git(context, ['rev-parse', '--show-toplevel'])).trim());
   const revision = (await git(context, ['rev-parse', 'HEAD'])).trim();
   const porcelainResult = await runProcess('git', ['-C', context.repoRoot, 'status', '--porcelain=v1', '-z'], {
@@ -546,7 +624,7 @@ async function observeNetwork(context, manifest) {
   return { present: true, identityMatches, name };
 }
 
-async function observe(context, manifest) {
+export async function observe(context, manifest) {
   const [database, api, volume, network] = await Promise.all([
     observeRole(context, manifest, 'database'),
     observeRole(context, manifest, 'api'),
@@ -571,7 +649,7 @@ function compatibleWith(manifest, source, observation) {
     && observation.database.status === 'running';
 }
 
-async function publicBody(context, manifest, { operation, reused = false, extra = {} }) {
+export async function publicBody(context, manifest, { operation, reused = false, extra = {} }) {
   await rememberStoredSecrets(context, manifest.runId);
   const source = await sourceIdentity(context);
   const observation = await observe(context, manifest);
@@ -691,7 +769,7 @@ async function selectableRuns(context, source) {
   return reusable;
 }
 
-async function resolveSelected(context, options, source, { requireCompatible }) {
+export async function resolveSelected(context, options, source, { requireCompatible }) {
   if (options.runId) {
     const manifest = await readManifest(context, options.runId);
     if (!manifest) throw new VerificationError('run-not-found', `No manifest exists for ${options.runId}.`);
@@ -711,7 +789,7 @@ async function resolveSelected(context, options, source, { requireCompatible }) 
   throw new VerificationError('multiple-runs', `Several owned runs are live: ${reusable.map((manifest) => manifest.runId).join(', ')}. Pass --run.`);
 }
 
-async function requireOwnedDatabase(context, manifest) {
+export async function requireOwnedDatabase(context, manifest) {
   const observation = await observe(context, manifest);
   if (!observation.database.identityMatches || observation.database.status !== 'running') {
     throw new VerificationError('stale-run', `Run ${manifest.runId} has no live owned database. Recorded ports or process ids were not reused.`);
@@ -947,6 +1025,8 @@ async function removeImageIfOwned(context, manifest, report) {
 async function stopRun(context, manifest) {
   const observation = await observe(context, manifest);
   const report = { removed: { containers: [], volumes: [], networks: [], images: [] }, skipped: [] };
+  const { stopOwnedMetro } = await import('./native-verification-launch.mjs');
+  await stopOwnedMetro(context, manifest, report);
   await rememberStoredSecrets(context, manifest.runId);
   await removeContainerIfOwned(context, manifest, 'api', report);
   await removeContainerIfOwned(context, manifest, 'database', report);
@@ -1082,6 +1162,11 @@ export async function execute(args, environment = process.env) {
       processEnv: environment,
     };
     await mkdir(context.stateDir, { recursive: true });
+    let launchModule = null;
+    if (operation === 'launch' || operation === 'reload') {
+      launchModule = await import('./native-verification-launch.mjs');
+      await launchModule.preflightHost(context, { requireBuildTools: operation === 'launch' });
+    }
     if (operation !== 'status' && operation !== 'stop') await requireDocker(context);
     else {
       const info = await docker(['info'], context, { allowFailure: true });
@@ -1094,6 +1179,8 @@ export async function execute(args, environment = process.env) {
     else if (operation === 'attach') result = await attach(context, options);
     else if (operation === 'status') result = await status(context, options);
     else if (operation === 'stop') result = await stop(context, options);
+    else if (operation === 'launch') result = await launchModule.launchNative(context, options);
+    else if (operation === 'reload') result = await launchModule.reloadNative(context, options);
     else result = await replaceApi(context, options);
     if (result.body) assertNoCredentials('command output', JSON.stringify(result.body), secrets);
     return result;
@@ -1101,9 +1188,15 @@ export async function execute(args, environment = process.env) {
     const code = error instanceof VerificationError ? error.code : 'failed';
     const message = redact(error instanceof Error ? error.message : String(error), secrets);
     assertNoCredentials('command output', message, secrets);
+    const body = { ok: false, operation, code, message };
+    if (error instanceof VerificationError && error.outcome) {
+      body.outcome = error.outcome;
+      body.authenticatedJourneyCertified = false;
+      body.statement = error.statement;
+    }
     return {
       exitCode: code === 'usage' ? 2 : 1,
-      body: { ok: false, operation, code, message },
+      body,
     };
   }
 }

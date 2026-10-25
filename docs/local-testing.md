@@ -64,12 +64,41 @@ node .\scripts\native-verification.mjs start
 node .\scripts\native-verification.mjs status
 node .\scripts\native-verification.mjs attach
 node .\scripts\native-verification.mjs replace-api
+node .\scripts\native-verification.mjs launch
+node .\scripts\native-verification.mjs reload
 node .\scripts\native-verification.mjs stop
 ```
 
 The API container uses the database container's network namespace, so the host reaches both through the published loopback ports. `start` reuses the one compatible live run for this checkout. `start --new` creates another run. Pass `--api-port` and `--database-port` to select loopback ports; a busy port fails and the existing listener stays in place. `attach --run <id>` succeeds only when the manifest schema and checkout match and the database container is still the owned one. A matching port or process id is not accepted on its own. `status --run <id>` reports `running`, `api-stopped`, or `stale` and does not change resources. `stop` and `stop --run <id>` remove a container, volume, network, or API image only after its id and ownership token still match the manifest. `replace-api` rebuilds the API image, replaces that container, and keeps the database.
 
-The manifest records run identity, ports, source revision and fingerprint, runtime versions, and verified resource ids. `extensions.device`, `extensions.nativeBuild`, and `extensions.evidence` are reserved for later checks. Credentials and hashes of credentials are not written to the manifest or command output. If a start is interrupted, rerun `stop --run <id>` for that manifest; it ignores resources that no longer match.
+The manifest records run identity, ports, source revision and fingerprint, runtime versions, and verified resource ids. `launch` fills `extensions.device`, `extensions.nativeBuild`, and `extensions.evidence`. Credentials and hashes of credentials are not written to the manifest or command output. If a start is interrupted, rerun `stop --run <id>` for that manifest; it ignores resources that no longer match.
+
+## Launch the native build against that API
+
+`launch` is the readiness step for an owned run. It selects the Android device, checks the running API, installs the app through Expo, and starts that run's Metro server. `reload` sends Expo's Metro reload message to the recorded server. The JSON result has `outcome` of `launched`, `reloaded`, `blocked`, or `failed`. `authenticatedJourneyCertified` is false. A launch is not an authenticated journey.
+
+Export the development Clerk values before `start`, so the running API receives them. Export `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` before `launch`. The publishable key must be a development key (`pk_test_`) whose public instance matches the running API verification key. Optional: `EXPO_PUBLIC_CLERK_GOOGLE_ANDROID_CLIENT_ID`. `launch` sets `EXPO_NO_DOTENV=1` for Expo, so `mobile-app\.env.local` is not the running configuration. Editing `api\.env` or the run's secret file does not change an API that is already running. To apply different Clerk values, `stop` the run, export the values, and `start` again.
+
+Windows host tools, in addition to the environment prerequisites:
+
+- Android SDK at `ANDROID_HOME`, `ANDROID_SDK_ROOT`, or `SPENDEAZY_NV_ANDROID_SDK`
+- `adb` on that SDK, or `SPENDEAZY_NV_ADB`
+- A JDK on `PATH`, or `SPENDEAZY_NV_JAVA`
+- One authorized emulator or device. Several attached devices need `--serial`. An unauthorized device needs the USB debugging approval; the command does not retry it
+- Mobile dependencies installed with `npm ci --prefix mobile-app`
+
+```powershell
+node .\scripts\native-verification.mjs launch
+node .\scripts\native-verification.mjs launch --serial emulator-5554 --metro-port 8081
+node .\scripts\native-verification.mjs reload
+node .\scripts\native-verification.mjs launch --boot-avd Pixel_7
+```
+
+`--boot-avd` starts that AVD only when nothing is attached. `SPENDEAZY_NV_EMULATOR_HEADLESS=1` adds a headless emulator launch. `SPENDEAZY_NV_BOOT_TIMEOUT_MS` bounds that wait. `SPENDEAZY_NV_METRO_PORT` and `--metro-port` select Metro; the default is 8081. A busy port that is not this run's Metro process is an error, and that process is left running. `SPENDEAZY_NV_DEVICE_API_HOST` or `--device-api-host` sets the host the device uses. Emulators try `10.0.2.2` first. When that alias is unreachable, `launch` adds one `adb reverse` for the owned API port and uses `http://127.0.0.1:<api-port>` on the device. An explicit host that fails is not replaced. `SPENDEAZY_NV_GRADLE_MAX_WORKERS`, `SPENDEAZY_NV_LAUNCH_TIMEOUT_MS`, and `SPENDEAZY_NV_BUNDLE_TIMEOUT_MS` bound the native build. `SPENDEAZY_NV_EXPO` and `SPENDEAZY_NV_EMULATOR` override those executables.
+
+The result records the source revision and dirty-checkout fingerprint, API image id, native build fingerprint, device serial and ABI, Metro endpoint, and run id. The served bundle must contain the launch API address and publishable key. A recorded device, ABI, configuration, or installed build that does not match this launch is `identity-mismatch`; stop that run and start another rather than treating the old install as updated. `stop` ends the Metro process only when its command still belongs to that run, and removes only the `adb reverse` this launch added.
+
+If `launch` stops before Metro is ready, read the run's `launch.log` under the state directory and run `launch` again after the reported prerequisite is fixed. `reload` requires the recorded Metro process and a running app process. It does not install a build and it does not open a deep link.
 
 ## Run the required isolated API/PostgreSQL suite
 

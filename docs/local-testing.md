@@ -60,6 +60,8 @@ Do not invent these values. Confirm with developer if you don't have access to t
 
 ## Daily startup
 
+Before starting, check that `api/.env` points to the Compose database (`127.0.0.1:55433/spendeazy_disposable_manual` by default) and that the mobile API URL uses the API's `PORT` (`3000` by default). Existing local env files may still contain settings from an older setup.
+
 ### 1. Start PostgreSQL
 
 From the repository root:
@@ -83,23 +85,22 @@ Continue only after migrations succeed. Leave watch mode running. Open [health](
 
 ### 3. Open the native app
 
-Start your Android emulator. In a second terminal, working directory `mobile-app/`:
-
-```sh
-npm run parser:prepare
-npx expo run:android --device
-```
-
-Choose the intended device. Expo builds, installs and starts Metro. Parser preparation creates an ignored PDF.js module needed by the bundle, even if you are testing another screen. Expo Go cannot run this app's native Google integration.
-
-On later visits, if a compatible development build is already installed, use this instead of `run:android`:
+Start your Android emulator. In a second terminal, working directory `mobile-app/`, use an already installed development build for normal daily work:
 
 ```sh
 npm run parser:prepare
 npx expo start --dev-client
 ```
 
-Press `a` to open Android (`Shift+A` to choose a device). Keep one Metro server for this checkout. The package's `npm run android`/`ios` commands open an installed build; they do not compile one.
+Press `a` to open Android (`Shift+A` to choose a device). If Expo reports no development build, or native dependencies/configuration changed, stop Metro and build/install instead:
+
+```sh
+npx expo run:android --device
+```
+
+Choose the intended device. Expo builds, installs and starts Metro. Parser preparation creates an ignored PDF.js module needed by the bundle, even if you are testing another screen. Expo Go cannot run this app's native Google integration.
+
+Keep one Metro server for this checkout. Confirm that the app reaches its sign-in screen or Dashboard before considering startup complete. The package's `npm run android`/`ios` commands open an installed build; they do not compile one.
 
 ## Test the behavior
 
@@ -175,6 +176,7 @@ Run migrations and restart the API using Daily startup. Keep your API keys; rese
 | Old verification stack still running | Stop it from its original checkout before switching workflows; the new Compose project does not adopt or remove old runs |
 | Old configuration | Remove stale exported environment overrides; full reload mobile, restart API after API env changes |
 | Missing generated parser module | In `mobile-app/`, run `npm run parser:prepare`, then reload |
+| API cannot bind a free-looking port (`EACCES` on Windows) | Windows may reserve the port; choose another API `PORT` (for example `3307`) and update the mobile API URL to match |
 | Busy API/Metro/database port | Stop only the instance you recognize, or select another port; do not kill unrelated listeners |
 
 Alternative ports: set `PORT` in `api/.env` and update the mobile URL/reverse rule; use Expo `--port 8082` for Metro. For PostgreSQL set `SPENDEAZY_MANUAL_DB_PORT` in the shell (`$env:SPENDEAZY_MANUAL_DB_PORT='55434'` in PowerShell, `export SPENDEAZY_MANUAL_DB_PORT=55434` in Bash), rerun Compose, and match the port in `DATABASE_URL`. For concurrent checkouts use a distinct `docker compose -p <name>` project and ports consistently for startup/shutdown/reset. One shared emulator install can only run one checkout's app at a time.

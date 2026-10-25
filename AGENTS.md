@@ -4,7 +4,7 @@ One product, two independently built npm projects: a native mobile app and a RES
 
 ## Project status
 
-Project is currently in **ACTIVE DEVELOPMENT** status which means requirements are constantly changing and there are plenty of experimentations. There are no actual users yet - only developers and testers. The priority is to ship the MVP fast.; edge cases can be deprioritized. Despite this, security should not be compromised. 
+Project is currently in **ACTIVE DEVELOPMENT** status which means requirements are constantly changing and there are plenty of experimentations. There are no actual users yet - only developers and testers. The priority is to test and iterate quickly; edge cases can be deprioritized. During code changes or design considerations, prefer the simpler approach that does not have major compromises. Overall, basic security discipline should not be compromised. 
 
 ## Choose the project
 

@@ -10,6 +10,7 @@ import {
   publicBody,
   readManifest,
   redact,
+  rememberCredential,
   requireOwnedDatabase,
   resolveSelected,
   runProcess,
@@ -18,7 +19,8 @@ import {
 } from './native-verification.mjs';
 
 const statement = 'A passed journey certifies only its UI assertions on the recorded launch. Software checks and authenticated sign-in stay separate.';
-const stepActions = new Set(['see', 'tap', 'checkpoint', 'log']);
+const authenticatedStatement = 'A passed authenticated sign-in journey certifies its listed UI assertions for this launch after the authenticated screen stays up. Software checks stay separate. An existing session or a human checkpoint is not a pass.';
+const stepActions = new Set(['see', 'tap', 'checkpoint', 'log', 'absent', 'settle', 'tap-or-checkpoint']);
 const logSources = new Set(['metro', 'api', 'device']);
 
 function block(code, message) {
@@ -75,12 +77,13 @@ function adbBin(context) {
   return 'adb';
 }
 
-async function adb(context, args, { allowFailure = false, timeoutMs = 20_000 } = {}) {
+async function adb(context, args, { allowFailure = false, timeoutMs = 20_000, redactOutput = true } = {}) {
   const result = await runProcess(adbBin(context), args, {
     cwd: context.repoRoot,
     env: context.processEnv,
     secrets: context.secrets,
     timeoutMs,
+    redactOutput,
   });
   if (result.missing) block('host-capability', 'adb is not available. Install Android SDK platform-tools or set SPENDEAZY_NV_ADB.');
   if (result.timedOut && !allowFailure) {
@@ -146,6 +149,17 @@ function matches(node, selector) {
   return true;
 }
 
+function findListed(nodes, selectors) {
+  for (const selector of selectors || []) {
+    if (nodes.some((node) => matches(node, selector))) return selector;
+  }
+  return null;
+}
+
+function reportStatement(definition) {
+  return definition?.certifiesAuthenticatedSignIn === true ? authenticatedStatement : statement;
+}
+
 function boundsCenter(value) {
   const match = /^\[(\d+),(\d+)\]\[(\d+),(\d+)\]$/.exec(value || '');
   if (!match) return null;
@@ -160,10 +174,10 @@ function stripPasswords(xml) {
 
 async function dumpUi(context, serial, runId) {
   const remote = `/data/local/tmp/${runId}-ui.xml`;
-  const dumped = await adb(context, ['-s', serial, 'shell', 'uiautomator', 'dump', remote], { allowFailure: true, timeoutMs: 60_000 });
+  const dumped = await adb(context, ['-s', serial, 'shell', 'uiautomator', 'dump', remote], { allowFailure: true, timeoutMs: 60_000, redactOutput: false });
   if (dumped.timedOut) return { xml: '', error: 'ui dump timed out' };
   if (dumped.code !== 0) return { xml: '', error: 'ui dump failed' };
-  const read = await adb(context, ['-s', serial, 'exec-out', 'cat', remote], { allowFailure: true, timeoutMs: 20_000 });
+  const read = await adb(context, ['-s', serial, 'exec-out', 'cat', remote], { allowFailure: true, timeoutMs: 20_000, redactOutput: false });
   await adb(context, ['-s', serial, 'shell', 'rm', '-f', remote], { allowFailure: true });
   if (read.code !== 0 || !read.stdout.includes('<hierarchy')) return { xml: read.stdout || '', error: 'ui dump was empty' };
   return { xml: stripPasswords(read.stdout).slice(0, 200_000), error: '' };
@@ -288,6 +302,9 @@ function validateDefinition(definition, id) {
     }
     return;
   }
+  if (definition.certifiesAuthenticatedSignIn !== undefined && definition.certifiesAuthenticatedSignIn !== true) {
+    block('invalid-journey', `Journey ${id} can certify authenticated sign-in only with certifiesAuthenticatedSignIn set to true.`);
+  }
   if (!Array.isArray(definition.steps) || definition.steps.length < 1 || definition.steps.length > 20) {
     block('invalid-journey', `Journey ${id} needs between 1 and 20 steps.`);
   }
@@ -298,14 +315,58 @@ function validateDefinition(definition, id) {
     }
     seen.add(step.id);
     if (!stepActions.has(step.action)) block('invalid-journey', `Journey step ${step.id} has an unsupported action.`);
-    if (step.action === 'see' || step.action === 'tap') validateSelector(step);
-    if (step.action === 'checkpoint' && (typeof step.reason !== 'string' || !step.reason.trim())) {
+    if (step.action === 'see' || step.action === 'tap' || step.action === 'absent') validateSelector(step);
+    if (step.action === 'see' || step.action === 'settle') {
+      validateSelectorList(step, 'reject');
+      validateLogRules(step);
+    }
+    if (step.action === 'see' && step.missingReason !== undefined && (typeof step.missingReason !== 'string' || !step.missingReason.trim())) {
+      block('invalid-journey', `Journey step ${step.id} needs a missingReason string.`);
+    }
+    if (step.action === 'settle') {
+      validateSelector(step);
+      validateSelectorList(step, 'also');
+      validateSelectorList(step, 'gone');
+      if (!Number.isInteger(step.holdMs) || step.holdMs < 100 || step.holdMs > 30_000) {
+        block('invalid-journey', `Settle step ${step.id} needs holdMs from 100 to 30000.`);
+      }
+    }
+    if ((step.action === 'checkpoint' || step.action === 'tap-or-checkpoint') && (typeof step.reason !== 'string' || !step.reason.trim())) {
       block('invalid-journey', `Checkpoint ${step.id} needs a reason.`);
+    }
+    if (step.action === 'tap-or-checkpoint') {
+      if (step.selector !== undefined) validateSelector(step);
+      validateSelectorList(step, 'challenges');
     }
     if (step.action === 'log') {
       if (!logSources.has(step.source) || typeof step.includes !== 'string' || !step.includes.trim()) {
         block('invalid-journey', `Log step ${step.id} needs a metro, api, or device source and text.`);
       }
+    }
+  }
+}
+
+function validateSelectorList(step, field) {
+  if (step[field] === undefined) return;
+  if (!Array.isArray(step[field]) || step[field].length < 1 || step[field].length > 12) {
+    block('invalid-journey', `Journey step ${step.id} has an invalid ${field} list.`);
+  }
+  for (const selector of step[field]) {
+    const fields = selectorFields(selector);
+    if (!fields.text && !fields.description && !fields.resourceId) {
+      block('invalid-journey', `Journey step ${step.id} has an empty ${field} selector.`);
+    }
+  }
+}
+
+function validateLogRules(step) {
+  if (step.failIfLog === undefined) return;
+  if (!Array.isArray(step.failIfLog) || step.failIfLog.length < 1 || step.failIfLog.length > 8) {
+    block('invalid-journey', `Journey step ${step.id} has invalid failure diagnostics.`);
+  }
+  for (const rule of step.failIfLog) {
+    if (!rule || !logSources.has(rule.source) || typeof rule.includes !== 'string' || !rule.includes.trim()) {
+      block('invalid-journey', `Journey step ${step.id} has a failure diagnostic without a source and text.`);
     }
   }
 }
@@ -393,6 +454,39 @@ async function logText(context, manifest, serial, source) {
   return { diagnostics, text: redact(diagnostics[source].text, context.secrets), available: diagnostics[source].available };
 }
 
+async function diagnosticFailure(context, manifest, serial, rules) {
+  if (!rules?.length) return '';
+  const diagnostics = await collectDiagnostics(context, manifest, serial);
+  for (const rule of rules) {
+    const source = diagnostics[rule.source];
+    if (!source?.available) continue;
+    if (source.text.includes(rule.includes)) return `${rule.source} log included ${rule.includes}`;
+  }
+  return '';
+}
+
+function stopFailed(assertions, steps, index, step, reason) {
+  assertions.push(assertion(step, 'failed', reason));
+  for (const pending of steps.slice(index + 1)) assertions.push(assertion(pending, 'not-run', 'stopped after a failed assertion'));
+}
+
+async function holdForHuman(context, manifest, options, loaded, attemptId, identity, assertions, steps, index, step) {
+  assertions.push(assertion(step, 'human-pending', step.reason));
+  for (const pending of steps.slice(index + 1)) assertions.push(assertion(pending, 'not-run', 'waiting for the human checkpoint'));
+  const checkpoint = {
+    journeyId: options.journey,
+    attemptId,
+    nextStep: index + 1,
+    definitionFingerprint: loaded.fingerprint,
+    identity,
+    reason: bound(redact(step.reason, context.secrets)),
+    assertions: assertions
+      .filter((item) => item.outcome === 'passed' || item.outcome === 'skipped')
+      .map((item) => ({ ...item, reason: bound(redact(item.reason, context.secrets)) })),
+  };
+  await writeFile(checkpointPath(context, manifest.runId), redact(`${JSON.stringify(checkpoint, null, 2)}\n`, context.secrets));
+}
+
 export async function runSelectedJourney(context, options, mode) {
   try {
     return await executeJourney(context, options, mode);
@@ -405,8 +499,10 @@ export async function runSelectedJourney(context, options, mode) {
 }
 
 async function executeJourney(context, options, { resume }) {
+  rememberCredential(context.secrets, context.processEnv.SPENDEAZY_NV_GOOGLE_ACCOUNT_LABEL || '');
   const attemptSeed = `ja-${randomBytes(6).toString('hex')}`;
   const loaded = await loadDefinition(context, options.journey, attemptSeed);
+  const activeStatement = reportStatement(loaded.definition);
   const source = await sourceIdentity(context);
   const manifest = await resolveSelected(context, options, source, { requireCompatible: true });
   await requireOwnedDatabase(context, manifest);
@@ -419,7 +515,7 @@ async function executeJourney(context, options, { resume }) {
         outcome: 'skipped',
         certified: false,
         authenticatedJourneyCertified: false,
-        statement,
+        statement: activeStatement,
         journey: {
           id: options.journey,
           attemptId: attemptSeed,
@@ -451,6 +547,10 @@ async function executeJourney(context, options, { resume }) {
     start = checkpoint.nextStep;
     attemptId = checkpoint.attemptId;
     completed = Array.isArray(checkpoint.assertions) ? checkpoint.assertions : [];
+    const prior = loaded.definition.steps[start - 1];
+    if (prior && (prior.action === 'checkpoint' || prior.action === 'tap-or-checkpoint') && !completed.some((item) => item.id === prior.id)) {
+      completed.push(assertion(prior, 'passed', 'Human checkpoint completed before resume'));
+    }
   } else {
     await rm(checkpointPath(context, manifest.runId), { force: true });
   }
@@ -465,20 +565,147 @@ async function executeJourney(context, options, { resume }) {
   for (let index = start; index < steps.length; index += 1) {
     const step = steps[index];
     if (step.action === 'checkpoint') {
-      assertions.push(assertion(step, 'human-pending', step.reason));
-      for (const pending of steps.slice(index + 1)) assertions.push(assertion(pending, 'not-run', 'waiting for the human checkpoint'));
-      const checkpoint = {
-        journeyId: options.journey,
-        attemptId,
-        nextStep: index + 1,
-        definitionFingerprint: loaded.fingerprint,
-        identity,
-        reason: bound(redact(step.reason, context.secrets)),
-        assertions: assertions
-          .filter((item) => item.outcome === 'passed' || item.outcome === 'skipped')
-          .map((item) => ({ ...item, reason: bound(redact(item.reason, context.secrets)) })),
-      };
-      await writeFile(checkpointPath(context, manifest.runId), redact(`${JSON.stringify(checkpoint, null, 2)}\n`, context.secrets));
+      await holdForHuman(context, manifest, options, loaded, attemptId, identity, assertions, steps, index, step);
+      break;
+    }
+    if (step.action === 'tap-or-checkpoint' && !step.selector) {
+      stopFailed(assertions, steps, index, step, step.reason);
+      break;
+    }
+    if (step.action === 'absent') {
+      const timeoutMs = stepTimeout(context, step.timeoutMs);
+      const deadline = Date.now() + timeoutMs;
+      let last = { xml: '', error: '' };
+      let found = false;
+      while (Date.now() <= deadline) {
+        last = await dumpUi(context, launch.device.serial, manifest.runId);
+        uiXml = last.xml || uiXml;
+        if (!last.error && parseNodes(last.xml).some((node) => matches(node, step.selector))) {
+          found = true;
+          break;
+        }
+        if (Date.now() >= deadline) break;
+        await delay(Math.min(pollInterval(context), Math.max(0, deadline - Date.now())));
+      }
+      if (found) {
+        stopFailed(assertions, steps, index, step, `Unexpected screen matched ${selectorLabel(step.selector)}`);
+        break;
+      }
+      if (last.error) {
+        stopFailed(assertions, steps, index, step, `${last.error} while confirming ${selectorLabel(step.selector)} was absent`);
+        break;
+      }
+      assertions.push(assertion(step, 'passed', `${selectorLabel(step.selector)} stayed off screen`));
+      continue;
+    }
+    if (step.action === 'settle') {
+      const timeoutMs = stepTimeout(context, step.timeoutMs);
+      const deadline = Date.now() + timeoutMs;
+      const required = [step.selector, ...(step.also || [])];
+      let last = { xml: '', error: '' };
+      let heldSince = null;
+      let lost = '';
+      let pendingGone = null;
+      let failed = false;
+      while (Date.now() <= deadline) {
+        const diagnostic = await diagnosticFailure(context, manifest, launch.device.serial, step.failIfLog);
+        if (diagnostic) {
+          stopFailed(assertions, steps, index, step, diagnostic);
+          failed = true;
+          break;
+        }
+        last = await dumpUi(context, launch.device.serial, manifest.runId);
+        uiXml = last.xml || uiXml;
+        if (!last.error) {
+          const nodes = parseNodes(last.xml);
+          const rejected = findListed(nodes, step.reject);
+          if (rejected) {
+            stopFailed(assertions, steps, index, step, `Unexpected screen matched ${selectorLabel(rejected)}`);
+            failed = true;
+            break;
+          }
+          pendingGone = findListed(nodes, step.gone);
+          const missing = required.find((selector) => !nodes.some((node) => matches(node, selector)));
+          if (pendingGone || missing) {
+            if (heldSince !== null && missing) lost = `${selectorLabel(missing)} left the screen before the hold completed`;
+            if (heldSince !== null && pendingGone) lost = `${selectorLabel(pendingGone)} returned before the hold completed`;
+            heldSince = null;
+          } else if (heldSince === null) {
+            heldSince = Date.now();
+          } else if (Date.now() - heldSince >= step.holdMs) {
+            const again = await diagnosticFailure(context, manifest, launch.device.serial, step.failIfLog);
+            if (again) {
+              stopFailed(assertions, steps, index, step, again);
+              failed = true;
+              break;
+            }
+            assertions.push(assertion(step, 'passed', `settled ${required.map((selector) => selectorLabel(selector)).join(' and ')}`));
+            failed = false;
+            break;
+          }
+        } else {
+          heldSince = null;
+        }
+        if (Date.now() >= deadline) break;
+        await delay(Math.min(pollInterval(context), Math.max(0, deadline - Date.now())));
+      }
+      if (failed) break;
+      if (assertions.at(-1)?.id !== step.id) {
+        const reason = lost
+          || (pendingGone ? `${selectorLabel(pendingGone)} stayed on screen until the timeout` : '')
+          || (last.error ? `${last.error} while settling ${selectorLabel(step.selector)}` : `${selectorLabel(step.selector)} did not stay on screen before the timeout`);
+        stopFailed(assertions, steps, index, step, reason);
+        break;
+      }
+      continue;
+    }
+    if (step.action === 'tap-or-checkpoint') {
+      const timeoutMs = stepTimeout(context, step.timeoutMs);
+      const deadline = Date.now() + timeoutMs;
+      let last = { xml: '', error: '' };
+      let tapped = false;
+      let challenge = false;
+      while (Date.now() <= deadline) {
+        last = await dumpUi(context, launch.device.serial, manifest.runId);
+        uiXml = last.xml || uiXml;
+        if (!last.error) {
+          const nodes = parseNodes(last.xml);
+          const found = nodes.find((node) => matches(node, step.selector));
+          if (found) {
+            const center = boundsCenter(found.bounds);
+            if (!center) {
+              stopFailed(assertions, steps, index, step, `${selectorLabel(step.selector)} had no tappable bounds`);
+              tapped = false;
+              challenge = false;
+              break;
+            }
+            const pressed = await adb(context, ['-s', launch.device.serial, 'shell', 'input', 'tap', String(center.x), String(center.y)], { allowFailure: true });
+            if (pressed.code !== 0) {
+              stopFailed(assertions, steps, index, step, `tap failed for ${selectorLabel(step.selector)}`);
+              break;
+            }
+            assertions.push(assertion(step, 'passed', `matched ${selectorLabel(step.selector)}`));
+            tapped = true;
+            break;
+          }
+          if (findListed(nodes, step.challenges)) {
+            challenge = true;
+            break;
+          }
+        }
+        if (Date.now() >= deadline) break;
+        await delay(Math.min(pollInterval(context), Math.max(0, deadline - Date.now())));
+      }
+      if (assertions.at(-1)?.outcome === 'failed' && assertions.at(-1)?.id === step.id) break;
+      if (tapped) continue;
+      if (challenge) {
+        await holdForHuman(context, manifest, options, loaded, attemptId, identity, assertions, steps, index, step);
+        break;
+      }
+      const reason = last.error
+        ? `${last.error} while looking for ${selectorLabel(step.selector)}`
+        : `${selectorLabel(step.selector)} was not on screen before the timeout`;
+      stopFailed(assertions, steps, index, step, reason);
       break;
     }
     if (step.action === 'log') {
@@ -512,13 +739,23 @@ async function executeJourney(context, options, { resume }) {
     if (!waited.found) {
       const reason = waited.error
         ? `${waited.error} while looking for ${selectorLabel(step.selector)}`
-        : `${selectorLabel(step.selector)} was not on screen before the timeout`;
+        : (step.missingReason || `${selectorLabel(step.selector)} was not on screen before the timeout`);
       assertions.push(assertion(step, step.required === false ? 'skipped' : 'failed', reason));
       if (assertions.at(-1).outcome === 'failed') {
         for (const pending of steps.slice(index + 1)) assertions.push(assertion(pending, 'not-run', 'stopped after a failed assertion'));
         break;
       }
       continue;
+    }
+    const rejected = findListed(parseNodes(waited.xml), step.reject);
+    if (rejected) {
+      stopFailed(assertions, steps, index, step, `Unexpected screen matched ${selectorLabel(rejected)}`);
+      break;
+    }
+    const diagnostic = await diagnosticFailure(context, manifest, launch.device.serial, step.failIfLog);
+    if (diagnostic) {
+      stopFailed(assertions, steps, index, step, diagnostic);
+      break;
     }
     if (step.action === 'tap') {
       const center = boundsCenter(waited.found.bounds);
@@ -566,14 +803,17 @@ async function executeJourney(context, options, { resume }) {
   current.updatedAt = new Date().toISOString();
   await writeManifest(context, current);
   const certified = outcome === 'passed';
+  const authenticatedJourneyCertified = certified
+    && loaded.definition.certifiesAuthenticatedSignIn === true
+    && assertions.every((item) => item.outcome === 'passed');
   const body = await publicBody(context, current, {
     operation: resume ? 'resume' : 'journey',
     extra: {
       ok: certified,
       outcome,
       certified,
-      authenticatedJourneyCertified: false,
-      statement,
+      authenticatedJourneyCertified,
+      statement: activeStatement,
       journey: {
         id: options.journey,
         attemptId,

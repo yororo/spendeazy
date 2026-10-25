@@ -22,7 +22,7 @@ npm ci --prefix api
 npm ci --prefix mobile-app
 ```
 
-Copy `api/.env.example` to `api/.env`, and `mobile-app/.env.example` to `mobile-app/.env.local`, using your editor or file manager. Keep existing local files when returning to the repo; these ignored files hold your development settings.
+Copy `api/.env.example` to `api/.env`, and `mobile-app/.env.example` to `mobile-app/.env.local`. Keep existing local files when returning to the repo; these ignored files hold your development settings.
 
 ### 3. Configure the API
 
@@ -38,6 +38,8 @@ Save one value as `INVITATION_CODE_ENCRYPTION_KEY` and the other as `GCASH_REFER
 
 Use a dedicated **Clerk development instance**. Copy its `sk_test_` secret key to `CLERK_SECRET_KEY` and its RSA PEM public verification key to `CLERK_JWT_KEY`. For a single-line PEM value, use literal `\n` between lines. Without Clerk configuration `/health` can work while authenticated requests fail.
 
+Do not invent these values. Confirm with developer if you don't have access to these.
+
 ### 4. Configure mobile sign-in and connectivity
 
 Edit `mobile-app/.env.local`:
@@ -50,9 +52,11 @@ Edit `mobile-app/.env.local`:
 | `EXPO_PUBLIC_CLERK_GOOGLE_ANDROID_CLIENT_ID` | Android OAuth client ID matching `com.seyfsasy.spendeazymobile` and the installed build's signing SHA-1 |
 | iOS client ID and URL scheme | Required when building/testing iPhone; see below |
 
-Complete Clerk's [native Google setup](https://clerk.com/docs/expo/guides/configure/auth-strategies/sign-in-with-google): enable Google, configure the web client in Clerk, and register the native application/client credentials. Use a dedicated development Google identity. For a local Android debug build, obtain the signing SHA-1 with `./gradlew signingReport` from `mobile-app/android/` (`.\gradlew.bat signingReport` in PowerShell). If that directory is absent, generate it first with `npx expo prebuild --platform android` from `mobile-app/`. A different signing certificate needs its corresponding Google configuration.
+For a local Android debug build, obtain the signing SHA-1 with `./gradlew signingReport` from `mobile-app/android/` (`.\gradlew.bat signingReport` in PowerShell). If that directory is absent, generate it first with `npx expo prebuild --platform android` from `mobile-app/`. A different signing certificate needs its corresponding Google configuration.
 
 Only public identifiers belong in `EXPO_PUBLIC_*`. Backend secret keys stay in `api/.env`.
+
+Do not invent these values. Confirm with developer if you don't have access to these.
 
 ## Daily startup
 
@@ -68,18 +72,18 @@ Wait for PostgreSQL to be healthy. This starts the `spendeazy-manual` project an
 
 ### 2. Start the API
 
-In an API terminal, working directory **`api/`**:
+In an API terminal, working directory `api/`:
 
 ```sh
 npm run migration:run
 npm run start:dev
 ```
 
-Continue only after migrations succeed. Leave watch mode running. Open [health](http://localhost:3000/health) and [API documentation](http://localhost:3000/docs). The API base path is `/api/v1`; the mobile base URL is the origin without that path.
+Continue only after migrations succeed. Leave watch mode running. Open [health](http://localhost:3000/health) to verify connection status. The API base path is `/api/v1`; the mobile base URL is the origin without that path.
 
 ### 3. Open the native app
 
-Start your Android emulator. In a second terminal, working directory **`mobile-app/`**:
+Start your Android emulator. In a second terminal, working directory `mobile-app/`:
 
 ```sh
 npm run parser:prepare
@@ -99,12 +103,12 @@ Press `a` to open Android (`Shift+A` to choose a device). Keep one Metro server 
 
 ## Test the behavior
 
-1. Sign out of Spendeazy if testing fresh sign-in. Sign in with the dedicated Google identity; complete any credential/consent/MFA prompt. Wait until Dashboard and Personal Space have loaded and remain usable.
-2. Test the changed feature with fictional data. For example, create a manual Expense and find it in the list/detail screen; exercise retry or cancellation when relevant.
+1. Sign out of Spendeazy if testing fresh sign-in. Sign in with the Google test account `spendeazytestuser@gmail.com`; complete any credential/consent/MFA prompt (requires human verification). Wait until Dashboard and Personal Space have loaded and remain usable.
+2. Test the changed feature with fictional or provided test data. For example, create a manual Expense and find it in the list/detail screen; exercise retry or cancellation when relevant.
 3. For session/storage changes, stop the app process and reopen it **without clearing app data**. Confirm the expected session and Space are retained. On Android, `adb -s <serial> shell am force-stop com.seyfsasy.spendeazymobile`, then reopen from the launcher. Keep Metro running for a development build.
 4. Exercise sign-out, API unavailable/retry, background/foreground, keyboard/back and accessibility as relevant to the change.
 
-Record the revision (and whether edited), device/OS, native build/profile, steps, and observed result. A healthy API, installed build or briefly visible screen is not a completed test. Agents use the same commands and device controls; report unavailable device access or an actual credential challenge instead of claiming a pass. Keep tokens, account identifiers, statements and private screenshots out of reports.
+Record the revision (and whether edited), device/OS, native build/profile, steps, and observed result. A healthy API, installed build or briefly visible screen is not a completed test. Agents can interact with the emulator using ADB commands or computer-use tools when available. Agents use the same commands and device controls; report unavailable device access or an actual credential challenge instead of claiming a pass. Keep tokens, account identifiers, statements and private screenshots out of reports.
 
 ## After changing code or configuration
 
@@ -123,23 +127,11 @@ Record the revision (and whether edited), device/OS, native build/profile, steps
 
 ## Physical devices
 
-### Android USB or LAN
-
-For a USB-connected Android device, approve USB debugging, select its serial from `adb devices`, and run:
-
-```sh
-adb -s <serial> reverse tcp:3000 tcp:3000
-```
-
-Set the mobile API URL to `http://127.0.0.1:3000` and reload. Remove that forwarding when finished with `adb -s <serial> reverse --remove tcp:3000`. `10.0.2.2` is the emulator's host alias; a physical device's localhost is the device itself.
-
-For LAN devices, use `http://<computer-lan-address>:3000`, allow the API through the host firewall on the trusted network, and connect the device to that network. Metro and the API are separate connections: Expo's `--tunnel` tunnels Metro, not the API. Use a reachable HTTPS development API when LAN access is unsuitable. [Android networking](https://developer.android.com/studio/run/emulator-networking-address), [React Native device setup](https://reactnative.dev/docs/running-on-device).
-
 ### Physical iPhone
 
 From Windows, use EAS cloud builds; local iOS builds/simulator require macOS and Xcode. Configure the Google iOS client ID and reversed-client-ID URL scheme from `.env.example`. Put the same public Clerk/Google build settings in the EAS **development** environment so the remote config plugin receives the iOS URL scheme. Local `.env.local` still configures the Metro-served JavaScript; a gitignored file is not automatically available to the remote build. [EAS environment setup](https://docs.expo.dev/eas/environment-variables/manage/).
 
-From **`mobile-app/`**:
+From `mobile-app/`:
 
 ```sh
 npx eas-cli@latest device:create

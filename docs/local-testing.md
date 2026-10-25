@@ -100,6 +100,31 @@ The result records the source revision and dirty-checkout fingerprint, API image
 
 If `launch` stops before Metro is ready, read the run's `launch.log` under the state directory and run `launch` again after the reported prerequisite is fixed. `reload` requires the recorded Metro process and a running app process. It does not install a build and it does not open a deep link.
 
+## Run an emulator journey
+
+`journey` drives the launched app through Android's UI Automator accessibility tree. Select one definition with `--journey`. Definitions live in `scripts/native-journeys/<id>.mjs` and are the only place for screen selectors and expected text. The runner does not contain feature selectors. `SPENDEAZY_NV_JOURNEY_DIR` points at another directory when a fixture journey is under test. Adding or replacing a definition does not require a runner change.
+
+```powershell
+node .\scripts\native-verification.mjs journey --journey sign-in-visible
+node .\scripts\native-verification.mjs resume --journey sign-in-visible
+```
+
+`sign-in-visible` waits until the signed-out screen shows Spendeazy and the Google sign-in control. It does not tap Google, and a pass does not certify an authenticated journey. `authenticatedJourneyCertified` stays false.
+
+A definition exports `id`, a short `summary`, and `steps`. A step is `see` or `tap` with a `selector`, `log` with `source` (`metro`, `api`, or `device`) and `includes`, or `checkpoint` with a `reason`. Selectors match the accessibility node's `text`, `description` (Android content description, including React Native accessibility labels), or `resourceId`. Matches are exact. `timeoutMs` is bounded. `required: false` records a miss as skipped. A required assertion that is skipped, failed, blocked, or human-pending keeps `certified` false and the command exits 1.
+
+Retire a journey by exporting `retired: { reason: '...' }` and deleting its steps. Running that id is `skipped` with the reason, exit 1. A missing file, a broken definition, or a selector that is no longer on screen is `journey-not-found`, `invalid-journey`, or a failed assertion. None of those are a pass. When the app has no accessibility text for a check, report a separate instrumentation task. Do not add a product hook in a journey change.
+
+`checkpoint` stops the command with outcome `human-pending`. The person completes the credential or consent step. `resume` checks the checkout fingerprint, native configuration, installed build, API image, and device against the checkpoint and the recorded launch, then continues at the next step. A mismatch is `incompatible-resume` and does not certify the earlier steps. `journey` starts at the first step again and replaces a stored checkpoint.
+
+The command reads bounded tails of the Metro `launch.log`, the owned API container log, and `adb logcat` from those processes' existing output. It also stores the latest UI dump. Raw captures stay under the run's `nv-captures/<attempt-id>/` directory in the state directory. That directory is gitignored. Reports name those files and do not inline them. Clerk keys, bearer tokens, and known run secrets are removed before a capture or the command output is written.
+
+`extensions.evidence.journey` keeps the latest attempt and its source fingerprint. `matchesCurrentSource` is false when the checkout has moved. A stored pass is not a result for the new checkout.
+
+The JSON result separates three claims. `softwareChecks` is `not-run` here. `buildInstallation` is the recorded launch fingerprint, and it does not by itself certify the screen. `uiAssertions` is the journey outcome. `certified` is true only when every required UI assertion passed. `identity` repeats the source fingerprint, API image, device, configuration fingerprint, native build fingerprint, and run id. A result from another run or configuration is not a result for this launch. Exit 0 is only `passed`. `failed`, `blocked`, `human-pending`, and `skipped` exit 1.
+
+`SPENDEAZY_NV_JOURNEY_STEP_TIMEOUT_MS` (default 15000, maximum 120000) and `SPENDEAZY_NV_JOURNEY_POLL_MS` (default 500) bound waits. The journey uses `adb` UI Automator and `input tap`. It does not attach a debugger.
+
 ## Run the required isolated API/PostgreSQL suite
 
 From the repository root:

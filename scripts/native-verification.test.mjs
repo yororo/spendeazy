@@ -58,6 +58,7 @@ test('help and usage stay at the command boundary', async () => {
   assert.match(help.stdout, /replace-api/);
   assert.match(help.stdout, /launch/);
   assert.match(help.stdout, /reload/);
+  assert.match(help.stdout, /refresh/);
   assert.match(help.stdout, /journey/);
   assert.match(help.stdout, /resume/);
   assert.match(help.stdout, /Windows/);
@@ -730,6 +731,219 @@ test('launch readiness checks and an owned Metro launch', { timeout: 120_000 }, 
   }
 });
 
+test('refresh reloads JavaScript with device evidence and rebuilds native inputs', { timeout: 120_000 }, async () => {
+  const tools = await writeLaunchTools();
+  const stateDir = await mkdtemp(join(tmpdir(), 'spendeazy-nv-refresh-'));
+  const root = await realpath(repoRoot);
+  const packageName = JSON.parse(await readFile(join(repoRoot, 'mobile-app', 'app.json'), 'utf8')).expo.android.package;
+  const appJsonPath = join(repoRoot, 'mobile-app', 'app.json');
+  const appJsonOriginal = await readFile(appJsonPath, 'utf8');
+  const probePath = join(repoRoot, 'mobile-app', 'src', '.nv-refresh-probe.js');
+  const androidDir = join(repoRoot, 'mobile-app', 'android');
+  const androidExisted = await stat(androidDir).then(() => true).catch(() => false);
+  const { publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
+  const pem = publicKey.export({ type: 'spki', format: 'pem' });
+  const clerkSecret = `sk_test_fictional_refresh_${randomBytes(8).toString('hex')}`;
+  const api = await listenJson({ status: 'ok', database: 'ready' });
+  const matchingJwks = await listenJson({ keys: [publicJwk(publicKey)] });
+  const publishableKey = publishableFor(`127.0.0.1:${matchingJwks.port}`);
+  const runId = 'nv-abc123abc123';
+  const token = 'f'.repeat(32);
+  const databaseId = `db${randomBytes(4).toString('hex')}`;
+  const apiId = `api${randomBytes(4).toString('hex')}`;
+  const metroPicker = createServer();
+  await new Promise((resolveListen) => metroPicker.listen(0, '127.0.0.1', resolveListen));
+  const metroPort = metroPicker.address().port;
+  await new Promise((resolveClose) => metroPicker.close(() => resolveClose()));
+  const clerkEnv = {
+    EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: publishableKey,
+    EXPO_PUBLIC_CLERK_GOOGLE_ANDROID_CLIENT_ID: 'fictional-android-client',
+  };
+  try {
+    await writeManifestFixture(stateDir, root, { runId, token, databaseId, apiId, apiPort: api.port });
+    await tools.writeScenario({
+      runId,
+      token,
+      apiPort: api.port,
+      packageName,
+      abi: 'x86_64',
+      qemu: '1',
+      devices: [{ serial: 'emulator-5554', state: 'device' }],
+      installed: true,
+      appRunning: true,
+      versionName: '1.0.0',
+      versionCode: '1',
+      primaryCpuAbi: 'x86_64',
+      lastUpdateTime: '2026-01-01 00:00:00',
+      reachability: 'reverse',
+      reversed: false,
+      containers: [
+        { id: databaseId, role: 'database', alive: true },
+        { id: apiId, role: 'api', alive: true },
+      ],
+      env: [`CLERK_SECRET_KEY=${clerkSecret}`, `CLERK_JWT_KEY=${pem.replaceAll('\n', '\\n')}`],
+    });
+    const launched = await runCli([
+      'launch', '--run', runId, '--state-dir', stateDir, '--metro-port', String(metroPort),
+    ], tools.env(clerkEnv));
+    const launchedBody = parseJson(launched);
+    if (launched.code !== 0) throw new Error(`launch failed ${launchedBody.code}: ${launchedBody.message}`);
+    const launchedManifest = JSON.parse(await readFile(join(stateDir, 'runs', runId, 'manifest.json'), 'utf8'));
+    const launchedSourceFingerprint = launchedManifest.extensions.nativeBuild.sourceFingerprint;
+
+    await writeFile(probePath, 'export const marker = "alpha-refresh-probe";\n');
+    await tools.updateScenario((scenario) => {
+      scenario.deviceReloaded = false;
+    });
+    const unobserved = await runCli(['refresh', '--run', runId, '--state-dir', stateDir], tools.env(clerkEnv));
+    const unobservedBody = parseJson(unobserved);
+    assert.equal(unobserved.code, 1);
+    assert.equal(unobservedBody.outcome, 'failed');
+    assert.equal(unobservedBody.code, 'bundle-not-active');
+    assert.equal(unobservedBody.authenticatedJourneyCertified, false);
+    assert.match(unobservedBody.message, /reload request alone does not certify/);
+    const staleManifest = JSON.parse(await readFile(join(stateDir, 'runs', runId, 'manifest.json'), 'utf8'));
+    assert.equal(staleManifest.extensions.evidence.refresh, undefined);
+    assert.equal(staleManifest.extensions.nativeBuild.sourceFingerprint, launchedSourceFingerprint);
+    const staleStatus = parseJson(await runCli(['status', '--run', runId, '--state-dir', stateDir], tools.env({})));
+    assert.equal(staleStatus.revisionCertified, false);
+    assert.notEqual(staleStatus.source.current.fingerprint, launchedSourceFingerprint);
+    assert.equal(staleManifest.extensions.evidence.launch.certifiesCurrentRevision, true);
+    assert.doesNotMatch(unobserved.stdout, new RegExp(clerkSecret));
+
+    await tools.updateScenario((scenario) => {
+      scenario.deviceReloaded = true;
+    });
+    const refreshed = await runCli(['refresh', '--run', runId, '--state-dir', stateDir], tools.env(clerkEnv));
+    const refreshedBody = parseJson(refreshed);
+    if (refreshed.code !== 0) throw new Error(`refresh failed ${refreshedBody.code}: ${refreshedBody.message}`);
+    assert.equal(refreshedBody.outcome, 'refreshed');
+    assert.equal(refreshedBody.readiness.mode, 'javascript-reload');
+    assert.equal(refreshedBody.readiness.certifiesCurrentRevision, true);
+    assert.equal(refreshedBody.readiness.previousEvidenceCertifiesRevision, false);
+    assert.equal(refreshedBody.readiness.bundleObservedOnDevice, true);
+    assert.equal(refreshedBody.readiness.configurationObservedInBundle, true);
+    assert.equal(refreshedBody.readiness.sourceDirty, true);
+    assert.equal(refreshedBody.readiness.gradleMaxWorkers, null);
+    assert.equal(refreshedBody.readiness.abi, 'x86_64');
+    assert.equal(refreshedBody.revisionCertified, true);
+    assert.equal(refreshedBody.source.dirty, true);
+    assert.equal(refreshedBody.source.fingerprint, refreshedBody.source.current.fingerprint);
+    assert.equal(refreshedBody.extensions.evidence.refresh.sourceFingerprint, refreshedBody.source.fingerprint);
+    assert.equal(refreshedBody.extensions.evidence.refresh.sourceDirty, true);
+    assert.equal(refreshedBody.extensions.evidence.launch.certifiesCurrentRevision, false);
+    assert.notEqual(refreshedBody.readiness.bundleDigest, launchedManifest.extensions.nativeBuild.bundleDigest);
+    const expoAfterReload = (await readFile(tools.expoLog, 'utf8')).trim().split('\n').filter((line) => line.startsWith('{'));
+    assert.equal(expoAfterReload.length, 1);
+
+    const again = parseJson(await runCli(['refresh', '--run', runId, '--state-dir', stateDir], tools.env(clerkEnv)));
+    assert.equal(again.readiness.previousEvidenceCertifiesRevision, true);
+    assert.equal(again.revisionCertified, true);
+
+    const rejectedFlags = await runCli([
+      'refresh', '--run', runId, '--state-dir', stateDir, '--metro-port', String(metroPort),
+    ], tools.env(clerkEnv));
+    assert.equal(rejectedFlags.code, 2);
+    assert.equal(parseJson(rejectedFlags).code, 'usage');
+    assert.match(parseJson(rejectedFlags).message, /refresh keeps the recorded Metro server/);
+
+    await tools.updateScenario((scenario) => {
+      scenario.deviceBundle = 'stale';
+    });
+    await writeFile(probePath, 'export const marker = "beta-refresh-probe";\n');
+    const staleBundle = await runCli(['refresh', '--run', runId, '--state-dir', stateDir], tools.env(clerkEnv));
+    const staleBundleBody = parseJson(staleBundle);
+    assert.equal(staleBundle.code, 1);
+    assert.equal(staleBundleBody.code, 'bundle-not-active');
+    assert.equal(staleBundleBody.outcome, 'failed');
+    const afterStale = parseJson(await runCli(['status', '--run', runId, '--state-dir', stateDir], tools.env({})));
+    assert.equal(afterStale.revisionCertified, false);
+    assert.equal(afterStale.extensions.evidence.refresh.certifiesCurrentRevision, true);
+    assert.equal(afterStale.extensions.evidence.refresh.sourceFingerprint, afterStale.source.current.fingerprint);
+    assert.equal(afterStale.source.current.dirty, true);
+    assert.notEqual(afterStale.extensions.evidence.refresh.jsInputFingerprint, afterStale.javascriptInputs);
+
+    await tools.updateScenario((scenario) => {
+      delete scenario.deviceBundle;
+    });
+    const recovered = parseJson(await runCli(['refresh', '--run', runId, '--state-dir', stateDir], tools.env(clerkEnv)));
+    if (recovered.ok !== true) throw new Error(`refresh recover failed ${recovered.code}: ${recovered.message}`);
+    assert.equal(recovered.readiness.mode, 'javascript-reload');
+    assert.equal(recovered.revisionCertified, true);
+    assert.equal(recovered.readiness.previousEvidenceCertifiesRevision, false);
+
+    const badFingerprint = 'ab'.repeat(32);
+    const badDir = join(stateDir, 'build-cache', 'arm64-v8a', badFingerprint);
+    await mkdir(badDir, { recursive: true });
+    await writeFile(join(badDir, 'app.apk'), 'wrong-abi');
+    await writeFile(join(badDir, 'metadata.json'), `${JSON.stringify({
+      nativeInputFingerprint: badFingerprint,
+      abi: 'arm64-v8a',
+      packageName,
+      artifactName: 'app.apk',
+    })}\n`);
+    await tools.updateScenario((scenario) => {
+      scenario.writeApk = true;
+    });
+    const appJson = JSON.parse(appJsonOriginal);
+    appJson.expo.android.predictiveBackGestureEnabled = true;
+    await writeFile(appJsonPath, `${JSON.stringify(appJson, null, 2)}\n`);
+    const invocationsBeforeRebuild = (await readFile(tools.expoLog, 'utf8')).trim().split('\n').filter((line) => line.startsWith('{')).length;
+    const rebuilt = await runCli(['refresh', '--run', runId, '--state-dir', stateDir], tools.env({
+      ...clerkEnv,
+      SPENDEAZY_NV_GRADLE_MAX_WORKERS: '4',
+    }));
+    const rebuiltBody = parseJson(rebuilt);
+    if (rebuilt.code !== 0) throw new Error(`native refresh failed ${rebuiltBody.code}: ${rebuiltBody.message}\n${rebuilt.stderr}`);
+    assert.equal(rebuiltBody.readiness.mode, 'native-rebuild');
+    assert.equal(rebuiltBody.readiness.invalidatedBy, 'native-inputs');
+    assert.equal(rebuiltBody.readiness.nativeBuildReused, false);
+    assert.equal(rebuiltBody.readiness.incompatibleArtifactRejected, true);
+    assert.equal(rebuiltBody.readiness.gradleMaxWorkers, 4);
+    assert.equal(rebuiltBody.readiness.abi, 'x86_64');
+    assert.equal(rebuiltBody.readiness.certifiesCurrentRevision, true);
+    assert.equal(rebuiltBody.readiness.previousEvidenceCertifiesRevision, false);
+    assert.equal(rebuiltBody.revisionCertified, true);
+    const rebuildLogs = (await readFile(tools.expoLog, 'utf8')).trim().split('\n').filter((line) => line.startsWith('{')).map((line) => JSON.parse(line));
+    assert.equal(rebuildLogs.length, invocationsBeforeRebuild + 1);
+    const rebuildLog = rebuildLogs.at(-1);
+    assert.match(rebuildLog.gradle, /-Dorg\.gradle\.workers\.max=4/);
+    assert.equal(rebuildLog.architectures, 'x86_64');
+    assert.match(rebuildLog.args.join(' '), /run:android/);
+    const adbBeforeReuse = await readFile(tools.adbLog, 'utf8');
+    assert.equal(adbBeforeReuse.includes('arm64-v8a'), false);
+    const cachedApk = await readFile(join(stateDir, 'build-cache', 'x86_64', rebuiltBody.readiness.nativeInputFingerprint, 'app.apk'), 'utf8');
+    assert.equal(cachedApk, 'tooling-owned-apk');
+
+    const cachedManifest = JSON.parse(await readFile(join(stateDir, 'runs', runId, 'manifest.json'), 'utf8'));
+    cachedManifest.extensions.nativeBuild.nativeInputFingerprint = '0'.repeat(64);
+    await writeFile(join(stateDir, 'runs', runId, 'manifest.json'), `${JSON.stringify(cachedManifest, null, 2)}\n`);
+    const reused = await runCli(['refresh', '--run', runId, '--state-dir', stateDir], tools.env(clerkEnv));
+    const reusedBody = parseJson(reused);
+    if (reused.code !== 0) throw new Error(`cache refresh failed ${reusedBody.code}: ${reusedBody.message}\n${reused.stderr}`);
+    assert.equal(reusedBody.readiness.nativeBuildReused, true);
+    assert.equal(reusedBody.readiness.incompatibleArtifactRejected, true);
+    assert.equal(reusedBody.readiness.gradleMaxWorkers, null);
+    assert.equal(reusedBody.readiness.mode, 'native-rebuild');
+    assert.equal(reusedBody.readiness.abi, 'x86_64');
+    assert.equal(reusedBody.revisionCertified, true);
+    const reuseLogs = (await readFile(tools.expoLog, 'utf8')).trim().split('\n').filter((line) => line.startsWith('{'));
+    assert.equal(reuseLogs.length, rebuildLogs.length);
+    const installLines = (await readFile(tools.adbLog, 'utf8')).trim().split('\n').map((line) => JSON.parse(line)).filter((args) => args.includes('install'));
+    assert.equal(installLines.length, 1);
+    assert.match(installLines[0].at(-1), new RegExp(`build-cache/x86_64/${rebuiltBody.readiness.nativeInputFingerprint}/app.apk`));
+    assert.doesNotMatch(`${rebuilt.stdout}\n${reused.stdout}`, new RegExp(clerkSecret));
+  } finally {
+    await writeFile(appJsonPath, appJsonOriginal);
+    await rm(probePath, { force: true });
+    if (!androidExisted) await rm(androidDir, { recursive: true, force: true });
+    api.server.close();
+    matchingJwks.server.close();
+    await rm(stateDir, { recursive: true, force: true });
+    await rm(tools.directory, { recursive: true, force: true });
+  }
+});
+
 function publishableFor(frontendApi) {
   return `pk_test_${Buffer.from(`${frontendApi}$`).toString('base64url')}`;
 }
@@ -842,6 +1056,19 @@ if (joined.includes('pidof')) {
   console.log('4242');
   process.exit(0);
 }
+if (joined.includes('nv-bundle-raw')) {
+  if (scenario.deviceBundle === 'stale') {
+    process.stdout.write('HTTP/1.0 200 OK\\r\\n\\r\\nstale-bundle');
+    process.exit(0);
+  }
+  const pathMatch = joined.match(/GET (\\S+) HTTP/);
+  const portMatch = joined.match(/nc -W \\d+ -w 10 \\S+ (\\d+)/);
+  if (!pathMatch || !portMatch) process.exit(1);
+  const response = await fetch('http://127.0.0.1:' + portMatch[1] + pathMatch[1]);
+  const body = await response.text();
+  process.stdout.write('HTTP/1.0 200 OK\\r\\n\\r\\n' + body);
+  process.exit(0);
+}
 if (joined.includes(' nc ')) {
   const match = joined.match(/nc -W 2 -w 5 (\\S+) (\\d+)/);
   const host = match ? match[1] : '';
@@ -868,6 +1095,30 @@ if (args.includes('reverse')) {
   scenario.reversed = true;
   save();
   console.log(String(scenario.apiPort));
+  process.exit(0);
+}
+if (args.includes('logcat') && args.includes('-c')) {
+  scenario.logcat = scenario.deviceReloaded === false ? '' : 'I/ReactNativeJS: Running application "main"';
+  save();
+  process.exit(0);
+}
+if (args.includes('logcat')) {
+  console.log(scenario.logcat || '');
+  process.exit(0);
+}
+if (args.includes('install')) {
+  scenario.installed = true;
+  scenario.appRunning = false;
+  scenario.lastUpdateTime = '2026-03-03 00:00:00';
+  scenario.installs = [...(scenario.installs || []), args.at(-1)];
+  save();
+  console.log('Success');
+  process.exit(0);
+}
+if (joined.includes('monkey')) {
+  scenario.appRunning = true;
+  save();
+  console.log('Events injected: 1');
   process.exit(0);
 }
 if (args.includes('exec-out')) {
@@ -927,7 +1178,7 @@ if (args[0] === 'rm') {
 process.exit(1);
 `);
   await writeFile(expo, `#!/usr/bin/env node
-import { appendFileSync } from 'node:fs';
+import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { createServer } from 'node:http';
 const args = process.argv.slice(2);
@@ -937,7 +1188,15 @@ appendFileSync(log, JSON.stringify({
   api: process.env.EXPO_PUBLIC_API_BASE_URL,
   key: process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY,
   dotenv: process.env.EXPO_NO_DOTENV,
+  gradle: process.env.GRADLE_OPTS || '',
+  architectures: process.env.ORG_GRADLE_PROJECT_reactNativeArchitectures || '',
 }) + '\\n');
+const startup = JSON.parse(readFileSync(process.env.SPENDEAZY_NV_ADB_SCENARIO, 'utf8'));
+if (startup.writeApk) {
+  mkdirSync('android/app/build/outputs/apk/debug', { recursive: true });
+  writeFileSync('android/app/build/outputs/apk/debug/app-debug.apk', 'tooling-owned-apk');
+  writeFileSync('android/app/build/outputs/apk/debug/app-arm64-v8a-debug.apk', 'wrong-abi-apk');
+}
 const port = Number(args[args.indexOf('--port') + 1]);
 const server = createServer((request, response) => {
   const url = request.url || '';
@@ -946,7 +1205,9 @@ const server = createServer((request, response) => {
     return;
   }
   if (url.includes('bundle')) {
-    response.end('bundle ' + process.env.EXPO_PUBLIC_API_BASE_URL + ' ' + process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY);
+    let extra = '';
+    try { extra = readFileSync('src/.nv-refresh-probe.js', 'utf8'); } catch {}
+    response.end('bundle ' + process.env.EXPO_PUBLIC_API_BASE_URL + ' ' + process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY + '\\n' + extra);
     return;
   }
   response.statusCode = 404;

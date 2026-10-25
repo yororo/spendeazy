@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
-import { chmod, mkdir, readdir, readFile, realpath, rm, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, readdir, readFile, realpath, rm, stat, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import { homedir } from 'node:os';
 import { dirname, join, normalize, resolve } from 'node:path';
@@ -79,10 +79,10 @@ export function parseArguments(args) {
   }
   if (options.help && positionals.length === 0) return options;
   if (positionals.length !== 1) {
-    throw new VerificationError('usage', 'Specify one operation: start, attach, status, stop, replace-api, launch, reload, journey, or resume.');
+    throw new VerificationError('usage', 'Specify one operation: start, attach, status, stop, replace-api, launch, reload, refresh, journey, or resume.');
   }
   const operation = positionals[0];
-  if (!['start', 'attach', 'status', 'stop', 'replace-api', 'launch', 'reload', 'journey', 'resume'].includes(operation)) {
+  if (!['start', 'attach', 'status', 'stop', 'replace-api', 'launch', 'reload', 'refresh', 'journey', 'resume'].includes(operation)) {
     throw new VerificationError('usage', `Unknown operation ${operation}.`);
   }
   if (options.fresh && operation !== 'start') {
@@ -94,8 +94,11 @@ export function parseArguments(args) {
   if (options.runId && !runIdPattern.test(options.runId)) {
     throw new VerificationError('usage', 'Run identity must look like nv-0123456789ab.');
   }
-  if (operation !== 'launch' && (options.serial || options.abi || options.metroPort || options.deviceApiHost || options.bootAvd)) {
-    throw new VerificationError('usage', 'Device and Metro options apply only to launch.');
+  if (!['launch', 'refresh'].includes(operation) && (options.serial || options.abi || options.metroPort || options.deviceApiHost || options.bootAvd)) {
+    throw new VerificationError('usage', 'Device and Metro options apply only to launch and refresh.');
+  }
+  if (operation === 'refresh' && (options.metroPort || options.deviceApiHost)) {
+    throw new VerificationError('usage', '--metro-port and --device-api-host apply only to launch. refresh keeps the recorded Metro server and device API address.');
   }
   if (options.serial && !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(options.serial)) {
     throw new VerificationError('usage', '--serial contains unsupported characters.');
@@ -160,6 +163,7 @@ Operations:
   replace-api   Rebuild and replace the API, keeping its database
   launch        Install and launch the native build against that API
   reload        Reload the launched app through the owned Metro server
+  refresh       Reload JavaScript or rebuild native inputs, with bundle evidence
   journey       Run one selected emulator journey and write a report
   resume        Continue a journey after its human checkpoint
 
@@ -168,12 +172,12 @@ Options:
   --new                 With start, create another run
   --api-port <port>     Bind the API on 127.0.0.1
   --database-port <port>
-  --serial <serial>     With launch, select one attached Android device
-  --abi <abi>           With launch, require armeabi-v7a, arm64-v8a, x86, or x86_64
+  --serial <serial>     With launch or refresh, select one attached Android device
+  --abi <abi>           With launch or refresh, require armeabi-v7a, arm64-v8a, x86, or x86_64
   --metro-port <port>   With launch, Metro port (default 8081, or SPENDEAZY_NV_METRO_PORT)
   --device-api-host <host>
                         With launch, device-reachable API host
-  --boot-avd <name>     With launch, start this AVD when no device is attached
+  --boot-avd <name>     With launch or refresh, start this AVD when no device is attached
   --journey <id>        With journey or resume, select one journey definition
   --state-dir <path>    Manifest and run-scoped configuration directory
   --help
@@ -185,6 +189,7 @@ Windows host, from the repository root in PowerShell:
   node .\\scripts\\native-verification.mjs replace-api
   node .\\scripts\\native-verification.mjs launch
   node .\\scripts\\native-verification.mjs reload
+  node .\\scripts\\native-verification.mjs refresh
   node .\\scripts\\native-verification.mjs journey --journey sign-in-visible
   node .\\scripts\\native-verification.mjs resume --journey sign-in-visible
   node .\\scripts\\native-verification.mjs stop
@@ -657,6 +662,86 @@ export async function observe(context, manifest) {
   return { database, api, volume, network };
 }
 
+async function fileExists(path) {
+  try {
+    await stat(path);
+    return true;
+  } catch (error) {
+    if (error.code === 'ENOENT') return false;
+    throw error;
+  }
+}
+
+async function listRelativeFiles(root, directory) {
+  const absolute = join(root, directory);
+  if (!await fileExists(absolute)) return [];
+  let entries = [];
+  try {
+    entries = await readdir(absolute, { recursive: true });
+  } catch (error) {
+    if (error.code === 'ENOENT' || error.code === 'ENOTDIR') return [];
+    throw error;
+  }
+  const files = [];
+  for (const entry of entries) {
+    const relative = join(directory, String(entry)).replaceAll('\\', '/');
+    if (relative.includes('/build/') || relative.includes('/.gradle/') || relative.endsWith('.apk')) continue;
+    const info = await stat(join(root, relative));
+    if (info.isFile()) files.push(relative);
+  }
+  return files;
+}
+
+async function hashFiles(root, files) {
+  const hash = createHash('sha256');
+  const sorted = [...files].sort();
+  for (const relative of sorted) {
+    hash.update(relative);
+    hash.update('\0');
+    hash.update(await readFile(join(root, relative)));
+    hash.update('\0');
+  }
+  hash.update(String(sorted.length));
+  return hash.digest('hex');
+}
+
+export async function nativeInputFingerprintOf(context) {
+  const root = join(context.repoRoot, 'mobile-app');
+  const present = [];
+  for (const relative of ['package.json', 'package-lock.json', 'app.json', 'app.config.ts', 'app.config.js', 'eas.json']) {
+    if (await fileExists(join(root, relative))) present.push(relative);
+  }
+  for (const directory of ['plugins', 'modules', 'assets', 'android', 'ios']) {
+    present.push(...await listRelativeFiles(root, directory));
+  }
+  return hashFiles(root, present);
+}
+
+export async function jsInputFingerprintOf(context) {
+  const root = join(context.repoRoot, 'mobile-app');
+  const files = (await listRelativeFiles(root, 'src')).filter((file) => /\.(?:js|jsx|ts|tsx|mjs|cjs)$/.test(file));
+  for (const relative of ['babel.config.js', 'metro.config.js', 'tsconfig.json']) {
+    if (await fileExists(join(root, relative))) files.push(relative);
+  }
+  return hashFiles(root, files);
+}
+
+function revisionCertified(manifest, source, javascriptInputs, nativeInputs) {
+  const refresh = manifest.extensions?.evidence?.refresh;
+  const launchEvidence = manifest.extensions?.evidence?.launch;
+  if (refresh) {
+    return refresh.certifiesCurrentRevision === true
+      && refresh.sourceFingerprint === source.fingerprint
+      && refresh.nativeInputFingerprint === nativeInputs
+      && refresh.jsInputFingerprint === javascriptInputs;
+  }
+  const build = manifest.extensions?.nativeBuild;
+  return launchEvidence?.certifiesCurrentRevision === true
+    && build?.sourceFingerprint === source.fingerprint
+    && build?.nativeInputFingerprint === nativeInputs
+    && build?.jsInputFingerprint === javascriptInputs;
+}
+
 function lifecycleFor(observation) {
   if (observation.database.identityMatches && observation.database.status === 'running') {
     if (observation.api.identityMatches && observation.api.status === 'running') return 'running';
@@ -676,6 +761,8 @@ export async function publicBody(context, manifest, { operation, reused = false,
   await rememberStoredSecrets(context, manifest.runId);
   const source = await sourceIdentity(context);
   const observation = await observe(context, manifest);
+  const javascriptInputs = await jsInputFingerprintOf(context);
+  const nativeInputs = await nativeInputFingerprintOf(context);
   const lifecycle = lifecycleFor(observation);
   return {
     ok: true,
@@ -733,6 +820,9 @@ export async function publicBody(context, manifest, { operation, reused = false,
       },
     },
     extensions: reportedExtensions(manifest, source),
+    javascriptInputs,
+    nativeInputs,
+    revisionCertified: revisionCertified(manifest, source, javascriptInputs, nativeInputs),
     ...extra,
   };
 }
@@ -1202,7 +1292,7 @@ export async function execute(args, environment = process.env) {
     };
     await mkdir(context.stateDir, { recursive: true });
     let launchModule = null;
-    if (operation === 'launch' || operation === 'reload' || operation === 'journey' || operation === 'resume') {
+    if (operation === 'launch' || operation === 'reload' || operation === 'refresh' || operation === 'journey' || operation === 'resume') {
       launchModule = await import('./native-verification-launch.mjs');
       await launchModule.preflightHost(context, { requireBuildTools: operation === 'launch' });
     }
@@ -1220,6 +1310,7 @@ export async function execute(args, environment = process.env) {
     else if (operation === 'stop') result = await stop(context, options);
     else if (operation === 'launch') result = await launchModule.launchNative(context, options);
     else if (operation === 'reload') result = await launchModule.reloadNative(context, options);
+    else if (operation === 'refresh') result = await launchModule.refreshNative(context, options);
     else if (operation === 'journey' || operation === 'resume') {
       const journeyModule = await import('./native-verification-journey.mjs');
       result = await journeyModule.runSelectedJourney(context, options, { resume: operation === 'resume' });

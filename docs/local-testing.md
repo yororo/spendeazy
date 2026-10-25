@@ -66,6 +66,7 @@ node .\scripts\native-verification.mjs attach
 node .\scripts\native-verification.mjs replace-api
 node .\scripts\native-verification.mjs launch
 node .\scripts\native-verification.mjs reload
+node .\scripts\native-verification.mjs refresh
 node .\scripts\native-verification.mjs stop
 ```
 
@@ -75,7 +76,7 @@ The manifest records run identity, ports, source revision and fingerprint, runti
 
 ## Launch the native build against that API
 
-`launch` is the readiness step for an owned run. It selects the Android device, checks the running API, installs the app through Expo, and starts that run's Metro server. `reload` sends Expo's Metro reload message to the recorded server. The JSON result has `outcome` of `launched`, `reloaded`, `blocked`, or `failed`. `authenticatedJourneyCertified` is false. A launch is not an authenticated journey.
+`launch` is the readiness step for an owned run. It selects the Android device, checks the running API, installs the app through Expo, and starts that run's Metro server. `reload` sends Expo's Metro reload message to the recorded server. `refresh` is the command to use after the checkout changes: it reloads JavaScript when native inputs and launch configuration are unchanged, and rebuilds or reinstalls when they are not. The JSON result has `outcome` of `launched`, `reloaded`, `refreshed`, `blocked`, or `failed`. `authenticatedJourneyCertified` is false. A launch or refresh is not an authenticated journey.
 
 Export the development Clerk values before `start`, so the running API receives them. Export `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` before `launch`. The publishable key must be a development key (`pk_test_`) whose public instance matches the running API verification key. Optional: `EXPO_PUBLIC_CLERK_GOOGLE_ANDROID_CLIENT_ID`. `launch` sets `EXPO_NO_DOTENV=1` for Expo, so `mobile-app\.env.local` is not the running configuration. Editing `api\.env` or the run's secret file does not change an API that is already running. To apply different Clerk values, `stop` the run, export the values, and `start` again.
 
@@ -91,6 +92,7 @@ Windows host tools, in addition to the environment prerequisites:
 node .\scripts\native-verification.mjs launch
 node .\scripts\native-verification.mjs launch --serial emulator-5554 --metro-port 8081
 node .\scripts\native-verification.mjs reload
+node .\scripts\native-verification.mjs refresh
 node .\scripts\native-verification.mjs launch --boot-avd Pixel_7
 ```
 
@@ -98,7 +100,13 @@ node .\scripts\native-verification.mjs launch --boot-avd Pixel_7
 
 The result records the source revision and dirty-checkout fingerprint, API image id, native build fingerprint, device serial and ABI, Metro endpoint, and run id. The served bundle must contain the launch API address and publishable key. A recorded device, ABI, configuration, or installed build that does not match this launch is `identity-mismatch`; stop that run and start another rather than treating the old install as updated. `stop` ends the Metro process only when its command still belongs to that run, and removes only the `adb reverse` this launch added.
 
-If `launch` stops before Metro is ready, read the run's `launch.log` under the state directory and run `launch` again after the reported prerequisite is fixed. `reload` requires the recorded Metro process and a running app process. It does not install a build and it does not open a deep link.
+`refresh` certifies the current checkout only after the emulator has logged a JavaScript reload and fetched the same bundle Metro is serving. `revisionCertified` is true only when that evidence matches the current source fingerprint, native-input fingerprint, and JavaScript-input fingerprint. The JavaScript fingerprint covers `mobile-app/src` and `babel.config.js`, `metro.config.js`, and `tsconfig.json`. The native fingerprint covers the package manifest, Expo config, plugins, assets, and native projects. Evidence also records whether the git checkout is dirty. A content change inside those inputs invalidates certification even when the git status line stays the same. `status` reports `revisionCertified: false` for that stale evidence. The stored flag inside an older evidence record is not certification by itself.
+
+JavaScript-only changes use the recorded Metro server and Expo's reload message. `readiness.mode` is `javascript-reload`. Changes to native dependencies, plugins, `app.json`, `app.config.ts`, `eas.json`, packaged assets, or the native project require a rebuild. Launch configuration changes (API address, publishable key, or Android client id) do too. `readiness.mode` is then `native-rebuild`, and `readiness.invalidatedBy` is `native-inputs` or `configuration`. The native build targets the selected device ABI through `ORG_GRADLE_PROJECT_reactNativeArchitectures`. `SPENDEAZY_NV_GRADLE_MAX_WORKERS` sets `org.gradle.workers.max` when it is present. When it is absent, refresh does not invent a worker count.
+
+A compatible cached installable for that ABI and native-input fingerprint is reinstalled with `adb install` instead of running Gradle again. When the build directory contains several APKs, refresh caches the newest one whose path names the selected ABI. An APK named for a different ABI is not cached. `readiness.nativeBuildReused` is true. An artifact whose ABI, package, or native-input fingerprint does not match is left in the cache and is not installed. `readiness.incompatibleArtifactRejected` is true, and refresh builds the selected ABI. The cache lives under the state directory in `build-cache/<abi>/<native-input-fingerprint>/`.
+
+If `launch` or `refresh` stops before Metro is ready, read the run's `launch.log` under the state directory and run the same command again after the reported prerequisite is fixed. `reload` and a JavaScript `refresh` require the recorded Metro process and a running app process. They do not install a build and they do not open a deep link. `refresh` keeps the recorded Metro port and device API address; pass those to `launch` instead. `bundle-not-active` means the reload request was not accepted as evidence: the emulator did not log a reload, or the bundle it fetched does not match Metro. The previous manifest evidence does not certify the new revision. Fix the emulator or Metro problem described in the message, then run `refresh` again. A failed refresh does not rewrite the certified evidence and does not replace the cached installable. An incompatible artifact remains unused.
 
 ## Run an emulator journey
 

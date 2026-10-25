@@ -228,30 +228,33 @@ describeDatabase(
       ]);
 
       const gate = await installBudgetDeleteGate(database);
-      const deleteResponses = Promise.all([
-        deleteBudget(
-          identity,
-          spaceId,
-          deletionCategoryId,
-          deletionBudgetBody.updatedAt,
-        ),
-        deleteBudget(
-          identity,
-          spaceId,
-          deletionCategoryId,
-          deletionBudgetBody.updatedAt,
-        ),
-      ]);
+      let firstDelete: Promise<{ status: number }> | undefined;
+      let secondDelete: Promise<{ status: number }> | undefined;
       try {
+        firstDelete = deleteBudget(
+          identity,
+          spaceId,
+          deletionCategoryId,
+          deletionBudgetBody.updatedAt,
+        ).then((response) => response);
         await waitForAdvisoryWaiters(database, gate.lockKey, 1);
+        // The second delete must block on the Budget row while the first
+        // delete is still held, so it has already observed the current version.
+        secondDelete = deleteBudget(
+          identity,
+          spaceId,
+          deletionCategoryId,
+          deletionBudgetBody.updatedAt,
+        ).then((response) => response);
+        await waitForBudgetDeleteRowWaiter(database);
         await releaseBudgetDeleteGate(gate);
-        const responses = await deleteResponses;
+        const responses = await Promise.all([firstDelete, secondDelete]);
         expect(responses.map((response) => response.status).sort()).toEqual([
           204, 409,
         ]);
       } finally {
         await releaseBudgetDeleteGate(gate);
-        await deleteResponses.catch(() => undefined);
+        await Promise.allSettled([firstDelete, secondDelete]);
         await removeBudgetDeleteGate(database, gate);
       }
     });
@@ -536,7 +539,8 @@ async function waitForAdvisoryWaiters(
   lockKey: number,
   expectedWaiters: number,
 ): Promise<void> {
-  for (let attempt = 0; attempt < 1_000; attempt += 1) {
+  const deadline = Date.now() + 10_000;
+  while (Date.now() < deadline) {
     const rows: { count: number | string }[] = await database.query(
       `
         SELECT COUNT(*)::int AS count
@@ -556,6 +560,30 @@ async function waitForAdvisoryWaiters(
 
   throw new Error(
     `Advisory lock ${lockKey} did not receive ${expectedWaiters} waiters`,
+  );
+}
+
+async function waitForBudgetDeleteRowWaiter(
+  database: DataSource,
+): Promise<void> {
+  const deadline = Date.now() + 10_000;
+  while (Date.now() < deadline) {
+    const rows: { count: number | string }[] = await database.query(
+      `
+        SELECT COUNT(*)::int AS count
+        FROM pg_stat_activity
+        WHERE wait_event_type = 'Lock'
+          AND wait_event = 'transactionid'
+          AND query ILIKE '%budgets%'
+      `,
+    );
+    if (Number(rows[0]?.count) >= 1) return;
+
+    await new Promise<void>((resolve) => setImmediate(resolve));
+  }
+
+  throw new Error(
+    'The second Budget delete did not wait on the row lock before the gate opened',
   );
 }
 

@@ -59,6 +59,8 @@ test('help and usage stay at the command boundary', async () => {
   assert.match(help.stdout, /launch/);
   assert.match(help.stdout, /reload/);
   assert.match(help.stdout, /refresh/);
+  assert.match(help.stdout, /journey/);
+  assert.match(help.stdout, /resume/);
   assert.match(help.stdout, /Windows/);
   assert.match(help.stdout, /LOCALAPPDATA/);
   assert.doesNotMatch(help.stdout, /sk_test_/);

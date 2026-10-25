@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { createHash, generateKeyPairSync, randomBytes } from 'node:crypto';
+import { createServer as createHttpServer } from 'node:http';
 import { createServer, Socket } from 'node:net';
-import { mkdtemp, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { chmod, mkdtemp, mkdir, readFile, realpath, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -55,6 +56,8 @@ test('help and usage stay at the command boundary', async () => {
   assert.match(help.stdout, /status/);
   assert.match(help.stdout, /stop/);
   assert.match(help.stdout, /replace-api/);
+  assert.match(help.stdout, /launch/);
+  assert.match(help.stdout, /reload/);
   assert.match(help.stdout, /Windows/);
   assert.match(help.stdout, /LOCALAPPDATA/);
   assert.doesNotMatch(help.stdout, /sk_test_/);
@@ -410,6 +413,583 @@ test('owned environment lifecycle, replacement, and isolated cleanup', { timeout
     else await writeFile(apiEnvPath, apiEnvOriginal);
   }
 });
+
+test('launch reports a missing Android tool without retrying', async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), 'spendeazy-nv-host-'));
+  const sdk = await mkdtemp(join(tmpdir(), 'spendeazy-nv-sdk-'));
+  try {
+    const result = await runCli(['launch'], {
+      ...process.env,
+      SPENDEAZY_NATIVE_VERIFICATION_STATE: stateDir,
+      SPENDEAZY_NV_ANDROID_SDK: sdk,
+      ANDROID_HOME: sdk,
+      ANDROID_SDK_ROOT: sdk,
+      SPENDEAZY_NV_ADB: join(sdk, 'missing-adb'),
+    });
+    const body = parseJson(result);
+    assert.equal(result.code, 1);
+    assert.equal(body.ok, false);
+    assert.equal(body.outcome, 'blocked');
+    assert.equal(body.code, 'host-capability');
+    assert.equal(body.authenticatedJourneyCertified, false);
+    assert.match(body.message, /adb/);
+    assert.match(body.statement, /does not certify an authenticated journey/);
+  } finally {
+    await rm(stateDir, { recursive: true, force: true });
+    await rm(sdk, { recursive: true, force: true });
+  }
+});
+
+test('launch rejects a production publishable key before starting Metro', async () => {
+  const tools = await writeLaunchTools();
+  const stateDir = await mkdtemp(join(tmpdir(), 'spendeazy-nv-live-'));
+  try {
+    const encoded = Buffer.from('example.clerk.accounts.dev$').toString('base64url');
+    const result = await runCli(['launch', '--state-dir', stateDir], tools.env({
+      EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: `pk_live_${encoded}`,
+    }));
+    const body = parseJson(result);
+    assert.equal(result.code, 1);
+    assert.equal(body.outcome, 'blocked');
+    assert.equal(body.code, 'incompatible-public-config');
+    assert.equal(body.authenticatedJourneyCertified, false);
+    assert.equal(await readFile(tools.expoLog, 'utf8').catch(() => ''), '');
+  } finally {
+    await rm(stateDir, { recursive: true, force: true });
+    await rm(tools.directory, { recursive: true, force: true });
+  }
+});
+
+test('launch readiness checks and an owned Metro launch', { timeout: 120_000 }, async () => {
+  const tools = await writeLaunchTools();
+  const stateDir = await mkdtemp(join(tmpdir(), 'spendeazy-nv-launch-'));
+  const root = await realpath(repoRoot);
+  const packageName = JSON.parse(await readFile(join(repoRoot, 'mobile-app', 'app.json'), 'utf8')).expo.android.package;
+  const { publicKey, privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
+  const otherKey = generateKeyPairSync('rsa', { modulusLength: 2048 }).publicKey;
+  const pem = publicKey.export({ type: 'spki', format: 'pem' });
+  const clerkSecret = `sk_test_fictional_launch_${randomBytes(8).toString('hex')}`;
+  const api = await listenJson({ status: 'ok', database: 'ready' });
+  const matchingJwks = await listenJson({ keys: [publicJwk(publicKey)] });
+  const mismatchedJwks = await listenJson({ keys: [publicJwk(otherKey)] });
+  const publishableKey = publishableFor(`127.0.0.1:${matchingJwks.port}`);
+  const mismatchedKey = publishableFor(`127.0.0.1:${mismatchedJwks.port}`);
+  const envMarker = 'http://env-file-must-not-launch.invalid';
+  const envLocal = join(repoRoot, 'mobile-app', '.env.local');
+  const envLocalOriginal = await readIfExists(envLocal);
+  const apiEnvOriginal = await readIfExists(apiEnvPath);
+  const decoy = createHttpServer((request, response) => {
+    response.end('decoy-still-here');
+  });
+  decoy.unref();
+  await new Promise((resolveListen) => decoy.listen(0, '127.0.0.1', resolveListen));
+  const decoyPort = decoy.address().port;
+  const heldProcess = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore' });
+  heldProcess.unref();
+  const runId = 'nv-abcdefabcdef';
+  const token = 'd'.repeat(32);
+  const databaseId = `db${randomBytes(4).toString('hex')}`;
+  const apiId = `api${randomBytes(4).toString('hex')}`;
+  const known = new Set([clerkSecret, pem, pem.replaceAll('\n', '\\n'), createHash('sha256').update(clerkSecret).digest('hex')]);
+  try {
+    await writeFile(envLocal, `EXPO_PUBLIC_API_BASE_URL=${envMarker}\nEXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=${publishableKey}\n`);
+    const missingKey = await runCli(['launch', '--run', runId, '--state-dir', stateDir], tools.env({}));
+    assert.equal(parseJson(missingKey).code, 'missing-configuration');
+    assert.equal(parseJson(missingKey).outcome, 'blocked');
+    assert.equal(await readFile(envLocal, 'utf8'), `EXPO_PUBLIC_API_BASE_URL=${envMarker}\nEXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=${publishableKey}\n`);
+    assert.doesNotMatch(missingKey.stdout, new RegExp(envMarker.replaceAll('.', '\\.')));
+
+    await writeManifestFixture(stateDir, root, { runId, token, databaseId, apiId, apiPort: api.port });
+    await tools.writeScenario({
+      runId,
+      token,
+      apiPort: api.port,
+      packageName,
+      abi: 'x86_64',
+      qemu: '1',
+      devices: [{ serial: 'emulator-5554', state: 'device' }],
+      installed: true,
+      appRunning: true,
+      versionName: '1.0.0',
+      versionCode: '1',
+      primaryCpuAbi: 'x86_64',
+      lastUpdateTime: '2026-01-01 00:00:00',
+      reachability: 'reverse',
+      reversed: false,
+      containers: [
+        { id: databaseId, role: 'database', alive: true },
+        { id: apiId, role: 'api', alive: true },
+      ],
+      env: [],
+    });
+
+    const missingClerk = await runCli(['launch', '--run', runId, '--state-dir', stateDir], tools.env({
+      EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: publishableKey,
+      CLERK_SECRET_KEY: clerkSecret,
+      CLERK_JWT_KEY: pem,
+    }));
+    assert.equal(parseJson(missingClerk).code, 'missing-configuration');
+    assert.equal(parseJson(missingClerk).outcome, 'blocked');
+    assert.equal(await readFile(tools.expoLog, 'utf8').catch(() => ''), '');
+
+    await tools.updateScenario((scenario) => {
+      scenario.env = [`CLERK_SECRET_KEY=${clerkSecret}`, `CLERK_JWT_KEY=${pem.replaceAll('\n', '\\n')}`];
+    });
+    const mismatched = await runCli(['launch', '--run', runId, '--state-dir', stateDir], tools.env({
+      EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: mismatchedKey,
+      CLERK_SECRET_KEY: clerkSecret,
+      CLERK_JWT_KEY: pem,
+    }));
+    assert.equal(parseJson(mismatched).code, 'incompatible-public-config', parseJson(mismatched).message);
+    assert.equal(parseJson(mismatched).outcome, 'blocked');
+
+    await tools.updateScenario((scenario) => {
+      scenario.reachability = 'fail';
+    });
+    const unreachable = await runCli(['launch', '--run', runId, '--state-dir', stateDir], tools.env({
+      EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: publishableKey,
+      CLERK_SECRET_KEY: clerkSecret,
+      CLERK_JWT_KEY: pem,
+    }));
+    assert.equal(parseJson(unreachable).code, 'device-api-unreachable');
+    assert.equal(parseJson(unreachable).outcome, 'failed');
+    assert.equal(await readFile(tools.expoLog, 'utf8').catch(() => ''), '');
+
+    await tools.updateScenario((scenario) => {
+      scenario.reachability = 'reverse';
+      scenario.devices = [
+        { serial: 'emulator-5554', state: 'unauthorized' },
+      ];
+    });
+    const adbLogBefore = await readFile(tools.adbLog, 'utf8').catch(() => '');
+    const unauthorized = await runCli(['launch', '--run', runId, '--state-dir', stateDir], tools.env({
+      EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: publishableKey,
+    }));
+    const bodyUnauthorized = parseJson(unauthorized);
+    assert.equal(bodyUnauthorized.code, 'host-capability');
+    assert.match(bodyUnauthorized.message, /USB debugging/);
+    const adbLogAfter = await readFile(tools.adbLog, 'utf8');
+    const newDeviceLists = adbLogAfter.slice(adbLogBefore.length).trim().split('\n').filter((line) => line.includes('"devices"'));
+    assert.equal(newDeviceLists.length, 1);
+
+    const busy = createHttpServer((request, response) => response.end('unrelated-metro'));
+    busy.unref();
+    await new Promise((resolveListen) => busy.listen(0, '127.0.0.1', resolveListen));
+    const busyPort = busy.address().port;
+    await tools.updateScenario((scenario) => {
+      scenario.devices = [{ serial: 'emulator-5554', state: 'device' }];
+      scenario.reachability = 'reverse';
+      scenario.reversed = false;
+    });
+    const conflict = await runCli([
+      'launch', '--run', runId, '--state-dir', stateDir, '--metro-port', String(busyPort),
+    ], tools.env({
+      EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: publishableKey,
+      CLERK_SECRET_KEY: clerkSecret,
+      CLERK_JWT_KEY: pem,
+    }));
+    assert.equal(parseJson(conflict).code, 'port-conflict');
+    assert.equal(parseJson(conflict).outcome, 'blocked');
+    const stillThere = await fetch(`http://127.0.0.1:${busyPort}/`);
+    assert.equal(await stillThere.text(), 'unrelated-metro');
+    busy.close();
+
+    const metroPicker = createServer();
+    await new Promise((resolveListen) => metroPicker.listen(0, '127.0.0.1', resolveListen));
+    const metroPort = metroPicker.address().port;
+    await new Promise((resolveClose) => metroPicker.close(() => resolveClose()));
+    await tools.updateScenario((scenario) => {
+      scenario.reversed = false;
+      scenario.probes = [];
+    });
+    const launched = await runCli([
+      'launch', '--run', runId, '--state-dir', stateDir, '--metro-port', String(metroPort),
+    ], tools.env({
+      EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: publishableKey,
+      CLERK_SECRET_KEY: clerkSecret,
+      CLERK_JWT_KEY: pem,
+      EXPO_PUBLIC_CLERK_GOOGLE_ANDROID_CLIENT_ID: 'fictional-android-client',
+    }));
+    const launchedBody = parseJson(launched);
+    if (launched.code !== 0) {
+      throw new Error(`launch failed ${launchedBody.code}: ${launchedBody.message}\n${launched.stderr}`);
+    }
+    assert.equal(launchedBody.outcome, 'launched');
+    assert.equal(launchedBody.authenticatedJourneyCertified, false);
+    assert.match(launchedBody.statement, /does not certify an authenticated journey/);
+    assert.equal(launchedBody.readiness.configurationObservedInBundle, true);
+    assert.equal(launchedBody.readiness.deviceApiReachable, true);
+    assert.equal(launchedBody.readiness.clerkInstanceCompatible, true);
+    assert.equal(launchedBody.readiness.adbReverse, true);
+    assert.equal(launchedBody.extensions.device.serial, 'emulator-5554');
+    assert.equal(launchedBody.extensions.device.abi, 'x86_64');
+    assert.equal(launchedBody.extensions.nativeBuild.packageName, packageName);
+    assert.equal(launchedBody.extensions.nativeBuild.apiImageId, 'sha256:image');
+    assert.equal(launchedBody.source.revision.length > 0, true);
+    assert.match(launchedBody.readiness.deviceApiUrl, new RegExp(`^http://127\\.0\\.0\\.1:${api.port}$`));
+    assert.match(launchedBody.readiness.metro.endpoint, /^http:\/\/127\.0\.0\.1:\d+$/);
+    const expoLog = await readFile(tools.expoLog, 'utf8');
+    assert.match(expoLog, new RegExp(`http://127\\.0\\.0\\.1:${api.port}`));
+    assert.match(expoLog, /"dotenv":"1"/);
+    assert.doesNotMatch(expoLog, /env-file-must-not-launch/);
+    assert.doesNotMatch(`${launched.stdout}\n${launched.stderr}`, new RegExp(clerkSecret));
+    assert.doesNotMatch(`${launched.stdout}\n${launched.stderr}`, /BEGIN PUBLIC KEY/);
+    const manifestText = await readFile(join(stateDir, 'runs', runId, 'manifest.json'), 'utf8');
+    assert.doesNotMatch(manifestText, new RegExp(clerkSecret));
+    assert.doesNotMatch(manifestText, /BEGIN PUBLIC KEY/);
+
+    await tools.updateScenario((scenario) => {
+      scenario.devices = [
+        { serial: 'emulator-5554', state: 'device' },
+        { serial: 'emulator-5556', state: 'device' },
+      ];
+    });
+    const wrongDevice = await runCli([
+      'launch', '--run', runId, '--state-dir', stateDir, '--serial', 'emulator-5556',
+    ], tools.env({
+      EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: publishableKey,
+      CLERK_SECRET_KEY: clerkSecret,
+      CLERK_JWT_KEY: pem,
+    }));
+    assert.equal(parseJson(wrongDevice).code, 'identity-mismatch');
+    assert.equal(parseJson(wrongDevice).outcome, 'blocked');
+
+    await tools.updateScenario((scenario) => {
+      scenario.devices = [{ serial: 'emulator-5554', state: 'device' }];
+      scenario.lastUpdateTime = '2026-02-02 00:00:00';
+    });
+    const wrongBuild = await runCli(['launch', '--run', runId, '--state-dir', stateDir], tools.env({
+      EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: publishableKey,
+      CLERK_SECRET_KEY: clerkSecret,
+      CLERK_JWT_KEY: pem,
+      EXPO_PUBLIC_CLERK_GOOGLE_ANDROID_CLIENT_ID: 'fictional-android-client',
+    }));
+    assert.equal(parseJson(wrongBuild).code, 'identity-mismatch');
+    assert.equal((await readFile(tools.expoLog, 'utf8')).trim().split('\n').filter(Boolean).length, 1);
+
+    const wrongRunId = 'nv-bbbbbbbbbbbb';
+    await writeManifestFixture(stateDir, root, {
+      runId: wrongRunId,
+      token: 'e'.repeat(32),
+      databaseId,
+      apiId,
+      apiPort: api.port,
+    });
+    const wrongRun = await runCli(['launch', '--run', wrongRunId, '--state-dir', stateDir], tools.env({
+      EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: publishableKey,
+      CLERK_SECRET_KEY: clerkSecret,
+      CLERK_JWT_KEY: pem,
+    }));
+    assert.equal(parseJson(wrongRun).outcome, 'blocked');
+    assert.equal(['stale-run', 'ownership-mismatch', 'identity-mismatch'].includes(parseJson(wrongRun).code), true);
+
+    const reloaded = await runCli(['reload', '--run', runId, '--state-dir', stateDir], tools.env({
+      EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: publishableKey,
+      EXPO_PUBLIC_CLERK_GOOGLE_ANDROID_CLIENT_ID: 'fictional-android-client',
+    }));
+    const reloadedBody = parseJson(reloaded);
+    if (reloaded.code !== 0) throw new Error(`reload failed ${reloadedBody.code}: ${reloadedBody.message}`);
+    assert.equal(reloadedBody.outcome, 'reloaded');
+    assert.equal(reloadedBody.authenticatedJourneyCertified, false);
+    assert.match(await readFile(tools.expoLog, 'utf8'), /upgrade/);
+
+    const stopped = await runCli(['stop', '--run', runId, '--state-dir', stateDir], tools.env({}));
+    const stoppedBody = parseJson(stopped);
+    if (stopped.code !== 0) throw new Error(`stop failed ${stoppedBody.code}: ${stoppedBody.message}\n${stopped.stderr}`);
+    assert.equal(stoppedBody.lifecycle, 'stopped');
+    assert.equal(heldProcess.exitCode, null);
+    assert.equal(await (await fetch(`http://127.0.0.1:${decoyPort}/`)).text(), 'decoy-still-here');
+    let metroStopped = false;
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      try {
+        await fetch(`http://127.0.0.1:${launchedBody.readiness.metro.port}/status`);
+      } catch {
+        metroStopped = true;
+        break;
+      }
+      await new Promise((resolveWait) => setTimeout(resolveWait, 100));
+    }
+    assert.equal(metroStopped, true);
+    for (const text of [missingKey.stdout, launched.stdout, reloaded.stdout, stopped.stdout]) {
+      assert.doesNotMatch(text, new RegExp(clerkSecret));
+    }
+    assert.equal(await readFile(apiEnvPath, 'utf8').catch(() => null), apiEnvOriginal);
+  } finally {
+    if (heldProcess.exitCode === null) heldProcess.kill();
+    decoy.close();
+    api.server.close();
+    matchingJwks.server.close();
+    mismatchedJwks.server.close();
+    if (envLocalOriginal === null) await rm(envLocal, { force: true });
+    else await writeFile(envLocal, envLocalOriginal);
+    await rm(stateDir, { recursive: true, force: true });
+    await rm(tools.directory, { recursive: true, force: true });
+    void privateKey;
+  }
+});
+
+function publishableFor(frontendApi) {
+  return `pk_test_${Buffer.from(`${frontendApi}$`).toString('base64url')}`;
+}
+
+function publicJwk(publicKey) {
+  return { ...publicKey.export({ format: 'jwk' }), kid: 'launch', use: 'sig', alg: 'RS256' };
+}
+
+function listenJson(body) {
+  const server = createHttpServer((request, response) => {
+    response.setHeader('content-type', 'application/json');
+    response.end(JSON.stringify(body));
+  });
+  server.unref();
+  return new Promise((resolveListen) => {
+    server.listen(0, '127.0.0.1', () => resolveListen({ server, port: server.address().port }));
+  });
+}
+
+async function writeManifestFixture(stateDir, root, { runId, token, databaseId, apiId, apiPort }) {
+  const directory = join(stateDir, 'runs', runId);
+  await mkdir(directory, { recursive: true });
+  const manifest = {
+    schemaVersion: 1,
+    manager: 'native-verification',
+    runId,
+    ownershipToken: token,
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+    phase: 'ready',
+    source: { root, revision: 'a'.repeat(40), dirty: false, fingerprint: 'b'.repeat(64) },
+    runtime: { platform: process.platform, node: process.version, docker: '24.0.0', compose: '2.29.0' },
+    ports: { api: apiPort, database: apiPort + 1 },
+    resources: {
+      composeProject: `spendeazy-nv-${runId.slice(3)}`,
+      database: {
+        containerId: databaseId,
+        volumeName: 'unused-volume',
+        networkName: 'unused-network',
+        image: 'postgres:16-alpine',
+        databaseName: 'nv_test',
+        user: 'nv_test',
+        pid: 1,
+        startedAt: '2026-01-01T00:00:00.000Z',
+      },
+      api: {
+        containerId: apiId,
+        imageTag: 'spendeazy-nv-test:local',
+        imageId: 'sha256:image',
+        pid: 2,
+        startedAt: '2026-01-01T00:00:00.000Z',
+      },
+    },
+    extensions: { device: null, nativeBuild: null, evidence: null },
+  };
+  await writeFile(join(directory, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
+}
+
+async function writeLaunchTools() {
+  const directory = await mkdtemp(join(tmpdir(), 'spendeazy-nv-tools-'));
+  const sdk = join(directory, 'sdk');
+  await mkdir(sdk);
+  const java = join(directory, 'java');
+  const adb = join(directory, 'adb');
+  const docker = join(directory, 'docker');
+  const expo = join(directory, 'expo');
+  const scenario = join(directory, 'scenario.json');
+  const adbLog = join(directory, 'adb.log');
+  const expoLog = join(directory, 'expo.log');
+  await writeFile(java, '#!/bin/sh\nexit 0\n');
+  await writeFile(adb, `#!/usr/bin/env node
+import { appendFileSync, readFileSync, writeFileSync } from 'node:fs';
+const scenarioPath = process.env.SPENDEAZY_NV_ADB_SCENARIO;
+const args = process.argv.slice(2);
+appendFileSync(process.env.SPENDEAZY_NV_ADB_LOG, JSON.stringify(args) + '\\n');
+const scenario = JSON.parse(readFileSync(scenarioPath, 'utf8'));
+const save = () => writeFileSync(scenarioPath, JSON.stringify(scenario));
+const joined = args.join(' ');
+if (args[0] === 'version') {
+  console.log('Android Debug Bridge version 1.0.41');
+  process.exit(0);
+}
+if (args[0] === 'devices') {
+  console.log('List of devices attached');
+  for (const device of scenario.devices || []) console.log(device.serial + '\\t' + device.state + ' product:sdk model:sdk device:emu transport_id:1');
+  process.exit(0);
+}
+if (joined.includes('getprop ro.product.cpu.abi')) {
+  console.log(scenario.abi || 'x86_64');
+  process.exit(0);
+}
+if (joined.includes('getprop ro.kernel.qemu')) {
+  console.log(scenario.qemu || '1');
+  process.exit(0);
+}
+if (joined.includes('dumpsys package')) {
+  if (!scenario.installed) {
+    console.log('Unable to find package');
+    process.exit(0);
+  }
+  console.log('Package [' + scenario.packageName + ']');
+  console.log('versionName=' + scenario.versionName);
+  console.log('versionCode=' + scenario.versionCode + ' minSdk=24 targetSdk=36');
+  console.log('primaryCpuAbi=' + scenario.primaryCpuAbi);
+  console.log('lastUpdateTime=' + scenario.lastUpdateTime);
+  process.exit(0);
+}
+if (joined.includes('pidof')) {
+  if (!scenario.appRunning) process.exit(1);
+  console.log('4242');
+  process.exit(0);
+}
+if (joined.includes(' nc ')) {
+  const match = joined.match(/nc -W 2 -w 5 (\\S+) (\\d+)/);
+  const host = match ? match[1] : '';
+  const port = match ? match[2] : '';
+  scenario.probes = scenario.probes || [];
+  scenario.probes.push({ host, port });
+  let ok = false;
+  if (scenario.reachability === 'direct' && host === '10.0.2.2') ok = true;
+  if (scenario.reachability === 'reverse' && host === '127.0.0.1' && scenario.reversed) ok = true;
+  scenario.lastProbeOk = ok;
+  save();
+  process.exit(ok ? 0 : 1);
+}
+if (args.includes('reverse') && args.includes('--list')) {
+  if (scenario.reversed) console.log('host-1 tcp:' + scenario.apiPort + ' tcp:' + scenario.apiPort);
+  process.exit(0);
+}
+if (args.includes('reverse') && args.includes('--remove')) {
+  scenario.reversed = false;
+  save();
+  process.exit(0);
+}
+if (args.includes('reverse')) {
+  scenario.reversed = true;
+  save();
+  console.log(String(scenario.apiPort));
+  process.exit(0);
+}
+if (args.includes('exec-out')) {
+  if (!scenario.lastProbeOk) process.exit(1);
+  console.log('HTTP/1.0 200 OK\\r\\n\\r\\n{"status":"ok"}');
+  process.exit(0);
+}
+if (joined.includes('rm -f') || args.includes('rm')) process.exit(0);
+console.error('unexpected adb ' + joined);
+process.exit(1);
+`);
+  await writeFile(docker, `#!/usr/bin/env node
+import { readFileSync, writeFileSync } from 'node:fs';
+const scenarioPath = process.env.SPENDEAZY_NV_DOCKER_SCENARIO;
+const args = process.argv.slice(2);
+const scenario = JSON.parse(readFileSync(scenarioPath, 'utf8'));
+const save = () => writeFileSync(scenarioPath, JSON.stringify(scenario));
+if (args[0] === 'info') process.exit(0);
+if (args[0] === 'version') {
+  console.log('24.0.0');
+  process.exit(0);
+}
+if (args[0] === 'compose') {
+  console.log('2.29.0');
+  process.exit(0);
+}
+if (args[0] === 'ps') {
+  const tokenFilter = args.find((arg) => arg.includes('ownership-token='));
+  const token = tokenFilter ? tokenFilter.split('ownership-token=')[1] : '';
+  const roleFilter = args.find((arg) => arg.includes('/role='));
+  const role = roleFilter ? roleFilter.split('/role=')[1] : '';
+  if (token === scenario.token) {
+    for (const container of scenario.containers || []) {
+      if (container.alive && container.role === role) console.log(container.id);
+    }
+  }
+  process.exit(0);
+}
+if (args[0] === 'inspect') {
+  const format = args[args.indexOf('--format') + 1] || '';
+  const id = args.at(-1);
+  const container = (scenario.containers || []).find((item) => item.id === id && item.alive);
+  if (!container) process.exit(1);
+  if (format.includes('Config.Env')) {
+    console.log((scenario.env || []).join('\\n'));
+    process.exit(0);
+  }
+  console.log([container.id, 'running', '100', '2026-01-01T00:00:00.000Z', 'sha256:image', 'image:local', '/owned', scenario.runId, scenario.token, container.role].join('|'));
+  process.exit(0);
+}
+if (args[0] === 'rm') {
+  const id = args.at(-1);
+  for (const container of scenario.containers || []) if (container.id === id) container.alive = false;
+  save();
+  process.exit(0);
+}
+process.exit(1);
+`);
+  await writeFile(expo, `#!/usr/bin/env node
+import { appendFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { createServer } from 'node:http';
+const args = process.argv.slice(2);
+const log = process.env.SPENDEAZY_NV_EXPO_LOG;
+appendFileSync(log, JSON.stringify({
+  args,
+  api: process.env.EXPO_PUBLIC_API_BASE_URL,
+  key: process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY,
+  dotenv: process.env.EXPO_NO_DOTENV,
+}) + '\\n');
+const port = Number(args[args.indexOf('--port') + 1]);
+const server = createServer((request, response) => {
+  const url = request.url || '';
+  if (url.startsWith('/status')) {
+    response.end('packager-status:running');
+    return;
+  }
+  if (url.includes('bundle')) {
+    response.end('bundle ' + process.env.EXPO_PUBLIC_API_BASE_URL + ' ' + process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY);
+    return;
+  }
+  response.statusCode = 404;
+  response.end();
+});
+server.on('upgrade', (request, socket) => {
+  appendFileSync(log, 'upgrade\\n');
+  const key = request.headers['sec-websocket-key'];
+  const accept = createHash('sha1').update(String(key) + '258EAFA5-E914-47DA-95CA-C5AB0DC85B11').digest('base64');
+  socket.write('HTTP/1.1 101 Switching Protocols\\r\\nUpgrade: websocket\\r\\nConnection: Upgrade\\r\\nSec-WebSocket-Accept: ' + accept + '\\r\\n\\r\\n');
+});
+server.listen(port, '127.0.0.1');
+`);
+  await Promise.all([java, adb, docker, expo].map((path) => chmod(path, 0o755)));
+  await writeFile(scenario, '{}\n');
+  const env = (extra) => ({
+    ...process.env,
+    SPENDEAZY_NV_ANDROID_SDK: sdk,
+    ANDROID_HOME: sdk,
+    ANDROID_SDK_ROOT: sdk,
+    SPENDEAZY_NV_JAVA: java,
+    SPENDEAZY_NV_ADB: adb,
+    SPENDEAZY_NV_DOCKER: docker,
+    SPENDEAZY_NV_EXPO: expo,
+    SPENDEAZY_NV_ADB_SCENARIO: scenario,
+    SPENDEAZY_NV_DOCKER_SCENARIO: scenario,
+    SPENDEAZY_NV_ADB_LOG: adbLog,
+    SPENDEAZY_NV_EXPO_LOG: expoLog,
+    SPENDEAZY_NV_LAUNCH_TIMEOUT_MS: '15000',
+    SPENDEAZY_NV_BUNDLE_TIMEOUT_MS: '5000',
+    ...extra,
+  });
+  return {
+    directory,
+    expoLog,
+    adbLog,
+    env,
+    writeScenario: (value) => writeFile(scenario, JSON.stringify(value)),
+    updateScenario: async (mutate) => {
+      const current = JSON.parse(await readFile(scenario, 'utf8'));
+      mutate(current);
+      await writeFile(scenario, JSON.stringify(current));
+    },
+  };
+}
 
 async function rememberGeneratedSecrets(stateDir, runId, known) {
   const values = decodeEnv(await readFile(join(stateDir, 'runs', runId, 'secrets.env'), 'utf8'));

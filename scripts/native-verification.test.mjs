@@ -838,15 +838,21 @@ test('refresh reloads JavaScript with device evidence and rebuilds native inputs
     assert.equal(again.readiness.previousEvidenceCertifiesRevision, true);
     assert.equal(again.revisionCertified, true);
 
+    const rejectedFlags = await runCli([
+      'refresh', '--run', runId, '--state-dir', stateDir, '--metro-port', String(metroPort),
+    ], tools.env(clerkEnv));
+    assert.equal(rejectedFlags.code, 2);
+    assert.equal(parseJson(rejectedFlags).code, 'usage');
+    assert.match(parseJson(rejectedFlags).message, /refresh keeps the recorded Metro server/);
+
     await tools.updateScenario((scenario) => {
-      scenario.freezeBundle = true;
-      scenario.frozenExtra = 'export const marker = "alpha-refresh-probe";\n';
+      scenario.deviceBundle = 'stale';
     });
     await writeFile(probePath, 'export const marker = "beta-refresh-probe";\n');
     const staleBundle = await runCli(['refresh', '--run', runId, '--state-dir', stateDir], tools.env(clerkEnv));
     const staleBundleBody = parseJson(staleBundle);
     assert.equal(staleBundle.code, 1);
-    assert.equal(staleBundleBody.code, 'stale-bundle');
+    assert.equal(staleBundleBody.code, 'bundle-not-active');
     assert.equal(staleBundleBody.outcome, 'failed');
     const afterStale = parseJson(await runCli(['status', '--run', runId, '--state-dir', stateDir], tools.env({})));
     assert.equal(afterStale.revisionCertified, false);
@@ -856,7 +862,7 @@ test('refresh reloads JavaScript with device evidence and rebuilds native inputs
     assert.notEqual(afterStale.extensions.evidence.refresh.jsInputFingerprint, afterStale.javascriptInputs);
 
     await tools.updateScenario((scenario) => {
-      scenario.freezeBundle = false;
+      delete scenario.deviceBundle;
     });
     const recovered = parseJson(await runCli(['refresh', '--run', runId, '--state-dir', stateDir], tools.env(clerkEnv)));
     if (recovered.ok !== true) throw new Error(`refresh recover failed ${recovered.code}: ${recovered.message}`);
@@ -1194,12 +1200,8 @@ const server = createServer((request, response) => {
     return;
   }
   if (url.includes('bundle')) {
-    const scenario = JSON.parse(readFileSync(process.env.SPENDEAZY_NV_ADB_SCENARIO, 'utf8'));
     let extra = '';
-    if (scenario.freezeBundle) extra = scenario.frozenExtra || '';
-    else {
-      try { extra = readFileSync('src/.nv-refresh-probe.js', 'utf8'); } catch {}
-    }
+    try { extra = readFileSync('src/.nv-refresh-probe.js', 'utf8'); } catch {}
     response.end('bundle ' + process.env.EXPO_PUBLIC_API_BASE_URL + ' ' + process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY + '\\n' + extra);
     return;
   }

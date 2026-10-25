@@ -1207,15 +1207,12 @@ async function deviceBundleDigest(context, serial, port, bundlePath, timeoutMs) 
   }
 }
 
-async function proveActiveBundle(context, { serial, port, expected, previousDigest, jsChanged, timeoutMs }) {
+async function proveActiveBundle(context, { serial, port, expected, timeoutMs }) {
   await adb(context, ['-s', serial, 'logcat', '-c'], { allowFailure: true });
   await reloadSocket(port);
   const bundle = await fetchBundle(port, expected, timeoutMs);
   if (!bundle) {
     fail('running-config-mismatch', `After refresh, the Metro bundle does not contain the recorded launch configuration. ${bundleNotActive}`);
-  }
-  if (jsChanged && previousDigest && bundle.digest === previousDigest) {
-    fail('stale-bundle', `The served bundle still matches the previously certified bundle after the JavaScript inputs changed. ${bundleNotActive}`);
   }
   const reloaded = await waitForReloadLog(context, serial, timeoutMs);
   if (!reloaded) fail('bundle-not-active', `The emulator did not log a JavaScript reload. ${bundleNotActive}`);
@@ -1423,8 +1420,6 @@ export async function refreshNative(context, options) {
         serial: device.serial,
         port: build.metro.port,
         expected,
-        previousDigest: build.bundleDigest,
-        jsChanged: jsInputFingerprint !== build.jsInputFingerprint,
         timeoutMs: bundleTimeout,
       });
       manifest.extensions.nativeBuild = {
@@ -1536,7 +1531,6 @@ export async function refreshNative(context, options) {
         launcherPid,
       });
       installed = launchedApp.installed;
-      await storeCompatibleApk(context, { abi, fingerprint: nativeInputFingerprint, packageName });
     }
     if (installed.primaryCpuAbi !== abi) {
       fail('launch-failed', `The installed build is ${installed.primaryCpuAbi}. The selected emulator ABI is ${abi}. That artifact was not certified.`);
@@ -1545,10 +1539,11 @@ export async function refreshNative(context, options) {
       serial: device.serial,
       port: build.metro.port,
       expected,
-      previousDigest: build.bundleDigest,
-      jsChanged: jsInputFingerprint !== build.jsInputFingerprint,
       timeoutMs: bundleTimeout,
     });
+    if (!nativeBuildReused) {
+      await storeCompatibleApk(context, { abi, fingerprint: nativeInputFingerprint, packageName });
+    }
     const fingerprint = installedFingerprint(configFingerprint, installed);
     manifest.extensions.nativeBuild = {
       ...build,

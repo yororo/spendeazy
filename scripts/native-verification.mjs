@@ -95,6 +95,9 @@ export function parseArguments(args) {
   if (!['launch', 'refresh'].includes(operation) && (options.serial || options.abi || options.metroPort || options.deviceApiHost || options.bootAvd)) {
     throw new VerificationError('usage', 'Device and Metro options apply only to launch and refresh.');
   }
+  if (operation === 'refresh' && (options.metroPort || options.deviceApiHost)) {
+    throw new VerificationError('usage', '--metro-port and --device-api-host apply only to launch. refresh keeps the recorded Metro server and device API address.');
+  }
   if (options.serial && !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(options.serial)) {
     throw new VerificationError('usage', '--serial contains unsupported characters.');
   }
@@ -694,6 +697,9 @@ export async function nativeInputFingerprintOf(context) {
 export async function jsInputFingerprintOf(context) {
   const root = join(context.repoRoot, 'mobile-app');
   const files = (await listRelativeFiles(root, 'src')).filter((file) => /\.(?:js|jsx|ts|tsx|mjs|cjs)$/.test(file));
+  for (const relative of ['babel.config.js', 'metro.config.js', 'tsconfig.json']) {
+    if (await fileExists(join(root, relative))) files.push(relative);
+  }
   return hashFiles(root, files);
 }
 

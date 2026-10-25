@@ -83,7 +83,7 @@ async function adb(context, args, { allowFailure = false, timeoutMs = 20_000 } =
     timeoutMs,
   });
   if (result.missing) block('host-capability', 'adb is not available. Install Android SDK platform-tools or set SPENDEAZY_NV_ADB.');
-  if (result.timedOut) {
+  if (result.timedOut && !allowFailure) {
     throw new VerificationError('journey-failed', 'adb timed out. The journey stopped.', 'failed', statement);
   }
   if (result.code !== 0 && !allowFailure) {
@@ -160,7 +160,8 @@ function stripPasswords(xml) {
 
 async function dumpUi(context, serial, runId) {
   const remote = `/data/local/tmp/${runId}-ui.xml`;
-  const dumped = await adb(context, ['-s', serial, 'shell', 'uiautomator', 'dump', remote], { allowFailure: true, timeoutMs: 20_000 });
+  const dumped = await adb(context, ['-s', serial, 'shell', 'uiautomator', 'dump', remote], { allowFailure: true, timeoutMs: 60_000 });
+  if (dumped.timedOut) return { xml: '', error: 'ui dump timed out' };
   if (dumped.code !== 0) return { xml: '', error: 'ui dump failed' };
   const read = await adb(context, ['-s', serial, 'exec-out', 'cat', remote], { allowFailure: true, timeoutMs: 20_000 });
   await adb(context, ['-s', serial, 'shell', 'rm', '-f', remote], { allowFailure: true });

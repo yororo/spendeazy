@@ -34,6 +34,7 @@ Native acceptance requires installable Android/iPhone builds, device evidence an
 
 - **Issues/specs:** use `gh` against this repository and [issue-tracker guidance](docs/agents/issue-tracker.md). Verify project-local historical issue references belong to this repository.
 - **Triage:** use [triage labels](docs/agents/triage-labels.md).
+- **Native verification environment:** start, attach, status, replace, or stop the owned API and database — [local testing](docs/local-testing.md#managed-native-verification-environment).
 
 ## Cursor Cloud specific instructions
 

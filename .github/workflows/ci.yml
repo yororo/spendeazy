@@ -29,7 +29,7 @@ jobs:
     needs: [preflight]
     name: Validate API and PostgreSQL
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     services:
       postgres:
         image: postgres:16-alpine
@@ -82,7 +82,7 @@ jobs:
       - name: Verify release gates and planner
         run: |
           node scripts/verify-release-gates.mjs
-          node --test scripts/release-plan.test.mjs scripts/local-test-launcher.test.mjs scripts/documentation-changes.test.mjs scripts/verify-release-gates.test.mjs
+          node --test scripts/release-plan.test.mjs scripts/local-test-launcher.test.mjs scripts/documentation-changes.test.mjs scripts/verify-release-gates.test.mjs scripts/native-verification.test.mjs
         env:
           CI: true
       - name: Test PostgreSQL test-runner configuration

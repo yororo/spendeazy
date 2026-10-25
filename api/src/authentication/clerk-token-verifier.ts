@@ -9,16 +9,12 @@ export class OfficialClerkTokenVerifier implements ClerkTokenVerifier {
   constructor(@Inject(APP_CONFIG) private readonly config: AppConfig) {}
 
   async verify(token: string): Promise<ClerkSession> {
-    if (
-      !this.config.clerkJwtKey ||
-      this.config.clerkAuthorizedParties.length === 0
-    ) {
+    if (!this.config.clerkJwtKey) {
       throw new Error('Clerk authentication is not configured');
     }
 
     const claims = await verifyToken(token, {
       jwtKey: this.config.clerkJwtKey,
-      authorizedParties: this.config.clerkAuthorizedParties,
       headerType: 'JWT',
     });
 

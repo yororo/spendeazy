@@ -29,10 +29,9 @@ URLs using a randomly assigned loopback port. Docker needs internet access on th
 first run to download images and npm dependencies, plus enough memory for PostgreSQL
 and the API build.
 
-For authenticated requests, export `CLERK_JWT_KEY`, `CLERK_SECRET_KEY` and
-`CLERK_AUTHORIZED_PARTIES` from a dedicated development Clerk instance before
-launching. Use a one-line PEM public key with literal `\n` separators, and origins
-matching the session token's `azp` claim. Send a short-lived development session
+For authenticated requests, export `CLERK_JWT_KEY` and `CLERK_SECRET_KEY`
+from a dedicated development Clerk instance before
+launching. Use a one-line PEM public key with literal `\n` separators. Send a short-lived development session
 token as `Authorization: Bearer <token>`. Keep these values out of source control
 and chat. Without Clerk configuration, use the public health and documentation
 routes. The launcher does not read `api/.env` or seed users/data.

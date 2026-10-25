@@ -1,0 +1,3 @@
+# Verify the native API by Clerk session identity
+
+Spendeazy supports native Android/iPhone clients after [browser retirement](../../../docs/adr/0005-retire-browser-client.md), and native Clerk sessions can omit `azp` because their Frontend API requests have no browser Origin. Authenticate bearer JWTs using the configured Clerk public key, signature, header type, validity window and User identity, and remove the inherited browser-origin allowlist from runtime and deployment configuration. Clerk [documents `azp` as optional](https://clerk.com/docs/guides/sessions/session-tokens); signature and token-lifetime checks remain mandatory, and the API accepts no cookie authentication.

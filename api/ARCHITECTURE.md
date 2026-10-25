@@ -76,6 +76,7 @@ Shared code exists only where the concern is genuinely cross-cutting:
 - Request correlation generates an `X-Request-ID`, then Express parsers apply body-size limits while preserving raw input handling.
 - Nest validation transforms DTOs, rejects unknown fields, and converts failures to `RequestValidationError`.
 - `ClerkAuthenticationGuard` verifies the bearer session unless the route is public.
+- Token verification checks the configured Clerk key, JWT signature, header type and validity window before accepting the User identity. The native-only API has no browser-origin allowlist; native sessions can omit `azp`. See [native session provenance](docs/adr/0004-native-clerk-session-provenance.md).
 - `ProvisionedUserGuard` resolves the Clerk identity to the local `User` and places its ID on the request. `PUT /api/v1/users/me` is the provisioning exception.
 - `JsonContractGuard` enforces the JSON transport contract.
 - A feature controller obtains the authenticated local User ID, maps the DTO, and calls an application service. Space-aware features must pass that trusted ID through the reusable `SpaceAccessService`; a client-supplied Space ID is only a lookup key and never an ownership grant.

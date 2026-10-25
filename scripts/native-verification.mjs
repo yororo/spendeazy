@@ -191,7 +191,8 @@ Windows host, from the repository root in PowerShell:
   node .\\scripts\\native-verification.mjs reload
   node .\\scripts\\native-verification.mjs refresh
   node .\\scripts\\native-verification.mjs journey --journey sign-in-visible
-  node .\\scripts\\native-verification.mjs resume --journey sign-in-visible
+  node .\\scripts\\native-verification.mjs journey --journey google-sign-in
+  node .\\scripts\\native-verification.mjs resume --journey google-sign-in
   node .\\scripts\\native-verification.mjs stop
 
 Prerequisites on Windows: Node.js 24, Git, and Docker Desktop with the Linux

@@ -20,6 +20,7 @@ import type {
   UpdateBudget,
 } from '../src/categories/application/budget-store';
 import { CategoriesService } from '../src/categories/application/categories.service';
+import { CategoryConfigurationsService } from '../src/categories/application/category-configurations.service';
 import type {
   CategoryRecord,
   UpdateCategory,
@@ -130,6 +131,7 @@ describe('Authenticated Space Category and Budget concurrency', () => {
         },
         { provide: SpaceAccessService, useValue: spaceAccessService },
         { provide: CategoriesService, useValue: categoriesService },
+        { provide: CategoryConfigurationsService, useValue: {} },
         { provide: BudgetsService, useValue: budgetsService },
         ClerkAuthenticationGuard,
         ProvisionedUserGuard,

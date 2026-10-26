@@ -6,7 +6,8 @@ import { BudgetEntity } from '../../database/entities/budget.entity';
 import { POSTGRES_UNIQUE_VIOLATION } from '../../database/database-error-codes';
 import { StaleEditError } from '../../errors/application-error';
 import { CategoryNotFoundError } from '../application/category-errors';
-import { prepareWritableSpace } from '../../spaces/infrastructure/space-write-guard';
+import { lockWritableSpace } from '../../spaces/infrastructure/space-write-guard';
+import { bumpCategoryRevision } from './typeorm-category-revision';
 import type {
   BudgetRecord,
   BudgetStore,
@@ -38,8 +39,9 @@ export class TypeOrmBudgetStore implements BudgetStore {
         amount: input.amount,
         period: input.period,
       });
-
-      return saveBudget(repository, entity);
+      const saved = await saveBudget(repository, entity);
+      await bumpCategoryRevision(entityManager, input.categoryId);
+      return saved;
     });
   }
 
@@ -78,6 +80,7 @@ export class TypeOrmBudgetStore implements BudgetStore {
         throw new StaleEditError();
       }
 
+      await bumpCategoryRevision(entityManager, categoryId);
       const updated = await repository.findOne({ where: { categoryId } });
       return updated ? toBudgetRecord(updated) : null;
     });
@@ -100,6 +103,7 @@ export class TypeOrmBudgetStore implements BudgetStore {
         })
         .execute();
       if (result.affected === 1) {
+        await bumpCategoryRevision(entityManager, categoryId);
         return true;
       }
 
@@ -121,7 +125,7 @@ async function lockBudgetSpace(
     .getRepository(CategoryEntity)
     .findOne({ where: { id: categoryId } });
   if (!category) throw new CategoryNotFoundError();
-  await prepareWritableSpace(entityManager, category.spaceId);
+  await lockWritableSpace(entityManager, category.spaceId);
 }
 
 async function saveBudget(

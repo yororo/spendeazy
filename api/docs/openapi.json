@@ -160,6 +160,7 @@
     },
     "/api/v1/users/me/spaces/{spaceId}/categories": {
       "post": {
+        "description": "Creates the Category, optional Budget, and complete Rule set in one transaction.",
         "operationId": "SpaceCategories_createCategory",
         "parameters": [
           {
@@ -179,7 +180,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CreateCategoryDto"
+                "$ref": "#/components/schemas/CategoryConfigurationDto"
               }
             }
           }
@@ -193,14 +194,14 @@
                 "description": "Relative canonical URI of the created Category.",
                 "schema": {
                   "type": "string",
-                  "example": "/api/v1/users/me/spaces/7/categories/42"
+                  "example": "/api/v1/users/me/spaces/7/categories/42/configuration"
                 }
               }
             },
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CategoryResponseDto"
+                  "$ref": "#/components/schemas/CategoryConfigurationResponseDto"
                 }
               }
             }
@@ -233,7 +234,7 @@
             "$ref": "#/components/responses/InternalError"
           }
         },
-        "summary": "Create a Category in an authorized Space.",
+        "summary": "Create a complete Category configuration in an authorized Space.",
         "tags": [
           "Categories"
         ]
@@ -427,6 +428,151 @@
           }
         },
         "summary": "Edit or activate/deactivate a Category in an authorized Space.",
+        "tags": [
+          "Categories"
+        ]
+      }
+    },
+    "/api/v1/users/me/spaces/{spaceId}/categories/{categoryId}/configuration": {
+      "get": {
+        "description": "Returns the Category, its optional current Budget, its complete Rules, the Category revision, and the Space Rule revision from one consistent read.",
+        "operationId": "SpaceCategoryConfigurations_getCategoryConfiguration",
+        "parameters": [
+          {
+            "name": "categoryId",
+            "required": true,
+            "in": "path",
+            "description": "Positive bigint Category identifier encoded as a string.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9]\\d*$",
+              "example": "42"
+            }
+          },
+          {
+            "name": "spaceId",
+            "required": true,
+            "in": "path",
+            "description": "Positive bigint Space identifier encoded as a string.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9]\\d*$",
+              "example": "7"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Complete Category configuration.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategoryConfigurationResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthenticatedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/UserNotProvisionedError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          },
+          "406": {
+            "$ref": "#/components/responses/NotAcceptableError"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Get a complete Category configuration in an authorized Space.",
+        "tags": [
+          "Categories"
+        ]
+      },
+      "put": {
+        "description": "Replaces Category fields, its optional Budget, and its complete Rule set in one transaction. The Category revision is always checked; the Space Rule revision is checked when the Rule set changes. Inactive Categories remain configurable. Rule conflicts or stale revisions reject the entire command.",
+        "operationId": "SpaceCategoryConfigurations_replaceCategoryConfiguration",
+        "parameters": [
+          {
+            "name": "categoryId",
+            "required": true,
+            "in": "path",
+            "description": "Positive bigint Category identifier encoded as a string.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9]\\d*$",
+              "example": "42"
+            }
+          },
+          {
+            "name": "spaceId",
+            "required": true,
+            "in": "path",
+            "description": "Positive bigint Space identifier encoded as a string.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9]\\d*$",
+              "example": "7"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CategoryConfigurationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Complete Category configuration saved.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategoryConfigurationResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthenticatedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/UserNotProvisionedError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          },
+          "406": {
+            "$ref": "#/components/responses/NotAcceptableError"
+          },
+          "409": {
+            "$ref": "#/components/responses/ConflictError"
+          },
+          "413": {
+            "$ref": "#/components/responses/HttpError"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaTypeError"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Save a complete Category configuration atomically.",
         "tags": [
           "Categories"
         ]
@@ -3100,7 +3246,38 @@
             "maxLength": 500,
             "example": "Restaurants and cafes"
           },
-          "color": {
+          "iconKey": {
+            "type": "string",
+            "enum": [
+              "utensils",
+              "car-front",
+              "bus",
+              "heart-pulse",
+              "shopping-bag",
+              "ticket",
+              "plug-zap",
+              "house",
+              "shopping-basket",
+              "heart-handshake",
+              "shield-plus",
+              "baby",
+              "wrench",
+              "smartphone",
+              "shapes",
+              "plane",
+              "paw-print",
+              "book-open",
+              "dumbbell",
+              "briefcase-business",
+              "gift",
+              "coffee",
+              "wallet",
+              "headphones"
+            ],
+            "description": "Icon key from the shared Category icon catalog.",
+            "example": "utensils"
+          },
+          "colorKey": {
             "type": "string",
             "enum": [
               "coral",
@@ -3133,8 +3310,14 @@
           },
           "isActive": {
             "type": "boolean",
-            "description": "Whether the Category is active. Inactive Categories retain their historical relationships and cannot receive a new Budget, although an existing Budget may still be replaced.",
+            "description": "Whether the Category is active. Inactive Categories retain their history and remain available through the aggregate configuration endpoint.",
             "example": true
+          },
+          "revision": {
+            "type": "string",
+            "description": "Monotonic Category configuration revision. It advances once for each changed Category, Budget, or Rule aggregate save.",
+            "pattern": "^\\d+$",
+            "example": "3"
           },
           "createdAt": {
             "type": "string",
@@ -3155,31 +3338,108 @@
           "id",
           "name",
           "description",
-          "color",
+          "iconKey",
+          "colorKey",
           "isActive",
+          "revision",
           "createdAt",
           "updatedAt"
         ]
       },
-      "CreateCategoryDto": {
+      "CategoryConfigurationBudgetDto": {
+        "type": "object",
+        "properties": {
+          "amount": {
+            "type": "string",
+            "description": "Positive exact two-decimal Budget amount in PHP.",
+            "pattern": "^(?=.*[1-9])\\d{1,13}\\.\\d{2}$",
+            "example": "250.00"
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "PHP"
+            ],
+            "example": "PHP"
+          },
+          "recurrence": {
+            "type": "string",
+            "enum": [
+              "monthly",
+              "yearly"
+            ],
+            "example": "monthly"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "amount",
+          "currency",
+          "recurrence"
+        ]
+      },
+      "CategoryConfigurationRuleDto": {
+        "type": "object",
+        "properties": {
+          "pattern": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "matchType": {
+            "type": "string",
+            "enum": [
+              "exact",
+              "contains"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "pattern",
+          "matchType"
+        ]
+      },
+      "CategoryConfigurationDto": {
         "type": "object",
         "properties": {
           "name": {
             "type": "string",
-            "description": "Category display name. It is trimmed before storage and uniqueness checking; uniqueness is case-insensitive.",
             "minLength": 1,
             "maxLength": 100,
-            "pattern": "\\S",
             "example": "Dining Out"
           },
-          "description": {
+          "iconKey": {
             "type": "string",
-            "description": "Optional Category description. Leading and trailing whitespace is removed; blank text is stored as null.",
-            "nullable": true,
-            "maxLength": 500,
-            "example": "Restaurants and cafes"
+            "enum": [
+              "utensils",
+              "car-front",
+              "bus",
+              "heart-pulse",
+              "shopping-bag",
+              "ticket",
+              "plug-zap",
+              "house",
+              "shopping-basket",
+              "heart-handshake",
+              "shield-plus",
+              "baby",
+              "wrench",
+              "smartphone",
+              "shapes",
+              "plane",
+              "paw-print",
+              "book-open",
+              "dumbbell",
+              "briefcase-business",
+              "gift",
+              "coffee",
+              "wallet",
+              "headphones"
+            ],
+            "example": "utensils"
           },
-          "color": {
+          "colorKey": {
             "type": "string",
             "enum": [
               "coral",
@@ -3207,13 +3467,178 @@
               "slate",
               "steel"
             ],
-            "description": "Optional palette identifier for the Category Color. When omitted, the API resolves a stable default from the Category identity.",
             "example": "teal"
+          },
+          "isActive": {
+            "type": "boolean",
+            "example": true
+          },
+          "budget": {
+            "nullable": true,
+            "description": "Complete current Budget, or null to remove it.",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CategoryConfigurationBudgetDto"
+              }
+            ]
+          },
+          "rules": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CategoryConfigurationRuleDto"
+            }
+          },
+          "expectedRevision": {
+            "type": "string",
+            "nullable": true,
+            "description": "Category revision from the last read; null is required when creating a Category.",
+            "pattern": "^\\d+$",
+            "example": "2"
+          },
+          "expectedRulesRevision": {
+            "type": "string",
+            "description": "Space Rule revision from the last read. It is checked when this draft changes the Rule set.",
+            "pattern": "^\\d+$",
+            "example": "3"
           }
         },
         "additionalProperties": false,
         "required": [
-          "name"
+          "name",
+          "iconKey",
+          "colorKey",
+          "isActive",
+          "budget",
+          "rules",
+          "expectedRevision",
+          "expectedRulesRevision"
+        ]
+      },
+      "CategoryConfigurationBudgetResponseDto": {
+        "type": "object",
+        "properties": {
+          "amount": {
+            "type": "string",
+            "description": "Positive exact two-decimal Budget amount in PHP.",
+            "pattern": "^(?=.*[1-9])\\d{1,13}\\.\\d{2}$",
+            "example": "250.00"
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "PHP"
+            ],
+            "example": "PHP"
+          },
+          "recurrence": {
+            "type": "string",
+            "enum": [
+              "monthly",
+              "yearly"
+            ],
+            "example": "monthly"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "amount",
+          "currency",
+          "recurrence"
+        ]
+      },
+      "CategoryRuleResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Positive bigint Category rule identifier encoded as a string.",
+            "pattern": "^[1-9]\\d*$",
+            "example": "42"
+          },
+          "categoryId": {
+            "type": "string",
+            "description": "Positive bigint Category identifier encoded as a string.",
+            "pattern": "^[1-9]\\d*$",
+            "example": "42"
+          },
+          "pattern": {
+            "type": "string",
+            "description": "Original rule text containing at least one non-whitespace character. Matching trims surrounding whitespace, collapses repeated whitespace, and compares case-insensitively.",
+            "minLength": 1,
+            "maxLength": 500,
+            "pattern": "\\S",
+            "example": "Green   Market"
+          },
+          "matchType": {
+            "type": "string",
+            "description": "Exact matches the entire normalized Expense description. Contains matches a literal substring anywhere, including within a word. Matching ignores case and normalizes whitespace; punctuation remains significant. Exact Rules take precedence over Contains Rules during categorization. The mobile client evaluates rules; the normalized pattern is not returned.",
+            "enum": [
+              "exact",
+              "contains"
+            ],
+            "example": "exact"
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "UTC timestamp when the Category rule was created.",
+            "format": "date-time",
+            "example": "2026-08-29T00:00:00.000Z"
+          },
+          "updatedAt": {
+            "type": "string",
+            "description": "UTC timestamp when the Category rule was last updated.",
+            "format": "date-time",
+            "example": "2026-08-29T00:00:00.000Z"
+          }
+        },
+        "description": "A Category Rule belonging to the authorized Space. The original pattern is retained for display. Rule evaluation is performed by the mobile client.",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "categoryId",
+          "pattern",
+          "matchType",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "CategoryConfigurationResponseDto": {
+        "type": "object",
+        "properties": {
+          "category": {
+            "$ref": "#/components/schemas/CategoryResponseDto"
+          },
+          "budget": {
+            "nullable": true,
+            "description": "The current Budget, or null when the Category has none.",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CategoryConfigurationBudgetResponseDto"
+              }
+            ]
+          },
+          "rules": {
+            "description": "Complete Category Rules ordered by ascending identifier.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CategoryRuleResponseDto"
+            }
+          },
+          "rulesRevision": {
+            "type": "string",
+            "description": "Space-wide Rule revision for detecting concurrent Rule changes.",
+            "pattern": "^\\d+$",
+            "example": "3"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "category",
+          "budget",
+          "rules",
+          "rulesRevision"
         ]
       },
       "UpdateCategoryDto": {
@@ -3236,7 +3661,7 @@
           },
           "isActive": {
             "type": "boolean",
-            "description": "Whether the Category is active. Inactive Categories retain their historical relationships and cannot receive a new Budget, although an existing Budget may still be replaced.",
+            "description": "Whether the Category is active. Deactivation preserves historical relationships. The standalone Budget endpoint cannot create a Budget for an inactive Category; the aggregate configuration endpoint remains available for maintenance.",
             "example": false
           },
           "color": {
@@ -3633,62 +4058,6 @@
           "title",
           "message",
           "createdAt"
-        ]
-      },
-      "CategoryRuleResponseDto": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "description": "Positive bigint Category rule identifier encoded as a string.",
-            "pattern": "^[1-9]\\d*$",
-            "example": "42"
-          },
-          "categoryId": {
-            "type": "string",
-            "description": "Positive bigint Category identifier encoded as a string.",
-            "pattern": "^[1-9]\\d*$",
-            "example": "42"
-          },
-          "pattern": {
-            "type": "string",
-            "description": "Original rule text containing at least one non-whitespace character. Matching trims surrounding whitespace, collapses repeated whitespace, and compares case-insensitively.",
-            "minLength": 1,
-            "maxLength": 500,
-            "pattern": "\\S",
-            "example": "Green   Market"
-          },
-          "matchType": {
-            "type": "string",
-            "description": "Exact matches the entire normalized Expense description. Contains matches a literal substring anywhere, including within a word. Matching ignores case and normalizes whitespace; punctuation remains significant. Exact Rules take precedence over Contains Rules during categorization. The mobile client evaluates rules; the normalized pattern is not returned.",
-            "enum": [
-              "exact",
-              "contains"
-            ],
-            "example": "exact"
-          },
-          "createdAt": {
-            "type": "string",
-            "description": "UTC timestamp when the Category rule was created.",
-            "format": "date-time",
-            "example": "2026-08-29T00:00:00.000Z"
-          },
-          "updatedAt": {
-            "type": "string",
-            "description": "UTC timestamp when the Category rule was last updated.",
-            "format": "date-time",
-            "example": "2026-08-29T00:00:00.000Z"
-          }
-        },
-        "description": "A Category Rule belonging to the authorized Space. The original pattern is retained for display. Rule evaluation is performed by the mobile client.",
-        "additionalProperties": false,
-        "required": [
-          "id",
-          "categoryId",
-          "pattern",
-          "matchType",
-          "createdAt",
-          "updatedAt"
         ]
       },
       "CategoryRuleCollectionResponseDto": {

@@ -874,12 +874,27 @@ describeDatabase(
       spaceId: string,
       name: string,
     ): Promise<CategoryResponse> {
+      const rules = await http()
+        .get(`/api/v1/users/me/spaces/${spaceId}/category-rules`)
+        .set(...authorization(identity));
+      expect(rules.status).toBe(200);
+      const ruleCollection = rules.body as { revision: string };
       const response = await http()
         .post(`/api/v1/users/me/spaces/${spaceId}/categories`)
         .set(...authorization(identity))
-        .send({ name });
+        .send({
+          name,
+          iconKey: 'shapes',
+          colorKey: 'teal',
+          isActive: true,
+          budget: null,
+          rules: [],
+          expectedRevision: null,
+          expectedRulesRevision: ruleCollection.revision,
+        });
       expect(response.status).toBe(201);
-      return response.body as CategoryResponse;
+      const created = response.body as { category: CategoryResponse };
+      return created.category;
     }
 
     async function getCategory(

@@ -11,6 +11,8 @@ export class ExpenseApiError extends Error {
   }
 }
 
+export { ExpenseApiError as ApiError };
+
 export class ExpenseApiTransportError extends Error {
   constructor() { super('Could not reach the Spendeazy API'); this.name = 'ExpenseApiTransportError'; }
 }

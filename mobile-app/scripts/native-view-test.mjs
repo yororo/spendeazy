@@ -32,6 +32,11 @@ export async function loadNativeView(entryUrl, exportName) {
   const compiledModule = { exports: {} };
   new Function('require', 'module', compiled.outputFiles[0].text)(name => {
     if (name === 'react-native') return native;
+    if (name === 'lucide-react-native') return new Proxy({}, {
+      get: (_target, iconName) => function IconTest(props) {
+        return React.createElement('icon-test', { ...props, name: String(iconName) });
+      },
+    });
     if (name === 'react-native-safe-area-context') return { useSafeAreaInsets: () => ({ top: 0, bottom: 0 }) };
     return require(name);
   }, compiledModule);

@@ -11,6 +11,7 @@ import {
   type UpdateCategory,
 } from './category-store';
 import type { CategoryColor } from './category-color';
+import type { CategoryIconKey } from './category-icon';
 
 @Injectable()
 export class CategoriesService {
@@ -24,6 +25,7 @@ export class CategoriesService {
       name: string;
       description?: string | null;
       color?: CategoryColor;
+      iconKey?: CategoryIconKey;
     },
   ): Promise<CategoryRecord> {
     const name = normalizeCategoryDisplayName(input.name);
@@ -34,6 +36,7 @@ export class CategoriesService {
       name,
       description: normalizeCategoryDescription(input.description),
       ...(input.color === undefined ? {} : { color: input.color }),
+      ...(input.iconKey === undefined ? {} : { iconKey: input.iconKey }),
     });
   }
 
@@ -127,6 +130,7 @@ function normalizeUpdate(input: UpdateCategory): UpdateCategory {
       ? { description: normalizeCategoryDescription(input.description) }
       : {}),
     ...(input.color !== undefined ? { color: input.color } : {}),
+    ...(input.iconKey !== undefined ? { iconKey: input.iconKey } : {}),
     expectedUpdatedAt: input.expectedUpdatedAt,
   };
 }
@@ -134,7 +138,7 @@ function normalizeUpdate(input: UpdateCategory): UpdateCategory {
 function isNoOp(
   currentCategory: Pick<
     CategoryRecord,
-    'name' | 'description' | 'color' | 'isActive'
+    'name' | 'description' | 'color' | 'iconKey' | 'isActive'
   >,
   changes: UpdateCategory,
 ): boolean {
@@ -143,6 +147,8 @@ function isNoOp(
     (changes.description === undefined ||
       changes.description === currentCategory.description) &&
     (changes.color === undefined || changes.color === currentCategory.color) &&
+    (changes.iconKey === undefined ||
+      changes.iconKey === currentCategory.iconKey) &&
     (changes.isActive === undefined ||
       changes.isActive === currentCategory.isActive)
   );

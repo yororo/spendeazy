@@ -90,6 +90,8 @@ These derived recipes preserve the multi-layer appearance. Gradient rotations an
 | `surface.canvas` | `#F6F7FC` | `#141A2B` | `FInDV`, `tqmXH` |
 | `surface.navigation` | `#FFFFFF80` | `#272E41D9` | `Z92ldV`, `AH7XS` |
 | `border.glass` | `#FFFFFFE6` | `#A7B1DC26` | Summary card and navigation |
+| `surface.glassTint` | `#FFFFFF66` | `#272E4180` | Middle stop of the summary-card gradient; used as its tint and platform fallback |
+| `shadow.summaryCard` | `#646A9D12` | `#00000040` | Summary card outer shadow |
 | `border.field` | `#E5E7EF` | `#A7B1DC26` | `muRAO`, `x5wMvK`; bottom edge, width 1 |
 | `overlay.scrim` | `#20283B66` | `#06091399` | `qIxLt`, `fjL4I` |
 
@@ -113,6 +115,8 @@ Dark source `tqmXH` has two layers: `#51437D40` → `#141A2B00` at (1, 0.22), si
 - Dark: `#272E41D9` / `#272E4180` / `#272E41D9`.
 - Outer shadow: offset (0,10), blur 30; light `#646A9D12`, dark `#00000040`.
 - Inner highlight: offset (0,1), blur 2; light `#FFFFFFCC`, dark `#C5CDFF12`.
+
+The Budget plan summary uses `GlassView` with the recipe's radius, 22-unit inset, 14-unit gap, glass border, and outer shadow. Its tint uses the middle gradient stop to keep the fallback readable. Native blur is available only on supported iOS versions; Android and unsupported iOS versions render a tinted View fallback. The three-stop gradient and inner highlight are not implemented on this card, so this is an intentional simplified surface pending visual comparison against the source in Pencil.
 
 ### Navigation and Add action
 

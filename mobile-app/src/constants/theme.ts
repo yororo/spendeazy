@@ -20,6 +20,9 @@ export const palette = {
     navigation: '#FFFFFF',
     navigationBorder: '#E5E7EF',
     fieldBorder: '#E5E7EF',
+    glassTint: '#FFFFFF66',
+    glassBorder: '#FFFFFFE6',
+    summaryCardShadow: '#646A9D12',
     scrim: '#20283B66',
     add: '#6976E6',
     onAdd: '#FFFFFF',
@@ -38,6 +41,9 @@ export const palette = {
     navigation: '#272E41',
     navigationBorder: '#A7B1DC26',
     fieldBorder: '#A7B1DC26',
+    glassTint: '#272E4180',
+    glassBorder: '#A7B1DC26',
+    summaryCardShadow: '#00000040',
     scrim: '#06091399',
     add: '#6976E6',
     onAdd: '#FFFFFF',
@@ -58,6 +64,8 @@ export const typeScale = {
   sectionTitle: 15,
   button: 15,
   body: 16,
+  metadata: 12,
+  summaryMetric: 23,
   pageTitleTracking: -0.9,
 } as const;
 
@@ -65,6 +73,7 @@ export const space = {
   screenHorizontal: 20,
   screenBottom: 16,
   cardGap: 14,
+  cardInset: 22,
   dialogInset: 24,
   dialogGap: 24,
   sheetPaddingTop: 12,
@@ -76,6 +85,7 @@ export const space = {
 
 export const radius = {
   control: 16,
+  summaryCard: 30,
   dialog: 26,
   sheet: 28,
   navigation: 32,

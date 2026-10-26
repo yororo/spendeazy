@@ -2,13 +2,13 @@ import { useCallback, useRef } from 'react';
 import { useFocusEffect, useRouter, type Href } from 'expo-router';
 import { SpaceStatus } from '@/components/space-status';
 import { useSpaces } from '@/application/spaces/provider';
-import { CategoryListView } from '@/features/categories/category-list-view';
-import { useSpaceCategories } from '@/features/expenses/use-space-categories';
+import { BudgetListView } from '@/features/categories/budget-list-view';
+import { useBudgetCategories } from '@/features/categories/use-budget-categories';
 
 export default function BudgetScreen() {
   const router = useRouter();
   const { active } = useSpaces();
-  const categories = useSpaceCategories(active?.id ?? null);
+  const categories = useBudgetCategories(active?.id ?? null);
   const reloadCategories = categories.reload;
   const focused = useRef(false);
   useFocusEffect(useCallback(() => {
@@ -16,9 +16,11 @@ export default function BudgetScreen() {
     focused.current = true;
   }, [reloadCategories]));
   return (
-    <CategoryListView
+    <BudgetListView
+      key={active?.id ?? 'no-space'}
       categories={categories.categories}
       loading={categories.loading}
+      refreshing={categories.refreshing}
       error={categories.error}
       canEdit={active?.status === 'active' && active.accessLevel === 'write'}
       spaceStatus={<SpaceStatus />}

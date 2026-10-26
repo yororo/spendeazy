@@ -32,6 +32,7 @@ export async function loadNativeView(entryUrl, exportName) {
   const compiledModule = { exports: {} };
   new Function('require', 'module', compiled.outputFiles[0].text)(name => {
     if (name === 'react-native') return native;
+    if (name === 'expo-glass-effect') return { GlassView: native.View };
     if (name === 'lucide-react-native') return new Proxy({}, {
       get: (_target, iconName) => function IconTest(props) {
         return React.createElement('icon-test', { ...props, name: String(iconName) });

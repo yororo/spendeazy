@@ -60,6 +60,12 @@ test('Budget view shows all active plan totals independently from inactive and u
   assert.match(view.text, /No Budget set/);
   assert.doesNotMatch(view.text, /Retired/);
 
+  const summary = view.find('Monthly-equivalent plan ₱700.00; annual equivalent ₱8,400.00; 2 active Budgets');
+  assert.equal(summary.glassEffectStyle, 'regular');
+  assert.equal(summary.colorScheme, 'light');
+  assert.equal(summary.style.gap, 14);
+  assert.equal(summary.style.padding, 22);
+
   const row = view.find('Edit Food, active, Budget ₱500.00 per month; monthly equivalent ₱500.00; annual equivalent ₱6,000.00');
   assert.equal(row.accessibilityRole, 'button');
   row.onPress();

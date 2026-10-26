@@ -1,5 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { Pressable, Text, View } from 'react-native';
+import { GlassView } from 'expo-glass-effect';
 import { PrimaryButton, SecondaryButton } from '@/components/buttons';
 import { Screen, SupportingText } from '@/components/screen';
 import { TextField } from '@/components/text-field';
@@ -38,7 +39,7 @@ export function BudgetListView({
   onCreate: () => void;
   onOpen: (categoryId: string) => void;
 }) {
-  const { palette, fonts } = useAppTheme();
+  const { palette, fonts, scheme } = useAppTheme();
   const [view, setView] = useState<BudgetBrowseView>('active');
   const [filter, setFilter] = useState<BudgetPeriodFilter>('all');
   const [search, setSearch] = useState('');
@@ -129,19 +130,33 @@ export function BudgetListView({
         {canEdit ? <PrimaryButton label="Create Category" onPress={onCreate} /> : null}
 
         <View
-          accessible
-          accessibilityRole="summary"
-          accessibilityLabel={planAvailable
-            ? `Monthly-equivalent plan ${plan.monthlyEquivalent}; annual equivalent ${plan.annualEquivalent}; ${plan.budgetCount} active ${plan.budgetCount === 1 ? 'Budget' : 'Budgets'}`
-            : 'Budget plan loading'}
           style={{
-            gap: 8,
-            padding: space.cardInset,
-            borderWidth: 1,
-            borderColor: palette.fieldBorder,
             borderRadius: radius.summaryCard,
-            backgroundColor: palette.surfaceModal,
+            shadowColor: palette.summaryCardShadow,
+            shadowOffset: { width: 0, height: 10 },
+            shadowOpacity: 1,
+            shadowRadius: 30,
+            elevation: 6,
           }}>
+          <GlassView
+            accessible
+            accessibilityRole="summary"
+            accessibilityLabel={planAvailable
+              ? `Monthly-equivalent plan ${plan.monthlyEquivalent}; annual equivalent ${plan.annualEquivalent}; ${plan.budgetCount} active ${plan.budgetCount === 1 ? 'Budget' : 'Budgets'}`
+              : 'Budget plan loading'}
+            glassEffectStyle="regular"
+            colorScheme={scheme ?? 'light'}
+            tintColor={palette.glassTint}
+            style={{
+              gap: space.cardGap,
+              padding: space.cardInset,
+              borderWidth: 1,
+              borderColor: palette.glassBorder,
+              borderRadius: radius.summaryCard,
+              borderCurve: 'continuous',
+              overflow: 'hidden',
+              backgroundColor: palette.glassTint,
+            }}>
           <Text style={{ color: palette.textSecondary, fontFamily: fonts.semibold, fontSize: typeScale.sectionTitle }}>
             Monthly-equivalent plan
           </Text>
@@ -158,6 +173,7 @@ export function BudgetListView({
               ? `${plan.budgetCount} active ${plan.budgetCount === 1 ? 'Budget' : 'Budgets'} · inactive Categories excluded`
               : 'Active Budget totals'}
           </Text>
+          </GlassView>
         </View>
 
         {error ? (

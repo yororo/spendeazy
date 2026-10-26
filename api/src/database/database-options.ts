@@ -40,6 +40,7 @@ import { RemoveSpaceNotificationEmailDelivery1940000000000 } from './migrations/
 import { ClassifyStatementImports1950000000000 } from './migrations/1950000000000-classify-statement-imports';
 import { AdoptExpenseFoundation1960000000000 } from './migrations/1960000000000-adopt-expense-foundation';
 import { ExpenseProvenanceAndDeletionReplay1970000000000 } from './migrations/1970000000000-expense-provenance-and-deletion-replay';
+import { AddCategoryConfigurationRevisions1980000000000 } from './migrations/1980000000000-add-category-configuration-revisions';
 
 export const DATABASE_MIGRATIONS = [
   CreateExpenseTrackerSchema1710000000000,
@@ -69,6 +70,7 @@ export const DATABASE_MIGRATIONS = [
   ClassifyStatementImports1950000000000,
   AdoptExpenseFoundation1960000000000,
   ExpenseProvenanceAndDeletionReplay1970000000000,
+  AddCategoryConfigurationRevisions1980000000000,
 ];
 
 export const DATABASE_ENTITIES = [

@@ -95,7 +95,7 @@ describeDatabase('category colors with PostgreSQL', () => {
       name: 'Legacy category',
     });
     expect(legacy.color).toBeNull();
-    const defaultColor = toSpaceCategoryResponse(legacy).color;
+    const defaultColor = toSpaceCategoryResponse(legacy).colorKey;
 
     await categories.updateCategoryInSpace(spaceId, legacy.id, {
       name: 'Legacy category renamed',
@@ -104,7 +104,7 @@ describeDatabase('category colors with PostgreSQL', () => {
 
     const reloaded = await categories.getCategoryInSpace(spaceId, legacy.id);
     expect(reloaded.color).toBeNull();
-    expect(toSpaceCategoryResponse(reloaded).color).toBe(defaultColor);
+    expect(toSpaceCategoryResponse(reloaded).colorKey).toBe(defaultColor);
   });
 
   it('rejects unsupported palette values at the database boundary', async () => {

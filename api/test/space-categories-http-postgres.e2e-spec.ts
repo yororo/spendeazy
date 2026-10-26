@@ -20,6 +20,8 @@ import { configureApp } from '../src/bootstrap';
 import type { AppConfig } from '../src/config/app-config';
 import { BudgetEntity } from '../src/database/entities/budget.entity';
 import { CategoryEntity } from '../src/database/entities/category.entity';
+import { ExpenseActivityEntity } from '../src/database/entities/expense-activity.entity';
+import { ExpenseEntity } from '../src/database/entities/expense.entity';
 import { SpaceEntity } from '../src/database/entities/space.entity';
 import { SpaceMembershipEntity } from '../src/database/entities/space-membership.entity';
 import { UserEntity } from '../src/database/entities/user.entity';
@@ -68,6 +70,12 @@ describeDatabase(
         const categories = await database
           .getRepository(CategoryEntity)
           .findBy({ spaceId: In(createdSpaceIds) });
+        await database.getRepository(ExpenseActivityEntity).delete({
+          spaceId: In(createdSpaceIds),
+        });
+        await database.getRepository(ExpenseEntity).delete({
+          spaceId: In(createdSpaceIds),
+        });
         if (categories.length > 0) {
           await database.getRepository(BudgetEntity).delete({
             categoryId: In(categories.map((category) => category.id)),
@@ -238,7 +246,7 @@ describeDatabase(
           deletionBudgetBody.updatedAt,
         ).then((response) => response);
         await waitForAdvisoryWaiters(database, gate.lockKey, 1);
-        // The second delete must block on the Budget row while the first
+        // The second delete must block on the Space row while the first
         // delete is still held, so it has already observed the current version.
         secondDelete = deleteBudget(
           identity,
@@ -246,7 +254,7 @@ describeDatabase(
           deletionCategoryId,
           deletionBudgetBody.updatedAt,
         ).then((response) => response);
-        await waitForBudgetDeleteRowWaiter(database);
+        await waitForSpaceLockWaiter(database);
         await releaseBudgetDeleteGate(gate);
         const responses = await Promise.all([firstDelete, secondDelete]);
         expect(responses.map((response) => response.status).sort()).toEqual([
@@ -258,6 +266,260 @@ describeDatabase(
         await removeBudgetDeleteGate(database, gate);
       }
     }, 15000);
+
+    it('saves a complete Category, Budget, and Rule draft atomically with scoped revisions', async () => {
+      const identity = createIdentity('category-configuration');
+      await provision(identity);
+      const spaceId = await personalSpaceId(identity);
+      const initialRulesRevision = await categoryRulesRevision(
+        identity,
+        spaceId,
+      );
+
+      const createdResponse = await createCategoryConfiguration(
+        identity,
+        spaceId,
+        {
+          name: 'Trip planning',
+          iconKey: 'plane',
+          colorKey: 'teal',
+          isActive: true,
+          budget: { amount: '2400.00', currency: 'PHP', recurrence: 'yearly' },
+          rules: [
+            { pattern: 'AIRBNB * RESERVATION', matchType: 'exact' },
+            { pattern: 'BOOKING.COM', matchType: 'contains' },
+          ],
+          expectedRevision: null,
+          expectedRulesRevision: initialRulesRevision,
+        },
+      );
+
+      expect(createdResponse.status).toBe(201);
+      expect(createdResponse.headers.location).toContain('/configuration');
+      const created =
+        responseBody<CategoryConfigurationResponse>(createdResponse);
+      expect(created).toMatchObject({
+        category: {
+          name: 'Trip planning',
+          iconKey: 'plane',
+          colorKey: 'teal',
+          isActive: true,
+          revision: '1',
+        },
+        budget: {
+          amount: '2400.00',
+          currency: 'PHP',
+          recurrence: 'yearly',
+        },
+        rules: [
+          { pattern: 'AIRBNB * RESERVATION', matchType: 'exact' },
+          { pattern: 'BOOKING.COM', matchType: 'contains' },
+        ],
+        rulesRevision: '1',
+      });
+
+      const categoryId = created.category.id;
+      const expenseResponse = await http()
+        .post(`/api/v1/users/me/spaces/${spaceId}/expenses`)
+        .set(...authorization(identity))
+        .send({
+          expenseDate: '2026-10-24',
+          description: 'Airline ticket',
+          amount: '120.00',
+          categoryId,
+        });
+      expect(expenseResponse.status).toBe(201);
+      const expenseId = readId(expenseResponse.body);
+      const loaded = await getCategoryConfiguration(
+        identity,
+        spaceId,
+        categoryId,
+      );
+      expect(loaded).toEqual(created);
+
+      const noOp = await saveCategoryConfiguration(
+        identity,
+        spaceId,
+        categoryId,
+        configurationInput(loaded),
+      );
+      expect(noOp.status).toBe(200);
+      const noOpBody = responseBody<CategoryConfigurationResponse>(noOp);
+      expect(noOpBody.category.revision).toBe(created.category.revision);
+      expect(noOpBody.rulesRevision).toBe(created.rulesRevision);
+      expect(noOpBody.rules.map(({ id }) => id)).toEqual(
+        created.rules.map(({ id }) => id),
+      );
+
+      const otherCategory = await createCategory(identity, spaceId, 'Cafe');
+      const otherConfiguration = await getCategoryConfiguration(
+        identity,
+        spaceId,
+        otherCategory,
+      );
+      const otherRule = await saveCategoryConfiguration(
+        identity,
+        spaceId,
+        otherCategory,
+        {
+          ...configurationInput(otherConfiguration),
+          rules: [{ pattern: 'COFFEE SHOP', matchType: 'contains' }],
+          expectedRulesRevision: noOpBody.rulesRevision,
+        },
+      );
+      expect(otherRule.status).toBe(200);
+
+      const unrelatedRuleRevision = (
+        await getCategoryConfiguration(identity, spaceId, categoryId)
+      ).rulesRevision;
+      const renamed = await saveCategoryConfiguration(
+        identity,
+        spaceId,
+        categoryId,
+        {
+          ...configurationInput(created),
+          name: 'Trip plan',
+        },
+      );
+      expect(renamed.status).toBe(200);
+      const renamedBody = responseBody<CategoryConfigurationResponse>(renamed);
+      expect(renamedBody.category.revision).toBe(
+        String(Number(created.category.revision) + 1),
+      );
+      expect(renamedBody.rulesRevision).toBe(unrelatedRuleRevision);
+
+      const staleCategory = await saveCategoryConfiguration(
+        identity,
+        spaceId,
+        categoryId,
+        {
+          ...configurationInput(created),
+          name: 'Stale name',
+          budget: { amount: '50.00', currency: 'PHP', recurrence: 'monthly' },
+        },
+      );
+      expect(staleCategory.status).toBe(409);
+      expect(errorBody(staleCategory).error.code).toBe('STALE_EDIT');
+
+      const latest = await getCategoryConfiguration(
+        identity,
+        spaceId,
+        categoryId,
+      );
+      const conflict = await saveCategoryConfiguration(
+        identity,
+        spaceId,
+        categoryId,
+        {
+          ...configurationInput(latest),
+          name: 'Must roll back',
+          budget: { amount: '100.00', currency: 'PHP', recurrence: 'monthly' },
+          rules: [{ pattern: ' coffee   shop ', matchType: 'contains' }],
+        },
+      );
+      expect(conflict.status).toBe(409);
+      expect(errorBody(conflict).error.code).toBe(
+        'CATEGORY_RULE_PATTERN_ALREADY_EXISTS',
+      );
+      expect(errorBody(conflict).error.details[0]).toMatchObject({
+        field: '/rules/0/pattern',
+        categoryId: otherCategory,
+      });
+      await expect(
+        getCategoryConfiguration(identity, spaceId, categoryId),
+      ).resolves.toMatchObject({
+        category: { name: 'Trip plan', revision: latest.category.revision },
+        budget: {
+          amount: '2400.00',
+          recurrence: 'yearly',
+        },
+        rulesRevision: latest.rulesRevision,
+      });
+
+      const staleRules = await saveCategoryConfiguration(
+        identity,
+        spaceId,
+        categoryId,
+        {
+          ...configurationInput(latest),
+          name: 'Still unchanged',
+          rules: [{ pattern: 'NEW HOTEL', matchType: 'exact' }],
+          expectedRulesRevision: initialRulesRevision,
+        },
+      );
+      expect(staleRules.status).toBe(409);
+      expect(errorBody(staleRules).error.code).toBe('STALE_EDIT');
+
+      const deactivated = await saveCategoryConfiguration(
+        identity,
+        spaceId,
+        categoryId,
+        { ...configurationInput(latest), isActive: false },
+      );
+      expect(deactivated.status).toBe(200);
+      const inactive = responseBody<CategoryConfigurationResponse>(deactivated);
+      expect(inactive.category.isActive).toBe(false);
+
+      const duplicateInactiveName = await createCategoryConfiguration(
+        identity,
+        spaceId,
+        {
+          name: 'Trip plan',
+          iconKey: 'shapes',
+          colorKey: 'coral',
+          isActive: true,
+          budget: null,
+          rules: [],
+          expectedRevision: null,
+          expectedRulesRevision: inactive.rulesRevision,
+        },
+      );
+      expect(duplicateInactiveName.status).toBe(409);
+      expect(errorBody(duplicateInactiveName).error.code).toBe(
+        'CATEGORY_NAME_ALREADY_EXISTS',
+      );
+
+      const maintained = await saveCategoryConfiguration(
+        identity,
+        spaceId,
+        categoryId,
+        {
+          ...configurationInput(inactive),
+          budget: { amount: '300.00', currency: 'PHP', recurrence: 'monthly' },
+          rules: [{ pattern: 'INACTIVE RULE', matchType: 'exact' }],
+        },
+      );
+      expect(maintained.status).toBe(200);
+      const maintainedBody =
+        responseBody<CategoryConfigurationResponse>(maintained);
+      expect(maintainedBody.category).toMatchObject({
+        isActive: false,
+        revision: String(Number(inactive.category.revision) + 1),
+      });
+      expect(maintainedBody.rulesRevision).toBe(
+        String(Number(inactive.rulesRevision) + 1),
+      );
+
+      const removedBudget = await saveCategoryConfiguration(
+        identity,
+        spaceId,
+        categoryId,
+        { ...configurationInput(maintainedBody), budget: null },
+      );
+      expect(removedBudget.status).toBe(200);
+      const removedBudgetBody =
+        responseBody<CategoryConfigurationResponse>(removedBudget);
+      expect(removedBudgetBody).toMatchObject({
+        category: { id: categoryId, isActive: false },
+        budget: null,
+        rules: maintainedBody.rules,
+      });
+      const retainedExpense = await http()
+        .get(`/api/v1/users/me/spaces/${spaceId}/expenses/${expenseId}`)
+        .set(...authorization(identity));
+      expect(retainedExpense.status).toBe(200);
+      expect(retainedExpense.body).toMatchObject({ id: expenseId, categoryId });
+    });
 
     async function provision(identity: TestIdentity): Promise<string> {
       const response = await http()
@@ -287,12 +549,72 @@ describeDatabase(
       spaceId: string,
       name: string,
     ): Promise<string> {
+      const rulesRevision = await categoryRulesRevision(identity, spaceId);
       const response = await http()
         .post(`/api/v1/users/me/spaces/${spaceId}/categories`)
         .set(...authorization(identity))
-        .send({ name });
+        .send({
+          name,
+          iconKey: 'shapes',
+          colorKey: 'teal',
+          isActive: true,
+          budget: null,
+          rules: [],
+          expectedRevision: null,
+          expectedRulesRevision: rulesRevision,
+        });
       expect(response.status).toBe(201);
-      return readId(response.body);
+      return readId((response.body as CategoryConfigurationResponse).category);
+    }
+
+    async function categoryRulesRevision(
+      identity: TestIdentity,
+      spaceId: string,
+    ): Promise<string> {
+      const response = await http()
+        .get(`/api/v1/users/me/spaces/${spaceId}/category-rules`)
+        .set(...authorization(identity));
+      expect(response.status).toBe(200);
+      return (response.body as { revision: string }).revision;
+    }
+
+    async function createCategoryConfiguration(
+      identity: TestIdentity,
+      spaceId: string,
+      input: CategoryConfigurationInput,
+    ) {
+      return http()
+        .post(`/api/v1/users/me/spaces/${spaceId}/categories`)
+        .set(...authorization(identity))
+        .send(input);
+    }
+
+    async function saveCategoryConfiguration(
+      identity: TestIdentity,
+      spaceId: string,
+      categoryId: string,
+      input: CategoryConfigurationInput,
+    ) {
+      return http()
+        .put(
+          `/api/v1/users/me/spaces/${spaceId}/categories/${categoryId}/configuration`,
+        )
+        .set(...authorization(identity))
+        .send(input);
+    }
+
+    async function getCategoryConfiguration(
+      identity: TestIdentity,
+      spaceId: string,
+      categoryId: string,
+    ): Promise<CategoryConfigurationResponse> {
+      const response = await http()
+        .get(
+          `/api/v1/users/me/spaces/${spaceId}/categories/${categoryId}/configuration`,
+        )
+        .set(...authorization(identity));
+      expect(response.status).toBe(200);
+      return responseBody<CategoryConfigurationResponse>(response);
     }
 
     async function getCategory(
@@ -401,6 +723,64 @@ interface SpaceView {
 interface CategoryResponse {
   readonly id: string;
   readonly updatedAt: string;
+}
+
+interface CategoryConfigurationInput {
+  readonly name: string;
+  readonly iconKey: string;
+  readonly colorKey: string;
+  readonly isActive: boolean;
+  readonly budget: {
+    readonly amount: string;
+    readonly currency: 'PHP';
+    readonly recurrence: 'monthly' | 'yearly';
+  } | null;
+  readonly rules: readonly {
+    readonly pattern: string;
+    readonly matchType: 'exact' | 'contains';
+  }[];
+  readonly expectedRevision: string | null;
+  readonly expectedRulesRevision: string;
+}
+
+interface CategoryConfigurationResponse {
+  readonly category: {
+    readonly id: string;
+    readonly name: string;
+    readonly iconKey: string;
+    readonly colorKey: string;
+    readonly isActive: boolean;
+    readonly revision: string;
+  };
+  readonly budget: {
+    readonly amount: string;
+    readonly currency: 'PHP';
+    readonly recurrence: 'monthly' | 'yearly';
+  } | null;
+  readonly rules: readonly {
+    readonly id: string;
+    readonly pattern: string;
+    readonly matchType: 'exact' | 'contains';
+  }[];
+  readonly rulesRevision: string;
+}
+
+function configurationInput(
+  configuration: CategoryConfigurationResponse,
+): CategoryConfigurationInput {
+  return {
+    name: configuration.category.name,
+    iconKey: configuration.category.iconKey,
+    colorKey: configuration.category.colorKey,
+    isActive: configuration.category.isActive,
+    budget: configuration.budget,
+    rules: configuration.rules.map(({ pattern, matchType }) => ({
+      pattern,
+      matchType,
+    })),
+    expectedRevision: configuration.category.revision,
+    expectedRulesRevision: configuration.rulesRevision,
+  };
 }
 
 interface BudgetResponse {
@@ -563,9 +943,7 @@ async function waitForAdvisoryWaiters(
   );
 }
 
-async function waitForBudgetDeleteRowWaiter(
-  database: DataSource,
-): Promise<void> {
+async function waitForSpaceLockWaiter(database: DataSource): Promise<void> {
   const deadline = Date.now() + 10_000;
   while (Date.now() < deadline) {
     const rows: { count: number | string }[] = await database.query(
@@ -574,7 +952,7 @@ async function waitForBudgetDeleteRowWaiter(
         FROM pg_stat_activity
         WHERE wait_event_type = 'Lock'
           AND wait_event = 'transactionid'
-          AND query ILIKE '%budgets%'
+          AND query ILIKE '%spaces%'
       `,
     );
     if (Number(rows[0]?.count) >= 1) return;
@@ -583,7 +961,7 @@ async function waitForBudgetDeleteRowWaiter(
   }
 
   throw new Error(
-    'The second Budget delete did not wait on the row lock before the gate opened',
+    'The second Budget delete did not wait on the Space lock before the gate opened',
   );
 }
 

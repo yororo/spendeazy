@@ -28,19 +28,26 @@ import { requireOptimisticVersion } from '../../http/optimistic-version';
 import { POSITIVE_INTEGER_ID_PATTERN } from '../../http/validation-patterns';
 import { SpaceAccessService } from '../../spaces/application/space-access.service';
 import { CategoriesService } from '../application/categories.service';
-import type {
-  CategoryRecord,
-  UpdateCategory,
-} from '../application/category-store';
-import { resolveCategoryColor } from '../application/category-color';
-import { CreateCategoryDto, UpdateCategoryDto } from './category.dto';
+import { CategoryConfigurationsService } from '../application/category-configurations.service';
+import type { UpdateCategory } from '../application/category-store';
+import { UpdateCategoryDto } from './category.dto';
+import { CategoryConfigurationDto } from './category-configuration.dto';
+import { CategoryConfigurationResponseDto } from './category-configuration-response.dto';
+import { toCategoryConfigurationResponse } from './category-configuration-response.mapper';
+import { toCategoryConfigurationInput } from './category-configuration.mapper';
 import { CategoryResponseDto } from './category-response.dto';
+import { toSpaceCategoryResponse } from './category-response.mapper';
 import { SpaceCategoryParamsDto } from './space-category.dto';
 import { SpaceParamsDto } from '../../spaces/presentation/space.dto';
 
 @Controller('users/me/spaces/:spaceId/categories')
 @ApiTags('Categories')
-@ApiExtraModels(CategoryResponseDto, CreateCategoryDto, UpdateCategoryDto)
+@ApiExtraModels(
+  CategoryResponseDto,
+  CategoryConfigurationDto,
+  CategoryConfigurationResponseDto,
+  UpdateCategoryDto,
+)
 @ApiParam({
   name: 'spaceId',
   description: 'Positive bigint Space identifier encoded as a string.',
@@ -53,22 +60,27 @@ import { SpaceParamsDto } from '../../spaces/presentation/space.dto';
 export class SpaceCategoriesController {
   constructor(
     private readonly categoriesService: CategoriesService,
+    private readonly configurationsService: CategoryConfigurationsService,
     private readonly spaceAccessService: SpaceAccessService,
   ) {}
 
   @Post()
-  @ApiOperation({ summary: 'Create a Category in an authorized Space.' })
+  @ApiOperation({
+    summary: 'Create a complete Category configuration in an authorized Space.',
+    description:
+      'Creates the Category, optional Budget, and complete Rule set in one transaction.',
+  })
   @ApiResponse({
     status: HttpStatus.CREATED,
     description: 'Category created.',
-    type: CategoryResponseDto,
+    type: CategoryConfigurationResponseDto,
     headers: {
       Location: {
         required: true,
         description: 'Relative canonical URI of the created Category.',
         schema: {
           type: 'string',
-          example: `/${API_PREFIX}/users/me/spaces/7/categories/42`,
+          example: `/${API_PREFIX}/users/me/spaces/7/categories/42/configuration`,
         },
       },
     },
@@ -87,21 +99,21 @@ export class SpaceCategoriesController {
   async createCategory(
     @Req() request: AuthenticatedRequest,
     @Param() params: SpaceParamsDto,
-    @Body() input: CreateCategoryDto,
+    @Body() input: CategoryConfigurationDto,
     @Res({ passthrough: true }) response: Response,
-  ): Promise<CategoryResponseDto> {
+  ): Promise<CategoryConfigurationResponseDto> {
     const userId = requireAuthenticatedUserId(request);
     await this.spaceAccessService.requireWriteAccess(userId, params.spaceId);
-    const category = await this.categoriesService.createCategoryInSpace(
+    const configuration = await this.configurationsService.createInSpace(
       params.spaceId,
-      input,
+      toCategoryConfigurationInput(input),
     );
     response.status(HttpStatus.CREATED);
     response.setHeader(
       'Location',
-      spaceCategoryLocation(params.spaceId, category.id),
+      categoryConfigurationLocation(params.spaceId, configuration.category.id),
     );
-    return toSpaceCategoryResponse(category);
+    return toCategoryConfigurationResponse(configuration);
   }
 
   @Get()
@@ -229,20 +241,11 @@ function toCategoryUpdate(input: UpdateCategoryDto): UpdateCategory {
   };
 }
 
-export function toSpaceCategoryResponse(
-  category: CategoryRecord,
-): CategoryResponseDto {
-  return {
-    id: category.id,
-    name: category.name,
-    description: category.description,
-    color: resolveCategoryColor(category.id, category.color),
-    isActive: category.isActive,
-    createdAt: category.createdAt.toISOString(),
-    updatedAt: category.updatedAt.toISOString(),
-  };
-}
+export { toSpaceCategoryResponse } from './category-response.mapper';
 
-function spaceCategoryLocation(spaceId: string, categoryId: string): string {
-  return `/${API_PREFIX}/users/me/spaces/${spaceId}/categories/${categoryId}`;
+function categoryConfigurationLocation(
+  spaceId: string,
+  categoryId: string,
+): string {
+  return `/${API_PREFIX}/users/me/spaces/${spaceId}/categories/${categoryId}/configuration`;
 }

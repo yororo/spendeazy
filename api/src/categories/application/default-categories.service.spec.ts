@@ -18,8 +18,7 @@ describe('DefaultCategoriesService', () => {
     expect(store.createAttempts).toEqual(
       DEFAULT_CATEGORY_CATALOG.map((category) => ({
         spaceId: '99',
-        name: category.name,
-        description: category.description,
+        ...category,
       })),
     );
   });
@@ -77,8 +76,7 @@ describe('DefaultCategoriesService', () => {
     expect(store.createAttempts).toEqual(
       DEFAULT_CATEGORY_CATALOG.map((category) => ({
         spaceId: '99',
-        name: category.name,
-        description: category.description,
+        ...category,
       })),
     );
   });

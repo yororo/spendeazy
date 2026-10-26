@@ -1,4 +1,5 @@
 import type { CategoryColor } from './category-color';
+import type { CategoryIconKey } from './category-icon';
 
 export const CATEGORY_STORE = Symbol('CATEGORY_STORE');
 export const CATEGORY_NAME_MAX_LENGTH = 100;
@@ -10,7 +11,9 @@ export interface CategoryRecord {
   name: string;
   description: string | null;
   color?: CategoryColor | null;
+  iconKey: CategoryIconKey;
   isActive: boolean;
+  revision: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -20,12 +23,14 @@ export interface NewCategory {
   name: string;
   description: string | null;
   color?: CategoryColor | null;
+  iconKey?: CategoryIconKey;
 }
 
 export interface UpdateCategory {
   name?: string;
   description?: string | null;
   color?: CategoryColor;
+  iconKey?: CategoryIconKey;
   isActive?: boolean;
   expectedUpdatedAt: string;
 }

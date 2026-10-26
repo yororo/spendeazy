@@ -2,7 +2,12 @@ import { DEFAULT_CATEGORY_CATALOG } from './default-category-catalog';
 
 describe('Default Category catalog', () => {
   it('defines the agreed Categories in creation order', () => {
-    expect(DEFAULT_CATEGORY_CATALOG).toEqual([
+    expect(
+      DEFAULT_CATEGORY_CATALOG.map(({ name, description }) => ({
+        name,
+        description,
+      })),
+    ).toEqual([
       {
         name: 'Food & Drink',
         description: 'Restaurants, cafes, bars',
@@ -63,6 +68,25 @@ describe('Default Category catalog', () => {
         name: 'Others',
         description: 'Miscellaneous expenses not covered by other categories',
       },
+    ]);
+    expect(
+      DEFAULT_CATEGORY_CATALOG.map(({ iconKey, color }) => [iconKey, color]),
+    ).toEqual([
+      ['utensils', 'coral'],
+      ['car-front', 'cobalt'],
+      ['bus', 'sky'],
+      ['heart-pulse', 'emerald'],
+      ['shopping-bag', 'magenta'],
+      ['ticket', 'violet'],
+      ['plug-zap', 'amber'],
+      ['house', 'teal'],
+      ['shopping-basket', 'lime'],
+      ['heart-handshake', 'rose'],
+      ['shield-plus', 'forest'],
+      ['baby', 'orchid'],
+      ['wrench', 'copper'],
+      ['smartphone', 'azure'],
+      ['shapes', 'slate'],
     ]);
   });
 

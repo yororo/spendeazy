@@ -124,7 +124,7 @@ export class UpdateCategoryDto {
   @IsBoolean()
   @ApiPropertyOptional({
     description:
-      'Whether the Category is active. Inactive Categories retain their historical relationships and cannot receive a new Budget, although an existing Budget may still be replaced.',
+      'Whether the Category is active. Deactivation preserves historical relationships. The standalone Budget endpoint cannot create a Budget for an inactive Category; the aggregate configuration endpoint remains available for maintenance.',
     example: false,
   })
   isActive?: boolean;

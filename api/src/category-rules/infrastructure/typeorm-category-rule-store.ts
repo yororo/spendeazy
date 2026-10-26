@@ -14,10 +14,7 @@ import { CategoryRuleEntity } from '../../database/entities/category-rule.entity
 import { SpaceEntity } from '../../database/entities/space.entity';
 import { StaleEditError } from '../../errors/application-error';
 import { SpaceNotFoundError } from '../../spaces/application/space-errors';
-import {
-  lockWritableSpace,
-  prepareWritableSpace,
-} from '../../spaces/infrastructure/space-write-guard';
+import { lockWritableSpace } from '../../spaces/infrastructure/space-write-guard';
 import {
   ruleKey,
   validateReplacementConflicts,
@@ -98,7 +95,7 @@ export class TypeOrmCategoryRuleStore implements CategoryRuleStore {
 
   async createInSpace(input: NewCategoryRule): Promise<CategoryRuleRecord> {
     return this.entityManager.transaction(async (entityManager) => {
-      await prepareWritableSpace(entityManager, input.spaceId);
+      await lockWritableSpace(entityManager, input.spaceId);
       await ensureActiveCategoryInSpace(
         entityManager,
         input.spaceId,
@@ -116,6 +113,7 @@ export class TypeOrmCategoryRuleStore implements CategoryRuleStore {
 
       await ensurePatternAvailable(repository, entity);
       const saved = await saveCategoryRule(repository, entity);
+      await bumpCategoryRevision(entityManager, input.categoryId);
       await bumpRuleRevision(entityManager, input.spaceId);
       return saved;
     });
@@ -127,18 +125,20 @@ export class TypeOrmCategoryRuleStore implements CategoryRuleStore {
     input: UpdateCategoryRule,
   ): Promise<CategoryRuleRecord | null> {
     return this.entityManager.transaction(async (entityManager) => {
-      await prepareWritableSpace(entityManager, spaceId);
+      await lockWritableSpace(entityManager, spaceId);
       const repository = entityManager.getRepository(CategoryRuleEntity);
       const entity = await repository.findOne({ where: { id, spaceId } });
       if (!entity) {
         return null;
       }
+      const originalCategoryId = entity.categoryId;
       assertCurrentVersion(entity.updatedAt, input.expectedUpdatedAt);
 
       const unchanged =
         (input.categoryId === undefined ||
           input.categoryId === entity.categoryId) &&
-        (input.pattern === undefined || input.pattern === entity.pattern) &&
+        (input.normalizedPattern === undefined ||
+          input.normalizedPattern === entity.normalizedPattern) &&
         (input.matchType === undefined || input.matchType === entity.matchType);
       if (unchanged) return toCategoryRuleRecord(entity);
 
@@ -161,6 +161,13 @@ export class TypeOrmCategoryRuleStore implements CategoryRuleStore {
 
       await ensurePatternAvailable(repository, entity);
       const saved = await saveCategoryRule(repository, entity);
+      const affectedCategoryIds = new Set([
+        originalCategoryId,
+        entity.categoryId,
+      ]);
+      for (const categoryId of affectedCategoryIds) {
+        await bumpCategoryRevision(entityManager, categoryId);
+      }
       await bumpRuleRevision(entityManager, spaceId);
       return saved;
     });
@@ -172,7 +179,7 @@ export class TypeOrmCategoryRuleStore implements CategoryRuleStore {
     expectedUpdatedAt?: string,
   ): Promise<boolean> {
     return this.entityManager.transaction(async (entityManager) => {
-      await prepareWritableSpace(entityManager, spaceId);
+      await lockWritableSpace(entityManager, spaceId);
       const repository = entityManager.getRepository(CategoryRuleEntity);
       const entity = await repository.findOne({ where: { id, spaceId } });
       if (!entity) {
@@ -185,6 +192,7 @@ export class TypeOrmCategoryRuleStore implements CategoryRuleStore {
         return false;
       }
 
+      await bumpCategoryRevision(entityManager, entity.categoryId);
       await bumpRuleRevision(entityManager, spaceId);
       return true;
     });
@@ -228,14 +236,13 @@ export class TypeOrmCategoryRuleStore implements CategoryRuleStore {
       }
       for (const rule of rules) {
         const current = currentByKey.get(ruleKey(rule));
-        if (current && current.pattern === rule.pattern) continue;
-        const entity = current
-          ? Object.assign(current, { pattern: rule.pattern })
-          : repository.create({ spaceId, categoryId, ...rule });
+        if (current) continue;
+        const entity = repository.create({ spaceId, categoryId, ...rule });
         await saveCategoryRule(repository, entity);
         changed = true;
       }
 
+      if (changed) await bumpCategoryRevision(entityManager, categoryId);
       const revision = changed
         ? await bumpRuleRevision(entityManager, spaceId)
         : space.categoryRulesRevision;
@@ -263,6 +270,23 @@ async function lockRuleSpace(
     .getOne();
   if (!space) throw new SpaceNotFoundError();
   return space;
+}
+
+/**
+ * Category Rule mutations own the Category revision bump in the same transaction
+ * as the rule write, as required by the CategoryRuleStore application contract.
+ */
+async function bumpCategoryRevision(
+  entityManager: EntityManager,
+  categoryId: string,
+): Promise<void> {
+  await entityManager
+    .getRepository(CategoryEntity)
+    .createQueryBuilder()
+    .update(CategoryEntity)
+    .set({ revision: () => 'revision + 1' })
+    .where('id = :categoryId', { categoryId })
+    .execute();
 }
 
 async function ensurePatternAvailable(

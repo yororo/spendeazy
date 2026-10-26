@@ -9,7 +9,7 @@ This describes the current API schema. [Migrations](../src/database/migrations/)
 | `users` | Local User linked to a unique Clerk identity. |
 | `spaces` | Personal or Shared financial context with active/archived lifecycle. Personal Spaces have one private owner; Shared Space membership is created atomically when an Invite Code is accepted. |
 | `space_memberships` | User access to a Space, with read or write capability. |
-| `categories` | Space-owned classifications with optional description/color and active/inactive status. Names are unique per Space. |
+| `categories` | Space-owned classifications with optional description/color, a shared-catalog icon key, an aggregate configuration revision and active/inactive status. Names are unique per Space. |
 | `budgets` | At most one monthly or yearly Budget per Category. Ownership derives through the Category. |
 | `category_rules` | Space-owned Exact/Contains patterns related to a Category; normalized pattern and match type are unique per Space. |
 | `statement_imports` | Committed Statement Import provenance with Space, immutable importer attribution, file hash, provider/account format, statement type/date or optional history bounds, and import timestamp. File hashes are indexed but not unique. |
@@ -46,4 +46,4 @@ The current schema stores committed import metadata and linked Expenses. Durable
 
 ## Category Rules and reporting
 
-The API stores Space-scoped Category Rules; matching remains on-device. Current Category summaries aggregate Expenses and budgets. Atomic whole-Category configuration, icon-key configuration, aggregate revisions and the full dashboard contract are not yet implemented. See [API architecture](../ARCHITECTURE.md) and [ADR 0004](../../docs/adr/0004-mobile-expense-domain-and-contract.md) for the implementation boundary.
+The API stores Space-scoped Category Rules; matching remains on-device. Current Category summaries aggregate Expenses and Budgets. `POST /categories` and `PUT /categories/{categoryId}/configuration` save a Category, its optional Budget and its complete Rule set in one transaction under the Space write lock. Category revision advances once for a changed configuration; the Space Rule revision advances once only when the Rule set changes. Equivalent normalized Rule replacements retain existing Rule IDs and create no revisions. The full dashboard contract remains unimplemented. See [API architecture](../ARCHITECTURE.md) and [ADR 0004](../../docs/adr/0004-mobile-expense-domain-and-contract.md) for the implementation boundary.

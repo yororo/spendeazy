@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { createCategoriesApiClient, type SpaceCategory } from '@/api/categories-api-client';
 import { useAuthorizedClient } from '@/application/authorized-client';
 import { createSessionResource } from '@/application/session-resource';
@@ -9,6 +9,7 @@ export function useSpaceCategories(spaceId: string | null) {
   const [requestId, setRequestId] = useState(0);
   const resource = useMemo(() => createSessionResource<SpaceCategory[]>(session, authorized.scope, spaceId ?? ''), [authorized.scope, spaceId]);
   const state = useSyncExternalStore(resource.subscribe, resource.snapshot, resource.snapshot);
+  const reload = useCallback(() => setRequestId((id) => id + 1), []);
   useEffect(() => {
     if (spaceId) void resource.load(() => createCategoriesApiClient(authorized).listCategories(spaceId));
     return resource.cancel;
@@ -17,6 +18,6 @@ export function useSpaceCategories(spaceId: string | null) {
     categories: state.data ?? [],
     loading: Boolean(spaceId) && state.data === null && state.error === null,
     error: state.error,
-    reload: () => setRequestId((id) => id + 1),
+    reload,
   };
 }

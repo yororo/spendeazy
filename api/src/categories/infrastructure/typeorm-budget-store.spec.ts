@@ -134,8 +134,15 @@ function budgetRecord(): BudgetRecord {
 }
 
 function entityManagerFor(budgetRepository: object): EntityManager {
+  const categoryUpdateQuery = {
+    update: jest.fn().mockReturnThis(),
+    set: jest.fn().mockReturnThis(),
+    where: jest.fn().mockReturnThis(),
+    execute: jest.fn().mockResolvedValue({ affected: 1 }),
+  };
   const categoryRepository = {
     findOne: jest.fn().mockResolvedValue({ id: '42', spaceId: '1' }),
+    createQueryBuilder: jest.fn().mockReturnValue(categoryUpdateQuery),
   };
   const spaceQuery = {
     where: jest.fn().mockReturnThis(),

@@ -58,6 +58,7 @@ export const DEFAULT_STATEMENT_IMPORT_PAGE_SIZE = 20;
 export const MAX_STATEMENT_IMPORT_PAGE_SIZE = 100;
 
 export interface ReviewedExpenseInput {
+  sourceRowId: string;
   categoryId: string;
   expenseDate: string;
   description: string;
@@ -205,6 +206,7 @@ export class StatementImportsService {
       const importFingerprint = computeImportFingerprint(input, expense);
 
       return {
+        sourceRowId: expense.sourceRowId,
         categoryId: expense.categoryId,
         expenseDate: expense.expenseDate,
         description: expense.description.trim(),
@@ -250,6 +252,7 @@ export class StatementImportsService {
         addedByUserId: userId,
         categoryId: expense.categoryId,
         statementImportId: statementImport.id,
+        sourceRowId: expense.sourceRowId,
         expenseDate: expense.expenseDate,
         description: expense.description,
         amount: expense.amount,
@@ -456,6 +459,7 @@ function validateReviewedStatementInput(
       message: 'Expenses must be an array',
     });
   } else {
+    const seenSourceRowIds = new Set<string>();
     input.expenses.forEach((expense, index) => {
       const fieldPrefix = `/expenses/${index}`;
       if (expense === null || typeof expense !== 'object') {
@@ -465,6 +469,24 @@ function validateReviewedStatementInput(
           message: 'Expense must be an object',
         });
         return;
+      }
+      if (
+        typeof expense.sourceRowId !== 'string' ||
+        expense.sourceRowId.trim().length === 0
+      ) {
+        details.push({
+          field: `${fieldPrefix}/sourceRowId`,
+          code: 'invalid_format',
+          message: 'A non-empty source-row identifier is required',
+        });
+      } else if (seenSourceRowIds.has(expense.sourceRowId)) {
+        details.push({
+          field: `${fieldPrefix}/sourceRowId`,
+          code: 'duplicate',
+          message: 'Source-row identifiers must be unique within an import',
+        });
+      } else {
+        seenSourceRowIds.add(expense.sourceRowId);
       }
       if (
         typeof expense.categoryId !== 'string' ||

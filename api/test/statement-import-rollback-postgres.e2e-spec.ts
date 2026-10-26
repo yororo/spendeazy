@@ -85,6 +85,7 @@ describeDatabase('Statement Import rollback with PostgreSQL', () => {
       addedByUserId: userId,
       categoryId: categories[0].id,
       statementImportId: existingImport.id,
+      sourceRowId: 'existing-row',
       expenseDate: '2026-08-15',
       description: `Existing Expense ${unique}`,
       amount: '12.34',
@@ -180,12 +181,14 @@ describeDatabase('Statement Import rollback with PostgreSQL', () => {
         statementType: 'credit_card',
         expenses: [
           {
+            sourceRowId: 'line-1',
             categoryId: categories[1].id,
             expenseDate: '2026-09-01',
             description: firstDescription,
             amount: '4.50',
           },
           {
+            sourceRowId: 'line-2',
             categoryId: categories[0].id,
             expenseDate: '2026-09-02',
             description: failureDescription,
@@ -287,6 +290,7 @@ describeDatabase('Statement Import rollback with PostgreSQL', () => {
       statementType: 'credit_card' as const,
       expenses: [
         {
+          sourceRowId: 'row-1',
           categoryId: sharedCategory.id,
           expenseDate: existingTransaction.expenseDate,
           description: existingTransaction.description,
@@ -352,6 +356,7 @@ describeDatabase('Statement Import rollback with PostgreSQL', () => {
       totalDebit: '26696.92',
       expenses: [
         {
+          sourceRowId: 'row-1',
           categoryId: category.id,
           expenseDate: '2026-08-09',
           description: cleanDescription,

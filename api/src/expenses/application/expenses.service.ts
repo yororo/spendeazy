@@ -30,6 +30,7 @@ import {
 import { decodeExpenseCursor, encodeExpenseCursor } from './expense-cursor';
 import {
   SPACE_EXPENSE_STORE,
+  matchesExpenseDeletionReplay,
   type ManualExpenseRecord,
   type NewManualExpense,
   type SpaceExpenseStore,
@@ -192,7 +193,10 @@ export class ExpensesService {
     id: string,
     input: UpdateManualExpense,
   ): Promise<ManualExpenseRecord> {
-    const currentExpense = await this.getManualExpenseInSpace(spaceId, id);
+    const currentExpense =
+      await this.spaceExpenseStore.findByIdInHistoryInSpace(spaceId, id);
+    if (!currentExpense) throw new ExpenseNotFoundError();
+    if (currentExpense.deletedAt != null) throw new StaleEditError();
     const changes = normalizeUpdate(input);
     if (changes.expenseDate !== undefined) {
       assertExpenseDateNotFuture(changes.expenseDate, this.clock());
@@ -229,7 +233,7 @@ export class ExpensesService {
     id: string,
     input: UpdateManualExpense,
   ): Promise<ManualExpenseRecord | ImportedExpenseRecord> {
-    const manualExpense = await this.spaceExpenseStore.findByIdInSpace(
+    const manualExpense = await this.spaceExpenseStore.findByIdInHistoryInSpace(
       spaceId,
       id,
     );
@@ -238,7 +242,10 @@ export class ExpensesService {
     }
 
     const importedExpense =
-      await this.spaceImportedExpenseStore.findByIdInSpace(spaceId, id);
+      await this.spaceImportedExpenseStore.findByIdInHistoryInSpace(
+        spaceId,
+        id,
+      );
     if (!importedExpense) {
       throw new ExpenseNotFoundError();
     }
@@ -252,7 +259,7 @@ export class ExpensesService {
     id: string,
     input: UpdateManualExpense,
   ): Promise<ManualExpenseRecord | ImportedExpenseRecord> {
-    const manualExpense = await this.spaceExpenseStore.findByIdInSpace(
+    const manualExpense = await this.spaceExpenseStore.findByIdInHistoryInSpace(
       spaceId,
       id,
     );
@@ -270,10 +277,14 @@ export class ExpensesService {
     input: UpdateManualExpense,
   ): Promise<ImportedExpenseRecord> {
     const importedExpense =
-      await this.spaceImportedExpenseStore.findByIdInSpace(spaceId, id);
+      await this.spaceImportedExpenseStore.findByIdInHistoryInSpace(
+        spaceId,
+        id,
+      );
     if (!importedExpense) {
       throw new ExpenseNotFoundError();
     }
+    if (importedExpense.deletedAt != null) throw new StaleEditError();
 
     const changes = normalizeUpdate(input);
     if (changes.expenseDate !== undefined) {
@@ -311,7 +322,21 @@ export class ExpensesService {
     id: string,
     expectedRevision: string,
   ): Promise<ManualExpenseRecord> {
-    const currentExpense = await this.getManualExpenseInSpace(spaceId, id);
+    const currentExpense =
+      await this.spaceExpenseStore.findByIdInHistoryInSpace(spaceId, id);
+    if (!currentExpense) throw new ExpenseNotFoundError();
+    if (currentExpense.deletedAt != null) {
+      if (
+        matchesExpenseDeletionReplay(
+          currentExpense,
+          actorUserId,
+          expectedRevision,
+        )
+      ) {
+        return currentExpense;
+      }
+      throw new StaleEditError();
+    }
     assertCurrentVersion(currentExpense.revision, expectedRevision);
 
     const deleted = await this.spaceExpenseStore.deleteInSpace(
@@ -332,24 +357,38 @@ export class ExpensesService {
     id: string,
     expectedRevision: string,
   ): Promise<ManualExpenseRecord | ImportedExpenseRecord> {
-    const manualExpense = await this.spaceExpenseStore.findByIdInSpace(
+    const manualExpense = await this.spaceExpenseStore.findByIdInHistoryInSpace(
       spaceId,
       id,
     );
     if (manualExpense) {
-      await this.deleteManualExpenseInSpace(
+      return this.deleteManualExpenseInSpace(
         actorUserId,
         spaceId,
         id,
         expectedRevision,
       );
-      return this.getExpenseInSpace(spaceId, id);
     }
 
     const importedExpense =
-      await this.spaceImportedExpenseStore.findByIdInSpace(spaceId, id);
+      await this.spaceImportedExpenseStore.findByIdInHistoryInSpace(
+        spaceId,
+        id,
+      );
     if (!importedExpense) {
       throw new ExpenseNotFoundError();
+    }
+    if (importedExpense.deletedAt != null) {
+      if (
+        matchesExpenseDeletionReplay(
+          importedExpense,
+          actorUserId,
+          expectedRevision,
+        )
+      ) {
+        return importedExpense;
+      }
+      throw new StaleEditError();
     }
     assertCurrentVersion(importedExpense.revision, expectedRevision);
 

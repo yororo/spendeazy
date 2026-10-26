@@ -262,17 +262,18 @@ export class SpaceExpensesController {
   })
   @ApiResponse({
     status: HttpStatus.OK,
-    description: 'Expense.',
+    description:
+      'Expense, including retained deletion history when the Expense has been deleted.',
     schema: {
       oneOf: [
-        { $ref: getSchemaPath(ManualExpenseResponseDto) },
-        { $ref: getSchemaPath(ImportedExpenseResponseDto) },
+        { $ref: getSchemaPath(ManualExpenseHistoryResponseDto) },
+        { $ref: getSchemaPath(ImportedExpenseHistoryResponseDto) },
       ],
       discriminator: {
         propertyName: 'source',
         mapping: {
-          manual: getSchemaPath(ManualExpenseResponseDto),
-          imported: getSchemaPath(ImportedExpenseResponseDto),
+          manual: getSchemaPath(ManualExpenseHistoryResponseDto),
+          imported: getSchemaPath(ImportedExpenseHistoryResponseDto),
         },
       },
     },
@@ -291,7 +292,7 @@ export class SpaceExpensesController {
   ) {
     const userId = requireAuthenticatedUserId(request);
     await this.spaceAccessService.requireReadAccess(userId, params.spaceId);
-    return toExpenseResponse(
+    return toExpenseHistoryResponse(
       await this.expensesService.getExpenseInSpace(
         params.spaceId,
         params.expenseId,

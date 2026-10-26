@@ -1,6 +1,6 @@
 # Spendeazy API
 
-NestJS REST backend for the native Spendeazy client. Private routes use `/api/v1` and Clerk session tokens (`Authorization: Bearer <token>`); health and documentation routes are public. Saved spending uses the canonical Expense schema and authorized Space routes. The mobile project is an authenticated API client for Spaces and manual Expense creation, browsing and detail; the broader accepted mobile contract remains partially implemented. Commands and paths below are relative to `api/`.
+NestJS REST backend for the native Spendeazy client. Private routes use `/api/v1` and Clerk session tokens (`Authorization: Bearer <token>`); health and documentation routes are public. Saved spending uses the canonical Expense schema and authorized Space routes. The mobile project is an authenticated API client for Spaces and manual Expense creation, active/deleted browsing, revision-protected corrections, soft deletion and per-Expense Activity; the broader accepted mobile contract remains partially implemented. Commands and paths below are relative to `api/`.
 
 ## Setup and run
 

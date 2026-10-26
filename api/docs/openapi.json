@@ -1899,23 +1899,23 @@
         ],
         "responses": {
           "200": {
-            "description": "Expense.",
+            "description": "Expense, including retained deletion history when the Expense has been deleted.",
             "content": {
               "application/json": {
                 "schema": {
                   "oneOf": [
                     {
-                      "$ref": "#/components/schemas/ManualExpenseResponseDto"
+                      "$ref": "#/components/schemas/ManualExpenseHistoryResponseDto"
                     },
                     {
-                      "$ref": "#/components/schemas/ImportedExpenseResponseDto"
+                      "$ref": "#/components/schemas/ImportedExpenseHistoryResponseDto"
                     }
                   ],
                   "discriminator": {
                     "propertyName": "source",
                     "mapping": {
-                      "manual": "#/components/schemas/ManualExpenseResponseDto",
-                      "imported": "#/components/schemas/ImportedExpenseResponseDto"
+                      "manual": "#/components/schemas/ManualExpenseHistoryResponseDto",
+                      "imported": "#/components/schemas/ImportedExpenseHistoryResponseDto"
                     }
                   }
                 }
@@ -4050,6 +4050,13 @@
             "pattern": "^[1-9]\\d*$",
             "example": "10"
           },
+          "sourceRowId": {
+            "type": "string",
+            "description": "Stable source-row identifier within the originating Statement Import, or null for a legacy Expense without one.",
+            "nullable": true,
+            "minLength": 1,
+            "example": "row-1"
+          },
           "categoryId": {
             "type": "string",
             "description": "Required positive bigint Category identifier encoded as a string.",
@@ -4115,6 +4122,7 @@
         "required": [
           "id",
           "statementImportId",
+          "sourceRowId",
           "categoryId",
           "expenseDate",
           "description",
@@ -4281,6 +4289,13 @@
             "pattern": "^[1-9]\\d*$",
             "example": "10"
           },
+          "sourceRowId": {
+            "type": "string",
+            "description": "Stable source-row identifier within the originating Statement Import, or null for a legacy Expense without one.",
+            "nullable": true,
+            "minLength": 1,
+            "example": "row-1"
+          },
           "createdAt": {
             "type": "string",
             "description": "UTC timestamp when the Expense was created.",
@@ -4316,6 +4331,7 @@
           "amount",
           "source",
           "statementImportId",
+          "sourceRowId",
           "createdAt",
           "updatedAt",
           "revision"
@@ -4578,6 +4594,12 @@
       "ReviewedExpenseDto": {
         "type": "object",
         "properties": {
+          "sourceRowId": {
+            "type": "string",
+            "description": "Stable source-row identifier within this Statement Import.",
+            "minLength": 1,
+            "example": "row-1"
+          },
           "categoryId": {
             "type": "string",
             "description": "Required positive bigint Category identifier encoded as a string.",
@@ -4617,6 +4639,7 @@
         },
         "additionalProperties": false,
         "required": [
+          "sourceRowId",
           "categoryId",
           "expenseDate",
           "description",

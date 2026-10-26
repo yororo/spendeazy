@@ -23,6 +23,14 @@ import {
 @Index('ix_expenses_added_by_user', ['addedByUserId'])
 @Index('ix_expenses_statement_import', ['statementImportId'])
 @Index('ix_expenses_statement_import_space', ['statementImportId', 'spaceId'])
+@Index(
+  'ux_expenses_statement_import_source_row',
+  ['statementImportId', 'sourceRowId'],
+  {
+    unique: true,
+    where: 'statement_import_id IS NOT NULL AND source_row_id IS NOT NULL',
+  },
+)
 @Index('ix_expenses_space_import_fingerprint', ['spaceId', 'importFingerprint'])
 @Index('ix_expenses_space_reference_hash', ['spaceId', 'referenceHash'])
 export class ExpenseEntity {
@@ -49,6 +57,9 @@ export class ExpenseEntity {
    */
   @Column({ type: 'bigint', nullable: true, name: 'statement_import_id' })
   statementImportId!: string | null;
+
+  @Column({ type: 'text', nullable: true, name: 'source_row_id' })
+  sourceRowId!: string | null;
 
   @Column({ type: 'date', name: 'expense_date' })
   expenseDate!: string;
@@ -91,4 +102,10 @@ export class ExpenseEntity {
     name: 'deleted_at',
   })
   deletedAt!: Date | null;
+
+  @Column({ type: 'bigint', nullable: true, name: 'deleted_by_user_id' })
+  deletedByUserId!: string | null;
+
+  @Column({ type: 'bigint', nullable: true, name: 'deleted_from_revision' })
+  deletedFromRevision!: string | null;
 }

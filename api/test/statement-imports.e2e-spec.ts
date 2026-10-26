@@ -194,6 +194,7 @@ function commitInput() {
     accountFormat: 'amex',
     expenses: [
       {
+        sourceRowId: 'row-1',
         categoryId: '42',
         expenseDate: '2026-08-01',
         description: 'Coffee',

@@ -222,6 +222,7 @@ function importedRecord(): ImportedExpenseRecord {
     addedByUserId: '7',
     categoryId: '42',
     statementImportId: '100',
+    sourceRowId: 'row-1',
     expenseDate: '2026-08-01',
     description: 'Coffee',
     amount: '4.50',

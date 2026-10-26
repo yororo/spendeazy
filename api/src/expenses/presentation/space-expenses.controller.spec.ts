@@ -45,6 +45,35 @@ describe('SpaceExpensesController', () => {
     expect(access.requireReadAccess).toHaveBeenCalledWith('7', '10');
   });
 
+  it('returns the deletion marker when reading retained Expense history', async () => {
+    const deletedAt = new Date('2026-09-20T00:00:00.000Z');
+    const service = {
+      getExpenseInSpace: jest
+        .fn()
+        .mockResolvedValue(expenseRecord({ deletedAt, revision: '2' })),
+    };
+    const access = {
+      requireReadAccess: jest.fn().mockResolvedValue({ id: '10' }),
+    };
+    const controller = new SpaceExpensesController(
+      service as unknown as ExpensesService,
+      access as unknown as SpaceAccessService,
+    );
+
+    await expect(
+      controller.getExpense(authenticatedRequest('7'), {
+        spaceId: '10',
+        expenseId: '100',
+      }),
+    ).resolves.toMatchObject({
+      id: '100',
+      revision: '2',
+      deletedAt: deletedAt.toISOString(),
+    });
+    expect(service.getExpenseInSpace).toHaveBeenCalledWith('10', '100');
+    expect(access.requireReadAccess).toHaveBeenCalledWith('7', '10');
+  });
+
   it('creates an Expense and returns its Space-scoped Location', async () => {
     const expense = expenseRecord();
     const service = {

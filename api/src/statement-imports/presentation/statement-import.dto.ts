@@ -149,6 +149,18 @@ export class StatementImportCollectionQueryDto {
 } as ApiSchemaOptionsWithAdditionalProperties)
 export class ReviewedExpenseDto {
   @IsString()
+  @IsNotEmpty()
+  @Matches(/\S/u)
+  @Transform(trimValue)
+  @ApiProperty({
+    description: 'Stable source-row identifier within this Statement Import.',
+    type: String,
+    minLength: 1,
+    example: 'row-1',
+  })
+  sourceRowId!: string;
+
+  @IsString()
   @Matches(POSITIVE_INTEGER_ID_PATTERN)
   @ApiProperty({
     description:

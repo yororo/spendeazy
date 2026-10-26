@@ -11,7 +11,10 @@ function render(patch = {}) {
   const intents = [];
   const state = {
     phase: 'ready', error: null,
+    spaceName: 'Personal', activity: [], canEdit: false, deleting: false, deleteError: null,
+    editor: { open: false, phase: 'ready', draft: null, issues: {}, error: null, needsReview: false, latest: null, categories: [], canSave: false },
     expense: {
+      id: '1', statementImportId: null, sourceRowId: null, deletedAt: null,
       description: 'Cafe', amount: '10.00', expenseDate: '2026-10-24', categoryName: 'Food',
       source: 'manual', addedByName: 'Ada',
     },
@@ -58,4 +61,17 @@ test('detail renders loading, error, and retry from supplied state without a ses
   retry.onPress();
   failed.find('Back').onPress();
   assert.deepEqual(failed.intents, ['retry', 'back']);
+});
+
+test('detail exposes retained provenance and the current Activity actor and labels', () => {
+  const view = render({
+    expense: { id: '2', description: 'Train', amount: '84.00', expenseDate: '2026-10-23', categoryName: 'Transit', source: 'imported', addedByName: 'Ada', statementImportId: '18', sourceRowId: 'row-9', deletedAt: '2026-10-24T03:00:00.000Z' },
+    activity: [{ id: '4', type: 'edited', actorName: 'Grace', occurredAt: '2026-10-24T03:00:00.000Z', before: { categoryId: '1', expenseDate: '2026-10-22', description: 'Ride', amount: '30.00', categoryName: 'Old Transit' }, after: { categoryId: '2', expenseDate: '2026-10-23', description: 'Train', amount: '84.00', categoryName: 'Transit' } }],
+  });
+  assert.match(view.text, /Statement Import 18/);
+  assert.match(view.text, /Source row row-9/);
+  assert.match(view.text, /Deleted 2026-10-24/);
+  assert.match(view.text, /Expense corrected · Grace/);
+  assert.match(view.text, /Old Transit/);
+  assert.match(view.text, /Transit/);
 });

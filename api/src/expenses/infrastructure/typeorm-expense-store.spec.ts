@@ -217,6 +217,8 @@ describe('TypeOrmExpenseStore', () => {
       updateQuery.set.mock.calls[0] as unknown as [{ deletedAt: unknown }]
     )[0];
     expect(setChanges.deletedAt).toBeInstanceOf(Date);
+    expect(setChanges.deletedByUserId).toBe('8');
+    expect(setChanges.deletedFromRevision).toBe('1');
     expect(updateQuery.andWhere).toHaveBeenCalledWith('deleted_at IS NULL');
     const activityInput = (
       activityRepository.create.mock.calls[0] as unknown as [
@@ -243,6 +245,35 @@ describe('TypeOrmExpenseStore', () => {
       },
     });
     expect(activityInput.occurredAt).toBeInstanceOf(Date);
+  });
+
+  it('replays a matching deletion without writing another Activity event', async () => {
+    const entity = {
+      ...expenseEntity(),
+      deletedAt: new Date('2026-08-30T00:00:00.000Z'),
+      deletedByUserId: '8',
+      deletedFromRevision: '1',
+      revision: '2',
+    };
+    const expenseRepository = {
+      findOne: jest.fn().mockResolvedValue(entity),
+      createQueryBuilder: jest.fn(),
+    };
+    const activityRepository = {
+      create: jest.fn(),
+      save: jest.fn(),
+    };
+    const store = new TypeOrmExpenseStore(
+      transactionalEntityManager(
+        expenseRepository,
+        categoryQueryBuilder({ isActive: true }),
+        activityRepository,
+      ),
+    );
+
+    await expect(store.deleteInSpace('7', '1', '8', '1')).resolves.toBe(true);
+    expect(expenseRepository.createQueryBuilder).not.toHaveBeenCalled();
+    expect(activityRepository.create).not.toHaveBeenCalled();
   });
 
   it('does not create an edit activity when the optimistic version is stale', async () => {

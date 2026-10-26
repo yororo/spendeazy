@@ -32,6 +32,7 @@ export interface ExpenseRecord {
   addedByUserId: string;
   categoryId: string;
   statementImportId: string | null;
+  sourceRowId?: string | null;
   expenseDate: string;
   description: string;
   amount: string;
@@ -40,6 +41,8 @@ export interface ExpenseRecord {
   updatedAt: Date;
   revision: string;
   deletedAt?: Date | null;
+  deletedByUserId?: string | null;
+  deletedFromRevision?: string | null;
 }
 
 export interface ManualExpenseRecord extends Omit<
@@ -64,6 +67,21 @@ export interface UpdateManualExpense {
   description?: string;
   amount?: string;
   expectedRevision: string;
+}
+
+export function matchesExpenseDeletionReplay(
+  expense: Pick<
+    ExpenseRecord,
+    'deletedAt' | 'deletedByUserId' | 'deletedFromRevision'
+  >,
+  actorUserId: string,
+  expectedRevision: string,
+): boolean {
+  return (
+    expense.deletedAt != null &&
+    expense.deletedByUserId === actorUserId &&
+    expense.deletedFromRevision === expectedRevision
+  );
 }
 
 export interface SpaceExpenseStore {

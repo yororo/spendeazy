@@ -317,8 +317,8 @@ describe('StatementImportsService', () => {
         historyFromDate: '2026-08-09',
         totalDebit: '9.00',
         expenses: [
-          { ...visibleExpense, reference: 'reference-a' },
-          { ...visibleExpense, reference: 'reference-b' },
+          { ...visibleExpense, sourceRowId: 'row-a', reference: 'reference-a' },
+          { ...visibleExpense, sourceRowId: 'row-b', reference: 'reference-b' },
         ],
       }),
     ).resolves.toBeDefined();
@@ -426,7 +426,10 @@ describe('StatementImportsService', () => {
     await expect(
       service.commitReviewedStatementImportInSpace('7', '7', {
         ...input,
-        expenses: [duplicateExpense, duplicateExpense],
+        expenses: [
+          duplicateExpense,
+          { ...duplicateExpense, sourceRowId: 'row-3' },
+        ],
       }),
     ).rejects.toMatchObject({
       code: STATEMENT_IMPORT_PROBABLE_DUPLICATES_CODE,
@@ -478,7 +481,10 @@ describe('StatementImportsService', () => {
       service.commitReviewedStatementImportInSpace('7', '7', {
         ...input,
         acknowledgeProbableDuplicates: true,
-        expenses: [duplicateExpense, duplicateExpense],
+        expenses: [
+          duplicateExpense,
+          { ...duplicateExpense, sourceRowId: 'row-3' },
+        ],
       }),
     ).resolves.toBeDefined();
 
@@ -543,7 +549,11 @@ describe('StatementImportsService', () => {
         expenses: [
           { ...statementInput().expenses[0], categoryId: '42' },
           { ...statementInput().expenses[1], categoryId: '43' },
-          { ...statementInput().expenses[0], categoryId: '42' },
+          {
+            ...statementInput().expenses[0],
+            sourceRowId: 'row-3',
+            categoryId: '42',
+          },
         ],
       }),
     ).rejects.toMatchObject({
@@ -969,12 +979,14 @@ function statementInput() {
     accountFormat: 'visa',
     expenses: [
       {
+        sourceRowId: 'row-1',
         categoryId: '42',
         expenseDate: '2026-08-01',
         description: 'Coffee',
         amount: '4.50',
       },
       {
+        sourceRowId: 'row-2',
         categoryId: '42',
         expenseDate: '2026-08-02',
         description: 'Bookstore',
@@ -1013,6 +1025,7 @@ function importedExpenseRecord(
     addedByUserId: '7',
     categoryId: '42',
     statementImportId: '100',
+    sourceRowId: 'row-1',
     expenseDate: '2026-08-01',
     description: 'Coffee',
     amount: '4.50',

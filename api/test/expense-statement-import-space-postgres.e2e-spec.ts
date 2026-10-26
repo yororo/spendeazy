@@ -124,6 +124,7 @@ describeDatabase(
             addedByUserId: firstUser.id,
             categoryId: categories[0].id,
             statementImportId: imports[0].id,
+            sourceRowId: 'imported-row-1',
             expenseDate: '2026-09-02',
             description: 'Imported Expense',
             amount: '12.34',
@@ -178,6 +179,7 @@ describeDatabase(
         addedByUserId: secondUser.id,
         categoryId: categories[1].id,
         statementImportId: statementImport.id,
+        sourceRowId: 'cross-space-row',
         expenseDate: '2026-09-04',
         description: 'Cross-Space provenance',
         amount: '1.00',
@@ -186,6 +188,7 @@ describeDatabase(
         ...crossSpaceProvenance,
         categoryId: categories[0].id,
         statementImportId: null,
+        sourceRowId: null,
       };
 
       await expect(repo.save(crossSpaceProvenance)).rejects.toMatchObject({

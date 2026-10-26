@@ -34,7 +34,7 @@ type ExpenseResponseInput = Pick<
   | 'updatedAt'
   | 'revision'
 > &
-  Partial<Pick<ExpenseRecord, 'statementImportId'>>;
+  Partial<Pick<ExpenseRecord, 'statementImportId' | 'sourceRowId'>>;
 
 type ExpenseResponseFields = Omit<ManualExpenseResponseDto, 'source'>;
 
@@ -54,6 +54,7 @@ export function toExpenseResponse(
     ...response,
     source: 'imported',
     statementImportId: expense.statementImportId,
+    sourceRowId: expense.sourceRowId ?? null,
   };
 }
 
@@ -95,6 +96,7 @@ export function toExpenseHistoryResponse(
     ...historyResponse,
     source: 'imported',
     statementImportId,
+    sourceRowId: expense.sourceRowId ?? null,
   };
 }
 

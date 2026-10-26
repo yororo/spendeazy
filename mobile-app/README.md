@@ -44,6 +44,8 @@ The [Expense detail workflow](src/features/expenses/detail-workflow.ts) loads on
 
 The [manual Expense feature](src/features/expenses/use-manual-expense.ts) owns Category loading/retry and submission. Its [preparation operation](src/features/expenses/manual-draft.ts) returns field issues or normalized input using explicit time and destination-scoped Category eligibility. The view receives display state and intent callbacks; the route handles successful navigation after checking the initiating scope and form lifetime. Disposing the form invalidates its pending completion, including same-Space re-entry, without clearing retained draft work. Submission accepts one save at a time and remains completed after success. Expected failures preserve entered values; transport and invalid-response errors explain that the Expense may already exist. Retrying creation is an explicit User action, never an automatic replay. The API still enforces authorization, writable Space access and Category eligibility at save time. Manual preparation, workflow races, creation response decoding and supplied-state view checks run in `npm test`.
 
+The manual form reads entered values from the subscribed session snapshot so React Compiler observes draft changes. A compiler-enabled controller regression checks successive edits and draft clearing in `npm test`.
+
 The API's deterministic fictional seed is restricted to a specifically named disposable local database. See the API [seed instructions](../api/README.md#development-seedreset) before using `db:seed` or `db:recreate-seed`. API PostgreSQL automation creates fresh isolated databases; see [local checks](../docs/local-checks.md).
 
 ## Release evidence

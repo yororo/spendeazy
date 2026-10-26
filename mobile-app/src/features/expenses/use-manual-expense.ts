@@ -11,7 +11,7 @@ import { useSpaceCategories } from './use-space-categories';
 export function useManualExpense() {
   const { active } = useSpaces();
   const authorized = useAuthorizedClient();
-  useSessionSnapshot();
+  const sessionState = useSessionSnapshot();
   const categories = useSpaceCategories(active?.id ?? null);
   const workflow = useMemo(() => createManualExpenseWorkflow(
     session,
@@ -23,7 +23,7 @@ export function useManualExpense() {
     return workflow.cancel;
   }, [workflow]);
   const state = useSyncExternalStore(workflow.subscribe, workflow.snapshot, workflow.snapshot);
-  const draft = workflow.draft();
+  const draft = sessionState.draft ?? workflow.draft();
   const activeCategories = categories.categories.filter((category) => category.isActive);
   const canSave = active?.accessLevel === 'write' && active.status === 'active' && active.id === authorized.scope.spaceId &&
     state.phase === 'ready' && !categories.loading && !categories.error && activeCategories.length > 0;

@@ -8,6 +8,7 @@ export interface ImportedExpenseRecord {
   addedByUserId: string;
   categoryId: string;
   statementImportId: string;
+  sourceRowId: string | null;
   expenseDate: string;
   description: string;
   amount: string;
@@ -18,6 +19,8 @@ export interface ImportedExpenseRecord {
   updatedAt: Date;
   revision: string;
   deletedAt?: Date | null;
+  deletedByUserId?: string | null;
+  deletedFromRevision?: string | null;
 }
 
 export interface NewImportedExpense {
@@ -25,6 +28,7 @@ export interface NewImportedExpense {
   addedByUserId: string;
   categoryId: string;
   statementImportId: string;
+  sourceRowId: string;
   expenseDate: string;
   description: string;
   amount: string;

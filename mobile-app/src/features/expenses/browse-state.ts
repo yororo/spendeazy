@@ -1,9 +1,14 @@
-import type { ExpensePagePayload } from '../../api/expense-response.ts';
-export { readExpensePage, readListedExpense, type ListedExpense, type ExpensePagePayload } from '../../api/expense-response.ts';
+import type { ExpensePagePayload } from "../../api/expense-response.ts";
+export {
+  readExpensePage,
+  readListedExpense,
+  type ListedExpense,
+  type ExpensePagePayload,
+} from "../../api/expense-response.ts";
 
 export const EXPENSE_PAGE_SIZE = 20;
 
-export type ExpenseSort = 'newest' | 'oldest';
+export type ExpenseSort = "newest" | "oldest";
 
 export type ExpenseBrowseSelection = {
   spaceId: string;
@@ -27,36 +32,44 @@ export type ExpenseListRequest = {
 export function emptyExpenseBrowse(spaceId: string): ExpenseBrowseSelection {
   return {
     spaceId,
-    fromDate: '',
-    toDate: '',
+    fromDate: "",
+    toDate: "",
     categoryId: null,
-    description: '',
-    sort: 'newest',
+    description: "",
+    sort: "newest",
   };
 }
 
 export type ExpenseBrowseIssue = {
-  field: 'fromDate' | 'toDate' | 'range';
+  field: "fromDate" | "toDate" | "range";
   message: string;
 };
 
-export function expenseBrowseIssues(selection: ExpenseBrowseSelection): ExpenseBrowseIssue[] {
+export function expenseBrowseIssues(
+  selection: ExpenseBrowseSelection,
+): ExpenseBrowseIssue[] {
   const issues: ExpenseBrowseIssue[] = [];
-  if (selection.fromDate !== '' && !isCalendarDate(selection.fromDate)) {
-    issues.push({ field: 'fromDate', message: 'Enter the start date as YYYY-MM-DD.' });
+  if (selection.fromDate !== "" && !isCalendarDate(selection.fromDate)) {
+    issues.push({
+      field: "fromDate",
+      message: "Enter the start date as YYYY-MM-DD.",
+    });
   }
-  if (selection.toDate !== '' && !isCalendarDate(selection.toDate)) {
-    issues.push({ field: 'toDate', message: 'Enter the end date as YYYY-MM-DD.' });
+  if (selection.toDate !== "" && !isCalendarDate(selection.toDate)) {
+    issues.push({
+      field: "toDate",
+      message: "Enter the end date as YYYY-MM-DD.",
+    });
   }
   if (
     issues.length === 0 &&
-    selection.fromDate !== '' &&
-    selection.toDate !== '' &&
+    selection.fromDate !== "" &&
+    selection.toDate !== "" &&
     selection.fromDate > selection.toDate
   ) {
     issues.push({
-      field: 'range',
-      message: 'The start date must be on or before the end date.',
+      field: "range",
+      message: "The start date must be on or before the end date.",
     });
   }
   return issues;
@@ -68,10 +81,12 @@ export function expenseListQuery(
 ): ExpenseListRequest {
   const description = selection.description.trim();
   return {
-    ...(selection.fromDate === '' ? {} : { fromDate: selection.fromDate }),
-    ...(selection.toDate === '' ? {} : { toDate: selection.toDate }),
-    ...(selection.categoryId === null ? {} : { categoryId: selection.categoryId }),
-    ...(description === '' ? {} : { description }),
+    ...(selection.fromDate === "" ? {} : { fromDate: selection.fromDate }),
+    ...(selection.toDate === "" ? {} : { toDate: selection.toDate }),
+    ...(selection.categoryId === null
+      ? {}
+      : { categoryId: selection.categoryId }),
+    ...(description === "" ? {} : { description }),
     sort: selection.sort,
     pageSize: EXPENSE_PAGE_SIZE,
     ...(cursor === undefined ? {} : { cursor }),
@@ -83,7 +98,10 @@ export function applyExpensePage(
   page: ExpensePagePayload,
 ): ExpensePagePayload {
   return {
-    expenses: current === null ? page.expenses : [...current.expenses, ...page.expenses],
+    expenses:
+      current === null
+        ? page.expenses
+        : [...current.expenses, ...page.expenses],
     nextCursor: page.nextCursor,
     totalCount: page.totalCount,
     totalAmount: page.totalAmount,
@@ -91,7 +109,10 @@ export function applyExpensePage(
 }
 
 let selection: ExpenseBrowseSelection | null = null;
-let scrollOffset = 0;
+let scrollOffsets: Record<"active" | "deleted", number> = {
+  active: 0,
+  deleted: 0,
+};
 let listRevision = 0;
 let snapshot: ExpenseBrowseSnapshot = { selection: null, listRevision: 0 };
 const listeners = new Set<() => void>();
@@ -110,12 +131,16 @@ export function expenseBrowseSnapshot(): ExpenseBrowseSnapshot {
   return snapshot;
 }
 
-export function readExpenseBrowse(spaceId: string): ExpenseBrowseSelection | null {
+export function readExpenseBrowse(
+  spaceId: string,
+): ExpenseBrowseSelection | null {
   return selection?.spaceId === spaceId ? selection : null;
 }
 
-export function readExpenseScroll(): number {
-  return scrollOffset;
+export function readExpenseScroll(
+  view: "active" | "deleted" = "active",
+): number {
+  return scrollOffsets[view];
 }
 
 export function readExpenseListRevision(): number {
@@ -125,24 +150,28 @@ export function readExpenseListRevision(): number {
 export function ensureExpenseBrowse(spaceId: string): ExpenseBrowseSelection {
   if (selection?.spaceId === spaceId) return selection;
   selection = emptyExpenseBrowse(spaceId);
-  scrollOffset = 0;
+  scrollOffsets = { active: 0, deleted: 0 };
   emit();
   return selection;
 }
 
 export function updateExpenseBrowse(
   spaceId: string,
-  patch: Partial<Omit<ExpenseBrowseSelection, 'spaceId'>>,
+  patch: Partial<Omit<ExpenseBrowseSelection, "spaceId">>,
 ): ExpenseBrowseSelection {
-  const current = selection?.spaceId === spaceId ? selection : emptyExpenseBrowse(spaceId);
+  const current =
+    selection?.spaceId === spaceId ? selection : emptyExpenseBrowse(spaceId);
   selection = { ...current, ...patch, spaceId };
-  scrollOffset = 0;
+  scrollOffsets = { active: 0, deleted: 0 };
   emit();
   return selection;
 }
 
-export function rememberExpenseScroll(offset: number): void {
-  scrollOffset = offset;
+export function rememberExpenseScroll(
+  offset: number,
+  view: "active" | "deleted" = "active",
+): void {
+  scrollOffsets[view] = offset;
 }
 
 export function noteManualExpenseSaved(): void {
@@ -152,7 +181,7 @@ export function noteManualExpenseSaved(): void {
 
 export function clearExpenseBrowse(): void {
   selection = null;
-  scrollOffset = 0;
+  scrollOffsets = { active: 0, deleted: 0 };
   emit();
 }
 

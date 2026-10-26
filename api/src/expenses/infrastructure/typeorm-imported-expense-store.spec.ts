@@ -5,6 +5,21 @@ import { ExpenseEntity } from '../../database/entities/expense.entity';
 import { TypeOrmImportedExpenseStore } from './typeorm-imported-expense-store';
 
 describe('TypeOrmImportedExpenseStore', () => {
+  it('preserves missing source-row IDs on legacy imported Expenses', async () => {
+    const expenseRepository = {
+      findOne: jest
+        .fn()
+        .mockResolvedValue({ ...importedExpenseEntity(), sourceRowId: null }),
+    };
+    const store = new TypeOrmImportedExpenseStore({
+      getRepository: jest.fn().mockReturnValue(expenseRepository),
+    } as unknown as EntityManager);
+
+    await expect(
+      store.findByIdInHistoryInSpace('7', '1'),
+    ).resolves.toMatchObject({ sourceRowId: null });
+  });
+
   it('records an edit with before-and-after values and the editing actor', async () => {
     const entity = importedExpenseEntity();
     const updatedEntity = { ...entity, categoryId: '43', revision: '2' };
@@ -185,6 +200,13 @@ describe('TypeOrmImportedExpenseStore', () => {
 
     await expect(store.deleteInSpace('7', '1', '8', '1')).resolves.toBe(true);
 
+    expect(updateQuery.set).toHaveBeenCalledWith(
+      expect.objectContaining({
+        deletedByUserId: '8',
+        deletedFromRevision: '1',
+      }),
+    );
+
     expect(updateQuery.andWhere).toHaveBeenCalledWith(
       'statement_import_id IS NOT NULL',
     );
@@ -204,6 +226,38 @@ describe('TypeOrmImportedExpenseStore', () => {
         type: 'deleted',
       }),
     );
+  });
+
+  it('replays an imported deletion only for its original actor and revision', async () => {
+    const entity = {
+      ...importedExpenseEntity(),
+      revision: '2',
+      deletedAt: new Date('2026-08-30T00:00:00.000Z'),
+      deletedByUserId: '8',
+      deletedFromRevision: '1',
+    };
+    const expenseRepository = {
+      findOne: jest.fn().mockResolvedValue(entity),
+      createQueryBuilder: jest.fn(),
+    };
+    const activityRepository = { create: jest.fn(), save: jest.fn() };
+    const store = new TypeOrmImportedExpenseStore(
+      transactionalEntityManager(expenseRepository, {}, activityRepository),
+    );
+
+    await expect(store.deleteInSpace('7', '1', '8', '1')).resolves.toBe(true);
+    await expect(store.deleteInSpace('7', '1', '9', '1')).rejects.toMatchObject(
+      {
+        code: 'STALE_EDIT',
+      },
+    );
+    await expect(store.deleteInSpace('7', '1', '8', '2')).rejects.toMatchObject(
+      {
+        code: 'STALE_EDIT',
+      },
+    );
+    expect(expenseRepository.createQueryBuilder).not.toHaveBeenCalled();
+    expect(activityRepository.create).not.toHaveBeenCalled();
   });
 });
 
@@ -238,6 +292,7 @@ function importedExpenseEntity(): ExpenseEntity {
     addedByUserId: '7',
     categoryId: '42',
     statementImportId: '100',
+    sourceRowId: 'row-1',
     expenseDate: '2026-08-01',
     description: 'Coffee',
     amount: '4.50',
@@ -246,6 +301,8 @@ function importedExpenseEntity(): ExpenseEntity {
     updatedAt: new Date('2026-08-29T00:00:00.456Z'),
     revision: '1',
     deletedAt: null,
+    deletedByUserId: null,
+    deletedFromRevision: null,
   };
 }
 

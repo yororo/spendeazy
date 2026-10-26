@@ -343,6 +343,7 @@ function createImportInput(
     accountFormat: 'visa',
     expenses: [
       {
+        sourceRowId: 'row-1',
         categoryId,
         expenseDate: '2026-09-01',
         description: `${seed} Expense`,

@@ -1,6 +1,6 @@
 # Architecture
 
-This guide describes the current API implementation and code placement/dependency rules. Paths are relative to `api/`. Use the task map to locate owners; read the affected boundary sections and relevant [ADRs](docs/adr/). [Database design](docs/DATABASE_DESIGN.md) owns current schema relationships. The saved-resource schema and routes use Expense terminology; parsed statement Transactions remain client-side evidence. The broader [mobile Expense contract](../docs/specifications/mobile-expense-domain-api.md) is only partly implemented. The mobile app is an authenticated client for Spaces and manual Expenses.
+This guide describes the current API implementation and code placement/dependency rules. Paths are relative to `api/`. Use the task map to locate owners; read the affected boundary sections and relevant [ADRs](docs/adr/). [Database design](docs/DATABASE_DESIGN.md) owns current schema relationships. The saved-resource schema and routes use Expense terminology; parsed statement Transactions remain client-side evidence. The broader [mobile Expense contract](../docs/specifications/mobile-expense-domain-api.md) is only partly implemented. The mobile app is an authenticated client for Spaces, manual Expense creation, active/deleted Expense browsing, revision-protected edits, soft deletion and per-Expense Activity.
 
 ## Task entry points
 

@@ -3,32 +3,27 @@ import {
   ExpenseApiError,
   ExpenseApiTransportError,
   type AuthorizedRequestOptions,
-} from './authorized-request.ts';
+} from "./authorized-request.ts";
 
-import { readExpensePage, readListedExpense, type ListedExpense, type ExpensePagePayload } from './expense-response.ts';
+import {
+  readExpenseActivityList,
+  readExpensePage,
+  readListedExpense,
+  type ExpenseActivity,
+  type ListedExpense,
+  type ExpensePagePayload,
+} from "./expense-response.ts";
 export { ExpenseApiError, ExpenseApiTransportError };
 
-export type ExpenseSource = 'manual' | 'imported';
-export type ExpenseSort = 'newest' | 'oldest';
+export type ExpenseSource = "manual" | "imported";
+export type ExpenseSort = "newest" | "oldest";
 
 export type Expense = ListedExpense;
 
-export interface ExpenseActivitySnapshot {
-  categoryId: string;
-  expenseDate: string;
-  description: string;
-  amount: string;
-}
-
-export interface ExpenseActivity {
-  id: string;
-  expenseId: string;
-  type: 'created' | 'edited' | 'deleted';
-  actorUserId: string;
-  occurredAt: string;
-  before?: ExpenseActivitySnapshot;
-  after?: ExpenseActivitySnapshot;
-}
+export type {
+  ExpenseActivity,
+  ExpenseActivitySnapshot,
+} from "./expense-response.ts";
 
 export type ExpensePage = ExpensePagePayload;
 
@@ -89,38 +84,61 @@ export function createExpenseApiClient(
 ): ExpenseApiClient {
   function request<T>(
     path: string,
-    init: { method?: 'GET' | 'POST' | 'PATCH' | 'DELETE'; body?: unknown; ifMatch?: string } = {},
+    init: {
+      method?: "GET" | "POST" | "PATCH" | "DELETE";
+      body?: unknown;
+      ifMatch?: string;
+    } = {},
   ): Promise<T> {
     return authorizedRequest<T>(options, path, init);
   }
 
   return {
     listExpenses: async (spaceId, query) => {
-      const payload = await request<ExpensePage>(`${expenseCollectionPath(spaceId)}${queryString(query)}`);
+      const payload = await request<ExpensePage>(
+        `${expenseCollectionPath(spaceId)}${queryString(query)}`,
+      );
       return readExpensePage(payload);
     },
     listDeletedExpenses: async (spaceId, query) =>
-      readExpensePage(await request(`${expenseCollectionPath(spaceId)}/deleted${queryString(query)}`)),
+      readExpensePage(
+        await request(
+          `${expenseCollectionPath(spaceId)}/deleted${queryString(query)}`,
+        ),
+      ),
     getExpense: async (spaceId, expenseId) => {
-      const payload = await request<Expense>(expenseItemPath(spaceId, expenseId));
+      const payload = await request<Expense>(
+        expenseItemPath(spaceId, expenseId),
+      );
       return readListedExpense(payload);
     },
-    listExpenseActivity: (spaceId, expenseId) =>
-      request(`${expenseItemPath(spaceId, expenseId)}/activity`),
+    listExpenseActivity: async (spaceId, expenseId) =>
+      readExpenseActivityList(
+        await request<unknown>(
+          `${expenseItemPath(spaceId, expenseId)}/activity`,
+        ),
+      ),
     createManualExpense: async (spaceId, input) => {
-      const payload = await request<Expense>(expenseCollectionPath(spaceId), { method: 'POST', body: input });
+      const payload = await request<Expense>(expenseCollectionPath(spaceId), {
+        method: "POST",
+        body: input,
+      });
       return readListedExpense(payload);
     },
-    updateExpense: (spaceId, expenseId, input) =>
-      request(expenseItemPath(spaceId, expenseId), {
-        method: 'PATCH',
-        body: input,
-      }),
-    deleteExpense: (spaceId, expenseId, expectedRevision) =>
-      request(expenseItemPath(spaceId, expenseId), {
-        method: 'DELETE',
-        ifMatch: expectedRevision,
-      }),
+    updateExpense: async (spaceId, expenseId, input) =>
+      readListedExpense(
+        await request<unknown>(expenseItemPath(spaceId, expenseId), {
+          method: "PATCH",
+          body: input,
+        }),
+      ),
+    deleteExpense: async (spaceId, expenseId, expectedRevision) =>
+      readListedExpense(
+        await request<unknown>(expenseItemPath(spaceId, expenseId), {
+          method: "DELETE",
+          ifMatch: expectedRevision,
+        }),
+      ),
   };
 }
 
@@ -138,5 +156,5 @@ function queryString(query: ExpenseListQuery = {}): string {
     if (value !== undefined) params.set(key, String(value));
   }
   const serialized = params.toString();
-  return serialized ? `?${serialized}` : '';
+  return serialized ? `?${serialized}` : "";
 }

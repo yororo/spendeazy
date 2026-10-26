@@ -128,6 +128,16 @@ export class ImportedExpenseResponseDto {
 
   @ApiProperty({
     description:
+      'Stable source-row identifier within the originating Statement Import, or null for a legacy Expense without one.',
+    type: String,
+    nullable: true,
+    minLength: 1,
+    example: 'row-1',
+  })
+  sourceRowId!: string | null;
+
+  @ApiProperty({
+    description:
       'Required positive bigint Category identifier encoded as a string.',
     type: String,
     pattern: POSITIVE_INTEGER_ID_PATTERN.source,
@@ -370,6 +380,16 @@ export class ImportedExpenseHistoryResponseDto {
     example: '10',
   })
   statementImportId!: string;
+
+  @ApiProperty({
+    description:
+      'Stable source-row identifier within the originating Statement Import, or null for a legacy Expense without one.',
+    type: String,
+    nullable: true,
+    minLength: 1,
+    example: 'row-1',
+  })
+  sourceRowId!: string | null;
 
   @ApiProperty({
     description: 'UTC timestamp when the Expense was created.',

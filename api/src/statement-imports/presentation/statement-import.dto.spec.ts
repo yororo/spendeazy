@@ -16,6 +16,7 @@ describe('Statement Import DTOs', () => {
       accountFormat: '  visa  ',
       expenses: [
         {
+          sourceRowId: 'row-1',
           categoryId: '42',
           expenseDate: '2026-08-01',
           description: '  Coffee  ',
@@ -75,6 +76,7 @@ describe('Statement Import DTOs', () => {
       totalDebit: '26696.92',
       expenses: [
         {
+          sourceRowId: 'row-1',
           categoryId: '42',
           expenseDate: '2026-08-09',
           description: 'Payment to Cafe',

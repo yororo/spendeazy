@@ -1,6 +1,6 @@
 # Database design
 
-This describes the current API schema. [Migrations](../src/database/migrations/) define the authoritative constraints and indexes; [entities](../src/database/entities/) define TypeORM mappings. The accepted [mobile Expense contract](../../docs/specifications/mobile-expense-domain-api.md) includes additional behavior and storage that is not implemented yet.
+This describes the current API schema. [Migrations](../src/database/migrations/) define the authoritative constraints and indexes; [entities](../src/database/entities/) define TypeORM mappings. The accepted [mobile Expense contract](../../docs/specifications/mobile-expense-domain-api.md) also describes behavior beyond the currently implemented API surface.
 
 ## Relationships and ownership
 
@@ -13,7 +13,7 @@ This describes the current API schema. [Migrations](../src/database/migrations/)
 | `budgets` | At most one monthly or yearly Budget per Category. Ownership derives through the Category. |
 | `category_rules` | Space-owned Exact/Contains patterns related to a Category; normalized pattern and match type are unique per Space. |
 | `statement_imports` | Committed Statement Import provenance with Space, immutable importer attribution, file hash, provider/account format, statement type/date or optional history bounds, and import timestamp. File hashes are indexed but not unique. |
-| `expenses` | Saved positive spending in a Space, with required Category, immutable Added By actor, date-only value, exact amount, revision, optional deletion timestamp, and nullable Statement Import link. A null link identifies a manual Expense. Composite keys constrain Category and imported provenance to the same Space. |
+| `expenses` | Saved positive spending in a Space, with required Category, immutable Added By actor, date-only value, exact amount, revision, optional deletion timestamp, deleting actor and pre-delete revision, and nullable Statement Import/source-row links. A null import link identifies a manual Expense. Composite keys constrain Category and imported provenance to the same Space; source-row IDs are unique within an import. Legacy imports may retain a null source-row ID. |
 | `expense_activities` | Append-only Expense create/edit/delete events with actor, UTC timestamp and before/after JSON snapshots. Snapshots retain Category IDs and editable values. Legacy Expenses may have no Activity. |
 | `invitations` | Sender-owned Shared Space Invite Codes with protected lookup/display values, expiry and lifecycle state. |
 | `invitation_claims` | Per-User saved invitation entries; claims do not reserve membership. |
@@ -22,7 +22,7 @@ Financial ownership is stored through `space_id`, not a User owner column. Actor
 
 ## Expense foundation migration
 
-Migration `1960000000000-adopt-expense-foundation` renames `transactions` and `transaction_activities` to the canonical Expense tables and renames `purchase_date` to `expense_date`. It adds positive Expense revisions, makes Category required, removes the old category-match-confidence field, renames provider/account/history columns, allows nullable statement dates for e-wallet imports, and removes unique file-hash enforcement. Existing Activity snapshots have their date key renamed as well.
+Migration `1960000000000-adopt-expense-foundation` renames `transactions` and `transaction_activities` to the canonical Expense tables and renames `purchase_date` to `expense_date`. It adds positive Expense revisions, makes Category required, removes the old category-match-confidence field, renames provider/account/history columns, allows nullable statement dates for e-wallet imports, and removes unique file-hash enforcement. Existing Activity snapshots have their date key renamed as well. Migration `1970000000000-expense-provenance-and-deletion-replay` adds immutable source-row provenance plus deleting actor/pre-delete revision metadata. Its checks permit legacy imported rows without fabricated row IDs and legacy deleted rows without invented actor metadata; new importer writes supply row IDs, and new deletion writes record replay metadata.
 
 The migration stops with an actionable error if saved rows lack a Category. It does not guess a Category or rewrite financial classification. There is no requirement to preserve disposable development records. After adoption, Expense Category and Statement Import relationships are Space-scoped through composite foreign keys.
 
@@ -32,7 +32,7 @@ Historical migrations remain in place as schema history. They explain how Spaces
 
 Database-generated `BIGINT` IDs are represented as positive decimal strings at application and HTTP boundaries. Expense amounts use exact `NUMERIC(15,2)` PHP values. Expense and statement-period dates use PostgreSQL `date`; timestamps use UTC `timestamptz` with millisecond precision. Expense mutations increment a bigint revision atomically.
 
-Expense create/edit/delete and their Activity events are written in the same PostgreSQL transaction. Active lists and category summaries exclude deleted rows. Deleted Expenses remain available in authorized history. Both manual and imported Expenses are editable; imported provenance is immutable. A manual Expense has no import reference, and an imported Expense must reference a Statement Import in its Space.
+Expense create/edit/delete and their Activity events are written in the same PostgreSQL transaction. Active lists and category summaries exclude deleted rows. Deleted Expenses remain available in authorized history. Both manual and imported Expenses are editable; imported provenance is immutable. Repeating a delete with the same actor and original pre-delete revision returns the retained row without another Activity event; all other stale revisions reject. A manual Expense has no import reference, and an imported Expense must reference a Statement Import in its Space.
 
 Category deactivation preserves historical relationships. Existing Expenses may remain assigned to an inactive Category, while new assignment and reassignment require an active same-Space Category. Physical Category deletion is not part of the product workflow.
 

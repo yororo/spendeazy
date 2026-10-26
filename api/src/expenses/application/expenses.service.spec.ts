@@ -17,6 +17,7 @@ import type {
   ExpenseActivityRecord,
   ExpenseActivityStore,
 } from './expense-activity-store';
+import type { SpaceImportedExpenseStore } from './imported-expense-store';
 import { ExpensesService } from './expenses.service';
 
 describe('ExpensesService', () => {
@@ -131,6 +132,51 @@ describe('ExpensesService', () => {
     );
 
     expect(expenseStore.spaceDeletedActorUserId).toBe('member-2');
+  });
+
+  it('returns an imported deletion replay only to the same actor and pre-delete revision', async () => {
+    const deletedAt = new Date('2026-09-01T00:00:00.000Z');
+    const importedExpense = {
+      id: '15',
+      spaceId: 'space-7',
+      addedByUserId: 'member-1',
+      categoryId: '42',
+      statementImportId: '100',
+      sourceRowId: 'row-15',
+      expenseDate: '2026-08-01',
+      description: 'Coffee',
+      amount: '4.50',
+      importFingerprint: 'a'.repeat(64),
+      source: 'imported' as const,
+      createdAt: new Date('2026-08-29T00:00:00.000Z'),
+      updatedAt: deletedAt,
+      revision: '2',
+      deletedAt,
+      deletedByUserId: 'member-2',
+      deletedFromRevision: '1',
+    };
+    const deleteInSpace = jest.fn();
+    const importedStore = {
+      findByIdInHistoryInSpace: jest.fn().mockResolvedValue(importedExpense),
+      findByIdInSpace: jest.fn().mockResolvedValue(null),
+      deleteInSpace,
+    } as unknown as SpaceImportedExpenseStore;
+    const service = new ExpensesService(
+      new ExpenseCategoryStoreFake(),
+      new ExpenseStoreFake(),
+      importedStore,
+    );
+
+    await expect(
+      service.deleteExpenseInSpace('member-2', 'space-7', '15', '1'),
+    ).resolves.toEqual(importedExpense);
+    expect(deleteInSpace).not.toHaveBeenCalled();
+    await expect(
+      service.deleteExpenseInSpace('member-3', 'space-7', '15', '1'),
+    ).rejects.toBeInstanceOf(StaleEditError);
+    await expect(
+      service.deleteExpenseInSpace('member-2', 'space-7', '15', '2'),
+    ).rejects.toBeInstanceOf(StaleEditError);
   });
 
   it('lists a selected Space without rebinding the query to the current member', async () => {

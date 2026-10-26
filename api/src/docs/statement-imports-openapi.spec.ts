@@ -73,6 +73,7 @@ describe('Statement import OpenAPI contract', () => {
 
     const reviewedExpense = schema(document, 'ReviewedExpenseDto');
     expect(reviewedExpense.required).toEqual([
+      'sourceRowId',
       'categoryId',
       'expenseDate',
       'description',

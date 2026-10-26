@@ -17,6 +17,7 @@ import { POSTGRES_FOREIGN_KEY_VIOLATION } from '../../database/database-error-co
 import { CategoryEntity } from '../../database/entities/category.entity';
 import { ExpenseEntity } from '../../database/entities/expense.entity';
 import { StaleEditError } from '../../errors/application-error';
+import { matchesExpenseDeletionReplay } from '../application/expense-store';
 import {
   recordDeletedExpenseActivity,
   recordEditedExpenseActivity,
@@ -279,13 +280,26 @@ export class TypeOrmExpenseStore implements SpaceExpenseStore {
       const current = await repository.findOne({
         where: manualExpenseHistoryWhere(spaceId, id),
       });
-      if (!current || current.deletedAt !== null) return false;
+      if (!current) return false;
+      if (current.deletedAt !== null) {
+        if (
+          matchesExpenseDeletionReplay(current, actorUserId, expectedRevision)
+        ) {
+          return true;
+        }
+        throw new StaleEditError();
+      }
       const before = toExpenseActivitySnapshot(current);
       const deletedAt = new Date();
       const query = repository
         .createQueryBuilder()
         .update(ExpenseEntity)
-        .set({ deletedAt, revision: () => '"revision" + 1' })
+        .set({
+          deletedAt,
+          deletedByUserId: actorUserId,
+          deletedFromRevision: expectedRevision,
+          revision: () => '"revision" + 1',
+        })
         .where('id = :id', { id })
         .andWhere('statement_import_id IS NULL')
         .andWhere('space_id = :spaceId', { spaceId })
@@ -296,12 +310,15 @@ export class TypeOrmExpenseStore implements SpaceExpenseStore {
       const result = await query.execute();
       if (result.affected !== 1) {
         const current = await repository.findOne({
-          where: manualExpenseSpaceWhere(spaceId, id),
+          where: manualExpenseHistoryWhere(spaceId, id),
         });
-        if (current) {
-          throw new StaleEditError();
+        if (!current) return false;
+        if (
+          matchesExpenseDeletionReplay(current, actorUserId, expectedRevision)
+        ) {
+          return true;
         }
-        return false;
+        throw new StaleEditError();
       }
 
       await recordDeletedExpenseActivity(
@@ -416,6 +433,9 @@ function toExpenseFields(
     updatedAt: entity.updatedAt,
     revision: entity.revision,
     deletedAt: entity.deletedAt,
+    deletedByUserId: entity.deletedByUserId,
+    deletedFromRevision: entity.deletedFromRevision,
+    sourceRowId: entity.sourceRowId,
   };
 }
 

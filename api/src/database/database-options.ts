@@ -39,6 +39,7 @@ import { RecordInviteCodeAcceptance1930000000000 } from './migrations/1930000000
 import { RemoveSpaceNotificationEmailDelivery1940000000000 } from './migrations/1940000000000-remove-space-notification-email-delivery';
 import { ClassifyStatementImports1950000000000 } from './migrations/1950000000000-classify-statement-imports';
 import { AdoptExpenseFoundation1960000000000 } from './migrations/1960000000000-adopt-expense-foundation';
+import { ExpenseProvenanceAndDeletionReplay1970000000000 } from './migrations/1970000000000-expense-provenance-and-deletion-replay';
 
 export const DATABASE_MIGRATIONS = [
   CreateExpenseTrackerSchema1710000000000,
@@ -67,6 +68,7 @@ export const DATABASE_MIGRATIONS = [
   RemoveSpaceNotificationEmailDelivery1940000000000,
   ClassifyStatementImports1950000000000,
   AdoptExpenseFoundation1960000000000,
+  ExpenseProvenanceAndDeletionReplay1970000000000,
 ];
 
 export const DATABASE_ENTITIES = [

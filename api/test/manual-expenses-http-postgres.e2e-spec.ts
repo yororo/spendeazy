@@ -76,10 +76,9 @@ describeDatabase(
 
       // Archived Spaces reject financial-table writes. Restore the isolated
       // fixture status so ordinary child-row cleanup remains valid.
-      await database.getRepository(SpaceEntity).update(
-        { id: In(createdSpaceIds) },
-        { status: 'active' },
-      );
+      await database
+        .getRepository(SpaceEntity)
+        .update({ id: In(createdSpaceIds) }, { status: 'active' });
 
       const categories = await database
         .getRepository(CategoryEntity)

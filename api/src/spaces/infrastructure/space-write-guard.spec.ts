@@ -6,10 +6,7 @@ import {
 } from '../application/space-errors';
 import { SpaceEntity } from '../../database/entities/space.entity';
 import { UserEntity } from '../../database/entities/user.entity';
-import {
-  lockWritableSpace,
-  prepareWritableSpace,
-} from './space-write-guard';
+import { lockWritableSpace, prepareWritableSpace } from './space-write-guard';
 
 describe('prepareWritableSpace', () => {
   function makeManager(space: Partial<SpaceEntity> | null) {

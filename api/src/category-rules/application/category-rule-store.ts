@@ -46,6 +46,7 @@ export interface NormalizedReplacementCategoryRule extends ReplacementCategoryRu
   normalizedPattern: string;
 }
 
+/** Mutations bump each affected Category revision atomically with the rule write. */
 export interface CategoryRuleStore {
   findByIdInSpace(
     spaceId: string,

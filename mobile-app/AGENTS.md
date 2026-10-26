@@ -1,6 +1,6 @@
 # Mobile agent guidance
 
-This project is the native Android/iPhone client. There is no web platform target. `web/design/` is a legacy visual reference only. The app has Google sign-in, Dashboard, Expenses, Budget, and Profile navigation, device Appearance, and an authorized Space switcher. Manual Expense creation, active and Deleted Expenses browsing, revision-protected edit, soft-delete and per-Expense Activity, Shared Space Invite Code management, and read-only Statement Import history flows talk to the API. Budget editing, statement import and reporting workflows are not implemented; do not describe those journeys as shipped. A local PDF.js parser prototype remains on `/parser-proof` and is not a product tab.
+This project is the native Android/iPhone client. There is no web platform target. `web/design/` is a legacy visual reference only. The app has Google sign-in, Dashboard, Expenses, Budget, and Profile navigation, device Appearance, and an authorized Space switcher. Manual Expense creation, active and Deleted Expenses browsing, revision-protected edit, soft-delete and per-Expense Activity, Shared Space Invite Code management, read-only Statement Import history, and atomic Category/Budget/Rule configuration flows talk to the API. Statement import and reporting workflows are not implemented; do not describe those journeys as shipped. A local PDF.js parser prototype remains on `/parser-proof` and is not a product tab.
 
 ## Coding standards
 

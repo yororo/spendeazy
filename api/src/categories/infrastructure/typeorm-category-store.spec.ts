@@ -13,12 +13,19 @@ describe('TypeOrmCategoryStore', () => {
       name: 'Dining',
       description: 'Restaurants',
       color: 'teal',
+      iconKey: 'shapes',
       isActive: true,
+      revision: '1',
       createdAt: new Date(),
       updatedAt: new Date(),
     };
     const entity = { ...saved };
-    const updatedEntity = { ...entity, description: null, color: 'forest' };
+    const updatedEntity = {
+      ...entity,
+      description: null,
+      color: 'forest',
+      revision: '2',
+    };
     const queryBuilder = {
       update: jest.fn().mockReturnThis(),
       set: jest.fn().mockReturnThis(),
@@ -48,6 +55,7 @@ describe('TypeOrmCategoryStore', () => {
       spaceId: '1',
       name: 'Dining',
       description: 'Restaurants',
+      iconKey: 'shapes',
       color: 'teal',
     });
     await expect(
@@ -102,7 +110,9 @@ describe('TypeOrmCategoryStore', () => {
       name: 'Dining',
       description: null,
       color: null,
+      iconKey: 'shapes',
       isActive: true,
+      revision: '1',
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -153,7 +163,7 @@ describe('TypeOrmCategoryStore', () => {
 
     expect(transaction).toHaveBeenCalledTimes(1);
     expect(getRepository).toHaveBeenCalledWith(SpaceEntity);
-    expect(spaceQuery.setLock).not.toHaveBeenCalled();
+    expect(spaceQuery.setLock).toHaveBeenCalledWith('pessimistic_write');
     expect(getRepository).toHaveBeenCalledWith(CategoryEntity);
   });
 });

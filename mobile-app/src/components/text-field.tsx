@@ -12,6 +12,7 @@ export function TextField({
   keyboardType = 'default',
   autoCapitalize = 'sentences',
   onBlur,
+  editable = true,
 }: {
   label: string;
   value: string;
@@ -21,6 +22,7 @@ export function TextField({
   keyboardType?: 'default' | 'decimal-pad';
   autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
   onBlur?: () => void;
+  editable?: boolean;
 }) {
   const { palette, fonts } = useAppTheme();
   return (
@@ -41,6 +43,7 @@ export function TextField({
         placeholderTextColor={palette.textSecondary}
         keyboardType={keyboardType}
         onBlur={onBlur}
+        editable={editable}
         autoCapitalize={autoCapitalize}
         autoCorrect={false}
         style={{
@@ -51,6 +54,7 @@ export function TextField({
           borderCurve: 'continuous',
           color: palette.textPrimary,
           backgroundColor: palette.surfaceModal,
+          opacity: editable ? 1 : 0.55,
           fontFamily: fonts.regular,
           fontSize: typeScale.body,
           paddingHorizontal: space.screenBottom,

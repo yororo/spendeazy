@@ -2,6 +2,7 @@ import type { AuthenticatedRequest } from '../../authentication/authentication';
 import { SpaceNotFoundError } from '../../spaces/application/space-errors';
 import type { SpaceAccessService } from '../../spaces/application/space-access.service';
 import type { CategoryRecord } from '../application/category-store';
+import type { CategoryConfigurationsService } from '../application/category-configurations.service';
 import type { CategoriesService } from '../application/categories.service';
 import { RequestValidationError } from '../../http/request-validation-error';
 import { SpaceCategoriesController } from './space-categories.controller';
@@ -17,6 +18,7 @@ describe('SpaceCategoriesController', () => {
     };
     const controller = new SpaceCategoriesController(
       categoriesService as unknown as CategoriesService,
+      {} as CategoryConfigurationsService,
       spaceAccessService as unknown as SpaceAccessService,
     );
 
@@ -42,6 +44,7 @@ describe('SpaceCategoriesController', () => {
     };
     const controller = new SpaceCategoriesController(
       categoriesService as unknown as CategoriesService,
+      {} as CategoryConfigurationsService,
       spaceAccessService as unknown as SpaceAccessService,
     );
 
@@ -64,6 +67,7 @@ describe('SpaceCategoriesController', () => {
     };
     const controller = new SpaceCategoriesController(
       categoriesService as unknown as CategoriesService,
+      {} as CategoryConfigurationsService,
       spaceAccessService as unknown as SpaceAccessService,
     );
 
@@ -84,6 +88,7 @@ describe('SpaceCategoriesController', () => {
     const updateCategoryInSpace = jest.fn();
     const controller = new SpaceCategoriesController(
       { updateCategoryInSpace } as unknown as CategoriesService,
+      {} as CategoryConfigurationsService,
       {
         requireWriteAccess: jest.fn().mockResolvedValue({ id: '10' }),
       } as unknown as SpaceAccessService,
@@ -106,12 +111,13 @@ function categoryRecord(
   const timestamp = new Date('2026-09-20T00:00:00.000Z');
   return {
     id: '42',
-    userId: '7',
     spaceId: '10',
     name: 'Groceries',
     description: null,
     color: 'teal',
+    iconKey: 'shapes',
     isActive: true,
+    revision: '1',
     createdAt: timestamp,
     updatedAt: timestamp,
     ...overrides,

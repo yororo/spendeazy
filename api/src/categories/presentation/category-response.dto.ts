@@ -8,6 +8,10 @@ import {
   CATEGORY_COLORS,
   type CategoryColor,
 } from '../application/category-color';
+import {
+  CATEGORY_ICON_KEYS,
+  type CategoryIconKey,
+} from '../application/category-icon';
 
 type ApiSchemaOptionsWithAdditionalProperties = {
   name?: string;
@@ -49,19 +53,34 @@ export class CategoryResponseDto {
   description!: string | null;
 
   @ApiProperty({
+    enum: [...CATEGORY_ICON_KEYS],
+    description: 'Icon key from the shared Category icon catalog.',
+    example: 'utensils',
+  })
+  iconKey!: CategoryIconKey;
+
+  @ApiProperty({
     enum: [...CATEGORY_COLORS],
     description:
       'Effective Category Color palette identifier. An explicitly saved choice is returned as-is; Categories without a saved choice receive a stable identity-based default.',
     example: 'teal',
   })
-  color!: CategoryColor;
+  colorKey!: CategoryColor;
 
   @ApiProperty({
     description:
-      'Whether the Category is active. Inactive Categories retain their historical relationships and cannot receive a new Budget, although an existing Budget may still be replaced.',
+      'Whether the Category is active. Inactive Categories retain their history and remain available through the aggregate configuration endpoint.',
     example: true,
   })
   isActive!: boolean;
+
+  @ApiProperty({
+    description:
+      'Monotonic Category configuration revision. It advances once for each changed Category, Budget, or Rule aggregate save.',
+    pattern: '^\\d+$',
+    example: '3',
+  })
+  revision!: string;
 
   @ApiProperty({
     description: 'UTC timestamp when the Category was created.',

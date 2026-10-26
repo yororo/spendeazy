@@ -13,7 +13,10 @@ import {
 import { CategoryEntity } from '../../database/entities/category.entity';
 import { StaleEditError } from '../../errors/application-error';
 import { SpaceNotFoundError } from '../../spaces/application/space-errors';
-import { prepareWritableSpace } from '../../spaces/infrastructure/space-write-guard';
+import {
+  lockWritableSpace,
+  prepareWritableSpace,
+} from '../../spaces/infrastructure/space-write-guard';
 import { CategoryNameConflictError } from '../application/category-errors';
 import type {
   CategoryRecord,
@@ -21,6 +24,8 @@ import type {
   NewCategory,
   UpdateCategory,
 } from '../application/category-store';
+import { DEFAULT_CATEGORY_ICON_KEY } from '../application/category-icon';
+import { CATEGORY_REVISION_INCREMENT } from './typeorm-category-revision';
 
 type CategoryChanges = Omit<UpdateCategory, 'expectedUpdatedAt'>;
 
@@ -77,6 +82,7 @@ export class TypeOrmCategoryStore implements CategoryStore {
         spaceId: input.spaceId,
         name: input.name,
         description: input.description,
+        iconKey: input.iconKey ?? DEFAULT_CATEGORY_ICON_KEY,
         color: input.color ?? null,
       });
 
@@ -91,7 +97,7 @@ export class TypeOrmCategoryStore implements CategoryStore {
   ): Promise<CategoryRecord | null> {
     const changes = withoutExpectedUpdatedAt(input);
     return this.entityManager.transaction(async (entityManager) => {
-      await prepareWritableSpace(entityManager, spaceId);
+      await lockWritableSpace(entityManager, spaceId);
       return updateCategoryInManager(
         entityManager,
         spaceId,
@@ -117,7 +123,7 @@ async function updateCategoryInManager(
     result = await repository
       .createQueryBuilder()
       .update(CategoryEntity)
-      .set(changes)
+      .set({ ...changes, revision: CATEGORY_REVISION_INCREMENT })
       .where('id = :id', { id })
       .andWhere('space_id = :spaceId', { spaceId })
       .andWhere('updated_at = :expectedUpdatedAt', {
@@ -176,7 +182,9 @@ function toCategoryRecord(entity: CategoryEntity): CategoryRecord {
     name: entity.name,
     description: entity.description,
     color: entity.color,
+    iconKey: entity.iconKey,
     isActive: entity.isActive,
+    revision: entity.revision,
     createdAt: entity.createdAt,
     updatedAt: entity.updatedAt,
   };

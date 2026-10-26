@@ -54,6 +54,8 @@ async function sendAuthorizedRequest<T>(
     throw new ExpenseApiTransportError();
   }
 
+  if (response.status === 204) return undefined as T;
+
   const payload = await readJson(response);
   if (!response.ok) {
     if (isApiErrorEnvelope(payload)) {

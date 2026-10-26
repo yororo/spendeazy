@@ -39,6 +39,9 @@ export function requestFailure(cause: unknown): RequestFailure {
 }
 
 export function requestFailureMessage(cause: unknown): string {
+  if (cause instanceof ExpenseApiError && cause.code === 'SPACE_NOT_WRITABLE') {
+    return 'This Shared Space was archived. No changes were saved. Your entered work is still here to inspect or copy.';
+  }
   switch (requestFailure(cause)) {
     case 'missing-credentials': return 'Sign in before using Spendeazy.';
     case 'expired': return 'Your session expired. Sign in again to continue.';

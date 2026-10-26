@@ -51,17 +51,22 @@ export function SecondaryButton({
   label,
   onPress,
   selected = false,
+  disabled = false,
+  busy = false,
 }: {
   label: string;
   onPress: () => void;
   selected?: boolean;
+  disabled?: boolean;
+  busy?: boolean;
 }) {
   const { palette, fonts } = useAppTheme();
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
-      accessibilityState={{ selected }}
+      accessibilityState={{ selected, disabled: disabled || busy, busy }}
+      disabled={disabled || busy}
       onPress={onPress}
       style={{
         minHeight: controlSize.primaryAction,
@@ -75,6 +80,7 @@ export function SecondaryButton({
         justifyContent: 'center',
         paddingHorizontal: space.screenBottom,
         paddingVertical: space.sheetPaddingTop,
+        opacity: disabled || busy ? 0.55 : 1,
       }}>
       <Text
         style={{

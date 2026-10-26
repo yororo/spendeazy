@@ -36,6 +36,24 @@ test('Spaces selects only accessible Spaces and preserves the latest choice duri
   assert.deepEqual(spaces.snapshot().spaces, []);
 });
 
+test('Spaces controller discards the unsaved Expense only for its current session', async () => {
+  const session = createSession(); session.observeIdentity('ada');
+  session.saveDraft({ amount: '12.00', description: 'Market', categoryId: '3', expenseDate: '2026-10-26' });
+  const spaces = createSpacesWorkflow(session, {
+    provision: async () => {}, list: async () => [personal],
+    read: async () => null, write: async () => true,
+  });
+  await spaces.load();
+  assert.notEqual(session.snapshot().draft, null);
+  spaces.discardUnsavedExpense();
+  assert.equal(session.snapshot().draft, null);
+
+  session.saveDraft({ amount: '', description: '', categoryId: null, expenseDate: '2026-10-26' });
+  session.observeIdentity('grace');
+  spaces.discardUnsavedExpense();
+  assert.equal(session.snapshot().draft, null);
+});
+
 test('Spaces retries failed provisioning before reading private data and reuses success on refresh', async () => {
   const session = createSession(); session.observeIdentity('ada');
   let attempts = 0;

@@ -86,6 +86,8 @@ Health and documentation routes are public and excluded from the `/api/v1` prefi
 
 ## Persistence and transactions
 
+Financial writes preflight the destination Space and actor. Actor-attributed writes lock the acting User before any financial row is changed, matching the User-then-Space order used by Shared Space archiving and identity deletion. Database triggers take the Space row lock and recheck its status in the same transaction as each financial mutation, so a write either completes before archive or is rejected after it. Operations that check a Space-wide optimistic revision may take the exclusive Space lock before reading that revision. Do not combine a shared Space pre-lock with the triggers' exclusive lock: upgrading it can deadlock concurrent writes.
+
 Each feature's application layer owns small, capability-specific store interfaces and injection tokens. TypeORM adapters map between database entities and application records. Keep TypeORM types and query details out of controllers and application services.
 
 The database schema is managed by explicit migrations. Entities describe the runtime mapping; migrations remain the authoritative history of schema changes. Scope financial queries, uniqueness, and relational constraints by Space. Preserve User references only for membership, Personal Space ownership, and immutable actor attribution.

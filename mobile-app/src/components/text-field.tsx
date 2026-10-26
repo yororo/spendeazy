@@ -10,6 +10,7 @@ export function TextField({
   error = null,
   placeholder,
   keyboardType = 'default',
+  autoCapitalize = 'sentences',
   onBlur,
 }: {
   label: string;
@@ -18,6 +19,7 @@ export function TextField({
   error?: string | null;
   placeholder?: string;
   keyboardType?: 'default' | 'decimal-pad';
+  autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
   onBlur?: () => void;
 }) {
   const { palette, fonts } = useAppTheme();
@@ -39,7 +41,7 @@ export function TextField({
         placeholderTextColor={palette.textSecondary}
         keyboardType={keyboardType}
         onBlur={onBlur}
-        autoCapitalize="sentences"
+        autoCapitalize={autoCapitalize}
         autoCorrect={false}
         style={{
           minHeight: controlSize.field,

@@ -34,9 +34,7 @@ describe('TypeOrmCategoryStore', () => {
         .fn()
         .mockImplementation((value) => Promise.resolve({ ...saved, ...value })),
     };
-    const store = new TypeOrmCategoryStore({
-      getRepository: jest.fn().mockReturnValue(repository),
-    } as unknown as EntityManager);
+    const store = new TypeOrmCategoryStore(entityManagerFor(repository));
 
     await expect(
       store.create({
@@ -71,9 +69,7 @@ describe('TypeOrmCategoryStore', () => {
         .fn()
         .mockRejectedValue(new QueryFailedError('INSERT', [], driverError)),
     };
-    const entityManager = {
-      getRepository: jest.fn().mockReturnValue(repository),
-    } as unknown as EntityManager;
+    const entityManager = entityManagerFor(repository);
     const store = new TypeOrmCategoryStore(entityManager);
 
     await expect(
@@ -91,9 +87,7 @@ describe('TypeOrmCategoryStore', () => {
         .fn()
         .mockRejectedValue(new QueryFailedError('INSERT', [], driverError)),
     };
-    const entityManager = {
-      getRepository: jest.fn().mockReturnValue(repository),
-    } as unknown as EntityManager;
+    const entityManager = entityManagerFor(repository);
     const store = new TypeOrmCategoryStore(entityManager);
 
     await expect(
@@ -101,7 +95,7 @@ describe('TypeOrmCategoryStore', () => {
     ).rejects.toBeInstanceOf(SpaceNotFoundError);
   });
 
-  it('locks the destination Space before changing Category eligibility', async () => {
+  it('checks the destination Space before changing Category eligibility', async () => {
     const category = {
       id: '2',
       spaceId: '1',
@@ -131,7 +125,7 @@ describe('TypeOrmCategoryStore', () => {
     const spaceQuery = {
       where: jest.fn().mockReturnThis(),
       setLock: jest.fn().mockReturnThis(),
-      getOne: jest.fn().mockResolvedValue({ id: '1' }),
+      getOne: jest.fn().mockResolvedValue({ id: '1', status: 'active' }),
     };
     const getRepository = jest.fn((entity: unknown) =>
       entity === SpaceEntity
@@ -159,7 +153,28 @@ describe('TypeOrmCategoryStore', () => {
 
     expect(transaction).toHaveBeenCalledTimes(1);
     expect(getRepository).toHaveBeenCalledWith(SpaceEntity);
-    expect(spaceQuery.setLock).toHaveBeenCalledWith('pessimistic_write');
+    expect(spaceQuery.setLock).not.toHaveBeenCalled();
     expect(getRepository).toHaveBeenCalledWith(CategoryEntity);
   });
 });
+
+function entityManagerFor(categoryRepository: object): EntityManager {
+  const spaceQuery = {
+    where: jest.fn().mockReturnThis(),
+    setLock: jest.fn().mockReturnThis(),
+    getOne: jest.fn().mockResolvedValue({ id: '1', status: 'active' }),
+  };
+  const spaceRepository = {
+    createQueryBuilder: jest.fn().mockReturnValue(spaceQuery),
+  };
+  const transactionManager = {
+    getRepository: jest.fn((entity: unknown) =>
+      entity === SpaceEntity ? spaceRepository : categoryRepository,
+    ),
+  } as unknown as EntityManager;
+  return {
+    transaction: jest.fn((work: (manager: EntityManager) => unknown) =>
+      work(transactionManager),
+    ),
+  } as unknown as EntityManager;
+}

@@ -110,5 +110,9 @@ export function createSpacesWorkflow(session: Session, adapters: SpacesAdapters)
       dispatch({ type: 'selected', active: space });
       await remember(space);
     },
+    discardUnsavedExpense() {
+      if (!currentOwner() || !session.isCurrent(scope)) return;
+      session.saveDraft(null);
+    },
   };
 }

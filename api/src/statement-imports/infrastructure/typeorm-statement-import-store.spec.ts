@@ -2,6 +2,7 @@ import type { EntityManager } from 'typeorm';
 import { StatementImportEntity } from '../../database/entities/statement-import.entity';
 import { SpaceEntity } from '../../database/entities/space.entity';
 import { SpaceMembershipEntity } from '../../database/entities/space-membership.entity';
+import { UserEntity } from '../../database/entities/user.entity';
 import {
   SpaceNotFoundError,
   SpaceNotWritableError,
@@ -14,12 +15,17 @@ import type {
 import { TypeOrmStatementImportStore } from './typeorm-statement-import-store';
 
 describe('TypeOrmStatementImportStore', () => {
-  it('checks current membership after locking the destination Space', async () => {
+  it('checks current membership after preparing the writable Space', async () => {
+    const actorQuery = lockedQuery({ id: '7' });
     const spaceQuery = lockedQuery({ status: 'active' });
     const membershipQuery = lockedQuery({ accessLevel: 'write' });
     const getRepository = jest.fn((entity: unknown) => ({
       createQueryBuilder: () =>
-        entity === SpaceEntity ? spaceQuery : membershipQuery,
+        entity === UserEntity
+          ? actorQuery
+          : entity === SpaceEntity
+            ? spaceQuery
+            : membershipQuery,
     }));
     const manager = { getRepository } as unknown as EntityManager;
     const store = new TypeOrmStatementImportStore(manager);
@@ -27,6 +33,13 @@ describe('TypeOrmStatementImportStore', () => {
     await expect(
       store.lockForStatementImport('55', '7'),
     ).resolves.toBeUndefined();
+    expect(getRepository.mock.calls.map(([entity]) => entity)).toEqual([
+      UserEntity,
+      SpaceEntity,
+      SpaceMembershipEntity,
+    ]);
+    expect(actorQuery.setLock).toHaveBeenCalledWith('pessimistic_read');
+    expect(spaceQuery.setLock).not.toHaveBeenCalled();
     expect(getRepository).toHaveBeenCalledWith(SpaceMembershipEntity);
     expect(membershipQuery.andWhere).toHaveBeenCalledWith(
       'membership.userId = :userId',

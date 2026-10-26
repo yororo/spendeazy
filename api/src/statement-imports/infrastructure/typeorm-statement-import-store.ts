@@ -1,12 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { InjectEntityManager } from '@nestjs/typeorm';
 import type { EntityManager } from 'typeorm';
-import { SpaceEntity } from '../../database/entities/space.entity';
 import { SpaceMembershipEntity } from '../../database/entities/space-membership.entity';
 import { StatementImportEntity } from '../../database/entities/statement-import.entity';
 import { ExpenseEntity } from '../../database/entities/expense.entity';
-import { SpaceNotFoundError } from '../../spaces/application/space-errors';
+import { prepareWritableSpace } from '../../spaces/infrastructure/space-write-guard';
 import { assertWritableSpace } from '../../spaces/application/assert-writable-space';
+import { SpaceNotFoundError } from '../../spaces/application/space-errors';
 import type {
   NewStatementImport,
   StatementImportHistoryRecord,
@@ -23,14 +23,11 @@ export class TypeOrmStatementImportStore implements StatementImportStore {
   ) {}
 
   async lockForStatementImport(spaceId: string, userId: string): Promise<void> {
-    const space = await this.entityManager
-      .getRepository(SpaceEntity)
-      .createQueryBuilder('space')
-      .where('space.id = :spaceId', { spaceId })
-      .setLock('pessimistic_write')
-      .getOne();
-
-    if (!space) throw new SpaceNotFoundError();
+    const space = await prepareWritableSpace(
+      this.entityManager,
+      spaceId,
+      userId,
+    );
     const membership = await this.entityManager
       .getRepository(SpaceMembershipEntity)
       .createQueryBuilder('membership')

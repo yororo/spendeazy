@@ -11,7 +11,7 @@ function render(patch = {}) {
   const intents = [];
   const state = {
     phase: 'ready', error: null,
-    spaceName: 'Personal', activity: [], canEdit: false, deleting: false, deleteError: null,
+    spaceName: 'Personal', archived: false, activity: [], canEdit: false, deleting: false, deleteError: null,
     editor: { open: false, phase: 'ready', draft: null, issues: {}, error: null, needsReview: false, latest: null, categories: [], canSave: false },
     expense: {
       id: '1', statementImportId: null, sourceRowId: null, deletedAt: null,
@@ -74,4 +74,12 @@ test('detail exposes retained provenance and the current Activity actor and labe
   assert.match(view.text, /Expense corrected · Grace/);
   assert.match(view.text, /Old Transit/);
   assert.match(view.text, /Transit/);
+});
+
+test('archived Shared Space detail explains that Expense and Activity history is read-only', () => {
+  const view = render({ spaceName: 'Archived Shared · Ada, Grace', archived: true, canEdit: false });
+  assert.match(view.text, /This Shared Space is archived/);
+  assert.match(view.text, /Expense and Activity history are read-only/);
+  assert.equal(view.find('Edit Expense'), undefined);
+  assert.equal(view.find('Delete Expense'), undefined);
 });

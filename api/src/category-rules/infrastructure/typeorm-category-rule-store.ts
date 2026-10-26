@@ -15,6 +15,10 @@ import { SpaceEntity } from '../../database/entities/space.entity';
 import { StaleEditError } from '../../errors/application-error';
 import { SpaceNotFoundError } from '../../spaces/application/space-errors';
 import {
+  lockWritableSpace,
+  prepareWritableSpace,
+} from '../../spaces/infrastructure/space-write-guard';
+import {
   ruleKey,
   validateReplacementConflicts,
 } from '../application/category-rule-validation';
@@ -94,7 +98,7 @@ export class TypeOrmCategoryRuleStore implements CategoryRuleStore {
 
   async createInSpace(input: NewCategoryRule): Promise<CategoryRuleRecord> {
     return this.entityManager.transaction(async (entityManager) => {
-      await lockRuleSpace(entityManager, input.spaceId);
+      await prepareWritableSpace(entityManager, input.spaceId);
       await ensureActiveCategoryInSpace(
         entityManager,
         input.spaceId,
@@ -123,7 +127,7 @@ export class TypeOrmCategoryRuleStore implements CategoryRuleStore {
     input: UpdateCategoryRule,
   ): Promise<CategoryRuleRecord | null> {
     return this.entityManager.transaction(async (entityManager) => {
-      await lockRuleSpace(entityManager, spaceId);
+      await prepareWritableSpace(entityManager, spaceId);
       const repository = entityManager.getRepository(CategoryRuleEntity);
       const entity = await repository.findOne({ where: { id, spaceId } });
       if (!entity) {
@@ -168,7 +172,7 @@ export class TypeOrmCategoryRuleStore implements CategoryRuleStore {
     expectedUpdatedAt?: string,
   ): Promise<boolean> {
     return this.entityManager.transaction(async (entityManager) => {
-      await lockRuleSpace(entityManager, spaceId);
+      await prepareWritableSpace(entityManager, spaceId);
       const repository = entityManager.getRepository(CategoryRuleEntity);
       const entity = await repository.findOne({ where: { id, spaceId } });
       if (!entity) {
@@ -193,7 +197,7 @@ export class TypeOrmCategoryRuleStore implements CategoryRuleStore {
     expectedRevision?: string,
   ): Promise<CategoryRuleCollectionRecord> {
     return this.entityManager.transaction(async (entityManager) => {
-      const space = await lockRuleSpace(entityManager, spaceId);
+      const space = await lockWritableSpace(entityManager, spaceId);
       assertRevision(space.categoryRulesRevision, expectedRevision);
       await ensureActiveCategoryInSpace(entityManager, spaceId, categoryId);
 

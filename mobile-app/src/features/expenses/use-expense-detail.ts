@@ -99,6 +99,7 @@ export function useExpenseDetail(expenseId: string) {
     phase: !spaceId || loaded.phase === "loading" ? "loading" : loaded.phase,
     error: loaded.phase === "error" ? loaded.error : null,
     spaceName: active ? spaceIdentityLabel(active) : "Space",
+    archived: active?.status === 'archived',
     activity:
       loaded.phase === "ready"
         ? loaded.activity.map((event) => ({

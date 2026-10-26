@@ -21,6 +21,16 @@ test('HTTP boundary distinguishes credentials, expiry, transport and invalid JSO
   await assert.rejects(authorizedRequest(options, '/spaces'), (cause) => requestFailure(cause) === 'transport');
 });
 
+test('a successful no-content response is accepted without weakening JSON response validation', async (t) => {
+  t.mock.method(globalThis, 'fetch', async () => new Response(null, { status: 204 }));
+  const result = await authorizedRequest<undefined>(
+    { baseUrl: 'https://example.invalid', getAccessToken: async () => 'token' },
+    '/invitations',
+    { method: 'DELETE' },
+  );
+  assert.equal(result, undefined);
+});
+
 test('an HTTP failure received after switching Spaces cannot expire the session', async (t) => {
   const session = createSession();
   session.observeIdentity('ada');

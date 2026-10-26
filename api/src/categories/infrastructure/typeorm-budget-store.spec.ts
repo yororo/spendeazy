@@ -1,4 +1,6 @@
 import { QueryFailedError, type EntityManager } from 'typeorm';
+import { CategoryEntity } from '../../database/entities/category.entity';
+import { SpaceEntity } from '../../database/entities/space.entity';
 import type { BudgetRecord } from '../application/budget-store';
 import { TypeOrmBudgetStore } from './typeorm-budget-store';
 
@@ -9,9 +11,7 @@ describe('TypeOrmBudgetStore', () => {
       create: jest.fn().mockReturnValue(entity),
       save: jest.fn().mockResolvedValue(entity),
     };
-    const entityManager = {
-      getRepository: jest.fn().mockReturnValue(repository),
-    } as unknown as EntityManager;
+    const entityManager = entityManagerFor(repository);
     const store = new TypeOrmBudgetStore(entityManager);
 
     await expect(
@@ -38,9 +38,7 @@ describe('TypeOrmBudgetStore', () => {
           new QueryFailedError('INSERT', [], { code: '23505' }),
         ),
     };
-    const entityManager = {
-      getRepository: jest.fn().mockReturnValue(repository),
-    } as unknown as EntityManager;
+    const entityManager = entityManagerFor(repository);
     const store = new TypeOrmBudgetStore(entityManager);
 
     await expect(
@@ -71,9 +69,7 @@ describe('TypeOrmBudgetStore', () => {
       createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
       save: jest.fn().mockResolvedValue(entity),
     };
-    const entityManager = {
-      getRepository: jest.fn().mockReturnValue(repository),
-    } as unknown as EntityManager;
+    const entityManager = entityManagerFor(repository);
     const store = new TypeOrmBudgetStore(entityManager);
 
     await expect(
@@ -109,9 +105,7 @@ describe('TypeOrmBudgetStore', () => {
     const repository = {
       createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
     };
-    const entityManager = {
-      getRepository: jest.fn().mockReturnValue(repository),
-    } as unknown as EntityManager;
+    const entityManager = entityManagerFor(repository);
     const store = new TypeOrmBudgetStore(entityManager);
 
     await expect(
@@ -137,4 +131,30 @@ function budgetEntity() {
 
 function budgetRecord(): BudgetRecord {
   return budgetEntity();
+}
+
+function entityManagerFor(budgetRepository: object): EntityManager {
+  const categoryRepository = {
+    findOne: jest.fn().mockResolvedValue({ id: '42', spaceId: '1' }),
+  };
+  const spaceQuery = {
+    where: jest.fn().mockReturnThis(),
+    setLock: jest.fn().mockReturnThis(),
+    getOne: jest.fn().mockResolvedValue({ id: '1', status: 'active' }),
+  };
+  const spaceRepository = {
+    createQueryBuilder: jest.fn().mockReturnValue(spaceQuery),
+  };
+  const transactionManager = {
+    getRepository: jest.fn((entity: unknown) => {
+      if (entity === CategoryEntity) return categoryRepository;
+      if (entity === SpaceEntity) return spaceRepository;
+      return budgetRepository;
+    }),
+  } as unknown as EntityManager;
+  return {
+    transaction: jest.fn((work: (manager: EntityManager) => unknown) =>
+      work(transactionManager),
+    ),
+  } as unknown as EntityManager;
 }

@@ -11,9 +11,9 @@ import {
   POSTGRES_UNIQUE_VIOLATION,
 } from '../../database/database-error-codes';
 import { CategoryEntity } from '../../database/entities/category.entity';
-import { SpaceEntity } from '../../database/entities/space.entity';
 import { StaleEditError } from '../../errors/application-error';
 import { SpaceNotFoundError } from '../../spaces/application/space-errors';
+import { prepareWritableSpace } from '../../spaces/infrastructure/space-write-guard';
 import { CategoryNameConflictError } from '../application/category-errors';
 import type {
   CategoryRecord,
@@ -70,15 +70,18 @@ export class TypeOrmCategoryStore implements CategoryStore {
   }
 
   async create(input: NewCategory): Promise<CategoryRecord> {
-    const repository = this.entityManager.getRepository(CategoryEntity);
-    const entity = repository.create({
-      spaceId: input.spaceId,
-      name: input.name,
-      description: input.description,
-      color: input.color ?? null,
-    });
+    return this.entityManager.transaction(async (entityManager) => {
+      await prepareWritableSpace(entityManager, input.spaceId);
+      const repository = entityManager.getRepository(CategoryEntity);
+      const entity = repository.create({
+        spaceId: input.spaceId,
+        name: input.name,
+        description: input.description,
+        color: input.color ?? null,
+      });
 
-    return saveCategory(repository, entity);
+      return saveCategory(repository, entity);
+    });
   }
 
   async updateInSpace(
@@ -87,27 +90,16 @@ export class TypeOrmCategoryStore implements CategoryStore {
     input: UpdateCategory,
   ): Promise<CategoryRecord | null> {
     const changes = withoutExpectedUpdatedAt(input);
-
-    if (changes.isActive !== undefined) {
-      return this.entityManager.transaction(async (entityManager) => {
-        await lockDestinationSpace(entityManager, spaceId);
-        return updateCategoryInManager(
-          entityManager,
-          spaceId,
-          id,
-          input,
-          changes,
-        );
-      });
-    }
-
-    return updateCategoryInManager(
-      this.entityManager,
-      spaceId,
-      id,
-      input,
-      changes,
-    );
+    return this.entityManager.transaction(async (entityManager) => {
+      await prepareWritableSpace(entityManager, spaceId);
+      return updateCategoryInManager(
+        entityManager,
+        spaceId,
+        id,
+        input,
+        changes,
+      );
+    });
   }
 }
 
@@ -151,22 +143,6 @@ async function updateCategoryInManager(
 
   const updated = await repository.findOne({ where: { id, spaceId } });
   return updated ? toCategoryRecord(updated) : null;
-}
-
-async function lockDestinationSpace(
-  entityManager: EntityManager,
-  spaceId: string,
-): Promise<void> {
-  const space = await entityManager
-    .getRepository(SpaceEntity)
-    .createQueryBuilder('space')
-    .where('space.id = :spaceId', { spaceId })
-    .setLock('pessimistic_write')
-    .getOne();
-
-  if (!space) {
-    throw new SpaceNotFoundError();
-  }
 }
 
 function withoutExpectedUpdatedAt(input: UpdateCategory): CategoryChanges {

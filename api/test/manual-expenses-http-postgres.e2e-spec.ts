@@ -3,7 +3,7 @@ import { NestFactory } from '@nestjs/core';
 import type { INestApplication } from '@nestjs/common';
 import type { Server } from 'node:http';
 import request from 'supertest';
-import { DataSource, In } from 'typeorm';
+import { DataSource, In, type QueryRunner } from 'typeorm';
 
 import {
   CLERK_PROFILE_SERVICE,
@@ -24,6 +24,7 @@ import { ExpenseActivityEntity } from '../src/database/entities/expense-activity
 import { ExpenseEntity } from '../src/database/entities/expense.entity';
 import { SpaceEntity } from '../src/database/entities/space.entity';
 import { SpaceMembershipEntity } from '../src/database/entities/space-membership.entity';
+import { SpaceNotificationEntity } from '../src/database/entities/space-notification.entity';
 import { StatementImportEntity } from '../src/database/entities/statement-import.entity';
 import { UserEntity } from '../src/database/entities/user.entity';
 
@@ -73,6 +74,13 @@ describeDatabase(
         return;
       }
 
+      // Archived Spaces reject financial-table writes. Restore the isolated
+      // fixture status so ordinary child-row cleanup remains valid.
+      await database.getRepository(SpaceEntity).update(
+        { id: In(createdSpaceIds) },
+        { status: 'active' },
+      );
+
       const categories = await database
         .getRepository(CategoryEntity)
         .findBy({ spaceId: In(createdSpaceIds) });
@@ -88,6 +96,9 @@ describeDatabase(
         spaceId: In(createdSpaceIds),
       });
       await database.getRepository(StatementImportEntity).delete({
+        spaceId: In(createdSpaceIds),
+      });
+      await database.getRepository(SpaceNotificationEntity).delete({
         spaceId: In(createdSpaceIds),
       });
       if (categories.length > 0) {
@@ -283,6 +294,113 @@ describeDatabase(
         addedByUserId: userId,
         revision: '3',
       });
+    });
+
+    it('commits a queued Expense before a concurrent Shared Space archive', async () => {
+      const scenario = await createSharedSpaceScenario('write-first');
+      const blocker = database.createQueryRunner();
+      const pendingRequests: Promise<unknown>[] = [];
+      await blocker.connect();
+      await blocker.startTransaction();
+
+      try {
+        await lockSpaceForTest(blocker, scenario.spaceId);
+        const write = createExpense(scenario.member, scenario.spaceId, {
+          expenseDate: '2026-03-15',
+          description: 'Shared meal',
+          amount: '18.25',
+          categoryId: scenario.categoryId,
+        }).then((response) => response);
+        pendingRequests.push(write);
+        await waitForSpaceLockWaiters(1);
+
+        const archive = http()
+          .post(`/api/v1/users/me/spaces/${scenario.spaceId}/leave`)
+          .set(...authorization(scenario.owner))
+          .send({ confirm: true })
+          .then((response) => response);
+        pendingRequests.push(archive);
+        await waitForSpaceLockWaiters(2);
+        await blocker.commitTransaction();
+
+        const [written, archived] = await Promise.all([write, archive]);
+        expect(written.status).toBe(201);
+        expect(archived.status).toBe(204);
+        expect(
+          await database.getRepository(SpaceEntity).findOneBy({
+            id: scenario.spaceId,
+          }),
+        ).toMatchObject({ status: 'archived' });
+
+        const history = await http()
+          .get(`/api/v1/users/me/spaces/${scenario.spaceId}/expenses`)
+          .set(...authorization(scenario.member));
+        expect(history.status).toBe(200);
+        const historyBody = history.body as { expenses: unknown[] };
+        expect(historyBody.expenses).toHaveLength(1);
+      } finally {
+        if (blocker.isTransactionActive) await blocker.rollbackTransaction();
+        await blocker.release();
+        await Promise.allSettled(pendingRequests);
+      }
+    });
+
+    it('rejects a queued Expense when a concurrent Shared Space archive wins', async () => {
+      const scenario = await createSharedSpaceScenario('archive-first');
+      const blocker = database.createQueryRunner();
+      const pendingRequests: Promise<unknown>[] = [];
+      await blocker.connect();
+      await blocker.startTransaction();
+
+      try {
+        await lockSpaceForTest(blocker, scenario.spaceId);
+        const archive = http()
+          .post(`/api/v1/users/me/spaces/${scenario.spaceId}/leave`)
+          .set(...authorization(scenario.owner))
+          .send({ confirm: true })
+          .then((response) => response);
+        pendingRequests.push(archive);
+        await waitForSpaceLockWaiters(1);
+
+        const write = createExpense(scenario.member, scenario.spaceId, {
+          expenseDate: '2026-03-15',
+          description: 'Shared meal',
+          amount: '18.25',
+          categoryId: scenario.categoryId,
+        }).then((response) => response);
+        pendingRequests.push(write);
+        await waitForSpaceLockWaiters(2);
+        await blocker.commitTransaction();
+
+        const [archived, rejected] = await Promise.all([archive, write]);
+        expect(archived.status).toBe(204);
+        expect(rejected.status).toBe(403);
+        expect(errorBody(rejected).error.code).toBe('SPACE_NOT_WRITABLE');
+        expect(
+          await database.getRepository(ExpenseEntity).countBy({
+            spaceId: scenario.spaceId,
+          }),
+        ).toBe(0);
+
+        const spaces = await http()
+          .get('/api/v1/users/me/spaces')
+          .set(...authorization(scenario.member));
+        expect(spaces.status).toBe(200);
+        expect(spaces.body).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              id: scenario.spaceId,
+              kind: 'shared',
+              status: 'archived',
+              accessLevel: 'read',
+            }),
+          ]),
+        );
+      } finally {
+        if (blocker.isTransactionActive) await blocker.rollbackTransaction();
+        await blocker.release();
+        await Promise.allSettled(pendingRequests);
+      }
     });
 
     it('replays a deletion with its original actor and revision without adding Activity twice', async () => {
@@ -847,6 +965,65 @@ describeDatabase(
         spaceId: shared.id,
         statementImportId: statementImport.id,
       };
+    }
+
+    async function createSharedSpaceScenario(label: string) {
+      const owner = createIdentity(`${label}-owner`);
+      const member = createIdentity(`${label}-member`);
+      const ownerUserId = await provision(owner);
+      const memberUserId = await provision(member);
+      await personalSpaceId(owner);
+      await personalSpaceId(member);
+      const shared = await database.getRepository(SpaceEntity).save({
+        kind: 'shared',
+        status: 'active',
+        categoryRulesRevision: '0',
+        personalOwnerUserId: null,
+      });
+      createdSpaceIds.push(shared.id);
+      await database.getRepository(SpaceMembershipEntity).save([
+        { spaceId: shared.id, userId: ownerUserId, accessLevel: 'write' },
+        { spaceId: shared.id, userId: memberUserId, accessLevel: 'write' },
+      ]);
+      const category = await database.getRepository(CategoryEntity).save({
+        spaceId: shared.id,
+        name: `Shared ${label}`,
+        isActive: true,
+      });
+      return {
+        owner,
+        member,
+        spaceId: shared.id,
+        categoryId: category.id,
+      };
+    }
+
+    async function lockSpaceForTest(
+      queryRunner: QueryRunner,
+      spaceId: string,
+    ): Promise<void> {
+      await queryRunner.manager
+        .getRepository(SpaceEntity)
+        .createQueryBuilder('space')
+        .where('space.id = :spaceId', { spaceId })
+        .setLock('pessimistic_write')
+        .getOne();
+    }
+
+    async function waitForSpaceLockWaiters(expected: number): Promise<void> {
+      for (let attempt = 0; attempt < 100; attempt += 1) {
+        const rows = await database.query<{ count: number | string }[]>(`
+          SELECT count(*)::int AS count
+          FROM pg_stat_activity
+          WHERE datname = current_database()
+            AND pid <> pg_backend_pid()
+            AND wait_event_type = 'Lock'
+            AND state = 'active'
+        `);
+        if (Number(rows[0]?.count ?? 0) >= expected) return;
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+      throw new Error(`Timed out waiting for ${expected} Space lock waiter(s)`);
     }
 
     async function saveImportedExpense(

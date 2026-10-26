@@ -2,6 +2,8 @@ import type { EntityManager } from 'typeorm';
 import { CategoryEntity } from '../../database/entities/category.entity';
 import { ExpenseActivityEntity } from '../../database/entities/expense-activity.entity';
 import { ExpenseEntity } from '../../database/entities/expense.entity';
+import { SpaceEntity } from '../../database/entities/space.entity';
+import { UserEntity } from '../../database/entities/user.entity';
 import { TypeOrmImportedExpenseStore } from './typeorm-imported-expense-store';
 
 describe('TypeOrmImportedExpenseStore', () => {
@@ -269,11 +271,29 @@ function transactionalEntityManager(
   const categoryRepository = {
     createQueryBuilder: jest.fn().mockReturnValue(categoryQuery),
   };
+  const spaceQuery = {
+    where: jest.fn().mockReturnThis(),
+    setLock: jest.fn().mockReturnThis(),
+    getOne: jest.fn().mockResolvedValue({ id: '7', status: 'active' }),
+  };
+  const spaceRepository = {
+    createQueryBuilder: jest.fn().mockReturnValue(spaceQuery),
+  };
+  const userQuery = {
+    where: jest.fn().mockReturnThis(),
+    setLock: jest.fn().mockReturnThis(),
+    getOne: jest.fn().mockResolvedValue({ id: '8' }),
+  };
+  const userRepository = {
+    createQueryBuilder: jest.fn().mockReturnValue(userQuery),
+  };
   const transactionalManager = {
     getRepository: jest.fn((entity: unknown) => {
       if (entity === ExpenseEntity) return expenseRepository;
       if (entity === ExpenseActivityEntity) return activityRepository;
       if (entity === CategoryEntity) return categoryRepository;
+      if (entity === SpaceEntity) return spaceRepository;
+      if (entity === UserEntity) return userRepository;
       throw new Error('Unexpected repository');
     }),
   } as unknown as EntityManager;

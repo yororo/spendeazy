@@ -9,7 +9,7 @@ import { useAppTheme } from '@/navigation/app-theme';
 import type { ManualExpenseDraft, ManualExpenseField } from './manual-draft';
 
 export type ManualExpenseFormState = {
-  availability: 'missing-space' | 'read-only' | 'editable';
+  availability: 'missing-space' | 'read-only' | 'archived' | 'editable';
   draft: ManualExpenseDraft;
   issues: Partial<Record<ManualExpenseField, string>>;
   saving: boolean;
@@ -42,6 +42,17 @@ export function ManualExpenseForm({ state, onChange, onSave, onRetryCategories, 
       <Screen title="Add Expense">
         <StackGap>
           <BodyText>This Space is read-only. Expenses cannot be added.</BodyText>
+          <SecondaryButton label="Back" onPress={() => onBack()} />
+        </StackGap>
+      </Screen>
+    );
+  }
+
+  if (availability === 'archived') {
+    return (
+      <Screen title="Add Expense">
+        <StackGap>
+          <BodyText>This Shared Space is archived. Expenses cannot be added; existing history remains available to inspect or copy.</BodyText>
           <SecondaryButton label="Back" onPress={() => onBack()} />
         </StackGap>
       </Screen>

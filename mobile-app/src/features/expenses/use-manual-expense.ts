@@ -25,10 +25,10 @@ export function useManualExpense() {
   const state = useSyncExternalStore(workflow.subscribe, workflow.snapshot, workflow.snapshot);
   const draft = workflow.draft();
   const activeCategories = categories.categories.filter((category) => category.isActive);
-  const canSave = active?.accessLevel === 'write' && active.id === authorized.scope.spaceId &&
+  const canSave = active?.accessLevel === 'write' && active.status === 'active' && active.id === authorized.scope.spaceId &&
     state.phase === 'ready' && !categories.loading && !categories.error && activeCategories.length > 0;
   const form: ManualExpenseFormState = {
-    availability: !active ? 'missing-space' : active.accessLevel === 'write' ? 'editable' : 'read-only',
+    availability: !active ? 'missing-space' : active.status === 'archived' ? 'archived' : active.accessLevel === 'write' ? 'editable' : 'read-only',
     draft, issues: state.issues, saving: state.phase === 'saving', canSave,
     saveError: state.error,
     categories: { items: activeCategories, loading: categories.loading, error: categories.error },

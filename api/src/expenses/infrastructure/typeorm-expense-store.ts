@@ -17,6 +17,7 @@ import { POSTGRES_FOREIGN_KEY_VIOLATION } from '../../database/database-error-co
 import { CategoryEntity } from '../../database/entities/category.entity';
 import { ExpenseEntity } from '../../database/entities/expense.entity';
 import { StaleEditError } from '../../errors/application-error';
+import { prepareWritableSpace } from '../../spaces/infrastructure/space-write-guard';
 import { matchesExpenseDeletionReplay } from '../application/expense-store';
 import {
   recordDeletedExpenseActivity,
@@ -187,6 +188,11 @@ export class TypeOrmExpenseStore implements SpaceExpenseStore {
 
   async createInSpace(input: NewManualExpense): Promise<ManualExpenseRecord> {
     return this.entityManager.transaction(async (entityManager) => {
+      await prepareWritableSpace(
+        entityManager,
+        input.spaceId,
+        input.addedByUserId,
+      );
       await ensureActiveCategoryInSpace(
         entityManager,
         input.spaceId,
@@ -226,6 +232,7 @@ export class TypeOrmExpenseStore implements SpaceExpenseStore {
     actorUserId: string,
   ): Promise<ManualExpenseRecord | null> {
     return this.entityManager.transaction(async (entityManager) => {
+      await prepareWritableSpace(entityManager, spaceId, actorUserId);
       const repository = entityManager.getRepository(ExpenseEntity);
       const where = manualExpenseSpaceWhere(spaceId, id);
       const entity = await repository.findOne({ where });
@@ -276,6 +283,7 @@ export class TypeOrmExpenseStore implements SpaceExpenseStore {
     expectedRevision: string,
   ): Promise<boolean> {
     return this.entityManager.transaction(async (entityManager) => {
+      await prepareWritableSpace(entityManager, spaceId, actorUserId);
       const repository = entityManager.getRepository(ExpenseEntity);
       const current = await repository.findOne({
         where: manualExpenseHistoryWhere(spaceId, id),

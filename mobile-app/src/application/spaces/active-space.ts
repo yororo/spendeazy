@@ -46,7 +46,7 @@ export function parseAccessibleSpaces(value: unknown): AccessibleSpace[] {
   return value.map(parseAccessibleSpace);
 }
 
-function parseAccessibleSpace(value: unknown): AccessibleSpace {
+export function parseAccessibleSpace(value: unknown): AccessibleSpace {
   if (!isRecord(value)) {
     throw new Error('Spaces response must contain Space objects');
   }

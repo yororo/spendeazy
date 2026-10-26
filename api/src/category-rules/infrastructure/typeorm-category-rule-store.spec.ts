@@ -69,12 +69,27 @@ function entityManagerFor(repository: object): EntityManager {
       }),
     }),
   };
+  const spaceQuery = {
+    where: jest.fn().mockReturnThis(),
+    setLock: jest.fn().mockReturnThis(),
+    getOne: jest.fn().mockResolvedValue({
+      id: '1',
+      status: 'active',
+      categoryRulesRevision: '0',
+    }),
+    update: jest.fn().mockReturnThis(),
+    set: jest.fn().mockReturnThis(),
+    execute: jest.fn().mockResolvedValue({ affected: 1 }),
+  };
+  const spaceRepository = {
+    createQueryBuilder: jest.fn().mockReturnValue(spaceQuery),
+  };
   const transactionalManager = {
-    getRepository: jest.fn((entity: typeof CategoryEntity) =>
-      entity === CategoryEntity || entity === SpaceEntity
-        ? categoryRepository
-        : repository,
-    ),
+    getRepository: jest.fn((entity: unknown) => {
+      if (entity === SpaceEntity) return spaceRepository;
+      if (entity === CategoryEntity) return categoryRepository;
+      return repository;
+    }),
   } as unknown as EntityManager;
 
   return {

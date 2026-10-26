@@ -1,4 +1,5 @@
 import { useUser } from '@clerk/expo';
+import { useRouter } from 'expo-router';
 import { Image } from 'expo-image';
 import { useState } from 'react';
 
@@ -16,6 +17,7 @@ const appearanceOptions: { value: AppearancePreference; label: string }[] = [
 ];
 
 export default function ProfileScreen() {
+  const router = useRouter();
   const { signOut } = useSessionTransport();
   const { user } = useUser();
   const { preference, setPreference } = useAppTheme();
@@ -52,6 +54,7 @@ export default function ProfileScreen() {
         ))}
         {appearanceError ? <BodyText>{appearanceError}</BodyText> : null}
         <SpaceStatus />
+        <PrimaryButton label="Manage Shared Spaces" onPress={() => router.push('../sharing')} />
         <PrimaryButton
           label="Sign out"
           onPress={signOut}

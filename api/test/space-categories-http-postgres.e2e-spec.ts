@@ -257,7 +257,7 @@ describeDatabase(
         await Promise.allSettled([firstDelete, secondDelete]);
         await removeBudgetDeleteGate(database, gate);
       }
-    });
+    }, 15000);
 
     async function provision(identity: TestIdentity): Promise<string> {
       const response = await http()

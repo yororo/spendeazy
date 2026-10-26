@@ -28,6 +28,7 @@ export type ExpenseDetailViewState = {
   phase: "loading" | "error" | "ready";
   error: string | null;
   spaceName: string;
+  archived: boolean;
   activity: DetailActivity[];
   expense: {
     id: string;
@@ -131,6 +132,7 @@ export function ExpenseDetail({
               {expense.source === "manual" ? "Cash" : "Imported"}
             </SupportingText>
             <SupportingText>{`Space · ${state.spaceName}`}</SupportingText>
+            {state.archived ? <SupportingText>This Shared Space is archived. Expense and Activity history are read-only.</SupportingText> : null}
             <SupportingText>
               {expense.addedByName
                 ? `Added By ${expense.addedByName}`

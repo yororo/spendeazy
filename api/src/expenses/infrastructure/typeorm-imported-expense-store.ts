@@ -11,6 +11,7 @@ import { assertActiveCategory } from '../../categories/application/active-catego
 import { CategoryEntity } from '../../database/entities/category.entity';
 import { ExpenseEntity } from '../../database/entities/expense.entity';
 import { StaleEditError } from '../../errors/application-error';
+import { prepareWritableSpace } from '../../spaces/infrastructure/space-write-guard';
 import { matchesExpenseDeletionReplay } from '../application/expense-store';
 import { toExpenseActivitySnapshot } from '../application/expense-activity-store';
 import {
@@ -128,6 +129,7 @@ export class TypeOrmImportedExpenseStore implements SpaceImportedExpenseStore {
     actorUserId: string,
   ): Promise<ImportedExpenseRecord | null> {
     return this.entityManager.transaction(async (entityManager) => {
+      await prepareWritableSpace(entityManager, spaceId, actorUserId);
       const repository = entityManager.getRepository(ExpenseEntity);
       const entity = await repository.findOne({
         where: importedExpenseSpaceWhere(spaceId, { id }),
@@ -184,6 +186,7 @@ export class TypeOrmImportedExpenseStore implements SpaceImportedExpenseStore {
     expectedRevision: string,
   ): Promise<boolean> {
     return this.entityManager.transaction(async (entityManager) => {
+      await prepareWritableSpace(entityManager, spaceId, actorUserId);
       const repository = entityManager.getRepository(ExpenseEntity);
       const current = await repository.findOne({
         where: importedExpenseHistoryWhere(spaceId, { id }),

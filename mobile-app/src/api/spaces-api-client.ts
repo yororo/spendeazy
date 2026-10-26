@@ -8,5 +8,10 @@ export function createSpacesApiClient(options: AuthorizedRequestOptions) {
       const payload = await authorizedRequest<unknown>(options, '/api/v1/users/me/spaces');
       return decodeApiResponse(() => parseAccessibleSpaces(payload));
     },
+    async leaveSharedSpace(spaceId: string): Promise<void> {
+      await authorizedRequest<void>(options,
+        `/api/v1/users/me/spaces/${encodeURIComponent(spaceId)}/leave`,
+        { method: 'POST', body: { confirm: true } });
+    },
   };
 }

@@ -1,9 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { InjectEntityManager } from '@nestjs/typeorm';
 import { QueryFailedError, type EntityManager, type Repository } from 'typeorm';
+import { CategoryEntity } from '../../database/entities/category.entity';
 import { BudgetEntity } from '../../database/entities/budget.entity';
 import { POSTGRES_UNIQUE_VIOLATION } from '../../database/database-error-codes';
 import { StaleEditError } from '../../errors/application-error';
+import { CategoryNotFoundError } from '../application/category-errors';
+import { prepareWritableSpace } from '../../spaces/infrastructure/space-write-guard';
 import type {
   BudgetRecord,
   BudgetStore,
@@ -27,14 +30,17 @@ export class TypeOrmBudgetStore implements BudgetStore {
   }
 
   async create(input: NewBudget): Promise<BudgetRecord> {
-    const repository = this.entityManager.getRepository(BudgetEntity);
-    const entity = repository.create({
-      categoryId: input.categoryId,
-      amount: input.amount,
-      period: input.period,
-    });
+    return this.entityManager.transaction(async (entityManager) => {
+      await lockBudgetSpace(entityManager, input.categoryId);
+      const repository = entityManager.getRepository(BudgetEntity);
+      const entity = repository.create({
+        categoryId: input.categoryId,
+        amount: input.amount,
+        period: input.period,
+      });
 
-    return saveBudget(repository, entity);
+      return saveBudget(repository, entity);
+    });
   }
 
   async createIfAbsent(input: NewBudget): Promise<BudgetRecord | null> {
@@ -50,55 +56,72 @@ export class TypeOrmBudgetStore implements BudgetStore {
     categoryId: string,
     input: UpdateBudget,
   ): Promise<BudgetRecord | null> {
-    const repository = this.entityManager.getRepository(BudgetEntity);
-    const result = await repository
-      .createQueryBuilder()
-      .update(BudgetEntity)
-      .set({ amount: input.amount, period: input.period })
-      .where('category_id = :categoryId', { categoryId })
-      .andWhere('updated_at = :expectedUpdatedAt', {
-        expectedUpdatedAt: new Date(input.expectedUpdatedAt),
-      })
-      .execute();
+    return this.entityManager.transaction(async (entityManager) => {
+      await lockBudgetSpace(entityManager, categoryId);
+      const repository = entityManager.getRepository(BudgetEntity);
+      const result = await repository
+        .createQueryBuilder()
+        .update(BudgetEntity)
+        .set({ amount: input.amount, period: input.period })
+        .where('category_id = :categoryId', { categoryId })
+        .andWhere('updated_at = :expectedUpdatedAt', {
+          expectedUpdatedAt: new Date(input.expectedUpdatedAt),
+        })
+        .execute();
 
-    if (result.affected !== 1) {
-      const current = await repository.findOne({ where: { categoryId } });
-      if (!current) {
-        return null;
+      if (result.affected !== 1) {
+        const current = await repository.findOne({ where: { categoryId } });
+        if (!current) {
+          return null;
+        }
+
+        throw new StaleEditError();
       }
 
-      throw new StaleEditError();
-    }
-
-    const updated = await repository.findOne({ where: { categoryId } });
-    return updated ? toBudgetRecord(updated) : null;
+      const updated = await repository.findOne({ where: { categoryId } });
+      return updated ? toBudgetRecord(updated) : null;
+    });
   }
 
   async deleteIfCurrent(
     categoryId: string,
     expectedUpdatedAt: string,
   ): Promise<boolean> {
-    const repository = this.entityManager.getRepository(BudgetEntity);
-    const result = await repository
-      .createQueryBuilder()
-      .delete()
-      .from(BudgetEntity)
-      .where('category_id = :categoryId', { categoryId })
-      .andWhere('updated_at = :expectedUpdatedAt', {
-        expectedUpdatedAt: new Date(expectedUpdatedAt),
-      })
-      .execute();
-    if (result.affected === 1) {
-      return true;
-    }
+    return this.entityManager.transaction(async (entityManager) => {
+      await lockBudgetSpace(entityManager, categoryId);
+      const repository = entityManager.getRepository(BudgetEntity);
+      const result = await repository
+        .createQueryBuilder()
+        .delete()
+        .from(BudgetEntity)
+        .where('category_id = :categoryId', { categoryId })
+        .andWhere('updated_at = :expectedUpdatedAt', {
+          expectedUpdatedAt: new Date(expectedUpdatedAt),
+        })
+        .execute();
+      if (result.affected === 1) {
+        return true;
+      }
 
-    const current = await repository.findOne({ where: { categoryId } });
-    if (current) {
-      throw new StaleEditError();
-    }
+      const current = await repository.findOne({ where: { categoryId } });
+      if (current) {
+        throw new StaleEditError();
+      }
 
-    return false;
+      return false;
+    });
   }
+}
+
+async function lockBudgetSpace(
+  entityManager: EntityManager,
+  categoryId: string,
+): Promise<void> {
+  const category = await entityManager
+    .getRepository(CategoryEntity)
+    .findOne({ where: { id: categoryId } });
+  if (!category) throw new CategoryNotFoundError();
+  await prepareWritableSpace(entityManager, category.spaceId);
 }
 
 async function saveBudget(

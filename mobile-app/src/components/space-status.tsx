@@ -5,10 +5,9 @@ import { ChoiceSheet } from '@/components/choice-sheet';
 import { BodyText, StackGap, SupportingText } from '@/components/screen';
 import { spaceIdentityLabel } from '@/application/spaces/active-space';
 import { useSpaces } from '@/application/spaces/provider';
-import { session } from '@/application/session-runtime';
 
 export function SpaceStatus() {
-  const { spaces, active, loading, error, memoryError, refresh, selectSpace, hasUnsavedWork } = useSpaces();
+  const { spaces, active, loading, error, memoryError, refresh, selectSpace, hasUnsavedWork, discardUnsavedExpense } = useSpaces();
   const [open, setOpen] = useState(false);
   const [pendingSpaceId, setPendingSpaceId] = useState<string | null>(null);
 
@@ -70,7 +69,7 @@ export function SpaceStatus() {
           const nextSpaceId = pendingSpaceId;
           setPendingSpaceId(null);
           setOpen(false);
-          session.saveDraft(null);
+          discardUnsavedExpense();
           if (nextSpaceId) {
             const nextSpace = spaces.find((space) => space.id === nextSpaceId);
             if (nextSpace) void selectSpace(nextSpace);

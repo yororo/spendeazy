@@ -8,6 +8,24 @@ import { BodyText, Screen, StackGap, SupportingText } from '@/components/screen'
 import { TextField } from '@/components/text-field';
 import type { useSharing } from './use-sharing';
 
+const confirmationCopy = {
+  rotate: {
+    title: 'Rotate Invite Code?',
+    message: 'The old code stops working immediately, and invitation previews saved with it are removed.',
+    confirmLabel: 'Rotate code',
+  },
+  revoke: {
+    title: 'Revoke Invite Code?',
+    message: 'The code stops working immediately, and invitation previews saved with it are removed.',
+    confirmLabel: 'Revoke code',
+  },
+  leave: {
+    title: 'Archive Shared Space?',
+    message: 'Both members will lose edit access. Expenses, Activity, and Statement Import history will remain available to both as read-only history. This cannot be undone.',
+    confirmLabel: 'Archive for both members',
+  },
+} as const;
+
 export function SharingView({
   controller,
   code,
@@ -26,13 +44,17 @@ export function SharingView({
   const inbox: InvitationInbox | null = state.inbox;
   const outgoing = inbox?.outgoing ?? null;
   const disabled = state.busy !== null;
+  const actions = {
+    rotate: controller.rotate,
+    revoke: controller.revoke,
+    leave: controller.leave,
+  };
 
   async function confirmAction() {
     const action = confirmation;
+    if (!action) return;
     setConfirmation(null);
-    if (action === 'rotate') await controller.rotate();
-    if (action === 'revoke') await controller.revoke();
-    if (action === 'leave') await controller.leave();
+    await actions[action]();
   }
 
   return (
@@ -70,7 +92,7 @@ export function SharingView({
             placeholder="XXXX-XXXX-XXXX-XXXX-XXXX-XXXX"
             autoCapitalize="characters"
           />
-          <PrimaryButton label="Preview Invite Code" busy={state.busy === 'claim'} disabled={hasActiveSharedSpace || code.trim().length === 0} onPress={() => void controller.claim(code)} />
+          <PrimaryButton label="Save code and preview" busy={state.busy === 'claim'} disabled={hasActiveSharedSpace || code.trim().length === 0} onPress={() => void controller.claim(code)} />
         </StackGap>
 
         {inbox?.incoming.length ? (
@@ -104,17 +126,11 @@ export function SharingView({
       </StackGap>
 
       <ChoiceSheet
-        title={confirmation === 'leave' ? 'Archive Shared Space?' : confirmation === 'rotate' ? 'Rotate Invite Code?' : 'Revoke Invite Code?'}
+        title={confirmation ? confirmationCopy[confirmation].title : ''}
         visible={confirmation !== null}
         onDismiss={() => setConfirmation(null)}>
-        {confirmation === 'leave' ? (
-          <BodyText>Both members will lose edit access. Expenses, Activity, and Statement Import history will remain available to both as read-only history. This cannot be undone.</BodyText>
-        ) : confirmation === 'rotate' ? (
-          <BodyText>The old code stops working immediately, and invitation previews saved with it are removed.</BodyText>
-        ) : (
-          <BodyText>The code stops working immediately, and invitation previews saved with it are removed.</BodyText>
-        )}
-        <PrimaryButton label={confirmation === 'leave' ? 'Archive for both members' : confirmation === 'rotate' ? 'Rotate code' : 'Revoke code'} busy={disabled} onPress={() => void confirmAction()} />
+        {confirmation ? <BodyText>{confirmationCopy[confirmation].message}</BodyText> : null}
+        <PrimaryButton label={confirmation ? confirmationCopy[confirmation].confirmLabel : 'Confirm'} busy={disabled} onPress={() => void confirmAction()} />
         <SecondaryButton label="Cancel" disabled={disabled} onPress={() => setConfirmation(null)} />
       </ChoiceSheet>
     </Screen>

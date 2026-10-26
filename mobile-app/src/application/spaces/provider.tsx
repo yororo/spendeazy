@@ -12,6 +12,7 @@ type SpacesContextValue = ReturnType<ReturnType<typeof createSpacesWorkflow>['sn
   refresh: () => Promise<void>;
   selectSpace: (space: AccessibleSpace) => Promise<void>;
   selectSpaceId: (spaceId: string) => Promise<void>;
+  discardUnsavedExpense: () => void;
   hasUnsavedWork: boolean;
 };
 const SpacesContext = createContext<SpacesContextValue | null>(null);
@@ -44,6 +45,7 @@ export function SpacesProvider({ children }: { children: ReactNode }) {
     refresh: () => workflow.load(),
     selectSpace: (space) => workflow.select(space.id),
     selectSpaceId: workflow.select,
+    discardUnsavedExpense: workflow.discardUnsavedExpense,
     hasUnsavedWork,
   }}>{children}</SpacesContext>;
 }

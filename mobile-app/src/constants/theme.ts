@@ -58,6 +58,8 @@ export const typeScale = {
   sectionTitle: 15,
   button: 15,
   body: 16,
+  metadata: 12,
+  summaryMetric: 23,
   pageTitleTracking: -0.9,
 } as const;
 
@@ -65,6 +67,7 @@ export const space = {
   screenHorizontal: 20,
   screenBottom: 16,
   cardGap: 14,
+  cardInset: 22,
   dialogInset: 24,
   dialogGap: 24,
   sheetPaddingTop: 12,
@@ -76,6 +79,7 @@ export const space = {
 
 export const radius = {
   control: 16,
+  summaryCard: 30,
   dialog: 26,
   sheet: 28,
   navigation: 32,

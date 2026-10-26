@@ -19,6 +19,7 @@ export default function SignedInLayout() {
         <Stack.Screen name="category-editor" />
         <Stack.Screen name="sharing" />
         <Stack.Screen name="statement-import-history" />
+        <Stack.Screen name="dashboard-expenses" />
       </Stack>
     </SpacesProvider>
   );

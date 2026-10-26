@@ -1516,6 +1516,75 @@ paths:
       summary: Delete an Expense in an authorized Space.
       tags:
         - Expenses
+  /api/v1/users/me/spaces/{spaceId}/reporting/dashboard:
+    get:
+      operationId: SpaceDashboardReport_getDashboardReport
+      parameters:
+        - name: spaceId
+          required: true
+          in: path
+          description: Positive bigint Space identifier encoded as a string.
+          schema:
+            type: string
+            pattern: ^[1-9]\d*$
+            example: '7'
+        - name: view
+          required: false
+          in: query
+          description: Dashboard period. Defaults to monthly.
+          schema:
+            enum:
+              - monthly
+              - yearly
+            type: string
+        - name: endMonth
+          required: false
+          in: query
+          description: Six-month view end month, in YYYY-MM format.
+          schema:
+            type: string
+            pattern: ^\d{4}-(0[1-9]|1[0-2])$
+        - name: year
+          required: false
+          in: query
+          description: Calendar year for the Yearly view.
+          schema:
+            type: string
+            pattern: ^\d{4}$
+        - name: chartCategoryId
+          required: false
+          in: query
+          description: Repeat to select only Category chart points.
+          schema:
+            example:
+              - '42'
+              - '43'
+            type: array
+            items:
+              type: string
+              pattern: ^[1-9]\d*$
+      responses:
+        '200':
+          description: Dashboard report.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardReportResponseDto'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthenticatedError'
+        '403':
+          $ref: '#/components/responses/UserNotProvisionedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '406':
+          $ref: '#/components/responses/NotAcceptableError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      summary: Get the Monthly or Yearly Dashboard report for a Space.
+      tags:
+        - Dashboard reporting
   /api/v1/users/me/spaces/{spaceId}/statement-imports/{statementImportId}:
     get:
       operationId: SpaceStatementImports_getStatementImport
@@ -1931,6 +2000,8 @@ tags:
     description: Reviewed import commits and history in a Space.
   - name: Category summaries
     description: Calendar-period spending summaries for a Space.
+  - name: Dashboard reporting
+    description: Monthly and Yearly actual spending, current Budget checks and import confirmation counts for a Space.
 servers:
   - url: /
 components:
@@ -3494,6 +3565,437 @@ components:
         - type
         - actorUserId
         - occurredAt
+    DashboardRangeDto:
+      type: object
+      properties:
+        view:
+          type: string
+          enum:
+            - monthly
+            - yearly
+        fromDate:
+          type: string
+          format: date
+        toDate:
+          type: string
+          format: date
+        today:
+          type: string
+          format: date
+        timezone:
+          type: string
+          example: Asia/Manila
+        currency:
+          type: string
+          example: PHP
+        configurationBasis:
+          type: string
+          example: current
+        inProgress:
+          type: boolean
+        asOf:
+          type: string
+          format: date-time
+      additionalProperties: false
+      required:
+        - view
+        - fromDate
+        - toDate
+        - today
+        - timezone
+        - currency
+        - configurationBasis
+        - inProgress
+        - asOf
+    DashboardExactValueDto:
+      type: object
+      properties:
+        numerator:
+          type: string
+          example: '25'
+        denominator:
+          type: string
+          example: '6'
+      additionalProperties: false
+      required:
+        - numerator
+        - denominator
+    DashboardValueWithExactDto:
+      type: object
+      properties:
+        exact:
+          $ref: '#/components/schemas/DashboardExactValueDto'
+        amount:
+          type: string
+          example: '4.2'
+      additionalProperties: false
+      required:
+        - exact
+        - amount
+    DashboardPlanDto:
+      type: object
+      properties:
+        exact:
+          $ref: '#/components/schemas/DashboardExactValueDto'
+        amount:
+          type: string
+          example: '4.2'
+        months:
+          type: number
+          example: 6
+        monthlyEquivalent:
+          $ref: '#/components/schemas/DashboardValueWithExactDto'
+        annualEquivalent:
+          $ref: '#/components/schemas/DashboardValueWithExactDto'
+      additionalProperties: false
+      required:
+        - exact
+        - amount
+        - months
+        - monthlyEquivalent
+        - annualEquivalent
+    DashboardComparisonDto:
+      type: object
+      properties:
+        direction:
+          type: string
+          enum:
+            - above_plan
+            - below_plan
+            - equal_plan
+            - no_plan
+        difference:
+          $ref: '#/components/schemas/DashboardValueWithExactDto'
+        percentage:
+          nullable: true
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/DashboardValueWithExactDto'
+      additionalProperties: false
+      required:
+        - direction
+        - difference
+        - percentage
+    DashboardExpenseFilterDto:
+      type: object
+      properties:
+        fromDate:
+          type: string
+          format: date
+          example: '2026-01-01'
+        toDate:
+          type: string
+          format: date
+          example: '2026-06-30'
+        categoryId:
+          type: string
+          example: '42'
+      additionalProperties: false
+      required:
+        - fromDate
+        - toDate
+    DashboardHighestCategoryDto:
+      type: object
+      properties:
+        categoryId:
+          type: string
+        name:
+          type: string
+        amount:
+          type: string
+          example: '6400.00'
+        expenseFilter:
+          $ref: '#/components/schemas/DashboardExpenseFilterDto'
+      additionalProperties: false
+      required:
+        - categoryId
+        - name
+        - amount
+        - expenseFilter
+    DashboardDateFilterDto:
+      type: object
+      properties:
+        fromDate:
+          type: string
+          format: date
+          example: '2026-01-01'
+        toDate:
+          type: string
+          format: date
+          example: '2026-06-30'
+      additionalProperties: false
+      required:
+        - fromDate
+        - toDate
+    DashboardImportSummaryDto:
+      type: object
+      properties:
+        count:
+          type: string
+          example: '2'
+        latestConfirmedAt:
+          type: string
+          format: date-time
+          nullable: true
+        filter:
+          $ref: '#/components/schemas/DashboardDateFilterDto'
+      additionalProperties: false
+      required:
+        - count
+        - latestConfirmedAt
+        - filter
+    DashboardSummaryDto:
+      type: object
+      properties:
+        actualAmount:
+          type: string
+          example: '12500.00'
+        expenseCount:
+          type: string
+          example: '11'
+        planned:
+          $ref: '#/components/schemas/DashboardPlanDto'
+        comparison:
+          $ref: '#/components/schemas/DashboardComparisonDto'
+        highestCategory:
+          nullable: true
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/DashboardHighestCategoryDto'
+        statementImports:
+          $ref: '#/components/schemas/DashboardImportSummaryDto'
+      additionalProperties: false
+      required:
+        - actualAmount
+        - expenseCount
+        - planned
+        - comparison
+        - highestCategory
+        - statementImports
+    DashboardMonthlyExpenseDto:
+      type: object
+      properties:
+        month:
+          type: string
+          example: 2026-06
+        fromDate:
+          type: string
+          format: date
+        toDate:
+          type: string
+          format: date
+        inProgress:
+          type: boolean
+        actualAmount:
+          type: string
+          example: '1039.99'
+        expenseCount:
+          type: string
+          example: '1'
+        expenseFilter:
+          $ref: '#/components/schemas/DashboardExpenseFilterDto'
+      additionalProperties: false
+      required:
+        - month
+        - fromDate
+        - toDate
+        - inProgress
+        - actualAmount
+        - expenseCount
+        - expenseFilter
+    DashboardBudgetContextDto:
+      type: object
+      properties:
+        period:
+          type: string
+          enum:
+            - monthly
+            - yearly
+        amount:
+          type: string
+          example: '1200.00'
+      additionalProperties: false
+      required:
+        - period
+        - amount
+    DashboardCategoryMonthDto:
+      type: object
+      properties:
+        month:
+          type: string
+        actualAmount:
+          type: string
+        expenseCount:
+          type: string
+        budgetStatus:
+          type: string
+          enum:
+            - normal
+            - nearing
+            - at_limit
+            - over
+          nullable: true
+        monthlyBudgetAmount:
+          type: string
+          nullable: true
+        annualBudgetAmount:
+          type: string
+          nullable: true
+        expenseFilter:
+          $ref: '#/components/schemas/DashboardExpenseFilterDto'
+      additionalProperties: false
+      required:
+        - month
+        - actualAmount
+        - expenseCount
+        - budgetStatus
+        - monthlyBudgetAmount
+        - annualBudgetAmount
+        - expenseFilter
+    DashboardCategoryExpenseDto:
+      type: object
+      properties:
+        categoryId:
+          type: string
+        name:
+          type: string
+        isActive:
+          type: boolean
+        iconKey:
+          type: string
+        colorKey:
+          type: string
+          nullable: true
+        actualAmount:
+          type: string
+        expenseCount:
+          type: string
+        budget:
+          nullable: true
+          description: Current Budget configuration. Yearly amounts are annual context.
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/DashboardBudgetContextDto'
+        months:
+          type: array
+          items:
+            $ref: '#/components/schemas/DashboardCategoryMonthDto'
+      additionalProperties: false
+      required:
+        - categoryId
+        - name
+        - isActive
+        - iconKey
+        - colorKey
+        - actualAmount
+        - expenseCount
+        - budget
+        - months
+    DashboardMonthlyBudgetCheckDto:
+      type: object
+      properties:
+        categoryId:
+          type: string
+        name:
+          type: string
+        budgetAmount:
+          type: string
+        overBudgetMonths:
+          type: number
+        eligibleMonths:
+          type: number
+        expenseFilter:
+          nullable: true
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/DashboardExpenseFilterDto'
+      additionalProperties: false
+      required:
+        - categoryId
+        - name
+        - budgetAmount
+        - overBudgetMonths
+        - eligibleMonths
+        - expenseFilter
+    DashboardYearlyBudgetCheckDto:
+      type: object
+      properties:
+        categoryId:
+          type: string
+        name:
+          type: string
+        year:
+          type: string
+          example: '2026'
+        actualAmount:
+          type: string
+        limitAmount:
+          type: string
+        status:
+          type: string
+          enum:
+            - normal
+            - nearing
+            - at_limit
+            - over
+        usageFromDate:
+          type: string
+          format: date
+        usageToDate:
+          type: string
+          format: date
+        expenseFilter:
+          $ref: '#/components/schemas/DashboardExpenseFilterDto'
+      additionalProperties: false
+      required:
+        - categoryId
+        - name
+        - year
+        - actualAmount
+        - limitAmount
+        - status
+        - usageFromDate
+        - usageToDate
+        - expenseFilter
+    DashboardBudgetChecksDto:
+      type: object
+      properties:
+        monthly:
+          type: array
+          items:
+            $ref: '#/components/schemas/DashboardMonthlyBudgetCheckDto'
+        yearly:
+          type: array
+          items:
+            $ref: '#/components/schemas/DashboardYearlyBudgetCheckDto'
+      additionalProperties: false
+      required:
+        - monthly
+        - yearly
+    DashboardReportResponseDto:
+      type: object
+      properties:
+        range:
+          $ref: '#/components/schemas/DashboardRangeDto'
+        summary:
+          $ref: '#/components/schemas/DashboardSummaryDto'
+        monthlyExpenses:
+          type: array
+          items:
+            $ref: '#/components/schemas/DashboardMonthlyExpenseDto'
+        categoryExpenses:
+          type: array
+          items:
+            $ref: '#/components/schemas/DashboardCategoryExpenseDto'
+        budgetChecks:
+          $ref: '#/components/schemas/DashboardBudgetChecksDto'
+      additionalProperties: false
+      required:
+        - range
+        - summary
+        - monthlyExpenses
+        - categoryExpenses
+        - budgetChecks
     CommitReviewedStatementImportDto:
       type: object
       properties:

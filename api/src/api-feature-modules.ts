@@ -6,6 +6,7 @@ import { StatementImportsModule } from './statement-imports/statement-imports.mo
 import { ExpensesModule } from './expenses/expenses.module';
 import { UsersModule } from './users/users.module';
 import { InvitationsModule } from './invitations/invitations.module';
+import { ReportingModule } from './reporting/reporting.module';
 
 export interface ApiFeatureModuleOptions {
   includeControllers?: boolean;
@@ -21,6 +22,7 @@ export function createApiFeatureModules(
     CategoriesModule.register(databaseIsConfigured, options),
     CategoryRulesModule.register(databaseIsConfigured, options),
     ExpensesModule.register(databaseIsConfigured, options),
+    ReportingModule.register(databaseIsConfigured, options),
     StatementImportsModule.register(databaseIsConfigured, options, config),
     InvitationsModule.register(databaseIsConfigured, options, config),
   ];

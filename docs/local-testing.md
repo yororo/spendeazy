@@ -87,14 +87,24 @@ Continue only after migrations succeed. Leave watch mode running. Open [health](
 
 ### 3. Open the native app
 
-Start your Android emulator. In a second terminal, working directory `mobile-app/`, use an already installed development build for normal daily work:
+For Android, wait for the emulator before starting Expo. From the repository root, confirm the intended serial in `adb devices -l` is `device` and `adb -s <serial> shell getprop sys.boot_completed` prints `1`. The API health page should report the database as ready, and `EXPO_PUBLIC_API_BASE_URL` must use `http://10.0.2.2:<PORT>` with the API's `PORT`.
+
+In a terminal at `mobile-app/`, use the installed development build:
 
 ```sh
 npm run parser:prepare
-npx expo start --dev-client
+npx expo start --dev-client --localhost
 ```
 
-Press `a` to open Android (`Shift+A` to choose a device). If Expo reports no development build, or native dependencies/configuration changed, stop Metro and build/install instead:
+From the repository root, reverse Metro's default port to the emulator, then press `a` in the Expo terminal (`Shift+A` to choose a device):
+
+```sh
+adb -s <serial> reverse tcp:8081 tcp:8081
+```
+
+If Expo selects a different port, use it on both sides of the reverse command. This reverse is for Metro only; the API stays on `10.0.2.2:<PORT>`. For a physical iPhone, use the LAN/HTTPS setup below instead of this Android path.
+
+If Expo reports no development build, or native dependencies/configuration changed, stop Metro and build/install instead:
 
 ```sh
 npx expo run:android --device
@@ -106,7 +116,7 @@ If `a` times out while querying installed packages, wait until `adb devices` lis
 
 On a slow emulator the system or the app can report that it is not responding while the bundle downloads or the runtime starts. Choose **Wait**. The dev client can stay blank, with its gear visible, until the sign-in screen appears. Startup is complete when the sign-in screen or Dashboard is usable. Dashboard still requires the Google test account signed in on that device. A credential, consent, or MFA prompt is a human step; report that stop instead of a Dashboard pass.
 
-If the bundle loads and the dev-client connection then drops, Metro may be advertising a host address the emulator cannot use. Stop Metro, start it with `--localhost`, and reverse the port Expo prints: `adb reverse tcp:<port> tcp:<port>`. That reverse is only for Metro. The API base URL stays the device route to the host.
+If the dev-client connection drops, stop Metro, restart it with `--localhost`, and repeat the reverse using the port Expo reports.
 
 Keep one Metro server for this checkout.
 
@@ -116,6 +126,12 @@ Keep one Metro server for this checkout.
 2. Test the changed feature with fictional or provided test data. For example, create a manual Expense and find it in the list/detail screen; exercise retry or cancellation when relevant.
 3. For session/storage changes, stop the app process and reopen it **without clearing app data**. Confirm the expected session and Space are retained. On Android, `adb -s <serial> shell am force-stop com.seyfsasy.spendeazymobile`, then reopen from the launcher. Keep Metro running for a development build.
 4. Exercise sign-out, API unavailable/retry, background/foreground, keyboard/back and accessibility as relevant to the change.
+
+For Expense correction/history, also verify:
+
+- Edit manual and imported Expenses in Personal and an active writable Shared Space. Check Activity snapshots and current actor/Category labels; confirm Added By, Space, source and import/source-row provenance stay unchanged. An unchanged inactive Category may remain; reassignment requires an active Category.
+- Open one Expense in two clients, save one edit, then try the stale edit. Confirm the draft remains and the latest version must be reviewed before resubmitting.
+- Delete an Expense. Confirm active count and amount exclude it, Deleted Expenses retains its detail and Activity, and deleted detail has no Edit, Delete or restore action.
 
 Record the revision (and whether edited), device/OS, native build/profile, steps, and observed result. A healthy API, installed build or briefly visible screen is not a completed test. Agents can interact with the emulator using ADB commands or computer-use tools when available. Agents use the same commands and device controls; report unavailable device access or an actual credential challenge instead of claiming a pass. Keep tokens, account identifiers, statements and private screenshots out of reports.
 

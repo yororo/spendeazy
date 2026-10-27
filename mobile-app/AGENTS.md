@@ -45,4 +45,4 @@ The parser launch envelope, older-device support and temporary-file cleanup rema
 
 ## Visual design
 
-Read [design-token.md](design-token.md) and use the current [mobile design source](mobile-design.pen). The duplicate glossary is a pointer to the root [GLOSSARY.md](../GLOSSARY.md).
+Read [design-token.md](design-token.md) and use the current [mobile design source](mobile-design.pen).

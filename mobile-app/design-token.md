@@ -4,7 +4,7 @@ Use this document when implementing or reviewing mobile colors, typography, spac
 
 ## Source and authority
 
-Source: [`mobile-design.pen`](mobile-design.pen), Pencil format 2.20, inspected 2026-10-22. Use this root-level mobile file: [`design/mobile-design.pen`](design/mobile-design.pen) is an older light-only copy. The current source includes `mode: light | dark` and a `Dark mode` board (`g9ni5k`). This reference captures the working-file design, including edits not yet committed when it was inspected.
+Source: [`design/mobile-design.pen`](design/mobile-design.pen). The current source includes `mode: light | dark` and a `Dark mode` board (`g9ni5k`). This reference captures the working-file design, including edits not yet committed when it was inspected.
 
 **Declared** tokens below exist in the source `variables` object. **Derived** names are conventions introduced here for repeated literal values or component recipes; they are not existing Pencil variables or runtime exports. Node IDs are lookup keys in the source JSON. When the design changes, update the affected table and its evidence together. Resolve conflicts against the current source node, and record intentional departures rather than silently choosing another value.
 

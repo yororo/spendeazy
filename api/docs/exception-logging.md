@@ -1,6 +1,6 @@
 # Exception logging
 
-[Reporter, framework logger, and request correlation](../src/logging/exception-logger.ts); [safe-field and deduplication tests](../src/logging/exception-logger.spec.ts).
+[Reporter, framework logger, and request correlation](../src/logging/exception-logger.ts).
 
 The running API writes one JSON object per line to stderr for unexpected HTTP
 5xx failures, recovered default-category and database-readiness failures,

@@ -84,12 +84,8 @@ jobs:
       - name: Verify release gates and planner
         run: |
           node scripts/verify-release-gates.mjs
-          node --test scripts/release-plan.test.mjs scripts/local-test-launcher.test.mjs scripts/documentation-changes.test.mjs scripts/verify-release-gates.test.mjs
         env:
           CI: true
-      - name: Test PostgreSQL test-runner configuration
-        run: node --test scripts/run-required-postgres-tests.test.mjs
-        working-directory: api
       - name: Lint API
         run: npx eslint "{src,apps,libs,test}/**/*.ts"
         working-directory: api

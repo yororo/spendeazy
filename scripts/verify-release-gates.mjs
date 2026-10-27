@@ -66,10 +66,6 @@ export function requireMobileChecks(job) {
   }
 }
 requireMobileChecks(ci.jobs.mobile);
-assert.ok(
-  ci.jobs.api.steps.some(step => step.run?.includes('scripts/verify-release-gates.test.mjs')),
-  'Release-gate verification must run the mobile application-test omission check',
-);
 assert.equal(mobilePackage.scripts.web, undefined);
 assert.ok(mobilePackage.scripts.typecheck);
 

@@ -10,7 +10,7 @@ export function formatPhp(amount: string): string {
   const match = /^(-?)(\d+)(?:\.(\d{2}))?$/u.exec(amount);
   if (!match) throw new Error("Dashboard money values must be exact decimals");
   const fraction = match[3] ?? "00";
-  return `${match[1] === "-" ? "-" : ""}₱${phpNumber.format(BigInt(match[2]))}.${fraction}`;
+  return `${match[1] === "-" ? "-" : ""}₱${phpNumber.format(Number(match[2]))}.${fraction}`;
 }
 
 export function dashboardPeriodLabel(report: DashboardReport): string {

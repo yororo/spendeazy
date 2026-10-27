@@ -87,7 +87,7 @@ Continue only after migrations succeed. Leave watch mode running. Open [health](
 
 ### 3. Open the native app
 
-For Android, wait for the emulator before starting Expo. From the repository root, confirm the intended serial in `adb devices -l` is `device` and `adb -s <serial> shell getprop sys.boot_completed` prints `1`. The API health page should report the database as ready, and `EXPO_PUBLIC_API_BASE_URL` must use `http://10.0.2.2:<PORT>` with the API's `PORT`.
+For Android, first run `adb devices -l`. If no emulator is listed, start one with `emulator -avd Pixel_10` (leave it running), then wait for it before starting Expo. From the repository root, confirm the intended serial in `adb devices -l` is `device` and `adb -s <serial> shell getprop sys.boot_completed` prints `1`. The API health page should report the database as ready, and `EXPO_PUBLIC_API_BASE_URL` must use `http://10.0.2.2:<PORT>` with the API's `PORT`.
 
 In a terminal at `mobile-app/`, use the installed development build:
 
@@ -101,6 +101,8 @@ From the repository root, reverse Metro's default port to the emulator, then pre
 ```sh
 adb -s <serial> reverse tcp:8081 tcp:8081
 ```
+
+On Windows, if `curl http://127.0.0.1:8081/status` fails, start Metro with IPv4 first: `NODE_OPTIONS=--dns-result-order=ipv4first npx expo start --dev-client --localhost` (PowerShell: `$env:NODE_OPTIONS="--dns-result-order=ipv4first"` first).
 
 If Expo selects a different port, use it on both sides of the reverse command. This reverse is for Metro only; the API stays on `10.0.2.2:<PORT>`. For a physical iPhone, use the LAN/HTTPS setup below instead of this Android path.
 
@@ -197,6 +199,7 @@ Run migrations and restart the API using Daily startup. Keep your API keys; rese
 | Google configuration/developer error | Check web/native client IDs, Android package/signing SHA-1 or iOS bundle/URL scheme against the installed build |
 | Host API works, device cannot connect | Check device-specific API URL, API terminal and firewall; try Android USB reverse |
 | App cannot connect to Metro | Confirm the intended development build/server, LAN or USB connectivity, and Expo's displayed port. If the bundle downloaded and the dev connection then failed, use Metro `--localhost` and `adb reverse` for that port |
+| Android `unexpected end of stream on http://127.0.0.1:8081` | Metro is listening on IPv6 (`::1`) only, which `adb reverse` cannot reach (`curl 127.0.0.1:8081/status` fails, `localhost` works). Restart Metro with `NODE_OPTIONS=--dns-result-order=ipv4first` (PowerShell: `$env:NODE_OPTIONS=...`), then rerun the reverse |
 | Expo times out querying packages | Wait until the emulator has finished booting, then retry. No development build means `npx expo run:android --device` |
 | App or system is not responding on first open | Choose **Wait**. Software emulation can stall during download and startup; the sign-in screen can appear after a blank dev-client screen |
 | Sign-in stays on "Signing in" with no Google UI | Add the Google test account on the device, or register this build's debug SHA-1 on the Android OAuth client |

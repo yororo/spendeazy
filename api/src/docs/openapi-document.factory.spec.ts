@@ -139,6 +139,7 @@ describe('OpenAPI document factory', () => {
         `GET ${apiRoot}/users/me/spaces/{spaceId}/expenses/deleted`,
         `GET ${apiRoot}/users/me/spaces/{spaceId}/expenses/{expenseId}`,
         `GET ${apiRoot}/users/me/spaces/{spaceId}/expenses/{expenseId}/activity`,
+        `GET ${apiRoot}/users/me/spaces/{spaceId}/reporting/dashboard`,
         `PATCH ${apiRoot}/users/me/spaces/{spaceId}/expenses/{expenseId}`,
         `POST ${apiRoot}/users/me/spaces/{spaceId}/expenses`,
         `POST ${apiRoot}/users/me/spaces/{spaceId}/statement-imports`,

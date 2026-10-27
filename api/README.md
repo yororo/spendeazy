@@ -1,6 +1,6 @@
 # Spendeazy API
 
-NestJS REST backend for the native Spendeazy client. Private routes use `/api/v1` and Clerk session tokens (`Authorization: Bearer <token>`); health and documentation routes are public. Saved spending uses the canonical Expense schema and authorized Space routes. The mobile project is an authenticated API client for Spaces and manual Expense creation, active/deleted browsing, revision-protected corrections, soft deletion and per-Expense Activity; the broader accepted mobile contract remains partially implemented. Commands and paths below are relative to `api/`.
+NestJS REST backend for the native Spendeazy client. Private routes use `/api/v1` and Clerk session tokens (`Authorization: Bearer <token>`); health and documentation routes are public. Saved spending uses the canonical Expense schema and authorized Space routes. The mobile project is an authenticated API client for Spaces, manual Expense creation, active/deleted browsing, revision-protected corrections, per-Expense Activity, Budget maintenance, and Monthly/Yearly Dashboard reporting; the broader accepted mobile contract remains partially implemented. Commands and paths below are relative to `api/`.
 
 ## Setup and run
 
@@ -39,7 +39,10 @@ The required integration database variables are:
 | Statement Import Category concurrency | `TEST_STATEMENT_IMPORT_CATEGORY_CONCURRENCY_DATABASE_URL` |
 | Imported Expense/Space provenance | `TEST_EXPENSE_STATEMENT_IMPORT_SPACE_DATABASE_URL` |
 | Invitations | `TEST_INVITATIONS_DATABASE_URL` |
+| Dashboard Reporting | `TEST_DASHBOARD_REPORTING_DATABASE_URL` |
 | Historical ownership migration | `TEST_FINANCIAL_OWNERSHIP_MIGRATION_DATABASE_URL` — separate, empty disposable database starting from the pre-Space schema |
+
+The Dashboard Reporting suite exercises the authenticated `GET /api/v1/users/me/spaces/{spaceId}/reporting/dashboard` endpoint against PostgreSQL. It covers exact mixed-period planning, Manila period bounds, historical Expense inclusion/deletion exclusion, Budget checks, confirmation-time imports and chart-only Category filtering.
 
 ## OpenAPI contract
 

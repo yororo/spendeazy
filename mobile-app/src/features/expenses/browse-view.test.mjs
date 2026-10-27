@@ -6,7 +6,7 @@ import { loadNativeView } from '../../../scripts/native-view-test.mjs';
 
 const { hosts, View: ExpenseBrowse } = await loadNativeView(new URL('./browse-view.tsx', import.meta.url), 'ExpenseBrowse');
 
-function render(patch = {}) {
+function render(patch = {}, onBackToDashboard = undefined) {
   hosts.length = 0;
   const intents = [];
   const controller = {
@@ -16,7 +16,7 @@ function render(patch = {}) {
     refreshSpaces: () => intents.push('spaces'), reload: () => intents.push('refresh'), retry: () => intents.push('retry'), loadMore: () => intents.push('more'),
     updateSelection: patch => intents.push(patch), readScroll: () => 0, rememberScroll: offset => intents.push(offset), ...patch,
   };
-  const text = renderToStaticMarkup(React.createElement(ExpenseBrowse, { controller, onOpenExpense: id => intents.push(id), spaceStatus: 'Personal' }));
+  const text = renderToStaticMarkup(React.createElement(ExpenseBrowse, { controller, onOpenExpense: id => intents.push(id), onBackToDashboard, spaceStatus: 'Personal' }));
   return { text, intents, find: label => hosts.find(props => props.accessibilityLabel === label) };
 }
 const expense = { id: '1', description: 'Cafe', amount: '10.00', expenseDate: '2026-10-24', categoryId: 'food' };
@@ -51,4 +51,13 @@ test('pagination and refresh keep rows visible and hide duplicate pagination int
   assert.equal(append.find('Load more'), undefined);
   const refresh = render({ loaded, refreshing: true });
   assert.match(refresh.text, /Cafe/); assert.equal(refresh.find('Load more'), undefined);
+});
+
+test('Dashboard drill-through exposes a return action', () => {
+  const navigation = [];
+  const view = render({}, () => navigation.push('dashboard'));
+  const back = view.find('Back to Dashboard');
+  assert.equal(back.accessibilityRole, 'button');
+  back.onPress();
+  assert.deepEqual(navigation, ['dashboard']);
 });

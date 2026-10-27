@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
 import { createExpenseApiClient } from "@/api/expense-api-client";
 import { useAuthorizedClient } from "@/application/authorized-client";
 import { useSpaces } from "@/application/spaces/provider";
@@ -88,6 +88,12 @@ export function useExpenseBrowse({
     return resource.cancel;
   }, [authorized, browse.listRevision, queryKey, resource, spaceId]);
   const loaded = issues.length === 0 ? state.loaded : null;
+  const updateSelection = useCallback(
+    (patch: Partial<Omit<ExpenseBrowseSelection, "spaceId">>) => {
+      if (spaceId && authorized.isCurrent()) updateExpenseBrowse(spaceId, patch);
+    },
+    [authorized, spaceId],
+  );
   return {
     spaceId,
     selection,
@@ -111,10 +117,7 @@ export function useExpenseBrowse({
     spacesRefreshing,
     failure: state.failure,
     refreshSpaces,
-    updateSelection(patch: Partial<Omit<ExpenseBrowseSelection, "spaceId">>) {
-      if (spaceId && authorized.isCurrent())
-        updateExpenseBrowse(spaceId, patch);
-    },
+    updateSelection,
     readScroll: () => readExpenseScroll(view),
     rememberScroll(offset: number) {
       if (authorized.isCurrent()) rememberExpenseScroll(offset, view);

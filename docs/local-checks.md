@@ -10,7 +10,7 @@ From the repository root:
 node scripts/local-test-launcher.mjs --api-postgres
 ```
 
-Requires Docker and installed API dependencies. The launcher creates a unique Compose project, random credentials/loopback port and one empty database per integration suite, including a separate historical-migration database. It runs the required unfiltered HTTP/PostgreSQL configuration and removes its own container/volume on completion or supported interruption. It leaves the manual database alone. Missing/shared test database URLs fail validation; see [API tests](../api/README.md#test).
+Requires Docker and installed API dependencies. The launcher creates a unique Compose project, random credentials/loopback port and one empty database per integration suite, including separate Dashboard Reporting and historical-migration databases. It runs the required unfiltered HTTP/PostgreSQL configuration and removes its own container/volume on completion or supported interruption. It leaves the manual database alone. Missing/shared test database URLs fail validation; see [API tests](../api/README.md#test).
 
 Other API checks, from **`api/`**:
 

@@ -53,6 +53,7 @@ jobs:
       TEST_STATEMENT_IMPORT_CATEGORY_CONCURRENCY_DATABASE_URL: postgres://spendeazy_test_user:spendeazy_test_password@localhost:5432/spendeazy_test_statement_import_category_concurrency
       TEST_EXPENSE_STATEMENT_IMPORT_SPACE_DATABASE_URL: postgres://spendeazy_test_user:spendeazy_test_password@localhost:5432/spendeazy_test_expense_statement_import_space
       TEST_INVITATIONS_DATABASE_URL: postgres://spendeazy_test_user:spendeazy_test_password@localhost:5432/spendeazy_test_invitations
+      TEST_DASHBOARD_REPORTING_DATABASE_URL: postgres://spendeazy_test_user:spendeazy_test_password@localhost:5432/spendeazy_test_dashboard_reporting
       TEST_FINANCIAL_OWNERSHIP_MIGRATION_DATABASE_URL: postgres://spendeazy_test_user:spendeazy_test_password@localhost:5432/spendeazy_test_financial_ownership_migration
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -74,6 +75,7 @@ jobs:
             spendeazy_test_statement_import_category_concurrency \
             spendeazy_test_expense_statement_import_space \
             spendeazy_test_invitations \
+            spendeazy_test_dashboard_reporting \
             spendeazy_test_financial_ownership_migration; do
             createdb --host localhost --username spendeazy_test_user "$database"
           done

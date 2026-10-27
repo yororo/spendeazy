@@ -25,11 +25,13 @@ export function ExpenseBrowse({
   controller,
   onOpenExpense,
   onOpenOtherList,
+  onBackToDashboard,
   spaceStatus,
 }: {
   controller: ReturnType<typeof useExpenseBrowse>;
   onOpenExpense: (expenseId: string) => void;
   onOpenOtherList?: () => void;
+  onBackToDashboard?: () => void;
   spaceStatus: ReactNode;
 }) {
   const insets = useSafeAreaInsets();
@@ -169,6 +171,12 @@ export function ExpenseBrowse({
                 {deletedOnly ? "Deleted Expenses" : "Expenses"}
               </Text>
               {spaceStatus}
+              {onBackToDashboard ? (
+                <SecondaryButton
+                  label="Back to Dashboard"
+                  onPress={onBackToDashboard}
+                />
+              ) : null}
               {onOpenOtherList ? (
                 <SecondaryButton
                   label={deletedOnly ? "Active Expenses" : "Deleted Expenses"}

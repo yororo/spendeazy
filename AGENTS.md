@@ -24,13 +24,13 @@ When a document in one project describes the other, cite that project's stable p
 ## Workflow when implementing code changes
 
 1. Switch to the `main` branch if in a different branch, and get the latest commits `git pull`.
-2. Read the owning project's guidance and relevant GitHub issue. Read the glossary before changing domain behavior or names. Use `rg` within the owner.
+2. Read the owning project's guidance and relevant GitHub issue. Read the glossary before changing domain behavior or names.
 3. Before editing, create a fresh `dev/<task>-<unique-suffix>` branch. Commit only task changes.
 4. Update owning documentation if there are changes in shared terms in the glossary, implementation guidance in project docs, and decisions in the owning ADR directory.
 5. Run project-required checks and tests. Commit, `git push -u origin <branch>`, and verify the remote contains the final commit.
 6. Open the PR last with `gh pr create`; report its URL. Completion requires passing checks, the pushed final commit, and a PR. Report any blocked step. Retain the branch during review; delete locally/remotely after merging or explicit abandonment. Merge only when authorized.
 
-Run installs/scripts in the owning project (`npm --prefix api ...` or `npm --prefix mobile-app ...`) except the root isolated PostgreSQL suite. Packages, lockfiles, dependencies and environments are project-local.
+Run installs/scripts in the owning project except the root isolated PostgreSQL suite. Packages, lockfiles, dependencies and environments are project-local.
 
 Native acceptance requires installable Android/iPhone builds, device evidence and the parser launch checks in issue [#138](https://github.com/yororo/spendeazy/issues/138). Lint, type checks and parser fixtures do not certify a native build or device behavior.
 

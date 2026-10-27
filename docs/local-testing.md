@@ -127,13 +127,6 @@ Keep one Metro server for this checkout.
 1. Sign out of Spendeazy if testing fresh sign-in. Sign in with the Google test account `spendeazytestuser@gmail.com`; complete any credential/consent/MFA prompt (requires human verification). Wait until Dashboard and Personal Space have loaded and remain usable.
 2. Test the changed feature with fictional or provided test data. For example, create a manual Expense and find it in the list/detail screen; exercise retry or cancellation when relevant.
 3. For session/storage changes, stop the app process and reopen it **without clearing app data**. Confirm the expected session and Space are retained. On Android, `adb -s <serial> shell am force-stop com.seyfsasy.spendeazymobile`, then reopen from the launcher. Keep Metro running for a development build.
-4. Exercise sign-out, API unavailable/retry, background/foreground, keyboard/back and accessibility as relevant to the change.
-
-For Expense correction/history, also verify:
-
-- Edit manual and imported Expenses in Personal and an active writable Shared Space. Check Activity snapshots and current actor/Category labels; confirm Added By, Space, source and import/source-row provenance stay unchanged. An unchanged inactive Category may remain; reassignment requires an active Category.
-- Open one Expense in two clients, save one edit, then try the stale edit. Confirm the draft remains and the latest version must be reviewed before resubmitting.
-- Delete an Expense. Confirm active count and amount exclude it, Deleted Expenses retains its detail and Activity, and deleted detail has no Edit, Delete or restore action.
 
 Record the revision (and whether edited), device/OS, native build/profile, steps, and observed result. A healthy API, installed build or briefly visible screen is not a completed test. Agents can interact with the emulator using ADB commands or computer-use tools when available. Agents use the same commands and device controls; report unavailable device access or an actual credential challenge instead of claiming a pass. Keep tokens, account identifiers, statements and private screenshots out of reports.
 

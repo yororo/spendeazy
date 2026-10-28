@@ -2,9 +2,7 @@ import type { ColorScheme } from '@/navigation/appearance';
 
 /**
  * Declared and derived tokens from mobile-app/design/design-token.md.
- * Navigation and Add fills are opaque so contrast does not depend on blur.
- * The light navigation edge uses the field border because a white glass stroke
- * disappears on an opaque white bar.
+ * Translucent surface fills also render when native glass is unavailable.
  */
 export const palette = {
   light: {
@@ -17,8 +15,15 @@ export const palette = {
     statePositive: '#397F7A',
     stateNegative: '#A64F3D',
     canvas: '#F6F7FC',
-    navigation: '#FFFFFF',
-    navigationBorder: '#E5E7EF',
+    navigation: '#FFFFFF80',
+    navigationBorder: '#FFFFFFE6',
+    selectedSpace: '#EEECFA',
+    selectedSpaceBorder: '#D8D4F0',
+    spaceOption: '#FFFFFF',
+    spaceOptionBorder: '#E8E9F1',
+    avatar: '#E1E4FF',
+    addBorder: '#FFFFFFCC',
+    addShadow: '#535FC94D',
     fieldBorder: '#E5E7EF',
     glassTint: '#FFFFFF66',
     glassBorder: '#FFFFFFE6',
@@ -38,8 +43,15 @@ export const palette = {
     statePositive: '#85D3C4',
     stateNegative: '#F3A594',
     canvas: '#141A2B',
-    navigation: '#272E41',
+    navigation: '#272E41D9',
     navigationBorder: '#A7B1DC26',
+    selectedSpace: '#34304D',
+    selectedSpaceBorder: '#69618C',
+    spaceOption: '#272E41',
+    spaceOptionBorder: '#A7B1DC26',
+    avatar: '#414966',
+    addBorder: '#A7B1DC26',
+    addShadow: '#00000040',
     fieldBorder: '#A7B1DC26',
     glassTint: '#272E4180',
     glassBorder: '#A7B1DC26',
@@ -113,6 +125,10 @@ export const designRecipes = {
     ],
     glass: ['#FFFFFFD9', '#FFFFFF66', '#FFFFFFA6'],
     highlight: '#FFFFFFCC',
+    navigationHighlight: '#FFFFFF',
+    selectedTab: ['#E1E4FFCC', '#F4F5FFB3'],
+    add: ['#9AA6F4D9', '#6976E6EB', '#505ACAD9'],
+    addHighlight: '#FFFFFFA6',
   },
   dark: {
     canvas: [
@@ -121,5 +137,9 @@ export const designRecipes = {
     ],
     glass: ['#272E41D9', '#272E4180', '#272E41D9'],
     highlight: '#C5CDFF12',
+    navigationHighlight: '#C5CDFF12',
+    selectedTab: ['#414966CC', '#343B58B3'],
+    add: ['#9AA6F4D9', '#6976E6EB', '#505ACAD9'],
+    addHighlight: '#C5CDFF12',
   },
 } as const;

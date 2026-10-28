@@ -15,6 +15,7 @@ import { SecondaryButton } from "@/components/buttons";
 import { ChoiceSheet } from "@/components/choice-sheet";
 import { CanvasBackground } from "@/components/design-surface";
 import { MoneyAmount } from "@/components/money-amount";
+import { ScreenHeader } from "@/components/screen-header";
 import { BodyText, StackGap, SupportingText } from "@/components/screen";
 import { TextField } from "@/components/text-field";
 import { controlSize, space, typeScale } from "@/constants/theme";
@@ -161,18 +162,7 @@ export function ExpenseBrowse({
           }}
           ListHeaderComponent={
             <StackGap>
-              <Text
-                accessibilityRole="header"
-                style={{
-                  color: palette.textPrimary,
-                  fontFamily: fonts.semibold,
-                  fontSize: typeScale.pageTitle,
-                  letterSpacing: typeScale.pageTitleTracking,
-                }}
-              >
-                {deletedOnly ? "Deleted Expenses" : "Expenses"}
-              </Text>
-              {spaceStatus}
+              <ScreenHeader title={deletedOnly ? "Deleted Expenses" : "Expenses"} accessory={spaceStatus} />
               {onBackToDashboard ? (
                 <SecondaryButton
                   label="Back to Dashboard"

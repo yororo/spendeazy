@@ -124,9 +124,8 @@ export function BudgetListView({
   }
 
   return (
-    <Screen title="Budget" refreshing={loading || refreshing} onRefresh={onRetry}>
+    <Screen title="Budget" refreshing={loading || refreshing} onRefresh={onRetry} headerAccessory={spaceStatus}>
       <View style={{ gap: space.cardGap }}>
-        {spaceStatus}
         {canEdit ? <PrimaryButton label="Create Category" onPress={onCreate} /> : null}
 
         <DesignSurface

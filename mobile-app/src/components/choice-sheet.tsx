@@ -1,11 +1,13 @@
 import { type ReactNode } from 'react';
+import { X } from 'lucide-react-native';
 import { KeyboardAvoidingView, Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { radius, space, typeScale } from '@/constants/theme';
 import { useAppTheme } from '@/navigation/app-theme';
+import { CompactAction } from '@/components/buttons';
 
-type ShellProps = { title: string; visible: boolean; onDismiss: () => void; children: ReactNode; dismissOnBackdrop?: boolean };
+type ShellProps = { title: string; visible: boolean; onDismiss: () => void; children: ReactNode; dismissOnBackdrop?: boolean; showClose?: boolean };
 
 export function ChoiceSheet(props: ShellProps) {
   return <ModalShell {...props} />;
@@ -22,6 +24,7 @@ function ModalShell({
   children,
   centered = false,
   dismissOnBackdrop = true,
+  showClose = false,
 }: {
   title: string;
   visible: boolean;
@@ -29,6 +32,7 @@ function ModalShell({
   children: ReactNode;
   centered?: boolean;
   dismissOnBackdrop?: boolean;
+  showClose?: boolean;
 }) {
   const insets = useSafeAreaInsets();
   const { palette, fonts } = useAppTheme();
@@ -67,15 +71,20 @@ function ModalShell({
             paddingBottom: centered ? space.dialogInset : Math.max(insets.bottom, space.sheetPaddingBottom),
             gap: space.sheetGap,
           }}>
+          {showClose && !centered ? <View accessible={false} style={{ alignSelf: 'center', width: 36, height: 4, borderRadius: 2, backgroundColor: palette.fieldBorder }} /> : null}
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
           <Text
             accessibilityRole="header"
             style={{
               color: palette.textPrimary,
               fontFamily: fonts.semibold,
-              fontSize: typeScale.sectionTitle,
+              fontSize: showClose ? 22 : typeScale.sectionTitle,
+              flex: 1,
             }}>
             {title}
           </Text>
+          {showClose ? <CompactAction label={`Close ${title}`} variant="icon" icon={<X size={20} color={palette.textSecondary} />} onPress={onDismiss} /> : null}
+          </View>
           {children}
         </View>
         </ScrollView>

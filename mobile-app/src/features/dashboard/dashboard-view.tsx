@@ -66,9 +66,9 @@ export function DashboardView({
       title="Dashboard"
       refreshing={controller.loading || controller.refreshing}
       onRefresh={controller.refresh}
+      headerAccessory={spaceStatus}
     >
       <View style={{ gap: space.cardGap }}>
-        {spaceStatus}
         {recoveryMessage ? (
           <View style={{ gap: space.rowGap }}>
             <BodyText>{recoveryMessage}</BodyText>

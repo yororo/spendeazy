@@ -4,7 +4,7 @@ import { typeScale } from '@/constants/theme';
 import { displayMoneyAmount } from '@/navigation/money-amount';
 import { useAppTheme } from '@/navigation/app-theme';
 
-export function MoneyAmount({ amount }: { amount: string }) {
+export function MoneyAmount({ amount, variant = 'body' }: { amount: string; variant?: 'body' | 'row' | 'total' }) {
   const { palette, fonts } = useAppTheme();
   const shown = displayMoneyAmount(amount);
   return (
@@ -14,7 +14,8 @@ export function MoneyAmount({ amount }: { amount: string }) {
       style={{
         color: palette.textPrimary,
         fontFamily: fonts.medium,
-        fontSize: typeScale.body,
+        fontSize: variant === 'total' ? 42 : variant === 'row' ? 15 : typeScale.body,
+        letterSpacing: variant === 'total' ? -1.5 : 0,
         fontVariant: ['tabular-nums'],
       }}>
       {shown}

@@ -14,7 +14,7 @@ import {
   type BudgetSortDirection,
   type BudgetSortField,
 } from './budget-browse';
-import { CategoryIconMark } from './category-configuration-view';
+import { CategoryIconMark } from '@/components/category-mark';
 import { controlSize, radius, space, typeScale } from '@/constants/theme';
 import { useAppTheme } from '@/navigation/app-theme';
 

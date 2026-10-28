@@ -12,7 +12,7 @@ import { SecondaryButton } from "@/components/buttons";
 import { BodyText, Screen, SupportingText } from "@/components/screen";
 import { radius, space, typeScale } from "@/constants/theme";
 import { CATEGORY_COLOR_VALUES } from "@/features/categories/category-catalog";
-import { CategoryIconMark } from "@/features/categories/category-configuration-view";
+import { CategoryIconMark } from "@/components/category-mark";
 import { useAppTheme } from "@/navigation/app-theme";
 import {
   barHeightPercent,

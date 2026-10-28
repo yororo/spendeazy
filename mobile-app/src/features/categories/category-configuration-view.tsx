@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
-import { PrimaryButton, SecondaryButton } from '@/components/buttons';
+import { CompactAction, PrimaryButton, SecondaryButton } from '@/components/buttons';
 import { ChoiceSheet } from '@/components/choice-sheet';
 import { BodyText, Screen, StackGap, SupportingText } from '@/components/screen';
 import { TextField } from '@/components/text-field';
@@ -322,10 +322,10 @@ export function CategoryConfigurationView({
           />
           <View style={{ flexDirection: 'row', gap: space.cardGap }}>
             <View style={{ flex: 1 }}>
-              <SecondaryButton label="Exact" selected={ruleMatchType === 'exact'} disabled={!editable} onPress={() => setRuleMatchType('exact')} />
+              <CompactAction variant="segmented" label="Exact" selected={ruleMatchType === 'exact'} disabled={!editable} onPress={() => setRuleMatchType('exact')} />
             </View>
             <View style={{ flex: 1 }}>
-              <SecondaryButton label="Contains" selected={ruleMatchType === 'contains'} disabled={!editable} onPress={() => setRuleMatchType('contains')} />
+              <CompactAction variant="segmented" label="Contains" selected={ruleMatchType === 'contains'} disabled={!editable} onPress={() => setRuleMatchType('contains')} />
             </View>
           </View>
           <SecondaryButton
@@ -366,21 +366,4 @@ export function CategoryConfigurationView({
     </Screen>
   );
 
-}
-
-export function CategoryIconMark({
-  iconKey,
-  colorKey,
-  size = 22,
-}: {
-  iconKey: CategoryIconKey;
-  colorKey: CategoryColorKey;
-  size?: number;
-}) {
-  const Icon = CATEGORY_ICON_COMPONENTS[iconKey];
-  return (
-    <View style={{ width: size + 16, height: size + 16, borderRadius: radius.control, alignItems: 'center', justifyContent: 'center', backgroundColor: CATEGORY_COLOR_VALUES[colorKey] }}>
-      <Icon size={size} color="#FFFFFF" strokeWidth={1.8} />
-    </View>
-  );
 }

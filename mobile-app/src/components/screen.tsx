@@ -1,3 +1,4 @@
+import { ScreenHeader } from '@/components/screen-header';
 import { type ReactNode } from 'react';
 import { KeyboardAvoidingView, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -11,14 +12,16 @@ export function Screen({
   children,
   refreshing = false,
   onRefresh,
+  headerAccessory,
 }: {
   title: string;
   children: ReactNode;
   refreshing?: boolean;
   onRefresh?: () => void;
+  headerAccessory?: ReactNode;
 }) {
   const insets = useSafeAreaInsets();
-  const { palette, fonts } = useAppTheme();
+  const { palette } = useAppTheme();
   return (
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: palette.canvas }}
@@ -40,17 +43,7 @@ export function Screen({
         paddingHorizontal: space.screenHorizontal,
         gap: space.cardGap,
       }}>
-      <Text
-        accessibilityRole="header"
-        selectable
-        style={{
-          color: palette.textPrimary,
-          fontFamily: fonts.semibold,
-          fontSize: typeScale.pageTitle,
-          letterSpacing: typeScale.pageTitleTracking,
-        }}>
-        {title}
-      </Text>
+      <ScreenHeader title={title} accessory={headerAccessory} />
       {children}
     </ScrollView>
     </KeyboardAvoidingView>

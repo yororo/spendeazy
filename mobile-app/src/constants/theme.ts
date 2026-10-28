@@ -96,7 +96,7 @@ export const controlSize = {
   field: 58,
   navigation: 64,
   addAction: 64,
-  minimumTarget: 44,
+  minimumTarget: 48,
 } as const;
 
 export function paletteFor(scheme: ColorScheme): AppPalette {

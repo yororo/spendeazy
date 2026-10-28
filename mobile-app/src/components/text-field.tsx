@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Text, TextInput, View } from 'react-native';
 
 import { controlSize, radius, space, typeScale } from '@/constants/theme';
@@ -13,6 +14,8 @@ export function TextField({
   autoCapitalize = 'sentences',
   onBlur,
   editable = true,
+  variant = 'filled',
+  icon,
 }: {
   label: string;
   value: string;
@@ -23,6 +26,8 @@ export function TextField({
   autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
   onBlur?: () => void;
   editable?: boolean;
+  variant?: 'filled' | 'underlined' | 'amount';
+  icon?: ReactNode;
 }) {
   const { palette, fonts } = useAppTheme();
   return (
@@ -35,6 +40,8 @@ export function TextField({
         }}>
         {label}
       </Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, borderBottomWidth: variant === 'underlined' ? 1 : 0, borderColor: error ? palette.stateNegative : palette.fieldBorder }}>
+      {icon ? <View pointerEvents="none" accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">{icon}</View> : null}
       <TextInput
         accessibilityLabel={label}
         value={value}
@@ -47,19 +54,22 @@ export function TextField({
         autoCapitalize={autoCapitalize}
         autoCorrect={false}
         style={{
+          flex: 1,
           minHeight: controlSize.field,
-          borderWidth: 1,
+          borderWidth: variant === 'filled' ? 1 : 0,
           borderColor: error ? palette.stateNegative : palette.fieldBorder,
-          borderRadius: radius.control,
+          borderRadius: variant === 'filled' ? radius.control : 0,
           borderCurve: 'continuous',
           color: palette.textPrimary,
-          backgroundColor: palette.surfaceModal,
+          backgroundColor: variant === 'filled' ? palette.surfaceModal : 'transparent',
           opacity: editable ? 1 : 0.55,
-          fontFamily: fonts.regular,
-          fontSize: typeScale.body,
-          paddingHorizontal: space.screenBottom,
+          fontFamily: variant === 'amount' ? fonts.medium : fonts.regular,
+          fontSize: variant === 'amount' ? 48 : typeScale.body,
+          letterSpacing: variant === 'amount' ? -1.5 : 0,
+          paddingHorizontal: variant === 'filled' ? space.screenBottom : 0,
         }}
       />
+      </View>
       {error ? (
         <Text
           accessibilityLiveRegion="polite"

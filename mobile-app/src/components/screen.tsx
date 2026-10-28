@@ -2,6 +2,7 @@ import { type ReactNode } from 'react';
 import { KeyboardAvoidingView, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { CanvasBackground } from '@/components/design-surface';
 import { controlSize, space, typeScale } from '@/constants/theme';
 import { useAppTheme } from '@/navigation/app-theme';
 
@@ -22,6 +23,7 @@ export function Screen({
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: palette.canvas }}
       behavior={process.env.EXPO_OS === 'ios' ? 'padding' : undefined}>
+    <CanvasBackground />
     <ScrollView
       contentInsetAdjustmentBehavior="automatic"
       keyboardShouldPersistTaps="handled"
@@ -30,7 +32,7 @@ export function Screen({
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={palette.brandPrimary} />
         ) : undefined
       }
-      style={{ flex: 1, backgroundColor: palette.canvas }}
+      style={{ flex: 1 }}
       contentContainerStyle={{
         flexGrow: 1,
         paddingTop: insets.top + space.cardGap,

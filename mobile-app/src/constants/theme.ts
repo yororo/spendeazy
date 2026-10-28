@@ -1,7 +1,7 @@
 import type { ColorScheme } from '@/navigation/appearance';
 
 /**
- * Declared and derived tokens from mobile-app/design-token.md.
+ * Declared and derived tokens from mobile-app/design/design-token.md.
  * Navigation and Add fills are opaque so contrast does not depend on blur.
  * The light navigation edge uses the field border because a white glass stroke
  * disappears on an opaque white bar.
@@ -102,3 +102,24 @@ export const controlSize = {
 export function paletteFor(scheme: ColorScheme): AppPalette {
   return palette[scheme];
 }
+
+// Light values are extracted from the design; dark values adapt the composition.
+export const designRecipes = {
+  light: {
+    canvas: [
+      { colors: ['#CBC5F1A0', '#DFDAF400'], center: [1, 0.22], size: [1.6, 0.8] },
+      { colors: ['#BCE8E690', '#D4ECE900'], center: [0, 0.43], size: [1.6, 0.65] },
+      { colors: ['#E2D5F276', '#EAE0F000'], center: [0.85, 0.87], size: [1.7, 0.6] },
+    ],
+    glass: ['#FFFFFFD9', '#FFFFFF66', '#FFFFFFA6'],
+    highlight: '#FFFFFFCC',
+  },
+  dark: {
+    canvas: [
+      { colors: ['#51437D40', '#141A2B00'], center: [1, 0.22], size: [1.6, 0.8] },
+      { colors: ['#28636130', '#141A2B00'], center: [0, 0.43], size: [1.6, 0.65] },
+    ],
+    glass: ['#272E41D9', '#272E4180', '#272E41D9'],
+    highlight: '#C5CDFF12',
+  },
+} as const;

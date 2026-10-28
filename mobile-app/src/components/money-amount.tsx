@@ -13,9 +13,9 @@ export function MoneyAmount({ amount, variant = 'body' }: { amount: string; vari
       accessibilityLabel={`${shown} Philippine pesos`}
       style={{
         color: palette.textPrimary,
-        fontFamily: fonts.medium,
+        fontFamily: variant === 'total' ? fonts.semibold : fonts.medium,
         fontSize: variant === 'total' ? 42 : variant === 'row' ? 15 : typeScale.body,
-        letterSpacing: variant === 'total' ? -1.5 : 0,
+        letterSpacing: variant === 'total' ? -2 : 0,
         fontVariant: ['tabular-nums'],
       }}>
       {shown}

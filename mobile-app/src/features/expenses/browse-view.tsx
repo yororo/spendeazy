@@ -11,12 +11,14 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { SpaceCategory } from "@/api/categories-api-client";
 import type { ListedExpense } from "@/api/expense-response";
-import { SecondaryButton } from "@/components/buttons";
+import { ArrowDownWideNarrow, CalendarRange, Search, Shapes } from "lucide-react-native";
+import { CompactAction, SecondaryButton } from "@/components/buttons";
+import { CategoryIconMark } from "@/components/category-mark";
 import { ChoiceSheet } from "@/components/choice-sheet";
 import { CanvasBackground } from "@/components/design-surface";
 import { MoneyAmount } from "@/components/money-amount";
 import { ScreenHeader } from "@/components/screen-header";
-import { BodyText, StackGap, SupportingText } from "@/components/screen";
+import { BodyText, StackGap } from "@/components/screen";
 import { TextField } from "@/components/text-field";
 import { controlSize, space, typeScale } from "@/constants/theme";
 import { useAppTheme } from "@/navigation/app-theme";
@@ -61,6 +63,7 @@ export function ExpenseBrowse({
   } = controller;
   const deletedOnly = controller.deletedOnly ?? false;
   const [categoryOpen, setCategoryOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const listRef = useRef<FlatList<ListedExpense>>(null);
   const restoredQuery = useRef("");
   useEffect(() => {
@@ -77,42 +80,50 @@ export function ExpenseBrowse({
     return () => cancelAnimationFrame(frame);
   }, [loaded?.expenses.length, queryKey, readScroll, spaceId]);
 
-  const renderExpense: ListRenderItem<ListedExpense> = ({ item }) => (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`${item.description}, ${item.expenseDate}`}
-      onPress={() => onOpenExpense(item.id)}
-      style={{
-        minHeight: controlSize.field,
-        justifyContent: "center",
-        gap: space.rowGap,
-        paddingVertical: space.fieldLabelGap,
-      }}
-    >
-      <View
+  const metadataStyle = { color: palette.textSecondary, fontFamily: fonts.regular, fontSize: typeScale.metadata };
+  const renderExpense: ListRenderItem<ListedExpense> = ({ item }) => {
+    const category = categories.categories.find((entry) => entry.id === item.categoryId);
+    return (
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${item.description}, ${category?.name ?? 'Category'}, ${item.amount} Philippine pesos, ${item.expenseDate}${deletedOnly && item.deletedAt ? ', deleted ' + item.deletedAt.slice(0, 10) : ''}`}
+        onPress={() => onOpenExpense(item.id)}
         style={{
-          flexDirection: "row",
-          justifyContent: "space-between",
-          gap: space.cardGap,
+          minHeight: controlSize.field,
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 12,
+          paddingVertical: 11,
+          borderTopWidth: 1,
+          borderColor: palette.fieldBorder,
         }}
       >
-        <Text
+        <CategoryIconMark iconKey={category?.iconKey ?? 'shapes'} colorKey={category?.colorKey ?? 'slate'} size={18} />
+        <View
           style={{
             flex: 1,
-            color: palette.textPrimary,
-            fontFamily: fonts.semibold,
-            fontSize: typeScale.body,
+            gap: 5,
           }}
         >
-          {item.description}
-        </Text>
-        <MoneyAmount amount={item.amount} />
-      </View>
-      <SupportingText>
-        {`${deletedOnly && item.deletedAt ? `Deleted ${item.deletedAt.slice(0, 10)} · ` : ""}${item.expenseDate} · ${categoryName(categories.categories, item.categoryId)}`}
-      </SupportingText>
-    </Pressable>
-  );
+          <Text
+            style={{
+              color: palette.textPrimary,
+              fontFamily: fonts.medium,
+              fontSize: 14,
+            }}
+          >
+            {item.description}
+          </Text>
+          <Text style={metadataStyle}>{category?.name ?? 'Category'}</Text>
+          {deletedOnly && item.deletedAt ? <Text style={metadataStyle}>{`Deleted ${item.deletedAt.slice(0, 10)}`}</Text> : null}
+        </View>
+        <View style={{ flexShrink: 1, alignItems: 'flex-end', gap: 5 }}>
+          <MoneyAmount amount={item.amount} variant="row" />
+          <Text style={metadataStyle}>{item.expenseDate}</Text>
+        </View>
+      </Pressable>
+    );
+  };
 
   const fromError =
     issues.find((issue) => issue.field === "fromDate")?.message ?? null;
@@ -158,38 +169,31 @@ export function ExpenseBrowse({
             paddingBottom:
               insets.bottom + controlSize.navigation + controlSize.addAction,
             paddingHorizontal: space.screenHorizontal,
-            gap: space.cardGap,
           }}
           ListHeaderComponent={
             <StackGap>
               <ScreenHeader title={deletedOnly ? "Deleted Expenses" : "Expenses"} accessory={spaceStatus} />
-              {onBackToDashboard ? (
-                <SecondaryButton
-                  label="Back to Dashboard"
-                  onPress={onBackToDashboard}
-                />
-              ) : null}
-              {onOpenOtherList ? (
-                <SecondaryButton
-                  label={deletedOnly ? "Active Expenses" : "Deleted Expenses"}
-                  onPress={onOpenOtherList}
-                />
-              ) : null}
-              {selection ? (
-                <ExpenseFilters
-                  selection={selection}
-                  categories={categories.categories}
-                  fromError={fromError}
-                  toError={toError}
-                  onOpenCategories={() => setCategoryOpen(true)}
-                  onChange={onChange}
-                />
-              ) : null}
               {loaded && phase === "ready" && issues.length === 0 ? (
-                <SupportingText>
-                  {`${expenseCountLabel(loaded.totalCount)} · ${loaded.totalAmount} PHP for this selection`}
-                </SupportingText>
+                <View style={{ alignItems: 'center', gap: 3, paddingTop: 8, paddingBottom: 4 }}>
+                  <Text style={metadataStyle}>{deletedOnly ? 'Deleted total · PHP' : 'Total spent · PHP'}</Text>
+                  <MoneyAmount amount={loaded.totalAmount} variant="total" />
+                  <Text style={metadataStyle}>{expenseCountLabel(loaded.totalCount)}</Text>
+                </View>
               ) : null}
+              {selection ? <View style={{ gap: 6 }}>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
+                  <CompactAction label="Dates" selected={!!selection.fromDate || !!selection.toDate} icon={<CalendarRange size={16} color={palette.brandPrimary} />} onPress={() => setFiltersOpen(true)} />
+                  <CompactAction label="Category" selected={selection.categoryId !== null} icon={<Shapes size={16} color={palette.brandPrimary} />} onPress={() => setCategoryOpen(true)} />
+                  <CompactAction label="Search Expenses" variant="icon" selected={selection.description !== ''} icon={<Search size={17} color={palette.textSecondary} />} onPress={() => setFiltersOpen(true)} />
+                  <CompactAction label={selection.sort === 'newest' ? 'Sorted newest first. Switch to oldest first' : 'Sorted oldest first. Switch to newest first'} variant="icon" selected={selection.sort === 'oldest'} icon={<ArrowDownWideNarrow size={17} color={palette.textSecondary} />} onPress={() => onChange({ sort: selection.sort === 'newest' ? 'oldest' : 'newest' })} />
+                </View>
+                {hasExpenseFilter(selection) ? <Text style={metadataStyle}>{[selection.fromDate || selection.toDate ? (selection.fromDate || 'Any start') + ' – ' + (selection.toDate || 'Any end') : '', selection.categoryId ? categoryName(categories.categories, selection.categoryId) : '', selection.description ? 'Search: ' + selection.description : '', selection.sort === 'oldest' ? 'Oldest first' : ''].filter(Boolean).join(' · ')}</Text> : null}
+                {issues.length > 0 ? <Text accessibilityLiveRegion="polite" style={{ ...metadataStyle, color: palette.stateNegative }}>{issues.map((issue) => issue.message).join(' ')}</Text> : null}
+              </View> : null}
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                {onBackToDashboard ? <CompactAction variant="quiet" label="Back to Dashboard" onPress={onBackToDashboard} /> : null}
+                {onOpenOtherList ? <CompactAction variant="quiet" label={deletedOnly ? 'Active Expenses' : 'Deleted Expenses'} onPress={onOpenOtherList} /> : null}
+              </View>
               {phase === "loading" && !loaded ? (
                 <BodyText>Loading Expenses.</BodyText>
               ) : null}
@@ -228,35 +232,42 @@ export function ExpenseBrowse({
         />
       </KeyboardAvoidingView>
       {selection ? (
-        <ChoiceSheet
-          title="Category"
-          visible={categoryOpen}
-          onDismiss={() => setCategoryOpen(false)}
-        >
-          <SecondaryButton
-            label="All Categories"
-            selected={selection.categoryId === null}
-            onPress={() => {
-              onChange({ categoryId: null });
-              setCategoryOpen(false);
-            }}
-          />
-          {categories.categories.map((category) => (
+        <>
+          <ChoiceSheet title="Filter Expenses" showClose visible={filtersOpen && !categoryOpen} onDismiss={() => setFiltersOpen(false)}>
+            <ExpenseFilters selection={selection} categories={categories.categories} fromError={fromError} toError={toError} onOpenCategories={() => setCategoryOpen(true)} onChange={onChange} />
+            <SecondaryButton label="Show Expenses" onPress={() => setFiltersOpen(false)} />
+          </ChoiceSheet>
+          <ChoiceSheet
+            title="Category"
+            showClose
+            visible={categoryOpen}
+            onDismiss={() => setCategoryOpen(false)}
+          >
             <SecondaryButton
-              key={category.id}
-              label={
-                category.isActive
-                  ? category.name
-                  : `${category.name} (inactive)`
-              }
-              selected={selection.categoryId === category.id}
+              label="All Categories"
+              selected={selection.categoryId === null}
               onPress={() => {
-                onChange({ categoryId: category.id });
+                onChange({ categoryId: null });
                 setCategoryOpen(false);
               }}
             />
-          ))}
-        </ChoiceSheet>
+            {categories.categories.map((category) => (
+              <SecondaryButton
+                key={category.id}
+                label={
+                  category.isActive
+                    ? category.name
+                    : `${category.name} (inactive)`
+                }
+                selected={selection.categoryId === category.id}
+                onPress={() => {
+                  onChange({ categoryId: category.id });
+                  setCategoryOpen(false);
+                }}
+              />
+            ))}
+          </ChoiceSheet>
+        </>
       ) : null}
     </View>
   );

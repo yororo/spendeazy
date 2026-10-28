@@ -9,11 +9,13 @@ export function PrimaryButton({
   onPress,
   disabled = false,
   busy = false,
+  tone = 'brand',
 }: {
   label: string;
   onPress: () => void;
   disabled?: boolean;
   busy?: boolean;
+  tone?: 'brand' | 'destructive';
 }) {
   const { palette, fonts } = useAppTheme();
   return (
@@ -28,7 +30,7 @@ export function PrimaryButton({
         minWidth: controlSize.minimumTarget,
         borderRadius: radius.control,
         borderCurve: 'continuous',
-        backgroundColor: palette.brandPrimary,
+        backgroundColor: tone === 'destructive' ? palette.stateNegative : palette.brandPrimary,
         alignItems: 'center',
         justifyContent: 'center',
         paddingHorizontal: space.screenBottom,

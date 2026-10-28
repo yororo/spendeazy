@@ -16,6 +16,7 @@ export function TextField({
   editable = true,
   variant = 'filled',
   icon,
+  showLabel = true,
 }: {
   label: string;
   value: string;
@@ -28,18 +29,19 @@ export function TextField({
   editable?: boolean;
   variant?: 'filled' | 'underlined' | 'amount';
   icon?: ReactNode;
+  showLabel?: boolean;
 }) {
   const { palette, fonts } = useAppTheme();
   return (
     <View style={{ gap: space.fieldLabelGap }}>
-      <Text
+      {showLabel ? <Text
         style={{
           color: palette.textSecondary,
           fontFamily: fonts.semibold,
           fontSize: typeScale.sectionTitle,
         }}>
         {label}
-      </Text>
+      </Text> : null}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, borderBottomWidth: variant === 'underlined' ? 1 : 0, borderColor: error ? palette.stateNegative : palette.fieldBorder }}>
       {icon ? <View pointerEvents="none" accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">{icon}</View> : null}
       <TextInput
@@ -63,9 +65,10 @@ export function TextField({
           color: palette.textPrimary,
           backgroundColor: variant === 'filled' ? palette.surfaceModal : 'transparent',
           opacity: editable ? 1 : 0.55,
-          fontFamily: variant === 'amount' ? fonts.medium : fonts.regular,
+          fontFamily: variant === 'filled' ? fonts.regular : fonts.medium,
           fontSize: variant === 'amount' ? 48 : typeScale.body,
           letterSpacing: variant === 'amount' ? -1.5 : 0,
+          textAlign: variant === 'amount' ? 'center' : 'left',
           paddingHorizontal: variant === 'filled' ? space.screenBottom : 0,
         }}
       />

@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { Modal, Pressable, ScrollView, Text, View } from "react-native";
-import { PrimaryButton, SecondaryButton } from "@/components/buttons";
-import { ChoiceSheet } from "@/components/choice-sheet";
+import { Text, View } from "react-native";
+import { CompactAction, PrimaryButton, SecondaryButton } from "@/components/buttons";
+import { CenteredDialog, ChoiceSheet } from "@/components/choice-sheet";
 import { MoneyAmount } from "@/components/money-amount";
 import {
   BodyText,
@@ -9,8 +9,10 @@ import {
   StackGap,
   SupportingText,
 } from "@/components/screen";
-import { TextField } from "@/components/text-field";
-import { radius, space, typeScale } from "@/constants/theme";
+import { CalendarDays, Pencil, Shapes, Trash2 } from "lucide-react-native";
+import { ExpenseFields } from "./expense-fields";
+import { ExpenseNotice } from "./expense-notice";
+import { space, typeScale } from "@/constants/theme";
 import { useAppTheme } from "@/navigation/app-theme";
 import type { ExpenseActivitySnapshot } from "@/api/expense-response";
 import type { ManualExpenseDraft, ManualExpenseField } from "./manual-draft";
@@ -124,10 +126,13 @@ export function ExpenseDetail({
         ) : null}
         {phase === "ready" && expense ? (
           <StackGap>
-            <BodyText>{expense.description}</BodyText>
-            <MoneyAmount amount={expense.amount} />
-            <SupportingText>{expense.expenseDate}</SupportingText>
-            <SupportingText>{expense.categoryName}</SupportingText>
+            <View style={{ alignItems: 'center', gap: 5, paddingVertical: 12 }}>
+              <Text style={{ color: palette.textSecondary, fontFamily: fonts.regular, fontSize: 14, textAlign: 'center' }}>{expense.description}</Text>
+              <MoneyAmount amount={expense.amount} variant="total" />
+              <SupportingText>PHP</SupportingText>
+            </View>
+            <View style={{ minHeight: 58, flexDirection: 'row', gap: 14, alignItems: 'center', borderBottomWidth: 1, borderColor: palette.fieldBorder }}><CalendarDays color={palette.textSecondary} size={20} accessible={false} /><SupportingText>{expense.expenseDate}</SupportingText></View>
+            <View style={{ minHeight: 58, flexDirection: 'row', gap: 14, alignItems: 'center', borderBottomWidth: 1, borderColor: palette.fieldBorder }}><Shapes color={palette.textSecondary} size={20} accessible={false} /><SupportingText>{expense.categoryName}</SupportingText></View>
             <SupportingText>
               {expense.source === "manual" ? "Cash" : "Imported"}
             </SupportingText>
@@ -156,10 +161,11 @@ export function ExpenseDetail({
             {state.canEdit ? (
               <View style={{ flexDirection: "row", gap: space.cardGap }}>
                 <View style={{ flex: 1 }}>
-                  <SecondaryButton label="Edit Expense" onPress={onBeginEdit} />
+                  <CompactAction label="Edit Expense" icon={<Pencil size={16} color={palette.brandPrimary} />} onPress={onBeginEdit} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <SecondaryButton
+                  <CompactAction
+                    icon={<Trash2 size={16} color={palette.stateNegative} />}
                     label="Delete Expense"
                     onPress={() => setDeleteOpen(true)}
                   />
@@ -197,7 +203,9 @@ export function ExpenseDetail({
                   key={event.id}
                   style={{
                     gap: space.fieldLabelGap,
-                    paddingVertical: space.fieldLabelGap,
+                    paddingVertical: 14,
+                    borderTopWidth: 1,
+                    borderColor: palette.fieldBorder,
                   }}
                 >
                   <SupportingText>
@@ -214,153 +222,48 @@ export function ExpenseDetail({
             </View>
           </StackGap>
         ) : null}
-        <SecondaryButton label="Back" onPress={onBack} />
+        <CompactAction variant="quiet" label="Back" onPress={onBack} />
       </StackGap>
 
-      <Modal
-        visible={state.editor.open}
-        transparent
-        animationType="none"
-        onRequestClose={onCancelEdit}
-        accessibilityViewIsModal
-      >
-        <View
-          style={{
-            flex: 1,
-            justifyContent: "center",
-            paddingHorizontal: space.screenHorizontal,
-          }}
-        >
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Dismiss edit dialog"
-            onPress={onCancelEdit}
-            style={{
-              position: "absolute",
-              top: 0,
-              right: 0,
-              bottom: 0,
-              left: 0,
-              backgroundColor: palette.scrim,
-            }}
-          />
-          <View
-            style={{
-              maxHeight: "90%",
-              backgroundColor: palette.surfaceModal,
-              borderRadius: radius.dialog,
-              borderCurve: "continuous",
-              padding: space.dialogInset,
-            }}
-          >
-            <ScrollView
-              keyboardShouldPersistTaps="handled"
-              contentContainerStyle={{ gap: space.dialogGap }}
-            >
-              <Text
-                accessibilityRole="header"
-                style={{
-                  color: palette.textPrimary,
-                  fontFamily: fonts.semibold,
-                  fontSize: typeScale.sectionTitle,
-                }}
-              >
-                Edit Expense
-              </Text>
-              {state.editor.draft ? (
-                <>
-                  <TextField
-                    label="Amount"
-                    value={state.editor.draft.amount}
-                    onChangeText={(amount) => onChangeEdit({ amount })}
-                    error={state.editor.issues.amount}
-                    placeholder="12.50"
-                    keyboardType="decimal-pad"
-                  />
-                  <TextField
-                    label="Description"
-                    value={state.editor.draft.description}
-                    onChangeText={(description) =>
-                      onChangeEdit({ description })
-                    }
-                    error={state.editor.issues.description}
-                    placeholder="What was this Expense?"
-                  />
-                  <View style={{ gap: space.fieldLabelGap }}>
-                    <SupportingText>Category</SupportingText>
-                    <SecondaryButton
-                      label={
-                        selectedCategory
-                          ? `${selectedCategory.name}${selectedCategory.isActive ? "" : " (inactive)"}`
-                          : "Choose Category"
-                      }
-                      onPress={() => setCategoryOpen(true)}
-                    />
-                    {state.editor.issues.categoryId ? (
-                      <SupportingText>
-                        {state.editor.issues.categoryId}
-                      </SupportingText>
-                    ) : null}
-                  </View>
-                  <TextField
-                    label="Date"
-                    value={state.editor.draft.expenseDate}
-                    onChangeText={(expenseDate) =>
-                      onChangeEdit({ expenseDate })
-                    }
-                    error={state.editor.issues.expenseDate}
-                    placeholder="YYYY-MM-DD"
-                  />
-                </>
-              ) : null}
-              {state.editor.error ? (
-                <Text
-                  accessibilityLiveRegion="polite"
-                  style={{
-                    color: palette.stateNegative,
-                    fontFamily: fonts.regular,
-                    fontSize: typeScale.body,
-                  }}
-                >
-                  {state.editor.error}
-                </Text>
-              ) : null}
-              {state.editor.needsReview ? (
-                state.editor.latest ? (
-                  <StackGap>
-                    <SupportingText>
-                      {`Latest version · ${state.editor.latest.description} · ${state.editor.latest.amount} PHP · ${state.editor.latest.expenseDate} · ${state.editor.latest.categoryName}`}
-                    </SupportingText>
-                    <SecondaryButton
-                      label="Continue with my changes"
-                      onPress={onContinueWithMyChanges}
-                    />
-                  </StackGap>
-                ) : (
-                  <SecondaryButton
-                    label={
-                      state.editor.phase === "reviewing"
-                        ? "Reviewing latest version"
-                        : "Review latest version"
-                    }
-                    onPress={onReviewLatest}
-                  />
-                )
-              ) : null}
-              <PrimaryButton
-                label={state.editor.error ? "Try again" : "Save changes"}
-                onPress={onSaveEdit}
-                busy={state.editor.phase === "saving"}
-                disabled={!allowEditSave}
+      <CenteredDialog title="Edit Expense" showClose visible={state.editor.open && !categoryOpen} onDismiss={onCancelEdit}>
+        {state.editor.draft ? (
+          <ExpenseFields draft={state.editor.draft} issues={state.editor.issues} categoryLabel={selectedCategory ? selectedCategory.name + (selectedCategory.isActive ? '' : ' (inactive)') : 'Choose Category'} onChange={onChangeEdit} onOpenCategories={() => setCategoryOpen(true)} />
+        ) : null}
+        {state.editor.error ? <ExpenseNotice message={state.editor.error} /> : null}
+        {state.editor.needsReview ? (
+          state.editor.latest ? (
+            <StackGap>
+              <SupportingText>
+                {`Latest version · ${state.editor.latest.description} · ${state.editor.latest.amount} PHP · ${state.editor.latest.expenseDate} · ${state.editor.latest.categoryName}`}
+              </SupportingText>
+              <SecondaryButton
+                label="Continue with my changes"
+                onPress={onContinueWithMyChanges}
               />
-              <SecondaryButton label="Cancel" onPress={onCancelEdit} />
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
+            </StackGap>
+          ) : (
+            <SecondaryButton
+              label={
+                state.editor.phase === "reviewing"
+                  ? "Reviewing latest version"
+                  : "Review latest version"
+              }
+              onPress={onReviewLatest}
+            />
+          )
+        ) : null}
+        <PrimaryButton
+          label={state.editor.error ? "Try again" : "Save changes"}
+          onPress={onSaveEdit}
+          busy={state.editor.phase === "saving"}
+          disabled={!allowEditSave}
+        />
+        <SecondaryButton label="Cancel" onPress={onCancelEdit} />
+      </CenteredDialog>
       <ChoiceSheet
         title="Category"
-        visible={categoryOpen}
+        showClose
+        visible={categoryOpen && state.editor.open}
         onDismiss={() => setCategoryOpen(false)}
       >
         {activeEditCategories.map((category) => (
@@ -375,73 +278,24 @@ export function ExpenseDetail({
           />
         ))}
       </ChoiceSheet>
-      <Modal
-        visible={deleteOpen}
-        transparent
-        animationType="none"
-        onRequestClose={() => setDeleteOpen(false)}
-        accessibilityViewIsModal
-      >
-        <View
-          style={{
-            flex: 1,
-            justifyContent: "center",
-            paddingHorizontal: space.screenHorizontal,
+      <CenteredDialog title="Delete Expense?" showClose visible={deleteOpen} onDismiss={() => setDeleteOpen(false)}>
+        <ExpenseNotice warning message="This Expense will leave active totals and remain in Deleted Expenses with its Activity history." />
+        {state.deleteError ? (
+          <SupportingText>{state.deleteError}</SupportingText>
+        ) : null}
+        <PrimaryButton
+          label="Delete Expense"
+          tone="destructive"
+          onPress={() => {
+            void confirmDelete();
           }}
-        >
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Dismiss delete confirmation"
-            onPress={() => setDeleteOpen(false)}
-            style={{
-              position: "absolute",
-              top: 0,
-              right: 0,
-              bottom: 0,
-              left: 0,
-              backgroundColor: palette.scrim,
-            }}
-          />
-          <View
-            style={{
-              backgroundColor: palette.surfaceModal,
-              borderRadius: radius.dialog,
-              borderCurve: "continuous",
-              padding: space.dialogInset,
-              gap: space.dialogGap,
-            }}
-          >
-            <Text
-              accessibilityRole="header"
-              style={{
-                color: palette.textPrimary,
-                fontFamily: fonts.semibold,
-                fontSize: typeScale.sectionTitle,
-              }}
-            >
-              Delete Expense?
-            </Text>
-            <BodyText>
-              This Expense will leave active totals and remain in Deleted
-              Expenses with its Activity history.
-            </BodyText>
-            {state.deleteError ? (
-              <SupportingText>{state.deleteError}</SupportingText>
-            ) : null}
-            <PrimaryButton
-              label="Delete Expense"
-              onPress={() => {
-                void confirmDelete();
-              }}
-              busy={state.deleting}
-            />
-            <SecondaryButton
-              label="Keep Expense"
-              onPress={() => setDeleteOpen(false)}
-            />
-          </View>
-        </View>
-      </Modal>
+          busy={state.deleting}
+        />
+        <SecondaryButton
+          label="Keep Expense"
+          onPress={() => setDeleteOpen(false)}
+        />
+      </CenteredDialog>
     </Screen>
   );
 }

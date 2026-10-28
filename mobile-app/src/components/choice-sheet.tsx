@@ -69,7 +69,7 @@ function ModalShell({
             paddingTop: centered ? space.dialogInset : space.sheetPaddingTop,
             paddingHorizontal: space.dialogInset,
             paddingBottom: centered ? space.dialogInset : Math.max(insets.bottom, space.sheetPaddingBottom),
-            gap: space.sheetGap,
+            gap: centered ? space.dialogGap : space.sheetGap,
           }}>
           {showClose && !centered ? <View accessible={false} style={{ alignSelf: 'center', width: 36, height: 4, borderRadius: 2, backgroundColor: palette.fieldBorder }} /> : null}
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>

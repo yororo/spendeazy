@@ -4,15 +4,15 @@ Use this document when implementing or reviewing mobile colors, typography, spac
 
 ## Source and authority
 
-Source: [`design/mobile-design.pen`](design/mobile-design.pen). The current source includes `mode: light | dark` and a `Dark mode` board (`g9ni5k`). This reference captures the working-file design, including edits not yet committed when it was inspected.
+Source: [`design/mobile-design.pen`](design/mobile-design.pen). The confirmed source contains light screens and unthemed variables. Dark values in this document are implementation adaptations, not a dark design board.
 
-**Declared** tokens below exist in the source `variables` object. **Derived** names are conventions introduced here for repeated literal values or component recipes; they are not existing Pencil variables or runtime exports. Node IDs are lookup keys in the source JSON. When the design changes, update the affected table and its evidence together. Resolve conflicts against the current source node, and record intentional departures rather than silently choosing another value.
+**Declared** light tokens below exist in the source `variables` object; dark values are adaptations. **Derived** names are conventions introduced here for repeated literal values or component recipes; they are not existing Pencil variables or runtime exports. Node IDs are lookup keys in the source JSON. When the design changes, update the affected table and its evidence together. Resolve conflicts against the current source node, and record intentional departures rather than silently choosing another value.
 
-[`src/constants/theme.ts`](src/constants/theme.ts) implements the declared colors, Outfit families, page/section/button sizes, and the spacing, radius, and control sizes used by sign-in and navigation. Navigation and Add use opaque fills taken from the glass recipe so contrast does not depend on blur. The light navigation edge uses `border.field` because a white glass stroke disappears on an opaque white bar. Canvas wash gradients are not painted yet; screens use `surface.canvas`.
+[`src/constants/theme.ts`](src/constants/theme.ts) implements the declared colors, Outfit families, page/section/button sizes, and the spacing, radius, and control sizes used by sign-in and navigation. Navigation and Add use opaque fills taken from the glass recipe so contrast does not depend on blur. The light navigation edge uses `border.field` because a white glass stroke disappears on an opaque white bar. The shared canvas paints the light wash and a dark adaptation behind the viewport; Expenses uses the same background behind its virtualized list.
 
 ## Agent implementation workflow
 
-1. Locate the matching screen and component in the source, including its dark counterpart. Read its `context` for interaction intent; sample amounts and counts are illustrative data.
+1. Locate the matching screen and component in the source, and identify any dark adaptation. Read its `context` for interaction intent; sample amounts and counts are illustrative data.
 2. Resolve declared semantic tokens for the active theme. Reuse the derived recipe for the same component role; retain source-specific variants where they differ.
 3. Centralize implemented values in the mobile theme layer. Keep semantic names stable across themes and let components consume those names instead of duplicating literals.
 4. Compare light and dark implementations at the reference width, then check narrow screens, large text, scrolling, keyboard clearance, and safe areas. Record any intentional visual departure and any states not covered by the source.
@@ -70,7 +70,7 @@ Derived names describe reusable roles rather than a forced global spacing grid. 
 | `radius.control` | 16 | Primary action `iZLQM`, budget input `HraLL` |
 | `radius.summaryCard` | 30 | `VDouI` |
 | `radius.dialog` | 26 | `KJplB` |
-| `radius.sheet` | `[28,28,0,0]` | Dark switcher sheet `wQtDU`; top corners only |
+| `radius.sheet` | `[28,28,0,0]` | Switcher sheet; top corners only |
 | `radius.navigation` | 32 | `Z92ldV` |
 | `size.primaryAction` | height 52 | `iZLQM`, `B4i0Nm` |
 | `size.fieldRow` | height 58 | `muRAO`, `Hzbwi`, `T9esGN` |
@@ -87,13 +87,13 @@ These derived recipes preserve the multi-layer appearance. Gradient rotations an
 
 | Derived role | Light | Dark | Evidence |
 | --- | --- | --- | --- |
-| `surface.canvas` | `#F6F7FC` | `#141A2B` | `FInDV`, `tqmXH` |
-| `surface.navigation` | `#FFFFFF80` | `#272E41D9` | `Z92ldV`, `AH7XS` |
+| `surface.canvas` | `#F6F7FC` | `#141A2B` | `FInDV`; dark adapted |
+| `surface.navigation` | `#FFFFFF80` | `#272E41D9` | `Z92ldV`; dark adapted |
 | `border.glass` | `#FFFFFFE6` | `#A7B1DC26` | Summary card and navigation |
 | `surface.glassTint` | `#FFFFFF66` | `#272E4180` | Middle stop of the summary-card gradient; used as its tint and platform fallback |
 | `shadow.summaryCard` | `#646A9D12` | `#00000040` | Summary card outer shadow |
-| `border.field` | `#E5E7EF` | `#A7B1DC26` | `muRAO`, `x5wMvK`; bottom edge, width 1 |
-| `overlay.scrim` | `#20283B66` | `#06091399` | `qIxLt`, `fjL4I` |
+| `border.field` | `#E5E7EF` | `#A7B1DC26` | `muRAO`; dark adapted; bottom edge, width 1 |
+| `overlay.scrim` | `#20283B66` | `#06091399` | `qIxLt`; dark adapted |
 
 ### Canvas wash
 
@@ -105,30 +105,30 @@ Light source `FInDV` layers three radial gradients over `surface.canvas`. Each r
 | Teal | `#BCE8E690` → `#D4ECE900` | (0, 0.43) | (1.6, 0.65) |
 | Lower violet | `#E2D5F276` → `#EAE0F000` | (0.85, 0.87) | (1.7, 0.6) |
 
-Dark source `tqmXH` has two layers: `#51437D40` → `#141A2B00` at (1, 0.22), size (1.6, 0.8), then `#28636130` → `#141A2B00` at (0, 0.43), size (1.6, 0.65). Match the target screen if it differs.
+The dark adaptation uses two layers: `#51437D40` → `#141A2B00` at (1, 0.22), size (1.6, 0.8), then `#28636130` → `#141A2B00` at (0, 0.43), size (1.6, 0.65). Match the target screen if it differs.
 
 ### Glass summary card
 
-`VDouI` / `D1jWx5`: radius 30, padding 22, gap 14, border width 1, background blur radius 24. Linear gradient rotation 145, stops at 0 / 0.52 / 1:
+`VDouI`: radius 30, padding 22, gap 14, border width 1, background blur radius 24. Linear gradient rotation 145, stops at 0 / 0.52 / 1:
 
 - Light: `#FFFFFFD9` / `#FFFFFF66` / `#FFFFFFA6`.
 - Dark: `#272E41D9` / `#272E4180` / `#272E41D9`.
 - Outer shadow: offset (0,10), blur 30; light `#646A9D12`, dark `#00000040`.
 - Inner highlight: offset (0,1), blur 2; light `#FFFFFFCC`, dark `#C5CDFF12`.
 
-The Budget plan summary uses `GlassView` with the recipe's radius, 22-unit inset, 14-unit gap, glass border, and outer shadow. Its tint uses the middle gradient stop to keep the fallback readable. Native blur is available only on supported iOS versions; Android and unsupported iOS versions render a tinted View fallback. The three-stop gradient and inner highlight are not implemented on this card, so this is an intentional simplified surface pending visual comparison against the source in Pencil.
+The Budget plan summary uses the shared `DesignSurface`: native `GlassView` where supported, with the three-stop SVG gradient, border, top highlight, and outer shadow also present in the fallback. The highlight is a one-unit line rather than a blurred inner shadow, and native blur/elevation vary by platform. The gradient direction is an approximation pending device comparison.
 
 ### Navigation and Add action
 
-`Z92ldV` / `AH7XS`: navigation surface, radius 32, height 64, padding 6, border width 1.5, background blur radius 32. Outer shadow offset (0,8), blur 24, light `#4E558F20` / dark `#00000040`. Inner highlight offset (0,1), blur 2, light `#FFFFFF` / dark `#C5CDFF12`.
+`Z92ldV`: navigation surface, radius 32, height 64, padding 6, border width 1.5, background blur radius 32. Outer shadow offset (0,8), blur 24, light `#4E558F20` / dark `#00000040`. Inner highlight offset (0,1), blur 2, light `#FFFFFF` / dark `#C5CDFF12`.
 
-`eqQ7w` / `jPpDO`: Add action uses the same linear gradient in both themes: rotation 145, stops `#9AA6F4D9` at 0, `#6976E6EB` at 0.48, `#505ACAD9` at 1. Border width 1.5, light `#FFFFFFCC` / dark `#A7B1DC26`; blur radius 32. Outer shadow offset (0,6), blur 18, light `#535FC94D` / dark `#00000040`. Inner highlight offset (0,2), blur 3, light `#FFFFFFA6` / dark `#C5CDFF12`.
+`eqQ7w`: Add action uses the same linear gradient in both themes: rotation 145, stops `#9AA6F4D9` at 0, `#6976E6EB` at 0.48, `#505ACAD9` at 1. Border width 1.5, light `#FFFFFFCC` / dark `#A7B1DC26`; blur radius 32. Outer shadow offset (0,6), blur 18, light `#535FC94D` / dark `#00000040`. Inner highlight offset (0,2), blur 3, light `#FFFFFFA6` / dark `#C5CDFF12`.
 
 Treat each surface as a recipe combining fill, stroke, blur, and shadow. If the target platform cannot reproduce an effect, document the fallback and verify foreground legibility on the replacement surface. Pencil blur values are design parameters, not guaranteed native API intensity values.
 
 ## Component and state rules
 
-- **Primary action:** `iZLQM` uses `brand-primary`, height 52, radius 16, centered content, gap 8, and `type.button`. Light label `SMOu5` is white. Inspect the dark counterpart's foreground separately; a light-theme foreground is not automatically suitable over the dark-theme brand color.
+- **Primary action:** `iZLQM` uses `brand-primary`, height 52, radius 16, centered content, gap 8, and `type.button`. Light label `SMOu5` is white. Check the adapted dark foreground separately; a light-theme foreground is not automatically suitable over the dark-theme brand color.
 - **Fields:** edit-expense rows use height 58, gap 14, and a one-unit bottom divider. Budget amount inputs (`HraLL`) use a filled surface, radius 16, and padding 20. Keep these distinct component variants.
 - **Modal:** use `surface-modal` above a scrim. Edit dialog `KJplB` uses radius 26, padding/gap 24. Switcher sheet `wQtDU` uses top-only radius 28, padding `[12,24,30,24]`, and gap 20. Source context specifies disabled underlying controls for alerts and tap-to-dismiss for the switcher scrim; implement the behavior for the specific modal.
 - **Icons:** the source uses Lucide icons. Match the source icon name, size, and semantic foreground. Common sizes include 14, 16, 18, and 22; small decorative icons do not define the interactive hit area. Sheet close control `s0pm4` is 44 × 44.
@@ -144,4 +144,4 @@ Sign-in and navigation decisions: a disabled or busy primary action uses 55% opa
 
 Check readable contrast on composited surfaces in both modes, especially action foregrounds, small secondary labels, and charts. Preserve labels/icons alongside status colors, usable touch areas, font scaling, modal focus behavior, and screen-reader names. These are implementation checks, not a claim that the static mockup already satisfies accessibility requirements.
 
-When updating this reference, verify declared tokens against `variables`, resolve every cited node ID, and compare component geometry/fills against both theme nodes. A document or JSON inspection does not establish rendered visual parity; record visual comparison separately when implementing the UI.
+When updating this reference, verify declared tokens against `variables`, resolve every cited node ID, and compare light geometry/fills against the source and assess dark adaptations for legibility. A document or JSON inspection does not establish rendered visual parity; record visual comparison separately when implementing the UI.

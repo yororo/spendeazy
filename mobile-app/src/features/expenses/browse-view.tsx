@@ -13,6 +13,7 @@ import type { SpaceCategory } from "@/api/categories-api-client";
 import type { ListedExpense } from "@/api/expense-response";
 import { SecondaryButton } from "@/components/buttons";
 import { ChoiceSheet } from "@/components/choice-sheet";
+import { CanvasBackground } from "@/components/design-surface";
 import { MoneyAmount } from "@/components/money-amount";
 import { BodyText, StackGap, SupportingText } from "@/components/screen";
 import { TextField } from "@/components/text-field";
@@ -120,6 +121,7 @@ export function ExpenseBrowse({
 
   return (
     <View style={{ flex: 1, backgroundColor: palette.canvas }}>
+      <CanvasBackground />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={process.env.EXPO_OS === "ios" ? "padding" : undefined}

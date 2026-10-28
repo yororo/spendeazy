@@ -62,7 +62,11 @@ Do not invent these values. Confirm with a developer when you do not have them.
 
 ## Daily startup
 
-Before starting, check that `api/.env` points to the Compose database (`127.0.0.1:55433/spendeazy_disposable_manual` by default) and that the mobile API URL uses the API's `PORT` (`3000` by default). Existing local env files may still contain settings from an older setup. If something is already listening on the API port, stop that process when it was started against a different database.
+Before starting:
+
+- Check the configuration files if they are synchronized: `./api/.env` for API, [compose](../compose.yaml) for the database, and `./mobile-app/.env.local` for the mobile-app. Existing local env files may still contain settings from an older setup.
+  - `./mobile-app/.env.local` - `EXPO_PUBLIC_API_BASE_URL` must use `http://10.0.2.2:<PORT>` with the API's `PORT`.
+- Shutdown existing API's, PostgreSQL, and mobile app emulators to ensure a fresh test session.
 
 ### 1. Start PostgreSQL
 
@@ -72,7 +76,7 @@ From the repository root:
 docker compose up -d --wait
 ```
 
-Wait for PostgreSQL to be healthy. This starts the `spendeazy-manual` project and reuses its `manual-data` volume. It is separate from the disposable automated-test databases.
+- Wait for PostgreSQL to be healthy. 
 
 ### 2. Start the API
 
@@ -83,28 +87,40 @@ npm run migration:run
 npm run start:dev
 ```
 
-Continue only after migrations succeed. Leave watch mode running. Open [health](http://localhost:3000/health) to verify connection status. The API base path is `/api/v1`; the mobile base URL is the origin without that path.
+- Continue only after migrations succeed. 
+- Leave watch mode running so you can inspect logs later if helpful.
+- Open [health](http://localhost:4000/health) to verify connection status. 
 
 ### 3. Open the native app
 
-For Android, first run `adb devices -l`. If no emulator is listed, start one with `emulator -avd Pixel_10` (leave it running), then wait for it before starting Expo. From the repository root, confirm the intended serial in `adb devices -l` is `device` and `adb -s <serial> shell getprop sys.boot_completed` prints `1`. The API health page should report the database as ready, and `EXPO_PUBLIC_API_BASE_URL` must use `http://10.0.2.2:<PORT>` with the API's `PORT`.
+For Android:
 
-In a terminal at `mobile-app/`, use the installed development build:
+3.1. Run `adb devices -l`. If no emulator is listed, start one with `emulator -avd Pixel_10` (leave it running), then wait for it before starting Expo. 
+
+3.2. From the repository root, confirm the intended serial in `adb devices -l` is `device` and `adb -s <serial> shell getprop sys.boot_completed` prints `1`. 
+
+3.3. In a terminal at `mobile-app/`, use the installed development build. Then, press `a` in the Expo terminal.:
 
 ```sh
 npm run parser:prepare
 npx expo start --dev-client --localhost
 ```
 
-From the repository root, reverse Metro's default port to the emulator, then press `a` in the Expo terminal (`Shift+A` to choose a device):
+On Windows, if `curl http://127.0.0.1:8081/status` fails, start Metro with IPv4 first: 
+
+```sh
+NODE_OPTIONS=--dns-result-order=ipv4first npx expo start --dev-client --localhost 
+```
+
+(PowerShell: `$env:NODE_OPTIONS="--dns-result-order=ipv4first"` first).
+
+3.3.1. If you can't access the app in the emulator, reverse Metro's default port to the emulator.
 
 ```sh
 adb -s <serial> reverse tcp:8081 tcp:8081
 ```
 
-On Windows, if `curl http://127.0.0.1:8081/status` fails, start Metro with IPv4 first: `NODE_OPTIONS=--dns-result-order=ipv4first npx expo start --dev-client --localhost` (PowerShell: `$env:NODE_OPTIONS="--dns-result-order=ipv4first"` first).
-
-If Expo selects a different port, use it on both sides of the reverse command. This reverse is for Metro only; the API stays on `10.0.2.2:<PORT>`. For a physical iPhone, use the LAN/HTTPS setup below instead of this Android path.
+If Expo selects a different port, use it on both sides of the reverse command. This reverse is for Metro only; the API stays on `10.0.2.2:<PORT>`.
 
 If Expo reports no development build, or native dependencies/configuration changed, stop Metro and build/install instead:
 

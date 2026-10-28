@@ -1,0 +1,3 @@
+interface:
+  display_name: "Implementation Plan"
+  short_description: "Creates a technical implementation plan for AI coding agent execution"

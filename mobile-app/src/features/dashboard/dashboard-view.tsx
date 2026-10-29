@@ -212,7 +212,7 @@ export function DashboardView({
             />
             <MonthlyChart report={report} onOpenExpenses={onOpenExpenses} />
             <CategoryChart
-              report={report}
+              report={controller.categoryReport ?? report}
               categories={categoryChoices}
               selectedCategoryIds={controller.chartCategoryIds}
               categoriesLoading={controller.categoriesLoading}
@@ -580,21 +580,6 @@ function CategoryChart({
             Annual Budgets retain their calendar-year limits; no monthly cap is
             plotted.
           </SupportingText>
-          {points.map((point) => (
-            <ValueAction
-              key={point.categoryId}
-              title={`${point.name}${point.isActive ? "" : " · inactive"}`}
-              color={colorFor(point)}
-              detail={`${formatPhp(point.actualAmount)}${point.budget ? ` · ${point.budget.period === "monthly" ? "Monthly limit" : "Annual Budget"} ${formatPhp(point.budget.amount)}` : ""}`}
-              onPress={() =>
-                onOpenExpenses({
-                  fromDate: report.range.fromDate,
-                  toDate: report.range.toDate,
-                  categoryId: point.categoryId,
-                })
-              }
-            />
-          ))}
           <CompactAction
             label={
               showValues

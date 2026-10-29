@@ -49,9 +49,8 @@ export function useDashboardReport() {
         : year === null
           ? {}
           : { year }),
-      chartCategoryIds,
     }),
-    [chartCategoryIds, monthlyEndMonth, view, year],
+    [monthlyEndMonth, view, year],
   );
   const queryKey = useMemo(() => JSON.stringify(query), [query]);
   const resource = useMemo(
@@ -112,6 +111,18 @@ export function useDashboardReport() {
   const loading =
     active !== null && state.data === null && state.error === null;
   const report = state.data;
+  const categoryReport = useMemo(
+    () =>
+      report && chartCategoryIds.length > 0
+        ? {
+            ...report,
+            categoryExpenses: report.categoryExpenses.filter((point) =>
+              chartCategoryIds.includes(point.categoryId),
+            ),
+          }
+        : report,
+    [chartCategoryIds, report],
+  );
   const movePeriod = useCallback(
     (offset: -1 | 1) => {
       if (view === "monthly") {
@@ -135,6 +146,7 @@ export function useDashboardReport() {
     categoriesLoading: categories.loading,
     view,
     report,
+    categoryReport,
     error: state.error,
     loading,
     refreshing: state.loading && state.data !== null,

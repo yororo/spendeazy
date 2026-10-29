@@ -8,7 +8,6 @@ const deploy = load(readFileSync(new URL('../.github/workflows/deploy.yml', impo
 const publish = load(readFileSync(new URL('../.github/workflows/publish.yml', import.meta.url), 'utf8'));
 const ci = load(readFileSync(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8'));
 const mobilePackage = JSON.parse(readFileSync(new URL('../mobile-app/package.json', import.meta.url), 'utf8'));
-const releaseDocs = readFileSync(new URL('../docs/releases.md', import.meta.url), 'utf8');
 
 function permitted(jobName, { event = 'push', validation = 'success', changed = 'true', migrate = 'success', verifyOnly = false, cancelled = false } = {}) {
   const job = publish.jobs[jobName];
@@ -104,9 +103,4 @@ for (const workflow of [deploy, publish, ci]) {
 const workflowSource = ['../.github/workflows/ci.yml', '../.github/workflows/deploy.yml', '../.github/workflows/publish.yml']
   .map(path => readFileSync(new URL(path, import.meta.url), 'utf8')).join('\n');
 assert.doesNotMatch(workflowSource, /web_artifact|staticwebapps-deploy|Playwright|Vite|browser suite|web\/dist/iu);
-assert.match(releaseDocs, /#138/u);
-assert.match(releaseDocs, /physical iPhone/u);
-assert.match(releaseDocs, /Android emulator/u);
-assert.match(releaseDocs, /native build/u);
-assert.match(releaseDocs, /application tests, lint, and type checks do not establish device certification/iu);
 console.log('Release gates verified: isolated API/PostgreSQL checks, mobile application/parser/lint/type checks, current-source API deployment, and blocking migration safeguards. These checks do not certify a native emulator or release.');

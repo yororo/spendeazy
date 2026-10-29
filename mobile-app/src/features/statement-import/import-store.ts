@@ -10,6 +10,7 @@ export type ImportAccess = Readonly<{
 /** Application lifetime, memory only. Adapters own all transient bytes/passwords. */
 export function createImportStore(access: () => ImportAccess) {
   let state: ImportState = { phase: 'idle' };
+  let confirmationLocked = false;
   const listeners = new Set<() => void>();
   const cleanups = new Set<() => void>();
   function dispatch(event: ImportEvent) {
@@ -40,6 +41,8 @@ export function createImportStore(access: () => ImportAccess) {
     snapshot: () => state,
     subscribe(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener); }; },
     hasWork: () => state.phase !== 'idle',
+    lockConfirmation(locked: boolean) { confirmationLocked = locked; },
+    completeConfirmation() { dispatch({ type: 'discarded' }); },
     captureReview(): ReviewScope | null {
       if (!('result' in state) || !state.result) return null;
       const command = { owner: state.owner, draftId: state.draftId, generation: access().generation };
@@ -51,6 +54,7 @@ export function createImportStore(access: () => ImportAccess) {
       return state.phase === 'review' || state.phase === 'review-ready';
     },
     updateReview(command: ReviewScope, event: ReviewEvent) {
+      if (confirmationLocked) return false;
       const mutation = ['editorChanged', 'editorAbandoned', 'skipped', 'saved', 'excluded', 'restored', 'continued'].includes(event.type);
       if (!reviewAllowed(command, mutation)) return false;
       if ('request' in event && (event.request.generation !== command.generation ||
@@ -60,6 +64,7 @@ export function createImportStore(access: () => ImportAccess) {
       return state !== previous;
     },
     backToReview(command: ReviewScope) {
+      if (confirmationLocked) return false;
       if (!reviewAllowed(command, false)) return false;
       dispatch({ type: 'reviewReopened' });
       return state.phase === 'review';
@@ -79,7 +84,7 @@ export function createImportStore(access: () => ImportAccess) {
       cleanups.add(cleanup);
       return () => { cleanups.delete(cleanup); };
     },
-    discard() { dispatch({ type: 'discarded' }); },
+    discard() { if (!confirmationLocked) dispatch({ type: 'discarded' }); },
     cancel(operation: ImportOperation) {
       if (allowed(operation) && matchesOperation(state, operation)) dispatch({ type: 'discarded' });
     },

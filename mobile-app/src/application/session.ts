@@ -1,5 +1,6 @@
 import type { ManualExpenseDraft } from '../features/expenses/manual-draft.ts';
 import { createImportStore } from '../features/statement-import/import-store.ts';
+import { createConfirmationWorkflow } from '../features/statement-import/confirmation-workflow.ts';
 
 export type SessionScope = { generation: number; userId: string | null; spaceId: string | null };
 type SessionSnapshot = {
@@ -15,7 +16,7 @@ type SessionSnapshot = {
 };
 
 /** Owns private-work retention and invalidates all work started in an older session/Space. */
-export function createSession(onResetSelections: () => void = () => {}) {
+export function createSession(onResetSelections: () => void = () => {}, onImportSaved: () => void = onResetSelections) {
   let state: SessionSnapshot = {
     userId: null, authSessionId: null, ownerUserId: null, spaceId: null, spaceWritable: false, draft: null,
     notice: null, announceRecovery: false, generation: 0,
@@ -24,9 +25,18 @@ export function createSession(onResetSelections: () => void = () => {}) {
   const imports = createImportStore(() => ({
     ...state, authenticated: state.userId !== null && state.notice === null, writable: state.spaceWritable,
   }));
+  const confirmation = createConfirmationWorkflow({
+    access: () => ({ ...state, authenticated: state.userId !== null && state.notice === null, writable: state.spaceWritable }),
+    handoff: () => { const draft = imports.snapshot(); return draft.phase === 'review-ready' ? draft.review.handoff : null; },
+    lock: imports.lockConfirmation,
+    complete: imports.completeConfirmation,
+    refresh: onImportSaved,
+  });
+  imports.subscribe(confirmation.synchronize);
   function publish(patch: Partial<SessionSnapshot>) {
     state = { ...state, ...patch };
     imports.synchronize();
+    confirmation.synchronize();
     for (const listener of listeners) listener();
   }
   function isCurrent(scope: SessionScope) {
@@ -35,6 +45,7 @@ export function createSession(onResetSelections: () => void = () => {}) {
   }
   return {
     imports,
+    confirmation,
     snapshot: () => state,
     subscribe(listener: () => void) {
       listeners.add(listener);

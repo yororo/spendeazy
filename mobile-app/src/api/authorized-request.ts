@@ -7,11 +7,18 @@ export interface AuthorizedRequestOptions {
   baseUrl?: string | null;
   execute?: <T>(operation: () => Promise<T>) => Promise<T>;
 }
+type AuthorizedRequestInit = {
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+  body?: unknown;
+  /** Already serialized by a workflow that must retry identical request bytes. */
+  serializedBody?: string;
+  ifMatch?: string;
+};
 
 export async function authorizedRequest<T>(
   options: AuthorizedRequestOptions,
   path: string,
-  init: { method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'; body?: unknown; ifMatch?: string } = {},
+  init: AuthorizedRequestInit = {},
 ): Promise<T> {
   const operation = () => sendAuthorizedRequest<T>(options, path, init);
   return options.execute ? options.execute(operation) : operation();
@@ -20,7 +27,7 @@ export async function authorizedRequest<T>(
 async function sendAuthorizedRequest<T>(
   options: AuthorizedRequestOptions,
   path: string,
-  init: { method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'; body?: unknown; ifMatch?: string },
+  init: AuthorizedRequestInit,
 ): Promise<T> {
   const resolvedBaseUrl = options.baseUrl ?? API_BASE_URL;
   if (resolvedBaseUrl === null) {
@@ -40,7 +47,8 @@ async function sendAuthorizedRequest<T>(
     Accept: 'application/json',
     Authorization: `Bearer ${token}`,
   };
-  if (init.body !== undefined) headers['Content-Type'] = 'application/json';
+  const body = init.serializedBody ?? (init.body === undefined ? undefined : JSON.stringify(init.body));
+  if (body !== undefined) headers['Content-Type'] = 'application/json';
   if (init.ifMatch !== undefined) headers['If-Match'] = `"${init.ifMatch}"`;
 
   let response: Response;
@@ -48,7 +56,7 @@ async function sendAuthorizedRequest<T>(
     response = await fetch(`${resolvedBaseUrl.replace(/\/+$/u, '')}${path}`, {
       method: init.method ?? 'GET',
       headers,
-      ...(init.body === undefined ? {} : { body: JSON.stringify(init.body) }),
+      ...(body === undefined ? {} : { body }),
     });
   } catch {
     throw new ExpenseApiTransportError();
@@ -64,6 +72,7 @@ async function sendAuthorizedRequest<T>(
         payload.error.code,
         payload.error.message,
         payload.error.details,
+        payload.error.review,
       );
     }
     throw new ExpenseApiError(
@@ -103,7 +112,7 @@ async function readJson(response: Response): Promise<unknown> {
 function isApiErrorEnvelope(
   value: unknown,
 ): value is {
-  error: { code: string; message: string; details: unknown[] };
+  error: { code: string; message: string; details: unknown[]; review?: unknown };
 } {
   if (typeof value !== 'object' || value === null || !('error' in value)) {
     return false;

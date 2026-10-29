@@ -36,6 +36,23 @@ describe('canonical Expense OpenAPI contract', () => {
     expect(paths).not.toContain(
       '/api/v1/users/me/spaces/{spaceId}/transactions',
     );
+    expect(
+      document.paths['/api/v1/users/me/spaces/{spaceId}/statement-imports']
+        ?.post,
+    ).toBeUndefined();
+    const operation =
+      document.paths[
+        '/api/v1/users/me/spaces/{spaceId}/statement-import-operations/{operationId}'
+      ];
+    for (const status of ['200', '201', '409', '413']) {
+      expect(operation?.put?.responses[status]).toBeDefined();
+    }
+    expect(operation?.get).toBeUndefined();
+    expect(
+      document.paths[
+        '/api/v1/users/me/spaces/{spaceId}/statement-import-previews'
+      ]?.post,
+    ).toBeDefined();
 
     const expenses =
       document.paths['/api/v1/users/me/spaces/{spaceId}/expenses'];
@@ -71,6 +88,8 @@ describe('canonical Expense OpenAPI contract', () => {
     });
     expect(schemas).not.toHaveProperty('ManualTransactionResponseDto');
     expect(schemas).not.toHaveProperty('ReviewedStatementTransactionDto');
+    expect(schemas).not.toHaveProperty('CommitReviewedStatementImportDto');
+    expect(schemas.StatementImportDetailResponseDto).toBeDefined();
   });
 
   it('keeps committed JSON and YAML equal to deterministic generation', async () => {

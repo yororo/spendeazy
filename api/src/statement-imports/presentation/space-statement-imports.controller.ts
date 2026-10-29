@@ -1,14 +1,6 @@
-import {
-  Body,
-  Controller,
-  Get,
-  HttpStatus,
-  Param,
-  Post,
-  Query,
-  Req,
-  Res,
-} from '@nestjs/common';
+import { ReviewedImportService } from '../application/reviewed-import.service';
+import { StatementImportDetailResponseDto } from './statement-import-detail.dto';
+import { Controller, Get, HttpStatus, Param, Query, Req } from '@nestjs/common';
 import {
   ApiExtraModels,
   ApiOperation,
@@ -16,8 +8,6 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import type { Response } from 'express';
-import { API_PREFIX } from '../../config/app-config';
 import {
   requireAuthenticatedUserId,
   type AuthenticatedRequest,
@@ -27,18 +17,13 @@ import { POSITIVE_INTEGER_ID_PATTERN } from '../../http/validation-patterns';
 import { SpaceAccessService } from '../../spaces/application/space-access.service';
 import { SpaceParamsDto } from '../../spaces/presentation/space.dto';
 import { StatementImportsService } from '../application/statement-imports.service';
-import {
-  CommitReviewedStatementImportDto,
-  ReviewedExpenseDto,
-  StatementImportCollectionQueryDto,
-} from './statement-import.dto';
+import { StatementImportCollectionQueryDto } from './statement-import.dto';
 import {
   StatementImportHistoryPageResponseDto,
   StatementImportHistoryResponseDto,
   StatementImportResponseDto,
 } from './statement-import-response.dto';
 import {
-  spaceStatementImportLocation,
   toStatementImportHistoryResponse,
   toStatementImportResponse,
 } from './statement-import-response.mapper';
@@ -47,8 +32,6 @@ import { SpaceStatementImportParamsDto } from './space-statement-import.dto';
 @Controller('users/me/spaces/:spaceId/statement-imports')
 @ApiTags('Statement imports')
 @ApiExtraModels(
-  CommitReviewedStatementImportDto,
-  ReviewedExpenseDto,
   StatementImportCollectionQueryDto,
   SpaceStatementImportParamsDto,
   StatementImportResponseDto,
@@ -68,6 +51,7 @@ export class SpaceStatementImportsController {
   constructor(
     private readonly statementImportsService: StatementImportsService,
     private readonly spaceAccessService: SpaceAccessService,
+    private readonly reviewedImports: ReviewedImportService,
   ) {}
 
   @Get(':statementImportId')
@@ -86,7 +70,7 @@ export class SpaceStatementImportsController {
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Statement import.',
-    type: StatementImportResponseDto,
+    type: StatementImportDetailResponseDto,
   })
   @ApiStandardErrorResponses(
     'UnauthenticatedError',
@@ -99,15 +83,23 @@ export class SpaceStatementImportsController {
   async getStatementImport(
     @Req() request: AuthenticatedRequest,
     @Param() params: SpaceStatementImportParamsDto,
-  ): Promise<StatementImportResponseDto> {
+  ): Promise<StatementImportDetailResponseDto> {
     const userId = requireAuthenticatedUserId(request);
     await this.spaceAccessService.requireReadAccess(userId, params.spaceId);
-    return toStatementImportResponse(
+    const statementImport =
       await this.statementImportsService.getStatementImportInSpace(
         params.spaceId,
         params.statementImportId,
+      );
+    return {
+      ...toStatementImportResponse(statementImport),
+      confirmation: statementImport.confirmation ?? null,
+      rows: await this.reviewedImports.evidenceRows(
+        userId,
+        params.spaceId,
+        params.statementImportId,
       ),
-    );
+    };
   }
 
   @Get()
@@ -144,59 +136,5 @@ export class SpaceStatementImportsController {
       items: page.items.map(toStatementImportHistoryResponse),
       nextCursor: page.nextCursor,
     };
-  }
-
-  @Post()
-  @ApiOperation({
-    summary: 'Commit a reviewed Statement Import into an authorized Space.',
-    description:
-      'Revalidates reviewed Categories and probable-duplicate state for the destination Space, then commits the Statement Import and every reviewed Expense atomically. The confirming User is recorded as immutable actor attribution on the Statement Import and its Expenses; those financial records belong to the destination Space.',
-  })
-  @ApiResponse({
-    status: HttpStatus.CREATED,
-    description: 'Statement import committed.',
-    type: StatementImportResponseDto,
-    headers: {
-      Location: {
-        required: true,
-        description: 'Relative canonical URI of the created Statement Import.',
-        schema: {
-          type: 'string',
-          example: `/${API_PREFIX}/users/me/spaces/7/statement-imports/42`,
-        },
-      },
-    },
-  })
-  @ApiStandardErrorResponses(
-    'UnauthenticatedError',
-    'UserNotProvisionedError',
-    'ValidationError',
-    'NotFoundError',
-    'ProbableDuplicateConflict',
-    'NotAcceptableError',
-    'UnsupportedMediaTypeError',
-    'HttpError',
-    'InternalError',
-  )
-  async commitReviewedStatementImport(
-    @Req() request: AuthenticatedRequest,
-    @Param() params: SpaceParamsDto,
-    @Body() input: CommitReviewedStatementImportDto,
-    @Res({ passthrough: true }) response: Response,
-  ): Promise<StatementImportResponseDto> {
-    const userId = requireAuthenticatedUserId(request);
-    await this.spaceAccessService.requireWriteAccess(userId, params.spaceId);
-    const statementImport =
-      await this.statementImportsService.commitReviewedStatementImportInSpace(
-        userId,
-        params.spaceId,
-        input,
-      );
-    response.status(HttpStatus.CREATED);
-    response.setHeader(
-      'Location',
-      spaceStatementImportLocation(params.spaceId, statementImport.id),
-    );
-    return toStatementImportResponse(statementImport);
   }
 }

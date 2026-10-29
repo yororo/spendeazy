@@ -319,6 +319,23 @@ describeDatabase(
       expect(
         await service.confirm(users[0].id, spaceIds[0], id, payload),
       ).toEqual({ result: original.result, replayed: true });
+      const rows = await service.evidenceRows(
+        users[0].id,
+        spaceIds[0],
+        original.result.statementImportId,
+      );
+      expect(rows).toHaveLength(payload.evidence.transactions.length);
+      expect(
+        rows
+          .filter((row) => row.disposition === 'included')
+          .map((row) => row.confirmedValues?.amount),
+      ).toEqual(['1000.00', '300.00']);
+      expect(JSON.stringify(rows)).not.toMatch(
+        /duplicateReference|referenceHash|fictional-ref/u,
+      );
+      expect(rows[0].originalEvidence.original).toEqual(
+        payload.evidence.transactions[0].original,
+      );
       await expect(
         service.confirm(users[1].id, spaceIds[0], id, payload),
       ).rejects.toBeDefined();

@@ -40,16 +40,15 @@ export function StatementImportReviewView({ controller: c, destination, onBack, 
     c.send({ type: 'rowOpened', sourceRowId });
     list.current?.scrollToOffset({ offset: 0, animated: false });
   };
-  const boundary = c.phase === 'review-ready';
   return <KeyboardAvoidingView style={{ flex: 1, backgroundColor: palette.canvas }} behavior={process.env.EXPO_OS === 'ios' ? 'padding' : 'height'}>
     <CanvasBackground />
-    <FlatList ref={list} data={boundary ? [] : c.rows} extraData={review} keyExtractor={row => row.sourceRowId}
+    <FlatList ref={list} data={c.rows} extraData={review} keyExtractor={row => row.sourceRowId}
       keyboardShouldPersistTaps="handled" contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={{ paddingTop: insets.top + 14, paddingBottom: insets.bottom + 24, paddingHorizontal: 20, gap: 14 }}
       ListHeaderComponent={<StackGap>
         <ScreenHeader title="Import statement" />
         <View style={{ flexDirection: 'row', gap: 8 }}>
-          <View style={{ flex: 1 }}><SecondaryButton label={boundary ? 'Back to review' : 'Back · keep work'} onPress={boundary ? c.backToReview : onBack} /></View>
+          <View style={{ flex: 1 }}><SecondaryButton label="Back · keep work" onPress={onBack} /></View>
           <SecondaryButton label="Close" onPress={close} />
         </View>
         <View accessibilityLabel="Step 2 of 3, Update" style={{ flexDirection: 'row', gap: 8 }}>
@@ -65,12 +64,7 @@ export function StatementImportReviewView({ controller: c, destination, onBack, 
         </DesignSurface>
         {review.original.warnings.map(warning => <Text key={warning.code} style={{ color: palette.stateWarning, fontSize: 14, fontFamily: fonts.regular }}>{warningMessage(warning.code)}</Text>)}
         {c.readOnly ? <SupportingText>This destination is read-only. Review remains available for inspection.</SupportingText> : null}
-        {boundary ? <DesignSurface style={{ padding: 22, gap: 14 }}>
-          <BodyText>Review ready</BodyText>
-          <SupportingText>Your local review is validated. Confirmation is not available yet. Nothing has been saved.</SupportingText>
-          <SupportingText>{`${review.handoff?.rows.filter(row => row.inclusion === 'included').length ?? 0} included Transactions · ${review.stagedRules.length} staged Rules`}</SupportingText>
-          <PrimaryButton label="Back to review" onPress={c.backToReview} />
-        </DesignSurface> : <>
+        <>
           {review.catalog.status !== 'ready' ? <SupportingText>{review.catalog.status === 'failed' ? 'Categories and Rules could not be loaded. Your review is retained. Retry to assign or continue.' : 'Loading Categories and Rules…'}</SupportingText> : null}
           <SecondaryButton label={review.catalog.status === 'failed' ? 'Retry Categories and Rules' : 'Refresh Categories and Rules'} busy={review.catalog.status === 'loading'} onPress={c.refresh} />
           {review.catalog.status === 'ready' && categories.length === 0 ? <SupportingText>No active Categories. Activate a Category in this Space before assigning spending.</SupportingText> : null}
@@ -123,7 +117,7 @@ export function StatementImportReviewView({ controller: c, destination, onBack, 
           <View style={{ flexDirection: 'row', gap: 6 }}>
             {(['all', 'unmapped', 'excluded'] as const).map(filter => <View key={filter} style={{ flex: 1 }}><SecondaryButton label={`${filter === 'all' ? 'All' : filter === 'unmapped' ? 'Unmapped' : 'Excluded'} (${c.counts[filter]})`} selected={review.ledgerFilter === filter} onPress={() => c.send({ type: 'filterChanged', filter })} /></View>)}
           </View>
-        </>}
+        </>
       </StackGap>}
       renderItem={({ item }) => {
         const original = review.original.rows.find(row => row.sourceRowId === item.sourceRowId)!;
@@ -135,8 +129,8 @@ export function StatementImportReviewView({ controller: c, destination, onBack, 
           <Text style={{ fontSize: 14, fontFamily: fonts.medium, color: palette.textPrimary, flexShrink: 1 }}>{`PHP ${item.values.amount || original.originalAmount}`}</Text>
         </Pressable>;
       }}
-      ListEmptyComponent={boundary ? undefined : <SupportingText>No Transactions in this filter.</SupportingText>}
-      ListFooterComponent={boundary ? undefined : <View style={{ paddingTop: 16, gap: 14 }}><PrimaryButton label="Continue" disabled={disabled} onPress={c.continue} /><SupportingText>Review stays in memory. Closing the app loses it. Nothing is saved until confirmation.</SupportingText></View>} />
+      ListEmptyComponent={<SupportingText>No Transactions in this filter.</SupportingText>}
+      ListFooterComponent={<View style={{ paddingTop: 16, gap: 14 }}><PrimaryButton label="Continue" disabled={disabled} onPress={c.continue} /><SupportingText>Review stays in memory. Closing the app loses it. Nothing is saved until confirmation.</SupportingText></View>} />
     <CenteredDialog title="Correct Transaction" visible={modal === 'edit' && !!editor} onDismiss={() => setModal(null)} restoreFocusRef={editFocus}>
       {editor ? <><ExpenseFields draft={{ ...editor.values }} issues={{}} categoryLabel={category?.name ?? 'Choose Category'} onChange={c.patch} onOpenCategories={() => setModal('categories')} /><PrimaryButton label="Done · keep pending edits" onPress={() => setModal(null)} /></> : null}
     </CenteredDialog>

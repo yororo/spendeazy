@@ -1,3 +1,4 @@
+import { StatementImportOperationsController } from './presentation/statement-import-operations.controller';
 import { ReviewedImportService } from './application/reviewed-import.service';
 import { REVIEWED_IMPORT_UNIT_OF_WORK } from './application/reviewed-import-unit-of-work';
 import { TypeOrmReviewedImportUnitOfWork } from './infrastructure/typeorm-reviewed-import-unit-of-work';
@@ -17,6 +18,7 @@ import { SpaceStatementImportsController } from './presentation/space-statement-
 const controllers = [
   SpaceStatementImportsController,
   StatementImportPreviewsController,
+  StatementImportOperationsController,
 ];
 
 @Module({})

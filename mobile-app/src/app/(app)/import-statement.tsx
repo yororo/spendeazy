@@ -7,12 +7,19 @@ import { useStatementImportReview } from '@/features/statement-import/use-statem
 import { StatementImportReviewView } from '@/features/statement-import/review-view';
 import { ImportHistoryItem } from '@/features/statement-import-history/statement-import-history-view';
 import { useStatementImportHistory } from '@/features/statement-import-history/use-statement-import-history';
+import { useImportConfirmation } from '@/features/statement-import/use-import-confirmation';
+import { ImportConfirmationView } from '@/features/statement-import/confirmation-view';
 
 export default function ImportStatementScreen() {
   const router = useRouter();
   const controller = useStatementImport();
   const review = useStatementImportReview();
-  if (review.review && (review.phase === 'review' || review.phase === 'review-ready')) {
+  const confirmation = useImportConfirmation();
+  if (review.phase === 'review-ready') {
+    return <ImportConfirmationView controller={confirmation} destination={controller.destination} readOnly={controller.readOnly}
+      onDiscard={() => { controller.discard(); router.back(); }} />;
+  }
+  if (review.review && review.phase === 'review') {
     return <StatementImportReviewView controller={review} destination={controller.destination} onBack={() => router.back()}
       onDiscard={() => { controller.discard(); router.back(); }} />;
   }

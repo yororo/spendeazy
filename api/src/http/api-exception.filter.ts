@@ -1,3 +1,4 @@
+import { ImportReviewRequiredError } from '../statement-imports/application/import-confirmation-errors';
 import {
   ArgumentsHost,
   Catch,
@@ -72,6 +73,7 @@ interface ErrorResponse {
   code: string;
   message: string;
   details: ErrorDetail[];
+  review?: ImportReviewRequiredError['preview'];
 }
 
 interface ErrorEnvelope {
@@ -120,6 +122,9 @@ function mapException(exception: unknown): {
           code: exception.code,
           message: exception.message,
           details: exception.details,
+          ...(exception instanceof ImportReviewRequiredError
+            ? { review: exception.preview }
+            : {}),
         },
       },
     };
@@ -310,6 +315,8 @@ function applicationErrorStatus(code: string): number {
     case EXPENSE_NOT_FOUND_CODE:
       return HttpStatus.NOT_FOUND;
     case CATEGORY_NAME_ALREADY_EXISTS_CODE:
+    case 'IMPORT_OPERATION_PAYLOAD_CONFLICT':
+    case 'IMPORT_REVIEW_REQUIRED':
     case STALE_EDIT_CODE:
     case CATEGORY_RULE_PATTERN_ALREADY_EXISTS_CODE:
     case CATEGORY_INACTIVE_CODE:

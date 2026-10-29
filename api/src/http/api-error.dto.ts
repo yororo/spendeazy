@@ -1,3 +1,4 @@
+import { ImportPreviewDto } from '../statement-imports/presentation/import-preview.dto';
 import { HttpStatus, applyDecorators } from '@nestjs/common';
 import {
   ApiExtraModels,
@@ -19,6 +20,8 @@ type ApiSchemaOptionsWithAdditionalProperties = {
 };
 
 const ERROR_CODES = [
+  'IMPORT_OPERATION_PAYLOAD_CONFLICT',
+  'IMPORT_REVIEW_REQUIRED',
   'VALIDATION_FAILED',
   'INVALID_JSON',
   'NOT_ACCEPTABLE',
@@ -153,6 +156,12 @@ export class CategoryEligibilityDetailDto {
   additionalProperties: false,
 } as ApiSchemaOptionsWithAdditionalProperties)
 export class ErrorResponseDto {
+  @ApiPropertyOptional({
+    type: ImportPreviewDto,
+    description:
+      'Refreshed warnings on IMPORT_REVIEW_REQUIRED; explicit acknowledgment requires a new operation UUID.',
+  })
+  review?: ImportPreviewDto;
   @ApiProperty({
     description:
       'Stable error code. Human-readable messages are not a compatibility contract.',
@@ -290,6 +299,11 @@ export const API_ERROR_RESPONSE_COMPONENTS = {
         details: [],
       },
     },
+  },
+  ImportOperationConflict: {
+    status: HttpStatus.CONFLICT,
+    description:
+      'IMPORT_OPERATION_PAYLOAD_CONFLICT for changed frozen content; IMPORT_REVIEW_REQUIRED with error.review for refreshed warnings; Category or Rule conflicts. Identical terminal failures retain their original status/code.',
   },
   ConflictError: {
     status: HttpStatus.CONFLICT,

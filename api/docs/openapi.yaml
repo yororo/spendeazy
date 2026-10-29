@@ -1611,7 +1611,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/StatementImportResponseDto'
+                $ref: '#/components/schemas/StatementImportDetailResponseDto'
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -1699,59 +1699,6 @@ paths:
       summary: List Statement Import history in an authorized Space.
       tags:
         - Statement imports
-    post:
-      description: Revalidates reviewed Categories and probable-duplicate state for the destination Space, then commits the Statement Import and every reviewed Expense atomically. The confirming User is recorded as immutable actor attribution on the Statement Import and its Expenses; those financial records belong to the destination Space.
-      operationId: SpaceStatementImports_commitReviewedStatementImport
-      parameters:
-        - name: spaceId
-          required: true
-          in: path
-          description: Positive bigint Space identifier encoded as a string.
-          schema:
-            type: string
-            pattern: ^[1-9]\d*$
-            example: '7'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CommitReviewedStatementImportDto'
-      responses:
-        '201':
-          description: Statement import committed.
-          headers:
-            Location:
-              required: true
-              description: Relative canonical URI of the created Statement Import.
-              schema:
-                type: string
-                example: /api/v1/users/me/spaces/7/statement-imports/42
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/StatementImportResponseDto'
-        '400':
-          $ref: '#/components/responses/ValidationError'
-        '401':
-          $ref: '#/components/responses/UnauthenticatedError'
-        '403':
-          $ref: '#/components/responses/UserNotProvisionedError'
-        '404':
-          $ref: '#/components/responses/NotFoundError'
-        '406':
-          $ref: '#/components/responses/NotAcceptableError'
-        '409':
-          $ref: '#/components/responses/ProbableDuplicateConflict'
-        '413':
-          $ref: '#/components/responses/HttpError'
-        '415':
-          $ref: '#/components/responses/UnsupportedMediaTypeError'
-        '500':
-          $ref: '#/components/responses/InternalError'
-      summary: Commit a reviewed Statement Import into an authorized Space.
-      tags:
-        - Statement imports
   /api/v1/users/me/spaces/{spaceId}/statement-import-previews:
     post:
       operationId: StatementImportPreviews_preview
@@ -1777,7 +1724,96 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ImportPreviewDto'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthenticatedError'
+        '403':
+          $ref: '#/components/responses/UserNotProvisionedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '406':
+          $ref: '#/components/responses/NotAcceptableError'
+        '409':
+          $ref: '#/components/responses/ImportOperationConflict'
+        '413':
+          $ref: '#/components/responses/HttpError'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaTypeError'
+        '500':
+          $ref: '#/components/responses/InternalError'
       summary: Preview advisory warnings for a complete reviewed Statement Import without writes.
+      tags:
+        - Statement imports
+  /api/v1/users/me/spaces/{spaceId}/statement-import-operations/{operationId}:
+    put:
+      description: 'Identity is bound to the authenticated actor and original Space. Waits for concurrent execution. Identical successful replay returns the immutable result, including after archive. Operation status recovery belongs to #154.'
+      operationId: StatementImportOperations_confirm
+      parameters:
+        - name: spaceId
+          required: true
+          in: path
+          description: Positive bigint Space identifier encoded as a decimal string.
+          schema:
+            pattern: ^[1-9]\d*$
+            example: '42'
+            type: string
+        - name: operationId
+          required: true
+          in: path
+          schema:
+            format: uuid
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfirmationPayloadDto'
+      responses:
+        '200':
+          description: Identical successful replay.
+          headers:
+            Location:
+              required: true
+              schema:
+                type: string
+              description: Original canonical Statement Import URI.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommittedImportResultDto'
+        '201':
+          description: First success.
+          headers:
+            Location:
+              required: true
+              schema:
+                type: string
+              description: Canonical Statement Import URI.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommittedImportResultDto'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthenticatedError'
+        '403':
+          $ref: '#/components/responses/UserNotProvisionedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '406':
+          $ref: '#/components/responses/NotAcceptableError'
+        '409':
+          $ref: '#/components/responses/ImportOperationConflict'
+        '413':
+          $ref: '#/components/responses/HttpError'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaTypeError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      summary: Atomically confirm a complete reviewed import using a frozen operation UUID.
       tags:
         - Statement imports
   /api/v1/users/me/invitations:
@@ -2098,9 +2134,56 @@ components:
         - email
         - createdAt
         - updatedAt
+    ImportAdvisoryWarningDto:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum:
+            - reconciliation
+            - exact_file
+            - probable_duplicate
+        sourceRowIds:
+          type: array
+          items:
+            type: string
+        expenseIds:
+          type: array
+          items:
+            type: string
+        statementImportIds:
+          type: array
+          items:
+            type: string
+        message:
+          type: string
+      required:
+        - id
+        - type
+        - sourceRowIds
+        - expenseIds
+        - statementImportIds
+        - message
+    ImportPreviewDto:
+      type: object
+      properties:
+        warnings:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImportAdvisoryWarningDto'
+        warningDigest:
+          type: string
+          pattern: ^[0-9a-f]{64}$
+      required:
+        - warnings
+        - warningDigest
     ErrorCode:
       type: string
       enum:
+        - IMPORT_OPERATION_PAYLOAD_CONFLICT
+        - IMPORT_REVIEW_REQUIRED
         - VALIDATION_FAILED
         - INVALID_JSON
         - NOT_ACCEPTABLE
@@ -2138,6 +2221,10 @@ components:
     ErrorResponseDto:
       type: object
       properties:
+        review:
+          description: Refreshed warnings on IMPORT_REVIEW_REQUIRED; explicit acknowledgment requires a new operation UUID.
+          allOf:
+            - $ref: '#/components/schemas/ImportPreviewDto'
         code:
           description: Stable error code. Human-readable messages are not a compatibility contract.
           allOf:
@@ -4024,132 +4111,6 @@ components:
         - monthlyExpenses
         - categoryExpenses
         - budgetChecks
-    CommitReviewedStatementImportDto:
-      type: object
-      properties:
-        fileName:
-          type: string
-          description: Statement file name, trimmed before storage.
-          minLength: 1
-          maxLength: 255
-          pattern: \S
-          example: august.pdf
-        fileHash:
-          type: string
-          description: Lowercase SHA-256 digest asserted by the client and retained as import metadata. It is not a unique key and is never returned.
-          pattern: ^[0-9a-f]{64}$
-          example: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-        statementDate:
-          type: string
-          description: Valid Credit Card statement date encoded as YYYY-MM-DD.
-          format: date
-          pattern: ^\d{4}-\d{2}-\d{2}$
-          example: '2026-08-31'
-        statementType:
-          type: string
-          description: Automatically classified Statement type.
-          enum:
-            - credit_card
-            - e_wallet
-          example: credit_card
-        provider:
-          type: string
-          description: Statement provider name, trimmed before storage.
-          minLength: 1
-          maxLength: 100
-          pattern: \S
-          example: Example Bank
-        accountFormat:
-          type: string
-          description: Account format, trimmed before storage when supplied.
-          minLength: 1
-          maxLength: 100
-          pattern: \S
-          nullable: true
-          example: visa
-        historyFromDate:
-          type: string
-          description: Inclusive E-Wallet history start date.
-          format: date
-          pattern: ^\d{4}-\d{2}-\d{2}$
-          nullable: true
-          example: '2026-08-09'
-        historyToDate:
-          type: string
-          description: Inclusive E-Wallet history end date.
-          format: date
-          pattern: ^\d{4}-\d{2}-\d{2}$
-          nullable: true
-          example: '2026-08-31'
-        totalDebit:
-          type: string
-          description: Original non-negative Total Debit control for E-Wallet imports, encoded as an exact two-decimal string.
-          pattern: ^\d{1,13}\.\d{2}$
-          nullable: true
-          example: '26696.92'
-        expenses:
-          type: array
-          description: Reviewed Expenses to commit. The array may be empty; each row is normalized and validated before it is stored.
-          items:
-            $ref: '#/components/schemas/ReviewedExpenseDto'
-        acknowledgeProbableDuplicates:
-          type: boolean
-          description: Acknowledge probable-duplicate review signals. Defaults to false; detected duplicate groups require explicit acknowledgement.
-          default: false
-          example: false
-      additionalProperties: false
-      required:
-        - fileName
-        - fileHash
-        - statementType
-        - provider
-        - expenses
-    ReviewedExpenseDto:
-      type: object
-      properties:
-        sourceRowId:
-          type: string
-          description: Stable source-row identifier within this Statement Import.
-          minLength: 1
-          example: row-1
-        categoryId:
-          type: string
-          description: Required positive bigint Category identifier encoded as a string.
-          pattern: ^[1-9]\d*$
-          example: '42'
-        expenseDate:
-          type: string
-          description: Valid calendar Expense date encoded as YYYY-MM-DD.
-          format: date
-          pattern: ^\d{4}-\d{2}-\d{2}$
-          example: '2026-08-01'
-        description:
-          type: string
-          description: Expense description, trimmed before storage.
-          minLength: 1
-          maxLength: 500
-          pattern: \S
-          example: Coffee
-        amount:
-          type: string
-          description: Positive exact two-decimal Expense amount encoded as a string, normalized to remove redundant leading zeroes before storage.
-          pattern: ^(?=.*[1-9])\d{1,13}\.\d{2}$
-          example: '4.50'
-        reference:
-          type: string
-          description: Optional source reference used for GCash duplicate review. It is hashed before persistence and is never returned.
-          minLength: 1
-          maxLength: 100
-          pattern: \S
-          nullable: true
-          example: '123456789'
-      additionalProperties: false
-      required:
-        - sourceRowId
-        - categoryId
-        - expenseDate
-        - description
-        - amount
     StatementImportCollectionQueryDto:
       type: object
       properties:
@@ -4397,6 +4358,504 @@ components:
       required:
         - items
         - nextCursor
+    ImmutableImportConfirmationDto:
+      type: object
+      properties:
+        evidence:
+          type: object
+          properties:
+            parserVersion:
+              type: string
+              minLength: 1
+              maxLength: 100
+              pattern: ^[A-Za-z0-9._/-]+$
+            extractionEngineVersion:
+              type: string
+              minLength: 1
+              maxLength: 100
+              pattern: ^[A-Za-z0-9._/-]+$
+            controlTotals:
+              type: array
+              items:
+                type: object
+                properties:
+                  key:
+                    type: string
+                    minLength: 1
+                    maxLength: 100
+                  label:
+                    type: string
+                    minLength: 1
+                    maxLength: 100
+                  originalText:
+                    type: string
+                    minLength: 0
+                    maxLength: 100
+                  amount:
+                    type: string
+                    pattern: ^-?(?:0|[1-9]\d*)\.\d{2}$
+                    maxLength: 100
+                    nullable: true
+                required:
+                  - key
+                  - label
+                  - originalText
+                  - amount
+                additionalProperties: false
+            reconciliation:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum:
+                    - matched
+                    - warning
+                    - unavailable
+                comparisons:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      controlKey:
+                        type: string
+                        minLength: 1
+                        maxLength: 100
+                        nullable: true
+                      equation:
+                        type: string
+                        enum:
+                          - section-opening
+                          - section-subtotal
+                          - final-closing
+                          - subtotal-sum
+                          - debit-sum
+                          - credit-sum
+                          - closing-balance
+                      expectedAmount:
+                        type: string
+                        pattern: ^-?(?:0|[1-9]\d*)\.\d{2}$
+                        maxLength: 100
+                        nullable: true
+                      extractedAmount:
+                        type: string
+                        pattern: ^-?(?:0|[1-9]\d*)\.\d{2}$
+                        maxLength: 100
+                        nullable: true
+                      difference:
+                        type: string
+                        pattern: ^-?(?:0|[1-9]\d*)\.\d{2}$
+                        maxLength: 100
+                        nullable: true
+                    required:
+                      - controlKey
+                      - equation
+                      - expectedAmount
+                      - extractedAmount
+                      - difference
+                    additionalProperties: false
+                diagnostics:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      code:
+                        type: string
+                        enum:
+                          - partial-extraction
+                          - uncertain-completeness
+                          - unresolved-classification
+                          - reconciliation-mismatch
+                          - missing-control
+                      message:
+                        type: string
+                        enum:
+                          - Some pages or rows could not be extracted.
+                          - Extraction completeness has not been verified.
+                          - Some activity could not be classified.
+                          - Original activity differs from statement controls.
+                          - An original control or comparison is unavailable.
+                      sourceRowIds:
+                        type: array
+                        items:
+                          type: string
+                          minLength: 1
+                          maxLength: 100
+                      pageIndices:
+                        type: array
+                        items:
+                          type: integer
+                          minimum: 0
+                    required:
+                      - code
+                      - message
+                      - sourceRowIds
+                      - pageIndices
+                    additionalProperties: false
+              required:
+                - status
+                - comparisons
+                - diagnostics
+              additionalProperties: false
+            pages:
+              type: array
+              items:
+                type: object
+                properties:
+                  pageIndex:
+                    type: integer
+                    minimum: 0
+                  outcome:
+                    type: string
+                    enum:
+                      - text
+                      - blank
+                      - unreadable
+                      - failed
+                  hasImages:
+                    type: boolean
+                required:
+                  - pageIndex
+                  - outcome
+                  - hasImages
+                additionalProperties: false
+            completeness:
+              type: object
+              properties:
+                assessment:
+                  type: string
+                  enum:
+                    - uncertain
+                    - partial
+                failedPageIndices:
+                  type: array
+                  items:
+                    type: integer
+                    minimum: 0
+                unreadablePageIndices:
+                  type: array
+                  items:
+                    type: integer
+                    minimum: 0
+              required:
+                - assessment
+                - failedPageIndices
+                - unreadablePageIndices
+              additionalProperties: false
+          required:
+            - parserVersion
+            - extractionEngineVersion
+            - controlTotals
+            - reconciliation
+            - pages
+            - completeness
+          additionalProperties: false
+        includedCount:
+          type: string
+          pattern: ^\d+$
+        excludedCount:
+          type: string
+          pattern: ^\d+$
+        originalExpenseCount:
+          type: string
+          pattern: ^\d+$
+        originalExpenseTotal:
+          type: string
+          pattern: ^\d+\.\d{2}$
+        acknowledgedWarnings:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImportAdvisoryWarningDto'
+        acknowledgedWarningDigest:
+          type: string
+          nullable: true
+      required:
+        - includedCount
+        - excludedCount
+        - originalExpenseCount
+        - originalExpenseTotal
+        - acknowledgedWarnings
+        - acknowledgedWarningDigest
+    StatementImportDetailResponseDto:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Positive bigint Statement import identifier encoded as a string.
+          pattern: ^[1-9]\d*$
+          example: '100'
+        fileName:
+          type: string
+          description: Statement file name retained after trimming.
+          minLength: 1
+          maxLength: 255
+          pattern: \S
+          example: august.pdf
+        statementDate:
+          type: string
+          description: Credit Card statement date; null for E-Wallet imports.
+          format: date
+          pattern: ^\d{4}-\d{2}-\d{2}$
+          nullable: true
+          example: '2026-08-31'
+        provider:
+          type: string
+          description: Statement provider retained after trimming.
+          minLength: 1
+          maxLength: 100
+          pattern: \S
+          example: BDO
+        accountFormat:
+          type: string
+          description: Account format retained after trimming, or null when it does not apply.
+          minLength: 1
+          maxLength: 100
+          pattern: \S
+          nullable: true
+          example: visa
+        statementType:
+          type: string
+          description: Automatically classified Statement type.
+          enum:
+            - credit_card
+            - e_wallet
+          example: credit_card
+        historyFromDate:
+          type: string
+          description: Inclusive E-Wallet history start date; null for Credit Card imports.
+          format: date
+          pattern: ^\d{4}-\d{2}-\d{2}$
+          nullable: true
+          example: null
+        historyToDate:
+          type: string
+          description: Inclusive E-Wallet history end date; null for Credit Card imports.
+          format: date
+          pattern: ^\d{4}-\d{2}-\d{2}$
+          nullable: true
+          example: null
+        totalDebit:
+          type: string
+          description: Original non-negative E-Wallet Total Debit control; null for Credit Card imports or legacy imports where this control is unavailable.
+          pattern: ^\d{1,13}\.\d{2}$
+          nullable: true
+          example: null
+        importedAt:
+          type: string
+          description: UTC timestamp when the Statement import was committed.
+          format: date-time
+          example: '2026-08-29T00:00:00.000Z'
+        importedByUserId:
+          type: string
+          description: Positive bigint User identifier for the actor who confirmed this Statement Import. It is immutable actor attribution; the Committed Statement Import belongs to its Space.
+          pattern: ^[1-9]\d*$
+          example: '7'
+        confirmation:
+          nullable: true
+          description: Immutable original confirmation totals/evidence. Null for legacy imports; distinct from current history Expense counts.
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/ImmutableImportConfirmationDto'
+        rows:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - sourceRowId
+              - disposition
+              - originalEvidence
+              - confirmedValues
+              - exclusion
+            properties:
+              sourceRowId:
+                type: string
+              disposition:
+                type: string
+                enum:
+                  - included
+                  - excluded
+              originalEvidence:
+                type: object
+                properties:
+                  sourceRowId:
+                    type: string
+                    minLength: 1
+                    maxLength: 100
+                  pageIndex:
+                    type: integer
+                    minimum: 0
+                  sourceOrder:
+                    type: integer
+                    minimum: 0
+                  original:
+                    type: object
+                    properties:
+                      dateText:
+                        type: string
+                        minLength: 0
+                        maxLength: 100
+                      postingDateText:
+                        type: string
+                        minLength: 0
+                        maxLength: 100
+                        nullable: true
+                      description:
+                        type: string
+                        minLength: 1
+                        maxLength: 500
+                      amountText:
+                        type: string
+                        minLength: 0
+                        maxLength: 100
+                      balanceText:
+                        type: string
+                        minLength: 0
+                        maxLength: 100
+                        nullable: true
+                    required:
+                      - dateText
+                      - postingDateText
+                      - description
+                      - amountText
+                      - balanceText
+                    additionalProperties: false
+                  normalized:
+                    type: object
+                    properties:
+                      date:
+                        type: string
+                        pattern: ^\d{4}-\d{2}-\d{2}$
+                        nullable: true
+                      amount:
+                        type: string
+                        pattern: ^-?(?:0|[1-9]\d*)\.\d{2}$
+                        maxLength: 100
+                        nullable: true
+                    required:
+                      - date
+                      - amount
+                    additionalProperties: false
+                  classification:
+                    type: string
+                    enum:
+                      - purchase
+                      - outgoing_transfer
+                      - payment
+                      - refund
+                      - credit
+                      - cash_in
+                      - unknown_direction
+                      - invalid_date
+                      - invalid_amount
+                  classificationEvidence:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        kind:
+                          type: string
+                          enum:
+                            - debit-credit-column
+                            - explicit-sign
+                            - balance-movement
+                            - activity-code
+                            - unresolved
+                        value:
+                          type: string
+                          minLength: 0
+                          maxLength: 200
+                          nullable: true
+                      required:
+                        - kind
+                        - value
+                      additionalProperties: false
+                  matchingSource:
+                    type: string
+                    enum:
+                      - manual
+                      - exact
+                      - contains
+                      - unmapped
+                required:
+                  - sourceRowId
+                  - pageIndex
+                  - sourceOrder
+                  - original
+                  - normalized
+                  - classification
+                  - classificationEvidence
+                  - matchingSource
+                additionalProperties: false
+              confirmedValues:
+                type: object
+                properties:
+                  sourceRowId:
+                    type: string
+                    minLength: 1
+                    maxLength: 100
+                  expenseDate:
+                    type: string
+                    pattern: ^\d{4}-\d{2}-\d{2}$
+                  description:
+                    type: string
+                    minLength: 1
+                    maxLength: 500
+                  amount:
+                    type: string
+                    pattern: ^(?:0|[1-9]\d{0,12})\.\d{2}$
+                    maxLength: 100
+                  categoryId:
+                    type: string
+                    pattern: ^[1-9]\d*$
+                    maxLength: 19
+                required:
+                  - sourceRowId
+                  - expenseDate
+                  - description
+                  - amount
+                  - categoryId
+                additionalProperties: false
+                nullable: true
+              exclusion:
+                type: object
+                properties:
+                  sourceRowId:
+                    type: string
+                    minLength: 1
+                    maxLength: 100
+                  reason:
+                    type: string
+                    enum:
+                      - manual
+                      - payment
+                      - refund
+                      - credit
+                      - cash_in
+                      - unknown_direction
+                      - invalid_date
+                      - invalid_amount
+                  automatic:
+                    type: boolean
+                required:
+                  - sourceRowId
+                  - reason
+                  - automatic
+                additionalProperties: false
+                nullable: true
+      required:
+        - id
+        - fileName
+        - statementDate
+        - provider
+        - accountFormat
+        - statementType
+        - historyFromDate
+        - historyToDate
+        - totalDebit
+        - importedAt
+        - importedByUserId
+        - confirmation
+        - rows
     ConfirmationPayloadDto:
       type: object
       properties:
@@ -4854,51 +5313,36 @@ components:
         - rememberedRules
         - acknowledgedWarnings
         - acknowledgedWarningDigest
-    ImportAdvisoryWarningDto:
+    CommittedImportResultDto:
       type: object
       properties:
-        id:
-          type: string
-        type:
+        status:
           type: string
           enum:
-            - reconciliation
-            - exact_file
-            - probable_duplicate
-        sourceRowIds:
-          type: array
-          items:
-            type: string
-        expenseIds:
-          type: array
-          items:
-            type: string
-        statementImportIds:
-          type: array
-          items:
-            type: string
-        message:
+            - committed
+        operationId:
           type: string
-      required:
-        - id
-        - type
-        - sourceRowIds
-        - expenseIds
-        - statementImportIds
-        - message
-    ImportPreviewDto:
-      type: object
-      properties:
-        warnings:
-          type: array
-          items:
-            $ref: '#/components/schemas/ImportAdvisoryWarningDto'
-        warningDigest:
+          format: uuid
+        statementImportId:
           type: string
-          pattern: ^[0-9a-f]{64}$
+          pattern: ^[1-9]\d*$
+        confirmedAt:
+          type: string
+          format: date-time
+        originalExpenseCount:
+          type: string
+          pattern: ^[1-9]\d*$
+        originalExpenseTotal:
+          type: string
+          pattern: ^(?:0|[1-9]\d*)\.\d{2}$
+          description: Immutable exact PHP total at confirmation.
       required:
-        - warnings
-        - warningDigest
+        - status
+        - operationId
+        - statementImportId
+        - confirmedAt
+        - originalExpenseCount
+        - originalExpenseTotal
     OutgoingInvitationResponseDto:
       type: object
       properties:
@@ -5133,56 +5577,12 @@ components:
               code: UNSUPPORTED_MEDIA_TYPE
               message: Request bodies must use application/json
               details: []
-    ProbableDuplicateConflict:
-      description: Probable duplicate import rows require explicit acknowledgement. Internal matching values are never returned.
+    ImportOperationConflict:
+      description: IMPORT_OPERATION_PAYLOAD_CONFLICT for changed frozen content; IMPORT_REVIEW_REQUIRED with error.review for refreshed warnings; Category or Rule conflicts. Identical terminal failures retain their original status/code.
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorEnvelopeDto'
-          examples:
-            withinSubmission:
-              summary: Duplicate rows within the submitted statement only.
-              value:
-                error:
-                  code: STATEMENT_IMPORT_PROBABLE_DUPLICATES
-                  message: Probable duplicate imported Expenses require acknowledgement
-                  details:
-                    - field: /expenses/0
-                      code: probable_duplicate
-                      message: The reviewed Expense has a probable duplicate
-                      expenseIndexes:
-                        - 0
-                        - 2
-                      committedExpenseIds: []
-            committedMatch:
-              summary: A submitted row matches previously committed imported Expenses.
-              value:
-                error:
-                  code: STATEMENT_IMPORT_PROBABLE_DUPLICATES
-                  message: Probable duplicate imported Expenses require acknowledgement
-                  details:
-                    - field: /expenses/1
-                      code: probable_duplicate
-                      message: The reviewed Expense has a probable duplicate
-                      expenseIndexes:
-                        - 1
-                      committedExpenseIds:
-                        - '12'
-                        - '18'
-            categoryInactive:
-              summary: A reviewed row references an inactive Category.
-              value:
-                error:
-                  code: CATEGORY_INACTIVE
-                  message: Category is inactive
-                  details:
-                    - field: /expenses/0/categoryId
-                      code: category_inactive
-                      message: The reviewed Expense uses an inactive Category
-                      categoryId: '42'
-                      expenseIndexes:
-                        - 0
-                        - 2
     RateLimitError:
       description: Too many Invite Code attempts were made for the authenticated User or network source.
       content:

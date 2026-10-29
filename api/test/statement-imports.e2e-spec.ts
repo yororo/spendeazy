@@ -1,3 +1,8 @@
+import { StatementImportOperationsController } from '../src/statement-imports/presentation/statement-import-operations.controller';
+import {
+  ImportConfirmationError,
+  ImportReviewRequiredError,
+} from '../src/statement-imports/application/import-confirmation-errors';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { ReviewedImportService } from '../src/statement-imports/application/reviewed-import.service';
@@ -32,7 +37,11 @@ describe('Space Statement Import API routes', () => {
     requireReadAccess: jest.fn(),
     requireWriteAccess: jest.fn(),
   };
-  const previewService = { preview: jest.fn() };
+  const previewService = {
+    preview: jest.fn(),
+    confirm: jest.fn(),
+    evidenceRows: jest.fn(),
+  };
   const service = {
     listStatementImportsInSpace: jest.fn(),
     getStatementImportInSpace: jest.fn(),
@@ -44,6 +53,7 @@ describe('Space Statement Import API routes', () => {
       controllers: [
         SpaceStatementImportsController,
         StatementImportPreviewsController,
+        StatementImportOperationsController,
       ],
       providers: [
         { provide: APP_CONFIG, useValue: testConfig },
@@ -72,6 +82,7 @@ describe('Space Statement Import API routes', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    previewService.evidenceRows.mockResolvedValue([]);
     access.requireReadAccess.mockResolvedValue({ id: '77' });
     access.requireWriteAccess.mockResolvedValue({ id: '77', kind: 'personal' });
     service.listStatementImportsInSpace.mockResolvedValue({
@@ -79,9 +90,10 @@ describe('Space Statement Import API routes', () => {
       nextCursor: null,
     });
     service.getStatementImportInSpace.mockResolvedValue(importRecord());
-    service.commitReviewedStatementImportInSpace.mockResolvedValue(
-      importRecord(),
-    );
+    previewService.confirm.mockResolvedValue({
+      result: committedResult(),
+      replayed: false,
+    });
   });
 
   afterAll(async () => {
@@ -129,10 +141,12 @@ describe('Space Statement Import API routes', () => {
       .set('Authorization', 'Bearer token-a')
       .set('Accept', 'application/json');
     const commit = await request(httpServer(application))
-      .post('/api/v1/users/me/spaces/77/statement-imports')
+      .put(
+        '/api/v1/users/me/spaces/77/statement-import-operations/11111111-1111-4111-8111-111111111111',
+      )
       .set('Authorization', 'Bearer token-a')
       .set('Accept', 'application/json')
-      .send(commitInput());
+      .send(completeInput());
 
     expect(history.status).toBe(200);
     expect(history.body).toMatchObject({
@@ -158,58 +172,146 @@ describe('Space Statement Import API routes', () => {
     );
     expect(access.requireReadAccess).toHaveBeenNthCalledWith(1, '99', '77');
     expect(access.requireReadAccess).toHaveBeenNthCalledWith(2, '99', '77');
-    expect(access.requireWriteAccess).toHaveBeenCalledWith('99', '77');
+    expect(access.requireWriteAccess).not.toHaveBeenCalled();
     expect(service.listStatementImportsInSpace).toHaveBeenCalledWith('77', {
       fromDate: '2026-08-01',
       pageSize: 10,
     });
     expect(service.getStatementImportInSpace).toHaveBeenCalledWith('77', '400');
-    expect(service.commitReviewedStatementImportInSpace).toHaveBeenCalledWith(
+    expect(previewService.confirm).toHaveBeenCalledWith(
       '99',
       '77',
-      commitInput(),
+      '11111111-1111-4111-8111-111111111111',
+      completeInput(),
     );
   });
 
   it('does not run Space import operations when access is denied', async () => {
     access.requireReadAccess.mockRejectedValueOnce(new SpaceNotFoundError());
-    access.requireWriteAccess.mockRejectedValueOnce(
-      new SpaceNotWritableError(),
-    );
+    previewService.confirm.mockRejectedValueOnce(new SpaceNotWritableError());
 
     const read = await request(httpServer(application))
       .get('/api/v1/users/me/spaces/77/statement-imports')
       .set('Authorization', 'Bearer token-a')
       .set('Accept', 'application/json');
     const write = await request(httpServer(application))
-      .post('/api/v1/users/me/spaces/77/statement-imports')
+      .put(operationPath)
       .set('Authorization', 'Bearer token-a')
       .set('Accept', 'application/json')
-      .send(commitInput());
+      .send(completeInput());
 
     expect(read.status).toBe(404);
     expect(write.status).toBe(403);
     expect(service.listStatementImportsInSpace).not.toHaveBeenCalled();
-    expect(service.commitReviewedStatementImportInSpace).not.toHaveBeenCalled();
+    expect(previewService.confirm).toHaveBeenCalledTimes(1);
   });
 
   it('rejects legacy field names and category-less saved Expenses', async () => {
     const legacy = await request(httpServer(application))
-      .post('/api/v1/users/me/spaces/77/statement-imports')
+      .put(operationPath)
       .set('Authorization', 'Bearer token-a')
       .set('Accept', 'application/json')
-      .send({ ...commitInput(), bank: 'Example Bank' });
-    const missingCategory = commitInput();
+      .send({ ...completeInput(), bank: 'Example Bank' });
+    const missingCategory = completeInput();
     delete (missingCategory.expenses[0] as { categoryId?: string }).categoryId;
     const uncategorized = await request(httpServer(application))
-      .post('/api/v1/users/me/spaces/77/statement-imports')
+      .put(operationPath)
       .set('Authorization', 'Bearer token-a')
       .set('Accept', 'application/json')
       .send(missingCategory);
 
     expect(legacy.status).toBe(400);
     expect(uncategorized.status).toBe(400);
-    expect(service.commitReviewedStatementImportInSpace).not.toHaveBeenCalled();
+    expect(previewService.confirm).not.toHaveBeenCalled();
+  });
+  it('returns immutable 200 replay and does not preflight write access', async () => {
+    previewService.confirm.mockResolvedValue({
+      result: committedResult(),
+      replayed: true,
+    });
+    const response = await request(httpServer(application))
+      .put(operationPath)
+      .set('Authorization', 'Bearer token-a')
+      .send(completeInput());
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual(committedResult());
+    expect(response.headers.location).toBe(
+      '/api/v1/users/me/spaces/77/statement-imports/400',
+    );
+    expect(access.requireWriteAccess).not.toHaveBeenCalled();
+  });
+  it('publishes safe typed conflicts, refreshed warnings and terminal failure statuses', async () => {
+    const review = { warnings: [], warningDigest: 'a'.repeat(64) };
+    for (const [error, status, code] of [
+      [new ImportReviewRequiredError(review), 409, 'IMPORT_REVIEW_REQUIRED'],
+      [
+        new ImportConfirmationError({
+          code: 'IMPORT_OPERATION_PAYLOAD_CONFLICT',
+          details: [],
+        }),
+        409,
+        'IMPORT_OPERATION_PAYLOAD_CONFLICT',
+      ],
+      [
+        new ImportConfirmationError({
+          code: 'VALIDATION_FAILED',
+          details: [{ field: '/expenses/0', code: 'invalid_value' }],
+        }),
+        400,
+        'VALIDATION_FAILED',
+      ],
+      [new SpaceNotFoundError(), 404, 'SPACE_NOT_FOUND'],
+    ] as const) {
+      previewService.confirm.mockRejectedValueOnce(error);
+      const response = await request(httpServer(application))
+        .put(operationPath)
+        .set('Authorization', 'Bearer token-a')
+        .send(completeInput());
+      expect(response.status).toBe(status);
+      const body = response.body as {
+        error: { code: string; review?: unknown };
+      };
+      expect(body.error.code).toBe(code);
+      if (code === 'IMPORT_REVIEW_REQUIRED')
+        expect(body.error.review).toEqual(review);
+    }
+  });
+  it('removes the old POST and rejects unknown nested fields and malformed operation IDs', async () => {
+    const old = await request(httpServer(application))
+      .post('/api/v1/users/me/spaces/77/statement-imports')
+      .set('Authorization', 'Bearer token-a')
+      .send(completeInput());
+    expect(old.status).toBe(404);
+    const payload = completeInput();
+    const nested = await request(httpServer(application))
+      .put(operationPath)
+      .set('Authorization', 'Bearer token-a')
+      .send({
+        ...payload,
+        evidence: { ...payload.evidence, rawText: 'forbidden' },
+      });
+    expect(nested.status).toBe(400);
+    const invalid = await request(httpServer(application))
+      .put(operationPath.replace(operationId, 'invalid'))
+      .set('Authorization', 'Bearer token-a')
+      .send(payload);
+    expect(invalid.status).toBe(400);
+    expect(previewService.confirm).not.toHaveBeenCalled();
+  });
+  it('enforces the real 1 MiB parser limit before confirmation', async () => {
+    const response = await request(httpServer(application))
+      .put(operationPath)
+      .set('Authorization', 'Bearer token-a')
+      .send({ padding: 'x'.repeat(1024 * 1024) });
+    expect(response.status).toBe(413);
+    expect(previewService.confirm).not.toHaveBeenCalled();
+  });
+  it('requires authenticated actor authority before invoking the operation service', async () => {
+    const response = await request(httpServer(application))
+      .put(operationPath)
+      .send(completeInput());
+    expect(response.status).toBe(401);
+    expect(previewService.confirm).not.toHaveBeenCalled();
   });
 });
 
@@ -224,24 +326,16 @@ class FakeClerkTokenVerifier implements ClerkTokenVerifier {
   }
 }
 
-function commitInput() {
-  return {
-    fileName: 'august.pdf',
-    fileHash: 'a'.repeat(64),
-    statementDate: '2026-08-31',
-    statementType: 'credit_card',
-    provider: 'bdo',
-    accountFormat: 'amex',
-    expenses: [
-      {
-        sourceRowId: 'row-1',
-        categoryId: '42',
-        expenseDate: '2026-08-01',
-        description: 'Coffee',
-        amount: '4.50',
-      },
-    ],
-  };
+function completeInput(): ConfirmationPayload {
+  return JSON.parse(
+    readFileSync(
+      resolve(
+        __dirname,
+        '../../mobile-app/src/features/statement-import/fixtures/confirmation.json',
+      ),
+      'utf8',
+    ),
+  ) as ConfirmationPayload;
 }
 
 function importRecord() {
@@ -279,3 +373,17 @@ const testConfig: AppConfig = {
   clerkJwtKey: 'test-jwt-key',
   clerkSecretKey: 'test-secret-key',
 };
+
+const operationId = '11111111-1111-4111-8111-111111111111';
+const operationPath =
+  '/api/v1/users/me/spaces/77/statement-import-operations/' + operationId;
+function committedResult() {
+  return {
+    status: 'committed',
+    operationId,
+    statementImportId: '400',
+    confirmedAt: '2026-10-30T00:00:00.000Z',
+    originalExpenseCount: '2',
+    originalExpenseTotal: '1300.00',
+  };
+}

@@ -1,3 +1,4 @@
+import { ApiStandardErrorResponses } from '../../http/api-error.dto';
 import { ImportPreviewDto } from './import-preview.dto';
 import { Body, Controller, HttpCode, Param, Post, Req } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
@@ -12,6 +13,17 @@ import { ReviewedImportService } from '../application/reviewed-import.service';
 @ApiTags('Statement imports')
 export class StatementImportPreviewsController {
   constructor(private readonly imports: ReviewedImportService) {}
+  @ApiStandardErrorResponses(
+    'UnauthenticatedError',
+    'UserNotProvisionedError',
+    'ValidationError',
+    'NotFoundError',
+    'ImportOperationConflict',
+    'NotAcceptableError',
+    'UnsupportedMediaTypeError',
+    'HttpError',
+    'InternalError',
+  )
   @Post()
   @HttpCode(200)
   @ApiResponse({ status: 200, type: ImportPreviewDto })

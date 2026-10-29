@@ -43,6 +43,7 @@ describeDatabase(
     let database: DataSource;
     let verifier: HttpTokenVerifier;
     let profiles: HttpProfileService;
+    let now = new Date(FIXED_NOW);
     const createdUserIds: string[] = [];
     const createdSpaceIds: string[] = [];
 
@@ -66,7 +67,7 @@ describeDatabase(
         ],
       })
         .overrideProvider(MANILA_CLOCK)
-        .useValue(() => new Date(FIXED_NOW))
+        .useValue(() => new Date(now))
         .compile();
 
       application = module.createNestApplication({ bodyParser: false });
@@ -74,6 +75,10 @@ describeDatabase(
       await application.init();
       database = application.get(DataSource);
       await database.runMigrations();
+    });
+
+    beforeEach(() => {
+      now = new Date(FIXED_NOW);
     });
 
     afterEach(async () => {
@@ -332,6 +337,20 @@ describeDatabase(
         toDate: '2026-07-03',
         inProgress: true,
       });
+      expect(yearlyBody.summary).toMatchObject({
+        actualAmount: '12500.00',
+        expenseCount: '12',
+        statementImports: {
+          count: '2',
+          latestConfirmedAt: '2026-06-30T16:00:00.000Z',
+        },
+      });
+      expect(yearlyBody.monthlyExpenses).toHaveLength(7);
+      expect(yearlyBody.monthlyExpenses.at(-1)).toMatchObject({
+        month: '2026-07',
+        toDate: '2026-07-03',
+        actualAmount: '0.00',
+      });
       expect(yearlyBody.summary.planned).toMatchObject({
         exact: { numerator: '14000', denominator: '1' },
         amount: '14000.00',
@@ -339,6 +358,10 @@ describeDatabase(
         monthlyEquivalent: {
           exact: { numerator: '2000', denominator: '1' },
           amount: '2000.00',
+        },
+        annualEquivalent: {
+          exact: { numerator: '24000', denominator: '1' },
+          amount: '24000.00',
         },
       });
       expect(yearlyBody.budgetChecks.yearly).toContainEqual(
@@ -350,7 +373,492 @@ describeDatabase(
           usageToDate: '2026-07-03',
         }),
       );
+      expect(await yearlyReport(fixture, '2026', travel.id)).toEqual({
+        ...yearlyBody,
+        categoryExpenses: yearlyBody.categoryExpenses.filter(
+          ({ categoryId }) => categoryId === travel.id,
+        ),
+      });
     });
+
+    it('preserves exact annual planning and rounds only final money and percentages half-up', async () => {
+      const fixture = await createFixture('annual-exactness');
+      const category = await createCategory(fixture, 'Annual', true, 'violet');
+      await createBudget(category.id, 'yearly', '1000.00');
+      const past = await yearlyReport(fixture, '2025');
+      expect(past.summary.planned).toEqual({
+        exact: { numerator: '1000', denominator: '1' },
+        amount: '1000.00',
+        months: 12,
+        monthlyEquivalent: {
+          exact: { numerator: '250', denominator: '3' },
+          amount: '83.33',
+        },
+        annualEquivalent: {
+          exact: { numerator: '1000', denominator: '1' },
+          amount: '1000.00',
+        },
+      });
+      expect(past.monthlyExpenses).toHaveLength(12);
+      expect(past.monthlyExpenses.at(-1)?.expenseFilter).toEqual({
+        fromDate: '2025-12-01',
+        toDate: '2025-12-31',
+      });
+      expect(past.summary.highestCategory).toBeNull();
+
+      await database
+        .getRepository(BudgetEntity)
+        .update({ categoryId: category.id }, { amount: '0.06' });
+      await saveExpense(fixture, category.id, '2026-01-01', '0.01');
+      now = new Date('2026-01-01T00:00:00+08:00');
+      const rounded = await yearlyReport(fixture, '2026');
+      expect(rounded.summary.planned).toMatchObject({
+        exact: { numerator: '1', denominator: '200' },
+        amount: '0.01',
+      });
+      expect(rounded.summary.comparison).toEqual({
+        direction: 'above_plan',
+        difference: {
+          exact: { numerator: '1', denominator: '200' },
+          amount: '0.01',
+        },
+        percentage: {
+          exact: { numerator: '100', denominator: '1' },
+          amount: '100.0',
+        },
+      });
+      await database
+        .getRepository(BudgetEntity)
+        .update({ categoryId: category.id }, { amount: '16.00' });
+      await database
+        .getRepository(ExpenseEntity)
+        .update({ spaceId: fixture.spaceId }, { amount: '15.00' });
+      now = new Date('2027-01-01T00:00:00+08:00');
+      const complete = await yearlyReport(fixture, '2026');
+      expect(complete.summary.comparison.percentage).toEqual({
+        exact: { numerator: '25', denominator: '4' },
+        amount: '6.3',
+      });
+    });
+
+    it.each([
+      ['319.99', 'normal', 0],
+      ['320.00', 'nearing', 0],
+      ['400.00', 'at_limit', 0],
+      ['400.01', 'over', 1],
+    ])(
+      'compares %s against full 400.00 annual and Monthly limits (%s)',
+      async (amount, status, breaches) => {
+        const fixture = await createFixture(`threshold-${status}`);
+        const annual = await createCategory(fixture, 'Annual', true, 'violet');
+        const monthly = await createCategory(fixture, 'Monthly', true, 'azure');
+        await createBudget(annual.id, 'yearly', '400.00');
+        await createBudget(monthly.id, 'monthly', '400.00');
+        await saveExpense(fixture, annual.id, '2025-12-31', amount);
+        await saveExpense(fixture, monthly.id, '2025-01-01', amount);
+        const report = await yearlyReport(fixture, '2025');
+        expect(report.budgetChecks.yearly).toEqual([
+          {
+            categoryId: annual.id,
+            name: 'Annual',
+            year: '2025',
+            actualAmount: amount,
+            limitAmount: '400.00',
+            status,
+            usageFromDate: '2025-01-01',
+            usageToDate: '2025-12-31',
+            expenseFilter: {
+              fromDate: '2025-01-01',
+              toDate: '2025-12-31',
+              categoryId: annual.id,
+            },
+          },
+        ]);
+        expect(report.budgetChecks.monthly[0]).toMatchObject({
+          eligibleMonths: 12,
+          overBudgetMonths: breaches,
+        });
+        expect(
+          report.categoryExpenses.find(
+            ({ categoryId }) => categoryId === monthly.id,
+          )?.months[0],
+        ).toMatchObject({
+          budgetStatus: status,
+          monthlyBudgetAmount: '400.00',
+          annualBudgetAmount: null,
+        });
+        expect(
+          report.categoryExpenses.find(
+            ({ categoryId }) => categoryId === annual.id,
+          )?.months[0],
+        ).toMatchObject({
+          budgetStatus: null,
+          monthlyBudgetAmount: null,
+          annualBudgetAmount: '400.00',
+        });
+      },
+    );
+
+    it('re-evaluates historical planning and checks after current configuration commands without changing actuals', async () => {
+      const fixture = await createFixture('current-configuration');
+      const category = await createCategory(
+        fixture,
+        'Current settings',
+        true,
+        'teal',
+      );
+      await createBudget(category.id, 'monthly', '100.00');
+      await saveExpense(fixture, category.id, '2025-02-01', '150.00');
+      const path = `/api/v1/users/me/spaces/${fixture.spaceId}/categories/${category.id}/configuration`;
+      const read = await http()
+        .get(path)
+        .set(...authorization(fixture.identity))
+        .expect(200);
+      let configuration = read.body as {
+        category: {
+          name: string;
+          iconKey: string;
+          colorKey: string;
+          isActive: boolean;
+          revision: string;
+        };
+        rulesRevision: string;
+      };
+      const initial = await yearlyReport(fixture, '2025');
+      expect(initial.summary.planned.amount).toBe('1200.00');
+      expect(initial.budgetChecks.monthly[0]).toMatchObject({
+        overBudgetMonths: 1,
+        eligibleMonths: 12,
+      });
+
+      const steps = [
+        {
+          amount: '200.00',
+          recurrence: 'monthly',
+          active: true,
+          planned: '2400.00',
+          monthly: 1,
+          yearly: 0,
+        },
+        {
+          amount: '1000.00',
+          recurrence: 'yearly',
+          active: true,
+          planned: '1000.00',
+          monthly: 0,
+          yearly: 1,
+        },
+        {
+          amount: null,
+          recurrence: 'yearly',
+          active: true,
+          planned: '0.00',
+          monthly: 0,
+          yearly: 0,
+        },
+        {
+          amount: '100.00',
+          recurrence: 'monthly',
+          active: true,
+          planned: '1200.00',
+          monthly: 1,
+          yearly: 0,
+        },
+        {
+          amount: '100.00',
+          recurrence: 'monthly',
+          active: false,
+          planned: '0.00',
+          monthly: 0,
+          yearly: 0,
+        },
+        {
+          amount: '100.00',
+          recurrence: 'monthly',
+          active: true,
+          planned: '1200.00',
+          monthly: 1,
+          yearly: 0,
+        },
+      ];
+      for (const step of steps) {
+        const saved = await http()
+          .put(path)
+          .set(...authorization(fixture.identity))
+          .send({
+            name: configuration.category.name,
+            iconKey: configuration.category.iconKey,
+            colorKey: configuration.category.colorKey,
+            isActive: step.active,
+            budget:
+              step.amount === null
+                ? null
+                : {
+                    amount: step.amount,
+                    currency: 'PHP',
+                    recurrence: step.recurrence,
+                  },
+            rules: [],
+            expectedRevision: configuration.category.revision,
+            expectedRulesRevision: configuration.rulesRevision,
+          })
+          .expect(200);
+        configuration = saved.body as typeof configuration;
+        const report = await yearlyReport(fixture, '2025');
+        expect(report.summary.actualAmount).toBe('150.00');
+        expect(report.summary.expenseCount).toBe('1');
+        expect(report.summary.planned.amount).toBe(step.planned);
+        expect(report.budgetChecks.monthly).toHaveLength(step.monthly);
+        expect(report.budgetChecks.yearly).toHaveLength(step.yearly);
+        if (step.monthly)
+          expect(report.budgetChecks.monthly[0].overBudgetMonths).toBe(
+            step.amount === '200.00' ? 0 : 1,
+          );
+        if (step.yearly)
+          expect(report.budgetChecks.yearly[0]).toMatchObject({
+            actualAmount: '150.00',
+            limitAmount: '1000.00',
+            status: 'normal',
+          });
+        if (step.planned === '0.00')
+          expect(report.summary.comparison).toMatchObject({
+            direction: 'no_plan',
+            percentage: null,
+          });
+      }
+    });
+
+    it('rolls over exactly at Manila New Year with calendar-day confirmation bounds and zero completed January months', async () => {
+      const fixture = await createFixture('rollover');
+      const category = await createCategory(fixture, 'Monthly', true, 'teal');
+      await createBudget(category.id, 'monthly', '100.00');
+      await saveExpense(fixture, category.id, '2026-12-31', '100.01');
+      await saveExpense(fixture, category.id, '2027-01-01', '50.00');
+      await saveStatementImport(
+        fixture,
+        '2026-01-01',
+        '2025-12-31T15:59:59.999Z',
+      );
+      await saveStatementImport(
+        fixture,
+        '2025-01-01',
+        '2025-12-31T16:00:00.000Z',
+      );
+      await saveStatementImport(
+        fixture,
+        '2025-01-01',
+        '2026-12-31T15:59:59.999Z',
+      );
+      await saveStatementImport(
+        fixture,
+        '2026-01-01',
+        '2026-12-31T16:00:00.000Z',
+      );
+      await saveStatementImport(
+        fixture,
+        '2026-01-01',
+        '2027-01-01T16:00:00.000Z',
+      );
+      now = new Date('2026-12-31T15:59:59.999Z');
+      const before = await yearlyReport(fixture, '2026');
+      expect(before.range).toMatchObject({
+        today: '2026-12-31',
+        toDate: '2026-12-31',
+        inProgress: true,
+      });
+      expect(before.summary).toMatchObject({
+        actualAmount: '100.01',
+        planned: { months: 12, amount: '1200.00' },
+        statementImports: {
+          count: '2',
+          latestConfirmedAt: '2026-12-31T15:59:59.999Z',
+        },
+      });
+      expect(before.budgetChecks.monthly[0]).toMatchObject({
+        eligibleMonths: 11,
+        overBudgetMonths: 0,
+      });
+      const future = await http()
+        .get(reportPath(fixture))
+        .query({ view: 'yearly', year: '2027' })
+        .set(...authorization(fixture.identity))
+        .expect(400);
+      const futureError = (
+        future.body as { error: { code: string; details: unknown[] } }
+      ).error;
+      expect(futureError.code).toBe('VALIDATION_FAILED');
+      expect(futureError.details).toContainEqual(
+        expect.objectContaining({ field: '/year', code: 'future_value' }),
+      );
+      now = new Date('2026-12-31T16:00:00.000Z');
+      const past = await yearlyReport(fixture, '2026');
+      expect(past.range).toMatchObject({
+        today: '2027-01-01',
+        toDate: '2026-12-31',
+        inProgress: false,
+      });
+      expect(past.summary).toEqual(before.summary);
+      expect(past.budgetChecks.monthly[0]).toMatchObject({
+        eligibleMonths: 12,
+        overBudgetMonths: 1,
+      });
+      const january = await yearlyReport(fixture, '2027');
+      expect(january.range).toMatchObject({
+        fromDate: '2027-01-01',
+        toDate: '2027-01-01',
+        inProgress: true,
+      });
+      expect(january.summary).toMatchObject({
+        actualAmount: '50.00',
+        planned: { months: 1, amount: '100.00' },
+        statementImports: {
+          count: '1',
+          latestConfirmedAt: '2026-12-31T16:00:00.000Z',
+        },
+      });
+      expect(january.monthlyExpenses).toHaveLength(1);
+      expect(january.monthlyExpenses[0].expenseFilter).toEqual({
+        fromDate: '2027-01-01',
+        toDate: '2027-01-01',
+      });
+      expect(january.budgetChecks.monthly[0]).toMatchObject({
+        eligibleMonths: 0,
+        overBudgetMonths: 0,
+        expenseFilter: null,
+      });
+      await http()
+        .get(reportPath(fixture))
+        .query({ view: 'yearly', year: '2028' })
+        .set(...authorization(fixture.identity))
+        .expect(400);
+    });
+
+    it('keeps actuals, import provenance and complete totals independent of chart selection and other Spaces', async () => {
+      const fixture = await createFixture('independence');
+      const other = await createFixture('other-space');
+      const beta = await createCategory(fixture, 'Beta', true, 'teal');
+      const alpha = await createCategory(fixture, 'Alpha', false, 'slate');
+      const foreign = await createCategory(other, 'Foreign', true, 'azure');
+      await createBudget(alpha.id, 'monthly', '9000.00');
+      await createBudget(foreign.id, 'monthly', '50000.00');
+      const imported = await saveStatementImport(
+        fixture,
+        '2025-01-01',
+        '2026-01-01T00:00:00.000Z',
+      );
+      const expense = await saveExpense(
+        fixture,
+        beta.id,
+        '2026-01-01',
+        '100.00',
+        { statementImportId: imported.id, sourceRowId: 'row-1' },
+      );
+      await saveExpense(fixture, alpha.id, '2026-02-01', '100.00');
+      await saveExpense(other, foreign.id, '2026-01-01', '99999.00');
+      await saveStatementImport(
+        other,
+        '2026-01-01',
+        '2026-02-01T00:00:00.000Z',
+      );
+      const full = await yearlyReport(fixture, '2026');
+      expect(full.summary).toMatchObject({
+        actualAmount: '200.00',
+        expenseCount: '2',
+        highestCategory: { categoryId: alpha.id },
+        planned: { amount: '0.00' },
+        comparison: { direction: 'no_plan', percentage: null },
+        statementImports: {
+          count: '1',
+          latestConfirmedAt: '2026-01-01T00:00:00.000Z',
+        },
+      });
+      expect(full.categoryExpenses.map(({ categoryId }) => categoryId)).toEqual(
+        expect.arrayContaining([alpha.id, beta.id]),
+      );
+      expect(
+        full.categoryExpenses.some(
+          ({ categoryId }) => categoryId === foreign.id,
+        ),
+      ).toBe(false);
+      const filtered = await yearlyReport(fixture, '2026', beta.id);
+      expect(filtered).toEqual({
+        ...full,
+        categoryExpenses: full.categoryExpenses.filter(
+          ({ categoryId }) => categoryId === beta.id,
+        ),
+      });
+      const foreignFilter = await yearlyReport(fixture, '2026', foreign.id);
+      expect(foreignFilter).toEqual({ ...full, categoryExpenses: [] });
+      await http()
+        .get(reportPath(fixture))
+        .query({ view: 'yearly', year: '2026' })
+        .expect(401);
+      await http()
+        .get(reportPath(fixture))
+        .query({ view: 'yearly', year: '2026' })
+        .set(...authorization(other.identity))
+        .expect(404);
+      await database
+        .getRepository(ExpenseEntity)
+        .update(
+          { id: expense.id },
+          { expenseDate: '2025-12-31', amount: '200.00' },
+        );
+      const edited = await yearlyReport(fixture, '2026');
+      expect(edited.summary.actualAmount).toBe('100.00');
+      expect(edited.summary.statementImports).toEqual(
+        full.summary.statementImports,
+      );
+      await database.getRepository(ExpenseEntity).update(
+        { id: expense.id },
+        {
+          deletedAt: new Date(now),
+          deletedByUserId: fixture.userId,
+          deletedFromRevision: '1',
+          revision: '2',
+        },
+      );
+      const deleted = await yearlyReport(fixture, '2025');
+      expect(deleted.summary.actualAmount).toBe('0.00');
+      expect(
+        (await yearlyReport(fixture, '2026')).summary.statementImports,
+      ).toEqual(full.summary.statementImports);
+      const empty = await yearlyReport(fixture, '2024');
+      expect(empty.summary).toMatchObject({
+        actualAmount: '0.00',
+        highestCategory: null,
+        comparison: { direction: 'no_plan', percentage: null },
+        statementImports: { count: '0', latestConfirmedAt: null },
+      });
+      expect(empty.monthlyExpenses).toHaveLength(12);
+      expect(
+        empty.monthlyExpenses.every(
+          (point) =>
+            point.actualAmount === '0.00' && point.expenseCount === '0',
+        ),
+      ).toBe(true);
+    });
+
+    function reportPath(fixture: { spaceId: string }) {
+      return `/api/v1/users/me/spaces/${fixture.spaceId}/reporting/dashboard`;
+    }
+
+    async function yearlyReport(
+      fixture: { spaceId: string; identity: TestIdentity },
+      year: string,
+      chartCategoryId?: string,
+    ): Promise<DashboardReportResponse> {
+      const response = await http()
+        .get(reportPath(fixture))
+        .query({
+          view: 'yearly',
+          year,
+          ...(chartCategoryId ? { chartCategoryId } : {}),
+        })
+        .set(...authorization(fixture.identity))
+        .expect(200);
+      return response.body as DashboardReportResponse;
+    }
 
     async function createFixture(label: string) {
       const identity = createIdentity(label);

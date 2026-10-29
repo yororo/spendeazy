@@ -311,6 +311,128 @@ describe('DashboardReportService', () => {
       inProgress: false,
     });
   });
+
+  it('keeps a sole annual Budget exact before rounding its monthly equivalent', async () => {
+    const data: DashboardReportData = {
+      categories: [makeData().categories[1]],
+      expenses: [],
+      imports: [],
+    };
+    service = new DashboardReportService(
+      { readDashboardReport: () => Promise.resolve(data) },
+      () => new Date(NOW),
+    );
+    const report = await service.getDashboardReportInSpace('7', {
+      view: 'yearly',
+      year: '2025',
+    });
+    expect(report.summary.planned).toEqual({
+      exact: { numerator: '1000', denominator: '1' },
+      amount: '1000.00',
+      months: 12,
+      monthlyEquivalent: {
+        exact: { numerator: '250', denominator: '3' },
+        amount: '83.33',
+      },
+      annualEquivalent: {
+        exact: { numerator: '1000', denominator: '1' },
+        amount: '1000.00',
+      },
+    });
+  });
+
+  it.each([
+    ['319.99', 'normal', 0],
+    ['320.00', 'nearing', 0],
+    ['400.00', 'at_limit', 0],
+    ['400.01', 'over', 1],
+  ])(
+    'uses exact thresholds for %s against 400.00 (%s)',
+    async (amount, status, breaches) => {
+      const data: DashboardReportData = {
+        categories: makeData()
+          .categories.slice(0, 2)
+          .map((category) => ({ ...category, budgetAmount: '400.00' })),
+        expenses: ['1', '2'].map((categoryId) => ({
+          categoryId,
+          expenseDate: '2026-01-01',
+          amount,
+        })),
+        imports: [],
+      };
+      service = new DashboardReportService(
+        { readDashboardReport: () => Promise.resolve(data) },
+        () => new Date(NOW),
+      );
+      const report = await service.getDashboardReportInSpace('7', {
+        view: 'yearly',
+        year: '2026',
+      });
+      expect(report.budgetChecks.yearly[0]).toMatchObject({
+        actualAmount: amount,
+        limitAmount: '400.00',
+        status,
+      });
+      expect(report.budgetChecks.monthly[0]).toMatchObject({
+        overBudgetMonths: breaches,
+        eligibleMonths: 6,
+      });
+      expect(report.categoryExpenses[0].months[0].budgetStatus).toBe(status);
+    },
+  );
+
+  it('changes completed-month eligibility and store bounds at the exact Manila New Year instant', async () => {
+    let now = new Date('2026-12-31T15:59:59.999Z');
+    service = new DashboardReportService(
+      {
+        readDashboardReport: (value) => {
+          query = value;
+          return Promise.resolve({
+            categories: [makeData().categories[0]],
+            expenses: [],
+            imports: [],
+          });
+        },
+      },
+      () => new Date(now),
+    );
+    const before = await service.getDashboardReportInSpace('7', {
+      view: 'yearly',
+      year: '2026',
+    });
+    expect(before.budgetChecks.monthly[0].eligibleMonths).toBe(11);
+    await expect(
+      service.getDashboardReportInSpace('7', { view: 'yearly', year: '2027' }),
+    ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+    now = new Date('2026-12-31T16:00:00.000Z');
+    const january = await service.getDashboardReportInSpace('7', {
+      view: 'yearly',
+      year: '2027',
+    });
+    expect(query).toEqual({
+      spaceId: '7',
+      expenseFromDate: '2027-01-01',
+      expenseToDate: '2027-01-01',
+      importFromDate: '2026-12-31T16:00:00.000Z',
+      importToDateExclusive: '2027-01-01T16:00:00.000Z',
+    });
+    expect(january.summary.planned).toMatchObject({
+      months: 1,
+      amount: '500.00',
+    });
+    expect(january.monthlyExpenses).toHaveLength(1);
+    expect(january.budgetChecks.monthly[0]).toMatchObject({
+      eligibleMonths: 0,
+      expenseFilter: null,
+    });
+    const past = await service.getDashboardReportInSpace('7', {
+      view: 'yearly',
+      year: '2026',
+    });
+    expect(past.range.inProgress).toBe(false);
+    expect(past.budgetChecks.monthly[0].eligibleMonths).toBe(12);
+    expect(query?.importToDateExclusive).toBe('2026-12-31T16:00:00.000Z');
+  });
 });
 
 function makeData(): DashboardReportData {

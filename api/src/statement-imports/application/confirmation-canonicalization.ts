@@ -99,7 +99,7 @@ export function warningIdentity(
         pageIndices: item.pageIndices.toSorted((a, b) => a - b),
       }))
       .toSorted(compareCanonical),
-    ...warning,
+    type: warning.type,
     sourceRowIds: warning.sourceRowIds.toSorted(),
     expenseIds: warning.expenseIds.toSorted(),
     statementImportIds: warning.statementImportIds.toSorted(),

@@ -1,3 +1,8 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { ReviewedImportService } from '../src/statement-imports/application/reviewed-import.service';
+import { StatementImportPreviewsController } from '../src/statement-imports/presentation/statement-import-previews.controller';
+import type { ConfirmationPayload } from '../src/statement-imports/application/confirmation-payload';
 import { Test } from '@nestjs/testing';
 import type { INestApplication } from '@nestjs/common';
 import type { Server } from 'node:http';
@@ -27,6 +32,7 @@ describe('Space Statement Import API routes', () => {
     requireReadAccess: jest.fn(),
     requireWriteAccess: jest.fn(),
   };
+  const previewService = { preview: jest.fn() };
   const service = {
     listStatementImportsInSpace: jest.fn(),
     getStatementImportInSpace: jest.fn(),
@@ -35,7 +41,10 @@ describe('Space Statement Import API routes', () => {
 
   beforeAll(async () => {
     const module = await Test.createTestingModule({
-      controllers: [SpaceStatementImportsController],
+      controllers: [
+        SpaceStatementImportsController,
+        StatementImportPreviewsController,
+      ],
       providers: [
         { provide: APP_CONFIG, useValue: testConfig },
         {
@@ -50,6 +59,7 @@ describe('Space Statement Import API routes', () => {
         },
         { provide: SpaceAccessService, useValue: access },
         { provide: StatementImportsService, useValue: service },
+        { provide: ReviewedImportService, useValue: previewService },
         ClerkAuthenticationGuard,
         ProvisionedUserGuard,
       ],
@@ -78,6 +88,36 @@ describe('Space Statement Import API routes', () => {
     await application.close();
   });
 
+  it('exposes complete reviewed preview with trusted actor/Space and rejects unknown nested evidence', async () => {
+    const payload = JSON.parse(
+      readFileSync(
+        resolve(
+          __dirname,
+          '../../mobile-app/src/features/statement-import/fixtures/confirmation.json',
+        ),
+        'utf8',
+      ),
+    ) as ConfirmationPayload;
+    previewService.preview.mockResolvedValue({
+      warnings: [],
+      warningDigest: 'a'.repeat(64),
+    });
+    const response = await request(httpServer(application))
+      .post('/api/v1/users/me/spaces/77/statement-import-previews')
+      .set('Authorization', 'Bearer token-a')
+      .send(payload);
+    expect(response.status).toBe(200);
+    expect(previewService.preview).toHaveBeenCalledWith('99', '77', payload);
+    const invalid = await request(httpServer(application))
+      .post('/api/v1/users/me/spaces/77/statement-import-previews')
+      .set('Authorization', 'Bearer token-a')
+      .send({
+        ...payload,
+        evidence: { ...payload.evidence, pageText: 'forbidden' },
+      });
+    expect(invalid.status).toBe(400);
+    expect(previewService.preview).toHaveBeenCalledTimes(1);
+  });
   it('authorizes and scopes history, detail and confirmation to the explicit Space', async () => {
     const history = await request(httpServer(application))
       .get('/api/v1/users/me/spaces/77/statement-imports')

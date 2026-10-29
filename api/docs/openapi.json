@@ -2615,6 +2615,50 @@
         ]
       }
     },
+    "/api/v1/users/me/spaces/{spaceId}/statement-import-previews": {
+      "post": {
+        "operationId": "StatementImportPreviews_preview",
+        "parameters": [
+          {
+            "name": "spaceId",
+            "required": true,
+            "in": "path",
+            "description": "Positive bigint Space identifier encoded as a decimal string.",
+            "schema": {
+              "pattern": "^[1-9]\\d*$",
+              "example": "42",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmationPayloadDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportPreviewDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Preview advisory warnings for a complete reviewed Statement Import without writes.",
+        "tags": [
+          "Statement imports"
+        ]
+      }
+    },
     "/api/v1/users/me/invitations": {
       "get": {
         "description": "Only the authenticated sender can receive their outgoing Invite Code. Incoming invitation claims are returned without exposing any sender code.",
@@ -6007,6 +6051,661 @@
         "required": [
           "items",
           "nextCursor"
+        ]
+      },
+      "ConfirmationPayloadDto": {
+        "type": "object",
+        "properties": {
+          "statement": {
+            "type": "object",
+            "properties": {
+              "fileName": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 255
+              },
+              "fileHash": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "provider": {
+                "type": "string",
+                "enum": [
+                  "bdo",
+                  "eastwest",
+                  "gcash"
+                ]
+              },
+              "accountFormat": {
+                "type": "string",
+                "enum": [
+                  "amex",
+                  "visa",
+                  "wallet"
+                ]
+              },
+              "statementType": {
+                "type": "string",
+                "enum": [
+                  "credit_card",
+                  "e_wallet"
+                ]
+              },
+              "statementDate": {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "nullable": true
+              },
+              "historyFromDate": {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "nullable": true
+              },
+              "historyToDate": {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "nullable": true
+              }
+            },
+            "required": [
+              "fileName",
+              "fileHash",
+              "provider",
+              "accountFormat",
+              "statementType",
+              "statementDate",
+              "historyFromDate",
+              "historyToDate"
+            ],
+            "additionalProperties": false
+          },
+          "evidence": {
+            "type": "object",
+            "properties": {
+              "parserVersion": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100,
+                "pattern": "^[A-Za-z0-9._/-]+$"
+              },
+              "extractionEngineVersion": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100,
+                "pattern": "^[A-Za-z0-9._/-]+$"
+              },
+              "transactions": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "sourceRowId": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100
+                    },
+                    "pageIndex": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "sourceOrder": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "original": {
+                      "type": "object",
+                      "properties": {
+                        "dateText": {
+                          "type": "string",
+                          "minLength": 0,
+                          "maxLength": 100
+                        },
+                        "postingDateText": {
+                          "type": "string",
+                          "minLength": 0,
+                          "maxLength": 100,
+                          "nullable": true
+                        },
+                        "description": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 500
+                        },
+                        "amountText": {
+                          "type": "string",
+                          "minLength": 0,
+                          "maxLength": 100
+                        },
+                        "balanceText": {
+                          "type": "string",
+                          "minLength": 0,
+                          "maxLength": 100,
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "dateText",
+                        "postingDateText",
+                        "description",
+                        "amountText",
+                        "balanceText"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "normalized": {
+                      "type": "object",
+                      "properties": {
+                        "date": {
+                          "type": "string",
+                          "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                          "nullable": true
+                        },
+                        "amount": {
+                          "type": "string",
+                          "pattern": "^-?(?:0|[1-9]\\d*)\\.\\d{2}$",
+                          "maxLength": 100,
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "date",
+                        "amount"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "classification": {
+                      "type": "string",
+                      "enum": [
+                        "purchase",
+                        "outgoing_transfer",
+                        "payment",
+                        "refund",
+                        "credit",
+                        "cash_in",
+                        "unknown_direction",
+                        "invalid_date",
+                        "invalid_amount"
+                      ]
+                    },
+                    "classificationEvidence": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "debit-credit-column",
+                              "explicit-sign",
+                              "balance-movement",
+                              "activity-code",
+                              "unresolved"
+                            ]
+                          },
+                          "value": {
+                            "type": "string",
+                            "minLength": 0,
+                            "maxLength": 200,
+                            "nullable": true
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "value"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "matchingSource": {
+                      "type": "string",
+                      "enum": [
+                        "manual",
+                        "exact",
+                        "contains",
+                        "unmapped"
+                      ]
+                    },
+                    "duplicateReference": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100
+                    }
+                  },
+                  "required": [
+                    "sourceRowId",
+                    "pageIndex",
+                    "sourceOrder",
+                    "original",
+                    "normalized",
+                    "classification",
+                    "classificationEvidence",
+                    "matchingSource"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "controlTotals": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100
+                    },
+                    "label": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100
+                    },
+                    "originalText": {
+                      "type": "string",
+                      "minLength": 0,
+                      "maxLength": 100
+                    },
+                    "amount": {
+                      "type": "string",
+                      "pattern": "^-?(?:0|[1-9]\\d*)\\.\\d{2}$",
+                      "maxLength": 100,
+                      "nullable": true
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "label",
+                    "originalText",
+                    "amount"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "reconciliation": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "matched",
+                      "warning",
+                      "unavailable"
+                    ]
+                  },
+                  "comparisons": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "controlKey": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 100,
+                          "nullable": true
+                        },
+                        "equation": {
+                          "type": "string",
+                          "enum": [
+                            "section-opening",
+                            "section-subtotal",
+                            "final-closing",
+                            "subtotal-sum",
+                            "debit-sum",
+                            "credit-sum",
+                            "closing-balance"
+                          ]
+                        },
+                        "expectedAmount": {
+                          "type": "string",
+                          "pattern": "^-?(?:0|[1-9]\\d*)\\.\\d{2}$",
+                          "maxLength": 100,
+                          "nullable": true
+                        },
+                        "extractedAmount": {
+                          "type": "string",
+                          "pattern": "^-?(?:0|[1-9]\\d*)\\.\\d{2}$",
+                          "maxLength": 100,
+                          "nullable": true
+                        },
+                        "difference": {
+                          "type": "string",
+                          "pattern": "^-?(?:0|[1-9]\\d*)\\.\\d{2}$",
+                          "maxLength": 100,
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "controlKey",
+                        "equation",
+                        "expectedAmount",
+                        "extractedAmount",
+                        "difference"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "diagnostics": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "enum": [
+                            "partial-extraction",
+                            "uncertain-completeness",
+                            "unresolved-classification",
+                            "reconciliation-mismatch",
+                            "missing-control"
+                          ]
+                        },
+                        "message": {
+                          "type": "string",
+                          "enum": [
+                            "Some pages or rows could not be extracted.",
+                            "Extraction completeness has not been verified.",
+                            "Some activity could not be classified.",
+                            "Original activity differs from statement controls.",
+                            "An original control or comparison is unavailable."
+                          ]
+                        },
+                        "sourceRowIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 100
+                          }
+                        },
+                        "pageIndices": {
+                          "type": "array",
+                          "items": {
+                            "type": "integer",
+                            "minimum": 0
+                          }
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "sourceRowIds",
+                        "pageIndices"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "status",
+                  "comparisons",
+                  "diagnostics"
+                ],
+                "additionalProperties": false
+              },
+              "pages": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "pageIndex": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "outcome": {
+                      "type": "string",
+                      "enum": [
+                        "text",
+                        "blank",
+                        "unreadable",
+                        "failed"
+                      ]
+                    },
+                    "hasImages": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "pageIndex",
+                    "outcome",
+                    "hasImages"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "completeness": {
+                "type": "object",
+                "properties": {
+                  "assessment": {
+                    "type": "string",
+                    "enum": [
+                      "uncertain",
+                      "partial"
+                    ]
+                  },
+                  "failedPageIndices": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  },
+                  "unreadablePageIndices": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  }
+                },
+                "required": [
+                  "assessment",
+                  "failedPageIndices",
+                  "unreadablePageIndices"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "parserVersion",
+              "extractionEngineVersion",
+              "transactions",
+              "controlTotals",
+              "reconciliation",
+              "pages",
+              "completeness"
+            ],
+            "additionalProperties": false
+          },
+          "expenses": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "sourceRowId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100
+                },
+                "expenseDate": {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                },
+                "description": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 500
+                },
+                "amount": {
+                  "type": "string",
+                  "pattern": "^(?:0|[1-9]\\d{0,12})\\.\\d{2}$",
+                  "maxLength": 100
+                },
+                "categoryId": {
+                  "type": "string",
+                  "pattern": "^[1-9]\\d*$",
+                  "maxLength": 19
+                }
+              },
+              "required": [
+                "sourceRowId",
+                "expenseDate",
+                "description",
+                "amount",
+                "categoryId"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "excluded": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "sourceRowId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100
+                },
+                "reason": {
+                  "type": "string",
+                  "enum": [
+                    "manual",
+                    "payment",
+                    "refund",
+                    "credit",
+                    "cash_in",
+                    "unknown_direction",
+                    "invalid_date",
+                    "invalid_amount"
+                  ]
+                },
+                "automatic": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "sourceRowId",
+                "reason",
+                "automatic"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "rememberedRules": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "pattern": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 500
+                },
+                "matchType": {
+                  "type": "string",
+                  "enum": [
+                    "exact",
+                    "contains"
+                  ]
+                },
+                "categoryId": {
+                  "type": "string",
+                  "pattern": "^[1-9]\\d*$",
+                  "maxLength": 19
+                }
+              },
+              "required": [
+                "pattern",
+                "matchType",
+                "categoryId"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "acknowledgedWarnings": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            }
+          },
+          "acknowledgedWarningDigest": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "nullable": true
+          }
+        },
+        "description": "Complete reviewed import v1. Raw duplicateReference is ephemeral; no PDF, password, page text or full account identifiers.",
+        "required": [
+          "expenses",
+          "excluded",
+          "rememberedRules",
+          "acknowledgedWarnings",
+          "acknowledgedWarningDigest"
+        ]
+      },
+      "ImportAdvisoryWarningDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "reconciliation",
+              "exact_file",
+              "probable_duplicate"
+            ]
+          },
+          "sourceRowIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "expenseIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "statementImportIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "sourceRowIds",
+          "expenseIds",
+          "statementImportIds",
+          "message"
+        ]
+      },
+      "ImportPreviewDto": {
+        "type": "object",
+        "properties": {
+          "warnings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ImportAdvisoryWarningDto"
+            }
+          },
+          "warningDigest": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        },
+        "required": [
+          "warnings",
+          "warningDigest"
         ]
       },
       "OutgoingInvitationResponseDto": {

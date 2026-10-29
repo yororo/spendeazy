@@ -1,3 +1,8 @@
+import { ReviewedImportService } from '../src/statement-imports/application/reviewed-import.service';
+import { TypeOrmReviewedImportUnitOfWork } from '../src/statement-imports/infrastructure/typeorm-reviewed-import-unit-of-work';
+import type { ReviewedImportContext } from '../src/statement-imports/application/reviewed-import-unit-of-work';
+import type { ConfirmationPayload } from '../src/statement-imports/application/confirmation-payload';
+import { CategoryRuleEntity } from '../src/database/entities/category-rule.entity';
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -104,6 +109,490 @@ describeDatabase(
       if (database?.isInitialized) await database.destroy();
     });
 
+    async function reviewedFixture() {
+      const category = await database
+        .getRepository(CategoryEntity)
+        .save({ spaceId: spaceIds[0], name: 'Reviewed', isActive: true });
+      const payload = JSON.parse(
+        readFileSync(
+          resolve(
+            __dirname,
+            '../../mobile-app/src/features/statement-import/fixtures/confirmation.json',
+          ),
+          'utf8',
+        ),
+      ) as ConfirmationPayload;
+      for (const row of [...payload.expenses, ...payload.rememberedRules])
+        row.categoryId = category.id;
+      payload.acknowledgedWarnings = [];
+      payload.acknowledgedWarningDigest = null;
+      return { payload, category };
+    }
+    function reviewedService(
+      decorate?: (context: ReviewedImportContext) => void,
+    ) {
+      const work = new TypeOrmReviewedImportUnitOfWork(database);
+      return new ReviewedImportService(
+        {
+          execute: (fn) =>
+            work.execute((context) => {
+              decorate?.(context);
+              return fn(context);
+            }),
+        },
+        new NodeGCashReferenceHasher('fictional-key'),
+        () => new Date('2026-10-30T00:00:00Z'),
+      );
+    }
+    async function acknowledge(
+      service: ReviewedImportService,
+      payload: ConfirmationPayload,
+    ) {
+      const preview = await service.preview(users[0].id, spaceIds[0], payload);
+      payload.acknowledgedWarnings = preview.warnings.map((row) => row.id);
+      payload.acknowledgedWarningDigest = preview.warnings.length
+        ? preview.warningDigest
+        : null;
+      return preview;
+    }
+    it('previews without writes and serializes simultaneous identical operations into one immutable result', async () => {
+      const { payload } = await reviewedFixture();
+      let enter!: () => void;
+      let release!: () => void;
+      const entered = new Promise<void>((resolve) => {
+        enter = resolve;
+      });
+      const barrier = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      let held = false;
+      const service = reviewedService((context) => {
+        const create = context.statementImports.create.bind(
+          context.statementImports,
+        ) as typeof context.statementImports.create;
+        context.statementImports.create = async (input) => {
+          if (!held) {
+            held = true;
+            enter();
+            await barrier;
+          }
+          return create(input);
+        };
+      });
+      await acknowledge(service, payload);
+      expect(
+        await database
+          .getRepository(StatementImportOperationEntity)
+          .countBy({ spaceId: spaceIds[0] }),
+      ).toBe(0);
+      expect(
+        await database
+          .getRepository(StatementImportEntity)
+          .countBy({ spaceId: spaceIds[0] }),
+      ).toBe(0);
+      const id = randomUUID();
+      const first = service.confirm(users[0].id, spaceIds[0], id, payload);
+      await entered;
+      const follower = service.confirm(users[0].id, spaceIds[0], id, payload);
+      release();
+      const results = await Promise.all([first, follower]);
+      expect(results.map((row) => row.replayed).sort()).toEqual([false, true]);
+      expect(results[0].result).toEqual(results[1].result);
+      expect(results[0].result).toMatchObject({
+        originalExpenseCount: '2',
+        originalExpenseTotal: '1300.00',
+      });
+      expect(
+        await database
+          .getRepository(StatementImportEntity)
+          .countBy({ spaceId: spaceIds[0] }),
+      ).toBe(1);
+      expect(
+        await database
+          .getRepository(StatementImportRowEntity)
+          .countBy({ spaceId: spaceIds[0] }),
+      ).toBe(10);
+      expect(
+        await database
+          .getRepository(ExpenseActivityEntity)
+          .countBy({ spaceId: spaceIds[0] }),
+      ).toBe(2);
+      await expect(
+        service.confirm(users[0].id, spaceIds[0], id, {
+          ...payload,
+          expenses: payload.expenses.map((row, index) =>
+            index === 0 ? { ...row, amount: '1001.00' } : row,
+          ),
+        }),
+      ).rejects.toMatchObject({ code: 'IMPORT_OPERATION_PAYLOAD_CONFLICT' });
+    });
+    it('refreshes all warning classes including retained deleted history, rejects stale acknowledgments durably, and allows intentional reimport', async () => {
+      const { payload } = await reviewedFixture();
+      const service = reviewedService();
+      await acknowledge(service, payload);
+      const first = await service.confirm(
+        users[0].id,
+        spaceIds[0],
+        randomUUID(),
+        payload,
+      );
+      await database
+        .getRepository(ExpenseEntity)
+        .update({ spaceId: spaceIds[0] }, { deletedAt: new Date() });
+      const refreshed = await service.preview(
+        users[0].id,
+        spaceIds[0],
+        payload,
+      );
+      expect(new Set(refreshed.warnings.map((row) => row.type))).toEqual(
+        new Set(['reconciliation', 'exact_file', 'probable_duplicate']),
+      );
+      expect(
+        refreshed.warnings
+          .filter((row) => row.type === 'probable_duplicate')
+          .flatMap((row) => row.expenseIds),
+      ).toHaveLength(2);
+      const staleId = randomUUID();
+      for (let attempt = 0; attempt < 2; attempt++)
+        await expect(
+          service.confirm(users[0].id, spaceIds[0], staleId, payload),
+        ).rejects.toMatchObject({
+          code: 'IMPORT_REVIEW_REQUIRED',
+          preview: refreshed,
+        });
+      expect(
+        (
+          await database
+            .getRepository(StatementImportOperationEntity)
+            .findOneByOrFail({ operationId: staleId })
+        ).status,
+      ).toBe('not_committed');
+      await acknowledge(service, payload);
+      const second = await service.confirm(
+        users[0].id,
+        spaceIds[0],
+        randomUUID(),
+        payload,
+      );
+      expect(second.result.statementImportId).not.toBe(
+        first.result.statementImportId,
+      );
+      expect(
+        await database
+          .getRepository(StatementImportEntity)
+          .countBy({ spaceId: spaceIds[0] }),
+      ).toBe(2);
+    });
+    it('replays original success after edits, deactivation and archive with read authority and original actor binding', async () => {
+      const { payload, category } = await reviewedFixture();
+      const service = reviewedService();
+      await acknowledge(service, payload);
+      const id = randomUUID();
+      const original = await service.confirm(
+        users[0].id,
+        spaceIds[0],
+        id,
+        payload,
+      );
+      await database
+        .getRepository(ExpenseEntity)
+        .update(
+          { spaceId: spaceIds[0] },
+          { amount: '150.00', deletedAt: new Date() },
+        );
+      await database
+        .getRepository(CategoryEntity)
+        .update(category.id, { isActive: false });
+      await database.getRepository(SpaceMembershipEntity).save({
+        userId: users[1].id,
+        spaceId: spaceIds[0],
+        accessLevel: 'read',
+      });
+      // Personal lifecycle cannot archive; use a retained Shared Space to exercise archived replay.
+      await database.query(
+        "UPDATE spaces SET kind = 'shared', personal_owner_user_id = NULL WHERE id = $1",
+        [spaceIds[0]],
+      );
+      await database
+        .getRepository(SpaceEntity)
+        .update(spaceIds[0], { status: 'archived' });
+      expect(
+        await service.confirm(users[0].id, spaceIds[0], id, payload),
+      ).toEqual({ result: original.result, replayed: true });
+      await expect(
+        service.confirm(users[1].id, spaceIds[0], id, payload),
+      ).rejects.toBeDefined();
+      await database
+        .getRepository(SpaceMembershipEntity)
+        .delete({ userId: users[0].id, spaceId: spaceIds[0] });
+      await expect(
+        service.confirm(users[0].id, spaceIds[0], id, payload),
+      ).rejects.toMatchObject({ code: 'SPACE_NOT_FOUND' });
+      // Cleanup financial triggers require active Space.
+      await database
+        .getRepository(SpaceEntity)
+        .update(spaceIds[0], { status: 'active' });
+    });
+    it('appends normalized Rules once, preserves unrelated revisions, and rejects inactive-owner conflicts atomically', async () => {
+      const { payload, category } = await reviewedFixture();
+      payload.rememberedRules = [
+        {
+          pattern: '  Fictional SHOP  ',
+          matchType: 'exact',
+          categoryId: category.id,
+        },
+        {
+          pattern: 'fictional shop',
+          matchType: 'exact',
+          categoryId: category.id,
+        },
+      ];
+      const service = reviewedService();
+      await acknowledge(service, payload);
+      await service.confirm(users[0].id, spaceIds[0], randomUUID(), payload);
+      expect(
+        await database
+          .getRepository(CategoryRuleEntity)
+          .countBy({ spaceId: spaceIds[0] }),
+      ).toBe(1);
+      expect(
+        (
+          await database
+            .getRepository(CategoryEntity)
+            .findOneByOrFail({ id: category.id })
+        ).revision,
+      ).toBe('2');
+      expect(
+        (
+          await database
+            .getRepository(SpaceEntity)
+            .findOneByOrFail({ id: spaceIds[0] })
+        ).categoryRulesRevision,
+      ).toBe('1');
+      await acknowledge(service, payload);
+      await service.confirm(users[0].id, spaceIds[0], randomUUID(), payload);
+      expect(
+        (
+          await database
+            .getRepository(CategoryEntity)
+            .findOneByOrFail({ id: category.id })
+        ).revision,
+      ).toBe('2');
+      const other = await database.getRepository(CategoryEntity).save({
+        spaceId: spaceIds[0],
+        name: 'Inactive owner',
+        isActive: false,
+      });
+      await database.getRepository(CategoryRuleEntity).save({
+        spaceId: spaceIds[0],
+        categoryId: other.id,
+        pattern: 'Blocked',
+        normalizedPattern: 'blocked',
+        matchType: 'contains',
+      });
+      payload.rememberedRules = [
+        { pattern: 'BLOCKED', matchType: 'contains', categoryId: category.id },
+      ];
+      await acknowledge(service, payload);
+      await expect(
+        service.confirm(users[0].id, spaceIds[0], randomUUID(), payload),
+      ).rejects.toMatchObject({ code: 'CATEGORY_RULE_PATTERN_ALREADY_EXISTS' });
+      expect(
+        await database
+          .getRepository(StatementImportEntity)
+          .countBy({ spaceId: spaceIds[0] }),
+      ).toBe(2);
+    });
+    it.each(['rows', 'expenses', 'activity', 'rules', 'result'] as const)(
+      'rolls back an unexpected failure after %s and permits identical pending retry',
+      async (stage) => {
+        const { payload } = await reviewedFixture();
+        const service = reviewedService((context) => {
+          const fail = async <T>(work: () => Promise<T>): Promise<T> => {
+            await work();
+            throw new Error('Injected database outcome');
+          };
+          if (stage === 'rows') {
+            const work = context.rows.createRows.bind(
+              context.rows,
+            ) as typeof context.rows.createRows;
+            context.rows.createRows = (...args) => fail(() => work(...args));
+          }
+          if (stage === 'expenses') {
+            const work = context.importedExpenses.create.bind(
+              context.importedExpenses,
+            ) as typeof context.importedExpenses.create;
+            context.importedExpenses.create = (...args) =>
+              fail(() => work(...args));
+          }
+          if (stage === 'activity') {
+            const work = context.expenseActivities.create.bind(
+              context.expenseActivities,
+            ) as typeof context.expenseActivities.create;
+            context.expenseActivities.create = (...args) =>
+              fail(() => work(...args));
+          }
+          if (stage === 'rules') {
+            const work = context.appendRules.bind(
+              context,
+            ) as typeof context.appendRules;
+            context.appendRules = (...args) => fail(() => work(...args));
+          }
+          if (stage === 'result') {
+            const work = context.operations.commit.bind(
+              context.operations,
+            ) as typeof context.operations.commit;
+            context.operations.commit = (...args) => fail(() => work(...args));
+          }
+        });
+        await acknowledge(service, payload);
+        const id = randomUUID();
+        await expect(
+          service.confirm(users[0].id, spaceIds[0], id, payload),
+        ).rejects.toThrow('Injected database outcome');
+        for (const entity of [
+          StatementImportEntity,
+          StatementImportRowEntity,
+          ExpenseEntity,
+          ExpenseActivityEntity,
+          CategoryRuleEntity,
+        ])
+          expect(
+            await database
+              .getRepository(entity)
+              .countBy({ spaceId: spaceIds[0] }),
+          ).toBe(0);
+        expect(
+          (
+            await database
+              .getRepository(StatementImportOperationEntity)
+              .findOneByOrFail({ operationId: id })
+          ).status,
+        ).toBe('pending');
+        expect(
+          (
+            await reviewedService().confirm(
+              users[0].id,
+              spaceIds[0],
+              id,
+              payload,
+            )
+          ).replayed,
+        ).toBe(false);
+      },
+    );
+    it('serializes two separately acknowledged operations for one file and refreshes the follower warnings', async () => {
+      const { payload } = await reviewedFixture();
+      const service = reviewedService();
+      await acknowledge(service, payload);
+      const outcomes = await Promise.allSettled([
+        service.confirm(users[0].id, spaceIds[0], randomUUID(), payload),
+        service.confirm(users[0].id, spaceIds[0], randomUUID(), payload),
+      ]);
+      expect(outcomes.filter((row) => row.status === 'fulfilled')).toHaveLength(
+        1,
+      );
+      const failure = outcomes.find((row) => row.status === 'rejected');
+      expect(failure).toMatchObject({
+        reason: { code: 'IMPORT_REVIEW_REQUIRED' },
+      });
+      expect(
+        await database
+          .getRepository(StatementImportEntity)
+          .countBy({ spaceId: spaceIds[0] }),
+      ).toBe(1);
+    });
+    it('waits for Category configuration and revalidates deactivation before any financial write', async () => {
+      const { payload, category } = await reviewedFixture();
+      const service = reviewedService();
+      await acknowledge(service, payload);
+      const runner = database.createQueryRunner();
+      await runner.connect();
+      await runner.startTransaction();
+      try {
+        await runner.query('SELECT id FROM spaces WHERE id = $1 FOR UPDATE', [
+          spaceIds[0],
+        ]);
+        await runner.manager
+          .getRepository(CategoryEntity)
+          .update(category.id, { isActive: false });
+        const pending = service.confirm(
+          users[0].id,
+          spaceIds[0],
+          randomUUID(),
+          payload,
+        );
+        await runner.commitTransaction();
+        await expect(pending).rejects.toMatchObject({
+          code: 'CATEGORY_INACTIVE',
+        });
+        expect(
+          await database
+            .getRepository(StatementImportEntity)
+            .countBy({ spaceId: spaceIds[0] }),
+        ).toBe(0);
+      } finally {
+        if (runner.isTransactionActive) await runner.rollbackTransaction();
+        await runner.release();
+      }
+    });
+    it('waits behind an archiving actor/Space lock and rejects a new operation without financial writes', async () => {
+      const { payload } = await reviewedFixture();
+      let entering!: () => void;
+      const entered = new Promise<void>((resolve) => {
+        entering = resolve;
+      });
+      const service = reviewedService((context) => {
+        const lock = context.lockExecutionScope.bind(
+          context,
+        ) as typeof context.lockExecutionScope;
+        context.lockExecutionScope = async (...args) => {
+          entering();
+          return lock(...args);
+        };
+      });
+      await acknowledge(service, payload);
+      await database.query(
+        "UPDATE spaces SET kind = 'shared', personal_owner_user_id = NULL WHERE id = $1",
+        [spaceIds[0]],
+      );
+      const runner = database.createQueryRunner();
+      await runner.connect();
+      await runner.startTransaction();
+      try {
+        await runner.query('SELECT id FROM users WHERE id = $1 FOR UPDATE', [
+          users[0].id,
+        ]);
+        await runner.query('SELECT id FROM spaces WHERE id = $1 FOR UPDATE', [
+          spaceIds[0],
+        ]);
+        await runner.manager
+          .getRepository(SpaceEntity)
+          .update(spaceIds[0], { status: 'archived' });
+        const pending = service.confirm(
+          users[0].id,
+          spaceIds[0],
+          randomUUID(),
+          payload,
+        );
+        await entered;
+        await runner.commitTransaction();
+        await expect(pending).rejects.toMatchObject({
+          code: 'SPACE_NOT_WRITABLE',
+        });
+        expect(
+          await database
+            .getRepository(StatementImportEntity)
+            .countBy({ spaceId: spaceIds[0] }),
+        ).toBe(0);
+      } finally {
+        if (runner.isTransactionActive) await runner.rollbackTransaction();
+        await runner.release();
+        await database
+          .getRepository(SpaceEntity)
+          .update(spaceIds[0], { status: 'active' });
+      }
+    });
     it('retains complete immutable evidence and operation result through Expense edits/deletion, then cleans Personal relations', async () => {
       const userId = users[0].id;
       const spaceId = spaceIds[0];

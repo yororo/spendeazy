@@ -1,3 +1,7 @@
+import { ReviewedImportService } from './application/reviewed-import.service';
+import { REVIEWED_IMPORT_UNIT_OF_WORK } from './application/reviewed-import-unit-of-work';
+import { TypeOrmReviewedImportUnitOfWork } from './infrastructure/typeorm-reviewed-import-unit-of-work';
+import { StatementImportPreviewsController } from './presentation/statement-import-previews.controller';
 import { DynamicModule, Module } from '@nestjs/common';
 import type { AppConfig } from '../config/app-config';
 import { SpacesModule } from '../spaces/spaces.module';
@@ -10,7 +14,10 @@ import { NodeGCashReferenceHasher } from './infrastructure/node-gcash-reference-
 import { TypeOrmStatementImportStore } from './infrastructure/typeorm-statement-import-store';
 import { SpaceStatementImportsController } from './presentation/space-statement-imports.controller';
 
-const controllers = [SpaceStatementImportsController];
+const controllers = [
+  SpaceStatementImportsController,
+  StatementImportPreviewsController,
+];
 
 @Module({})
 export class StatementImportsModule {
@@ -28,7 +35,10 @@ export class StatementImportsModule {
         module: StatementImportsModule,
         imports: [SpacesModule.register(false, options)],
         controllers,
-        providers: [{ provide: StatementImportsService, useValue: {} }],
+        providers: [
+          { provide: StatementImportsService, useValue: {} },
+          { provide: ReviewedImportService, useValue: {} },
+        ],
       };
     }
 
@@ -37,6 +47,12 @@ export class StatementImportsModule {
       imports: [SpacesModule.register(true, options)],
       controllers,
       providers: [
+        ReviewedImportService,
+        TypeOrmReviewedImportUnitOfWork,
+        {
+          provide: REVIEWED_IMPORT_UNIT_OF_WORK,
+          useExisting: TypeOrmReviewedImportUnitOfWork,
+        },
         TypeOrmStatementImportStore,
         TypeOrmStatementImportConfirmationUnitOfWork,
         {

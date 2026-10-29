@@ -73,6 +73,21 @@ export class TypeOrmImportOperationStore implements ImportOperationStore {
     // Explicit projection prevents accidental runtime spreading of financial payloads.
     const safe = {
       code: safeCode(failure.code),
+      ...(failure.review
+        ? {
+            review: {
+              warningDigest: safeHash(failure.review.warningDigest),
+              warnings: failure.review.warnings.map((warning) => ({
+                id: safeHash(warning.id),
+                type: warning.type,
+                sourceRowIds: warning.sourceRowIds.map(safeRowId),
+                expenseIds: warning.expenseIds.map(safeId),
+                statementImportIds: warning.statementImportIds.map(safeId),
+                message: safeWarningMessage(warning.type),
+              })),
+            },
+          }
+        : {}),
       details: failure.details.map((detail) => ({
         field: safePath(detail.field),
         code: safeCode(detail.code),
@@ -155,4 +170,34 @@ function safePath(value: string): string {
   )
     throw new Error('Invalid safe import error path');
   return value;
+}
+function safeHash(value: string): string {
+  if (!/^[0-9a-f]{64}$/u.test(value)) throw new Error('Invalid warning hash');
+  return value;
+}
+function safeId(value: string): string {
+  if (!/^[1-9][0-9]*$/u.test(value))
+    throw new Error('Invalid warning identifier');
+  return value;
+}
+function safeRowId(value: string): string {
+  if (
+    typeof value !== 'string' ||
+    value.length === 0 ||
+    [...value].length > 100
+  )
+    throw new Error('Invalid warning row identifier');
+  return value;
+}
+function safeWarningMessage(type: string): string {
+  switch (type) {
+    case 'reconciliation':
+      return 'Original statement reconciliation or extraction needs review.';
+    case 'exact_file':
+      return 'This file was previously imported into this Space.';
+    case 'probable_duplicate':
+      return 'Reviewed spending resembles another imported Expense or reviewed row.';
+    default:
+      throw new Error('Invalid warning type');
+  }
 }

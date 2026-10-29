@@ -28,7 +28,9 @@ export class StatementImportOperationEntity {
   @Column({ type: 'jsonb', nullable: true, name: 'success_result' })
   successResult!: CommittedImportResult | null;
   @Column({ type: 'jsonb', nullable: true, name: 'failure' })
-  failure!: { code: string; details: { field: string; code: string }[] } | null;
+  failure!:
+    | import('../../statement-imports/application/import-confirmation-store').SafeImportFailure
+    | null;
   @CreateDateColumn({ type: 'timestamptz', precision: 3, name: 'created_at' })
   createdAt!: Date;
 }

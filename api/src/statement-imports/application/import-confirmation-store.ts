@@ -19,6 +19,7 @@ export interface ImportOperationRecord extends ImportOperationKey {
 }
 /** No free-form messages or request/evidence snapshots in terminal failure storage. */
 export interface SafeImportFailure {
+  review?: import('./import-confirmation-errors').ImportPreview;
   code: string;
   details: { field: string; code: string }[];
 }

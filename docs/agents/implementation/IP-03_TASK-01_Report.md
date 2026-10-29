@@ -1,7 +1,0 @@
-# IP-03 Task 01 handoff
-
-- No server defect or contract gap surfaced in the added financial/boundary cases; later tasks can retain the current response contract.
-- Confirmation reporting uses inclusive Manila calendar dates, with the upper timestamp at the following Manila midnight, rather than the injected instant itself. At the New Year boundary the selected previous year's December becomes eligible for Monthly checks; the new January has zero completed months. Keep these distinctions when implementing foreground refresh.
-- Provisioning a Personal Space seeds active, unbudgeted Categories. HTTP fixtures must allow those extra zero-value series rather than assume only explicitly inserted Categories exist. Same-name identity tie-breaking remains covered at the service seam, where duplicate names can be supplied independently of persistence constraints.
-- On this Windows checkout, the first full unit/OpenAPI checks failed solely because the checked-out OpenAPI artifacts had CRLF endings. Both artifacts exactly matched generation after CRLF normalization. Local endings were normalized to LF without changing their Git content; no contract regeneration or source fix was needed.
-- PostgreSQL verification used a dedicated PostgreSQL 16 container on loopback port 55439 with ten separate disposable databases, never the retained manual database. The initial sandboxed focused run could not connect (`EACCES`); the permitted run with local network access executed the cases. Native acceptance belongs to later tasks and was not attempted here.

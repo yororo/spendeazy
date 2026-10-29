@@ -1,7 +1,0 @@
-# Implementation 01, Task 03 report
-
-- SpaceStatus now occupies the existing Screen/ScreenHeader accessory in Dashboard, Budget, Expenses (including Deleted/Dashboard lists), Profile, and Sharing. Later screen redesigns should keep that placement rather than reintroducing the content-level SpaceStatus. Its exceptional loading/error/archive/memory messages remain part of the accessory and may make the header wrap.
-- ChoiceSheet's optional showClose adds the source-style handle, larger title, and explicit close action; existing consumers retain their previous shell by default. The Space option sheet hides while the unsaved-Expense confirmation is visible, then reopens when keeping the draft or dismissing the confirmation. Confirm this modal handoff on both platforms during manual testing.
-- DesignSurface now accepts navigation/add variants and containerStyle (for the outer shadow wrapper); style still applies to the inner glass surface. Keep flex sizing on the wrapper when using it in a row.
-- Small departures: selected-tab outer shadow omitted; navigation horizontal padding reduces to 4 below width 324 for 48-unit targets at width 320. Glass blur and highlight limitations are recorded in design-token.md. Initials are limited to two members in the compact identity; full member names remain in the sheet and accessibility labels.
-- Lint and typecheck passed. Manual native visual, accessibility, Space/draft switching, and navigation acceptance remains pending; no automated tests were run.

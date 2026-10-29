@@ -1,7 +1,0 @@
-# Implementation 01, Task 06 report
-
-- Exact monthly values and their Expense drill-through actions live in inline disclosures beneath the charts, providing native text scaling and targets of at least 48 units without chart popovers. Summary equivalents and Expense count use a separate inline disclosure. Category total rows remain directly actionable; the Category monthly disclosure additionally exposes each month's supplied Expense filter.
-- Chart axes show the exact maximum and zero, rather than illustrative compact dollar ticks. Both plots share the report's ordered month axis; longer ranges and larger text scroll horizontally. Missing Category points break the line instead of being filled with invented zeroes. Monthly Budget references use each supplied `monthlyBudgetAmount`; annual amounts are retained in labels and Yearly checks without dividing them into monthly caps.
-- Frequency dots represent aggregate counts, not chronological month statuses: the API supplies counts only. All `eligibleMonths` are rendered, with wrapping rather than a six-dot ceiling.
-- Dashboard cards reuse `DesignSurface`, including its previously documented blur/highlight departures. Summary/check cards use source padding 20; charts use 22. Chart bar/threshold and meter colors now have semantic theme roles, with adapted dark values.
-- Manual native visual, font scaling, accessibility, drill-through/Back restoration, empty/zero-plan/over-plan and longer Yearly-range acceptance remains pending for the user. No device or screenshot-automation evidence was produced.

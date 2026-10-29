@@ -30,14 +30,14 @@ export function StatementImportView({ controller: c, recentHistory, onHistory, o
   const { palette, fonts } = useAppTheme();
   const { state } = c;
   const running = 'operation' in state;
-  const result = state.phase === 'ready' || state.phase === 'suspended' ? state.result : null;
+  const result = 'result' in state ? state.result : null;
   const discard = () => Alert.alert('Discard Statement Import?', 'This clears the living import work. You can then select again or switch Spaces.', [
     { text: 'Keep editing', style: 'cancel' }, { text: 'Discard', style: 'destructive', onPress: c.discard },
   ]);
   return <Screen title="Import statement">
     <SupportingText>{`Destination: ${c.destination}`}</SupportingText>
     {c.readOnly ? <SupportingText>This Space is unavailable for new imports or is read-only. Retained extraction results remain available for inspection.</SupportingText> : null}
-    <View style={{ flexDirection: 'row', gap: 8 }} accessibilityLabel="Step 1 of 3, Select file. Update and Confirm are not available yet.">
+    <View style={{ flexDirection: 'row', gap: 8 }} accessibilityLabel="Step 1 of 3, Select file">
       {['1  Select file', '2  Update', '3  Confirm'].map((label, index) => <View key={label} style={{ flex: 1, gap: 7 }}>
         <View style={{ height: 3, borderRadius: 2, backgroundColor: index === 0 ? palette.brandPrimary : palette.divider }} />
         <Text style={{ fontFamily: index === 0 ? fonts.semibold : fonts.regular, fontSize: 12, color: index === 0 ? palette.brandPrimary : palette.textSecondary }}>{label}</Text>
@@ -65,7 +65,7 @@ export function StatementImportView({ controller: c, recentHistory, onHistory, o
         <BodyText>Extraction ready</BodyText>
         <SupportingText>{`${result.file.name} · ${result.rows.length} Transactions · ${result.rows.filter(row => row.classification.eligible).length} eligible spending candidates`}</SupportingText>
         {result.warnings.map(warning => <Text key={warning.code} style={{ color: palette.stateWarning, fontFamily: fonts.regular, fontSize: 15 }}>{warningText[warning.code]}</Text>)}
-        <SupportingText>Review is not available yet. Nothing has been saved. This result remains here when you go Back; closing the app loses it.</SupportingText>
+        <SupportingText>Opening local review. Nothing has been saved. This result remains here when you go Back; closing the app loses it.</SupportingText>
       </StackGap> : null}
       {!running && state.phase !== 'idle' ? <SecondaryButton label="Discard and start again" onPress={discard} /> : null}
     </DesignSurface>

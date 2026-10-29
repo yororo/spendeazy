@@ -1,4 +1,6 @@
 import type { ImportFile, ImportOwner, ImportResult } from './import-model.ts';
+import type { ReviewHandoff, ReviewState } from './review-model.ts';
+import { initializeReview, reviewReducer, type ReviewEvent } from './review-state.ts';
 
 export type ImportOperation = Readonly<{ id: string; generation: number; owner: ImportOwner }>;
 type Draft = Readonly<{ draftId: string; owner: ImportOwner }>;
@@ -10,8 +12,11 @@ export type ImportState =
   | (Running & Readonly<{ phase: 'extracting'; completedPages: number; totalPages: number | null }>)
   | (Running & Readonly<{ phase: 'password-required'; reason: 'required' | 'incorrect' }>)
   | (Draft & Readonly<{ phase: 'ready'; result: ImportResult }>)
+  | (Draft & Readonly<{ phase: 'review'; result: ImportResult; review: ReviewState }>)
+  | (Draft & Readonly<{ phase: 'review-ready'; result: ImportResult; review: ReviewState & { handoff: ReviewHandoff } }>)
   | (Draft & Readonly<{ phase: 'failed'; error: ImportFailure }>)
-  | (Draft & Readonly<{ phase: 'suspended'; reason: 'authentication' | 'read-only' | 'reselection-required'; result: ImportResult | null }>);
+  | (Draft & Readonly<{ phase: 'suspended'; reason: 'authentication' | 'read-only' | 'reselection-required'; result: ImportResult | null;
+      review?: ReviewState; resumePhase?: 'review' | 'review-ready' }>);
 export type ImportOutcome =
   | { type: 'picked' }
   | { type: 'prepared'; file: ImportFile }
@@ -27,7 +32,10 @@ export type ImportEvent =
   | { type: 'outcome'; operation: ImportOperation; outcome: ImportOutcome }
   | { type: 'discarded' }
   | { type: 'suspended'; reason: 'authentication' | 'read-only' }
-  | { type: 'recovered' };
+  | { type: 'recovered' }
+  | { type: 'reviewInitialized' }
+  | { type: 'reviewChanged'; event: ReviewEvent }
+  | { type: 'reviewReopened' };
 
 export function sameOwner(a: ImportOwner, b: ImportOwner) {
   return a.userId === b.userId && a.spaceId === b.spaceId;
@@ -38,6 +46,19 @@ export function matchesOperation(state: ImportState, operation: ImportOperation)
 }
 export function importReducer(state: ImportState, event: ImportEvent): ImportState {
   if (event.type === 'discarded') return { phase: 'idle' };
+  if (event.type === 'reviewInitialized') {
+    return state.phase === 'ready' ? { ...state, phase: 'review', review: initializeReview(state.result) } : state;
+  }
+  if (event.type === 'reviewReopened') {
+    return state.phase === 'review-ready' ? { ...state, phase: 'review' } : state;
+  }
+  if (event.type === 'reviewChanged') {
+    if (state.phase !== 'review') return state;
+    const review = reviewReducer(state.review, event.event);
+    if (review === state.review) return state;
+    return event.event.type === 'continued' && review.handoff
+      ? { ...state, phase: 'review-ready', review: { ...review, handoff: review.handoff } } : { ...state, review };
+  }
   if (event.type === 'started') {
     if (state.phase !== 'idle' && state.phase !== 'suspended' && state.phase !== 'failed') return state;
     if (state.phase === 'suspended' && state.result !== null) return state;
@@ -48,11 +69,19 @@ export function importReducer(state: ImportState, event: ImportEvent): ImportSta
     if (state.phase === 'idle') return state;
     if (state.phase === 'suspended' && state.reason === event.reason) return state;
     return { phase: 'suspended', draftId: state.draftId, owner: state.owner, reason: event.reason,
-      result: state.phase === 'ready' || state.phase === 'suspended' ? state.result : null };
+      result: 'result' in state ? state.result : null,
+      ...('review' in state && state.review ? { review: state.review,
+        resumePhase: state.phase === 'suspended' ? state.resumePhase : state.phase as 'review' | 'review-ready' } : {}) };
   }
   if (event.type === 'recovered') {
     if (state.phase !== 'suspended') return state;
     if (!state.result && state.reason === 'reselection-required') return state;
+    if (state.result && state.review) {
+      const base = { draftId: state.draftId, owner: state.owner, result: state.result };
+      return state.resumePhase === 'review-ready' && state.review.handoff
+        ? { ...base, phase: 'review-ready', review: { ...state.review, handoff: state.review.handoff } }
+        : { ...base, phase: 'review', review: state.review };
+    }
     return state.result ? { phase: 'ready', draftId: state.draftId, owner: state.owner, result: state.result }
       : { ...state, reason: 'reselection-required' };
   }

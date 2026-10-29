@@ -180,6 +180,8 @@ The default filled `TextField`, used by filter/search controls, has minimum heig
 
 ## Adaptations and remaining departures
 
+- Import Update follows `oqOst`'s compact source summary, layered queue, Remember controls, ledger and primary action hierarchy. Queue cards grow with content instead of retaining the source's 455/405 heights; a noninteractive rear layer preserves the stack treatment. One vertical FlatList owns queue/header, ledger and Continue, within safe-area and keyboard avoidance. Controls reuse shared surfaces, Category marks, dialogs and sheets with no animation. PHP, strict validation, explicit skipped passes, locked exclusions and the read-only Review ready boundary supersede illustrative behavior. Tabs/Add remain absent in the existing stack route. Light/dark native parity, large text and focus acceptance are pending device checks.
+
 - Dark mode reuses the hierarchy with the existing adapted palette: two canvas washes, slate glass/selection/fields, lighter text and semantic status colors. Add retains the source violet gradient in both modes. There is no dark source board or native contrast acceptance yet.
 - Saved Category colors remain unchanged in marks and charts; marks add tinted wells. Missing Category metadata uses a slate Shapes mark and the existing Category label. Detail/Edit receives only names and uses a neutral decorative glyph.
 - Current Profile photo/name/email come from Clerk when available; a missing photo uses an initial. Space members supply names/IDs only, so membership rows/accessories use initials and omit mock photos/emails. Profile identifies its own member through Personal Space membership, since API member IDs and Clerk IDs use different namespaces; it lists all members if that ID is unavailable.

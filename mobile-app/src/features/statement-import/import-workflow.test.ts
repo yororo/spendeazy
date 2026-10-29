@@ -74,3 +74,22 @@ test('bridge rejects malformed, wrong-operation, unsafe page and progress messag
     '{"id":"one","type":"result","pages":[{"pageIndex":4,"outcome":"text","text":"fictional","hasImages":false}]}']) assert.equal(decodeEngineMessage(value, 'one'), null);
   assert.deepEqual(decodeEngineMessage('{"id":"one","type":"password","incorrect":true}', 'one'), { id: 'one', type: 'password', incorrect: true });
 });
+
+test('successful extraction releases adapter resources before review, and a new route workflow retains review', async () => {
+  const { deps, store, calls } = setup();
+  const flow = createImportWorkflow(deps); await flow.recover(); await flow.select('draft', operation);
+  flow.receive({ type: 'ready', id: 'one' });
+  const pages = [{ pageIndex: 0, outcome: 'text' as const, hasImages: false,
+    text: 'GCash Transaction History\n2026-01-01 to 2026-01-15\nSTARTING BALANCE 2000.00\nENDING BALANCE 1000.00\nDate and Time Description Reference No. Debit Credit Balance\n2026-01-01 09:00 AM FICTIONAL PURCHASE 1001 1000.00 1000.00' }];
+  flow.receive({ type: 'result', id: 'one', pages });
+  assert.equal(store.snapshot().phase, 'ready');
+  assert.equal(flow.snapshot().request, null); assert.equal(pages.length, 0);
+  assert.ok(calls.includes('release:cache/picker/copy.pdf'));
+  const scope = store.captureReview()!; store.initializeReview(scope);
+  const review = store.snapshot();
+  const remount = createImportWorkflow(deps); await remount.recover();
+  assert.equal(store.snapshot(), review);
+  await remount.select('replacement', { ...operation, id: 'two' });
+  assert.equal(store.snapshot(), review);
+  remount.discard(); assert.equal(store.snapshot().phase, 'idle');
+});

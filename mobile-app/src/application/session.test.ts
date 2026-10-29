@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createSession } from './session.ts';
+import { interpretStatement } from '../features/statement-import/providers.ts';
 
 test('expiry retains work for the same identity and rejects old requests after recovery', () => {
   const session = createSession();
@@ -69,4 +70,32 @@ test('a replacement Clerk session for the same identity recovers work and invali
   assert.equal(session.snapshot().announceRecovery, true);
   assert.equal(session.snapshot().draft?.description, 'Lunch');
   assert.equal(session.expire(old), false);
+});
+
+test('application session owns review alongside manual work and prevents destination switching until discard', () => {
+  const session = createSession(); session.observeIdentity('ada', 'first'); session.changeSpace('personal');
+  const manual = { amount: '12', description: 'Lunch', categoryId: 'food', expenseDate: '2026-10-24' };
+  session.saveDraft(manual);
+  const store = session.imports;
+  const owner = { userId: 'ada', spaceId: 'personal' };
+  const operation = { id: 'extract', owner, generation: session.capture().generation };
+  const file = { name: 'fictional.pdf', sha256: 'fictional', byteCount: 100 };
+  const original = interpretStatement({ draftId: 'draft', owner, file, pages: [{ pageIndex: 0, outcome: 'text', hasImages: false,
+    text: 'GCash Transaction History\n2026-01-01 to 2026-01-15\nSTARTING BALANCE 2000.00\nENDING BALANCE 1000.00\nDate and Time Description Reference No. Debit Credit Balance\n2026-01-01 09:00 AM FICTIONAL PURCHASE 1001 1000.00 1000.00' }] });
+  store.start('draft', operation);
+  store.deliver(operation, { type: 'picked' }); store.deliver(operation, { type: 'prepared', file });
+  store.deliver(operation, { type: 'workerReady' }); store.deliver(operation, { type: 'extracted' });
+  store.deliver(operation, { type: 'interpreted', result: original }); store.initializeReview(store.captureReview()!);
+  const review = store.snapshot();
+  assert.equal(session.changeSpace('shared'), false);
+  assert.equal(session.snapshot().draft, manual);
+  session.expire(session.capture()); session.observeIdentity('ada', 'replacement');
+  assert.equal(session.snapshot().announceRecovery, true);
+  assert.equal(session.snapshot().draft, manual);
+  const recovered = store.snapshot();
+  assert.ok(review.phase === 'review' && recovered.phase === 'review');
+  assert.equal(recovered.review, review.review);
+  store.discard(); assert.equal(session.changeSpace('shared'), true);
+  assert.equal(session.snapshot().draft?.description, 'Lunch');
+  assert.equal(session.snapshot().draft?.categoryId, null);
 });

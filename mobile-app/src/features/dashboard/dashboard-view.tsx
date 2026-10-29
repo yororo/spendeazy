@@ -1,16 +1,21 @@
-import { GlassView } from "expo-glass-effect";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { useState } from "react";
+import {
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+  useWindowDimensions,
+} from "react-native";
 import type { ReactNode } from "react";
-
 import type {
   DashboardBudgetStatus,
   DashboardExpenseFilter,
   DashboardReport,
 } from "@/api/dashboard-report-api-client";
 import type { SpaceCategory } from "@/api/categories-api-client";
-import { SecondaryButton } from "@/components/buttons";
-import { BodyText, Screen, SupportingText } from "@/components/screen";
-import { radius, space, typeScale } from "@/constants/theme";
+import { CompactAction, SecondaryButton } from "@/components/buttons";
+import { BodyText, Screen } from "@/components/screen";
+import { space, typeScale } from "@/constants/theme";
 import { CATEGORY_COLOR_VALUES } from "@/features/categories/category-catalog";
 import { CategoryIconMark } from "@/components/category-mark";
 import { useAppTheme } from "@/navigation/app-theme";
@@ -21,10 +26,10 @@ import {
   formatPhp,
   labelMonth,
 } from "./dashboard-format";
+import { DesignSurface } from "@/components/design-surface";
+import { MonthlyBars, CategoryLines } from "./dashboard-charts";
 import type { useDashboardReport } from "./use-dashboard-report";
-
 type DashboardController = ReturnType<typeof useDashboardReport>;
-
 export function DashboardView({
   controller,
   spaceStatus,
@@ -42,6 +47,7 @@ export function DashboardView({
   onOpenBudgetCategory: (categoryId: string) => void;
   onOpenImportHistory: () => void;
 }) {
+  const { fontScale } = useWindowDimensions();
   const { palette, fonts } = useAppTheme();
   const { report } = controller;
   const monthlyEndMonth = report?.monthlyExpenses.at(-1)?.month ?? null;
@@ -60,7 +66,6 @@ export function DashboardView({
       ) ||
       controller.chartCategoryIds.includes(category.id),
   );
-
   return (
     <Screen
       title="Dashboard"
@@ -68,9 +73,17 @@ export function DashboardView({
       onRefresh={controller.refresh}
       headerAccessory={spaceStatus}
     >
-      <View style={{ gap: space.cardGap }}>
+      <View
+        style={{
+          gap: 26,
+        }}
+      >
         {recoveryMessage ? (
-          <View style={{ gap: space.rowGap }}>
+          <View
+            style={{
+              gap: space.rowGap,
+            }}
+          >
             <BodyText>{recoveryMessage}</BodyText>
             {onDismissRecovery ? (
               <SecondaryButton
@@ -81,10 +94,25 @@ export function DashboardView({
           </View>
         ) : null}
 
-        <View style={{ gap: 10 }}>
+        <View
+          style={{
+            flexDirection: "row",
+            flexWrap: "wrap",
+            alignItems: "center",
+            gap: 6,
+          }}
+        >
           <View
             accessibilityRole="tablist"
-            style={{ flexDirection: "row", gap: 10 }}
+            style={{
+              flexDirection: "row",
+              width: 190 * fontScale,
+              maxWidth: "100%",
+              alignSelf: "flex-start",
+              padding: 3,
+              borderRadius: 18,
+              backgroundColor: palette.segmentedTrack,
+            }}
           >
             <PeriodButton
               label="Monthly"
@@ -102,7 +130,8 @@ export function DashboardView({
               flexDirection: "row",
               alignItems: "center",
               justifyContent: "space-between",
-              gap: 8,
+              flex: 1,
+              minWidth: 140,
             }}
           >
             <PeriodArrow
@@ -114,13 +143,15 @@ export function DashboardView({
               style={{
                 color: palette.textPrimary,
                 fontFamily: fonts.semibold,
-                fontSize: typeScale.body,
+                fontSize: 12,
                 textAlign: "center",
                 flex: 1,
               }}
             >
               {report
-                ? dashboardPeriodLabel(report)
+                ? controller.view === "monthly"
+                  ? "Six months"
+                  : selectedYear
                 : controller.view === "monthly"
                   ? "Six months"
                   : "Calendar year"}
@@ -133,10 +164,23 @@ export function DashboardView({
               }
             />
           </View>
+          {report ? (
+            <View
+              style={{
+                width: "100%",
+              }}
+            >
+              <SupportingText>{dashboardPeriodLabel(report)}</SupportingText>
+            </View>
+          ) : null}
         </View>
 
         {controller.error ? (
-          <View style={{ gap: 8 }}>
+          <View
+            style={{
+              gap: 8,
+            }}
+          >
             <Text
               accessibilityLiveRegion="polite"
               style={{
@@ -161,6 +205,11 @@ export function DashboardView({
               onOpenExpenses={onOpenExpenses}
               onOpenImportHistory={onOpenImportHistory}
             />
+            <BudgetChecks
+              report={report}
+              categories={categoryChoices}
+              onOpenBudgetCategory={onOpenBudgetCategory}
+            />
             <MonthlyChart report={report} onOpenExpenses={onOpenExpenses} />
             <CategoryChart
               report={report}
@@ -171,17 +220,12 @@ export function DashboardView({
               onClearCategories={controller.clearChartCategories}
               onOpenExpenses={onOpenExpenses}
             />
-            <BudgetChecks
-              report={report}
-              onOpenBudgetCategory={onOpenBudgetCategory}
-            />
           </>
         ) : null}
       </View>
     </Screen>
   );
 }
-
 function DashboardSummary({
   report,
   onOpenExpenses,
@@ -191,7 +235,8 @@ function DashboardSummary({
   onOpenExpenses: (filter: DashboardExpenseFilter) => void;
   onOpenImportHistory: () => void;
 }) {
-  const { palette, fonts, scheme } = useAppTheme();
+  const { palette, fonts } = useAppTheme();
+  const [showDetails, setShowDetails] = useState(false);
   const { summary, range } = report;
   const comparisonText =
     summary.comparison.direction === "no_plan"
@@ -200,134 +245,202 @@ function DashboardSummary({
         ? "Exactly on plan"
         : `${summary.comparison.direction === "above_plan" ? "Above" : "Below"} plan by ${formatPhp(summary.comparison.difference.amount)}${summary.comparison.percentage ? ` (${summary.comparison.percentage.amount}%)` : ""}`;
   const highest = summary.highestCategory;
+  const overPlan = summary.comparison.direction === "above_plan";
+  const latestImport = summary.statementImports.latestConfirmedAt;
   return (
-    <GlassView
-      accessible={false}
-      glassEffectStyle="regular"
-      colorScheme={scheme}
-      tintColor={palette.glassTint}
-      style={cardStyle(palette)}
-    >
-      <View style={{ gap: 6 }}>
-        <Text style={eyebrowStyle(palette, fonts)}>ACTUAL SPENDING</Text>
+    <ChartCard title="Summary" inset={20}>
+      <View
+        style={{
+          flexDirection: "row",
+          justifyContent: "space-between",
+          flexWrap: "wrap",
+          gap: 12,
+        }}
+      >
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`Actual spending ${formatPhp(summary.actualAmount)}, view Expenses`}
-          accessibilityHint="Opens Expenses for the full Dashboard period"
           onPress={() =>
-            onOpenExpenses({ fromDate: range.fromDate, toDate: range.toDate })
+            onOpenExpenses({
+              fromDate: range.fromDate,
+              toDate: range.toDate,
+            })
           }
-          style={{ minHeight: 48, justifyContent: "center", alignSelf: "flex-start" }}
+          style={{
+            minHeight: 48,
+            gap: 3,
+          }}
         >
+          <SupportingText>Spent</SupportingText>
           <Text
             style={{
               color: palette.textPrimary,
-              fontFamily: fonts.semibold,
-              fontSize: 31,
+              fontFamily: fonts.medium,
+              fontSize: 23,
               fontVariant: ["tabular-nums"],
             }}
           >
             {formatPhp(summary.actualAmount)}
           </Text>
         </Pressable>
-        <SupportingText>{`${summary.expenseCount} Expenses${range.inProgress ? " · period in progress" : ""}`}</SupportingText>
-      </View>
-      <View style={{ height: 1, backgroundColor: palette.fieldBorder }} />
-      <View style={{ flexDirection: "row", gap: 20 }}>
-        <View style={{ flex: 1, gap: 5 }}>
-          <Text style={eyebrowStyle(palette, fonts)}>PLANNED</Text>
+        <View
+          style={{
+            gap: 3,
+          }}
+        >
+          <SupportingText>Planned</SupportingText>
           <Text
             style={{
               color: palette.textPrimary,
-              fontFamily: fonts.semibold,
-              fontSize: typeScale.summaryMetric,
+              fontFamily: fonts.medium,
+              fontSize: 23,
               fontVariant: ["tabular-nums"],
             }}
           >
             {formatPhp(summary.planned.amount)}
           </Text>
-          <SupportingText>{`${summary.planned.months} ${summary.planned.months === 1 ? "month" : "months"} · current Budgets`}</SupportingText>
-        </View>
-        <View style={{ flex: 1, gap: 5 }}>
-          <Text style={eyebrowStyle(palette, fonts)}>MONTHLY EQUIVALENT</Text>
-          <Text
-            style={{
-              color: palette.textPrimary,
-              fontFamily: fonts.semibold,
-              fontSize: typeScale.summaryMetric,
-              fontVariant: ["tabular-nums"],
-            }}
-          >
-            {formatPhp(summary.planned.monthlyEquivalent.amount)}
-          </Text>
-          <SupportingText>{`Annual equivalent ${formatPhp(summary.planned.annualEquivalent.amount)}`}</SupportingText>
         </View>
       </View>
-      <Text
+      <View
+        accessible
+        accessibilityLabel={comparisonText}
         style={{
-          color: palette.textSecondary,
-          fontFamily: fonts.medium,
-          fontSize: typeScale.body,
+          gap: 9,
         }}
       >
-        {comparisonText}
-      </Text>
+        <View
+          style={{
+            height: 7,
+            borderRadius: 4,
+            overflow: "hidden",
+            backgroundColor: palette.meterTrack,
+          }}
+        >
+          <View
+            style={{
+              height: 7,
+              width: `${barHeightPercent(summary.actualAmount, summary.planned.amount)}%`,
+              borderRadius: 4,
+              backgroundColor: overPlan
+                ? palette.stateNegative
+                : palette.spendingMeter,
+            }}
+          />
+        </View>
+        <Text
+          style={{
+            color: overPlan
+              ? palette.stateNegative
+              : summary.comparison.direction === "no_plan"
+                ? palette.textSecondary
+                : palette.statePositive,
+            fontFamily: fonts.medium,
+            fontSize: 12,
+            textAlign: "right",
+          }}
+        >
+          {comparisonText}
+        </Text>
+      </View>
+      <View
+        style={{
+          height: 1,
+          backgroundColor: palette.fieldBorder,
+        }}
+      />
       <View
         style={{
           flexDirection: "row",
-          alignItems: "center",
-          gap: 16,
           flexWrap: "wrap",
+          gap: 20,
         }}
       >
         {highest ? (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={`Highest Category ${highest.name}, ${formatPhp(highest.amount)}, view Expenses`}
-            accessibilityHint="Opens Expenses for this Category and Dashboard period"
             onPress={() => onOpenExpenses(highest.expenseFilter)}
-            style={{ minHeight: 48, justifyContent: "center", gap: 2 }}
+            style={{
+              minHeight: 48,
+              flexGrow: 1,
+              flexBasis: 120,
+              gap: 6,
+            }}
           >
-            <Text style={eyebrowStyle(palette, fonts)}>HIGHEST CATEGORY</Text>
+            <SupportingText>Highest spend</SupportingText>
             <Text
               style={{
-                color: palette.brandPrimary,
-                fontFamily: fonts.semibold,
-                fontSize: typeScale.body,
+                color: palette.textPrimary,
+                fontFamily: fonts.medium,
+                fontSize: 22,
               }}
             >
-              {highest.name} · {formatPhp(highest.amount)}
+              {formatPhp(highest.amount)}
             </Text>
+            <SupportingText>{highest.name}</SupportingText>
           </Pressable>
         ) : (
-          <View style={{ minHeight: 48, justifyContent: "center" }}>
-            <Text style={eyebrowStyle(palette, fonts)}>HIGHEST CATEGORY</Text>
+          <View
+            style={{
+              flex: 1,
+              gap: 6,
+            }}
+          >
+            <SupportingText>Highest spend</SupportingText>
             <SupportingText>No Expenses yet</SupportingText>
           </View>
         )}
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={`${summary.statementImports.count} Statement Imports confirmed in this period`}
-          accessibilityHint="Opens Statement Import history"
+          accessibilityLabel={`${summary.statementImports.count} Statement Imports confirmed in this period${latestImport ? `, latest ${importDate(latestImport)}` : ""}. View history`}
           onPress={onOpenImportHistory}
-          style={{ minHeight: 48, justifyContent: "center", gap: 2 }}
+          style={{
+            minHeight: 48,
+            flexGrow: 1,
+            flexBasis: 120,
+            gap: 6,
+          }}
         >
-          <Text style={eyebrowStyle(palette, fonts)}>IMPORTS</Text>
+          <SupportingText>Statements imported</SupportingText>
           <Text
             style={{
               color: palette.textPrimary,
-              fontFamily: fonts.semibold,
-              fontSize: typeScale.body,
+              fontFamily: fonts.medium,
+              fontSize: 22,
             }}
           >
-            {summary.statementImports.count} confirmed
+            {summary.statementImports.count}
           </Text>
+          <SupportingText>
+            {latestImport
+              ? `Last confirmed ${importDate(latestImport)}`
+              : "None in this period"}
+          </SupportingText>
         </Pressable>
       </View>
-    </GlassView>
+      <CompactAction
+        label={
+          showDetails ? "Hide plan details" : "Plan details & Expense count"
+        }
+        variant="quiet"
+        selected={showDetails}
+        onPress={() => setShowDetails(!showDetails)}
+      />
+      {showDetails ? (
+        <View
+          style={{
+            gap: 5,
+          }}
+        >
+          <SupportingText>{`${summary.expenseCount} Expenses${range.inProgress ? " · period in progress" : ""}`}</SupportingText>
+          <SupportingText>{`${summary.planned.months} ${summary.planned.months === 1 ? "month" : "months"} · current Budgets`}</SupportingText>
+          <SupportingText>{`Monthly equivalent ${formatPhp(summary.planned.monthlyEquivalent.amount)}`}</SupportingText>
+          <SupportingText>{`Annual equivalent ${formatPhp(summary.planned.annualEquivalent.amount)}`}</SupportingText>
+        </View>
+      ) : null}
+    </ChartCard>
   );
 }
-
 function MonthlyChart({
   report,
   onOpenExpenses,
@@ -335,104 +448,49 @@ function MonthlyChart({
   report: DashboardReport;
   onOpenExpenses: (filter: DashboardExpenseFilter) => void;
 }) {
-  const { palette, fonts } = useAppTheme();
-  const monthlyPlan = report.summary.planned.monthlyEquivalent.amount;
-  const maximum = report.monthlyExpenses.reduce(
-    (current, point) =>
-      compareMoney(point.actualAmount, current) > 0
-        ? point.actualAmount
-        : current,
-    monthlyPlan,
-  );
-  const chartHeight = 110;
+  const { palette } = useAppTheme();
+  const [showValues, setShowValues] = useState(false);
+  const plan = report.summary.planned.monthlyEquivalent.amount;
   return (
-    <ChartCard
-      title="Spending by month"
-      subtitle="Actual Expenses compared with your monthly-equivalent plan"
-    >
-      <View style={{ flexDirection: "row", gap: 16, alignItems: "center" }}>
-        <Legend color={palette.brandPrimary} label="Actual" />
-        <Legend color={palette.stateWarning} label="Monthly plan" line />
+    <ChartCard title="Monthly spending">
+      <SupportingText>{`Monthly-equivalent plan ${formatPhp(plan)}`}</SupportingText>
+      <MonthlyBars report={report} />
+      <View
+        style={{
+          flexDirection: "row",
+          gap: 16,
+          flexWrap: "wrap",
+        }}
+      >
+        <Legend color={palette.chartBar} label="Actual" />
+        <Legend color={palette.chartThreshold} label="Monthly plan" line />
       </View>
-      {report.monthlyExpenses.every((point) => point.expenseCount === "0") &&
-      compareMoney(monthlyPlan, "0.00") === 0 ? (
+      {report.monthlyExpenses.every((point) => point.expenseCount === "0") ? (
         <SupportingText>
-          No plan set or Expenses in this period.
+          {compareMoney(plan, "0.00") === 0
+            ? "No plan set or Expenses in this period."
+            : "No Expenses in this period."}
         </SupportingText>
-      ) : (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ gap: 8 }}
-        >
-          {report.monthlyExpenses.map((point) => {
-            const actualPercent = barHeightPercent(point.actualAmount, maximum);
-            const planPercent = barHeightPercent(monthlyPlan, maximum);
-            return (
-              <Pressable
-                key={point.month}
-                accessibilityRole="button"
-                accessibilityLabel={`${labelMonth(point.month)} actual ${formatPhp(point.actualAmount)}, monthly plan ${formatPhp(monthlyPlan)}. View Expenses`}
-                accessibilityHint={`Opens Expenses from ${point.fromDate} through ${point.toDate}`}
-                onPress={() => onOpenExpenses(point.expenseFilter)}
-                style={{
-                  width: 48,
-                  minHeight: 150,
-                  alignItems: "center",
-                  justifyContent: "flex-end",
-                  gap: 8,
-                }}
-              >
-                <View
-                  style={{
-                    width: 36,
-                    height: chartHeight,
-                    justifyContent: "flex-end",
-                    alignItems: "center",
-                  }}
-                >
-                  {compareMoney(monthlyPlan, "0.00") > 0 ? (
-                    <View
-                      style={{
-                        position: "absolute",
-                        left: 0,
-                        right: 0,
-                        bottom: (planPercent / 100) * chartHeight,
-                        borderTopWidth: 2,
-                        borderStyle: "dashed",
-                        borderColor: palette.stateWarning,
-                        zIndex: 2,
-                      }}
-                    />
-                  ) : null}
-                  <View
-                    style={{
-                      width: 26,
-                      height: Math.max(0, (actualPercent / 100) * chartHeight),
-                      borderTopLeftRadius: 8,
-                      borderTopRightRadius: 8,
-                      backgroundColor: palette.brandPrimary,
-                    }}
-                  />
-                </View>
-                <Text
-                  style={{
-                    color: palette.textSecondary,
-                    fontFamily: fonts.medium,
-                    fontSize: typeScale.metadata,
-                  }}
-                >
-                  {labelMonth(point.month)}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
-      )}
+      ) : null}
+      <CompactAction
+        label={showValues ? "Hide monthly values" : "Monthly values & Expenses"}
+        variant="quiet"
+        selected={showValues}
+        onPress={() => setShowValues(!showValues)}
+      />
+      {showValues
+        ? report.monthlyExpenses.map((point) => (
+            <ValueAction
+              key={point.month}
+              title={`${labelMonth(point.month)} ${point.month.slice(0, 4)}${point.inProgress ? " · in progress" : ""}`}
+              detail={`${formatPhp(point.actualAmount)} · ${point.expenseCount} Expenses · plan ${formatPhp(plan)}`}
+              onPress={() => onOpenExpenses(point.expenseFilter)}
+            />
+          ))
+        : null}
     </ChartCard>
   );
 }
-
 function CategoryChart({
   report,
   categories,
@@ -450,39 +508,51 @@ function CategoryChart({
   onClearCategories: () => void;
   onOpenExpenses: (filter: DashboardExpenseFilter) => void;
 }) {
-  const { palette, fonts } = useAppTheme();
-  const maxAmount = report.categoryExpenses.reduce(
-    (maximum, category) =>
-      compareMoney(category.actualAmount, maximum) > 0
-        ? category.actualAmount
-        : maximum,
-    "0.00",
-  );
+  const { palette } = useAppTheme();
+  const [showValues, setShowValues] = useState(false);
   const points = [...report.categoryExpenses].sort(
     (left, right) =>
       compareMoney(right.actualAmount, left.actualAmount) ||
       left.name.localeCompare(right.name),
   );
+  const colorFor = (point: DashboardReport["categoryExpenses"][number]) => {
+    const colorKey =
+      categories.find((category) => category.id === point.categoryId)
+        ?.colorKey ?? point.colorKey;
+    return (
+      CATEGORY_COLOR_VALUES[colorKey as keyof typeof CATEGORY_COLOR_VALUES] ??
+      palette.brandPrimary
+    );
+  };
   return (
-    <ChartCard
-      title="Spending by Category"
-      subtitle="Select Categories to filter this chart"
-    >
+    <ChartCard title="Category spending">
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ gap: 8 }}
+        contentContainerStyle={{
+          gap: 6,
+        }}
       >
-        <SecondaryButton
+        <CompactAction
           label="All Categories"
           selected={selectedCategoryIds.length === 0}
           onPress={onClearCategories}
         />
         {categories.map((category) => (
-          <SecondaryButton
+          <CompactAction
             key={category.id}
             label={
               category.isActive ? category.name : `${category.name} · inactive`
+            }
+            icon={
+              <View
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: 3,
+                  backgroundColor: CATEGORY_COLOR_VALUES[category.colorKey],
+                }}
+              />
             }
             selected={selectedCategoryIds.includes(category.id)}
             onPress={() => onToggleCategory(category.id)}
@@ -494,270 +564,292 @@ function CategoryChart({
       ) : points.length === 0 ? (
         <SupportingText>No Category spending in this period.</SupportingText>
       ) : (
-        <View style={{ gap: 14 }}>
-          {points.map((point) => {
-            const category = categories.find(
-              (item) => item.id === point.categoryId,
-            );
-            const color = category
-              ? CATEGORY_COLOR_VALUES[category.colorKey]
-              : palette.brandPrimary;
-            return (
-              <Pressable
-                key={point.categoryId}
-                accessibilityRole="button"
-                accessibilityLabel={`${point.name}, ${formatPhp(point.actualAmount)}. View Expenses`}
-                accessibilityHint="Opens Expenses for this Category and Dashboard period"
-                onPress={() =>
-                  onOpenExpenses({
-                    fromDate: report.range.fromDate,
-                    toDate: report.range.toDate,
-                    categoryId: point.categoryId,
-                  })
-                }
-                style={{ minHeight: 64, justifyContent: "center", gap: 7 }}
-              >
+        <>
+          <CategoryLines report={report} colorFor={colorFor} />
+          <View
+            style={{
+              flexDirection: "row",
+              gap: 16,
+              flexWrap: "wrap",
+            }}
+          >
+            <Legend color={palette.textSecondary} label="Spending" />
+            <Legend color={palette.textSecondary} label="Monthly limit" line />
+          </View>
+          <SupportingText>
+            Annual Budgets retain their calendar-year limits; no monthly cap is
+            plotted.
+          </SupportingText>
+          {points.map((point) => (
+            <ValueAction
+              key={point.categoryId}
+              title={`${point.name}${point.isActive ? "" : " · inactive"}`}
+              color={colorFor(point)}
+              detail={`${formatPhp(point.actualAmount)}${point.budget ? ` · ${point.budget.period === "monthly" ? "Monthly limit" : "Annual Budget"} ${formatPhp(point.budget.amount)}` : ""}`}
+              onPress={() =>
+                onOpenExpenses({
+                  fromDate: report.range.fromDate,
+                  toDate: report.range.toDate,
+                  categoryId: point.categoryId,
+                })
+              }
+            />
+          ))}
+          <CompactAction
+            label={
+              showValues
+                ? "Hide Category monthly values"
+                : "Category monthly values & Expenses"
+            }
+            variant="quiet"
+            selected={showValues}
+            onPress={() => setShowValues(!showValues)}
+          />
+          {showValues
+            ? points.map((point) => (
                 <View
-                  style={{ flexDirection: "row", alignItems: "center", gap: 9 }}
-                >
-                  {category ? (
-                    <CategoryIconMark
-                      iconKey={category.iconKey}
-                      colorKey={category.colorKey}
-                      size={16}
-                    />
-                  ) : null}
-                  <Text
-                    style={{
-                      flex: 1,
-                      color: palette.textPrimary,
-                      fontFamily: fonts.semibold,
-                      fontSize: typeScale.body,
-                    }}
-                  >
-                    {point.name}
-                    {!point.isActive ? " · inactive" : ""}
-                  </Text>
-                  <Text
-                    style={{
-                      color: palette.textPrimary,
-                      fontFamily: fonts.medium,
-                      fontSize: typeScale.body,
-                      fontVariant: ["tabular-nums"],
-                    }}
-                  >
-                    {formatPhp(point.actualAmount)}
-                  </Text>
-                </View>
-                <View
+                  key={point.categoryId}
                   style={{
-                    height: 8,
-                    borderRadius: 8,
-                    overflow: "hidden",
-                    backgroundColor: palette.fieldBorder,
+                    gap: 4,
                   }}
                 >
-                  <View
-                    style={{
-                      height: 8,
-                      width: `${barHeightPercent(point.actualAmount, maxAmount)}%`,
-                      borderRadius: 8,
-                      backgroundColor: color,
-                    }}
-                  />
+                  <SupportingText>{point.name}</SupportingText>
+                  {point.months.map((month) => (
+                    <ValueAction
+                      key={month.month}
+                      title={`${labelMonth(month.month)} ${month.month.slice(0, 4)}`}
+                      detail={`${formatPhp(month.actualAmount)} · ${month.expenseCount} Expenses${month.monthlyBudgetAmount !== null ? ` · monthly limit ${formatPhp(month.monthlyBudgetAmount)}` : ""}`}
+                      onPress={() => onOpenExpenses(month.expenseFilter)}
+                    />
+                  ))}
                 </View>
-                {point.budget ? (
-                  <SupportingText>
-                    {point.budget.period === "monthly"
-                      ? `Monthly limit ${formatPhp(point.budget.amount)}`
-                      : `Annual Budget ${formatPhp(point.budget.amount)}`}
-                  </SupportingText>
-                ) : null}
-              </Pressable>
-            );
-          })}
-        </View>
+              ))
+            : null}
+        </>
       )}
     </ChartCard>
   );
 }
-
 function BudgetChecks({
   report,
+  categories,
   onOpenBudgetCategory,
 }: {
   report: DashboardReport;
+  categories: readonly SpaceCategory[];
   onOpenBudgetCategory: (categoryId: string) => void;
 }) {
   const { palette, fonts } = useAppTheme();
   return (
-    <ChartCard
-      title="Budget checks"
-      subtitle="Current active Budgets applied to this reporting period"
-    >
-      <Text accessibilityRole="header" style={sectionHeading(palette, fonts)}>
-        Monthly Budgets
-      </Text>
+    <ChartCard title="Budget checks" inset={20}>
+      <SupportingText>Months over Budget</SupportingText>
       {report.budgetChecks.monthly.length === 0 ? (
         <SupportingText>No active Monthly Budgets.</SupportingText>
       ) : (
-        report.budgetChecks.monthly.map((check) => (
-          <BudgetCheckRow
-            key={check.categoryId}
-            label={
-              check.eligibleMonths === 0
-                ? `${check.name}, no completed months to check`
-                : `${check.name}, ${check.overBudgetMonths} over Budget months out of ${check.eligibleMonths} completed months`
-            }
-            title={check.name}
-            detail={
-              check.eligibleMonths === 0
-                ? `— · limit ${formatPhp(check.budgetAmount)}`
-                : `${check.overBudgetMonths} over · ${check.eligibleMonths} completed months · limit ${formatPhp(check.budgetAmount)}`
-            }
-            status={
-              check.eligibleMonths === 0
-                ? null
-                : check.overBudgetMonths > 0
-                  ? "over"
-                  : "normal"
-            }
-            onPress={() => onOpenBudgetCategory(check.categoryId)}
-          />
-        ))
+        report.budgetChecks.monthly.map((check) => {
+          const category = categories.find(
+            (item) => item.id === check.categoryId,
+          );
+          return (
+            <Pressable
+              key={check.categoryId}
+              accessibilityRole="button"
+              accessibilityLabel={`${check.name}, ${check.overBudgetMonths} over Budget months out of ${check.eligibleMonths} completed months, monthly limit ${formatPhp(check.budgetAmount)}. Open Category Budget`}
+              onPress={() => onOpenBudgetCategory(check.categoryId)}
+              style={{
+                minHeight: 48,
+                gap: 6,
+              }}
+            >
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                  gap: 8,
+                }}
+              >
+                {category ? (
+                  <CategoryIconMark
+                    iconKey={category.iconKey}
+                    colorKey={category.colorKey}
+                    size={14}
+                  />
+                ) : null}
+                <Text
+                  style={{
+                    flex: 1,
+                    color: palette.textPrimary,
+                    fontFamily: fonts.medium,
+                    fontSize: 14,
+                  }}
+                >
+                  {check.name}
+                </Text>
+                <Text
+                  style={{
+                    color: palette.textSecondary,
+                    fontFamily: fonts.medium,
+                    fontSize: 12,
+                  }}
+                >
+                  {check.eligibleMonths === 0
+                    ? "—"
+                    : `${check.overBudgetMonths}/${check.eligibleMonths}`}
+                </Text>
+              </View>
+              <View
+                accessible={false}
+                style={{
+                  flexDirection: "row",
+                  flexWrap: "wrap",
+                  gap: 5,
+                }}
+              >
+                {Array.from(
+                  {
+                    length: check.eligibleMonths,
+                  },
+                  (_, index) => (
+                    <View
+                      key={index}
+                      style={{
+                        width: 6,
+                        height: 6,
+                        borderRadius: 3,
+                        backgroundColor:
+                          index < check.overBudgetMonths
+                            ? palette.chartBar
+                            : palette.meterTrack,
+                      }}
+                    />
+                  ),
+                )}
+              </View>
+              <SupportingText>{`${check.eligibleMonths === 0 ? "No completed months · " : ""}Monthly limit ${formatPhp(check.budgetAmount)}`}</SupportingText>
+            </Pressable>
+          );
+        })
       )}
-      <Text accessibilityRole="header" style={sectionHeading(palette, fonts)}>
-        Yearly Budgets
-      </Text>
+      <View
+        style={{
+          height: 1,
+          backgroundColor: palette.fieldBorder,
+        }}
+      />
+      <SupportingText>Yearly Budgets</SupportingText>
       {report.budgetChecks.yearly.length === 0 ? (
         <SupportingText>No active Yearly Budgets.</SupportingText>
       ) : (
         report.budgetChecks.yearly.map((check) => (
-          <BudgetCheckRow
+          <ValueAction
             key={`${check.categoryId}-${check.year}`}
-            label={`${check.name}, ${check.year}, ${formatPhp(check.actualAmount)} of ${formatPhp(check.limitAmount)}, ${check.status}`}
             title={`${check.name} · ${check.year}`}
-            detail={`${formatPhp(check.actualAmount)} of ${formatPhp(check.limitAmount)}${check.usageToDate === report.range.today ? " · year to date" : ""}`}
-            status={check.status}
+            detail={`${formatPhp(check.actualAmount)} of ${formatPhp(check.limitAmount)} · ${check.status.replaceAll("_", " ")}${check.usageToDate === report.range.today ? " · year to date" : ""}`}
+            color={statusColor(check.status, palette)}
+            hint="Opens Category Budget"
             onPress={() => onOpenBudgetCategory(check.categoryId)}
           />
         ))
       )}
       <SupportingText>
-        Monthly status excludes the in-progress month. Yearly status compares
-        calendar-year Expenses with the annual limit. Select a check to open its
-        Category Budget.
+        Monthly frequency excludes the in-progress month. Dots show counts, not
+        the sequence of months. Yearly status uses calendar-year Expenses and
+        the annual limit.
       </SupportingText>
     </ChartCard>
   );
 }
-
-function BudgetCheckRow({
-  label,
+function ValueAction({
   title,
   detail,
-  status,
+  color,
   onPress,
+  hint = "Opens Expenses for this selection",
 }: {
-  label: string;
   title: string;
   detail: string;
-  status: DashboardBudgetStatus | null;
+  color?: string;
+  hint?: string;
   onPress: () => void;
 }) {
   const { palette, fonts } = useAppTheme();
-  const color =
-    status === null
-      ? palette.textSecondary
-      : status === "over"
-        ? palette.stateNegative
-        : status === "nearing" || status === "at_limit"
-          ? palette.stateWarning
-          : palette.statePositive;
   return (
     <Pressable
-      accessible
       accessibilityRole="button"
-      accessibilityLabel={label}
+      accessibilityLabel={`${title}, ${detail}`}
+      accessibilityHint={hint}
       onPress={onPress}
       style={{
-        minHeight: 64,
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 12,
+        minHeight: 48,
+        justifyContent: "center",
+        gap: 3,
+        paddingVertical: 6,
       }}
     >
       <View
         style={{
-          width: 8,
-          height: 38,
-          borderRadius: 6,
-          backgroundColor: color,
+          flexDirection: "row",
+          gap: 7,
+          alignItems: "center",
         }}
-      />
-      <View style={{ flex: 1, gap: 3 }}>
+      >
+        {color ? (
+          <View
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: 3,
+              backgroundColor: color,
+            }}
+          />
+        ) : null}
         <Text
           style={{
+            flex: 1,
             color: palette.textPrimary,
-            fontFamily: fonts.semibold,
-            fontSize: typeScale.body,
+            fontFamily: fonts.medium,
+            fontSize: 14,
           }}
         >
           {title}
         </Text>
-        <Text
-          style={{
-            color: palette.textSecondary,
-            fontFamily: fonts.regular,
-            fontSize: typeScale.metadata,
-          }}
-        >
-          {detail}
-        </Text>
       </View>
-      <Text
-        style={{
-          color,
-          fontFamily: fonts.semibold,
-          fontSize: typeScale.metadata,
-          textTransform: "uppercase",
-        }}
-      >
-        {status === null ? "—" : status.replace("_", " ")}
-      </Text>
+      <SupportingText>{detail}</SupportingText>
     </Pressable>
   );
 }
-
 function ChartCard({
   title,
-  subtitle,
   children,
+  inset = 22,
 }: {
   title: string;
-  subtitle: string;
   children: ReactNode;
+  inset?: number;
 }) {
-  const { palette, fonts, scheme } = useAppTheme();
+  const { palette, fonts } = useAppTheme();
   return (
-    <GlassView
-      accessible={false}
-      glassEffectStyle="regular"
-      colorScheme={scheme}
-      tintColor={palette.glassTint}
-      style={cardStyle(palette)}
+    <DesignSurface
+      style={{
+        gap: 16,
+        padding: inset,
+      }}
     >
-      <View style={{ gap: 4 }}>
-        <Text accessibilityRole="header" style={sectionHeading(palette, fonts)}>
-          {title}
-        </Text>
-        <SupportingText>{subtitle}</SupportingText>
-      </View>
+      <Text
+        accessibilityRole="header"
+        style={{
+          color: palette.textPrimary,
+          fontFamily: fonts.semibold,
+          fontSize: typeScale.sectionTitle,
+        }}
+      >
+        {title}
+      </Text>
       {children}
-    </GlassView>
+    </DesignSurface>
   );
 }
-
 function PeriodButton({
   label,
   selected,
@@ -767,37 +859,17 @@ function PeriodButton({
   selected: boolean;
   onPress: () => void;
 }) {
-  const { palette, fonts } = useAppTheme();
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`${label} Dashboard view`}
-      accessibilityState={{ selected }}
-      onPress={onPress}
-      style={{
-        flex: 1,
-        minHeight: 48,
-        alignItems: "center",
-        justifyContent: "center",
-        borderRadius: radius.control,
-        borderWidth: 1,
-        borderColor: selected ? palette.brandPrimary : palette.fieldBorder,
-        backgroundColor: selected ? palette.brandPrimary : palette.surfaceModal,
-      }}
-    >
-      <Text
-        style={{
-          color: selected ? palette.onBrand : palette.textPrimary,
-          fontFamily: fonts.semibold,
-          fontSize: typeScale.button,
-        }}
-      >
-        {label}
-      </Text>
-    </Pressable>
+    <View style={{ flex: 1 }}>
+      <CompactAction
+        label={label}
+        selected={selected}
+        onPress={onPress}
+        variant="segmented"
+      />
+    </View>
   );
 }
-
 function PeriodArrow({
   label,
   onPress,
@@ -812,7 +884,9 @@ function PeriodArrow({
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
-      accessibilityState={{ disabled }}
+      accessibilityState={{
+        disabled,
+      }}
       disabled={disabled}
       onPress={onPress}
       style={{
@@ -820,18 +894,14 @@ function PeriodArrow({
         minHeight: 48,
         alignItems: "center",
         justifyContent: "center",
-        borderWidth: 1,
-        borderColor: palette.fieldBorder,
-        borderRadius: radius.control,
-        backgroundColor: palette.surfaceModal,
         opacity: disabled ? 0.5 : 1,
       }}
     >
       <Text
         style={{
-          color: palette.brandPrimary,
-          fontFamily: fonts.semibold,
-          fontSize: 20,
+          color: palette.textPrimary,
+          fontFamily: fonts.medium,
+          fontSize: 24,
         }}
       >
         {label === "Previous period" ? "‹" : "›"}
@@ -839,7 +909,6 @@ function PeriodArrow({
     </Pressable>
   );
 }
-
 function Legend({
   color,
   label,
@@ -851,23 +920,33 @@ function Legend({
 }) {
   const { palette, fonts } = useAppTheme();
   return (
-    <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+    <View
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 6,
+      }}
+    >
       <View
         style={{
-          width: 12,
-          height: line ? 2 : 12,
-          borderRadius: line ? 0 : 6,
-          backgroundColor: color,
+          width: 16,
+          height: line ? 0 : 6,
+          borderRadius: line ? 0 : 3,
+          backgroundColor: line ? undefined : color,
           ...(line
-            ? { borderTopWidth: 1, borderStyle: "dashed" as const }
+            ? {
+                borderTopWidth: 1.5,
+                borderColor: color,
+                borderStyle: "dashed" as const,
+              }
             : {}),
         }}
       />
       <Text
         style={{
           color: palette.textSecondary,
-          fontFamily: fonts.medium,
-          fontSize: typeScale.metadata,
+          fontFamily: fonts.regular,
+          fontSize: 12,
         }}
       >
         {label}
@@ -875,39 +954,35 @@ function Legend({
     </View>
   );
 }
-
-function cardStyle(palette: ReturnType<typeof useAppTheme>["palette"]) {
-  return {
-    gap: space.cardGap,
-    padding: space.cardInset,
-    borderWidth: 1,
-    borderColor: palette.glassBorder,
-    borderRadius: radius.summaryCard,
-    borderCurve: "continuous" as const,
-    overflow: "hidden" as const,
-    backgroundColor: palette.glassTint,
-  };
-}
-
-function eyebrowStyle(
+function statusColor(
+  status: DashboardBudgetStatus,
   palette: ReturnType<typeof useAppTheme>["palette"],
-  fonts: ReturnType<typeof useAppTheme>["fonts"],
 ) {
-  return {
-    color: palette.textSecondary,
-    fontFamily: fonts.semibold,
-    fontSize: typeScale.metadata,
-    letterSpacing: 0.7,
-  } as const;
+  return status === "over"
+    ? palette.stateNegative
+    : status === "normal"
+      ? palette.statePositive
+      : palette.stateWarning;
 }
-
-function sectionHeading(
-  palette: ReturnType<typeof useAppTheme>["palette"],
-  fonts: ReturnType<typeof useAppTheme>["fonts"],
-) {
-  return {
-    color: palette.textPrimary,
-    fontFamily: fonts.semibold,
-    fontSize: typeScale.sectionTitle,
-  } as const;
+function importDate(value: string) {
+  return new Intl.DateTimeFormat("en-PH", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "Asia/Manila",
+  }).format(new Date(value));
+}
+function SupportingText({ children }: { children: string }) {
+  const { palette, fonts } = useAppTheme();
+  return (
+    <Text
+      style={{
+        color: palette.textSecondary,
+        fontFamily: fonts.regular,
+        fontSize: 12,
+      }}
+    >
+      {children}
+    </Text>
+  );
 }

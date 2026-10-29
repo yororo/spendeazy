@@ -81,7 +81,7 @@ test('successful extraction releases adapter resources before review, and a new 
   flow.receive({ type: 'ready', id: 'one' });
   const pages = [{ pageIndex: 0, outcome: 'text' as const, hasImages: false,
     text: 'GCash Transaction History\n2026-01-01 to 2026-01-15\nSTARTING BALANCE 2000.00\nENDING BALANCE 1000.00\nDate and Time Description Reference No. Debit Credit Balance\n2026-01-01 09:00 AM FICTIONAL PURCHASE 1001 1000.00 1000.00' }];
-  flow.receive({ type: 'result', id: 'one', pages });
+  flow.receive({ type: 'result', id: 'one', extractionEngineVersion: 'fixture/1', pages });
   assert.equal(store.snapshot().phase, 'ready');
   assert.equal(flow.snapshot().request, null); assert.equal(pages.length, 0);
   assert.ok(calls.includes('release:cache/picker/copy.pdf'));

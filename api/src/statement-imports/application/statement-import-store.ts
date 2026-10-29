@@ -1,4 +1,18 @@
 import type { StatementType } from './statement-type';
+import type {
+  ImportAdvisoryWarning,
+  PrivateConfirmationPayload,
+} from './confirmation-payload';
+
+export interface ImmutableImportConfirmation {
+  evidence: Omit<PrivateConfirmationPayload['evidence'], 'transactions'>;
+  includedCount: string;
+  excludedCount: string;
+  originalExpenseCount: string;
+  originalExpenseTotal: string;
+  acknowledgedWarnings: ImportAdvisoryWarning[];
+  acknowledgedWarningDigest: string | null;
+}
 
 export const STATEMENT_IMPORT_STORE = Symbol('STATEMENT_IMPORT_STORE');
 
@@ -20,6 +34,7 @@ export interface SpaceStatementImportHistoryPageQuery {
 }
 
 export interface StatementImportRecord {
+  confirmation?: ImmutableImportConfirmation;
   id: string;
   spaceId: string;
   importedByUserId: string;
@@ -43,6 +58,7 @@ export interface StatementImportHistoryRecord extends Omit<
 }
 
 export interface NewStatementImport {
+  confirmation?: ImmutableImportConfirmation;
   spaceId: string;
   importedByUserId: string;
   fileName: string;

@@ -49,7 +49,7 @@ export function matchUnmapped(state: ReviewState): ReviewState {
     if (new Set(matches.map(rule => rule.categoryId)).size !== 1) continue;
     const category = catalog.categories.find(c => c.id === matches[0].categoryId)!;
     rows[row.sourceRowId] = { ...row, values: { ...row.values, categoryId: category.id }, assignment: {
-      origin: 'rule', categoryRevision: category.revision, ruleIds: matches.map(rule => rule.id), rulesRevision: catalog.rulesRevision,
+      origin: 'rule', categoryRevision: category.revision, ruleIds: matches.map(rule => rule.id), rulesRevision: catalog.rulesRevision, matchType: matches[0].matchType,
     } };
     changed = true;
   }

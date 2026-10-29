@@ -95,7 +95,7 @@ export function createImportWorkflow(deps: Dependencies) {
         if (state.phase !== 'extracting' || !state.file) return;
         deps.store.deliver(op, { type: 'extracted' });
         try {
-          const result = interpretStatement({ draftId: state.draftId, owner: state.owner, file: state.file, pages: message.pages });
+          const result = interpretStatement({ draftId: state.draftId, owner: state.owner, file: state.file, pages: message.pages, extractionEngineVersion: message.extractionEngineVersion });
           // Resource cleanup must succeed before publishing the #152 boundary.
           deps.sweep();
           deps.store.deliver(op, { type: 'interpreted', result });

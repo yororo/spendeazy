@@ -46,12 +46,15 @@ export type ImportWarning = Readonly<{
   pageIndices: readonly number[];
 }>;
 export type ImportControl = Readonly<{
+  key: string;
   kind: 'opening-balance' | 'closing-balance' | 'total-debits' | 'total-credits' | 'statement-total' | 'component' | 'subtotal';
   sourceLabel?: string;
   originalValue: string;
   amountMinor: MinorUnits | null;
 }>;
 export type ImportResult = Readonly<{
+  parserVersion: string;
+  extractionEngineVersion: string;
   draftId: string;
   owner: ImportOwner;
   file: ImportFile;
@@ -66,6 +69,8 @@ export type ImportResult = Readonly<{
     unreadablePageIndices: readonly number[];
   }>;
   recognitionEvidence: readonly Readonly<{ kind: 'provider' | 'account-format'; value: string }>[];
-  reconciliation: Readonly<{ outcome: 'matched' | 'mismatch' | 'unavailable'; differenceMinor: MinorUnits | null }>;
+  reconciliation: Readonly<{ outcome: 'matched' | 'mismatch' | 'unavailable'; differenceMinor: MinorUnits | null;
+    comparisons: readonly Readonly<{ controlKey: string | null; equation: string; expectedMinor: MinorUnits | null; extractedMinor: MinorUnits | null; differenceMinor: MinorUnits | null }>[];
+  }>;
   warnings: readonly ImportWarning[];
 }>;

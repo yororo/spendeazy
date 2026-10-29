@@ -4,7 +4,10 @@ import type { EntityManager } from 'typeorm';
 import { SpaceMembershipEntity } from '../../database/entities/space-membership.entity';
 import { StatementImportEntity } from '../../database/entities/statement-import.entity';
 import { ExpenseEntity } from '../../database/entities/expense.entity';
-import { prepareWritableSpace } from '../../spaces/infrastructure/space-write-guard';
+import {
+  prepareWritableSpace,
+  lockWritableSpace,
+} from '../../spaces/infrastructure/space-write-guard';
 import { assertWritableSpace } from '../../spaces/application/assert-writable-space';
 import { SpaceNotFoundError } from '../../spaces/application/space-errors';
 import type {
@@ -23,11 +26,8 @@ export class TypeOrmStatementImportStore implements StatementImportStore {
   ) {}
 
   async lockForStatementImport(spaceId: string, userId: string): Promise<void> {
-    const space = await prepareWritableSpace(
-      this.entityManager,
-      spaceId,
-      userId,
-    );
+    await prepareWritableSpace(this.entityManager, spaceId, userId);
+    const space = await lockWritableSpace(this.entityManager, spaceId);
     const membership = await this.entityManager
       .getRepository(SpaceMembershipEntity)
       .createQueryBuilder('membership')
@@ -121,6 +121,14 @@ export class TypeOrmStatementImportStore implements StatementImportStore {
         historyToDate: input.historyToDate,
         totalDebit: input.totalDebit,
         importedAt: input.importedAt,
+        confirmationEvidence: input.confirmation?.evidence ?? null,
+        includedCount: input.confirmation?.includedCount ?? null,
+        excludedCount: input.confirmation?.excludedCount ?? null,
+        originalExpenseCount: input.confirmation?.originalExpenseCount ?? null,
+        originalExpenseTotal: input.confirmation?.originalExpenseTotal ?? null,
+        acknowledgedWarnings: input.confirmation?.acknowledgedWarnings ?? null,
+        acknowledgedWarningDigest:
+          input.confirmation?.acknowledgedWarningDigest ?? null,
       });
 
     return toRecord(
@@ -133,6 +141,19 @@ export class TypeOrmStatementImportStore implements StatementImportStore {
 
 function toRecord(entity: StatementImportEntity): StatementImportRecord {
   return {
+    ...(entity.confirmationEvidence == null
+      ? {}
+      : {
+          confirmation: {
+            evidence: entity.confirmationEvidence,
+            includedCount: entity.includedCount!,
+            excludedCount: entity.excludedCount!,
+            originalExpenseCount: entity.originalExpenseCount!,
+            originalExpenseTotal: entity.originalExpenseTotal!,
+            acknowledgedWarnings: entity.acknowledgedWarnings!,
+            acknowledgedWarningDigest: entity.acknowledgedWarningDigest,
+          },
+        }),
     id: entity.id,
     spaceId: entity.spaceId,
     importedByUserId: entity.importedByUserId,

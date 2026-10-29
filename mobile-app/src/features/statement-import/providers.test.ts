@@ -6,7 +6,7 @@ import { cardDate, decimalAmount, minorUnits, parseDate } from './values.ts';
 const file = { name: 'fictional.pdf', byteCount: 100, sha256: 'fictional-hash' };
 const owner = { userId: 'u', spaceId: 's' };
 function interpret(text: string, extra: Parameters<typeof interpretStatement>[0]['pages'] = []) {
-  return interpretStatement({ file, owner, draftId: 'd', pages: [{ pageIndex: 0, outcome: 'text', text, hasImages: false }, ...extra] });
+  return interpretStatement({ extractionEngineVersion: 'fixture/1', file, owner, draftId: 'd', pages: [{ pageIndex: 0, outcome: 'text', text, hasImages: false }, ...extra] });
 }
 const bdo = [
   'BDO AMEX PHP', 'Statement Date January 15, 2026',
@@ -38,6 +38,10 @@ for (const [provider, text] of [['bdo', bdo], ['eastwest', eastwest], ['gcash', 
   test(`${provider}: independently expected ledger preserves 1300 spending and excluded credits`, () => {
     const result = interpret(text);
     assert.equal(result.account.provider, provider);
+    assert.equal(result.extractionEngineVersion, 'fixture/1');
+    assert.equal(result.parserVersion.endsWith('/1'), true);
+    assert.equal(new Set(result.controls.map(control => control.key)).size, result.controls.length);
+    assert.ok(result.reconciliation.comparisons.length > 0);
     assert.deepEqual(result.rows.map(row => row.signedActivityMinor), [100000n, 30000n, -40000n, -10000n]);
     assert.equal(result.rows.reduce((sum, row) => sum + (row.classification.eligible ? row.classification.expenseMinor : 0n), 0n), 130000n);
     assert.equal(result.reconciliation.outcome, 'matched');

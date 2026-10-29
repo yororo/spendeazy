@@ -61,6 +61,9 @@ export class ExpenseEntity {
   @Column({ type: 'text', nullable: true, name: 'source_row_id' })
   sourceRowId!: string | null;
 
+  @Column({ type: 'bigint', nullable: true, name: 'statement_import_row_id' })
+  statementImportRowId!: string | null;
+
   @Column({ type: 'date', name: 'expense_date' })
   expenseDate!: string;
 

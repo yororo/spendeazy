@@ -4,6 +4,7 @@ import { BudgetEntity } from '../entities/budget.entity';
 import { CategoryRuleEntity } from '../entities/category-rule.entity';
 import { CategoryEntity } from '../entities/category.entity';
 import { StatementImportEntity } from '../entities/statement-import.entity';
+import { StatementImportOperationEntity } from '../entities/statement-import-operation.entity';
 import { ExpenseEntity } from '../entities/expense.entity';
 import { ExpenseActivityEntity } from '../entities/expense-activity.entity';
 import { UserEntity } from '../entities/user.entity';
@@ -137,6 +138,9 @@ async function removeExistingSeedUser(manager: EntityManager): Promise<void> {
       { spaceId: personalSpace.id },
     )
     .execute();
+  await manager.delete(StatementImportOperationEntity, {
+    spaceId: personalSpace.id,
+  });
   await manager.delete(StatementImportEntity, { spaceId: personalSpace.id });
   await manager.delete(CategoryEntity, { spaceId: personalSpace.id });
   await manager.delete(SpaceEntity, { id: personalSpace.id });

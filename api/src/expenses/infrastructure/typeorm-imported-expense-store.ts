@@ -70,6 +70,7 @@ export class TypeOrmImportedExpenseStore implements SpaceImportedExpenseStore {
       categoryId: input.categoryId,
       statementImportId: input.statementImportId,
       sourceRowId: input.sourceRowId,
+      statementImportRowId: input.statementImportRowId ?? null,
       expenseDate: input.expenseDate,
       description: input.description,
       amount: input.amount,

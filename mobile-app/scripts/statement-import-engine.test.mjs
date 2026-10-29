@@ -20,7 +20,7 @@ const bundle = await build({ entryPoints: ['src/features/statement-import/engine
     builder.onResolve({ filter: /pdfjs-dist|local-resources/ }, args => ({ path: args.path, namespace: 'fixture' }));
     builder.onLoad({ filter: /.*/, namespace: 'fixture' }, args => ({ contents: args.path.includes('local-resources')
       ? 'export const decode = value => new Uint8Array([1]); export class LocalDataFactory {} export class LocalCMapFactory {}'
-      : 'export const getDocument = options => globalThis.fixtureTask(options); export const OPS = {paintImageXObject:1,paintInlineImageXObject:2,paintImageMaskXObject:3};' }));
+      : 'export const version = "fictional-engine/1"; export const getDocument = options => globalThis.fixtureTask(options); export const OPS = {paintImageXObject:1,paintInlineImageXObject:2,paintImageMaskXObject:3};' }));
   },
 }] });
 function engine(task) {
@@ -42,6 +42,7 @@ test('page failure preserves prior and later pages in engine order, with no raw 
   const host = engine(task); host.send({ type: 'initialize', id: 'one' }); host.send({ type: 'extract', id: 'one', base64: 'fictional' });
   await turn();
   assert.deepEqual(host.messages.find(message => message.type === 'result').pages.map(page => page.outcome), ['text', 'failed', 'text']);
+  assert.equal(host.messages.find(message => message.type === 'result').extractionEngineVersion, 'fictional-engine/1');
   assert.equal(host.messages.find(message => message.type === 'result').pages[0].text, 'Fictional page 1\nstream order ');
   assert.equal(JSON.stringify(host.messages).includes('private engine contents'), false);
   assert.equal(destroyed, 1); assert.equal(cleaned, 2);

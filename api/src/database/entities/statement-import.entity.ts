@@ -6,12 +6,45 @@ import {
   PrimaryGeneratedColumn,
   Unique,
 } from 'typeorm';
+import type {
+  ImportAdvisoryWarning,
+  PrivateConfirmationPayload,
+} from '../../statement-imports/application/confirmation-payload';
 
 @Entity({ name: 'statement_imports' })
 @Unique('uq_statement_imports_id_space_id', ['id', 'spaceId'])
 @Index('ix_statement_imports_space_confirmed_at', ['spaceId', 'importedAt'])
 @Index('ix_statement_imports_imported_by_user', ['importedByUserId'])
 export class StatementImportEntity {
+  /** Null only for provenance created before complete reviewed confirmation. */
+  @Column({ type: 'jsonb', nullable: true, name: 'confirmation_evidence' })
+  confirmationEvidence!: Omit<
+    PrivateConfirmationPayload['evidence'],
+    'transactions'
+  > | null;
+
+  @Column({ type: 'bigint', nullable: true, name: 'included_count' })
+  includedCount!: string | null;
+
+  @Column({ type: 'bigint', nullable: true, name: 'excluded_count' })
+  excludedCount!: string | null;
+
+  @Column({ type: 'bigint', nullable: true, name: 'original_expense_count' })
+  originalExpenseCount!: string | null;
+
+  @Column({ type: 'numeric', nullable: true, name: 'original_expense_total' })
+  originalExpenseTotal!: string | null;
+
+  @Column({ type: 'jsonb', nullable: true, name: 'acknowledged_warnings' })
+  acknowledgedWarnings!: ImportAdvisoryWarning[] | null;
+
+  @Column({
+    type: 'char',
+    length: 64,
+    nullable: true,
+    name: 'acknowledged_warning_digest',
+  })
+  acknowledgedWarningDigest!: string | null;
   @PrimaryGeneratedColumn('identity', {
     type: 'bigint',
     generatedIdentity: 'ALWAYS',

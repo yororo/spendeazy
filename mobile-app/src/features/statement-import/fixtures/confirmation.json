@@ -1,0 +1,396 @@
+{
+  "statement": {
+    "fileName": "fictional.pdf",
+    "fileHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "provider": "gcash",
+    "accountFormat": "wallet",
+    "statementType": "e_wallet",
+    "statementDate": null,
+    "historyFromDate": "2026-09-01",
+    "historyToDate": "2026-09-30"
+  },
+  "evidence": {
+    "parserVersion": "gcash/e-wallet/1",
+    "extractionEngineVersion": "fictional-engine/1",
+    "transactions": [
+      {
+        "sourceRowId": "row-0",
+        "pageIndex": 0,
+        "sourceOrder": 0,
+        "original": {
+          "dateText": "2026-09-10",
+          "postingDateText": null,
+          "description": "Fictional shop",
+          "amountText": "1000.00",
+          "balanceText": null
+        },
+        "normalized": {
+          "date": "2026-09-10",
+          "amount": "1000.00"
+        },
+        "classification": "purchase",
+        "classificationEvidence": [
+          {
+            "kind": "unresolved",
+            "value": null
+          }
+        ],
+        "matchingSource": "manual",
+        "duplicateReference": "fictional-ref-0"
+      },
+      {
+        "sourceRowId": "row-1",
+        "pageIndex": 0,
+        "sourceOrder": 1,
+        "original": {
+          "dateText": "2026-09-10",
+          "postingDateText": null,
+          "description": "Fictional shop",
+          "amountText": "300.00",
+          "balanceText": null
+        },
+        "normalized": {
+          "date": "2026-09-10",
+          "amount": "300.00"
+        },
+        "classification": "outgoing_transfer",
+        "classificationEvidence": [
+          {
+            "kind": "unresolved",
+            "value": null
+          }
+        ],
+        "matchingSource": "manual",
+        "duplicateReference": "fictional-ref-1"
+      },
+      {
+        "sourceRowId": "row-2",
+        "pageIndex": 0,
+        "sourceOrder": 2,
+        "original": {
+          "dateText": "2026-09-10",
+          "postingDateText": null,
+          "description": "Fictional activity 2",
+          "amountText": "-5000.00",
+          "balanceText": null
+        },
+        "normalized": {
+          "date": "2026-09-10",
+          "amount": "-5000.00"
+        },
+        "classification": "payment",
+        "classificationEvidence": [
+          {
+            "kind": "unresolved",
+            "value": null
+          }
+        ],
+        "matchingSource": "unmapped",
+        "duplicateReference": "fictional-ref-2"
+      },
+      {
+        "sourceRowId": "row-3",
+        "pageIndex": 0,
+        "sourceOrder": 3,
+        "original": {
+          "dateText": "2026-09-10",
+          "postingDateText": null,
+          "description": "Fictional activity 3",
+          "amountText": "-200.00",
+          "balanceText": null
+        },
+        "normalized": {
+          "date": "2026-09-10",
+          "amount": "-200.00"
+        },
+        "classification": "refund",
+        "classificationEvidence": [
+          {
+            "kind": "unresolved",
+            "value": null
+          }
+        ],
+        "matchingSource": "unmapped",
+        "duplicateReference": "fictional-ref-3"
+      },
+      {
+        "sourceRowId": "row-4",
+        "pageIndex": 0,
+        "sourceOrder": 4,
+        "original": {
+          "dateText": "2026-09-10",
+          "postingDateText": null,
+          "description": "Fictional activity 4",
+          "amountText": "-100.00",
+          "balanceText": null
+        },
+        "normalized": {
+          "date": "2026-09-10",
+          "amount": "-100.00"
+        },
+        "classification": "cash_in",
+        "classificationEvidence": [
+          {
+            "kind": "unresolved",
+            "value": null
+          }
+        ],
+        "matchingSource": "unmapped",
+        "duplicateReference": "fictional-ref-4"
+      },
+      {
+        "sourceRowId": "row-5",
+        "pageIndex": 0,
+        "sourceOrder": 5,
+        "original": {
+          "dateText": "2026-09-10",
+          "postingDateText": null,
+          "description": "Fictional activity 5",
+          "amountText": "-100.00",
+          "balanceText": null
+        },
+        "normalized": {
+          "date": "2026-09-10",
+          "amount": "-100.00"
+        },
+        "classification": "credit",
+        "classificationEvidence": [
+          {
+            "kind": "unresolved",
+            "value": null
+          }
+        ],
+        "matchingSource": "unmapped",
+        "duplicateReference": "fictional-ref-5"
+      },
+      {
+        "sourceRowId": "row-6",
+        "pageIndex": 0,
+        "sourceOrder": 6,
+        "original": {
+          "dateText": "2026-09-10",
+          "postingDateText": null,
+          "description": "Fictional activity 6",
+          "amountText": "100.00",
+          "balanceText": null
+        },
+        "normalized": {
+          "date": "2026-09-10",
+          "amount": null
+        },
+        "classification": "unknown_direction",
+        "classificationEvidence": [
+          {
+            "kind": "unresolved",
+            "value": null
+          }
+        ],
+        "matchingSource": "unmapped",
+        "duplicateReference": "fictional-ref-6"
+      },
+      {
+        "sourceRowId": "row-7",
+        "pageIndex": 0,
+        "sourceOrder": 7,
+        "original": {
+          "dateText": "02/30/26",
+          "postingDateText": null,
+          "description": "Fictional activity 7",
+          "amountText": "100.00",
+          "balanceText": null
+        },
+        "normalized": {
+          "date": null,
+          "amount": "100.00"
+        },
+        "classification": "invalid_date",
+        "classificationEvidence": [
+          {
+            "kind": "unresolved",
+            "value": null
+          }
+        ],
+        "matchingSource": "unmapped",
+        "duplicateReference": "fictional-ref-7"
+      },
+      {
+        "sourceRowId": "row-8",
+        "pageIndex": 0,
+        "sourceOrder": 8,
+        "original": {
+          "dateText": "2026-09-10",
+          "postingDateText": null,
+          "description": "Fictional activity 8",
+          "amountText": "unreadable",
+          "balanceText": null
+        },
+        "normalized": {
+          "date": "2026-09-10",
+          "amount": null
+        },
+        "classification": "invalid_amount",
+        "classificationEvidence": [
+          {
+            "kind": "unresolved",
+            "value": null
+          }
+        ],
+        "matchingSource": "unmapped",
+        "duplicateReference": "fictional-ref-8"
+      },
+      {
+        "sourceRowId": "row-9",
+        "pageIndex": 0,
+        "sourceOrder": 9,
+        "original": {
+          "dateText": "2026-09-10",
+          "postingDateText": null,
+          "description": "Fictional activity 9",
+          "amountText": "800.00",
+          "balanceText": null
+        },
+        "normalized": {
+          "date": "2026-09-10",
+          "amount": "800.00"
+        },
+        "classification": "purchase",
+        "classificationEvidence": [
+          {
+            "kind": "unresolved",
+            "value": null
+          }
+        ],
+        "matchingSource": "unmapped",
+        "duplicateReference": "fictional-ref-9"
+      }
+    ],
+    "controlTotals": [
+      {
+        "key": "debits",
+        "label": "Total Debit",
+        "originalText": "10,000.00",
+        "amount": "10000.00"
+      },
+      {
+        "key": "unreadable-control",
+        "label": "subtotal",
+        "originalText": "unreadable",
+        "amount": null
+      }
+    ],
+    "reconciliation": {
+      "status": "warning",
+      "comparisons": [
+        {
+          "controlKey": "debits",
+          "equation": "debit-sum",
+          "expectedAmount": "10000.00",
+          "extractedAmount": "9500.00",
+          "difference": "-500.00"
+        }
+      ],
+      "diagnostics": [
+        {
+          "code": "reconciliation-mismatch",
+          "message": "Original activity differs from statement controls.",
+          "sourceRowIds": [],
+          "pageIndices": []
+        },
+        {
+          "code": "partial-extraction",
+          "message": "Some pages or rows could not be extracted.",
+          "sourceRowIds": [],
+          "pageIndices": [
+            1
+          ]
+        }
+      ]
+    },
+    "pages": [
+      {
+        "pageIndex": 0,
+        "outcome": "text",
+        "hasImages": false
+      },
+      {
+        "pageIndex": 1,
+        "outcome": "failed",
+        "hasImages": false
+      }
+    ],
+    "completeness": {
+      "assessment": "partial",
+      "failedPageIndices": [
+        1
+      ],
+      "unreadablePageIndices": []
+    }
+  },
+  "expenses": [
+    {
+      "sourceRowId": "row-0",
+      "expenseDate": "2026-09-10",
+      "description": "Fictional shop",
+      "amount": "1000.00",
+      "categoryId": "42"
+    },
+    {
+      "sourceRowId": "row-1",
+      "expenseDate": "2026-09-10",
+      "description": "Fictional shop",
+      "amount": "300.00",
+      "categoryId": "42"
+    }
+  ],
+  "excluded": [
+    {
+      "sourceRowId": "row-2",
+      "reason": "payment",
+      "automatic": true
+    },
+    {
+      "sourceRowId": "row-3",
+      "reason": "refund",
+      "automatic": true
+    },
+    {
+      "sourceRowId": "row-4",
+      "reason": "cash_in",
+      "automatic": true
+    },
+    {
+      "sourceRowId": "row-5",
+      "reason": "credit",
+      "automatic": true
+    },
+    {
+      "sourceRowId": "row-6",
+      "reason": "unknown_direction",
+      "automatic": true
+    },
+    {
+      "sourceRowId": "row-7",
+      "reason": "invalid_date",
+      "automatic": true
+    },
+    {
+      "sourceRowId": "row-8",
+      "reason": "invalid_amount",
+      "automatic": true
+    },
+    {
+      "sourceRowId": "row-9",
+      "reason": "manual",
+      "automatic": false
+    }
+  ],
+  "rememberedRules": [
+    {
+      "pattern": "Fictional activity 9",
+      "matchType": "contains",
+      "categoryId": "42"
+    }
+  ],
+  "acknowledgedWarnings": [],
+  "acknowledgedWarningDigest": null
+}

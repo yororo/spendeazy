@@ -1,5 +1,5 @@
 // Bundled local engine. No native imports or production diagnostic output.
-import { getDocument, OPS } from 'pdfjs-dist/legacy/build/pdf.mjs';
+import { getDocument, OPS, version } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import type { TextItem } from 'pdfjs-dist/types/src/display/api';
 import { decode, LocalDataFactory, LocalCMapFactory } from './local-resources';
 import type { ExtractedPage } from '../extraction-bridge';
@@ -49,7 +49,7 @@ const receive = async (raw: string) => {
       } finally { page?.cleanup(); }
       send({ type: 'progress', id, completedPages: pageIndex + 1, totalPages: pdf.numPages });
     }
-    send({ type: 'result', id, pages });
+    send({ type: 'result', id, extractionEngineVersion: version, pages });
   } catch { send({ type: 'error', id, code: 'unreadable' }); }
   finally {
     message.base64 = ''; passwordReply = undefined;

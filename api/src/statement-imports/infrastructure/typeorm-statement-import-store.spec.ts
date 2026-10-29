@@ -15,7 +15,7 @@ import type {
 import { TypeOrmStatementImportStore } from './typeorm-statement-import-store';
 
 describe('TypeOrmStatementImportStore', () => {
-  it('checks current membership after preparing the writable Space', async () => {
+  it('locks actor then exclusively locks Space before checking current membership', async () => {
     const actorQuery = lockedQuery({ id: '7' });
     const spaceQuery = lockedQuery({ status: 'active' });
     const membershipQuery = lockedQuery({ accessLevel: 'write' });
@@ -36,10 +36,11 @@ describe('TypeOrmStatementImportStore', () => {
     expect(getRepository.mock.calls.map(([entity]) => entity)).toEqual([
       UserEntity,
       SpaceEntity,
+      SpaceEntity,
       SpaceMembershipEntity,
     ]);
     expect(actorQuery.setLock).toHaveBeenCalledWith('pessimistic_read');
-    expect(spaceQuery.setLock).not.toHaveBeenCalled();
+    expect(spaceQuery.setLock).toHaveBeenCalledWith('pessimistic_write');
     expect(getRepository).toHaveBeenCalledWith(SpaceMembershipEntity);
     expect(membershipQuery.andWhere).toHaveBeenCalledWith(
       'membership.userId = :userId',

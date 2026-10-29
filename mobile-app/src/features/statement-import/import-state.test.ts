@@ -21,7 +21,7 @@ function result(): ImportResult {
     draftId: 'draft', owner: { userId: 'ada', spaceId: 'personal' }, file,
     account: { provider: 'gcash', format: 'e-wallet', statementType: 'e-wallet' },
     dates: { statementDate: null, historyPeriod: { from: '2026-01-01', to: '2026-01-31' } },
-    controls: [], rows: [{
+    parserVersion: 'fixture/1', extractionEngineVersion: 'fixture/1', controls: [], rows: [{
       sourceRowId: '0:0', pageIndex: 0, sourceOrder: 0, description: 'Fictional purchase',
       originalDate: '2026-01-02', date: '2026-01-02', reference: null, originalAmount: '1000.00',
       signedActivityMinor: 100000n, evidence: [{ kind: 'debit-credit-column', value: 'debit' }],
@@ -30,7 +30,7 @@ function result(): ImportResult {
     pages: [{ pageIndex: 0, outcome: 'text', hasImages: false }],
     completeness: { assessment: 'uncertain', failedPageIndices: [], unreadablePageIndices: [] },
     recognitionEvidence: [{ kind: 'provider', value: 'GCash' }],
-    reconciliation: { outcome: 'unavailable', differenceMinor: null }, warnings: [],
+    reconciliation: { comparisons: [], outcome: 'unavailable', differenceMinor: null }, warnings: [],
   };
 }
 function extract(store: ReturnType<typeof setup>['store'], op: ImportOperation) {

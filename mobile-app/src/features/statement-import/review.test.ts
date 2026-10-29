@@ -23,9 +23,9 @@ function fixture(): ImportResult {
     rows: [row('0', 100000n, { eligible: true, kind: 'purchase', expenseMinor: 100000n }),
       row('1', 30000n, { eligible: true, kind: 'outgoing-transfer', expenseMinor: 30000n }),
       ...(['payment', 'refund', 'cash-in', 'unknown-direction'] as const).map((reason, i) => row(String(i + 2), reason === 'refund' ? 20000n : 500000n, { eligible: false, reason }))],
-    controls: [], recognitionEvidence: [], pages: [{ pageIndex: 0, outcome: 'text', hasImages: false }],
+    parserVersion: 'fixture/1', extractionEngineVersion: 'fixture/1', controls: [], recognitionEvidence: [], pages: [{ pageIndex: 0, outcome: 'text', hasImages: false }],
     completeness: { assessment: 'uncertain', failedPageIndices: [], unreadablePageIndices: [] },
-    reconciliation: { outcome: 'unavailable', differenceMinor: null }, warnings: [{ code: 'uncertain-completeness', sourceRowIds: [], pageIndices: [] }],
+    reconciliation: { comparisons: [], outcome: 'unavailable', differenceMinor: null }, warnings: [{ code: 'uncertain-completeness', sourceRowIds: [], pageIndices: [] }],
   };
 }
 function ready(data = catalog()): ReviewState {
@@ -274,8 +274,8 @@ test('mixed ledger keeps PHP 1300 spending, locked exclusions and duplicate sour
   const original = fixture();
   const duplicate = { ...original.rows[0], sourceRowId: 'duplicate', sourceOrder: 6 };
   const evidence: ImportResult = { ...original, rows: [...original.rows, duplicate],
-    controls: [{ kind: 'total-debits', originalValue: '1300.00', amountMinor: 130000n }],
-    reconciliation: { outcome: 'mismatch', differenceMinor: 100000n } };
+    parserVersion: 'fixture/1', extractionEngineVersion: 'fixture/1', controls: [{ key: 'debits', kind: 'total-debits', originalValue: '1300.00', amountMinor: 130000n }],
+    reconciliation: { comparisons: [], outcome: 'mismatch', differenceMinor: 100000n } };
   const before = structuredClone(evidence);
   let state = initializeReview(evidence);
   const request = { owner: evidence.owner, draftId: evidence.draftId, generation: 1, id: 'mixed' };

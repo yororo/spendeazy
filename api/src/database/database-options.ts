@@ -5,6 +5,8 @@ import { CategoryEntity } from './entities/category.entity';
 import { BudgetEntity } from './entities/budget.entity';
 import { CategoryRuleEntity } from './entities/category-rule.entity';
 import { StatementImportEntity } from './entities/statement-import.entity';
+import { StatementImportRowEntity } from './entities/statement-import-row.entity';
+import { StatementImportOperationEntity } from './entities/statement-import-operation.entity';
 import { ExpenseEntity } from './entities/expense.entity';
 import { UserEntity } from './entities/user.entity';
 import { SpaceEntity } from './entities/space.entity';
@@ -41,6 +43,7 @@ import { ClassifyStatementImports1950000000000 } from './migrations/195000000000
 import { AdoptExpenseFoundation1960000000000 } from './migrations/1960000000000-adopt-expense-foundation';
 import { ExpenseProvenanceAndDeletionReplay1970000000000 } from './migrations/1970000000000-expense-provenance-and-deletion-replay';
 import { AddCategoryConfigurationRevisions1980000000000 } from './migrations/1980000000000-add-category-configuration-revisions';
+import { AddImportConfirmationEvidence1990000000000 } from './migrations/1990000000000-add-import-confirmation-evidence';
 
 export const DATABASE_MIGRATIONS = [
   CreateExpenseTrackerSchema1710000000000,
@@ -71,6 +74,7 @@ export const DATABASE_MIGRATIONS = [
   AdoptExpenseFoundation1960000000000,
   ExpenseProvenanceAndDeletionReplay1970000000000,
   AddCategoryConfigurationRevisions1980000000000,
+  AddImportConfirmationEvidence1990000000000,
 ];
 
 export const DATABASE_ENTITIES = [
@@ -78,6 +82,8 @@ export const DATABASE_ENTITIES = [
   CategoryEntity,
   BudgetEntity,
   StatementImportEntity,
+  StatementImportRowEntity,
+  StatementImportOperationEntity,
   ExpenseEntity,
   CategoryRuleEntity,
   SpaceEntity,

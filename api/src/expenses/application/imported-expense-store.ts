@@ -24,6 +24,7 @@ export interface ImportedExpenseRecord {
 }
 
 export interface NewImportedExpense {
+  statementImportRowId?: string;
   spaceId: string;
   addedByUserId: string;
   categoryId: string;

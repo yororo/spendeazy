@@ -29,7 +29,7 @@ function classification(amount: bigint | null, date: string | null, description:
 }
 
 export function interpretStatement(input: {
-  pages: readonly ExtractedPage[]; draftId: string; owner: ImportOwner; file: ImportFile;
+  pages: readonly ExtractedPage[]; draftId: string; owner: ImportOwner; file: ImportFile; extractionEngineVersion: string;
 }): ImportResult {
   const lines: SourceLine[] = input.pages.flatMap(page => page.text.split(/\r?\n/u).map((text, sourceOrder) => ({ text: normalize(text), pageIndex: page.pageIndex, sourceOrder })));
   const allText = lines.map(line => line.text).join('\n');
@@ -37,6 +37,12 @@ export function interpretStatement(input: {
   const wallet = account.provider === 'gcash';
   const controls: ImportControl[] = [];
   const structuralDifferences: (bigint | null)[] = [];
+  const comparisons: ImportResult['reconciliation']['comparisons'][number][] = [];
+  function compare(equation: string, expectedMinor: bigint | null, extractedMinor: bigint | null, controlKey: string | null = null) {
+    const differenceMinor = expectedMinor === null || extractedMinor === null ? null : extractedMinor - expectedMinor;
+    comparisons.push({ equation, expectedMinor, extractedMinor, differenceMinor, controlKey });
+    return differenceMinor;
+  }
   const values = new Map<string, bigint | null>();
   function control(label: string, kind: ImportControl['kind']) {
     const index = lines.findIndex(line => line.text.toLowerCase().startsWith(`${label.toLowerCase()} `) || line.text.toLowerCase() === label.toLowerCase());
@@ -44,7 +50,7 @@ export function interpretStatement(input: {
     const suffix = lines[index].text.slice(label.length).trim();
     const originalValue = suffix || lines[index + 1]?.text || '';
     const amountMinor = minorUnits(originalValue);
-    controls.push({ kind, sourceLabel: label, originalValue, amountMinor }); values.set(label, amountMinor);
+    controls.push({ key: `control-${controls.length}`, kind, sourceLabel: label, originalValue, amountMinor }); values.set(label, amountMinor);
   }
   const openingLabel = wallet ? 'STARTING BALANCE' : 'Previous Balance';
   const closingLabel = wallet ? 'ENDING BALANCE' : account.provider === 'bdo' ? 'Total Amount Due' : 'Total Statement Balance';
@@ -85,8 +91,8 @@ export function interpretStatement(input: {
       if (account.provider === 'bdo' && /^PREVIOUS STATEMENT BALANCE\b/iu.test(source.text)) {
         const originalValue = source.text.replace(/^PREVIOUS STATEMENT BALANCE\s*/iu, '');
         sectionBalance = minorUnits(originalValue);
-        controls.push({ kind: 'opening-balance', sourceLabel: 'PREVIOUS STATEMENT BALANCE', originalValue, amountMinor: sectionBalance });
-        structuralDifferences.push(sectionBalance !== null && previousBalance !== null ? sectionBalance - previousBalance : null);
+        controls.push({ key: `control-${controls.length}`, kind: 'opening-balance', sourceLabel: 'PREVIOUS STATEMENT BALANCE', originalValue, amountMinor: sectionBalance });
+        structuralDifferences.push(compare('section-opening', previousBalance, sectionBalance, controls[controls.length - 1].key));
       }
       if (/^CARD NUMBER\b|^YOUR CARD ACTIVITIES$/iu.test(source.text)) {
         if (activeCardSection && account.provider === 'bdo') uncertainPages.add(source.pageIndex);
@@ -96,9 +102,9 @@ export function interpretStatement(input: {
       if (account.provider === 'bdo' && /^(?:SUBTOTAL|TOTAL)\s/iu.test(source.text)) {
         const label = /^SUBTOTAL\b/iu.test(source.text) ? 'SUBTOTAL' : 'TOTAL';
         const originalValue = source.text.slice(label.length).trim(); const amountMinor = minorUnits(originalValue);
-        controls.push({ kind: label === 'SUBTOTAL' ? 'subtotal' : 'statement-total', sourceLabel: label, originalValue, amountMinor });
+        controls.push({ key: `control-${controls.length}`, kind: label === 'SUBTOTAL' ? 'subtotal' : 'statement-total', sourceLabel: label, originalValue, amountMinor });
         if (label === 'SUBTOTAL') {
-          structuralDifferences.push(sectionBalance !== null && amountMinor !== null ? sectionBalance - amountMinor : null);
+          structuralDifferences.push(compare('section-subtotal', amountMinor, sectionBalance, controls[controls.length - 1].key));
           if (amountMinor !== null) subtotals.push(amountMinor);
           sectionBalance = null;
         } else finalTotal = amountMinor;
@@ -174,13 +180,12 @@ export function interpretStatement(input: {
   const unresolved = rows.some(row => row.signedActivityMinor === null);
   if (account.provider === 'bdo') {
     if (activeCardSection) uncertainPages.add(rows[rows.length - 1].pageIndex);
-    structuralDifferences.push(finalTotal === null || closing === null ? null : finalTotal - closing,
-      finalTotal === null || !subtotals.length ? null : subtotals.reduce((sum, value) => sum + value, 0n) - finalTotal);
+    structuralDifferences.push(compare('final-closing', closing, finalTotal, controls.find(control => control.sourceLabel === closingLabel)?.key ?? null),
+      compare('subtotal-sum', finalTotal, !subtotals.length ? null : subtotals.reduce((sum, value) => sum + value, 0n), controls.findLast(control => control.sourceLabel === 'TOTAL')?.key ?? null));
   }
-  const difference = (expected: bigint | null, actual: bigint) => expected === null ? null : actual - expected;
-  const reconciliation = reconcile([unresolved ? null : difference(debits, positive), unresolved ? null : difference(credits, negative),
-    unresolved || opening === null || closing === null ? null : opening + (wallet ? negative - positive : positive - negative) - closing,
-    ...structuralDifferences], unresolved);
+  const differences = [compare('debit-sum', debits, unresolved ? null : positive), compare('credit-sum', credits, unresolved ? null : negative),
+    compare('closing-balance', closing, unresolved || opening === null ? null : opening + (wallet ? negative - positive : positive - negative), controls.find(control => control.sourceLabel === closingLabel)?.key ?? null), ...structuralDifferences];
+  const reconciliation = { ...reconcile(differences, unresolved), comparisons };
   const pages = input.pages.map(({ text: _text, ...page }) => page);
   const failedPageIndices = pages.filter(page => page.outcome === 'failed').map(page => page.pageIndex);
   const unreadablePageIndices = pages.filter(page => page.outcome === 'unreadable').map(page => page.pageIndex);
@@ -190,7 +195,7 @@ export function interpretStatement(input: {
   if (rows.some(row => !row.classification.eligible && ['unknown-direction', 'invalid-date', 'invalid-amount'].includes(row.classification.reason))) warnings.push({ code: 'unresolved-classification', sourceRowIds: rows.filter(row => !row.classification.eligible && ['unknown-direction', 'invalid-date', 'invalid-amount'].includes(row.classification.reason)).map(row => row.sourceRowId), pageIndices: [] });
   if (reconciliation.outcome === 'mismatch') warnings.push({ code: 'reconciliation-mismatch', sourceRowIds: [], pageIndices: [] });
   if ([...values.values(), ...structuralDifferences].some(value => value === null)) warnings.push({ code: 'missing-control', sourceRowIds: [], pageIndices: [] });
-  return { draftId: input.draftId, owner: input.owner, file: input.file, account,
+  return { parserVersion: `${account.provider}/${account.format}/1`, extractionEngineVersion: input.extractionEngineVersion, draftId: input.draftId, owner: input.owner, file: input.file, account,
     dates: { statementDate: wallet ? null : statementDate, historyPeriod }, controls, rows, pages,
     completeness: { assessment: partial ? 'partial' : 'uncertain', failedPageIndices, unreadablePageIndices },
     recognitionEvidence: [{ kind: 'provider', value: account.provider }, { kind: 'account-format', value: account.format }], reconciliation, warnings };

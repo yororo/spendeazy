@@ -15,7 +15,7 @@ export type ReviewCatalog = Readonly<{
 }>;
 export type ReviewAssignment =
   | Readonly<{ origin: 'manual'; categoryRevision: string }>
-  | Readonly<{ origin: 'rule'; categoryRevision: string; ruleIds: readonly string[]; rulesRevision: string }>;
+  | Readonly<{ origin: 'rule'; categoryRevision: string; ruleIds: readonly string[]; rulesRevision: string; matchType: 'exact' | 'contains' }>;
 export type ReviewRow = Readonly<{
   sourceRowId: string; values: ReviewValues; inclusion: 'included' | 'user-excluded' | 'locked-excluded';
   assignment: ReviewAssignment | null;

@@ -4,7 +4,7 @@ Apply when creating, changing, or reviewing mobile code. These are adopted desig
 
 ## Responsibility and dependencies
 
-Keep presentation separate from application workflows. The mobile app still owns the on-device behavior assigned by the [client/server responsibilities](../../README.md#responsibilities); this standard defines its internal organization.
+Keep presentation separate from application workflows. 
 
 | Role | Owns | Uses |
 | --- | --- | --- |
@@ -36,18 +36,6 @@ Co-locate a feature's view, controller, reducer, rules and tests when introducin
 
 Expose a small feature interface that hides its workflow details. Add separate modules where responsibilities or independent tests warrant them, rather than creating a file for every role in the table. The parser proof remains a feasibility experiment; production Statement Import code follows these constraints when implemented.
 
-## Behavioral ownership
+## Tests
 
-- A form preparation operation returns either field issues or normalized input, so callers can submit without knowing a required sequence of validation helpers. Supply the clock and relevant Category eligibility as inputs. Server authorization and save-time enforcement remain governed by the [Expense contract](../../docs/specifications/mobile-expense-domain-api.md).
-- Centralize application reactions to session expiry, explicit sign-out, identity changes and Space changes, including consistent handling of request failures. Controllers and stores follow the retention/reset policy in [mobile guidance](../AGENTS.md#api-and-identity-boundaries).
-- Translate expected failures into feature state at the controller interface. Preserve user work according to the owning workflow and distinguish transport failures from invalid responses. Views render the resulting issues and recovery actions.
-
-## Review and verification
-
-For current implementation ownership, see the [mobile README](../README.md#api-and-device-testing). Track migration work in [GitHub issues](https://github.com/yororo/spendeazy/issues).
-
-For each changed workflow, verify responsibility ownership and dependency direction against the table. Every view must be renderable from supplied feature state without a live backend or authenticated session; theme/layout context remains appropriate. Import restrictions can enforce these dependencies when introduced; their enforcement is not currently claimed by this document.
-
-Test observable rules and workflow outcomes through the owning module's interface. For affected async flows, cover obsolete completions, retry, refresh during pagination, repeated save and identity/Space changes. View checks cover rendering, user intent and accessibility rather than duplicating business-rule tests. Keep test dependencies injectable at existing seams and avoid assertions about private state or mocked call choreography.
-
-Use [mobile checks](../AGENTS.md#commands) and [repository validation and delivery](../../AGENTS.md#workflow-when-implementing-code-changes) for execution requirements. Link remaining migration work to its tracking issues; documentation, unit tests and static checks do not establish native-device acceptance.
+Create unit tests only for the core features and not every single implementation. The goal is not to have a high test coverage but rather, few and high quality tests only.

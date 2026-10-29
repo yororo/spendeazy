@@ -23,4 +23,4 @@ npm test -- --runInBand --runTestsByPath src/statement-imports/application/state
 npm run test:e2e -- --runInBand --runTestsByPath test/statement-imports.e2e-spec.ts
 ```
 
-Before completion, use `npm run test:postgres`, which requires all nine unique database URLs and rejects missing/shared targets. The root [isolated launcher](../docs/local-checks.md#api-and-isolated-postgresql) supplies one disposable database per suite plus a separate historical-migration database. [Root guidance](../AGENTS.md) also owns independent mobile validation and delivery requirements.
+Before completion, use `npm run test:postgres`, which requires all nine unique database URLs and rejects missing/shared targets.

@@ -51,52 +51,59 @@ Official implementation references: [Expo SDK 58 GlassEffect](https://docs.expo.
 All paths below are relative to `mobile-app/` unless prefixed otherwise. Suggested new files are explicitly marked **new**. Execute tasks in order; tasks 3–8 depend on the shared foundation in tasks 1–2.
 
 ### Task 1: Establish design recipes and shared surfaces
+
 - **Goal:** One consistent implementation of background, glass, typography, and shape recipes.
 - **Location:** `src/constants/theme.ts`, `src/components/screen.tsx`; **new** `src/components/design-surface.tsx`; `design-token.md`.
 - **Changes:** Add semantic gradient stops, borders, shadows, highlights, and text roles extracted from the source. Keep existing semantic roles stable. Implement reusable canvas and surface variants using SVG and existing glass support. Make the shared screen background reusable by the Expenses `FlatList` without nesting it in a `ScrollView`. Match per-screen spacing, retain safe-area/keyboard handling, and use a viewport-sized background rather than stretching gradients over long content. Correct the design authority/dark-board documentation and distinguish extracted light recipes from dark adaptations. Use existing Outfit faces, not synthetic weights.
 - **Verification:** Manually compare a short and long screen at reference width: gradient placement, transparent layering, shadow clipping, margins, scroll clearance, and light/dark foreground legibility.
 
 ### Task 2: Create reusable visual controls and header composition
+
 - **Goal:** Consistent controls without per-screen copies of the same styling.
 - **Location:** `src/components/buttons.tsx`, `text-field.tsx`, `money-amount.tsx`, `choice-sheet.tsx`; **new** `src/components/screen-header.tsx` and `src/components/category-mark.tsx`; existing `src/features/categories/category-configuration-view.tsx`.
 - **Changes:** Extend buttons with compact chip, icon, segmented-option, and quiet-action presentation where used. Keep primary actions at least 52 high and interactive targets at least 48, even when visible toolbar shapes are smaller. Extend fields with filled, underlined icon-row, and prominent amount variants while retaining controlled values/errors. Share the category mark/catalog mapping across screens; adjust existing `CategoryIconMark` only as needed for these consumers. Add the small brand/title/accessory header composition; export the exact existing brand mark from Pencil rather than drawing a replacement. Make sheet and centered-dialog visual shells reusable, retaining each existing modal's dismissal/confirmation semantics. Avoid adding a universal form, state manager, or UI library.
 - **Verification:** Manually compare representative controls and dialogs; confirm disabled/busy/error visibility, font scaling, icon labels, keyboard reachability, and that decorative SVGs do not intercept touches.
 
 ### Task 3: Match navigation and Space switching
+
 - **Goal:** Reproduce icon-only navigation and the compact Space identity treatment.
 - **Location:** `src/components/tab-bar.tsx`, `src/components/space-status.tsx`, `src/app/(app)/add.tsx`; use the header/sheet primitives from task 2.
 - **Changes:** Render four icon-only tabs in the glass pill with a lavender selected capsule, source Lucide glyphs, and the separate gradient Add circle. Retain existing tab routing and accessible names. Render Space selection as a compact header accessory while retaining loading, failure, archived, and remembered-selection messages. Match `BjioB` option rows and selected check. Use initials for member images unavailable in the current data. Retain unsaved Expense confirmation. Restyle existing Add choices and unavailable import placeholder; do not enable imports or remove the existing destination.
 - **Verification:** Manually visit every tab, open/dismiss Add and Space sheets, switch Personal/Shared/archived Spaces, and check unsaved-work protection and bottom safe areas.
 
 ### Task 4: Redesign Expenses and existing Expense flows
+
 - **Goal:** Match the total/list/dialog hierarchy while retaining every existing Expense action.
 - **Location:** `src/features/expenses/browse-view.tsx`, `manual-view.tsx`, `detail-view.tsx`; shared components from tasks 1–3.
 - **Changes:** Put total/count centrally above a compact filter toolbar; use the source 42-unit total, 14-unit row descriptions, 15-unit amounts, and minimum 12-unit metadata. Build divider rows with category icons, left description/category, and right amount/date. Preserve virtualization, scroll restoration, search submission, arbitrary date ranges, category filtering, sorting, pagination, Deleted Expenses, and Dashboard-return access. Existing filters may be revealed in a presentation-only sheet; keep their existing callbacks and semantics, without introducing month presets. Match the edit dialog's prominent amount and 58-unit underlined rows. Apply that language to manual Add Expense and existing detail/Activity screens. Restyle existing failure/delete states without introducing new alert flows or changing soft deletion.
 - **Verification:** Manually browse/filter/search/paginate; create, edit, delete, and inspect retained Activity; return to the originating list and confirm filter/scroll restoration. Confirm keyboard access, retained validation errors, and retry controls remain usable.
 
 ### Task 5: Redesign Budget and Category configuration
+
 - **Goal:** Match the centered plan total, divider rows, and compact editor.
 - **Location:** `src/features/categories/budget-list-view.tsx`, `category-configuration-view.tsx`, `category-catalog.ts` (visual mapping only).
 - **Changes:** Replace the Budget summary card with the unboxed 42-unit total and annual-equivalent subtitle. Use toolbar chips/icons and divider rows with pastel category wells and right-aligned amounts/periods. Move the existing create action to the section toolbar. Preserve active/inactive, unset/Monthly/Yearly filters, search, exact sort semantics, and reachable equivalent amounts; do not add the mockup's unsupported sort modes. Use the editor's filled category/amount rows, Monthly/Yearly segmented control, grouped Rule presentation, compact composer, and bottom Save action. Preserve all existing name/icon/color choices, Rule add/remove, Budget removal, activation, conflict handling, and aggregate save. Do not add Rule editing just to match pencil icons in the design.
 - **Verification:** Manually compare populated/unset/inactive lists; exercise existing filters/sorts, create/update a Category, change recurrence, remove a Budget, add/remove Rules, and inspect validation/conflict/read-only states.
 
 ### Task 6: Recompose Dashboard and chart presentation
+
 - **Goal:** Match source cards and charts using existing report data.
 - **Location:** `src/features/dashboard/dashboard-view.tsx`, existing `dashboard-format.ts`; **new**, if needed, `src/features/dashboard/dashboard-charts.tsx` for view-only SVG rendering.
 - **Changes:** Arrange period controls, Summary, Budget checks, monthly bars, and category line chart in that order. Compact the existing Monthly/Yearly controls and period navigation; retain the six-month query behavior and current year selection, without adding range presets. Show existing actual/planned comparison as a meter, with highest Category and import count/latest date beneath. Preserve access to existing plan/equivalent/count information without crowding the primary hierarchy. Render monthly check frequencies from `overBudgetMonths`/`eligibleMonths`; represent full frequency if it exceeds six rather than forcing six dots. Keep Yearly checks and their existing statuses/limits. Render lavender monthly bars, appropriate axes, and plan threshold. Use existing `categoryExpenses[].months` for category-colored line series and valid budget references; do not invent monthly caps for Yearly Budgets. Retain category selection and existing Expense/Budget/history drill-through callbacks with accessible hit targets or equivalent labeled controls. Do not add chart popovers or searchable multiselect. Convert amounts to plotting coordinates only; retain existing exact financial formatting/comparison rules and update values immediately.
 - **Verification:** Manually compare both report modes with zero plan, empty results, over-plan spending, selected Categories, and longer Yearly ranges. Check axis/series alignment, annual-limit semantics, accessible drill-through, and Back restoration. No fabricated sample values or new requests.
 
 ### Task 7: Redesign Profile, Sharing, and unmatched surfaces
+
 - **Goal:** Extend the same design language to all existing product screens.
 - **Location:** `src/app/(app)/(tabs)/profile.tsx`, `src/app/(auth)/sign-in.tsx`, `src/features/sharing/sharing-view.tsx`, `src/features/statement-import-history/statement-import-history-view.tsx`, `src/app/(app)/import-statement.tsx`.
 - **Changes:** Center the current user's avatar/name/email, style the available Shared Space information as the source card, and use an understated Sign out action. Keep System/Light/Dark and Sharing access reachable; omit Edit profile, notification bell, account deletion, and any nonfunctional action. Render partner initials/name without invented photo/email data. Style invitation codes, existing invitation actions, archive warnings, history rows, and sign-in with the shared primitives. Keep basic import history read-only and the unavailable import placeholder honest. Do not add filters, import details, or modify the parser-proof screen.
 - **Verification:** Manually inspect profile with/without Shared membership, all Appearance choices, existing Sharing/invitation/archive flows, sign-in failure/expiry presentation, empty/populated history, and unavailable import messaging.
 
 ### Task 8: Document and prepare the visual handoff
+
 - **Goal:** Deliver a reviewable UI change and an actionable manual acceptance checklist.
-- **Location:** `design-token.md`, root `implementation-plan.md`, implementation PR description.
-- **Changes:** Record source-node mappings, shared recipes, dark adaptations, missing-data substitutions, and platform effect departures. Remove stale claims about effects now implemented. Keep documentation changes limited to this redesign. When implementation is authorized, follow repository delivery: inspect current changes, use latest `main`, create a fresh `dev/<task>-<unique-suffix>` branch before code edits, commit task changes only, push/verify the final commit, and open/attach the PR last. Preserve the user's unrelated untracked `.agents/skills/implementation-plan/` directory. Do not merge. Report manual acceptance as pending until the user supplies results.
-- **Verification:** Review the diff for presentation-only scope, shared component reuse, unchanged workflow/API owners, documented deviations, and a pushed PR when implementing. Planning alone does not require application edits or delivery claims.
+- **Location:** `design-token.md`, root `implementation-plan.md`.
+- **Changes:** Record source-node mappings, shared recipes, dark adaptations, missing-data substitutions, and platform effect departures. Remove stale claims about effects now implemented. Keep documentation changes limited to this redesign. **Verification:** Review the diff for presentation-only scope, shared component reuse, unchanged workflow/API owners, documented deviations. Planning alone does not require application edits or delivery claims.
 
 ## 5. Testing and Validation
 

@@ -7,7 +7,7 @@ description: Create a detailed, actionable implementation plan from user request
 
 ## Objective
 
-Produce an implementation plan that another coding agent can execute with minimal ambiguity, with minimal additional design decisions.
+Produce an implementation plan in the `docs/agents/implementations` that another coding agent can execute with minimal ambiguity, with minimal additional design decisions. Set filename in the following format `<plan-number>-<plan-name>` where number is in `##` format, unique, and incremented from the most recent plan number.
 
 Plan only. Do not modify application code.
 

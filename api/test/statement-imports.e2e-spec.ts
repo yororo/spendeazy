@@ -12,6 +12,11 @@ import { Test } from '@nestjs/testing';
 import type { INestApplication } from '@nestjs/common';
 import type { Server } from 'node:http';
 import request from 'supertest';
+import {
+  confirmationEnvelope,
+  envelopeBytes,
+} from './support/confirmation-envelope';
+import { validateConfirmationPayload } from '../src/statement-imports/application/validate-confirmation-payload';
 
 import { configureApp } from '../src/bootstrap';
 import {
@@ -298,14 +303,104 @@ describe('Space Statement Import API routes', () => {
     expect(invalid.status).toBe(400);
     expect(previewService.confirm).not.toHaveBeenCalled();
   });
-  it('enforces the real 1 MiB parser limit before confirmation', async () => {
-    const response = await request(httpServer(application))
-      .put(operationPath)
-      .set('Authorization', 'Bearer token-a')
-      .send({ padding: 'x'.repeat(1024 * 1024) });
-    expect(response.status).toBe(413);
-    expect(previewService.confirm).not.toHaveBeenCalled();
-  });
+  it.each(['bdo', 'eastwest', 'gcash'] as const)(
+    'measures complete %s UTF-8 envelopes without omitting evidence or acknowledgments',
+    (provider) => {
+      const measuredBytes = {
+        bdo: [6264, 465651, 1400251],
+        eastwest: [6274, 465661, 1400261],
+        gcash: [6689, 507566, 1528166],
+      };
+      const actualBytes: number[] = [];
+      for (const blocks of [1, 100, 300]) {
+        const payload = confirmationEnvelope(provider, blocks);
+        expect(() =>
+          validateConfirmationPayload(
+            payload,
+            new Date('2026-10-30T00:00:00Z'),
+          ),
+        ).not.toThrow();
+        expect(payload.evidence.transactions).toHaveLength(blocks * 10);
+        expect(payload.expenses.length + payload.excluded.length).toBe(
+          blocks * 10,
+        );
+        expect(payload.rememberedRules).toHaveLength(1);
+        expect(payload.acknowledgedWarnings).toHaveLength(3);
+        expect(envelopeBytes(payload)).toBeGreaterThan(
+          JSON.stringify(payload).length,
+        );
+        expect(envelopeBytes(payload) < 1024 * 1024).toBe(blocks < 300);
+        actualBytes.push(envelopeBytes(payload));
+      }
+      // Keep the published measurement table honest when fixture shapes change.
+      expect(actualBytes).toEqual(measuredBytes[provider]);
+    },
+  );
+  it.each(['bdo', 'eastwest', 'gcash'] as const)(
+    'rejects the complete oversized %s ledger without dispatching confirmation',
+    async (provider) => {
+      const response = await request(httpServer(application))
+        .put(operationPath)
+        .set('Authorization', 'Bearer token-a')
+        .set('Content-Type', 'application/json')
+        .send(JSON.stringify(confirmationEnvelope(provider, 300)));
+      expect(response.status).toBe(413);
+      expect(previewService.confirm).not.toHaveBeenCalled();
+    },
+  );
+  it.each(['preview', 'operation'] as const)(
+    'enforces just-under/over 1 MiB through the real %s HTTP parser',
+    async (route) => {
+      const payload = confirmationEnvelope('gcash', 100);
+      validateConfirmationPayload(payload, new Date('2026-10-30T00:00:00Z'));
+      const json = JSON.stringify(payload);
+      // Legal trailing JSON whitespace makes the boundary exact without changing
+      // or removing any evidence. Multi-byte row text tests bytes, not JS length.
+      const under = json + ' '.repeat(1024 * 1024 - 1 - envelopeBytes(payload));
+      const over = under + '  ';
+      expect(Buffer.byteLength(under, 'utf8')).toBe(1024 * 1024 - 1);
+      expect(Buffer.byteLength(over, 'utf8')).toBe(1024 * 1024 + 1);
+      previewService.preview.mockResolvedValue({
+        warnings: [],
+        warningDigest: 'a'.repeat(64),
+      });
+      const send = (body: string) => {
+        const client = request(httpServer(application));
+        return (
+          route === 'operation'
+            ? client.put(operationPath)
+            : client.post(
+                '/api/v1/users/me/spaces/77/statement-import-previews',
+              )
+        )
+          .set('Authorization', 'Bearer token-a')
+          .set('Content-Type', 'application/json')
+          .send(body);
+      };
+      const accepted = await send(under);
+      expect(accepted.status).toBe(route === 'operation' ? 201 : 200);
+      const service =
+        route === 'operation' ? previewService.confirm : previewService.preview;
+      expect(service).toHaveBeenCalledTimes(1);
+      if (route === 'operation') {
+        expect(previewService.confirm).toHaveBeenCalledWith(
+          '99',
+          '77',
+          operationId,
+          payload,
+        );
+      } else {
+        expect(previewService.preview).toHaveBeenCalledWith(
+          '99',
+          '77',
+          payload,
+        );
+      }
+      const rejected = await send(over);
+      expect(rejected.status).toBe(413);
+      expect(service).toHaveBeenCalledTimes(1);
+    },
+  );
   it('requires authenticated actor authority before invoking the operation service', async () => {
     const response = await request(httpServer(application))
       .put(operationPath)

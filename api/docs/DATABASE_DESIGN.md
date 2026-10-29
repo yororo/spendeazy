@@ -13,6 +13,8 @@ This describes the current API schema. [Migrations](../src/database/migrations/)
 | `budgets` | At most one monthly or yearly Budget per Category. Ownership derives through the Category. |
 | `category_rules` | Space-owned Exact/Contains patterns related to a Category; normalized pattern and match type are unique per Space. |
 | `statement_imports` | Committed Statement Import provenance with Space, immutable importer attribution, file hash, provider/account format, statement type/date or optional history bounds, and import timestamp. File hashes are indexed but not unique. |
+| `statement_import_rows` | Immutable original row, included/excluded disposition and optional confirmed values; unique import/source-row identity and same-Space import/Category relationships. |
+| `statement_import_operations` | Actor/Space/UUID identity, immutable protected request hash, pending/terminal state and immutable success result or safe failure metadata. No review payload. |
 | `expenses` | Saved positive spending in a Space, with required Category, immutable Added By actor, date-only value, exact amount, revision, optional deletion timestamp, deleting actor and pre-delete revision, and nullable Statement Import/source-row links. A null import link identifies a manual Expense. Composite keys constrain Category and imported provenance to the same Space; source-row IDs are unique within an import. Legacy imports may retain a null source-row ID. |
 | `expense_activities` | Append-only Expense create/edit/delete events with actor, UTC timestamp and before/after JSON snapshots. Snapshots retain Category IDs and editable values. Legacy Expenses may have no Activity. |
 | `invitations` | Sender-owned Shared Space Invite Codes with protected lookup/display values, expiry and lifecycle state. |
@@ -42,7 +44,13 @@ A Statement Import row represents committed provenance, not a temporary upload o
 
 Exact file matches and Expense fingerprints are advisory duplicate signals, not uniqueness constraints. File hashes are nonunique after Expense foundation adoption, so an intentional reimport is possible. GCash reference identifiers are HMAC-protected before storage and are not returned.
 
-The current schema stores committed import metadata and linked Expenses. Durable confirmation operation recovery, complete immutable row/evidence snapshots, and original-versus-current import projections remain part of the broader accepted contract, not this implemented foundation.
+Complete confirmations store parser/engine versions, original controls/reconciliation/diagnostics, page/completeness assertions, included/excluded counts, original Expense count/total and acknowledged warnings/digest. `imported_at` is the sole confirmation clock, exposed as `confirmedAt`. Original aggregate totals use unrestricted numeric storage rather than one Expense's numeric(15,2) ceiling. Legacy imports retain null complete provenance; migrations do not invent historical evidence.
+
+New imported Expenses reference an included snapshot through snapshot/import/Space/source identity. Database constraints reject excluded snapshots and changed provenance. Editing or soft-deleting an Expense cannot mutate its snapshot or original import totals. Detail returns `confirmation` (null for legacy imports) and privacy-projected `rows`; history's `expenseCount` remains a current nondeleted count.
+
+Operation identity is unique per authenticated actor, original Space and UUID, with at most one successful import per operation. Identity/hash and terminal state are immutable. A successful key remains retained with its import; identical replay returns the stored result even after Expense edits/deletion, Category changes or archive, subject to read authority and actor binding. Terminal failures store safe codes/details and, for review refresh, typed warning metadata. Pending does not imply failure. #154 owns status recovery/fencing and device receipt integration; #155 owns full history/detail presentation.
+
+Personal physical cleanup removes Activity → Expenses → operations → imports (cascading snapshots) → Categories/Space/User. Shared retention continues preserving financial history. Financial execution, evidence, Activity, appended Rules/revisions and operation success use one transaction; admission persists no financial payload. Duplicate lookup includes retained deleted imported Expenses.
 
 ## Category Rules and reporting
 

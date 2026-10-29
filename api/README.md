@@ -44,6 +44,14 @@ The required integration database variables are:
 
 The Dashboard Reporting suite exercises the authenticated `GET /api/v1/users/me/spaces/{spaceId}/reporting/dashboard` endpoint against PostgreSQL. It covers exact mixed-period planning, Manila period bounds, historical Expense inclusion/deletion exclusion, Budget checks, confirmation-time imports and chart-only Category filtering. Yearly cases additionally cover exact annual-to-Monthly planning and final half-up rounding, current configuration changes/removal/deactivation/reactivation against historical reports, the exact Manila New Year boundary, and Space/Category-filter independence. These HTTP/PostgreSQL fixtures establish server behavior; native Dashboard acceptance is recorded separately in the [IP-03 verification record](../docs/agents/implementation/IP-03-issue-150-verification.md).
 
+## Reviewed Statement Import confirmation
+
+Within `/api/v1/users/me/spaces/{spaceId}`, `POST /statement-import-previews` validates the complete reviewed JSON and returns advisory warnings plus a content-bound digest without storing a draft. `PUT /statement-import-operations/{operationId}` atomically commits evidence, included Expenses, creation Activity, remembered Rules and the immutable success result. First success returns 201; identical actor/Space/UUID/payload replay returns 200, including after archive. Changed content under the same UUID returns 409 `IMPORT_OPERATION_PAYLOAD_CONFLICT`. Changed or unacknowledged warnings return 409 `IMPORT_REVIEW_REQUIRED` with `error.review`; acknowledgment never overrides validation or authority failures. The older `POST /statement-imports` route is removed.
+
+Both requests retain the 1 MiB JSON body limit; oversize requests return 413. No partial import or chunking is available. See [payload measurements and remaining gates](docs/statement-import-envelope.md). Existing import GETs expose immutable confirmation/row evidence separately from the current history Expense count; neither raw references nor HMACs are returned. [OpenAPI](docs/openapi.yaml) defines the shipped shapes and errors.
+
+Operation GET/status recovery and durable device receipts belong to #154. Production mobile submission remains gated until its receipt writer is integrated; preview and final inspection are usable. Full history/detail presentation belongs to #155. Native Android and physical-iPhone acceptance and #138 parser launch certification remain separate gates.
+
 ## OpenAPI contract
 
 Nest controller/DTO metadata and the shared document factory generate the contract. `docs/openapi.yaml` is the canonical committed YAML specification; `docs/openapi.json` is generated from the same document for JSON tooling. Runtime `/docs`, `/docs-json`, and `/docs-yaml` use that document.

@@ -8,7 +8,7 @@ Source: [`design/mobile-design.pen`](design/mobile-design.pen). The confirmed so
 
 **Declared** light tokens below exist in the source `variables` object; dark values are adaptations. **Derived** names are conventions introduced here for repeated literal values or component recipes; they are not existing Pencil variables or runtime exports. Node IDs are lookup keys in the source JSON. When the design changes, update the affected table and its evidence together. Resolve conflicts against the current source node, and record intentional departures rather than silently choosing another value.
 
-[`src/constants/theme.ts`](src/constants/theme.ts) implements the declared colors, Outfit families, page/section/button sizes, and the spacing, radius, and control sizes used by sign-in and navigation. Navigation and Add use opaque fills taken from the glass recipe so contrast does not depend on blur. The light navigation edge uses `border.field` because a white glass stroke disappears on an opaque white bar. The shared canvas paints the light wash and a dark adaptation behind the viewport; Expenses uses the same background behind its virtualized list.
+[`src/constants/theme.ts`](src/constants/theme.ts) implements the declared colors, Outfit families, page/section/button sizes, and the spacing, radius, and control sizes used by sign-in and navigation. Navigation uses the source translucent fill and white glass border; Add uses the three-stop violet gradient with explicit stop opacity. The shared canvas paints the light wash and a dark adaptation behind the viewport; Expenses uses the same background behind its virtualized list.
 
 ## Agent implementation workflow
 
@@ -126,6 +126,10 @@ The Budget plan summary uses the shared `DesignSurface`: native `GlassView` wher
 
 Treat each surface as a recipe combining fill, stroke, blur, and shadow. If the target platform cannot reproduce an effect, document the fallback and verify foreground legibility on the replacement surface. Pencil blur values are design parameters, not guaranteed native API intensity values.
 
+`DesignSurface` exposes `navigation` and `add` variants alongside the default summary card. All variants retain SVG fill, border, highlight, and shadow when `GlassView` falls back to a regular View. Native glass is an enhancement on supported iOS versions, not a reproduction of the source's numerical blur radius. Navigation/Add highlights remain one-unit lines and gradient directions are approximate. The selected tab uses `y7GYIH`'s `#E1E4FFCC` → `#F4F5FFB3` gradient and white border; its small outer shadow is omitted. Dark selection uses an adapted slate gradient. At widths below 324, navigation horizontal padding reduces from 6 to 4 to retain 48-unit tab targets at width 320.
+
+Space selection maps to accessory `aStNQ` and sheet `BjioB`: lavender fill `#EEECFA`, border `#D8D4F0`, overlapping 28-unit initials in the accessory, and 32-unit initials in 76-unit option rows. Option rows grow with text. Unselected rows use `#FFFFFF` / `#E8E9F1`; the selected row uses a CircleCheck. Names come from current Space members; no mock member photos are fetched. Archived/read-only and remembered-selection messages remain visible alongside the accessory. Dark Space fills/borders are adaptations. The sheet close target is 48 units to preserve accessibility, exceeding the source's 44-unit control.
+
 ## Component and state rules
 
 - **Primary action:** `iZLQM` uses `brand-primary`, height 52, radius 16, centered content, gap 8, and `type.button`. Light label `SMOu5` is white. Check the adapted dark foreground separately; a light-theme foreground is not automatically suitable over the dark-theme brand color.
@@ -140,7 +144,7 @@ The source does not declare a complete token system for focus, pressed, disabled
 
 Add Expense and Expenses filters use a filled text field: height `controlSize.field` (58), radius `radius.control` (16), horizontal padding `space.screenBottom` (16), label gap `space.fieldLabelGap` (6), a one-unit `border.field`, and `surface.modal` as the fill because the source has no separate field-fill token. This is an implementation choice, not a Pencil variable. It is distinct from the edit-expense bottom-divider row.
 
-Sign-in and navigation decisions: a disabled or busy primary action uses 55% opacity. Sheets and signed-in stack transitions use no animation, so reduced motion does not need a second path. Screens wrap their scroll view in keyboard avoidance and use `keyboardShouldPersistTaps="handled"`. These screens do not collect typed input. Navigation icons are Lucide, size 18, in the semantic text color. The Add control uses Lucide `plus` at 22.
+Sign-in and navigation decisions: a disabled or busy primary action uses 55% opacity. Sheets and signed-in stack transitions use no animation, so reduced motion does not need a second path. Screens wrap their scroll view in keyboard avoidance and use `keyboardShouldPersistTaps="handled"`. Navigation uses icon-only Lucide LayoutDashboard, ArrowLeftRight, PieChart, and UserRound at 22 with retained accessible tab names and selected state. The Add control uses Lucide Plus at 30. Add choices and the unavailable import destination reuse the sheet/surface recipes; the import choice explicitly says it is not available yet and still opens its existing placeholder.
 
 Check readable contrast on composited surfaces in both modes, especially action foregrounds, small secondary labels, and charts. Preserve labels/icons alongside status colors, usable touch areas, font scaling, modal focus behavior, and screen-reader names. These are implementation checks, not a claim that the static mockup already satisfies accessibility requirements.
 

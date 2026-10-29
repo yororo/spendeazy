@@ -58,9 +58,8 @@ export function SharingView({
   }
 
   return (
-    <Screen title="Sharing" refreshing={state.loading} onRefresh={() => void controller.load()}>
+    <Screen title="Sharing" refreshing={state.loading} onRefresh={() => void controller.load()} headerAccessory={<SpaceStatus />}>
       <StackGap>
-        <SpaceStatus />
         <SupportingText>Invite someone with a code you share directly. Codes last seven days. Spendeazy does not email invitations or send notifications.</SupportingText>
 
         {hasActiveSharedSpace ? (

@@ -76,7 +76,7 @@ From the repository root:
 docker compose up -d --wait
 ```
 
-- Wait for PostgreSQL to be healthy. 
+- Wait for PostgreSQL to be healthy.
 
 ### 2. Start the API
 
@@ -89,7 +89,7 @@ npm run start:dev
 
 - Continue only after migrations succeed. 
 - Leave watch mode running so you can inspect logs later if helpful.
-- Open [health](http://localhost:4000/health) to verify connection status. 
+- Open [health](http://localhost:4000/health) to verify connection status.
 
 ### 3. Open the native app
 
@@ -106,10 +106,10 @@ npm run parser:prepare
 npx expo start --dev-client --localhost
 ```
 
-On Windows, if `curl http://127.0.0.1:8081/status` fails, start Metro with IPv4 first: 
+On Windows, if `curl http://127.0.0.1:8081/status` fails, start Metro with IPv4 first. Then, press `a` in the Expo terminal: 
 
 ```sh
-NODE_OPTIONS=--dns-result-order=ipv4first npx expo start --dev-client --localhost 
+npm run android:ipv4
 ```
 
 (PowerShell: `$env:NODE_OPTIONS="--dns-result-order=ipv4first"` first).

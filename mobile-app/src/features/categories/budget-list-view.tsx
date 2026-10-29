@@ -1,7 +1,8 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { Pressable, Text, View } from 'react-native';
-import { DesignSurface } from '@/components/design-surface';
-import { PrimaryButton, SecondaryButton } from '@/components/buttons';
+import { ArrowDownWideNarrow, ChevronRight, FolderPlus, ListFilter, Search } from 'lucide-react-native';
+import { ChoiceSheet } from '@/components/choice-sheet';
+import { CompactAction, SecondaryButton } from '@/components/buttons';
 import { Screen, SupportingText } from '@/components/screen';
 import { TextField } from '@/components/text-field';
 import type { SpaceBudgetCategory } from './budget-category-loader';
@@ -14,8 +15,8 @@ import {
   type BudgetSortDirection,
   type BudgetSortField,
 } from './budget-browse';
-import { CategoryIconMark } from './category-configuration-view';
-import { controlSize, radius, space, typeScale } from '@/constants/theme';
+import { CategoryIconMark } from '@/components/category-mark';
+import { space, typeScale } from '@/constants/theme';
 import { useAppTheme } from '@/navigation/app-theme';
 
 export function BudgetListView({
@@ -40,6 +41,8 @@ export function BudgetListView({
   onOpen: (categoryId: string) => void;
 }) {
   const { palette, fonts } = useAppTheme();
+  const [filtersVisible, setFiltersVisible] = useState(false);
+  const [showEquivalents, setShowEquivalents] = useState(false);
   const [view, setView] = useState<BudgetBrowseView>('active');
   const [filter, setFilter] = useState<BudgetPeriodFilter>('all');
   const [search, setSearch] = useState('');
@@ -81,76 +84,74 @@ export function BudgetListView({
         accessibilityHint={canEdit ? 'Opens Category and Budget settings' : 'Opens Category details'}
         onPress={() => onOpen(category.id)}
         style={{
-          minHeight: 76,
-          borderWidth: 1,
+          minHeight: 67,
+          borderTopWidth: 1,
           borderColor: palette.fieldBorder,
-          borderRadius: radius.control,
-          backgroundColor: palette.surfaceModal,
           flexDirection: 'row',
           alignItems: 'center',
           gap: 12,
-          padding: 12,
+          paddingVertical: 12,
+          flexWrap: 'wrap',
         }}>
-        <CategoryIconMark iconKey={category.iconKey} colorKey={category.colorKey} />
-        <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
+        <CategoryIconMark iconKey={category.iconKey} colorKey={category.colorKey} size={20} />
+        <View style={{ flex: 1, minWidth: 80, gap: 3 }}>
           <Text
-            style={{ color: palette.textPrimary, fontFamily: fonts.semibold, fontSize: typeScale.body }}>
+            style={{ color: palette.textPrimary, fontFamily: fonts.medium, fontSize: 14 }}>
             {category.name}
           </Text>
-          <Text style={{ color: palette.textSecondary, fontFamily: fonts.medium, fontSize: typeScale.metadata }}>
-            {category.isActive ? 'Active' : 'Inactive'}
-          </Text>
+          {!category.isActive ? <Text style={{ color: palette.textSecondary, fontFamily: fonts.regular, fontSize: 12 }}>Inactive</Text> : null}
+          {!details ? <Text style={{ color: palette.stateWarning, fontFamily: fonts.regular, fontSize: 12 }}>No Budget set</Text> : null}
+        </View>
+        <View style={{ alignItems: 'flex-end', maxWidth: '100%', gap: 3 }}>
           {details ? (
             <>
-              <Text style={{ color: palette.textPrimary, fontFamily: fonts.medium, fontSize: typeScale.body }}>
-                {details.originalAmount} per {details.originalPeriod}
+              <Text style={{ color: palette.textPrimary, fontFamily: fonts.medium, fontSize: 14 }}>
+                {details.originalAmount}
               </Text>
               <Text
                 style={{ color: palette.textSecondary, fontFamily: fonts.regular, fontSize: typeScale.metadata }}>
-                Monthly equivalent {details.monthlyEquivalent} · Annual equivalent {details.annualEquivalent}
+                per {details.originalPeriod}
               </Text>
             </>
           ) : (
-            <Text style={{ color: palette.textSecondary, fontFamily: fonts.regular, fontSize: typeScale.body }}>
-              No Budget set
+            <Text style={{ color: palette.brandPrimary, fontFamily: fonts.medium, fontSize: 14 }}>
+              {actionLabel}
             </Text>
           )}
         </View>
-        <Text style={{ color: palette.brandPrimary, fontFamily: fonts.semibold, fontSize: typeScale.sectionTitle }}>
-          {actionLabel}
-        </Text>
+        <ChevronRight size={14} color={palette.textSecondary} accessible={false} />
+        {showEquivalents && details ? <Text style={{ width: '100%', color: palette.textSecondary, fontFamily: fonts.regular, fontSize: 12 }}>
+          Monthly equivalent {details.monthlyEquivalent} · Annual equivalent {details.annualEquivalent}
+        </Text> : null}
       </Pressable>
     );
   }
 
   return (
-    <Screen title="Budget" refreshing={loading || refreshing} onRefresh={onRetry}>
+    <Screen title="Budget" refreshing={loading || refreshing} onRefresh={onRetry} headerAccessory={spaceStatus}>
       <View style={{ gap: space.cardGap }}>
-        {spaceStatus}
-        {canEdit ? <PrimaryButton label="Create Category" onPress={onCreate} /> : null}
-
-        <DesignSurface
+        <View
           accessibilityLabel={planAvailable
             ? `Monthly-equivalent plan ${plan.monthlyEquivalent}; annual equivalent ${plan.annualEquivalent}; ${plan.budgetCount} active ${plan.budgetCount === 1 ? 'Budget' : 'Budgets'}`
             : 'Budget plan loading'}
-          style={{ gap: space.cardGap, padding: space.cardInset }}>
-          <Text style={{ color: palette.textSecondary, fontFamily: fonts.semibold, fontSize: typeScale.sectionTitle }}>
+          style={{ gap: 4, alignItems: 'center', paddingTop: 4, paddingBottom: 6 }}>
+          <Text style={{ color: palette.textSecondary, fontFamily: fonts.regular, fontSize: 12 }}>
             Monthly-equivalent plan
           </Text>
           <Text
             accessibilityLiveRegion="polite"
-            style={{ color: palette.textPrimary, fontFamily: fonts.semibold, fontSize: typeScale.summaryMetric }}>
+            style={{ color: palette.textPrimary, fontFamily: fonts.semibold, fontSize: typeScale.budgetTotal, letterSpacing: -1.5, textAlign: 'center' }}>
             {planAvailable ? plan.monthlyEquivalent : loading ? 'Loading…' : 'Unavailable'}
           </Text>
-          <Text style={{ color: palette.textSecondary, fontFamily: fonts.medium, fontSize: typeScale.body }}>
+          <Text style={{ color: palette.textSecondary, fontFamily: fonts.regular, fontSize: 12, textAlign: 'center' }}>
             Annual equivalent {planAvailable ? plan.annualEquivalent : ''}
           </Text>
-          <Text style={{ color: palette.textSecondary, fontFamily: fonts.regular, fontSize: typeScale.metadata }}>
+          <Text style={{ color: palette.textSecondary, fontFamily: fonts.regular, fontSize: 12, textAlign: 'center' }}>
             {planAvailable
               ? `${plan.budgetCount} active ${plan.budgetCount === 1 ? 'Budget' : 'Budgets'} · inactive Categories excluded`
               : 'Active Budget totals'}
           </Text>
-        </DesignSurface>
+        </View>
 
         {error ? (
           <View style={{ gap: space.rowGap }}>
@@ -163,59 +164,73 @@ export function BudgetListView({
           </View>
         ) : null}
 
-        <TextField
-          label="Search Categories"
-          value={search}
-          onChangeText={setSearch}
-          placeholder="Find a Category"
-        />
-
-        <View style={{ gap: space.rowGap }}>
-          {sectionTitle('Category view')}
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-            <SecondaryButton
-              label="Active"
-              selected={view === 'active'}
-              onPress={() => setView('active')}
-            />
-            <SecondaryButton
-              label="Inactive"
-              selected={view === 'inactive'}
-              onPress={() => setView('inactive')}
-            />
-          </View>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 4 }}>
+          <CompactAction label={filter === 'all' ? 'All' : filter[0]!.toUpperCase() + filter.slice(1)} selected={filter !== 'all' || view === 'inactive'} icon={<ListFilter size={16} color={palette.brandPrimary} />} onPress={() => setFiltersVisible(true)} />
+          <CompactAction label="Unset" selected={filter === 'unset'} onPress={() => setFilter(filter === 'unset' ? 'all' : 'unset')} />
+          <View style={{ flex: 1 }} />
+          <CompactAction variant="icon" label="Search Categories" icon={<Search size={17} color={palette.textSecondary} />} onPress={() => setFiltersVisible(true)} />
+          <CompactAction variant="icon" label="Sort Categories" icon={<ArrowDownWideNarrow size={17} color={palette.textSecondary} />} onPress={() => setFiltersVisible(true)} />
         </View>
+        <ChoiceSheet title="Search, filter and sort" visible={filtersVisible} onDismiss={() => setFiltersVisible(false)} showClose>
+          <TextField
+            label="Search Categories"
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Find a Category"
+          />
 
-        <View style={{ gap: space.rowGap }}>
-          {sectionTitle('Budget filter')}
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-            {(['all', 'monthly', 'yearly', 'unset'] as const).map((value) => (
-              <SecondaryButton
-                key={value}
-                label={value[0]!.toUpperCase() + value.slice(1)}
-                selected={filter === value}
-                onPress={() => setFilter(value)}
+          <View style={{ gap: space.rowGap }}>
+            {sectionTitle('Category view')}
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              <CompactAction
+                label="Active"
+                selected={view === 'active'}
+                onPress={() => setView('active')}
               />
-            ))}
+              <CompactAction
+                label="Inactive"
+                selected={view === 'inactive'}
+                onPress={() => setView('inactive')}
+              />
+            </View>
           </View>
-        </View>
 
-        <View style={{ gap: space.rowGap }}>
-          {sectionTitle('Sort by')}
-          <SupportingText>Amount sorts compare exact monthly equivalents.</SupportingText>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-            <SecondaryButton label="Name" selected={sort === 'name'} onPress={() => setSort('name')} />
-            <SecondaryButton label="Amount" selected={sort === 'amount'} onPress={() => setSort('amount')} />
-            <SortDirectionButton
-              sort={sort}
-              direction={direction}
-              onPress={() => setDirection((current) => current === 'ascending' ? 'descending' : 'ascending')}
-            />
+          <View style={{ gap: space.rowGap }}>
+            {sectionTitle('Budget filter')}
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              {(['all', 'monthly', 'yearly', 'unset'] as const).map((value) => (
+                <CompactAction
+                  key={value}
+                  label={value[0]!.toUpperCase() + value.slice(1)}
+                  selected={filter === value}
+                  onPress={() => setFilter(value)}
+                />
+              ))}
+            </View>
           </View>
-        </View>
 
-        <View style={{ gap: space.cardGap }}>
-          {sectionTitle(categoryViewLabel)}
+          <View style={{ gap: space.rowGap }}>
+            {sectionTitle('Sort by')}
+            <SupportingText>Amount sorts compare exact monthly equivalents.</SupportingText>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              <CompactAction label="Name" selected={sort === 'name'} onPress={() => setSort('name')} />
+              <CompactAction label="Amount" selected={sort === 'amount'} onPress={() => setSort('amount')} />
+              <SortDirectionButton
+                sort={sort}
+                direction={direction}
+                onPress={() => setDirection((current) => current === 'ascending' ? 'descending' : 'ascending')}
+              />
+            </View>
+          </View>
+
+          <CompactAction label={showEquivalents ? 'Hide equivalent amounts' : 'Show equivalent amounts'} selected={showEquivalents} onPress={() => setShowEquivalents(!showEquivalents)} />
+          <CompactAction label="Done" onPress={() => setFiltersVisible(false)} />
+        </ChoiceSheet>
+        <View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+            {sectionTitle(categoryViewLabel)}
+            {canEdit ? <CompactAction variant="icon" label="Create Category" icon={<FolderPlus size={18} color={palette.brandPrimary} />} onPress={onCreate} /> : null}
+          </View>
           {loading && categories.length === 0 ? (
             <SupportingText>Loading Categories and Budgets.</SupportingText>
           ) : null}
@@ -247,34 +262,8 @@ function SortDirectionButton({
   direction: BudgetSortDirection;
   onPress: () => void;
 }) {
-  const { palette, fonts } = useAppTheme();
   const label = sort === 'name'
     ? direction === 'ascending' ? 'A–Z' : 'Z–A'
     : direction === 'ascending' ? 'Low to high' : 'High to low';
-  const accessibilityLabel = `Sort order: ${label}`;
-
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel}
-      accessibilityHint="Double tap to reverse the sort order"
-      onPress={onPress}
-      style={{
-        minHeight: controlSize.primaryAction,
-        minWidth: controlSize.minimumTarget,
-        borderRadius: radius.control,
-        borderCurve: 'continuous',
-        borderWidth: 1,
-        borderColor: palette.fieldBorder,
-        backgroundColor: palette.surfaceModal,
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingHorizontal: space.screenBottom,
-        paddingVertical: space.sheetPaddingTop,
-      }}>
-      <Text style={{ color: palette.textPrimary, fontFamily: fonts.semibold, fontSize: typeScale.button }}>
-        {label}
-      </Text>
-    </Pressable>
-  );
+  return <CompactAction label={'Sort order: ' + label} onPress={onPress} />;
 }

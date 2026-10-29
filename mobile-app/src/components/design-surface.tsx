@@ -33,28 +33,43 @@ export function CanvasBackground() {
 }
 
 /** Native glass is enhanced by a gradient and highlight on every platform. */
-export function DesignSurface({ children, style, accessibilityLabel }: {
+export function DesignSurface({ children, style, accessibilityLabel, variant = 'summary', containerStyle }: {
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
   accessibilityLabel?: string;
+  variant?: 'summary' | 'navigation' | 'add';
+  containerStyle?: StyleProp<ViewStyle>;
 }) {
   const { palette, scheme } = useAppTheme();
   const id = useId().replace(/:/g, '');
   const recipe = designRecipes[scheme];
+  const isSummary = variant === 'summary';
+  const cornerRadius = isSummary ? radius.summaryCard : radius.navigation;
+  const colors = variant === 'add' ? recipe.add : recipe.glass;
+  const highlight = variant === 'add' ? recipe.addHighlight : variant === 'navigation' ? recipe.navigationHighlight : recipe.highlight;
   return (
-    <View style={{ borderRadius: radius.summaryCard, shadowColor: palette.summaryCardShadow, shadowOffset: { width: 0, height: 10 }, shadowOpacity: 1, shadowRadius: 30, elevation: 6 }}>
-      <GlassView accessible={!!accessibilityLabel} accessibilityRole={accessibilityLabel ? 'summary' : undefined} accessibilityLabel={accessibilityLabel} glassEffectStyle="regular" colorScheme={scheme} style={[{ borderRadius: radius.summaryCard, overflow: 'hidden', borderWidth: 1, borderColor: palette.glassBorder }, style]}>
+    <View style={[{ borderRadius: cornerRadius, shadowColor: isSummary ? palette.summaryCardShadow : variant === 'add' ? palette.addShadow : palette.shadow, shadowOffset: { width: 0, height: isSummary ? 10 : variant === 'add' ? 6 : 8 }, shadowOpacity: 1, shadowRadius: isSummary ? 30 : variant === 'add' ? 18 : 24, elevation: 6 }, containerStyle]}>
+      <GlassView accessible={!!accessibilityLabel} accessibilityRole={accessibilityLabel ? 'summary' : undefined} accessibilityLabel={accessibilityLabel} glassEffectStyle="regular" colorScheme={scheme} style={[{ borderRadius: cornerRadius, overflow: 'hidden', borderWidth: isSummary ? 1 : 1.5, borderColor: isSummary ? palette.glassBorder : variant === 'add' ? palette.addBorder : palette.navigationBorder }, style]}>
         <View pointerEvents="none" accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={StyleSheet.absoluteFill}>
           <Svg width="100%" height="100%">
             <Defs><LinearGradient id={`${id}glass`} x1="0%" y1="0%" x2="100%" y2="100%">
-              <Stop offset="0" {...gradientStop(recipe.glass[0])} /><Stop offset="0.52" {...gradientStop(recipe.glass[1])} /><Stop offset="1" {...gradientStop(recipe.glass[2])} />
+              <Stop offset="0" {...gradientStop(colors[0])} /><Stop offset={variant === 'add' ? '0.48' : '0.52'} {...gradientStop(colors[1])} /><Stop offset="1" {...gradientStop(colors[2])} />
             </LinearGradient></Defs>
-            <Rect width="100%" height="100%" fill={`url(#${id}glass)`} />
-            <Rect width="100%" height="1" fill={recipe.highlight} />
+            <Rect width="100%" height="100%" fill={variant === 'navigation' ? palette.navigation : `url(#${id}glass)`} />
+            <Rect width="100%" height="1" fill={highlight} />
           </Svg>
         </View>
         {children}
       </GlassView>
     </View>
   );
+}
+
+export function SelectedTabBackground() {
+  const { scheme, palette } = useAppTheme();
+  const id = useId().replace(/:/g, '');
+  const colors = designRecipes[scheme].selectedTab;
+  return <View pointerEvents="none" accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[StyleSheet.absoluteFill, { borderRadius: 28, overflow: 'hidden', borderWidth: 1, borderColor: palette.addBorder }]}>
+    <Svg width="100%" height="100%"><Defs><LinearGradient id={id} x1="0%" y1="0%" x2="100%" y2="100%"><Stop offset="0" {...gradientStop(colors[0])} /><Stop offset="1" {...gradientStop(colors[1])} /></LinearGradient></Defs><Rect width="100%" height="100%" fill={`url(#${id})`} /></Svg>
+  </View>;
 }

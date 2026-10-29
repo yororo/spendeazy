@@ -1,0 +1,6 @@
+# Implementation 01, Task 04 report
+
+- `ExpenseFields` and `ExpenseNotice` are feature-owned visual components shared by manual Add and detail/Edit. The form uses a text date row (YYYY-MM-DD), preserving the existing date input rather than adding a date picker. `TextField.showLabel` hides visible labels while retaining input accessibility labels.
+- Filters and search now live in a disclosure sheet. Category selection temporarily hides that sheet and returns to it on selection/dismissal; the same handoff hides the Edit dialog while its Category sheet is open. Native iOS/Android modal handoff and keyboard verification is still needed.
+- Expense rows reuse saved Category colors/icons through `CategoryIconMark`, including its tinted well; unavailable Category metadata uses a slate Shapes mark and the existing “Category” label. Detail/editor state only supplies Category names, so their decorative Category glyph remains neutral rather than introducing a metadata request.
+- Save failures retain their inline placement and retry actions, with the source icon-well treatment; no separate error alert was introduced. Delete confirmation reuses `CenteredDialog` and a new destructive `PrimaryButton` tone. Shared centered shells now use the source 24-unit gap, and `MoneyAmount` totals use Outfit 600 with -2 tracking.

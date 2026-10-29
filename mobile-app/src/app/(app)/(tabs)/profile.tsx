@@ -31,7 +31,7 @@ export default function ProfileScreen() {
   }
 
   return (
-    <Screen title="Profile">
+    <Screen title="Profile" headerAccessory={<SpaceStatus />}>
       <StackGap>
         {user?.imageUrl ? (
           <Image
@@ -53,7 +53,6 @@ export default function ProfileScreen() {
           />
         ))}
         {appearanceError ? <BodyText>{appearanceError}</BodyText> : null}
-        <SpaceStatus />
         <PrimaryButton label="Manage Shared Spaces" onPress={() => router.push('../sharing')} />
         <PrimaryButton
           label="Sign out"

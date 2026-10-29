@@ -18,6 +18,7 @@ import { session } from "@/application/session-runtime";
 import { useSpaces } from "@/application/spaces/provider";
 import { useSpaceCategories } from "@/features/expenses/use-space-categories";
 import { isSelectableYear, manilaDate, shiftMonth } from "./dashboard-format";
+import { retainCategoryMarkers } from "./dashboard-category-identity";
 
 const EMPTY_CATEGORY_SELECTION: string[] = [];
 
@@ -33,6 +34,8 @@ export function useDashboardReport() {
     monthlyEndMonth: null as string | null,
     year: null as string | null,
     chartCategoryIds: EMPTY_CATEGORY_SELECTION,
+    categoriesInitialized: false,
+    categoryMarkers: {} as Readonly<Record<string, number>>,
   };
   const [selection, setSelection] = useState(initialSelection);
   // Reset before rendering children or issuing a query for a new identity/Space.
@@ -115,7 +118,11 @@ export function useDashboardReport() {
           ? currentIds.filter((id) => id !== categoryId)
           : [...currentIds, categoryId];
         categoryIds.sort(compareIds);
-        return { ...current, chartCategoryIds: categoryIds };
+        return {
+          ...current,
+          chartCategoryIds: categoryIds,
+          categoriesInitialized: true,
+        };
       });
     },
     [activeSpaceId, authorized],
@@ -123,15 +130,34 @@ export function useDashboardReport() {
 
   const clearChartCategories = useCallback(() => {
     if (!activeSpaceId || !authorized.isCurrent()) return;
-    setSelection((current) => ({ ...current, chartCategoryIds: [] }));
+    setSelection((current) => ({
+      ...current,
+      chartCategoryIds: [],
+      categoriesInitialized: true,
+    }));
   }, [activeSpaceId, authorized]);
 
   const loading =
     active !== null && state.data === null && state.error === null;
   const report = state.data;
+  const categoryMarkers = retainCategoryMarkers(selection.categoryMarkers, [
+    ...(report?.categoryExpenses.map((category) => category.categoryId) ?? []),
+    ...categories.categories.map((category) => category.id),
+  ]);
+  if (categoryMarkers !== selection.categoryMarkers && selection.scopeKey === scopeKey) {
+    setSelection((current) => ({ ...current, categoryMarkers }));
+  }
+  // Initialize once per identity/Space from stable report order, including history.
+  if (report && !selection.categoriesInitialized && selection.scopeKey === scopeKey) {
+    setSelection((current) => ({
+      ...current,
+      categoriesInitialized: true,
+      chartCategoryIds: report.categoryExpenses.slice(0, 3).map((category) => category.categoryId),
+    }));
+  }
   // Capture the default before displaying it if Yearly was opened while loading.
   if (view === "yearly" && year === null && report) {
-    setSelection({ ...selection, year: report.range.fromDate.slice(0, 4) });
+    setSelection((current) => ({ ...current, year: report.range.fromDate.slice(0, 4) }));
   }
   const selectView = useCallback(
     (next: DashboardView) => {
@@ -207,6 +233,7 @@ export function useDashboardReport() {
     year,
     movePeriod,
     chartCategoryIds,
+    categoryMarkers,
     toggleChartCategory,
     clearChartCategories,
   };

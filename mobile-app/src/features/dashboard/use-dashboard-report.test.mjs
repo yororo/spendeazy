@@ -108,6 +108,7 @@ test('Monthly and Yearly remember independent periods and reject invalid or futu
   }
   await act(async () => screen.controller.selectYear('2024'));
   await screen.resolve(fixture('yearly', '2026-10-29', '2024'));
+  await act(async () => screen.controller.clearChartCategories());
   await act(async () => screen.controller.toggleChartCategory('2'));
   await act(async () => screen.controller.selectView('monthly'));
   assert.deepEqual(screen.requests.at(-1).query, { view: 'monthly', endMonth: '2026-09' });
@@ -231,6 +232,8 @@ test('Category filters update only chart data, retain the report, and survive re
     assert.equal(controller.refreshing, false);
     assert.equal(requests.length, 1);
   };
+  assert.deepEqual(controller.chartCategoryIds, ['1', '2']);
+  await act(async () => controller.clearChartCategories());
   await act(async () => controller.toggleChartCategory('2'));
   assertSelection(['2']);
   await act(async () => controller.toggleChartCategory('1'));
@@ -255,5 +258,46 @@ test('Category filters update only chart data, retain the report, and survive re
   assert.equal(controller.categoryReport, null);
   assert.deepEqual(controller.chartCategoryIds, []);
   await act(async () => requests[2].resolve(report));
-  assert.equal(controller.categoryReport, report);
+  assert.deepEqual(controller.chartCategoryIds, ['1', '2']);
+  assert.deepEqual(controller.categoryReport.categoryExpenses, report.categoryExpenses);
+});
+
+test('three stable defaults include inactive history; explicit All and larger selections survive mode changes and refresh', async (t) => {
+  const screen = await mountController(t);
+  const complete = {
+    ...fixture(),
+    categoryExpenses: [
+      { categoryId: '7', isActive: false },
+      { categoryId: '2', isActive: true },
+      { categoryId: '9', isActive: true },
+      { categoryId: '4', isActive: true },
+    ],
+    summary: { actualAmount: '400.01', expenseCount: '9', planned: { amount: '400.00' }, statementImports: { count: '3' } },
+    budgetChecks: { monthly: [{ eligibleMonths: 9, overBudgetMonths: 2 }], yearly: [{ status: 'over' }] },
+  };
+  await screen.resolve(complete);
+  assert.deepEqual(screen.controller.chartCategoryIds, ['7', '2', '9']);
+  const markers = screen.controller.categoryMarkers;
+  assert.equal(new Set(Object.values(markers)).size, 4);
+  const assertIndependent = () => {
+    assert.equal(screen.controller.report, complete);
+    for (const key of ['summary', 'monthlyExpenses', 'budgetChecks']) {
+      assert.equal(screen.controller.categoryReport[key], complete[key]);
+    }
+  };
+  assertIndependent();
+  await act(async () => screen.controller.toggleChartCategory('4'));
+  assert.equal(screen.controller.chartCategoryIds.length, 4);
+  assertIndependent();
+  await act(async () => screen.controller.clearChartCategories());
+  assert.deepEqual(screen.controller.chartCategoryIds, []);
+  assert.equal(screen.controller.categoryReport, complete);
+  await act(async () => screen.controller.refresh());
+  await screen.resolve({ ...complete, categoryExpenses: [...complete.categoryExpenses].reverse() });
+  assert.deepEqual(screen.controller.chartCategoryIds, []);
+  assert.deepEqual(screen.controller.categoryMarkers, markers);
+  await act(async () => screen.controller.selectView('yearly'));
+  await screen.resolve({ ...complete, range: { ...complete.range, view: 'yearly' } });
+  assert.deepEqual(screen.controller.chartCategoryIds, []);
+  assert.deepEqual(screen.controller.categoryMarkers, markers);
 });

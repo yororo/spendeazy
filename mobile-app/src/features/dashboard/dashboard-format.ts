@@ -76,3 +76,24 @@ function moneyToCents(value: string): bigint {
   const cents = BigInt(match[2]) * 100n + BigInt(match[3] ?? "00");
   return match[1] === "-" ? -cents : cents;
 }
+
+// Bounded drawing coordinates only; financial meaning stays in exact text/API status.
+export function meterSegments(actual: string, limit: string) {
+  if (compareMoney(limit, "0.00") <= 0) return { allocation: 0, excess: 0 };
+  if (compareMoney(actual, limit) <= 0) {
+    return { allocation: Math.max(0, barHeightPercent(actual, limit)), excess: 0 };
+  }
+  const allocation = barHeightPercent(limit, actual);
+  return { allocation, excess: 100 - allocation };
+}
+
+export function annualUsageText(actual: string, limit: string): string {
+  const cap = moneyToCents(limit);
+  if (cap <= 0n) return "No plan set";
+  const spent = moneyToCents(actual);
+  const percentage = (spent * 1000n + cap / 2n) / cap;
+  const usage = `${percentage / 10n}.${percentage % 10n}% used`;
+  return spent > cap
+    ? `${usage} · ${formatPhp(`${(spent - cap) / 100n}.${String((spent - cap) % 100n).padStart(2, "0")}`)} over`
+    : usage;
+}

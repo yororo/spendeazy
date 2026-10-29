@@ -1,13 +1,13 @@
-import { type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, type RefObject, type ElementRef, type ReactNode } from 'react';
 import { X } from 'lucide-react-native';
-import { KeyboardAvoidingView, Modal, Pressable, ScrollView, Text, View } from 'react-native';
+import { AccessibilityInfo, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { radius, space, typeScale } from '@/constants/theme';
 import { useAppTheme } from '@/navigation/app-theme';
 import { CompactAction } from '@/components/buttons';
 
-type ShellProps = { title: string; visible: boolean; onDismiss: () => void; children: ReactNode; dismissOnBackdrop?: boolean; showClose?: boolean };
+type ShellProps = { title: string; visible: boolean; onDismiss: () => void; children: ReactNode; dismissOnBackdrop?: boolean; showClose?: boolean; restoreFocusRef?: RefObject<ElementRef<typeof View> | null> };
 
 export function ChoiceSheet(props: ShellProps) {
   return <ModalShell {...props} />;
@@ -25,6 +25,7 @@ function ModalShell({
   centered = false,
   dismissOnBackdrop = true,
   showClose = false,
+  restoreFocusRef,
 }: {
   title: string;
   visible: boolean;
@@ -33,15 +34,33 @@ function ModalShell({
   centered?: boolean;
   dismissOnBackdrop?: boolean;
   showClose?: boolean;
+  restoreFocusRef?: RefObject<ElementRef<typeof View> | null>;
 }) {
   const insets = useSafeAreaInsets();
   const { palette, fonts } = useAppTheme();
+  const wasVisible = useRef(visible);
+  const titleRef = useRef<ElementRef<typeof Text>>(null);
+  const restoreFocus = useCallback(() => {
+    if (restoreFocusRef?.current) AccessibilityInfo.sendAccessibilityEvent(restoreFocusRef.current, 'focus');
+  }, [restoreFocusRef]);
+  useEffect(() => {
+    const dismissed = wasVisible.current && !visible;
+    wasVisible.current = visible;
+    // iOS supplies onDismiss after the native window closes; Android does not.
+    if (!dismissed || Platform.OS === 'ios') return;
+    const frame = requestAnimationFrame(restoreFocus);
+    return () => cancelAnimationFrame(frame);
+  }, [visible, restoreFocus]);
   return (
     <Modal
       visible={visible}
       transparent
       animationType="none"
       onRequestClose={onDismiss}
+      onDismiss={restoreFocus}
+      onShow={() => {
+        if (restoreFocusRef && titleRef.current) AccessibilityInfo.sendAccessibilityEvent(titleRef.current, 'focus');
+      }}
       accessibilityViewIsModal>
       <KeyboardAvoidingView behavior={process.env.EXPO_OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1, justifyContent: centered ? 'center' : 'flex-end', paddingTop: insets.top, paddingBottom: centered ? insets.bottom : 0, paddingHorizontal: centered ? space.screenHorizontal : 0 }}>
         <Pressable
@@ -74,6 +93,8 @@ function ModalShell({
           {showClose && !centered ? <View accessible={false} style={{ alignSelf: 'center', width: 36, height: 4, borderRadius: 2, backgroundColor: palette.fieldBorder }} /> : null}
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
           <Text
+            ref={titleRef}
+            accessible
             accessibilityRole="header"
             style={{
               color: palette.textPrimary,

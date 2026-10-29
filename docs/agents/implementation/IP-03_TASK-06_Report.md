@@ -1,0 +1,6 @@
+# IP-03 Task 06 handoff
+
+- Category plots use one full-height hit column per month to open visible Category values/references together. This keeps coincident points selectable without overlapping 48-unit Category targets. The all-Category breakdown belongs to the separate monthly bar sheet and always uses the complete report.
+- Keep the chart sheet's trigger ref separate from selected-month state: clearing the detail on dismissal must not discard the ref before native dismissal restores focus. Expenses actions close details before pushing; otherwise a mounted native Modal can cover the destination. Spoken focus still requires acceptance.
+- Chart keys include distinct chart-kind prefixes and the report period. Equal sibling keys caused a React warning during development and were corrected. A period change dismisses transient detail; same-period focus refresh retains chart scroll. The parent identity/Space key remains responsible for scope reset.
+- Available checks, native observations and unresolved acceptance cases are recorded in [the IP-03 verification record](IP-03-issue-150-verification.md). In particular, nonempty native Budget/configuration journeys and physical iPhone/screen-reader acceptance must not be inferred from passing fixtures.

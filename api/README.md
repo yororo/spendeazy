@@ -42,7 +42,7 @@ The required integration database variables are:
 | Dashboard Reporting | `TEST_DASHBOARD_REPORTING_DATABASE_URL` |
 | Historical ownership migration | `TEST_FINANCIAL_OWNERSHIP_MIGRATION_DATABASE_URL` — separate, empty disposable database starting from the pre-Space schema |
 
-The Dashboard Reporting suite exercises the authenticated `GET /api/v1/users/me/spaces/{spaceId}/reporting/dashboard` endpoint against PostgreSQL. It covers exact mixed-period planning, Manila period bounds, historical Expense inclusion/deletion exclusion, Budget checks, confirmation-time imports and chart-only Category filtering.
+The Dashboard Reporting suite exercises the authenticated `GET /api/v1/users/me/spaces/{spaceId}/reporting/dashboard` endpoint against PostgreSQL. It covers exact mixed-period planning, Manila period bounds, historical Expense inclusion/deletion exclusion, Budget checks, confirmation-time imports and chart-only Category filtering. Yearly cases additionally cover exact annual-to-Monthly planning and final half-up rounding, current configuration changes/removal/deactivation/reactivation against historical reports, the exact Manila New Year boundary, and Space/Category-filter independence. These HTTP/PostgreSQL fixtures establish server behavior; native Dashboard acceptance is recorded separately in the [IP-03 verification record](../docs/agents/implementation/IP-03-issue-150-verification.md).
 
 ## OpenAPI contract
 

@@ -1,6 +1,7 @@
-import { useState, type ReactNode } from "react";
-import { ScrollView, Text, View, useWindowDimensions } from "react-native";
-import Svg, { Circle, G, Line, Polyline, Rect } from "react-native-svg";
+import { useRef, useState, type ReactNode, type RefObject, type ElementRef } from "react";
+import { Pressable, ScrollView, Text, View, useWindowDimensions } from "react-native";
+import Svg, { G, Line, Polyline, Rect } from "react-native-svg";
+import { CategoryPoint } from "./category-marker";
 import type { DashboardReport } from "@/api/dashboard-report-api-client";
 import { useAppTheme } from "@/navigation/app-theme";
 import {
@@ -11,6 +12,17 @@ import {
 } from "./dashboard-format";
 type CategorySeries = DashboardReport["categoryExpenses"][number];
 const plotHeight = 140;
+export type ChartTrigger = RefObject<ElementRef<typeof View> | null>;
+type MonthSelection = (month: string, trigger: ChartTrigger) => void;
+
+function MonthTarget({ month, width, label, onSelect }: {
+  month: string; width: number; label: string; onSelect: MonthSelection;
+}) {
+  const trigger = useRef<ElementRef<typeof View>>(null);
+  return <Pressable ref={trigger} accessibilityRole="button" accessibilityLabel={label}
+    accessibilityHint="Opens exact values and View Expenses actions"
+    onPress={() => onSelect(month, trigger)} style={{ width, minHeight: plotHeight + 12 }} />;
+}
 function maximumAmount(values: readonly string[]) {
   return values.reduce(
     (maximum, value) => (compareMoney(value, maximum) > 0 ? value : maximum),
@@ -26,15 +38,19 @@ function Plot({
   maximum,
   months,
   children,
+  onSelectMonth,
+  monthLabel,
 }: {
   maximum: string;
   months: readonly string[];
   children: (width: number) => ReactNode;
+  onSelectMonth: MonthSelection;
+  monthLabel: (month: string) => string;
 }) {
   const { palette, fonts } = useAppTheme();
   const [availableWidth, setAvailableWidth] = useState(0);
   const { fontScale } = useWindowDimensions();
-  const width = Math.max(1, availableWidth, months.length * 34 * fontScale);
+  const width = Math.max(1, availableWidth, months.length * 48 * fontScale);
   return (
     <View
       style={{
@@ -101,6 +117,10 @@ function Plot({
                 {children(width)}
               </Svg>
             </View>
+            <View style={{ position: "absolute", top: 0, left: 0, flexDirection: "row" }}>
+              {months.map((month) => <MonthTarget key={month} month={month}
+                width={width / months.length} label={monthLabel(month)} onSelect={onSelectMonth} />)}
+            </View>
             <View
               style={{
                 flexDirection: "row",
@@ -128,7 +148,7 @@ function Plot({
     </View>
   );
 }
-export function MonthlyBars({ report }: { report: DashboardReport }) {
+export function MonthlyBars({ report, onSelectMonth }: { report: DashboardReport; onSelectMonth: MonthSelection }) {
   const { palette } = useAppTheme();
   const plan = report.summary.planned.monthlyEquivalent.amount;
   const maximum = maximumAmount([
@@ -139,6 +159,11 @@ export function MonthlyBars({ report }: { report: DashboardReport }) {
     <Plot
       maximum={maximum}
       months={report.monthlyExpenses.map((point) => point.month)}
+      onSelectMonth={onSelectMonth}
+      monthLabel={(month) => {
+        const point = report.monthlyExpenses.find((item) => item.month === month)!;
+        return `${labelMonth(month)} ${month.slice(0, 4)}, ${formatPhp(point.actualAmount)}, ${point.expenseCount} Expenses${point.inProgress ? ", in progress" : ""}`;
+      }}
     >
       {(width) => (
         <>
@@ -176,9 +201,13 @@ export function MonthlyBars({ report }: { report: DashboardReport }) {
 export function CategoryLines({
   report,
   colorFor,
+  markerIndexFor,
+  onSelectMonth,
 }: {
   report: DashboardReport;
   colorFor: (category: CategorySeries) => string;
+  markerIndexFor: (categoryId: string) => number;
+  onSelectMonth: MonthSelection;
 }) {
   const months = report.monthlyExpenses.map((point) => point.month);
   const maximum = maximumAmount(
@@ -191,9 +220,9 @@ export function CategoryLines({
       ]),
     ),
   );
-  const { palette } = useAppTheme();
   return (
-    <Plot maximum={maximum} months={months}>
+    <Plot maximum={maximum} months={months} onSelectMonth={onSelectMonth}
+      monthLabel={(month) => `${labelMonth(month)} ${month.slice(0, 4)}, Category spending details`}>
       {(width) => {
         const x = (month: string) =>
           ((months.indexOf(month) + 0.5) * width) / months.length;
@@ -227,14 +256,12 @@ export function CategoryLines({
                 ))}
               {points.map((point) =>
                 point ? (
-                  <Circle
+                  <CategoryPoint
                     key={point.month}
-                    cx={x(point.month)}
-                    cy={y(point.actualAmount, maximum)}
-                    r={3}
-                    fill={palette.surfaceModal}
-                    stroke={color}
-                    strokeWidth={1.5}
+                    markerIndex={markerIndexFor(category.categoryId)}
+                    x={x(point.month)}
+                    y={y(point.actualAmount, maximum)}
+                    color={color}
                   />
                 ) : null,
               )}

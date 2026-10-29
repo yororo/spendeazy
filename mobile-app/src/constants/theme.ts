@@ -25,6 +25,9 @@ export const palette = {
     addBorder: '#FFFFFFCC',
     addShadow: '#535FC94D',
     fieldBorder: '#E5E7EF',
+    editorField: '#FFFFFF90',
+    segmentedTrack: '#E5E8F580',
+    segmentedSelected: '#FFFFFFCC',
     glassTint: '#FFFFFF66',
     glassBorder: '#FFFFFFE6',
     summaryCardShadow: '#646A9D12',
@@ -53,6 +56,9 @@ export const palette = {
     addBorder: '#A7B1DC26',
     addShadow: '#00000040',
     fieldBorder: '#A7B1DC26',
+    editorField: '#22283DD9',
+    segmentedTrack: '#343B5880',
+    segmentedSelected: '#414966CC',
     glassTint: '#272E4180',
     glassBorder: '#A7B1DC26',
     summaryCardShadow: '#00000040',
@@ -78,6 +84,8 @@ export const typeScale = {
   body: 16,
   metadata: 12,
   summaryMetric: 23,
+  budgetAmount: 34,
+  budgetTotal: 42,
   pageTitleTracking: -0.9,
 } as const;
 

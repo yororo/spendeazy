@@ -17,6 +17,7 @@ export function TextField({
   variant = 'filled',
   icon,
   showLabel = true,
+  suffix,
 }: {
   label: string;
   value: string;
@@ -27,9 +28,10 @@ export function TextField({
   autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
   onBlur?: () => void;
   editable?: boolean;
-  variant?: 'filled' | 'underlined' | 'amount';
+  variant?: 'filled' | 'underlined' | 'amount' | 'budget';
   icon?: ReactNode;
   showLabel?: boolean;
+  suffix?: string;
 }) {
   const { palette, fonts } = useAppTheme();
   return (
@@ -42,7 +44,14 @@ export function TextField({
         }}>
         {label}
       </Text> : null}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, borderBottomWidth: variant === 'underlined' ? 1 : 0, borderColor: error ? palette.stateNegative : palette.fieldBorder }}>
+      <View style={{
+        flexDirection: 'row', alignItems: 'center', gap: 14,
+        borderBottomWidth: variant === 'underlined' ? 1 : 0,
+        borderWidth: variant === 'budget' && error ? 1 : 0,
+        borderColor: error ? palette.stateNegative : palette.fieldBorder,
+        backgroundColor: variant === 'budget' ? palette.editorField : undefined,
+        borderRadius: variant === 'budget' ? radius.control : undefined,
+      }}>
       {icon ? <View pointerEvents="none" accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">{icon}</View> : null}
       <TextInput
         accessibilityLabel={label}
@@ -60,18 +69,20 @@ export function TextField({
           minHeight: controlSize.field,
           borderWidth: variant === 'filled' ? 1 : 0,
           borderColor: error ? palette.stateNegative : palette.fieldBorder,
-          borderRadius: variant === 'filled' ? radius.control : 0,
+          borderRadius: variant === 'filled' || variant === 'budget' ? radius.control : 0,
           borderCurve: 'continuous',
           color: palette.textPrimary,
           backgroundColor: variant === 'filled' ? palette.surfaceModal : 'transparent',
           opacity: editable ? 1 : 0.55,
           fontFamily: variant === 'filled' ? fonts.regular : fonts.medium,
-          fontSize: variant === 'amount' ? 48 : typeScale.body,
+          fontSize: variant === 'amount' ? 48 : variant === 'budget' ? typeScale.budgetAmount : typeScale.body,
           letterSpacing: variant === 'amount' ? -1.5 : 0,
           textAlign: variant === 'amount' ? 'center' : 'left',
-          paddingHorizontal: variant === 'filled' ? space.screenBottom : 0,
+          paddingHorizontal: variant === 'filled' ? space.screenBottom : variant === 'budget' ? 20 : 0,
+          paddingVertical: variant === 'budget' ? 20 : undefined,
         }}
       />
+      {suffix ? <Text style={{ paddingRight: 20, color: palette.textSecondary, fontFamily: fonts.regular, fontSize: typeScale.metadata }}>{suffix}</Text> : null}
       </View>
       {error ? (
         <Text

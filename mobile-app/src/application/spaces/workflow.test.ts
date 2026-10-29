@@ -113,3 +113,55 @@ test('identity changes during provisioning prevent the old workflow from reading
   assert.equal(spaces.snapshot().active, null);
   assert.equal(session.snapshot().spaceId, null);
 });
+
+test('import work blocks Space switches until explicit discard without changing manual remapping', async () => {
+  const session = createSession(); session.observeIdentity('ada');
+  const spaces = createSpacesWorkflow(session, {
+    provision: async () => {}, list: async () => [personal, shared],
+    read: async () => null, write: async () => true,
+  });
+  await spaces.load();
+  session.saveDraft({ amount: '12.00', description: 'Market', categoryId: '3', expenseDate: '2026-10-26' });
+  const op = { id: 'operation', generation: session.capture().generation, owner: { userId: 'ada', spaceId: personal.id } };
+  session.imports.start('draft', op);
+  const before = session.imports.snapshot();
+  await spaces.select(shared.id);
+  assert.equal(session.snapshot().spaceId, personal.id);
+  assert.equal(spaces.snapshot().active?.id, personal.id);
+  assert.equal(session.imports.snapshot(), before); // Keep editing requires no mutation.
+  assert.equal(session.snapshot().draft?.categoryId, '3');
+  spaces.discardUnsavedWork();
+  await spaces.select(shared.id);
+  assert.equal(session.imports.hasWork(), false);
+  assert.equal(session.snapshot().draft, null);
+  assert.equal(session.snapshot().spaceId, shared.id);
+
+  session.saveDraft({ amount: '12.00', description: 'Market', categoryId: '3', expenseDate: '2026-10-26' });
+  await spaces.select(personal.id);
+  assert.equal(session.snapshot().draft?.description, 'Market');
+  assert.equal(session.snapshot().draft?.categoryId, null);
+});
+
+test('Space refresh applies archive access to imports without redirecting work', async () => {
+  const session = createSession(); session.observeIdentity('ada');
+  let available = [personal, shared];
+  const spaces = createSpacesWorkflow(session, {
+    provision: async () => {}, list: async () => available,
+    read: async () => shared.id, write: async () => true,
+  });
+  await spaces.load();
+  const operation = { id: 'operation', generation: session.capture().generation, owner: { userId: 'ada', spaceId: shared.id } };
+  session.imports.start('draft', operation);
+  available = [personal, { ...shared, status: 'archived', accessLevel: 'read' }];
+  await spaces.load();
+  assert.equal(spaces.snapshot().active?.status, 'archived');
+  assert.equal(session.imports.snapshot().phase, 'suspended');
+  assert.equal(session.snapshot().spaceWritable, false);
+  assert.equal(session.imports.start('new', operation), false);
+
+  available = [personal];
+  await spaces.load();
+  assert.equal(spaces.snapshot().active, null);
+  assert.equal(session.snapshot().spaceId, shared.id);
+  assert.equal(session.imports.snapshot().phase, 'suspended');
+});

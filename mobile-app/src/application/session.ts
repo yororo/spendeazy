@@ -1,4 +1,5 @@
 import type { ManualExpenseDraft } from '../features/expenses/manual-draft.ts';
+import { createImportStore } from '../features/statement-import/import-store.ts';
 
 export type SessionScope = { generation: number; userId: string | null; spaceId: string | null };
 type SessionSnapshot = {
@@ -6,6 +7,7 @@ type SessionSnapshot = {
   authSessionId: string | null;
   ownerUserId: string | null;
   spaceId: string | null;
+  spaceWritable: boolean;
   draft: ManualExpenseDraft | null;
   notice: 'expired' | null;
   announceRecovery: boolean;
@@ -15,12 +17,16 @@ type SessionSnapshot = {
 /** Owns private-work retention and invalidates all work started in an older session/Space. */
 export function createSession(onResetSelections: () => void = () => {}) {
   let state: SessionSnapshot = {
-    userId: null, authSessionId: null, ownerUserId: null, spaceId: null, draft: null,
+    userId: null, authSessionId: null, ownerUserId: null, spaceId: null, spaceWritable: false, draft: null,
     notice: null, announceRecovery: false, generation: 0,
   };
   const listeners = new Set<() => void>();
+  const imports = createImportStore(() => ({
+    ...state, authenticated: state.userId !== null && state.notice === null, writable: state.spaceWritable,
+  }));
   function publish(patch: Partial<SessionSnapshot>) {
     state = { ...state, ...patch };
+    imports.synchronize();
     for (const listener of listeners) listener();
   }
   function isCurrent(scope: SessionScope) {
@@ -28,6 +34,7 @@ export function createSession(onResetSelections: () => void = () => {}) {
       scope.spaceId === state.spaceId && scope.generation === state.generation;
   }
   return {
+    imports,
     snapshot: () => state,
     subscribe(listener: () => void) {
       listeners.add(listener);
@@ -46,8 +53,9 @@ export function createSession(onResetSelections: () => void = () => {}) {
       publish({
         userId, authSessionId, ownerUserId: userId, notice: null,
         spaceId: sameOwner ? state.spaceId : null,
+        spaceWritable: sameOwner ? state.spaceWritable : false,
         draft: sameOwner ? state.draft : null,
-        announceRecovery: sameOwner && state.notice === 'expired' && state.draft !== null,
+        announceRecovery: sameOwner && state.notice === 'expired' && (state.draft !== null || imports.hasWork()),
         generation: state.generation + 1,
       });
     },
@@ -58,14 +66,19 @@ export function createSession(onResetSelections: () => void = () => {}) {
     },
     signOut() {
       onResetSelections();
-      publish({ userId: null, authSessionId: null, ownerUserId: null, spaceId: null, draft: null,
+      publish({ userId: null, authSessionId: null, ownerUserId: null, spaceId: null, spaceWritable: false, draft: null,
         notice: null, announceRecovery: false, generation: state.generation + 1 });
     },
-    changeSpace(spaceId: string | null) {
-      if (state.spaceId === spaceId) return;
+    changeSpace(spaceId: string | null, writable = true) {
+      if (state.spaceId === spaceId) {
+        if (state.spaceWritable !== writable) publish({ spaceWritable: writable });
+        return true;
+      }
+      if (imports.hasWork()) return false;
       onResetSelections();
-      publish({ spaceId, draft: state.draft ? { ...state.draft, categoryId: null } : null,
+      publish({ spaceId, spaceWritable: spaceId !== null && writable, draft: state.draft ? { ...state.draft, categoryId: null } : null,
         generation: state.generation + 1 });
+      return true;
     },
     saveDraft(draft: ManualExpenseDraft | null) {
       if (!state.userId || state.notice === 'expired') return;

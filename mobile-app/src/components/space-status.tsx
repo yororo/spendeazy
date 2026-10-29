@@ -21,7 +21,7 @@ function SpaceInitials({ space, compact = false }: { space: AccessibleSpace; com
 }
 
 export function SpaceStatus() {
-  const { spaces, active, loading, error, memoryError, refresh, selectSpace, hasUnsavedWork, discardUnsavedExpense } = useSpaces();
+  const { spaces, active, loading, error, memoryError, refresh, selectSpace, hasUnsavedWork, hasImportWork, discardUnsavedWork } = useSpaces();
   const { palette, fonts } = useAppTheme();
   const [open, setOpen] = useState(false);
   const [pendingSpaceId, setPendingSpaceId] = useState<string | null>(null);
@@ -56,14 +56,14 @@ export function SpaceStatus() {
           </Pressable>;
         })}
       </ChoiceSheet>
-      <ChoiceSheet title="Unsaved Expense" visible={pendingSpaceId !== null} onDismiss={() => setPendingSpaceId(null)}>
-        <BodyText>Save this Expense first, or discard it before switching Spaces. Its Category selection clears when you switch.</BodyText>
-        <SecondaryButton label="Keep working on Expense" onPress={() => setPendingSpaceId(null)} />
-        <SecondaryButton label="Discard Expense and switch" onPress={() => {
+      <ChoiceSheet title={hasImportWork ? 'Statement Import in progress' : 'Unsaved Expense'} visible={pendingSpaceId !== null} onDismiss={() => setPendingSpaceId(null)}>
+        <BodyText>{hasImportWork ? 'This Statement Import belongs to the current Space. Discard unsaved work before switching, then select the file again in the destination Space.' : 'Save this Expense first, or discard it before switching Spaces. Its Category selection clears when you switch.'}</BodyText>
+        <SecondaryButton label={hasImportWork ? 'Keep editing' : 'Keep working on Expense'} onPress={() => setPendingSpaceId(null)} />
+        <SecondaryButton label={hasImportWork ? 'Discard work and switch' : 'Discard Expense and switch'} onPress={() => {
           const nextSpaceId = pendingSpaceId;
           setPendingSpaceId(null);
           setOpen(false);
-          discardUnsavedExpense();
+          discardUnsavedWork();
           if (nextSpaceId) {
             const nextSpace = spaces.find((space) => space.id === nextSpaceId);
             if (nextSpace) void selectSpace(nextSpace);

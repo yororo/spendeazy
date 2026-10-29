@@ -91,10 +91,11 @@ export function createSpacesWorkflow(session: Session, adapters: SpacesAdapters)
         const remembered = await adapters.read(ownerUserId);
         if (requestId !== state.requestId || !session.isCurrent(started)) return;
         const selected = selectActiveSpace(spaces, session.snapshot().spaceId ?? remembered);
-        session.changeSpace(selected?.id ?? null);
+        const changed = session.changeSpace(selected?.id ?? null, selected?.status === 'active' && selected.accessLevel === 'write');
+        if (!changed) session.changeSpace(session.snapshot().spaceId, false);
         scope = session.capture();
-        dispatch({ type: 'loadSucceeded', requestId, spaces, active: selected });
-        if (selected && selected.id !== remembered) await remember(selected);
+        dispatch({ type: 'loadSucceeded', requestId, spaces, active: changed ? selected : null });
+        if (changed && selected && selected.id !== remembered) await remember(selected);
       } catch (cause) {
         if (session.isCurrent(started)) dispatch({ type: 'loadFailed', requestId, error: requestFailureMessage(cause) });
       } finally {
@@ -105,13 +106,18 @@ export function createSpacesWorkflow(session: Session, adapters: SpacesAdapters)
       if (!currentOwner() || !session.isCurrent(scope)) return;
       const space = state.spaces.find((item) => item.id === spaceId);
       if (!space || space.id === state.active?.id) return;
-      session.changeSpace(space.id);
+      if (!session.changeSpace(space.id, space.status === 'active' && space.accessLevel === 'write')) return;
       scope = session.capture();
       dispatch({ type: 'selected', active: space });
       await remember(space);
     },
     discardUnsavedExpense() {
       if (!currentOwner() || !session.isCurrent(scope)) return;
+      session.saveDraft(null);
+    },
+    discardUnsavedWork() {
+      if (!currentOwner() || !session.isCurrent(scope)) return;
+      session.imports.discard();
       session.saveDraft(null);
     },
   };

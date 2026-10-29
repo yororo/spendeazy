@@ -13,6 +13,8 @@ type SpacesContextValue = ReturnType<ReturnType<typeof createSpacesWorkflow>['sn
   selectSpace: (space: AccessibleSpace) => Promise<void>;
   selectSpaceId: (spaceId: string) => Promise<void>;
   discardUnsavedExpense: () => void;
+  discardUnsavedWork: () => void;
+  hasImportWork: boolean;
   hasUnsavedWork: boolean;
 };
 const SpacesContext = createContext<SpacesContextValue | null>(null);
@@ -31,11 +33,12 @@ export function SpacesProvider({ children }: { children: ReactNode }) {
     });
   }, [transport, userId]);
   const state = useSyncExternalStore(workflow.subscribe, workflow.snapshot, workflow.snapshot);
-  const hasUnsavedWork = useSyncExternalStore(
+  const hasExpenseWork = useSyncExternalStore(
     session.subscribe,
     () => session.snapshot().draft !== null,
     () => false,
   );
+  const hasImportWork = useSyncExternalStore(session.imports.subscribe, session.imports.hasWork, () => false);
   useEffect(() => {
     void workflow.load();
     return workflow.cancel;
@@ -46,7 +49,9 @@ export function SpacesProvider({ children }: { children: ReactNode }) {
     selectSpace: (space) => workflow.select(space.id),
     selectSpaceId: workflow.select,
     discardUnsavedExpense: workflow.discardUnsavedExpense,
-    hasUnsavedWork,
+    discardUnsavedWork: workflow.discardUnsavedWork,
+    hasImportWork,
+    hasUnsavedWork: hasExpenseWork || hasImportWork,
   }}>{children}</SpacesContext>;
 }
 

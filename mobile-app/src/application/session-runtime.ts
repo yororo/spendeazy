@@ -3,6 +3,7 @@ import { clearExpenseBrowse } from '@/features/expenses/browse-state';
 import { createSession } from './session';
 
 export const session = createSession(clearExpenseBrowse);
+export const statementImportStore = session.imports;
 export const observeAuthUser = session.observeIdentity;
 export const dismissRecoveryAnnouncement = session.dismissRecovery;
 

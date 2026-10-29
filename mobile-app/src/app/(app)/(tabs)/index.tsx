@@ -1,4 +1,5 @@
-import { useRouter, type Href } from "expo-router";
+import { useCallback, useLayoutEffect, useRef } from "react";
+import { useFocusEffect, useRouter, type Href } from "expo-router";
 
 import {
   dismissRecoveryAnnouncement,
@@ -15,6 +16,13 @@ export default function DashboardScreen() {
   const controller = useDashboardReport();
   const session = useSessionSnapshot();
   const { active } = useSpaces();
+  const refresh = useRef(controller.refresh);
+  const hasFocused = useRef(false);
+  useLayoutEffect(() => { refresh.current = controller.refresh; }, [controller.refresh]);
+  useFocusEffect(useCallback(() => {
+    if (hasFocused.current) refresh.current();
+    hasFocused.current = true;
+  }, []));
 
   function openExpenses(filter: DashboardExpenseFilter) {
     if (!active?.id) return;
@@ -31,6 +39,7 @@ export default function DashboardScreen() {
 
   return (
     <DashboardView
+      key={controller.scopeKey}
       controller={controller}
       spaceStatus={<SpaceStatus />}
       recoveryMessage={

@@ -5,6 +5,7 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
+import { AppState } from "react-native";
 
 import {
   createDashboardReportApiClient,
@@ -16,7 +17,7 @@ import { createSessionResource } from "@/application/session-resource";
 import { session } from "@/application/session-runtime";
 import { useSpaces } from "@/application/spaces/provider";
 import { useSpaceCategories } from "@/features/expenses/use-space-categories";
-import { shiftMonth } from "./dashboard-format";
+import { isSelectableYear, manilaDate, shiftMonth } from "./dashboard-format";
 
 const EMPTY_CATEGORY_SELECTION: string[] = [];
 
@@ -25,20 +26,19 @@ export function useDashboardReport() {
   const activeSpaceId = active?.id ?? null;
   const authorized = useAuthorizedClient();
   const categories = useSpaceCategories(activeSpaceId);
-  const [view, setView] = useState<DashboardView>("monthly");
-  const [monthlyEndMonth, setMonthlyEndMonth] = useState<string | null>(null);
-  const [year, setYear] = useState<string | null>(null);
-  const [chartFilter, setChartFilter] = useState<{
-    spaceId: string | null;
-    categoryIds: string[];
-  }>({ spaceId: null, categoryIds: [] });
-  const chartCategoryIds = useMemo(
-    () =>
-      chartFilter.spaceId === activeSpaceId
-        ? chartFilter.categoryIds
-        : EMPTY_CATEGORY_SELECTION,
-    [activeSpaceId, chartFilter],
-  );
+  const scopeKey = JSON.stringify([authorized.scope, activeSpaceId]);
+  const initialSelection = {
+    scopeKey,
+    view: "monthly" as DashboardView,
+    monthlyEndMonth: null as string | null,
+    year: null as string | null,
+    chartCategoryIds: EMPTY_CATEGORY_SELECTION,
+  };
+  const [selection, setSelection] = useState(initialSelection);
+  // Reset before rendering children or issuing a query for a new identity/Space.
+  if (selection.scopeKey !== scopeKey) setSelection(initialSelection);
+  const { view, monthlyEndMonth, year, chartCategoryIds } =
+    selection.scopeKey === scopeKey ? selection : initialSelection;
   const query = useMemo(
     () => ({
       view,
@@ -52,7 +52,10 @@ export function useDashboardReport() {
     }),
     [monthlyEndMonth, view, year],
   );
-  const queryKey = useMemo(() => JSON.stringify(query), [query]);
+  const queryKey = useMemo(
+    () => JSON.stringify([activeSpaceId, query]),
+    [activeSpaceId, query],
+  );
   const resource = useMemo(
     () =>
       createSessionResource<DashboardReport>(
@@ -83,17 +86,36 @@ export function useDashboardReport() {
     void resource.load(() => api.getDashboardReport(activeSpaceId, query));
   }, [activeSpaceId, api, authorized, query, resource]);
 
+  useEffect(() => {
+    let date = manilaDate(new Date());
+    const subscription = AppState.addEventListener("change", (next) => {
+      if (next !== "active") return;
+      date = manilaDate(new Date());
+      refresh();
+    });
+    const timer = setInterval(() => {
+      if (AppState.currentState !== "active") return;
+      const next = manilaDate(new Date());
+      if (next === date) return;
+      date = next;
+      refresh();
+    }, 60_000);
+    return () => {
+      subscription.remove();
+      clearInterval(timer);
+    };
+  }, [refresh]);
+
   const toggleChartCategory = useCallback(
     (categoryId: string) => {
       if (!activeSpaceId || !authorized.isCurrent()) return;
-      setChartFilter((current) => {
-        const currentIds =
-          current.spaceId === activeSpaceId ? current.categoryIds : [];
+      setSelection((current) => {
+        const currentIds = current.chartCategoryIds;
         const categoryIds = currentIds.includes(categoryId)
           ? currentIds.filter((id) => id !== categoryId)
           : [...currentIds, categoryId];
         categoryIds.sort(compareIds);
-        return { spaceId: activeSpaceId, categoryIds };
+        return { ...current, chartCategoryIds: categoryIds };
       });
     },
     [activeSpaceId, authorized],
@@ -101,16 +123,43 @@ export function useDashboardReport() {
 
   const clearChartCategories = useCallback(() => {
     if (!activeSpaceId || !authorized.isCurrent()) return;
-    setChartFilter({ spaceId: activeSpaceId, categoryIds: [] });
+    setSelection((current) => ({ ...current, chartCategoryIds: [] }));
   }, [activeSpaceId, authorized]);
-
-  const selectView = useCallback((next: DashboardView) => {
-    setView(next);
-  }, []);
 
   const loading =
     active !== null && state.data === null && state.error === null;
   const report = state.data;
+  // Capture the default before displaying it if Yearly was opened while loading.
+  if (view === "yearly" && year === null && report) {
+    setSelection({ ...selection, year: report.range.fromDate.slice(0, 4) });
+  }
+  const selectView = useCallback(
+    (next: DashboardView) => {
+      if (!activeSpaceId || !authorized.isCurrent() || next === view) return;
+      setSelection((current) => ({
+        ...current,
+        view: next,
+        // Freeze each mode's default before leaving it, including across New Year.
+        monthlyEndMonth:
+          current.monthlyEndMonth ??
+          (report?.range.view === "monthly"
+            ? report.monthlyExpenses.at(-1)?.month ?? null
+            : null),
+        year: current.year ?? report?.range.today.slice(0, 4) ?? null,
+      }));
+    },
+    [activeSpaceId, authorized, report, view],
+  );
+  const selectYear = useCallback(
+    (next: string) => {
+      if (
+        !activeSpaceId || !authorized.isCurrent() ||
+        !report || !isSelectableYear(next, report.range.today)
+      ) return;
+      setSelection((current) => ({ ...current, year: next }));
+    },
+    [activeSpaceId, authorized, report],
+  );
   const categoryReport = useMemo(
     () =>
       report && chartCategoryIds.length > 0
@@ -125,20 +174,20 @@ export function useDashboardReport() {
   );
   const movePeriod = useCallback(
     (offset: -1 | 1) => {
+      if (!activeSpaceId || !authorized.isCurrent()) return;
       if (view === "monthly") {
         const endMonth =
           monthlyEndMonth ?? report?.monthlyExpenses.at(-1)?.month ?? null;
         if (endMonth !== null) {
-          setMonthlyEndMonth(shiftMonth(endMonth, offset));
+          const next = shiftMonth(endMonth, offset);
+          if (report && next <= report.range.today.slice(0, 7)) {
+            setSelection((current) => ({ ...current, monthlyEndMonth: next }));
+          }
         }
         return;
       }
-      const selectedYear = year ?? report?.range.today.slice(0, 4) ?? null;
-      if (selectedYear !== null) {
-        setYear(String(Number(selectedYear) + offset));
-      }
     },
-    [monthlyEndMonth, report, view, year],
+    [activeSpaceId, authorized, monthlyEndMonth, report, view],
   );
   return {
     active,
@@ -152,6 +201,8 @@ export function useDashboardReport() {
     refreshing: state.loading && state.data !== null,
     refresh,
     selectView,
+    selectYear,
+    scopeKey,
     monthlyEndMonth,
     year,
     movePeriod,

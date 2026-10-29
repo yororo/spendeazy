@@ -14,6 +14,9 @@ import type {
 } from "@/api/dashboard-report-api-client";
 import type { SpaceCategory } from "@/api/categories-api-client";
 import { CompactAction, SecondaryButton } from "@/components/buttons";
+import { ChevronDown } from "lucide-react-native";
+import { ChoiceSheet } from "@/components/choice-sheet";
+import { TextField } from "@/components/text-field";
 import { BodyText, Screen } from "@/components/screen";
 import { space, typeScale } from "@/constants/theme";
 import { CATEGORY_COLOR_VALUES } from "@/features/categories/category-catalog";
@@ -23,6 +26,7 @@ import {
   barHeightPercent,
   compareMoney,
   dashboardPeriodLabel,
+  dashboardDateRange,
   formatPhp,
   labelMonth,
 } from "./dashboard-format";
@@ -55,9 +59,6 @@ export function DashboardView({
   const selectedMonth = controller.monthlyEndMonth ?? monthlyEndMonth;
   const canGoNextMonth = selectedMonth !== null && selectedMonth < currentMonth;
   const selectedYear = controller.year ?? report?.range.today.slice(0, 4) ?? "";
-  const canGoNextYear = Boolean(
-    report && selectedYear < report.range.today.slice(0, 4),
-  );
   const categoryChoices = controller.categories.filter(
     (category) =>
       category.isActive ||
@@ -125,7 +126,14 @@ export function DashboardView({
               onPress={() => controller.selectView("yearly")}
             />
           </View>
-          <View
+          {controller.view === "yearly" ? (
+            <YearPicker
+              key={selectedYear}
+              year={selectedYear}
+              today={report?.range.today ?? null}
+              onSelect={controller.selectYear}
+            />
+          ) : <View
             style={{
               flexDirection: "row",
               alignItems: "center",
@@ -148,22 +156,14 @@ export function DashboardView({
                 flex: 1,
               }}
             >
-              {report
-                ? controller.view === "monthly"
-                  ? "Six months"
-                  : selectedYear
-                : controller.view === "monthly"
-                  ? "Six months"
-                  : "Calendar year"}
+              Six months
             </Text>
             <PeriodArrow
               label="Next period"
               onPress={() => controller.movePeriod(1)}
-              disabled={
-                controller.view === "monthly" ? !canGoNextMonth : !canGoNextYear
-              }
+              disabled={!canGoNextMonth}
             />
-          </View>
+          </View>}
           {report ? (
             <View
               style={{
@@ -171,6 +171,7 @@ export function DashboardView({
               }}
             >
               <SupportingText>{dashboardPeriodLabel(report)}</SupportingText>
+              <SupportingText>{dashboardDateRange(report)}</SupportingText>
             </View>
           ) : null}
         </View>
@@ -833,6 +834,60 @@ function ChartCard({
       </Text>
       {children}
     </DesignSurface>
+  );
+}
+function YearPicker({ year, today, onSelect }: {
+  year: string;
+  today: string | null;
+  onSelect: (year: string) => void;
+}) {
+  const { palette, fonts } = useAppTheme();
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [visibleCount, setVisibleCount] = useState(30);
+  const currentYear = today?.slice(0, 4) ?? "";
+  const years = Array.from({ length: Number(currentYear) }, (_, index) =>
+    String(Number(currentYear) - index).padStart(4, "0"),
+  ).filter((candidate) => candidate.includes(search.trim()));
+  const label = year ? `${year}${year === currentYear ? " · YTD" : ""}` : "Calendar year";
+  return (
+    <>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Choose year, ${label}`}
+        accessibilityState={{ expanded: open, disabled: today === null }}
+        disabled={today === null}
+        onPress={() => {
+          setSearch("");
+          setVisibleCount(30);
+          setOpen(true);
+        }}
+        style={{ minHeight: 48, minWidth: 48, paddingHorizontal: 4, flexDirection: "row", alignItems: "center", gap: 6 }}
+      >
+        <Text style={{ color: palette.textPrimary, fontFamily: fonts.medium, fontSize: 14 }}>{label}</Text>
+        <ChevronDown size={16} color={palette.textSecondary} />
+      </Pressable>
+      <ChoiceSheet title="Choose year" visible={open && today !== null} onDismiss={() => setOpen(false)} showClose>
+        <TextField
+          label="Search year"
+          placeholder="YYYY"
+          value={search}
+          keyboardType="decimal-pad"
+          onChangeText={(value) => { setSearch(value); setVisibleCount(30); }}
+        />
+        {years.length === 0 ? <BodyText>No matching years. Choose a year through the current Manila year.</BodyText> : null}
+        {years.slice(0, visibleCount).map((candidate) => (
+          <CompactAction
+            key={candidate}
+            label={`${candidate}${candidate === currentYear ? " · YTD" : ""}`}
+            selected={candidate === year}
+            variant="quiet"
+            onPress={() => { onSelect(candidate); setOpen(false); }}
+          />
+        ))}
+        {years.length > visibleCount ? <CompactAction label="Show earlier years" onPress={() => setVisibleCount((count) => count + 30)} /> : null}
+      </ChoiceSheet>
+    </>
   );
 }
 function PeriodButton({

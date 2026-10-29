@@ -24,6 +24,7 @@ const compiled = await build({
     name: 'dashboard-hooks',
     setup(builder) {
       for (const name of [
+        'react-native',
         '@/api/dashboard-report-api-client',
         '@/application/authorized-client',
         '@/application/session-runtime',
@@ -38,6 +39,14 @@ const compiled = await build({
 const compiledModule = { exports: {} };
 new Function('require', 'module', compiled.outputFiles[0].text)((name) => {
   switch (name) {
+    case 'react-native':
+      return { AppState: {
+        get currentState() { return harness.appState ?? 'active'; },
+        addEventListener(_event, listener) {
+          harness.onAppState = listener;
+          return { remove() { if (harness.onAppState === listener) harness.onAppState = null; } };
+        },
+      } };
     case '@/api/dashboard-report-api-client':
       return { createDashboardReportApiClient: () => harness.api };
     case '@/application/authorized-client':
@@ -54,10 +63,147 @@ new Function('require', 'module', compiled.outputFiles[0].text)((name) => {
 }, compiledModule);
 const { useDashboardReport } = compiledModule.exports;
 
+function fixture(view = 'monthly', today = '2026-10-29', year = '2026') {
+  return {
+    range: { view, today, fromDate: view === 'yearly' ? `${year}-01-01` : '2026-05-01', toDate: today },
+    monthlyExpenses: [{ month: view === 'yearly' ? `${year}-10` : '2026-10' }],
+    categoryExpenses: [{ categoryId: '1' }, { categoryId: '2' }],
+  };
+}
+
+async function mountController(t) {
+  const requests = [];
+  harness = {
+    active: { id: '10' },
+    authorized: { scope: { generation: 1, userId: 'user-a', spaceId: '10' }, isCurrent: () => true },
+    api: { getDashboardReport(spaceId, query) {
+      return new Promise((resolve) => requests.push({ spaceId, query, resolve }));
+    } },
+  };
+  let controller;
+  function Consumer() { controller = useDashboardReport(); return null; }
+  let renderer;
+  await act(async () => { renderer = create(React.createElement(Consumer)); });
+  t.after(async () => { await act(async () => renderer.unmount()); });
+  return {
+    requests,
+    get controller() { return controller; },
+    rerender: () => act(async () => renderer.update(React.createElement(Consumer))),
+    resolve: (report = fixture()) => act(async () => requests.at(-1).resolve(report)),
+  };
+}
+
+test('Monthly and Yearly remember independent periods and reject invalid or future years', async (t) => {
+  const screen = await mountController(t);
+  await screen.resolve();
+  await act(async () => screen.controller.movePeriod(-1));
+  assert.deepEqual(screen.requests.at(-1).query, { view: 'monthly', endMonth: '2026-09' });
+  await screen.resolve({ ...fixture(), monthlyExpenses: [{ month: '2026-09' }] });
+  await act(async () => screen.controller.selectView('yearly'));
+  assert.deepEqual(screen.requests.at(-1).query, { view: 'yearly', year: '2026' });
+  await screen.resolve(fixture('yearly'));
+  for (const year of ['2027', '0000', '-001', '26', '2025.0']) {
+    await act(async () => screen.controller.selectYear(year));
+    assert.equal(screen.controller.year, '2026');
+  }
+  await act(async () => screen.controller.selectYear('2024'));
+  await screen.resolve(fixture('yearly', '2026-10-29', '2024'));
+  await act(async () => screen.controller.toggleChartCategory('2'));
+  await act(async () => screen.controller.selectView('monthly'));
+  assert.deepEqual(screen.requests.at(-1).query, { view: 'monthly', endMonth: '2026-09' });
+  await screen.resolve({ ...fixture(), monthlyExpenses: [{ month: '2026-09' }] });
+  await act(async () => screen.controller.selectView('yearly'));
+  assert.deepEqual(screen.requests.at(-1).query, { view: 'yearly', year: '2024' });
+  await screen.resolve(fixture('yearly', '2026-10-29', '2024'));
+  await act(async () => screen.controller.refresh()); // Same intent used on route focus.
+  assert.equal(screen.controller.year, '2024');
+  assert.deepEqual(screen.controller.chartCategoryIds, ['2']);
+  assert.equal(screen.controller.report.categoryExpenses.length, 2);
+  await screen.resolve(fixture('yearly', '2026-10-29', '2024'));
+  assert.equal(screen.controller.categoryReport.categoryExpenses.length, 1);
+  assert.equal(screen.controller.active.id, '10');
+});
+
+test('Space and identity changes reset periods and filters and discard late reports', async (t) => {
+  const screen = await mountController(t);
+  await screen.resolve();
+  await act(async () => screen.controller.selectView('yearly'));
+  await screen.resolve(fixture('yearly'));
+  await act(async () => screen.controller.selectYear('2025'));
+  await screen.resolve(fixture('yearly', '2026-10-29', '2025'));
+  await act(async () => screen.controller.toggleChartCategory('2'));
+  await act(async () => screen.controller.refresh());
+  const oldSpace = screen.requests.at(-1);
+  const oldKey = screen.controller.scopeKey;
+  harness.active = { id: '11' };
+  // Exercise the active-Space guard even before session scope has caught up.
+  await screen.rerender();
+  assert.notEqual(screen.controller.scopeKey, oldKey);
+  assert.equal(screen.controller.report, null);
+  assert.equal(screen.controller.view, 'monthly');
+  assert.equal(screen.controller.year, null);
+  assert.equal(screen.controller.monthlyEndMonth, null);
+  assert.deepEqual(screen.controller.chartCategoryIds, []);
+  assert.deepEqual(screen.requests.at(-1).query, { view: 'monthly' });
+  assert.equal(screen.requests.at(-1).spaceId, '11');
+  await act(async () => oldSpace.resolve(fixture('yearly', '2026-10-29', '2025')));
+  assert.equal(screen.controller.report, null);
+  await screen.resolve();
+  await act(async () => screen.controller.toggleChartCategory('1'));
+  await act(async () => screen.controller.refresh());
+  const oldIdentity = screen.requests.at(-1);
+  harness.authorized = { scope: { generation: 2, userId: 'user-b', spaceId: '11' }, isCurrent: () => true };
+  await screen.rerender();
+  await act(async () => oldIdentity.resolve(fixture()));
+  assert.equal(screen.controller.report, null);
+  assert.deepEqual(screen.controller.chartCategoryIds, []);
+  await screen.resolve();
+  assert.deepEqual(screen.controller.report, fixture());
+});
+
+test('opening Yearly during initial loading pins the returned year and supports early empty years', async (t) => {
+  const screen = await mountController(t);
+  const initialMonthly = screen.requests[0];
+  await act(async () => screen.controller.selectView('yearly'));
+  assert.deepEqual(screen.requests.at(-1).query, { view: 'yearly' });
+  await screen.resolve(fixture('yearly'));
+  assert.equal(screen.controller.year, '2026');
+  assert.deepEqual(screen.requests.at(-1).query, { view: 'yearly', year: '2026' });
+  await screen.resolve(fixture('yearly'));
+  await act(async () => initialMonthly.resolve(fixture()));
+  assert.equal(screen.controller.report.range.view, 'yearly');
+  await act(async () => screen.controller.selectYear('0001'));
+  assert.deepEqual(screen.requests.at(-1).query, { view: 'yearly', year: '0001' });
+});
+
+test('foreground and Manila midnight refresh retain the selected year and offer the new year', async (t) => {
+  t.mock.timers.enable({ apis: ['Date', 'setInterval'], now: Date.parse('2026-12-31T15:59:30Z') });
+  const screen = await mountController(t);
+  await screen.resolve(fixture('monthly', '2026-12-31'));
+  await act(async () => screen.controller.selectView('yearly'));
+  await screen.resolve(fixture('yearly', '2026-12-31'));
+  const count = screen.requests.length;
+  await act(async () => t.mock.timers.tick(60_000));
+  assert.equal(screen.requests.length, count + 1);
+  assert.deepEqual(screen.requests.at(-1).query, { view: 'yearly', year: '2026' });
+  await screen.resolve(fixture('yearly', '2027-01-01'));
+  assert.equal(screen.controller.year, '2026');
+  await act(async () => screen.controller.selectYear('2027'));
+  assert.deepEqual(screen.requests.at(-1).query, { view: 'yearly', year: '2027' });
+  await screen.resolve(fixture('yearly', '2027-01-01', '2027'));
+  harness.appState = 'background';
+  await act(async () => t.mock.timers.tick(24 * 60 * 60_000));
+  const beforeResume = screen.requests.length;
+  harness.appState = 'active';
+  await act(async () => harness.onAppState('active'));
+  assert.equal(screen.requests.length, beforeResume + 1);
+  assert.equal(screen.controller.year, '2027');
+});
+
 test('Category filters update only chart data, retain the report, and survive refresh', async (t) => {
   const requests = [];
   const report = {
-    range: { today: '2026-10-29' },
+    range: { view: 'monthly', today: '2026-10-29', fromDate: '2026-05-01' },
     monthlyExpenses: [{ month: '2026-10' }],
     categoryExpenses: [{ categoryId: '1' }, { categoryId: '2' }],
   };

@@ -16,7 +16,7 @@ export function formatPhp(amount: string): string {
 export function dashboardPeriodLabel(report: DashboardReport): string {
   if (report.range.view === "yearly") {
     const year = report.range.fromDate.slice(0, 4);
-    return report.range.inProgress ? `${year} · Year to date` : year;
+    return report.range.inProgress ? `${year} · YTD` : year;
   }
   const first =
     report.monthlyExpenses[0]?.month ?? report.range.fromDate.slice(0, 7);
@@ -29,6 +29,18 @@ export function dashboardPeriodLabel(report: DashboardReport): string {
       ? last.slice(0, 4)
       : `${first.slice(0, 4)} – ${last.slice(0, 4)}`;
   return `${firstLabel} – ${lastLabel} ${suffix}${report.range.inProgress ? " · In progress" : ""}`;
+}
+
+export function isSelectableYear(year: string, today: string): boolean {
+  return /^\d{4}$/u.test(year) && year >= "0001" && year <= today.slice(0, 4);
+}
+
+export function manilaDate(instant: Date): string {
+  return new Date(instant.getTime() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
+export function dashboardDateRange(report: DashboardReport): string {
+  return `${report.range.fromDate} – ${report.range.toDate} (inclusive, Asia/Manila)${report.range.inProgress ? " · In progress" : ""}`;
 }
 
 export function labelMonth(month: string): string {

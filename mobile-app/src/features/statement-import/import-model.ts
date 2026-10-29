@@ -22,9 +22,11 @@ export type ImportRow = Readonly<{
   sourceOrder: number;
   description: string;
   originalDate: string;
+  originalPostingDate?: string;
   date: DateOnly | null;
   reference: string | null;
   originalAmount: string;
+  originalBalance?: string;
   /** Positive = outgoing; negative = incoming; null = unresolved direction. */
   signedActivityMinor: MinorUnits | null;
   evidence: readonly ClassificationEvidence[];
@@ -44,7 +46,8 @@ export type ImportWarning = Readonly<{
   pageIndices: readonly number[];
 }>;
 export type ImportControl = Readonly<{
-  kind: 'opening-balance' | 'closing-balance' | 'total-debits' | 'total-credits' | 'statement-total';
+  kind: 'opening-balance' | 'closing-balance' | 'total-debits' | 'total-credits' | 'statement-total' | 'component' | 'subtotal';
+  sourceLabel?: string;
   originalValue: string;
   amountMinor: MinorUnits | null;
 }>;

@@ -1,0 +1,23 @@
+# Local Statement Import
+
+`index.ts` exposes the application-owned `statementImportStore` and evidence types for #152. Subscribe to its snapshot and consume only `ready.result` in the owning User/Space. Keep future Category/review edits in a separate model. No API write or review/confirmation navigation exists in this increment.
+
+`ImportResult` holds file identity (SHA-256 of decoded PDF bytes), date-only strings, exact bigint centavos, original controls and ordered rows with page/order identities, classification evidence, exclusions, page outcomes and advisory warnings. `decimalAmount` converts bigint to an exact decimal string at a future serialization boundary; do not JSON-stringify the local model directly. Original descriptions, references, dates and amounts are evidence. No page text/geometry, password or PDF bytes enter this store. Retained results are memory-only: Back/backgrounding retain them, process death loses them, same-owner expiry suspends them, and sign-out/different identity/discard clears them. Interrupted extraction requires reselection.
+
+The root extraction host survives route Back. Each operation uses a fresh host with its own ID; bridge decoders reject stale IDs and malformed data. Password input is short-lived and submitted directly to PDF.js's pending password callback. Terminal outcomes remove the host and clear transient transfer references. JS/native memory cannot promise secure erasure.
+
+Only BDO Amex PHP, EastWest Visa PHP/Peso and GCash Transaction History are recognized. Mixed/ambiguous identities and non-PHP card variants are rejected. Rows follow engine stream order, never geometry sorting or description deduplication. GCash uses explicit debit/credit columns with the recognized table header, or an exact adjacent balance movement equal to the row magnitude. It never derives direction from descriptions or adjusts direction to satisfy controls. Unsupported/malformed rows cause a partial warning when other rows remain usable. Unknown dates/directions remain ineligible. Missing controls and mismatches retain rows; reconciliation compares original activity, including incoming/excluded rows. Text extraction always leaves completeness uncertain. Blank pages and pages containing logos do not establish missing activity or scanning.
+
+## Scoped files and startup
+
+Before selection the workflow sweeps its dedicated `Paths.cache/statement-import` directory and only the direct picker cache children recorded in `Paths.document/statement-import-cleanup.json`. The pinned SDK uses `Paths.cache/DocumentPicker` on Android and iOS. URI validation rejects traversal, descendants and unrelated paths. Never sweep the whole picker directory or general cache. Picker copies are journaled even when their operation has already been cancelled; originals are never deleted. Transfer into a random owned filename must finish before removing staging. Read the owned copy, hash actual decoded bytes, then delete it. Password retry uses only the engine's live loading task.
+
+Cleanup failure blocks new selection and offers retry. Startup retries journaled cleanup. The journal stores random staging URIs only. There is an unavoidable crash interval between OS creation of a picker copy and receipt/journaling of its URI; this code cannot discover that orphan without an unsafe general sweep. Filesystem writes, process termination and native worker teardown need further device evidence under #138.
+
+The 10 MiB/100-page guards are development safety caps, not supported limits. #138 still owns peak memory (including base64/decoded-byte transfer copies), runtime, older-device floors, crash intervals and certified limits. No OCR or remote fallback exists.
+
+## Reproducible checks
+
+From `mobile-app/`, run `npm run parser:test`, `npm test`, `npm run lint`, `npm run typecheck`. Engine tests bundle the production entry with a deterministic PDF.js port, covering password/error/page outcomes. Native-file tests check the actual adapter with fake Expo ports, including asynchronous copy ordering and hashing decoded bytes. They do not prove native memory or filesystem behavior.
+
+Generate fictional PDF walkthrough inputs with `node scripts/statement-import-native-fixtures.mjs`; outputs stay in ignored `.expo/statement-import-fixtures/`. Use these through the actual picker in an installed development build following the [native runbook](../../../../docs/local-testing.md). Password, mixed/image-only and partial real PDF-engine inputs, all lifecycle transitions, both Appearances, narrow widths, large text, keyboard and screen readers still require the plan's Android/physical-iPhone matrix. Do not record private PDFs/passwords/raw text or financial screenshots in Git.

@@ -45,7 +45,7 @@ export function StatementImportHistoryView({
   );
 }
 
-function ImportHistoryItem({ item }: { item: StatementImportHistoryItem }) {
+export function ImportHistoryItem({ item }: { item: StatementImportHistoryItem }) {
   const { palette, fonts } = useAppTheme();
   const range = item.statementDate ?? (item.historyFromDate && item.historyToDate
     ? `${item.historyFromDate} to ${item.historyToDate}` : 'Date not recorded');

@@ -9,6 +9,7 @@ import { Text, View } from 'react-native';
 import { palette, typeScale } from '@/constants/theme';
 import { AppearanceGate, useAppTheme } from '@/navigation/app-theme';
 import { observeAuthUser, useSessionSnapshot } from '@/application/session-runtime';
+import { StatementExtractionHost } from '@/features/statement-import/extraction-host';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -31,6 +32,7 @@ function ThemedNavigation() {
     <View style={{ flex: 1, backgroundColor: colors.canvas }}>
       <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
       <RootNavigator ready={ready} />
+      <StatementExtractionHost />
     </View>
   );
 }

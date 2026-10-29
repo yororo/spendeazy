@@ -39,3 +39,9 @@ Private source statements and screenshots remain local. The original experimenta
 ## Launch gates
 
 Issue #138 owns parser input/resource limits, older-device and OS/WebView support, and temporary-file cleanup. Complete its approved measurements and device checks before launch. Also validate provider completeness and direction against independently reviewed expected ledgers through the supported native flows. Do not treat desktop/browser runs, CI, lint, types or parser fixtures as substitutes for Android emulator and physical iPhone evidence.
+
+## Production Statement Import
+
+The signed-in `/import-statement` route uses `src/features/statement-import/`, independently of this diagnostic screen and its legacy transformers. `npm run parser:prepare` now builds both ignored HTML modules from the shared local resource factories under that feature's `engine/`. EAS post-install still runs the same preparation command and both bundles retain PDF.js license notices. Proof regressions keep their legacy throwing expectations; production mismatches are advisory.
+
+See the [production handoff](../../features/statement-import/README.md) for cleanup ownership, result semantics and remaining device gates.

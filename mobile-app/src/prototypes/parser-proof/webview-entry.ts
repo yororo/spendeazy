@@ -1,33 +1,10 @@
+import { decode, LocalDataFactory, LocalCMapFactory } from '../../features/statement-import/engine/local-resources';
 // Runs only inside the restricted local WebView, never in Hermes or on a server.
-import { GlobalWorkerOptions, getDocument, OPS, version } from 'pdfjs-dist/legacy/build/pdf.mjs';
+import { getDocument, OPS, version } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import type { TextItem } from 'pdfjs-dist/types/src/display/api';
-declare const PROOF_ASSETS: Record<string, string>;
-declare const PROOF_WORKER: string;
 declare global { interface Window { ReactNativeWebView?: { postMessage: (message: string) => void }; parserProofReceive?: (data: string) => void } }
 
 const send = (value: object) => window.ReactNativeWebView?.postMessage(JSON.stringify(value));
-const decode = (value: string) => Uint8Array.from(atob(value), (character) => character.charCodeAt(0));
-GlobalWorkerOptions.workerSrc = URL.createObjectURL(new Blob([PROOF_WORKER], { type: 'text/javascript' }));
-const nativeFetch = globalThis.fetch.bind(globalThis);
-globalThis.fetch = async (input, options) => {
-  const url = String(input);
-  if (!url.startsWith('blob:') && !url.startsWith('data:')) throw new Error('Remote extraction resource blocked');
-  return nativeFetch(input, options);
-};
-class LocalDataFactory {
-  async fetch({ filename }: { filename: string }) {
-    const key = Object.keys(PROOF_ASSETS).find((name) => name.endsWith(`/${filename}`));
-    if (!key) throw new Error('Missing bundled extraction resource');
-    return decode(PROOF_ASSETS[key]);
-  }
-}
-class LocalCMapFactory {
-  async fetch({ name }: { name: string }) {
-    const value = PROOF_ASSETS[`cmaps/${name}.bcmap`];
-    if (!value) throw new Error('Missing bundled CMap');
-    return { cMapData: decode(value), compressionType: 1 };
-  }
-}
 let active: ReturnType<typeof getDocument> | undefined;
 let operation = 0;
 const accept = async (data: string) => {

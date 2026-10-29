@@ -30,6 +30,7 @@ Node references below were resolved through Pencil on 2026-10-29. This establish
 | `ZZMFP`, `LNW8t`, `eY68d` | Profile and feature-owned `SharedSpaceCard`, reused by Sharing; centered identity and flat translucent membership card |
 | `aStNQ`, `BjioB`, `qZVeU` | `SpaceStatus` and `ChoiceSheet`; compact accessory, checked options, explicit close |
 | `Z92ldV`, `y7GYIH`, `eqQ7w` | `TabBar`, `DesignSurface` navigation/Add variants and `SelectedTabBackground` |
+| `naq2A`, `ugsNK`, `X2rbb` | `features/statement-import/import-view.tsx`; three-step strip, translucent selection surface and rotated file symbol. Source inspected through Pencil on 2026-10-29. Product adaptations: fixed Space, explicit accessible PDF button, supported providers, real recent history; stack route hides tabs/Add. Surface height grows for text scaling, progress, recovery and warnings. Dark uses existing semantic tokens; source has no dark import board. |
 
 Implementation owners in this table are relative to `mobile-app/src/` unless an asset path is given. Shared `PrimaryButton`/`CompactAction`, `CategoryIconMark`, `MoneyAmount`, and modal shells supply repeated controls instead of screen-specific copies. Category glyph/color choices remain in `features/categories/category-catalog.ts`.
 

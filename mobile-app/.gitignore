@@ -44,4 +44,5 @@ example
 
 # Reproducible bundled parser experiment and private local evidence
 /src/prototypes/parser-proof/generated/
+/src/features/statement-import/generated/
 /prototypes/parser-proof/private/

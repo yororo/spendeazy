@@ -4,11 +4,31 @@ Use this document when implementing or reviewing mobile colors, typography, spac
 
 ## Source and authority
 
-Source: [`design/mobile-design.pen`](design/mobile-design.pen). The confirmed source contains light screens and unthemed variables. Dark values in this document are implementation adaptations, not a dark design board.
+Source: [`mobile-design.pen`](mobile-design.pen). The confirmed source contains light screens and unthemed variables. Dark values in this document are implementation adaptations, not a dark design board.
 
 **Declared** light tokens below exist in the source `variables` object; dark values are adaptations. **Derived** names are conventions introduced here for repeated literal values or component recipes; they are not existing Pencil variables or runtime exports. Node IDs are lookup keys in the source JSON. When the design changes, update the affected table and its evidence together. Resolve conflicts against the current source node, and record intentional departures rather than silently choosing another value.
 
-[`src/constants/theme.ts`](src/constants/theme.ts) implements the declared colors, Outfit families, page/section/button sizes, and the spacing, radius, and control sizes used by sign-in and navigation. Navigation uses the source translucent fill and white glass border; Add uses the three-stop violet gradient with explicit stop opacity. The shared canvas paints the light wash and a dark adaptation behind the viewport; Expenses uses the same background behind its virtualized list.
+[`src/constants/theme.ts`](../src/constants/theme.ts) implements the declared colors, Outfit families, page/section/button sizes, and shared spacing, radius, and control sizes. Navigation uses the source translucent fill and white glass border; Add uses the three-stop violet gradient with explicit stop opacity. The shared canvas paints the light wash and a dark adaptation behind the viewport; Expenses uses the same background behind its virtualized list.
+
+## Implemented source map
+
+Node references below were resolved through Pencil on 2026-10-29. This establishes source correspondence, not rendered native acceptance. The [visual handoff](../../implementation-plan.md) contains the pending manual checklist.
+
+| Source nodes | Implementation owner and treatment |
+| --- | --- |
+| `FInDV`, `MONtk`, `VvvB3` | `CanvasBackground` in `components/design-surface.tsx`; viewport wash, native safe areas and scrolling via `Screen` |
+| `oV7Mn` | `ScreenHeader`; exact transparent logo export in `assets/design/oV7Mn.png`, 4× the source 30 × 34 |
+| `MONtk`, `VvvB3`, `ur6VR`, `oMcp7`, `BfC6x` | `features/dashboard/dashboard-view.tsx` and `dashboard-charts.tsx`; period controls, summary, checks, monthly bars and Category series |
+| `Qd5CZ` | `features/expenses/browse-view.tsx`; centered total, toolbar, virtualized divider rows with shared Category marks |
+| `KJplB`, `muRAO`, `Hzbwi`, `T9esGN`, `H9S5y` | `CenteredDialog`, `TextField` and feature-owned `ExpenseFields`; amount and underlined rows shared by manual Add and Edit |
+| `VgDBB`, `Ataa3` | `ExpenseNotice` and existing failure/delete actions; inline save failures, centered soft-delete confirmation |
+| `DQLz1` | `features/categories/budget-list-view.tsx`; unboxed 42-unit total and divider rows |
+| `D99In`, `k3FtB`, `HraLL` | `features/categories/category-configuration-view.tsx`; filled editor rows, recurrence track, grouped Rules and aggregate Save |
+| `ZZMFP`, `LNW8t`, `eY68d` | Profile and feature-owned `SharedSpaceCard`, reused by Sharing; centered identity and flat translucent membership card |
+| `aStNQ`, `BjioB`, `qZVeU` | `SpaceStatus` and `ChoiceSheet`; compact accessory, checked options, explicit close |
+| `Z92ldV`, `y7GYIH`, `eqQ7w` | `TabBar`, `DesignSurface` navigation/Add variants and `SelectedTabBackground` |
+
+Implementation owners in this table are relative to `mobile-app/src/` unless an asset path is given. Shared `PrimaryButton`/`CompactAction`, `CategoryIconMark`, `MoneyAmount`, and modal shells supply repeated controls instead of screen-specific copies. Category glyph/color choices remain in `features/categories/category-catalog.ts`.
 
 ## Agent implementation workflow
 
@@ -50,7 +70,7 @@ Sizes and lengths below are source design units; map them to logical layout unit
 | `type.button` | `type-button` (15) | 600 | Unspecified | `SMOu5` |
 | `type.amountInput` | 48 | 500 | -1.5 | `H9S5y` |
 
-The source also uses 10–16 for dense labels/body text and 22, 23, 34, 36, and 42 for metrics. These are role-specific variants, not a requirement to use every size on every screen. Inspect the target node before choosing one. Weights are normal (400), 500, and 600. Load actual Outfit faces for these weights when implementing; the starter system-font mapping is not visual parity.
+The source also uses 10–16 for dense labels/body text and 22, 23, 34, 36, and 42 for metrics. These are role-specific variants, not a requirement to use every size on every screen. Inspect the target node before choosing one. Weights are normal (400), 500, and 600. The app loads the corresponding Outfit faces through `src/navigation/app-theme.tsx`.
 
 Most text has no explicit line height. Some text, such as `IUxWP`, specifies a 1.25 multiplier. Preserve explicit multipliers; do not interpret 1.25 as an absolute line height or invent a universal line-height token. Unspecified tracking and line height should retain the font/layout defaults until a component requires an explicit decision.
 
@@ -70,7 +90,7 @@ Derived names describe reusable roles rather than a forced global spacing grid. 
 | `radius.control` | 16 | Primary action `iZLQM`, budget input `HraLL` |
 | `radius.summaryCard` | 30 | `VDouI` |
 | `radius.dialog` | 26 | `KJplB` |
-| `radius.sheet` | `[28,28,0,0]` | Switcher sheet; top corners only |
+| `radius.sheet` | `[28,28,0,0]` | `BjioB`; top corners only |
 | `radius.navigation` | 32 | `Z92ldV` |
 | `size.primaryAction` | height 52 | `iZLQM`, `B4i0Nm` |
 | `size.fieldRow` | height 58 | `muRAO`, `Hzbwi`, `T9esGN` |
@@ -116,7 +136,7 @@ The dark adaptation uses two layers: `#51437D40` → `#141A2B00` at (1, 0.22), s
 - Outer shadow: offset (0,10), blur 30; light `#646A9D12`, dark `#00000040`.
 - Inner highlight: offset (0,1), blur 2; light `#FFFFFFCC`, dark `#C5CDFF12`.
 
-The Budget plan summary uses the shared `DesignSurface`: native `GlassView` where supported, with the three-stop SVG gradient, border, top highlight, and outer shadow also present in the fallback. The highlight is a one-unit line rather than a blurred inner shadow, and native blur/elevation vary by platform. The gradient direction is an approximation pending device comparison.
+Dashboard cards use the shared `DesignSurface`: native `GlassView` where supported, with the three-stop SVG gradient, border, top highlight, and outer shadow also present in the fallback. Summary/check cards use padding 20; chart cards use 22. Budget's main total is unboxed. The highlight is a one-unit line rather than a blurred inner shadow, and native blur/elevation vary by platform. The gradient direction is an approximation pending device comparison. SVG stops pass RGB and alpha separately through `stopColor` and `stopOpacity`; omitting the latter previously produced opaque canvas shapes.
 
 ### Navigation and Add action
 
@@ -134,15 +154,26 @@ Space selection maps to accessory `aStNQ` and sheet `BjioB`: lavender fill `#EEE
 
 - **Primary action:** `iZLQM` uses `brand-primary`, height 52, radius 16, centered content, gap 8, and `type.button`. Light label `SMOu5` is white. Check the adapted dark foreground separately; a light-theme foreground is not automatically suitable over the dark-theme brand color.
 - **Fields:** edit-expense rows use height 58, gap 14, and a one-unit bottom divider. Budget amount inputs (`HraLL`) use a filled surface, radius 16, and padding 20. Keep these distinct component variants.
-- **Modal:** use `surface-modal` above a scrim. Edit dialog `KJplB` uses radius 26, padding/gap 24. Switcher sheet `wQtDU` uses top-only radius 28, padding `[12,24,30,24]`, and gap 20. Source context specifies disabled underlying controls for alerts and tap-to-dismiss for the switcher scrim; implement the behavior for the specific modal.
-- **Icons:** the source uses Lucide icons. Match the source icon name, size, and semantic foreground. Common sizes include 14, 16, 18, and 22; small decorative icons do not define the interactive hit area. Sheet close control `s0pm4` is 44 × 44.
+- **Modal:** use `surface-modal` above a scrim. Edit dialog `KJplB` uses radius 26, padding/gap 24. Switcher sheet `BjioB` uses top-only radius 28, padding `[12,24,30,24]`, and gap 20. Shared shells scroll and avoid the keyboard. Their bottom inset is the greater of the native inset and 30. Backdrop dismissal defaults to enabled; Android Back invokes the supplied dismissal callback independently. Native focus/background exclusion still requires manual acceptance.
+- **Icons:** the source uses Lucide icons. Match the source icon name, size, and semantic foreground. Common sizes include 14, 16, 18, and 22; small decorative icons do not define the interactive hit area. Sheet close control `qZVeU` is 44 × 44 in the source and at least 48 × 48 in the app.
 - **Charts:** retain category identity across legend, bars, and breakdowns; copy the relevant chart node's palette. Category colors are data encoding, while `state-*` colors convey status. Do not infer a universal category palette or remap categories to warning/error colors from a single swatch.
 
 ## Unspecified states and implementation checks
 
 The source does not declare a complete token system for focus, pressed, disabled, loading, motion, or reduced transparency. These remain implementation decisions requiring explicit documentation when introduced. Do not label newly chosen values as extracted design tokens.
 
-Add Expense and Expenses filters use a filled text field: height `controlSize.field` (58), radius `radius.control` (16), horizontal padding `space.screenBottom` (16), label gap `space.fieldLabelGap` (6), a one-unit `border.field`, and `surface.modal` as the fill because the source has no separate field-fill token. This is an implementation choice, not a Pencil variable. It is distinct from the edit-expense bottom-divider row.
+The default filled `TextField`, used by filter/search controls, has minimum height `controlSize.field` (58), radius `radius.control` (16), horizontal padding `space.screenBottom` (16), label gap `space.fieldLabelGap` (6), a one-unit `border.field`, and `palette.surfaceModal` as fill. This fill choice is not a Pencil variable. Manual Add and Edit share the prominent 48-unit amount and 58-unit underlined rows; their date remains a YYYY-MM-DD text input. The Budget variant uses a 34-unit amount, `#FFFFFF90` light fill, padding 20 and PHP suffix. Recurrence/Appearance segmented controls use themed tracks and transparent unselected options.
+
+## Adaptations and remaining departures
+
+- Dark mode reuses the hierarchy with the existing adapted palette: two canvas washes, slate glass/selection/fields, lighter text and semantic status colors. Add retains the source violet gradient in both modes. There is no dark source board or native contrast acceptance yet.
+- Saved Category colors remain unchanged in marks and charts; marks add tinted wells. Missing Category metadata uses a slate Shapes mark and the existing Category label. Detail/Edit receives only names and uses a neutral decorative glyph.
+- Current Profile photo/name/email come from Clerk when available; a missing photo uses an initial. Space members supply names/IDs only, so membership rows/accessories use initials and omit mock photos/emails. Profile identifies its own member through Personal Space membership, since API member IDs and Clerk IDs use different namespaces; it lists all members if that ID is unavailable.
+- Profile keeps Appearance inline and existing Sharing access; content therefore exceeds the source height. Space error/archive/remembered-selection messages can wrap the header. Sign-in, Sharing actions, detail/Activity, manual Add, read-only import history and the unavailable import placeholder adapt shared recipes without dedicated mockup parity. Edit profile, notifications, account deletion and import preview/commit are not added.
+- Dashboard axes use exact PHP maximum/zero labels. Exact monthly values and drill-throughs are inline disclosures with native text scaling and touch targets. Longer ranges/large text scroll charts horizontally. Missing points break Category lines; only supplied Monthly Budget references are plotted. Yearly limits are not converted into monthly caps. Frequency dots show aggregate counts for all eligible months, not chronological statuses.
+- Existing Expense and Budget filters are reachable through disclosure sheets. Budget equivalents remain available through a toggle and row accessibility labels. Category icon/color and Rule mode use sheets; grouped Rules retain add/remove, without new Rule editing. Modal handoffs (filter/Edit to Category, Space switch to unsaved confirmation) await native checks.
+- `DesignSurface` approximates blurred inner shadows with one-unit highlights; SVG linear directions approximate Pencil rotations. Native glass blur is not calibrated to source radii 24/32. Android/fallback surfaces retain gradients, borders and highlights, with platform elevation/shadow differences. The selected tab omits its source shadow. Shared centered dialogs use radius 26 and omit the source alert border/outer shadow; alerts `VgDBB`/`Ataa3` instead specify radius 28. Save failures retain inline recovery rather than introducing a source-style alert.
+- Native safe areas, scrolling, growing text and minimum 48-unit interactive targets take precedence over fixed mockup geometry. No phone outlines/status bars or fixed screen heights are drawn. PHP, Expense terminology, existing date/report semantics and soft deletion supersede illustrative USD/Transaction/permanent-deletion copy.
 
 Sign-in and navigation decisions: a disabled or busy primary action uses 55% opacity. Sheets and signed-in stack transitions use no animation, so reduced motion does not need a second path. Screens wrap their scroll view in keyboard avoidance and use `keyboardShouldPersistTaps="handled"`. Navigation uses icon-only Lucide LayoutDashboard, ArrowLeftRight, PieChart, and UserRound at 22 with retained accessible tab names and selected state. The Add control uses Lucide Plus at 30. Add choices and the unavailable import destination reuse the sheet/surface recipes; the import choice explicitly says it is not available yet and still opens its existing placeholder.
 

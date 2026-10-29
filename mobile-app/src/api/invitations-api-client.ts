@@ -33,11 +33,11 @@ export function createInvitationsApiClient(options: AuthorizedRequestOptions) {
       return decodeApiResponse(() => readInbox(payload));
     },
     async create(): Promise<OutgoingInvitation> {
-      const payload = await authorizedRequest<unknown>(options, '/api/v1/users/me/invitations', { method: 'POST' });
+      const payload = await authorizedRequest<unknown>(options, '/api/v1/users/me/invitations', { method: 'POST', body: {} });
       return decodeApiResponse(() => readOutgoing(payload));
     },
     async rotate(): Promise<OutgoingInvitation> {
-      const payload = await authorizedRequest<unknown>(options, '/api/v1/users/me/invitations/rotate', { method: 'POST' });
+      const payload = await authorizedRequest<unknown>(options, '/api/v1/users/me/invitations/rotate', { method: 'POST', body: {} });
       return decodeApiResponse(() => readOutgoing(payload));
     },
     async revoke(): Promise<void> {
@@ -53,7 +53,7 @@ export function createInvitationsApiClient(options: AuthorizedRequestOptions) {
       await authorizedRequest<void>(options, `/api/v1/users/me/invitations/claims/${encodeURIComponent(claimId)}`, { method: 'DELETE' });
     },
     async accept(claimId: string): Promise<AccessibleSpace> {
-      const payload = await authorizedRequest<unknown>(options, `/api/v1/users/me/invitations/claims/${encodeURIComponent(claimId)}/accept`, { method: 'POST' });
+      const payload = await authorizedRequest<unknown>(options, `/api/v1/users/me/invitations/claims/${encodeURIComponent(claimId)}/accept`, { method: 'POST', body: {} });
       return decodeApiResponse(() => parseAccessibleSpace(payload));
     },
   };

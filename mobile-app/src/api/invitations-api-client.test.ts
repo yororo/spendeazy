@@ -8,6 +8,26 @@ const options = { baseUrl: 'https://example.invalid', getAccessToken: async () =
 const code = '7K3M-2Q8R-5T6V-W9X2-C4D7-H8J3';
 const outgoing = { id: '42', code, status: 'pending', expiresAt: '2026-11-02T00:00:00.000Z', createdAt: '2026-10-26T00:00:00.000Z', updatedAt: '2026-10-26T00:00:00.000Z' };
 const incoming = { id: '88', senderName: 'Ada', status: 'pending', expiresAt: '2026-11-02T00:00:00.000Z', createdAt: '2026-10-26T00:00:00.000Z' };
+const sharedSpace = {
+  id: '77', kind: 'shared', status: 'active', accessLevel: 'write',
+  members: [{ id: '1', name: 'Grace' }, { id: '2', name: 'Ada' }],
+};
+
+for (const operation of ['create', 'rotate', 'accept'] as const) {
+  test(`${operation} sends an empty JSON object and decodes the result`, async (t) => {
+    const path = operation === 'create' ? '' : operation === 'rotate' ? '/rotate' : '/claims/88/accept';
+    const result = operation === 'accept' ? sharedSpace : outgoing;
+    t.mock.method(globalThis, 'fetch', async (url: string | URL | Request, init?: RequestInit) => {
+      assert.equal(String(url), `${options.baseUrl}/api/v1/users/me/invitations${path}`);
+      assert.equal(init?.method, 'POST');
+      assert.equal(new Headers(init?.headers).get('Content-Type'), 'application/json');
+      assert.deepEqual(JSON.parse(String(init?.body)), {});
+      return Response.json(result);
+    });
+    const client = createInvitationsApiClient(options);
+    assert.deepEqual(await (operation === 'accept' ? client.accept(incoming.id) : client[operation]()), result);
+  });
+}
 
 test('invitation adapter decodes the inbox, saves a preview, and accepts only on explicit request', async (t) => {
   const client = createInvitationsApiClient(options);

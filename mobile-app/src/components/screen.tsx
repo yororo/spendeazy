@@ -25,7 +25,7 @@ export function Screen({
   return (
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: palette.canvas }}
-      behavior={process.env.EXPO_OS === 'ios' ? 'padding' : undefined}>
+      behavior={process.env.EXPO_OS === 'ios' ? 'padding' : 'height'}>
     <CanvasBackground />
     <ScrollView
       contentInsetAdjustmentBehavior="automatic"

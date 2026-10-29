@@ -1,0 +1,5 @@
+# IP-02 Task 02 handoff
+
+Native retesting reproduced the same keyboard obstruction in the separate Edit Expense ModalShell at 320 × 640 logical / font 1.5. Fixing Screen alone left Edit Save/Cancel behind the keyboard. The plan's conditional allowance for another reproduced layout owner was used: `choice-sheet.tsx` now applies Android `height` at its existing KeyboardAvoidingView, just like Screen. Both keep iOS `padding`; no native config, dependency or extra compensation was added.
+
+Retest saved an Edit correction with the keyboard open. Full native evidence, cleanup and unavailable combinations are in the root `implementation-plan.md` IP-02 retest section. The installed native binary's source revision is unknown; no rebuild was needed for these JavaScript edits. Display/font changes can trigger the existing F04 linking warning and reset navigation. One transient identity-provider failure recovered through Retry; reopening the client cleared the warning. Do not interpret these development-session effects as new fixes or completed acceptance.

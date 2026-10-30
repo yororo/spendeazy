@@ -2,7 +2,7 @@ import { UserEntity } from '../../database/entities/user.entity';
 import { UserNotFoundError } from '../../users/application/user-errors';
 import { Injectable } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
-import { DataSource, type EntityManager } from 'typeorm';
+import { DataSource, QueryFailedError, type EntityManager } from 'typeorm';
 import { TypeOrmStatementImportStore } from './typeorm-statement-import-store';
 import {
   TypeOrmImportOperationStore,
@@ -32,6 +32,21 @@ import type { PrivateConfirmationPayload } from '../application/confirmation-pay
 @Injectable()
 export class TypeOrmReviewedImportUnitOfWork implements ReviewedImportUnitOfWork {
   constructor(@InjectDataSource() private readonly database: DataSource) {}
+  async recover<T>(
+    work: (context: ReviewedImportContext) => Promise<T>,
+  ): Promise<T | null> {
+    try {
+      return await this.execute(work);
+    } catch (error) {
+      // Transaction rejection follows rollback, releasing partially acquired scope locks.
+      if (
+        error instanceof QueryFailedError &&
+        (error.driverError as { code?: string }).code === '55P03'
+      )
+        return null;
+      throw error;
+    }
+  }
   execute<T>(work: (context: ReviewedImportContext) => Promise<T>): Promise<T> {
     return this.database.transaction((manager) =>
       work(createReviewedImportContext(manager)),
@@ -51,20 +66,22 @@ export function createReviewedImportContext(
     expenseActivities: new TypeOrmExpenseActivityStore(manager),
     operations: new TypeOrmImportOperationStore(manager),
     rows: new TypeOrmImportRowStore(manager),
-    async lockExecutionScope(userId, spaceId) {
-      const actor = await manager
+    async lockExecutionScope(userId, spaceId, nonblocking = false) {
+      const actorQuery = manager
         .getRepository(UserEntity)
         .createQueryBuilder('actor')
         .where('actor.id = :userId', { userId })
-        .setLock('pessimistic_read')
-        .getOne();
+        .setLock('pessimistic_read');
+      if (nonblocking) actorQuery.setOnLocked('nowait');
+      const actor = await actorQuery.getOne();
       if (!actor) throw new UserNotFoundError();
-      const space = await manager
+      const spaceQuery = manager
         .getRepository(SpaceEntity)
         .createQueryBuilder('space')
         .where('space.id = :spaceId', { spaceId })
-        .setLock('pessimistic_write')
-        .getOne();
+        .setLock('pessimistic_write');
+      if (nonblocking) spaceQuery.setOnLocked('nowait');
+      const space = await spaceQuery.getOne();
       if (!space) throw new SpaceNotFoundError();
     },
     async requireReadAccess(userId, spaceId) {

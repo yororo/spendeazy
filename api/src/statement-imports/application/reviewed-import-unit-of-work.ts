@@ -14,7 +14,11 @@ export interface DuplicateHistoryMatch {
   referenceHash: string | null;
 }
 export interface ReviewedImportContext extends StatementImportConfirmationContext {
-  lockExecutionScope(userId: string, spaceId: string): Promise<void>;
+  lockExecutionScope(
+    userId: string,
+    spaceId: string,
+    nonblocking?: boolean,
+  ): Promise<void>;
   operations: ImportOperationStore;
   rows: ImportRowStore;
   requireReadAccess(userId: string, spaceId: string): Promise<void>;
@@ -31,5 +35,9 @@ export interface ReviewedImportContext extends StatementImportConfirmationContex
   savepoint<T>(work: () => Promise<T>): Promise<T>;
 }
 export interface ReviewedImportUnitOfWork {
+  /** Rolls back lock-unavailable transactions before returning null. Other errors propagate. */
+  recover<T>(
+    work: (context: ReviewedImportContext) => Promise<T>,
+  ): Promise<T | null>;
   execute<T>(work: (context: ReviewedImportContext) => Promise<T>): Promise<T>;
 }

@@ -23,4 +23,4 @@ npm test -- --runInBand --runTestsByPath src/statement-imports/application/state
 npm run test:e2e -- --runInBand --runTestsByPath test/statement-imports.e2e-spec.ts
 ```
 
-Before completion, use `npm run test:postgres`, which requires all nine unique database URLs and rejects missing/shared targets.
+Before completion, use `npm run test:postgres`, which requires all ten unique database URLs and rejects missing/shared targets.

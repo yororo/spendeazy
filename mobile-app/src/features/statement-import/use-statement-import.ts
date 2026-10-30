@@ -8,13 +8,13 @@ import { importWorkflow, unlockImport } from './import-runtime';
 export function useStatementImport() {
   const state = useSyncExternalStore(statementImportStore.subscribe, statementImportStore.snapshot, statementImportStore.snapshot);
   const runtime = useSyncExternalStore(importWorkflow.subscribe, importWorkflow.snapshot, importWorkflow.snapshot);
-  const { active } = useSpaces();
+  const { active, loading, error } = useSpaces();
   const scope = useSyncExternalStore(session.subscribe, session.snapshot, session.snapshot);
-  const writable = !!active && active.accessLevel === 'write' && active.status === 'active' && scope.spaceWritable;
+  const writable = !loading && !error && !!active && active.accessLevel === 'write' && active.status === 'active' && scope.spaceWritable;
   return {
     state, cleanup: runtime.cleanup, readOnly: !writable,
     destination: active ? spaceIdentityLabel(active) : 'Destination Space unavailable',
-    canSelect: writable && runtime.cleanup === 'ready' && (state.phase === 'idle' || state.phase === 'failed' || (state.phase === 'suspended' && !state.result)),
+    canSelect: writable && !session.confirmation.hasReceipt() && runtime.cleanup === 'ready' && (state.phase === 'idle' || state.phase === 'failed' || (state.phase === 'suspended' && !state.result)),
     select() {
       if (!writable || !scope.userId || !scope.spaceId) return;
       void importWorkflow.select(Crypto.randomUUID(), { id: Crypto.randomUUID(), generation: scope.generation, owner: { userId: scope.userId, spaceId: scope.spaceId } });

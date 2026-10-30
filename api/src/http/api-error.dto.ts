@@ -21,6 +21,7 @@ type ApiSchemaOptionsWithAdditionalProperties = {
 
 const ERROR_CODES = [
   'IMPORT_OPERATION_PAYLOAD_CONFLICT',
+  'IMPORT_OPERATION_NOT_COMMITTED',
   'IMPORT_REVIEW_REQUIRED',
   'VALIDATION_FAILED',
   'INVALID_JSON',
@@ -303,7 +304,7 @@ export const API_ERROR_RESPONSE_COMPONENTS = {
   ImportOperationConflict: {
     status: HttpStatus.CONFLICT,
     description:
-      'IMPORT_OPERATION_PAYLOAD_CONFLICT for changed frozen content; IMPORT_REVIEW_REQUIRED with error.review for refreshed warnings; Category or Rule conflicts. Identical terminal failures retain their original status/code.',
+      'IMPORT_OPERATION_NOT_COMMITTED for fenced recovery rejection; IMPORT_OPERATION_PAYLOAD_CONFLICT for changed frozen content; IMPORT_REVIEW_REQUIRED with error.review for refreshed warnings; Category or Rule conflicts. Identical terminal failures retain their original status/code.',
   },
   ConflictError: {
     status: HttpStatus.CONFLICT,

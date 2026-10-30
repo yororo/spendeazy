@@ -35,7 +35,7 @@ export class TypeOrmImportOperationStore implements ImportOperationStore {
 
   async find(
     key: ImportOperationKey,
-    lock: boolean,
+    lock: boolean | 'nowait',
   ): Promise<ImportOperationRecord | null> {
     const query = this.manager
       .getRepository(StatementImportOperationEntity)
@@ -45,6 +45,7 @@ export class TypeOrmImportOperationStore implements ImportOperationStore {
         key,
       );
     if (lock) query.setLock('pessimistic_write');
+    if (lock === 'nowait') query.setOnLocked('nowait');
     return query.getOne();
   }
 

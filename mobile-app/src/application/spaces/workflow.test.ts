@@ -3,9 +3,41 @@ import test from 'node:test';
 import { createSession } from '../session.ts';
 import { createSpacesWorkflow } from './workflow.ts';
 import type { AccessibleSpace } from './active-space.ts';
+import { createReceiptOwner } from '../../features/statement-import/confirmation-receipt.ts';
 
 const personal: AccessibleSpace = { id: '1', kind: 'personal', status: 'active', accessLevel: 'write', members: [{ id: '1', name: 'Ada' }] };
 const shared: AccessibleSpace = { ...personal, id: '2', kind: 'shared' };
+
+test('receipt hydration precedes provisioning and suppresses Personal fallback for archived or inaccessible original Space', async () => {
+  for (const available of [true, false]) {
+    let read = false;
+    const owner = createReceiptOwner({
+      getItemAsync: async () => { read = true; return JSON.stringify({ userId: 'ada', spaceId: shared.id, operationId: '11111111-1111-4111-8111-111111111111' }); },
+      setItemAsync: async () => { throw Error('restart must not write'); }, deleteItemAsync: async () => {},
+    });
+    const session = createSession(() => {}, () => {}, owner); session.observeIdentity('ada');
+    const archived = { ...shared, status: 'archived' as const, accessLevel: 'read' as const };
+    const workflow = createSpacesWorkflow(session, {
+      provision: async () => { assert.equal(read, true); }, list: async () => available ? [personal, archived] : [personal],
+      read: async () => personal.id, write: async () => true,
+    });
+    await workflow.load();
+    assert.equal(workflow.snapshot().active?.id ?? null, available ? shared.id : null);
+    assert.equal(session.snapshot().spaceWritable, false); assert.equal(session.confirmation.receipt()?.spaceId, shared.id);
+    await workflow.select(personal.id); assert.notEqual(session.snapshot().spaceId, personal.id);
+    workflow.discardUnsavedWork(); assert.equal(session.confirmation.hasReceipt(), true);
+  }
+});
+
+test('failed receipt reads block startup rather than selecting Personal', async () => {
+  let reads = 0;
+  const owner = createReceiptOwner({ getItemAsync: async () => { if (++reads === 1) throw Error('device locked'); return null; }, setItemAsync: async () => {}, deleteItemAsync: async () => {} });
+  const session = createSession(() => {}, () => {}, owner); session.observeIdentity('ada');
+  let lists = 0;
+  const workflow = createSpacesWorkflow(session, { provision: async () => {}, list: async () => { lists++; return [personal]; }, read: async () => null, write: async () => true });
+  await workflow.load(); assert.equal(lists, 0); assert.notEqual(workflow.snapshot().error, null); assert.equal(session.snapshot().spaceId, null);
+  await workflow.load(); assert.equal(workflow.snapshot().active?.id, personal.id);
+});
 
 test('Spaces rejects a load when identity changes during device memory lookup', async () => {
   const session = createSession(); session.observeIdentity('ada');

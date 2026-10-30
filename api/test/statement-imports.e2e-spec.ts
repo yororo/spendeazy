@@ -43,6 +43,7 @@ describe('Space Statement Import API routes', () => {
     requireWriteAccess: jest.fn(),
   };
   const previewService = {
+    status: jest.fn(),
     preview: jest.fn(),
     confirm: jest.fn(),
     evidenceRows: jest.fn(),
@@ -134,6 +135,52 @@ describe('Space Statement Import API routes', () => {
       });
     expect(invalid.status).toBe(400);
     expect(previewService.preview).toHaveBeenCalledTimes(1);
+  });
+  it('returns no-store discriminated recovery responses scoped to the trusted actor', async () => {
+    for (const outcome of [
+      committedResult(),
+      { status: 'pending', operationId },
+      {
+        status: 'not_committed',
+        operationId,
+        failure: { code: 'IMPORT_OPERATION_NOT_COMMITTED', details: [] },
+      },
+    ]) {
+      previewService.status.mockResolvedValueOnce(outcome);
+      const response = await request(httpServer(application))
+        .get(operationPath)
+        .set('Authorization', 'Bearer token-a');
+      expect(response.status).toBe(200);
+      expect(response.headers['cache-control']).toBe('no-store');
+      expect(response.body).toEqual(outcome);
+      expect(previewService.status).toHaveBeenLastCalledWith(
+        '99',
+        '77',
+        operationId,
+      );
+    }
+    expect(previewService.confirm).not.toHaveBeenCalled();
+  });
+  it('checks recovery authentication, UUID validation and inaccessible scope', async () => {
+    expect(
+      (await request(httpServer(application)).get(operationPath)).status,
+    ).toBe(401);
+    expect(
+      (
+        await request(httpServer(application))
+          .get(operationPath.replace(operationId, 'invalid'))
+          .set('Authorization', 'Bearer token-a')
+      ).status,
+    ).toBe(400);
+    expect(previewService.status).not.toHaveBeenCalled();
+    previewService.status.mockRejectedValueOnce(new SpaceNotFoundError());
+    expect(
+      (
+        await request(httpServer(application))
+          .get(operationPath)
+          .set('Authorization', 'Bearer token-a')
+      ).status,
+    ).toBe(404);
   });
   it('authorizes and scopes history, detail and confirmation to the explicit Space', async () => {
     const history = await request(httpServer(application))
@@ -249,6 +296,14 @@ describe('Space Statement Import API routes', () => {
     const review = { warnings: [], warningDigest: 'a'.repeat(64) };
     for (const [error, status, code] of [
       [new ImportReviewRequiredError(review), 409, 'IMPORT_REVIEW_REQUIRED'],
+      [
+        new ImportConfirmationError({
+          code: 'IMPORT_OPERATION_NOT_COMMITTED',
+          details: [],
+        }),
+        409,
+        'IMPORT_OPERATION_NOT_COMMITTED',
+      ],
       [
         new ImportConfirmationError({
           code: 'IMPORT_OPERATION_PAYLOAD_CONFLICT',

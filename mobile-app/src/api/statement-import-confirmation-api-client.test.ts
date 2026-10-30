@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
-import { createStatementImportConfirmationApiClient, decodeCommittedImport, decodeImportPreview } from './statement-import-confirmation-api-client.ts';
+import { createStatementImportConfirmationApiClient, decodeCommittedImport, decodeImportPreview, decodeImportOperationStatus } from './statement-import-confirmation-api-client.ts';
 import { ExpenseApiError, InvalidApiResponseError } from './request-failure.ts';
 import { serializeConfirmation } from '../features/statement-import/confirmation-payload.ts';
 import { confirmationHandoff } from '../features/statement-import/confirmation.fixture.ts';
@@ -39,8 +39,29 @@ test('mobile response models and methods match the generated OpenAPI contract', 
   const contract = JSON.parse(readFileSync(new URL('../../../api/docs/openapi.json', import.meta.url), 'utf8'));
   assert.ok(contract.paths['/api/v1/users/me/spaces/{spaceId}/statement-import-previews'].post);
   const operation = contract.paths['/api/v1/users/me/spaces/{spaceId}/statement-import-operations/{operationId}'];
-  assert.ok(operation.put.responses['201']); assert.ok(operation.put.responses['200']); assert.equal(operation.get, undefined);
+  assert.ok(operation.put.responses['201']); assert.ok(operation.put.responses['200']); assert.ok(operation.get.responses['200']);
+  assert.deepEqual(operation.get.responses['200'].content['application/json'].schema.oneOf.map((entry: { $ref: string }) => entry.$ref), ['CommittedImportResultDto', 'PendingImportOperationDto', 'RejectedImportOperationDto'].map(name => `#/components/schemas/${name}`));
   assert.deepEqual(Object.keys(result).sort(), [...contract.components.schemas.CommittedImportResultDto.required].sort());
   assert.deepEqual(Object.keys(preview).sort(), [...contract.components.schemas.ImportPreviewDto.required].sort());
   assert.deepEqual(Object.keys(preview.warnings[0]).sort(), [...contract.components.schemas.ImportAdvisoryWarningDto.required].sort());
+});
+
+test('status lookup uses GET only and strictly checks identity and safe terminal metadata', async () => {
+  const previous = globalThis.fetch;
+  const pending = { status: 'pending', operationId: id };
+  const rejected = { status: 'not_committed', operationId: id, failure: { code: 'IMPORT_OPERATION_NOT_COMMITTED', details: [] } };
+  try {
+    const api = createStatementImportConfirmationApiClient({ baseUrl: 'https://fictional.invalid', getAccessToken: async () => 'test-token' });
+    for (const body of [pending, rejected, result]) {
+      globalThis.fetch = async (url, init) => {
+        assert.equal(String(url), 'https://fictional.invalid/api/v1/users/me/spaces/7/statement-import-operations/' + id);
+        assert.equal(init?.method, 'GET'); assert.equal(init?.body, undefined);
+        return new Response(JSON.stringify(body), { status: 200 });
+      };
+      assert.deepEqual(await api.status('7', id), body);
+    }
+    for (const malformed of [null, {}, { ...pending, operationId: 'other' }, { ...pending, requestHash: 'private' }, { ...pending, status: 'unknown' }, { ...rejected, failure: { code: 'free form message', details: [] } }, { ...rejected, failure: { code: 'SAFE', details: [{ field: 'bad', code: 'SAFE' }] } }, { ...rejected, failure: { code: 'SAFE', details: [], review: {} } }, { ...rejected, failure: { code: 'SAFE', details: [], payload: {} } }]) {
+      assert.throws(() => decodeImportOperationStatus(malformed, id), InvalidApiResponseError);
+    }
+  } finally { globalThis.fetch = previous; }
 });

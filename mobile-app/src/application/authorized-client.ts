@@ -41,10 +41,9 @@ export function useSessionTransport() {
         isCurrent: () => session.isCurrent(scope) && credentialsCurrent(),
       };
     },
-    signOut() {
-      session.signOut();
-      // The sign-in screen retries termination if Clerk cannot end this session.
-      void callbacks.current.signOut({ sessionId: sessionId ?? undefined }).catch(() => {});
+    async signOut() {
+      await session.signOut();
+      await callbacks.current.signOut({ sessionId: sessionId ?? undefined });
     },
   }), [clerk, sessionId]);
 }

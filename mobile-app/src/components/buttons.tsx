@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react';
+import { type ElementRef, type ReactNode, type Ref } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 import { controlSize, radius, space, typeScale } from '@/constants/theme';
@@ -51,12 +51,14 @@ export function PrimaryButton({
 }
 
 export function SecondaryButton({
+  ref,
   label,
   onPress,
   selected = false,
   disabled = false,
   busy = false,
 }: {
+  ref?: Ref<ElementRef<typeof View>>;
   label: string;
   onPress: () => void;
   selected?: boolean;
@@ -66,6 +68,7 @@ export function SecondaryButton({
   const { palette, fonts } = useAppTheme();
   return (
     <Pressable
+      ref={ref}
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ selected, disabled: disabled || busy, busy }}

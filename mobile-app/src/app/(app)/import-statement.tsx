@@ -9,12 +9,20 @@ import { ImportHistoryItem } from '@/features/statement-import-history/statement
 import { useStatementImportHistory } from '@/features/statement-import-history/use-statement-import-history';
 import { useImportConfirmation } from '@/features/statement-import/use-import-confirmation';
 import { ImportConfirmationView } from '@/features/statement-import/confirmation-view';
+import { ImportRecoveryView } from '@/features/statement-import/recovery-view';
+import { useSpaces } from '@/application/spaces/provider';
 
 export default function ImportStatementScreen() {
   const router = useRouter();
   const controller = useStatementImport();
   const review = useStatementImportReview();
   const confirmation = useImportConfirmation();
+  const { active, refresh } = useSpaces();
+  if (confirmation.receipt) return <ImportRecoveryView controller={confirmation} destination={controller.destination}
+    writable={!controller.readOnly} historyAvailable={active?.id === confirmation.receipt.spaceId}
+    onClose={() => router.replace('/(app)/(tabs)')}
+    onHistory={() => router.replace('/(app)/statement-import-history')}
+    onAcknowledged={() => { confirmation.back(); void refresh(); }} />;
   if (review.phase === 'review-ready') {
     return <ImportConfirmationView controller={confirmation} destination={controller.destination} readOnly={controller.readOnly}
       onDiscard={() => { controller.discard(); router.back(); }} />;

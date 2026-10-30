@@ -2607,8 +2607,100 @@
       }
     },
     "/api/v1/users/me/spaces/{spaceId}/statement-import-operations/{operationId}": {
+      "get": {
+        "description": "Requires read authority in the original Space, including after archive. Terminal results are immutable. For known pending operations, nonblocking User → Space → operation locks reconcile orphaned metadata to IMPORT_OPERATION_NOT_COMMITTED and fence delayed executors. Never executes financial writes. Lock contention returns pending; no timestamp or deadline proves failure. Unknown/inaccessible operations return 404 and remain unresolved; no tombstone is created.",
+        "operationId": "StatementImportOperations_status",
+        "parameters": [
+          {
+            "name": "spaceId",
+            "required": true,
+            "in": "path",
+            "description": "Positive bigint Space identifier encoded as a decimal string.",
+            "schema": {
+              "pattern": "^[1-9]\\d*$",
+              "example": "42",
+              "type": "string"
+            }
+          },
+          {
+            "name": "operationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "no-store"
+                  ]
+                },
+                "required": true
+              }
+            },
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/CommittedImportResultDto"
+                    },
+                    {
+                      "$ref": "#/components/schemas/PendingImportOperationDto"
+                    },
+                    {
+                      "$ref": "#/components/schemas/RejectedImportOperationDto"
+                    }
+                  ],
+                  "discriminator": {
+                    "propertyName": "status",
+                    "mapping": {
+                      "committed": "#/components/schemas/CommittedImportResultDto",
+                      "pending": "#/components/schemas/PendingImportOperationDto",
+                      "not_committed": "#/components/schemas/RejectedImportOperationDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthenticatedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/UserNotProvisionedError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          },
+          "406": {
+            "$ref": "#/components/responses/NotAcceptableError"
+          },
+          "413": {
+            "$ref": "#/components/responses/HttpError"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Recover the original actor’s import confirmation outcome.",
+        "tags": [
+          "Statement imports"
+        ]
+      },
       "put": {
-        "description": "Identity is bound to the authenticated actor and original Space. Waits for concurrent execution. Identical successful replay returns the immutable result, including after archive. Operation status recovery belongs to #154.",
+        "description": "Identity is bound to the authenticated actor and original Space. Waits for concurrent execution. Identical successful replay returns the immutable result, including after archive. Identical rejected replay retains the original failure, including IMPORT_OPERATION_NOT_COMMITTED after recovery fencing.",
         "operationId": "StatementImportOperations_confirm",
         "parameters": [
           {
@@ -3273,6 +3365,7 @@
         "type": "string",
         "enum": [
           "IMPORT_OPERATION_PAYLOAD_CONFLICT",
+          "IMPORT_OPERATION_NOT_COMMITTED",
           "IMPORT_REVIEW_REQUIRED",
           "VALIDATION_FAILED",
           "INVALID_JSON",
@@ -7299,6 +7392,88 @@
           "originalExpenseTotal"
         ]
       },
+      "PendingImportOperationDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending"
+            ]
+          },
+          "operationId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "status",
+          "operationId"
+        ]
+      },
+      "ImportFailureDetailDto": {
+        "type": "object",
+        "properties": {
+          "field": {
+            "type": "string",
+            "pattern": "^/(?:[A-Za-z]+|\\d+)(?:/(?:[A-Za-z]+|\\d+))*$"
+          },
+          "code": {
+            "type": "string",
+            "pattern": "^[A-Za-z_]{1,100}$"
+          }
+        },
+        "required": [
+          "field",
+          "code"
+        ]
+      },
+      "SafeImportFailureDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "pattern": "^[A-Za-z_]{1,100}$",
+            "description": "Retained application failure code, including IMPORT_OPERATION_NOT_COMMITTED when recovery fences an orphaned admission."
+          },
+          "details": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ImportFailureDetailDto"
+            }
+          },
+          "review": {
+            "$ref": "#/components/schemas/ImportPreviewDto"
+          }
+        },
+        "required": [
+          "code",
+          "details"
+        ]
+      },
+      "RejectedImportOperationDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "not_committed"
+            ]
+          },
+          "operationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "failure": {
+            "$ref": "#/components/schemas/SafeImportFailureDto"
+          }
+        },
+        "required": [
+          "status",
+          "operationId",
+          "failure"
+        ]
+      },
       "OutgoingInvitationResponseDto": {
         "type": "object",
         "properties": {
@@ -7649,7 +7824,7 @@
         }
       },
       "ImportOperationConflict": {
-        "description": "IMPORT_OPERATION_PAYLOAD_CONFLICT for changed frozen content; IMPORT_REVIEW_REQUIRED with error.review for refreshed warnings; Category or Rule conflicts. Identical terminal failures retain their original status/code.",
+        "description": "IMPORT_OPERATION_NOT_COMMITTED for fenced recovery rejection; IMPORT_OPERATION_PAYLOAD_CONFLICT for changed frozen content; IMPORT_REVIEW_REQUIRED with error.review for refreshed warnings; Category or Rule conflicts. Identical terminal failures retain their original status/code.",
         "content": {
           "application/json": {
             "schema": {

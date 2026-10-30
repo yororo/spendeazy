@@ -1,6 +1,7 @@
 import type { ManualExpenseDraft } from '../features/expenses/manual-draft.ts';
 import { createImportStore } from '../features/statement-import/import-store.ts';
 import { createConfirmationWorkflow } from '../features/statement-import/confirmation-workflow.ts';
+import type { ReceiptOwner } from '../features/statement-import/confirmation-receipt.ts';
 
 export type SessionScope = { generation: number; userId: string | null; spaceId: string | null };
 type SessionSnapshot = {
@@ -13,24 +14,29 @@ type SessionSnapshot = {
   notice: 'expired' | null;
   announceRecovery: boolean;
   generation: number;
+  cleanupPending: boolean;
+  cleanupError: boolean;
 };
 
 /** Owns private-work retention and invalidates all work started in an older session/Space. */
-export function createSession(onResetSelections: () => void = () => {}, onImportSaved: () => void = onResetSelections) {
+export function createSession(onResetSelections: () => void = () => {}, onImportSaved: () => void = onResetSelections, receipts?: ReceiptOwner) {
   let state: SessionSnapshot = {
     userId: null, authSessionId: null, ownerUserId: null, spaceId: null, spaceWritable: false, draft: null,
     notice: null, announceRecovery: false, generation: 0,
+    cleanupPending: false, cleanupError: false,
   };
   const listeners = new Set<() => void>();
+  const authenticated = () => state.userId !== null && state.notice === null && !state.cleanupPending && !state.cleanupError;
   const imports = createImportStore(() => ({
-    ...state, authenticated: state.userId !== null && state.notice === null, writable: state.spaceWritable,
+    ...state, authenticated: authenticated(), writable: state.spaceWritable && !confirmation.hasReceipt(),
   }));
   const confirmation = createConfirmationWorkflow({
-    access: () => ({ ...state, authenticated: state.userId !== null && state.notice === null, writable: state.spaceWritable }),
+    access: () => ({ ...state, authenticated: authenticated(), writable: state.spaceWritable }),
     handoff: () => { const draft = imports.snapshot(); return draft.phase === 'review-ready' ? draft.review.handoff : null; },
     lock: imports.lockConfirmation,
     complete: imports.completeConfirmation,
     refresh: onImportSaved,
+    receipts,
   });
   imports.subscribe(confirmation.synchronize);
   function publish(patch: Partial<SessionSnapshot>) {
@@ -40,12 +46,34 @@ export function createSession(onResetSelections: () => void = () => {}, onImport
     for (const listener of listeners) listener();
   }
   function isCurrent(scope: SessionScope) {
-    return state.notice === null && state.userId !== null && scope.userId === state.userId &&
+    return !state.cleanupPending && !state.cleanupError && state.notice === null && state.userId !== null && scope.userId === state.userId &&
       scope.spaceId === state.spaceId && scope.generation === state.generation;
+  }
+  let cleanup: Promise<void> = Promise.resolve();
+  let cleanupVersion = 0;
+  function cleanupPrivateStorage() {
+    if (!receipts) return Promise.resolve();
+    const request = ++cleanupVersion;
+    publish({ cleanupPending: true, cleanupError: false });
+    cleanup = receipts.cleanup().then(() => { if (request === cleanupVersion) publish({ cleanupPending: false }); }, error => {
+      if (request === cleanupVersion) publish({ cleanupPending: false, cleanupError: true }); throw error;
+    });
+    // Observe automatic identity cleanup failures; the retry surface retains them.
+    void cleanup.catch(() => {});
+    return cleanup;
+  }
+  function clearPrivateIdentity() {
+    onResetSelections();
+    publish({ userId: null, authSessionId: null, ownerUserId: null, spaceId: null, spaceWritable: false, draft: null,
+      notice: null, announceRecovery: false, cleanupPending: receipts !== undefined, generation: state.generation + 1 });
+    return cleanupPrivateStorage();
   }
   return {
     imports,
     confirmation,
+    awaitCleanup: () => cleanup,
+    retryCleanup: cleanupPrivateStorage,
+    acceptedAccountDeletion: clearPrivateIdentity,
     snapshot: () => state,
     subscribe(listener: () => void) {
       listeners.add(listener);
@@ -60,39 +88,39 @@ export function createSession(onResetSelections: () => void = () => {}, onImport
         return;
       }
       const sameOwner = state.ownerUserId === userId;
+      const changedOwner = state.ownerUserId !== null && !sameOwner;
       if (!sameOwner) onResetSelections();
       publish({
         userId, authSessionId, ownerUserId: userId, notice: null,
+        cleanupPending: state.cleanupPending || (changedOwner && receipts !== undefined),
         spaceId: sameOwner ? state.spaceId : null,
         spaceWritable: sameOwner ? state.spaceWritable : false,
         draft: sameOwner ? state.draft : null,
         announceRecovery: sameOwner && state.notice === 'expired' && (state.draft !== null || imports.hasWork()),
         generation: state.generation + 1,
       });
+      if (changedOwner) void cleanupPrivateStorage();
     },
     expire(scope: SessionScope) {
       if (!isCurrent(scope) || state.notice === 'expired') return false;
       publish({ notice: 'expired', generation: state.generation + 1 });
       return true;
     },
-    signOut() {
-      onResetSelections();
-      publish({ userId: null, authSessionId: null, ownerUserId: null, spaceId: null, spaceWritable: false, draft: null,
-        notice: null, announceRecovery: false, generation: state.generation + 1 });
-    },
+    signOut: clearPrivateIdentity,
     changeSpace(spaceId: string | null, writable = true) {
+      if (state.cleanupPending || state.cleanupError) return false;
       if (state.spaceId === spaceId) {
         if (state.spaceWritable !== writable) publish({ spaceWritable: writable });
         return true;
       }
-      if (imports.hasWork()) return false;
+      if (imports.hasWork() || (confirmation.hasReceipt() && confirmation.receipt()?.spaceId !== spaceId)) return false;
       onResetSelections();
       publish({ spaceId, spaceWritable: spaceId !== null && writable, draft: state.draft ? { ...state.draft, categoryId: null } : null,
         generation: state.generation + 1 });
       return true;
     },
     saveDraft(draft: ManualExpenseDraft | null) {
-      if (!state.userId || state.notice === 'expired') return;
+      if (!authenticated()) return;
       publish({ draft });
     },
     dismissRecovery() { publish({ announceRecovery: false }); },

@@ -1,10 +1,12 @@
 import { Stack } from 'expo-router/stack';
 
 import { SpacesProvider } from '@/application/spaces/provider';
+import { ImportRecoveryEntry } from '@/features/statement-import/recovery-entry';
 
 export default function SignedInLayout() {
   return (
     <SpacesProvider>
+      <ImportRecoveryEntry />
       <Stack screenOptions={{ headerShown: false, animation: 'none' }}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen

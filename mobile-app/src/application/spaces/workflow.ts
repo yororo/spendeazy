@@ -84,13 +84,17 @@ export function createSpacesWorkflow(session: Session, adapters: SpacesAdapters)
       const requestId = state.requestId;
       const started = session.capture();
       try {
+        await session.awaitCleanup();
+        await session.confirmation.hydrate(ownerUserId);
+        if (requestId !== state.requestId || !session.isCurrent(started)) return;
         await ensureProvisioned();
         if (requestId !== state.requestId || !session.isCurrent(started)) return;
         const spaces = await adapters.list();
         if (requestId !== state.requestId || !session.isCurrent(started)) return;
         const remembered = await adapters.read(ownerUserId);
         if (requestId !== state.requestId || !session.isCurrent(started)) return;
-        const selected = selectActiveSpace(spaces, session.snapshot().spaceId ?? remembered);
+        const receipt = session.confirmation.receipt();
+        const selected = receipt ? spaces.find(space => space.id === receipt.spaceId) ?? null : selectActiveSpace(spaces, session.snapshot().spaceId ?? remembered);
         const changed = session.changeSpace(selected?.id ?? null, selected?.status === 'active' && selected.accessLevel === 'write');
         if (!changed) session.changeSpace(session.snapshot().spaceId, false);
         scope = session.capture();

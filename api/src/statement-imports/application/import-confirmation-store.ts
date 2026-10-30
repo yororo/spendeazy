@@ -43,7 +43,7 @@ export interface ImportOperationStore {
   ): Promise<ImportOperationRecord>;
   find(
     key: ImportOperationKey,
-    lock: boolean,
+    lock: boolean | 'nowait',
   ): Promise<ImportOperationRecord | null>;
   commit(key: ImportOperationKey, result: CommittedImportResult): Promise<void>;
   reject(key: ImportOperationKey, failure: SafeImportFailure): Promise<void>;
@@ -59,3 +59,12 @@ export interface ImportRowStore {
     statementImportId: string,
   ): Promise<ImportRowSnapshot[]>;
 }
+
+export type ImportOperationStatus =
+  | CommittedImportResult
+  | { status: 'pending'; operationId: string }
+  | {
+      status: 'not_committed';
+      operationId: string;
+      failure: SafeImportFailure;
+    };

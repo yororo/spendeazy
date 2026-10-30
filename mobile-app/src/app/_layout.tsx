@@ -8,7 +8,9 @@ import { Text, View } from 'react-native';
 
 import { palette, typeScale } from '@/constants/theme';
 import { AppearanceGate, useAppTheme } from '@/navigation/app-theme';
-import { observeAuthUser, useSessionSnapshot } from '@/application/session-runtime';
+import { observeAuthUser, useSessionSnapshot, session as sessionOwner } from '@/application/session-runtime';
+import { SecondaryButton } from '@/components/buttons';
+import { BodyText, Screen } from '@/components/screen';
 import { StatementExtractionHost } from '@/features/statement-import/extraction-host';
 
 SplashScreen.preventAutoHideAsync();
@@ -51,6 +53,10 @@ function RootNavigator({ ready }: { ready: boolean }) {
   }, [isLoaded, ready]);
 
   if (!isLoaded || !ready) return null;
+  if (session.cleanupPending || session.cleanupError) return <Screen title="Private data cleanup">
+    <BodyText>{session.cleanupPending ? 'Clearing private data…' : 'Private data cleanup failed. Retry before continuing.'}</BodyText>
+    {session.cleanupError ? <SecondaryButton label="Retry private data cleanup" onPress={() => { void sessionOwner.retryCleanup().catch(() => {}); }} /> : null}
+  </Screen>;
   const authenticated = isSignedIn === true && session.userId === userId && session.authSessionId === sessionId && session.notice === null;
 
   return (

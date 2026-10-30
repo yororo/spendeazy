@@ -6,6 +6,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DesignSurface, SelectedTabBackground } from '@/components/design-surface';
 import { controlSize, radius, space } from '@/constants/theme';
 import { useAppTheme } from '@/navigation/app-theme';
+import { useSyncExternalStore } from 'react';
+import { session } from '@/application/session-runtime';
 
 const tabs = [
   { name: 'index', label: 'Dashboard', Icon: LayoutDashboard },
@@ -25,6 +27,8 @@ export function SpendeazyTabBar({ state, navigateToTab }: TabBarProps) {
   const router = useRouter();
   const { palette } = useAppTheme();
   const current = state.routes[state.index]?.name;
+  const recovering = useSyncExternalStore(session.confirmation.subscribe, session.confirmation.hasReceipt, () => false);
+  if (recovering) return null;
 
   return (
     <View pointerEvents="box-none" style={{ position: 'absolute', left: space.screenHorizontal, right: space.screenHorizontal, bottom: Math.max(insets.bottom, 8), flexDirection: 'row', alignItems: 'center', gap: 12 }}>

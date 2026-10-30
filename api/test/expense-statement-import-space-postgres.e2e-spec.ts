@@ -1,4 +1,19 @@
+import { TypeOrmSpaceLifecycleStore } from '../src/spaces/infrastructure/typeorm-space-lifecycle-store';
 import { ReviewedImportService } from '../src/statement-imports/application/reviewed-import.service';
+import { Test } from '@nestjs/testing';
+import type { INestApplication } from '@nestjs/common';
+import type { Server } from 'node:http';
+import type { Response, Request, NextFunction } from 'express';
+import request from 'supertest';
+import { configureApp } from '../src/bootstrap';
+import { APP_CONFIG } from '../src/config/app-config';
+import { CLERK_TOKEN_VERIFIER } from '../src/authentication/authentication';
+import { ClerkAuthenticationGuard } from '../src/authentication/clerk-authentication.guard';
+import { ProvisionedUserGuard } from '../src/authentication/provisioned-user.guard';
+import { USER_STORE } from '../src/users/application/user-store';
+import { StatementImportOperationsController } from '../src/statement-imports/presentation/statement-import-operations.controller';
+import { createReviewedImportContext } from '../src/statement-imports/infrastructure/typeorm-reviewed-import-unit-of-work';
+import type { EntityManager } from 'typeorm';
 import { TypeOrmReviewedImportUnitOfWork } from '../src/statement-imports/infrastructure/typeorm-reviewed-import-unit-of-work';
 import type { ReviewedImportContext } from '../src/statement-imports/application/reviewed-import-unit-of-work';
 import type { ConfirmationPayload } from '../src/statement-imports/application/confirmation-payload';
@@ -42,6 +57,8 @@ describeDatabase(
   'Expense and Statement Import Space integrity with PostgreSQL',
   () => {
     let database: DataSource;
+    let application: INestApplication;
+    let activeService: ReviewedImportService;
     let users: UserEntity[] = [];
     let spaceIds: string[] = [];
 
@@ -55,6 +72,65 @@ describeDatabase(
         synchronize: false,
       }).initialize();
       await database.runMigrations();
+      const module = await Test.createTestingModule({
+        controllers: [StatementImportOperationsController],
+        providers: [
+          {
+            provide: APP_CONFIG,
+            useValue: {
+              environment: 'test',
+              port: 3000,
+              clerkJwtKey: 'fictional',
+            },
+          },
+          {
+            provide: CLERK_TOKEN_VERIFIER,
+            useValue: {
+              verify: (token: string) => {
+                const index =
+                  token === 'first' ? 0 : token === 'second' ? 1 : -1;
+                if (index < 0)
+                  return Promise.reject(new Error('Invalid token'));
+                return Promise.resolve({
+                  userId: users[index].clerkUserId,
+                  sessionId: 'fictional',
+                  claims: {},
+                });
+              },
+            },
+          },
+          {
+            provide: USER_STORE,
+            useValue: {
+              findByClerkUserId: (id: string) =>
+                Promise.resolve(users.find((user) => user.clerkUserId === id)),
+            },
+          },
+          {
+            provide: ReviewedImportService,
+            useValue: {
+              status: (...args: Parameters<ReviewedImportService['status']>) =>
+                activeService.status(...args),
+              confirm: (
+                ...args: Parameters<ReviewedImportService['confirm']>
+              ) => activeService.confirm(...args),
+            },
+          },
+          ClerkAuthenticationGuard,
+          ProvisionedUserGuard,
+        ],
+      }).compile();
+      application = module.createNestApplication();
+      application.use((req: Request, res: Response, next: NextFunction) => {
+        if (req.headers['x-test-drop-response'] === 'yes')
+          res.json = () => {
+            res.destroy();
+            return res;
+          };
+        next();
+      });
+      configureApp(application);
+      await application.init();
     });
 
     beforeEach(async () => {
@@ -72,6 +148,7 @@ describeDatabase(
         },
       ]);
       const spaceStore = new TypeOrmSpaceStore(database.manager);
+      activeService = reviewedService();
       spaceIds = await Promise.all(
         users.map((user) => spaceStore.ensurePersonalSpace(user.id)),
       );
@@ -106,6 +183,7 @@ describeDatabase(
     });
 
     afterAll(async () => {
+      if (application) await application.close();
       if (database?.isInitialized) await database.destroy();
     });
 
@@ -129,14 +207,19 @@ describeDatabase(
       return { payload, category };
     }
     function reviewedService(
-      decorate?: (context: ReviewedImportContext) => void,
+      decorate?: (
+        context: ReviewedImportContext,
+        manager: EntityManager,
+      ) => void,
     ) {
       const work = new TypeOrmReviewedImportUnitOfWork(database);
       return new ReviewedImportService(
         {
+          recover: (fn) => work.recover(fn),
           execute: (fn) =>
-            work.execute((context) => {
-              decorate?.(context);
+            database.transaction((manager) => {
+              const context = createReviewedImportContext(manager);
+              decorate?.(context, manager);
               return fn(context);
             }),
         },
@@ -155,6 +238,391 @@ describeDatabase(
         : null;
       return preview;
     }
+
+    function body(response: request.Response) {
+      return response.body as {
+        status: string;
+        failure: { code: string };
+        error: { code: string };
+      };
+    }
+    function gate() {
+      let release!: () => void;
+      const promise = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      return { promise, release };
+    }
+    function operationPath(id: string) {
+      return (
+        '/api/v1/users/me/spaces/' +
+        spaceIds[0] +
+        '/statement-import-operations/' +
+        id
+      );
+    }
+    function getStatus(id: string, actor = 'first') {
+      return request(application.getHttpServer() as Server)
+        .get(operationPath(id))
+        .set('Authorization', 'Bearer ' + actor);
+    }
+    function put(id: string, payload: ConfirmationPayload) {
+      return request(application.getHttpServer() as Server)
+        .put(operationPath(id))
+        .set('Authorization', 'Bearer first')
+        .send(payload);
+    }
+    async function financialState() {
+      const spaceId = spaceIds[0];
+      return {
+        imports: await database
+          .getRepository(StatementImportEntity)
+          .countBy({ spaceId }),
+        rows: await database
+          .getRepository(StatementImportRowEntity)
+          .countBy({ spaceId }),
+        expenses: await database
+          .getRepository(ExpenseEntity)
+          .countBy({ spaceId }),
+        activities: await database
+          .getRepository(ExpenseActivityEntity)
+          .countBy({ spaceId }),
+        rules: await database
+          .getRepository(CategoryRuleEntity)
+          .countBy({ spaceId }),
+        categories: await database
+          .getRepository(CategoryEntity)
+          .find({ where: { spaceId }, order: { id: 'ASC' } }),
+        space: await database
+          .getRepository(SpaceEntity)
+          .findOneByOrFail({ id: spaceId }),
+        results: await database
+          .getRepository(StatementImportOperationEntity)
+          .find({ where: { spaceId }, order: { operationId: 'ASC' } }),
+      };
+    }
+    it('fences a delayed admitted PUT and retries without financial writes; unknown-before-admission stays recoverable', async () => {
+      const { payload } = await reviewedFixture();
+      const entered = gate();
+      const resume = gate();
+      let locks = 0;
+      activeService = reviewedService((context) => {
+        const lock = context.lockExecutionScope.bind(
+          context,
+        ) as typeof context.lockExecutionScope;
+        context.lockExecutionScope = async (...args) => {
+          if (++locks === 2) {
+            entered.release();
+            await resume.promise;
+          }
+          return lock(...args);
+        };
+      });
+      await acknowledge(activeService, payload);
+      const before = await financialState();
+      const id = randomUUID();
+      expect((await getStatus(id)).status).toBe(404);
+      const original = put(id, payload).then((response) => response);
+      await entered.promise;
+      try {
+        const responses = await Promise.all([getStatus(id), getStatus(id)]);
+        expect(
+          responses.every(
+            (response) =>
+              body(response).status === 'not_committed' ||
+              body(response).status === 'pending',
+          ),
+        ).toBe(true);
+        expect(
+          responses.some(
+            (response) => body(response).status === 'not_committed',
+          ),
+        ).toBe(true);
+        expect(body(await getStatus(id)).failure.code).toBe(
+          'IMPORT_OPERATION_NOT_COMMITTED',
+        );
+      } finally {
+        resume.release();
+      }
+      expect(body(await original).error.code).toBe(
+        'IMPORT_OPERATION_NOT_COMMITTED',
+      );
+      const changed = structuredClone(payload);
+      changed.expenses[0].amount = '1001.00';
+      const raced = await Promise.all([
+        put(id, payload),
+        put(id, changed),
+        getStatus(id),
+      ]);
+      expect(body(raced[0]).error.code).toBe('IMPORT_OPERATION_NOT_COMMITTED');
+      expect(body(raced[1]).error.code).toBe(
+        'IMPORT_OPERATION_PAYLOAD_CONFLICT',
+      );
+      const after = await financialState();
+      expect({ ...after, results: [] }).toEqual({ ...before, results: [] });
+      expect(after.results).toHaveLength(1);
+      expect(after.results[0]).toMatchObject({
+        status: 'not_committed',
+        statementImportId: null,
+        successResult: null,
+      });
+      const later = randomUUID();
+      expect((await getStatus(later)).status).toBe(404);
+      expect((await put(later, payload)).status).toBe(201);
+    });
+    it.each(['rules', 'rows', 'expenses', 'activities', 'result'] as const)(
+      'keeps active work pending and fences rollback after PostgreSQL backend termination at %s',
+      async (stage) => {
+        const { payload } = await reviewedFixture();
+        const entered = gate();
+        const resume = gate();
+        let pid = 0;
+        let held = false;
+        activeService = reviewedService((context, manager) => {
+          context.operations.admit = async (key, requestHash) => {
+            await manager
+              .getRepository(StatementImportOperationEntity)
+              .insert({ ...key, requestHash, createdAt: new Date(0) });
+            return (await context.operations.find(key, false))!;
+          };
+          const pause = async <T>(work: () => Promise<T>) => {
+            const value = await work();
+            if (!held) {
+              held = true;
+              const rows = await manager.query<{ pid: number }[]>(
+                'SELECT pg_backend_pid() AS pid',
+              );
+              pid = rows[0].pid;
+              entered.release();
+              await resume.promise;
+            }
+            return value;
+          };
+          if (stage === 'rules') {
+            const fn = context.appendRules.bind(
+              context,
+            ) as typeof context.appendRules;
+            context.appendRules = (...args) => pause(() => fn(...args));
+          }
+          if (stage === 'rows') {
+            const fn = context.rows.createRows.bind(
+              context.rows,
+            ) as typeof context.rows.createRows;
+            context.rows.createRows = (...args) => pause(() => fn(...args));
+          }
+          if (stage === 'expenses') {
+            const fn = context.importedExpenses.create.bind(
+              context.importedExpenses,
+            ) as typeof context.importedExpenses.create;
+            context.importedExpenses.create = (...args) =>
+              pause(() => fn(...args));
+          }
+          if (stage === 'activities') {
+            const fn = context.expenseActivities.create.bind(
+              context.expenseActivities,
+            ) as typeof context.expenseActivities.create;
+            context.expenseActivities.create = (...args) =>
+              pause(() => fn(...args));
+          }
+          if (stage === 'result') {
+            const fn = context.operations.commit.bind(
+              context.operations,
+            ) as typeof context.operations.commit;
+            context.operations.commit = (...args) => pause(() => fn(...args));
+          }
+        });
+        await acknowledge(activeService, payload);
+        const before = await financialState();
+        const id = randomUUID();
+        const original = put(id, payload).then((response) => response);
+        await entered.promise;
+        try {
+          expect(
+            (
+              await database
+                .getRepository(StatementImportOperationEntity)
+                .findOneByOrFail({ operationId: id })
+            ).createdAt,
+          ).toEqual(new Date(0));
+          expect((await getStatus(id)).body).toEqual({
+            status: 'pending',
+            operationId: id,
+          });
+          const changed = structuredClone(payload);
+          changed.expenses[0].amount = '1001.00';
+          expect(body(await put(id, changed)).error.code).toBe(
+            'IMPORT_OPERATION_PAYLOAD_CONFLICT',
+          );
+          await database.query('SELECT pg_terminate_backend($1)', [pid]);
+        } finally {
+          resume.release();
+        }
+        expect((await original).status).toBe(500);
+        expect((await getStatus(id)).body).toMatchObject({
+          status: 'not_committed',
+          failure: { code: 'IMPORT_OPERATION_NOT_COMMITTED' },
+        });
+        const after = await financialState();
+        expect({ ...after, results: [] }).toEqual({ ...before, results: [] });
+        expect(after.results).toHaveLength(1);
+        expect(after.results[0].successResult).toBeNull();
+        expect(body(await put(id, payload)).error.code).toBe(
+          'IMPORT_OPERATION_NOT_COMMITTED',
+        );
+      },
+      20000,
+    );
+    it('recovers immutable success after real HTTP response loss and races identical retries without duplicates', async () => {
+      const { payload } = await reviewedFixture();
+      await acknowledge(activeService, payload);
+      const id = randomUUID();
+      await expect(
+        put(id, payload).set('x-test-drop-response', 'yes'),
+      ).rejects.toThrow();
+      const saved = await financialState();
+      const responses = await Promise.all([
+        getStatus(id),
+        put(id, payload),
+        put(id, payload),
+      ]);
+      expect(responses.map((response) => response.status)).toEqual([
+        200, 200, 200,
+      ]);
+      expect(responses[0].body).toEqual(responses[1].body);
+      expect(responses[0].body).toEqual(responses[2].body);
+      expect(await financialState()).toEqual(saved);
+      expect(saved.imports).toBe(1);
+      expect(saved.rows).toBe(10);
+      expect(saved.expenses).toBe(2);
+      expect(saved.activities).toBe(2);
+      expect(saved.rules).toBe(payload.rememberedRules.length);
+    });
+
+    it.each(['archive', 'delete'] as const)(
+      'races recovery and a delayed original with %s under the lifecycle User/Space fence',
+      async (action) => {
+        const { payload } = await reviewedFixture();
+        if (action === 'archive') {
+          await database.query(
+            "UPDATE spaces SET kind = 'shared', personal_owner_user_id = NULL WHERE id = $1",
+            [spaceIds[0]],
+          );
+          await database.getRepository(SpaceMembershipEntity).save({
+            userId: users[1].id,
+            spaceId: spaceIds[0],
+            accessLevel: 'write',
+          });
+        }
+        const entered = gate();
+        const resume = gate();
+        let locks = 0;
+        activeService = reviewedService((context) => {
+          const lock = context.lockExecutionScope.bind(
+            context,
+          ) as typeof context.lockExecutionScope;
+          context.lockExecutionScope = async (...args) => {
+            if (++locks === 2) {
+              entered.release();
+              await resume.promise;
+            }
+            return lock(...args);
+          };
+        });
+        await acknowledge(activeService, payload);
+        const before = await financialState();
+        const id = randomUUID();
+        const original = put(id, payload).then((response) => response);
+        await entered.promise;
+        const runner = database.createQueryRunner();
+        await runner.connect();
+        await runner.startTransaction();
+        try {
+          const lifecycle = new TypeOrmSpaceLifecycleStore(runner.manager);
+          if (action === 'archive')
+            await lifecycle.archiveSharedSpace(
+              users[0].id,
+              spaceIds[0],
+              new Date(),
+            );
+          else await lifecycle.deleteIdentity(users[0].id, new Date());
+          expect((await getStatus(id)).body).toEqual({
+            status: 'pending',
+            operationId: id,
+          });
+          resume.release();
+          await runner.commitTransaction();
+          let status = await getStatus(id);
+          const response = await original;
+          if (action === 'archive') {
+            expect(['pending', 'not_committed']).toContain(body(status).status);
+            status = await getStatus(id);
+            expect(body(status).status).toBe('not_committed');
+            expect([
+              'SPACE_NOT_WRITABLE',
+              'IMPORT_OPERATION_NOT_COMMITTED',
+            ]).toContain(body(status).failure.code);
+            expect(body(response).error.code).toBe(body(status).failure.code);
+            expect((await getStatus(id, 'second')).status).toBe(404);
+          } else {
+            expect(status.status).toBe(404);
+            expect(response.status).toBe(404);
+            await expect(
+              activeService.status(users[0].id, spaceIds[0], id),
+            ).rejects.toMatchObject({ code: 'SPACE_NOT_FOUND' });
+          }
+          const after = await financialState();
+          expect({ ...after, space: null, results: [] }).toEqual({
+            ...before,
+            space: null,
+            results: [],
+          });
+          expect(after.space.categoryRulesRevision).toBe(
+            before.space.categoryRulesRevision,
+          );
+          expect(after.results[0].successResult).toBeNull();
+        } finally {
+          resume.release();
+          if (runner.isTransactionActive) await runner.rollbackTransaction();
+          await runner.release();
+          await database
+            .getRepository(SpaceEntity)
+            .update(spaceIds[0], { status: 'active' });
+        }
+      },
+    );
+    it('returns pending on an operation-row lock and releases partial recovery scope locks after rollback', async () => {
+      const id = randomUUID();
+      const key = {
+        actorUserId: users[0].id,
+        spaceId: spaceIds[0],
+        operationId: id,
+      };
+      await new TypeOrmImportOperationStore(database.manager).admit(
+        key,
+        'a'.repeat(64),
+      );
+      const runner = database.createQueryRunner();
+      await runner.connect();
+      await runner.startTransaction();
+      try {
+        await new TypeOrmImportOperationStore(runner.manager).find(key, true);
+        expect((await getStatus(id)).body).toEqual({
+          status: 'pending',
+          operationId: id,
+        });
+        await database.transaction((manager) =>
+          createReviewedImportContext(manager).lockExecutionScope(
+            users[0].id,
+            spaceIds[0],
+            true,
+          ),
+        );
+      } finally {
+        await runner.rollbackTransaction();
+        await runner.release();
+      }
+      expect(body(await getStatus(id)).status).toBe('not_committed');
+    });
     it('previews without writes and serializes simultaneous identical operations into one immutable result', async () => {
       const { payload } = await reviewedFixture();
       let enter!: () => void;
@@ -193,11 +661,18 @@ describeDatabase(
       const id = randomUUID();
       const first = service.confirm(users[0].id, spaceIds[0], id, payload);
       await entered;
+      expect(await service.status(users[0].id, spaceIds[0], id)).toEqual({
+        status: 'pending',
+        operationId: id,
+      });
       const follower = service.confirm(users[0].id, spaceIds[0], id, payload);
       release();
       const results = await Promise.all([first, follower]);
       expect(results.map((row) => row.replayed).sort()).toEqual([false, true]);
       expect(results[0].result).toEqual(results[1].result);
+      expect(await service.status(users[0].id, spaceIds[0], id)).toEqual(
+        results[0].result,
+      );
       expect(results[0].result).toMatchObject({
         originalExpenseCount: '2',
         originalExpenseTotal: '1300.00',
@@ -316,6 +791,8 @@ describeDatabase(
       await database
         .getRepository(SpaceEntity)
         .update(spaceIds[0], { status: 'archived' });
+      expect((await getStatus(id)).body).toEqual(original.result);
+      expect((await getStatus(id, 'second')).status).toBe(404);
       expect(
         await service.confirm(users[0].id, spaceIds[0], id, payload),
       ).toEqual({ result: original.result, replayed: true });

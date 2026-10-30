@@ -32,6 +32,7 @@ import type {
   ImportOperationKey,
   ImportOperationRecord,
   SafeImportFailure,
+  ImportOperationStatus,
 } from './import-confirmation-store';
 import {
   ImportConfirmationError,
@@ -50,6 +51,47 @@ export class ReviewedImportService {
     @Inject(MANILA_CLOCK)
     private readonly clock: ManilaClock = systemManilaClock,
   ) {}
+  async status(
+    userId: string,
+    spaceId: string,
+    operationId: string,
+  ): Promise<ImportOperationStatus> {
+    validateOperationId(operationId);
+    const key = {
+      actorUserId: userId,
+      spaceId,
+      operationId: operationId.toLowerCase(),
+    };
+    const existing = await this.unitOfWork.execute(async (context) => {
+      await context.requireReadAccess(userId, spaceId);
+      return context.operations.find(key, false);
+    });
+    if (!existing)
+      throw new ApplicationError(
+        'RESOURCE_NOT_FOUND',
+        'Import operation not found.',
+      );
+    if (existing.status !== 'pending') return projectStatus(existing);
+    const recovered = await this.unitOfWork.recover(async (context) => {
+      await context.lockExecutionScope(userId, spaceId, true);
+      await context.requireReadAccess(userId, spaceId);
+      const operation = await context.operations.find(key, 'nowait');
+      if (!operation)
+        throw new ApplicationError(
+          'RESOURCE_NOT_FOUND',
+          'Import operation not found.',
+        );
+      if (operation.status !== 'pending') return projectStatus(operation);
+      const failure = { code: 'IMPORT_OPERATION_NOT_COMMITTED', details: [] };
+      await context.operations.reject(key, failure);
+      return {
+        status: 'not_committed' as const,
+        operationId: key.operationId,
+        failure,
+      };
+    });
+    return recovered ?? { status: 'pending', operationId: key.operationId };
+  }
   async evidenceRows(
     userId: string,
     spaceId: string,
@@ -100,15 +142,7 @@ export class ReviewedImportService {
     operationId: string,
     input: unknown,
   ): Promise<{ result: CommittedImportResult; replayed: boolean }> {
-    if (
-      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(
-        operationId,
-      )
-    )
-      throw new ApplicationError(
-        'VALIDATION_FAILED',
-        'Invalid operation identifier.',
-      );
+    validateOperationId(operationId);
     // Structural validation is safe on replay; current Category/date eligibility is not.
     const key = {
       actorUserId: userId,
@@ -205,6 +239,36 @@ export class ReviewedImportService {
     if (outcome.failure) throwFailure(outcome.failure);
     return outcome;
   }
+}
+function validateOperationId(operationId: string): void {
+  if (
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(
+      operationId,
+    )
+  )
+    throw new ApplicationError(
+      'VALIDATION_FAILED',
+      'Invalid operation identifier.',
+    );
+}
+function projectStatus(
+  operation: ImportOperationRecord,
+): ImportOperationStatus {
+  if (operation.status === 'committed') {
+    if (!operation.successResult)
+      throw new Error('Committed operation missing result');
+    return operation.successResult;
+  }
+  if (operation.status === 'not_committed') {
+    if (!operation.failure)
+      throw new Error('Rejected operation missing failure');
+    return {
+      status: 'not_committed',
+      operationId: operation.operationId,
+      failure: operation.failure,
+    };
+  }
+  return { status: 'pending', operationId: operation.operationId };
 }
 function assertHash(operation: ImportOperationRecord, hash: string) {
   if (operation.requestHash !== hash)

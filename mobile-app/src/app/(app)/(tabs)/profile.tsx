@@ -89,7 +89,7 @@ export default function ProfileScreen() {
           label="Sign out"
           variant="quiet"
           icon={<LogOut size={17} color={palette.textSecondary} />}
-          onPress={signOut}
+          onPress={() => { void signOut().catch(() => setAppearanceError('Sign-out did not finish. Retry sign out.')); }}
         />
       </StackGap>
     </Screen>

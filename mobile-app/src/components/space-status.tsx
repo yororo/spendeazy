@@ -1,5 +1,6 @@
 import { ChevronDown, CircleCheck, LockKeyhole } from 'lucide-react-native';
-import { useState } from 'react';
+import { useState, useSyncExternalStore } from 'react';
+import { session } from '@/application/session-runtime';
 import { Pressable, Text, View } from 'react-native';
 
 import { SecondaryButton } from '@/components/buttons';
@@ -25,19 +26,21 @@ export function SpaceStatus() {
   const { palette, fonts } = useAppTheme();
   const [open, setOpen] = useState(false);
   const [pendingSpaceId, setPendingSpaceId] = useState<string | null>(null);
+  const recovering = useSyncExternalStore(session.confirmation.subscribe, session.confirmation.hasReceipt, () => false);
 
   if (loading && !active) return <SupportingText>Loading Spaces.</SupportingText>;
   if (error || !active) return <StackGap><BodyText>{error ?? 'Personal Space is unavailable.'}</BodyText><SecondaryButton label="Retry" onPress={() => void refresh()} /></StackGap>;
 
   return (
     <View style={{ flexShrink: 1, gap: 6 }}>
-      <Pressable accessibilityRole="button" accessibilityLabel={`Active Space: ${spaceIdentityLabel(active)}. Switch Space`} accessibilityState={{ expanded: open }} onPress={() => setOpen(true)} style={{ minHeight: 48, alignSelf: 'flex-start', justifyContent: 'center' }}>
+      <Pressable disabled={recovering} accessibilityRole="button" accessibilityLabel={`Active Space: ${spaceIdentityLabel(active)}.${recovering ? ' Fixed until import acknowledgment.' : ' Switch Space'}`} accessibilityState={{ expanded: open, disabled: recovering }} onPress={() => setOpen(true)} style={{ minHeight: 48, alignSelf: 'flex-start', justifyContent: 'center' }}>
         <View pointerEvents="none" style={{ minHeight: 44, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 22, borderWidth: 1, borderColor: palette.selectedSpaceBorder, backgroundColor: palette.selectedSpace, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           <SpaceInitials space={active} compact />
           <ChevronDown color={palette.textSecondary} size={14} />
         </View>
       </Pressable>
       {active.status === 'archived' ? <SupportingText>This Shared Space is archived. Expenses, Activity, and import history are read-only.</SupportingText> : null}
+      {recovering ? <SupportingText>Check import status and acknowledge its outcome before changing destination.</SupportingText> : null}
       {memoryError ? <SupportingText>{memoryError}</SupportingText> : null}
       <ChoiceSheet title="Switch Space" visible={open && pendingSpaceId === null} onDismiss={() => setOpen(false)} showClose>
         {spaces.map((space) => {

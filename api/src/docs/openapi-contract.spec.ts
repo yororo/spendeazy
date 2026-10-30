@@ -47,7 +47,9 @@ describe('canonical Expense OpenAPI contract', () => {
     for (const status of ['200', '201', '409', '413']) {
       expect(operation?.put?.responses[status]).toBeDefined();
     }
-    expect(operation?.get).toBeUndefined();
+    for (const status of ['200', '400', '401', '403', '404', '500']) {
+      expect(operation?.get?.responses[status]).toBeDefined();
+    }
     expect(
       document.paths[
         '/api/v1/users/me/spaces/{spaceId}/statement-import-previews'

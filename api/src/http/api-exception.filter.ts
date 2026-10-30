@@ -308,6 +308,7 @@ function applicationErrorStatus(code: string): number {
     case USER_EMAIL_ALREADY_EXISTS_CODE:
       return HttpStatus.CONFLICT;
     case USER_NOT_FOUND_CODE:
+    case RESOURCE_NOT_FOUND_CODE:
     case SPACE_NOT_FOUND_CODE:
     case CATEGORY_NOT_FOUND_CODE:
     case BUDGET_NOT_FOUND_CODE:
@@ -316,6 +317,7 @@ function applicationErrorStatus(code: string): number {
       return HttpStatus.NOT_FOUND;
     case CATEGORY_NAME_ALREADY_EXISTS_CODE:
     case 'IMPORT_OPERATION_PAYLOAD_CONFLICT':
+    case 'IMPORT_OPERATION_NOT_COMMITTED':
     case 'IMPORT_REVIEW_REQUIRED':
     case STALE_EDIT_CODE:
     case CATEGORY_RULE_PATTERN_ALREADY_EXISTS_CODE:

@@ -1,0 +1,28 @@
+{
+  "pdfParse": "2.4.5",
+  "pdfjsDist": "5.4.296",
+  "pipeline": "Node pdf-parse PDFParse.getText({ pageJoiner: '' }); pages joined with a single newline, matching statement-categorizer.ts; then transformStatement from the shared parser bundle.",
+  "wrongPasswordCode": "password",
+  "fixtures": {
+    "spending-journey.pdf": {
+      "password": null,
+      "textSha256": "25974126a19e5f6348011b6c2e5b726c80f32431b3bb0715345bf6c47d38911e",
+      "textLength": 566,
+      "pageCount": 1,
+      "provider": "BDO",
+      "statementType": "credit_card",
+      "transactionCount": 4,
+      "totalAmountDueCents": 200001
+    },
+    "spending-journey-encrypted.pdf": {
+      "password": "fictional-journey-only",
+      "textSha256": "25974126a19e5f6348011b6c2e5b726c80f32431b3bb0715345bf6c47d38911e",
+      "textLength": 566,
+      "pageCount": 1,
+      "provider": "BDO",
+      "statementType": "credit_card",
+      "transactionCount": 4,
+      "totalAmountDueCents": 200001
+    }
+  }
+}

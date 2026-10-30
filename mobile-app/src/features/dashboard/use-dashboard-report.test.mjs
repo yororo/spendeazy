@@ -95,9 +95,13 @@ async function mountController(t) {
 
 test('Monthly and Yearly remember independent periods and reject invalid or future years', async (t) => {
   const screen = await mountController(t);
+  assert.deepEqual(screen.requests.at(-1).query, { view: 'monthly', months: 1 });
   await screen.resolve();
-  await act(async () => screen.controller.movePeriod(-1));
-  assert.deepEqual(screen.requests.at(-1).query, { view: 'monthly', endMonth: '2026-09' });
+  await act(async () => screen.controller.selectMonths(6));
+  assert.deepEqual(screen.requests.at(-1).query, { view: 'monthly', months: 6 });
+  await screen.resolve();
+  await act(async () => screen.controller.selectMonths(3));
+  assert.deepEqual(screen.requests.at(-1).query, { view: 'monthly', months: 3 });
   await screen.resolve({ ...fixture(), monthlyExpenses: [{ month: '2026-09' }] });
   await act(async () => screen.controller.selectView('yearly'));
   assert.deepEqual(screen.requests.at(-1).query, { view: 'yearly', year: '2026' });
@@ -111,7 +115,7 @@ test('Monthly and Yearly remember independent periods and reject invalid or futu
   await act(async () => screen.controller.clearChartCategories());
   await act(async () => screen.controller.toggleChartCategory('2'));
   await act(async () => screen.controller.selectView('monthly'));
-  assert.deepEqual(screen.requests.at(-1).query, { view: 'monthly', endMonth: '2026-09' });
+  assert.deepEqual(screen.requests.at(-1).query, { view: 'monthly', months: 3 });
   await screen.resolve({ ...fixture(), monthlyExpenses: [{ month: '2026-09' }] });
   await act(async () => screen.controller.selectView('yearly'));
   assert.deepEqual(screen.requests.at(-1).query, { view: 'yearly', year: '2024' });
@@ -143,9 +147,9 @@ test('Space and identity changes reset periods and filters and discard late repo
   assert.equal(screen.controller.report, null);
   assert.equal(screen.controller.view, 'monthly');
   assert.equal(screen.controller.year, null);
-  assert.equal(screen.controller.monthlyEndMonth, null);
+  assert.equal(screen.controller.months, 1);
   assert.deepEqual(screen.controller.chartCategoryIds, []);
-  assert.deepEqual(screen.requests.at(-1).query, { view: 'monthly' });
+  assert.deepEqual(screen.requests.at(-1).query, { view: 'monthly', months: 1 });
   assert.equal(screen.requests.at(-1).spaceId, '11');
   await act(async () => oldSpace.resolve(fixture('yearly', '2026-10-29', '2025')));
   assert.equal(screen.controller.report, null);

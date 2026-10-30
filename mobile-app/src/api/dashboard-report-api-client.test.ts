@@ -81,12 +81,13 @@ test("Dashboard adapter sends repeated chart filters and decodes exact report va
   const report = await client.getDashboardReport("42", {
     view: "monthly",
     endMonth: "2026-06",
+    months: 3,
     chartCategoryIds: ["8", "9"],
   });
 
   assert.equal(
     requestUrl,
-    "https://example.invalid/api/v1/users/me/spaces/42/reporting/dashboard?view=monthly&endMonth=2026-06&chartCategoryId=8&chartCategoryId=9",
+    "https://example.invalid/api/v1/users/me/spaces/42/reporting/dashboard?view=monthly&months=3&endMonth=2026-06&chartCategoryId=8&chartCategoryId=9",
   );
   assert.equal(report.summary.planned.exact.numerator, "12000");
   assert.equal(report.summary.comparison.percentage?.amount, "4.2");

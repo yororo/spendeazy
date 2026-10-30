@@ -18,10 +18,7 @@ import {
   type DashboardReportExpense,
   type DashboardReportStore,
 } from './dashboard-report-store';
-import {
-  DASHBOARD_MONTH_COUNT,
-  MONTHS_PER_YEAR,
-} from './dashboard-report-constants';
+import { MONTHS_PER_YEAR } from './dashboard-report-constants';
 
 type Rational = { numerator: bigint; denominator: bigint };
 type ValueWithExact = { exact: ExactValue; amount: string };
@@ -184,8 +181,7 @@ function projectDashboardReport(
   const selectedCategoryTotals = aggregateExpensesByCategory(selectedExpenses);
   const actualCents = sumExpenseCents(selectedExpenses);
   const monthlyEquivalent = getMonthlyPlan(data.categories);
-  const planMonths =
-    range.view === 'monthly' ? DASHBOARD_MONTH_COUNT : range.months.length;
+  const planMonths = range.months.length;
   const planned = multiply(monthlyEquivalent, BigInt(planMonths));
   const annualEquivalent = multiply(monthlyEquivalent, BigInt(MONTHS_PER_YEAR));
   const difference = subtract(fromCents(actualCents), planned);

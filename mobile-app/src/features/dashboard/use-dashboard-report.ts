@@ -17,7 +17,7 @@ import { createSessionResource } from "@/application/session-resource";
 import { session } from "@/application/session-runtime";
 import { useSpaces } from "@/application/spaces/provider";
 import { useSpaceCategories } from "@/features/expenses/use-space-categories";
-import { isSelectableYear, manilaDate, shiftMonth } from "./dashboard-format";
+import { isSelectableYear, manilaDate } from "./dashboard-format";
 import { retainCategoryMarkers } from "./dashboard-category-identity";
 
 const EMPTY_CATEGORY_SELECTION: string[] = [];
@@ -31,7 +31,7 @@ export function useDashboardReport() {
   const initialSelection = {
     scopeKey,
     view: "monthly" as DashboardView,
-    monthlyEndMonth: null as string | null,
+    months: 1 as 1 | 3 | 6,
     year: null as string | null,
     chartCategoryIds: EMPTY_CATEGORY_SELECTION,
     categoriesInitialized: false,
@@ -40,20 +40,18 @@ export function useDashboardReport() {
   const [selection, setSelection] = useState(initialSelection);
   // Reset before rendering children or issuing a query for a new identity/Space.
   if (selection.scopeKey !== scopeKey) setSelection(initialSelection);
-  const { view, monthlyEndMonth, year, chartCategoryIds } =
+  const { view, months, year, chartCategoryIds } =
     selection.scopeKey === scopeKey ? selection : initialSelection;
   const query = useMemo(
     () => ({
       view,
       ...(view === "monthly"
-        ? monthlyEndMonth === null
-          ? {}
-          : { endMonth: monthlyEndMonth }
+        ? { months }
         : year === null
           ? {}
           : { year }),
     }),
-    [monthlyEndMonth, view, year],
+    [months, view, year],
   );
   const queryKey = useMemo(
     () => JSON.stringify([activeSpaceId, query]),
@@ -165,12 +163,6 @@ export function useDashboardReport() {
       setSelection((current) => ({
         ...current,
         view: next,
-        // Freeze each mode's default before leaving it, including across New Year.
-        monthlyEndMonth:
-          current.monthlyEndMonth ??
-          (report?.range.view === "monthly"
-            ? report.monthlyExpenses.at(-1)?.month ?? null
-            : null),
         year: current.year ?? report?.range.today.slice(0, 4) ?? null,
       }));
     },
@@ -198,23 +190,10 @@ export function useDashboardReport() {
         : report,
     [chartCategoryIds, report],
   );
-  const movePeriod = useCallback(
-    (offset: -1 | 1) => {
-      if (!activeSpaceId || !authorized.isCurrent()) return;
-      if (view === "monthly") {
-        const endMonth =
-          monthlyEndMonth ?? report?.monthlyExpenses.at(-1)?.month ?? null;
-        if (endMonth !== null) {
-          const next = shiftMonth(endMonth, offset);
-          if (report && next <= report.range.today.slice(0, 7)) {
-            setSelection((current) => ({ ...current, monthlyEndMonth: next }));
-          }
-        }
-        return;
-      }
-    },
-    [activeSpaceId, authorized, monthlyEndMonth, report, view],
-  );
+  const selectMonths = useCallback((next: 1 | 3 | 6) => {
+    if (!activeSpaceId || !authorized.isCurrent() || ![1, 3, 6].includes(next)) return;
+    setSelection((current) => ({ ...current, months: next }));
+  }, [activeSpaceId, authorized]);
   return {
     active,
     categories: categories.categories,
@@ -229,9 +208,9 @@ export function useDashboardReport() {
     selectView,
     selectYear,
     scopeKey,
-    monthlyEndMonth,
+    months,
     year,
-    movePeriod,
+    selectMonths,
     chartCategoryIds,
     categoryMarkers,
     toggleChartCategory,

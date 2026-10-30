@@ -27,12 +27,24 @@ export class DashboardReportQueryDto {
   @IsString()
   @Matches(/^\d{4}-(0[1-9]|1[0-2])$/u)
   @ApiPropertyOptional({
-    description: 'Final calendar month for the six-month view.',
+    description:
+      'Final calendar month for the Monthly view. Defaults to the last complete month.',
     type: String,
     pattern: '^\\d{4}-(0[1-9]|1[0-2])$',
     example: '2026-06',
   })
   endMonth?: string;
+
+  @IsOptional()
+  @IsString()
+  @IsIn(['1', '3', '6'])
+  @ApiPropertyOptional({
+    description:
+      'Number of calendar months for the Monthly view. Defaults to 1.',
+    enum: ['1', '3', '6'],
+    default: '1',
+  })
+  months?: string;
 
   @IsOptional()
   @IsString()

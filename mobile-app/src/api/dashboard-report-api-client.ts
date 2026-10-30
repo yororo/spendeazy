@@ -105,6 +105,7 @@ export type DashboardReport = {
 export type DashboardReportQuery = {
   view: DashboardView;
   endMonth?: string;
+  months?: 1 | 3 | 6;
   year?: string;
   chartCategoryIds?: readonly string[];
 };
@@ -118,6 +119,7 @@ export function createDashboardReportApiClient(
       query: DashboardReportQuery,
     ): Promise<DashboardReport> {
       const params = new URLSearchParams({ view: query.view });
+      if (query.months !== undefined) params.set("months", String(query.months));
       if (query.endMonth !== undefined) params.set("endMonth", query.endMonth);
       if (query.year !== undefined) params.set("year", query.year);
       for (const categoryId of query.chartCategoryIds ?? []) {

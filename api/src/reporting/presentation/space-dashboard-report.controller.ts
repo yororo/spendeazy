@@ -45,8 +45,15 @@ export class SpaceDashboardReportController {
   @ApiQuery({
     name: 'endMonth',
     required: false,
-    description: 'Six-month view end month, in YYYY-MM format.',
+    description:
+      'Monthly view end month, in YYYY-MM format. Defaults to the last complete month.',
     schema: { type: 'string', pattern: '^\\d{4}-(0[1-9]|1[0-2])$' },
+  })
+  @ApiQuery({
+    name: 'months',
+    required: false,
+    enum: ['1', '3', '6'],
+    description: 'Monthly window length. Defaults to 1.',
   })
   @ApiQuery({
     name: 'year',

@@ -28,7 +28,8 @@ export function dashboardPeriodLabel(report: DashboardReport): string {
     first.slice(0, 4) === last.slice(0, 4)
       ? last.slice(0, 4)
       : `${first.slice(0, 4)} – ${last.slice(0, 4)}`;
-  return `${firstLabel} – ${lastLabel} ${suffix}${report.range.inProgress ? " · In progress" : ""}`;
+  const period = first === last ? `${firstLabel} ${suffix}` : `${firstLabel} – ${lastLabel} ${suffix}`;
+  return `${period}${report.range.inProgress ? " · In progress" : ""}`;
 }
 
 export function isSelectableYear(year: string, today: string): boolean {

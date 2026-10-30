@@ -33,6 +33,7 @@ describe('DashboardReportService', () => {
   it('returns a six-month range with unrounded mixed-period planning and current-year checks', async () => {
     const report = await service.getDashboardReportInSpace('7', {
       view: 'monthly',
+      months: '6',
       endMonth: '2026-06',
     });
 
@@ -106,6 +107,7 @@ describe('DashboardReportService', () => {
   it('uses today for the selected current month and excludes it from completed-month checks', async () => {
     const report = await service.getDashboardReportInSpace('7', {
       view: 'monthly',
+      months: '6',
       endMonth: '2026-07',
     });
 
@@ -150,6 +152,7 @@ describe('DashboardReportService', () => {
   it('returns separate yearly checks for every calendar year represented by a Monthly window', async () => {
     const report = await service.getDashboardReportInSpace('7', {
       view: 'monthly',
+      months: '6',
       endMonth: '2026-02',
     });
 
@@ -187,6 +190,7 @@ describe('DashboardReportService', () => {
     await expect(
       service.getDashboardReportInSpace('7', {
         view: 'monthly',
+        months: '6',
         endMonth: '2026-08',
       }),
     ).rejects.toMatchObject({
@@ -222,7 +226,7 @@ describe('DashboardReportService', () => {
       () => new Date(NOW),
     );
 
-    const empty = await service.getDashboardReportInSpace('7', {});
+    const empty = await service.getDashboardReportInSpace('7', { months: '6' });
     expect(empty.summary).toMatchObject({
       actualAmount: '0.00',
       expenseCount: '0',
@@ -295,7 +299,7 @@ describe('DashboardReportService', () => {
       () => new Date(NOW),
     );
 
-    const tied = await service.getDashboardReportInSpace('7', {});
+    const tied = await service.getDashboardReportInSpace('7', { months: '6' });
     expect(tied.summary.highestCategory).toMatchObject({
       categoryId: '2',
       name: 'Alpha',
@@ -303,13 +307,48 @@ describe('DashboardReportService', () => {
     });
   });
 
-  it('defaults Monthly view to the last complete month', async () => {
+  it('defaults Monthly view to one complete month', async () => {
     const report = await service.getDashboardReportInSpace('7', {});
+    expect(report.monthlyExpenses).toHaveLength(1);
+    expect(report.summary.planned.months).toBe(1);
     expect(report.range).toMatchObject({
-      fromDate: '2026-01-01',
+      fromDate: '2026-06-01',
       toDate: '2026-06-30',
       inProgress: false,
     });
+  });
+
+  it.each(['1', '3', '6'])(
+    'uses %s complete months for totals and planning',
+    async (months) => {
+      const report = await service.getDashboardReportInSpace('7', { months });
+      expect(report.monthlyExpenses).toHaveLength(Number(months));
+      expect(report.summary.planned.months).toBe(Number(months));
+      expect(report.budgetChecks.monthly[0].eligibleMonths).toBe(
+        Number(months),
+      );
+      expect(report.summary.planned.exact).toEqual({
+        numerator: String(
+          (1750 * Number(months)) / (Number(months) === 1 ? 1 : 3),
+        ),
+        denominator: Number(months) === 1 ? '3' : '1',
+      });
+    },
+  );
+
+  it.each(['0', '2', '12', 'abc'])(
+    'rejects unsupported month count %s',
+    async (months) => {
+      await expect(
+        service.getDashboardReportInSpace('7', { months }),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+    },
+  );
+
+  it('rejects month counts for Yearly reports', async () => {
+    await expect(
+      service.getDashboardReportInSpace('7', { view: 'yearly', months: '3' }),
+    ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
   });
 
   it('keeps a sole annual Budget exact before rounding its monthly equivalent', async () => {

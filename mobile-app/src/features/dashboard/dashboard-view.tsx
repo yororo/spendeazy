@@ -56,10 +56,6 @@ export function DashboardView({
   const { fontScale } = useWindowDimensions();
   const { palette, fonts } = useAppTheme();
   const { report } = controller;
-  const monthlyEndMonth = report?.monthlyExpenses.at(-1)?.month ?? null;
-  const currentMonth = report?.range.today.slice(0, 7) ?? "";
-  const selectedMonth = controller.monthlyEndMonth ?? monthlyEndMonth;
-  const canGoNextMonth = selectedMonth !== null && selectedMonth < currentMonth;
   const selectedYear = controller.year ?? report?.range.today.slice(0, 4) ?? "";
   const categoryChoices = controller.categories.filter(
     (category) =>
@@ -146,37 +142,9 @@ export function DashboardView({
               today={report?.range.today ?? null}
               onSelect={controller.selectYear}
             />
-          ) : <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-              flex: 1,
-              minWidth: 140,
-            }}
-          >
-            <PeriodArrow
-              label="Previous period"
-              onPress={() => controller.movePeriod(-1)}
-            />
-            <Text
-              accessibilityRole="header"
-              style={{
-                color: palette.textPrimary,
-                fontFamily: fonts.semibold,
-                fontSize: 12,
-                textAlign: "center",
-                flex: 1,
-              }}
-            >
-              Six months
-            </Text>
-            <PeriodArrow
-              label="Next period"
-              onPress={() => controller.movePeriod(1)}
-              disabled={!canGoNextMonth}
-            />
-          </View>}
+          ) : (
+            <MonthRangePicker months={controller.months} onSelect={controller.selectMonths} />
+          )}
           {report ? (
             <View
               style={{
@@ -1046,43 +1014,34 @@ function PeriodButton({
     </View>
   );
 }
-function PeriodArrow({
-  label,
-  onPress,
-  disabled = false,
-}: {
-  label: string;
-  onPress: () => void;
-  disabled?: boolean;
+function MonthRangePicker({ months, onSelect }: {
+  months: 1 | 3 | 6;
+  onSelect: (months: 1 | 3 | 6) => void;
 }) {
   const { palette, fonts } = useAppTheme();
+  const [open, setOpen] = useState(false);
+  const label = months === 1 ? "Last 1 month" : "Last " + months + " months";
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      accessibilityState={{
-        disabled,
-      }}
-      disabled={disabled}
-      onPress={onPress}
-      style={{
-        minWidth: 48,
-        minHeight: 48,
-        alignItems: "center",
-        justifyContent: "center",
-        opacity: disabled ? 0.5 : 1,
-      }}
-    >
-      <Text
-        style={{
-          color: palette.textPrimary,
-          fontFamily: fonts.medium,
-          fontSize: 24,
-        }}
+    <>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={"Choose monthly range, " + label}
+        accessibilityState={{ expanded: open }}
+        onPress={() => setOpen(true)}
+        style={{ minHeight: 48, minWidth: 48, paddingHorizontal: 4, flexDirection: "row", alignItems: "center", gap: 6 }}
       >
-        {label === "Previous period" ? "‹" : "›"}
-      </Text>
-    </Pressable>
+        <Text style={{ color: palette.textPrimary, fontFamily: fonts.medium, fontSize: 14 }}>{label}</Text>
+        <ChevronDown size={16} color={palette.textSecondary} />
+      </Pressable>
+      <ChoiceSheet title="Choose monthly range" visible={open} onDismiss={() => setOpen(false)} showClose>
+        <BodyText>Shows complete calendar months through last month.</BodyText>
+        {([1, 3, 6] as const).map((candidate) => (
+          <CompactAction key={candidate} label={"Last " + candidate + (candidate === 1 ? " month" : " months")}
+            selected={candidate === months} variant="quiet"
+            onPress={() => { onSelect(candidate); setOpen(false); }} />
+        ))}
+      </ChoiceSheet>
+    </>
   );
 }
 function Legend({

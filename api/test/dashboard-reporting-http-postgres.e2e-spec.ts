@@ -223,7 +223,7 @@ describeDatabase(
 
       const response = await http()
         .get(`/api/v1/users/me/spaces/${fixture.spaceId}/reporting/dashboard`)
-        .query({ view: 'monthly', endMonth: '2026-06' })
+        .query({ view: 'monthly', months: '6', endMonth: '2026-06' })
         .set(...authorization(fixture.identity));
 
       expect(response.status).toBe(200);
@@ -306,10 +306,25 @@ describeDatabase(
           .map((month) => month.budgetStatus),
       ).toEqual(['nearing', 'at_limit', 'over']);
 
+      for (const months of [undefined, '1', '3', '6']) {
+        const windowResponse = await http()
+          .get(`/api/v1/users/me/spaces/${fixture.spaceId}/reporting/dashboard`)
+          .query(months === undefined ? {} : { months })
+          .set(...authorization(fixture.identity));
+        expect(windowResponse.status).toBe(200);
+        const window = windowResponse.body as DashboardReportResponse;
+        const count = Number(months ?? '1');
+        expect(window.monthlyExpenses).toHaveLength(count);
+        expect(window.summary.planned.months).toBe(count);
+        expect(window.summary.planned.amount).toBe((2000 * count).toFixed(2));
+        expect(window.range.toDate).toBe('2026-06-30');
+      }
+
       const filteredChart = await http()
         .get(`/api/v1/users/me/spaces/${fixture.spaceId}/reporting/dashboard`)
         .query({
           view: 'monthly',
+          months: '6',
           endMonth: '2026-06',
           chartCategoryId: travel.id,
         })

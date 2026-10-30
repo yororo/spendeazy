@@ -1,4 +1,8 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
+import {
+  STATEMENT_IMPORT_DETAIL_STORE,
+  type StatementImportDetailStore,
+} from './statement-import-detail-store';
 import { assertActiveCategory } from '../../categories/application/active-category';
 import { isValidDomainDate } from '../../http/domain-date';
 import {
@@ -106,6 +110,9 @@ export class StatementImportsService {
     @Optional()
     @Inject(MANILA_CLOCK)
     private readonly clock: ManilaClock = systemManilaClock,
+    @Optional()
+    @Inject(STATEMENT_IMPORT_DETAIL_STORE)
+    private readonly detailStore?: StatementImportDetailStore,
   ) {}
 
   commitReviewedStatementImportInSpace(
@@ -139,6 +146,17 @@ export class StatementImportsService {
     }
 
     return statementImport;
+  }
+
+  async getStatementImportDetailInSpace(
+    spaceId: string,
+    statementImportId: string,
+  ) {
+    if (!this.detailStore)
+      throw new Error('Statement import detail persistence is not configured');
+    const detail = await this.detailStore.read(spaceId, statementImportId);
+    if (!detail) throw new StatementImportNotFoundError();
+    return detail;
   }
 
   async listStatementImportsInSpace(

@@ -13,7 +13,7 @@ import type { ExpenseActivitySnapshot } from "@/api/expense-response";
 import type { ManualExpenseDraft } from "./manual-draft";
 
 export function useExpenseDetail(expenseId: string) {
-  const { active } = useSpaces();
+  const { active, loading: spacesLoading, error: spacesError } = useSpaces();
   const authorized = useAuthorizedClient();
   const spaceId = active?.id ?? null;
   const categories = useSpaceCategories(spaceId);
@@ -64,20 +64,25 @@ export function useExpenseDetail(expenseId: string) {
     };
   }, [editWorkflow, spaceId, workflow]);
   const expense = loaded.phase === "ready" ? loaded.expense : null;
-  const category = categories.categories.find(
-    (item) => item.id === expense?.categoryId,
-  );
-  const addedBy = active?.members.find(
-    (member) => member.id === expense?.addedByUserId,
-  );
   const canEdit =
     active?.accessLevel === "write" &&
     active.status === "active" &&
     expense !== null &&
     expense.deletedAt === undefined;
   const categoryName = (categoryId: string) =>
-    categories.categories.find((item) => item.id === categoryId)?.name ??
-    "Category";
+    categories.loading
+      ? "Loading Category…"
+      : categories.error
+        ? "Category unavailable"
+        : (categories.categories.find((item) => item.id === categoryId)?.name ??
+          "Category unavailable");
+  const memberName = (id: string | null | undefined) =>
+    spacesLoading
+      ? "Loading person…"
+      : spacesError
+        ? "Person unavailable"
+        : (active?.members.find((member) => member.id === id)?.name ??
+          "Deleted user");
   const activitySnapshot = (snapshot: ExpenseActivitySnapshot | undefined) =>
     snapshot
       ? {
@@ -99,15 +104,13 @@ export function useExpenseDetail(expenseId: string) {
     phase: !spaceId || loaded.phase === "loading" ? "loading" : loaded.phase,
     error: loaded.phase === "error" ? loaded.error : null,
     spaceName: active ? spaceIdentityLabel(active) : "Space",
-    archived: active?.status === 'archived',
+    archived: active?.status === "archived",
     activity:
       loaded.phase === "ready"
         ? loaded.activity.map((event) => ({
             id: event.id,
             type: event.type,
-            actorName:
-              active?.members.find((member) => member.id === event.actorUserId)
-                ?.name ?? "Deleted user",
+            actorName: memberName(event.actorUserId),
             occurredAt: event.occurredAt,
             before: activitySnapshot(event.before),
             after: activitySnapshot(event.after),
@@ -119,9 +122,9 @@ export function useExpenseDetail(expenseId: string) {
           description: expense.description,
           amount: expense.amount,
           expenseDate: expense.expenseDate,
-          categoryName: category?.name ?? "Category",
+          categoryName: categoryName(expense.categoryId),
           source: expense.source,
-          addedByName: addedBy?.name ?? null,
+          addedByName: memberName(expense.addedByUserId),
           statementImportId: expense.statementImportId,
           sourceRowId: expense.sourceRowId,
           deletedAt: expense.deletedAt ?? null,

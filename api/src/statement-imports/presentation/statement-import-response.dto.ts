@@ -239,6 +239,14 @@ export class StatementImportHistoryResponseDto {
     example: '12',
   })
   expenseCount!: string;
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    pattern: '^\\d+$',
+    description:
+      'Immutable originally confirmed Expense count; null when legacy provenance is unavailable.',
+  })
+  originalExpenseCount!: string | null;
 }
 
 @ApiSchema({

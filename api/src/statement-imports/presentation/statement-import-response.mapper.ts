@@ -50,6 +50,7 @@ export function toStatementImportHistoryResponse(
   return {
     ...toStatementImportResponse(statementImport),
     expenseCount: statementImport.expenseCount,
+    originalExpenseCount: statementImport.originalExpenseCount,
   };
 }
 

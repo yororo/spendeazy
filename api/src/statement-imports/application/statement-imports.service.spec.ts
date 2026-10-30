@@ -39,6 +39,30 @@ import { UserNotFoundError } from '../../users/application/user-errors';
 import type { UserRecord, UserStore } from '../../users/application/user-store';
 
 describe('StatementImportsService', () => {
+  it('requires an existing same-Space detail and preserves legacy provenance', async () => {
+    const detailStore = { read: jest.fn().mockResolvedValue(null) };
+    const service = new StatementImportsService(
+      new StatementImportStoreFake(),
+      undefined,
+      undefined,
+      undefined,
+      detailStore,
+    );
+    await expect(
+      service.getStatementImportDetailInSpace('7', '18'),
+    ).rejects.toBeInstanceOf(StatementImportNotFoundError);
+    expect(detailStore.read).toHaveBeenCalledWith('7', '18');
+    const detail = {
+      statementImport: { id: '18' },
+      currentExpenses: { count: '0', totalAmount: '0.00' },
+      rows: [],
+    };
+    detailStore.read.mockResolvedValue(detail);
+    await expect(
+      service.getStatementImportDetailInSpace('7', '18'),
+    ).resolves.toBe(detail);
+    expect(detail.statementImport).not.toHaveProperty('confirmation');
+  });
   it('commits the Statement Import and every reviewed Expense in one unit of work', async () => {
     const statementImports = new StatementImportStoreFake();
     const importedExpenses = new ImportedExpenseStoreFake();
@@ -1091,6 +1115,7 @@ function statementImportHistoryRecord(
     totalDebit: null,
     importedAt: new Date('2026-08-29T00:00:00.000Z'),
     expenseCount: '2',
+    originalExpenseCount: null,
     ...overrides,
   };
 }

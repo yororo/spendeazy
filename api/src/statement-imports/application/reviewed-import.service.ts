@@ -1,3 +1,4 @@
+import { safeEvidenceRow } from './statement-import-detail-store';
 import { Inject, Injectable } from '@nestjs/common';
 import { ApplicationError } from '../../errors/application-error';
 import {
@@ -100,25 +101,7 @@ export class ReviewedImportService {
     return this.unitOfWork.execute(async (context) => {
       await context.requireReadAccess(userId, spaceId);
       return (await context.rows.findRows(spaceId, statementImportId)).map(
-        (row) => {
-          const evidence = row.originalEvidence;
-          return {
-            sourceRowId: row.sourceRowId,
-            disposition: row.disposition,
-            originalEvidence: {
-              sourceRowId: evidence.sourceRowId,
-              pageIndex: evidence.pageIndex,
-              sourceOrder: evidence.sourceOrder,
-              original: evidence.original,
-              normalized: evidence.normalized,
-              classification: evidence.classification,
-              classificationEvidence: evidence.classificationEvidence,
-              matchingSource: evidence.matchingSource,
-            },
-            confirmedValues: row.confirmedValues,
-            exclusion: row.exclusion,
-          };
-        },
+        safeEvidenceRow,
       );
     });
   }

@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { createExpenseApiClient } from "@/api/expense-api-client";
 import { useAuthorizedClient } from "@/application/authorized-client";
 import { useSpaces } from "@/application/spaces/provider";
@@ -18,7 +25,11 @@ import {
 
 export function useExpenseBrowse({
   deletedOnly = false,
-}: { deletedOnly?: boolean } = {}) {
+  fixedScope,
+}: {
+  deletedOnly?: boolean;
+  fixedScope?: { sourceSpaceId: string; statementImportId: string };
+} = {}) {
   const {
     active,
     refresh: refreshSpaces,
@@ -31,15 +42,37 @@ export function useExpenseBrowse({
     expenseBrowseSnapshot,
     expenseBrowseSnapshot,
   );
-  const spaceId = active?.id ?? null;
+  const spaceId =
+    fixedScope &&
+    (fixedScope.sourceSpaceId !== active?.id ||
+      !/^[1-9]\d*$/.test(fixedScope.statementImportId))
+      ? null
+      : (active?.id ?? null);
+  const localKey = JSON.stringify([authorized.scope, fixedScope, deletedOnly]);
+  const [local, setLocal] = useState(() => ({
+    key: localKey,
+    selection: emptyExpenseBrowse(spaceId ?? ""),
+  }));
+  const localScroll = useRef({ key: localKey, offset: 0 });
+  if (local.key !== localKey) {
+    setLocal({ key: localKey, selection: emptyExpenseBrowse(spaceId ?? "") });
+  }
   const selection = useMemo(
     () =>
       spaceId === null
         ? null
-        : browse.selection?.spaceId === spaceId
-          ? browse.selection
-          : emptyExpenseBrowse(spaceId),
-    [browse.selection, spaceId],
+        : fixedScope
+          ? {
+              ...(local.key === localKey
+                ? local.selection
+                : emptyExpenseBrowse(spaceId)),
+              spaceId,
+              statementImportId: fixedScope.statementImportId,
+            }
+          : browse.selection?.spaceId === spaceId
+            ? browse.selection
+            : emptyExpenseBrowse(spaceId),
+    [browse.selection, spaceId, fixedScope, local, localKey],
   );
   const categories = useSpaceCategories(spaceId);
   const issues = selection ? expenseBrowseIssues(selection) : [];
@@ -56,13 +89,14 @@ export function useExpenseBrowse({
       authorized.isCurrent() &&
       authorized.scope.spaceId === spaceId &&
       expenseBrowseSnapshot().listRevision === browse.listRevision &&
-      JSON.stringify({
-        deletedOnly,
-        query: expenseListQuery(
-          expenseBrowseSnapshot().selection ??
-            emptyExpenseBrowse(spaceId ?? ""),
-        ),
-      }) === queryKey;
+      (!!fixedScope ||
+        JSON.stringify({
+          deletedOnly,
+          query: expenseListQuery(
+            expenseBrowseSnapshot().selection ??
+              emptyExpenseBrowse(spaceId ?? ""),
+          ),
+        }) === queryKey);
     const api = createExpenseApiClient(authorized);
     return createExpenseBrowseWorkflow(
       current,
@@ -76,6 +110,7 @@ export function useExpenseBrowse({
     queryKey,
     selection,
     spaceId,
+    fixedScope,
   ]);
   const state = useSyncExternalStore(
     resource.subscribe,
@@ -90,12 +125,28 @@ export function useExpenseBrowse({
   const loaded = issues.length === 0 ? state.loaded : null;
   const updateSelection = useCallback(
     (patch: Partial<Omit<ExpenseBrowseSelection, "spaceId">>) => {
-      if (spaceId && authorized.isCurrent()) updateExpenseBrowse(spaceId, patch);
+      if (!spaceId || !authorized.isCurrent()) return;
+      if (fixedScope) {
+        setLocal({
+          key: localKey,
+          selection: {
+            ...selection!,
+            ...patch,
+            spaceId,
+            statementImportId: fixedScope.statementImportId,
+          },
+        });
+        localScroll.current = { key: localKey, offset: 0 };
+      } else updateExpenseBrowse(spaceId, patch);
     },
-    [authorized, spaceId],
+    [authorized, spaceId, fixedScope, localKey, selection],
   );
+  const refresh = useCallback(() => {
+    void resource.reload();
+  }, [resource]);
   return {
     spaceId,
+    refresh,
     selection,
     categories,
     issues,
@@ -118,14 +169,25 @@ export function useExpenseBrowse({
     failure: state.failure,
     refreshSpaces,
     updateSelection,
-    readScroll: () => readExpenseScroll(view),
+    readScroll: () =>
+      fixedScope
+        ? localScroll.current.key === localKey
+          ? localScroll.current.offset
+          : 0
+        : readExpenseScroll(view),
     rememberScroll(offset: number) {
-      if (authorized.isCurrent()) rememberExpenseScroll(offset, view);
+      if (authorized.isCurrent()) {
+        if (fixedScope) localScroll.current = { key: localKey, offset };
+        else rememberExpenseScroll(offset, view);
+      }
     },
     async reload() {
       if (!spaceId || !selection || issues.length) return;
       const success = await resource.reload();
-      if (success) rememberExpenseScroll(0, view);
+      if (success) {
+        if (fixedScope) localScroll.current = { key: localKey, offset: 0 };
+        else rememberExpenseScroll(0, view);
+      }
     },
     retry: resource.retry,
     loadMore: resource.loadMore,

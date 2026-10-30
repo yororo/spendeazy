@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router';
+import { useRouter, type Href } from 'expo-router';
 import { SecondaryButton } from '@/components/buttons';
 import { SupportingText } from '@/components/screen';
 import { StatementImportView } from '@/features/statement-import/import-view';
@@ -7,6 +7,7 @@ import { useStatementImportReview } from '@/features/statement-import/use-statem
 import { StatementImportReviewView } from '@/features/statement-import/review-view';
 import { ImportHistoryItem } from '@/features/statement-import-history/statement-import-history-view';
 import { useStatementImportHistory } from '@/features/statement-import-history/use-statement-import-history';
+import { importDetailPath } from '@/features/statement-import-history/history-navigation';
 import { useImportConfirmation } from '@/features/statement-import/use-import-confirmation';
 import { ImportConfirmationView } from '@/features/statement-import/confirmation-view';
 import { ImportRecoveryView } from '@/features/statement-import/recovery-view';
@@ -37,13 +38,16 @@ export default function ImportStatementScreen() {
 function ImportSelection({ controller, onBack, onHistory }: {
   controller: ReturnType<typeof useStatementImport>; onBack(): void; onHistory(): void;
 }) {
-  const history = useStatementImportHistory();
+  const history = useStatementImportHistory({}, 3);
+  const router = useRouter();
   return <StatementImportView controller={controller} onBack={onBack}
     onHistory={onHistory}
     recentHistory={<>
       {history.loading ? <SupportingText>Loading recent statements…</SupportingText> : null}
       {history.error ? <><SupportingText>{history.error}</SupportingText><SecondaryButton label="Retry history" onPress={history.refresh} /></> : null}
       {!history.loading && !history.error && history.items.length === 0 ? <SupportingText>No Statement Imports have been recorded in this Space.</SupportingText> : null}
-      {history.items.slice(0, 3).map(item => <ImportHistoryItem key={item.id} item={item} />)}
+      {history.items.slice(0, 3).map(item => <ImportHistoryItem key={item.id} item={item} importer={history.importerName(item.importedByUserId)} onPress={() => {
+        if (history.active) router.push(importDetailPath(history.active.id, item.id) as Href);
+      }} />)}
     </>} />;
 }

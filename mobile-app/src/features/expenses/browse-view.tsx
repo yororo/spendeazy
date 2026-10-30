@@ -18,7 +18,7 @@ import { ChoiceSheet } from "@/components/choice-sheet";
 import { CanvasBackground } from "@/components/design-surface";
 import { MoneyAmount } from "@/components/money-amount";
 import { ScreenHeader } from "@/components/screen-header";
-import { BodyText, StackGap } from "@/components/screen";
+import { BodyText, StackGap, SupportingText } from "@/components/screen";
 import { TextField } from "@/components/text-field";
 import { controlSize, space, typeScale } from "@/constants/theme";
 import { useAppTheme } from "@/navigation/app-theme";
@@ -31,12 +31,14 @@ export function ExpenseBrowse({
   onOpenOtherList,
   onBackToDashboard,
   spaceStatus,
+  scopeLabel,
 }: {
   controller: ReturnType<typeof useExpenseBrowse>;
   onOpenExpense: (expenseId: string) => void;
   onOpenOtherList?: () => void;
   onBackToDashboard?: () => void;
   spaceStatus: ReactNode;
+  scopeLabel?: string;
 }) {
   const insets = useSafeAreaInsets();
   const { palette, fonts } = useAppTheme();
@@ -173,6 +175,7 @@ export function ExpenseBrowse({
           ListHeaderComponent={
             <StackGap>
               <ScreenHeader title={deletedOnly ? "Deleted Expenses" : "Expenses"} accessory={spaceStatus} />
+              {scopeLabel ? <SupportingText>{scopeLabel}</SupportingText> : null}
               {loaded && phase === "ready" && issues.length === 0 ? (
                 <View style={{ alignItems: 'center', gap: 3, paddingTop: 8, paddingBottom: 4 }}>
                   <Text style={metadataStyle}>{deletedOnly ? 'Deleted total · PHP' : 'Total spent · PHP'}</Text>

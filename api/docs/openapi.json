@@ -6080,6 +6080,12 @@
             "description": "Non-negative current Expense count encoded as a string.",
             "pattern": "^\\d+$",
             "example": "12"
+          },
+          "originalExpenseCount": {
+            "type": "string",
+            "nullable": true,
+            "pattern": "^\\d+$",
+            "description": "Immutable originally confirmed Expense count; null when legacy provenance is unavailable."
           }
         },
         "description": "A Statement import in the destination Space history collection, including its current Expense count.",
@@ -6096,7 +6102,8 @@
           "totalDebit",
           "importedAt",
           "importedByUserId",
-          "expenseCount"
+          "expenseCount",
+          "originalExpenseCount"
         ]
       },
       "StatementImportHistoryPageResponseDto": {
@@ -6123,6 +6130,25 @@
         "required": [
           "items",
           "nextCursor"
+        ]
+      },
+      "CurrentImportExpensesDto": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "string",
+            "pattern": "^\\d+$",
+            "description": "All nondeleted Expenses in this import, independent of browse filters."
+          },
+          "totalAmount": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d{2}$",
+            "description": "Exact PHP sum without an individual Expense precision limit. Empty imports return 0.00."
+          }
+        },
+        "required": [
+          "count",
+          "totalAmount"
         ]
       },
       "ImmutableImportConfirmationDto": {
@@ -6495,6 +6521,9 @@
             "pattern": "^[1-9]\\d*$",
             "example": "7"
           },
+          "currentExpenses": {
+            "$ref": "#/components/schemas/CurrentImportExpensesDto"
+          },
           "confirmation": {
             "nullable": true,
             "description": "Immutable original confirmation totals/evidence. Null for legacy imports; distinct from current history Expense counts.",
@@ -6515,9 +6544,35 @@
                 "disposition",
                 "originalEvidence",
                 "confirmedValues",
-                "exclusion"
+                "exclusion",
+                "expense"
               ],
               "properties": {
+                "expense": {
+                  "type": "object",
+                  "nullable": true,
+                  "additionalProperties": false,
+                  "description": "Same-Space retained Expense for an included row, or null. Edited means edit Activity exists, including reversions; deletion is independent.",
+                  "required": [
+                    "id",
+                    "edited",
+                    "deletedAt"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[1-9]\\d*$"
+                    },
+                    "edited": {
+                      "type": "boolean"
+                    },
+                    "deletedAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    }
+                  }
+                },
                 "sourceRowId": {
                   "type": "string"
                 },
@@ -6757,6 +6812,7 @@
           "totalDebit",
           "importedAt",
           "importedByUserId",
+          "currentExpenses",
           "confirmation",
           "rows"
         ]

@@ -1,4 +1,6 @@
 import { StatementImportOperationsController } from './presentation/statement-import-operations.controller';
+import { STATEMENT_IMPORT_DETAIL_STORE } from './application/statement-import-detail-store';
+import { TypeOrmStatementImportDetailStore } from './infrastructure/typeorm-statement-import-detail-store';
 import { ReviewedImportService } from './application/reviewed-import.service';
 import { REVIEWED_IMPORT_UNIT_OF_WORK } from './application/reviewed-import-unit-of-work';
 import { TypeOrmReviewedImportUnitOfWork } from './infrastructure/typeorm-reviewed-import-unit-of-work';
@@ -56,6 +58,10 @@ export class StatementImportsModule {
           useExisting: TypeOrmReviewedImportUnitOfWork,
         },
         TypeOrmStatementImportStore,
+        {
+          provide: STATEMENT_IMPORT_DETAIL_STORE,
+          useClass: TypeOrmStatementImportDetailStore,
+        },
         TypeOrmStatementImportConfirmationUnitOfWork,
         {
           provide: STATEMENT_IMPORT_CONFIRMATION_UNIT_OF_WORK,

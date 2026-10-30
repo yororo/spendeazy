@@ -50,7 +50,7 @@ describe('Space Statement Import API routes', () => {
   };
   const service = {
     listStatementImportsInSpace: jest.fn(),
-    getStatementImportInSpace: jest.fn(),
+    getStatementImportDetailInSpace: jest.fn(),
     commitReviewedStatementImportInSpace: jest.fn(),
   };
 
@@ -95,7 +95,11 @@ describe('Space Statement Import API routes', () => {
       items: [historyRecord()],
       nextCursor: null,
     });
-    service.getStatementImportInSpace.mockResolvedValue(importRecord());
+    service.getStatementImportDetailInSpace.mockResolvedValue({
+      statementImport: importRecord(),
+      rows: [],
+      currentExpenses: { count: '1', totalAmount: '100.00' },
+    });
     previewService.confirm.mockResolvedValue({
       result: committedResult(),
       replayed: false,
@@ -229,7 +233,10 @@ describe('Space Statement Import API routes', () => {
       fromDate: '2026-08-01',
       pageSize: 10,
     });
-    expect(service.getStatementImportInSpace).toHaveBeenCalledWith('77', '400');
+    expect(service.getStatementImportDetailInSpace).toHaveBeenCalledWith(
+      '77',
+      '400',
+    );
     expect(previewService.confirm).toHaveBeenCalledWith(
       '99',
       '77',
@@ -256,6 +263,64 @@ describe('Space Statement Import API routes', () => {
     expect(write.status).toBe(403);
     expect(service.listStatementImportsInSpace).not.toHaveBeenCalled();
     expect(previewService.confirm).toHaveBeenCalledTimes(1);
+  });
+
+  it('publishes original evidence separately from exact current totals and overlapping Expense status', async () => {
+    const payload = completeInput();
+    const { transactions, ...evidence } = payload.evidence;
+    const rows = transactions.map((row, index) => {
+      const { duplicateReference: _private, ...originalEvidence } = row;
+      void _private;
+      const confirmedValues =
+        payload.expenses.find(
+          (expense) => expense.sourceRowId === row.sourceRowId,
+        ) ?? null;
+      return {
+        sourceRowId: row.sourceRowId,
+        disposition: confirmedValues ? 'included' : 'excluded',
+        originalEvidence,
+        confirmedValues,
+        exclusion:
+          payload.excluded.find(
+            (excluded) => excluded.sourceRowId === row.sourceRowId,
+          ) ?? null,
+        expense: confirmedValues
+          ? {
+              id: String(index + 1),
+              edited: true,
+              deletedAt: '2026-10-30T00:00:00.000Z',
+            }
+          : null,
+      };
+    });
+    service.getStatementImportDetailInSpace.mockResolvedValueOnce({
+      statementImport: {
+        ...importRecord(),
+        confirmation: {
+          evidence,
+          includedCount: '2',
+          excludedCount: '8',
+          originalExpenseCount: '2',
+          originalExpenseTotal: '1300.00',
+          acknowledgedWarnings: [],
+          acknowledgedWarningDigest: null,
+        },
+      },
+      rows,
+      currentExpenses: { count: '0', totalAmount: '0.00' },
+    });
+    const response = await request(httpServer(application))
+      .get('/api/v1/users/me/spaces/77/statement-imports/400')
+      .set('Authorization', 'Bearer token-a')
+      .expect(200);
+    expect(response.body).toMatchObject({
+      confirmation: { originalExpenseTotal: '1300.00' },
+      currentExpenses: { count: '0', totalAmount: '0.00' },
+      rows,
+    });
+    expect(response.text).not.toContain('fileHash');
+    expect(response.text).not.toContain('duplicateReference');
+    expect(response.text).not.toContain('referenceHash');
   });
 
   it('rejects legacy field names and category-less saved Expenses', async () => {
@@ -509,7 +574,7 @@ function importRecord() {
 function historyRecord() {
   const record = importRecord();
   delete record.fileHash;
-  return { ...record, expenseCount: '1' };
+  return { ...record, expenseCount: '1', originalExpenseCount: null };
 }
 
 function httpServer(application: INestApplication): Server {

@@ -56,6 +56,21 @@ export class TypeOrmStatementImportStore implements StatementImportStore {
     const statementImportQuery = this.entityManager
       .getRepository(StatementImportEntity)
       .createQueryBuilder('statementImport')
+      .select([
+        'statementImport.id',
+        'statementImport.spaceId',
+        'statementImport.importedByUserId',
+        'statementImport.fileName',
+        'statementImport.statementDate',
+        'statementImport.provider',
+        'statementImport.accountFormat',
+        'statementImport.statementType',
+        'statementImport.historyFromDate',
+        'statementImport.historyToDate',
+        'statementImport.totalDebit',
+        'statementImport.importedAt',
+        'statementImport.originalExpenseCount',
+      ])
       .leftJoin(
         ExpenseEntity,
         'expense',
@@ -188,6 +203,7 @@ function toHistoryRecord(
     totalDebit: entity.totalDebit,
     importedAt: entity.importedAt,
     expenseCount: serializeExpenseCount(expenseCount),
+    originalExpenseCount: entity.originalExpenseCount ?? null,
   };
 }
 

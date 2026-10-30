@@ -733,6 +733,77 @@ describeDatabase(
         .expect(400);
     });
 
+    it('traverses confirmation history in ID order within Dashboard Manila dates and rejects changed-filter cursors', async () => {
+      const fixture = await createFixture('history-period');
+      const other = await createFixture('history-foreign');
+      now = new Date('2026-12-31T16:00:00.000Z');
+      await saveStatementImport(
+        fixture,
+        '2026-01-01',
+        '2026-12-31T15:59:59.999Z',
+      );
+      const first = await saveStatementImport(
+        fixture,
+        '2025-01-01',
+        '2026-12-31T16:00:00.000Z',
+      );
+      const second = await saveStatementImport(
+        fixture,
+        '2025-01-01',
+        '2026-12-31T16:00:00.000Z',
+      );
+      await saveStatementImport(
+        fixture,
+        '2027-01-01',
+        '2027-01-01T16:00:00.000Z',
+      );
+      await saveStatementImport(
+        other,
+        '2027-01-01',
+        '2026-12-31T16:00:00.000Z',
+      );
+      const report = await yearlyReport(fixture, '2027');
+      const filter = report.summary.statementImports.filter;
+      expect(filter).toEqual({ fromDate: '2027-01-01', toDate: '2027-01-01' });
+      const path = `/api/v1/users/me/spaces/${fixture.spaceId}/statement-imports`;
+      const page = await http()
+        .get(path)
+        .query({ ...filter, pageSize: 1 })
+        .set(...authorization(fixture.identity))
+        .expect(200);
+      const body = page.body as { items: { id: string }[]; nextCursor: string };
+      expect(body.items.map((item) => item.id)).toEqual([second.id]);
+      const next = await http()
+        .get(path)
+        .query({ ...filter, pageSize: 1, cursor: body.nextCursor })
+        .set(...authorization(fixture.identity))
+        .expect(200);
+      const nextBody = next.body as {
+        items: { id: string }[];
+        nextCursor: string | null;
+      };
+      expect(nextBody.items.map((item) => item.id)).toEqual([first.id]);
+      expect(nextBody.nextCursor).toBeNull();
+      expect(report.summary.statementImports.count).toBe(
+        String(body.items.length + nextBody.items.length),
+      );
+      await http()
+        .get(path)
+        .query({ ...filter, toDate: '2027-01-02', cursor: body.nextCursor })
+        .set(...authorization(fixture.identity))
+        .expect(400);
+      await http()
+        .get(`${path}/${first.id}`)
+        .set(...authorization(other.identity))
+        .expect(404);
+      await http()
+        .get(
+          `/api/v1/users/me/spaces/${other.spaceId}/statement-imports/${first.id}`,
+        )
+        .set(...authorization(other.identity))
+        .expect(404);
+    });
+
     it('keeps actuals, import provenance and complete totals independent of chart selection and other Spaces', async () => {
       const fixture = await createFixture('independence');
       const other = await createFixture('other-space');

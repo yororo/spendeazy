@@ -1,5 +1,22 @@
-import { authorizedRequest, type AuthorizedRequestOptions } from './authorized-request.ts';
-import { decodeApiResponse } from './request-failure.ts';
+import {
+  authorizedRequest,
+  type AuthorizedRequestOptions,
+} from "./authorized-request.ts";
+import { decodeApiResponse } from "./request-failure.ts";
+import {
+  record,
+  text,
+  id,
+  count,
+  amount,
+  nullable,
+  date,
+  timestamp,
+  readConfirmation,
+  readEvidenceRow,
+  type ImportConfirmation,
+  type ImportEvidenceRow,
+} from "./statement-import-detail-response.ts";
 
 export type StatementImportHistoryItem = {
   id: string;
@@ -7,73 +24,126 @@ export type StatementImportHistoryItem = {
   statementDate: string | null;
   provider: string;
   accountFormat: string | null;
-  statementType: 'credit_card' | 'e_wallet';
+  statementType: "credit_card" | "e_wallet";
   historyFromDate: string | null;
   historyToDate: string | null;
   totalDebit: string | null;
   importedAt: string;
   importedByUserId: string;
   expenseCount: string;
+  originalExpenseCount: string | null;
 };
-
-export type StatementImportHistoryPage = { items: StatementImportHistoryItem[]; nextCursor: string | null };
-
-export function createStatementImportHistoryApiClient(options: AuthorizedRequestOptions) {
+export type StatementImportHistoryPage = {
+  items: StatementImportHistoryItem[];
+  nextCursor: string | null;
+};
+export type StatementImportHistoryQuery = {
+  fromDate?: string;
+  toDate?: string;
+  cursor?: string;
+  pageSize?: number;
+};
+export type StatementImportDetail = Omit<
+  StatementImportHistoryItem,
+  "expenseCount" | "originalExpenseCount"
+> & {
+  confirmation: ImportConfirmation | null;
+  rows: ImportEvidenceRow[];
+  currentExpenses: { count: string; totalAmount: string };
+};
+export function createStatementImportHistoryApiClient(
+  options: AuthorizedRequestOptions,
+) {
   return {
-    async list(spaceId: string, cursor?: string): Promise<StatementImportHistoryPage> {
-      const query = new URLSearchParams({ pageSize: '100' });
-      if (cursor) query.set('cursor', cursor);
-      const payload = await authorizedRequest<unknown>(options,
-        `/api/v1/users/me/spaces/${encodeURIComponent(spaceId)}/statement-imports?${query.toString()}`);
-      return decodeApiResponse(() => readPage(payload));
+    async list(
+      spaceId: string,
+      input: StatementImportHistoryQuery = {},
+    ): Promise<StatementImportHistoryPage> {
+      id(spaceId);
+      const pageSize = input.pageSize ?? 100;
+      if (!Number.isInteger(pageSize) || pageSize < 1 || pageSize > 100)
+        throw Error("Invalid page size");
+      const query = new URLSearchParams({ pageSize: String(pageSize) });
+      if (input.fromDate !== undefined)
+        query.set("fromDate", date(input.fromDate));
+      if (input.toDate !== undefined) query.set("toDate", date(input.toDate));
+      if (input.fromDate && input.toDate && input.fromDate > input.toDate)
+        throw Error("Invalid date range");
+      if (input.cursor) query.set("cursor", input.cursor);
+      const payload = await authorizedRequest<unknown>(
+        options,
+        `/api/v1/users/me/spaces/${spaceId}/statement-imports?${query.toString()}`,
+      );
+      return decodeApiResponse(() => {
+        const value = record(payload);
+        if (
+          !Array.isArray(value.items) ||
+          !(
+            value.nextCursor === null ||
+            (typeof value.nextCursor === "string" &&
+              /^[A-Za-z0-9_-]+$/u.test(value.nextCursor))
+          )
+        )
+          throw Error("Invalid history page");
+        return {
+          items: value.items.map((value) => {
+            const item = record(value);
+            return {
+              ...readMetadata(item),
+              expenseCount: count(item.expenseCount),
+              originalExpenseCount: nullable(item.originalExpenseCount, count),
+            };
+          }),
+          nextCursor: value.nextCursor,
+        };
+      });
+    },
+    async detail(
+      spaceId: string,
+      statementImportId: string,
+    ): Promise<StatementImportDetail> {
+      const payload = await authorizedRequest<unknown>(
+        options,
+        `/api/v1/users/me/spaces/${id(spaceId)}/statement-imports/${id(statementImportId)}`,
+      );
+      return decodeApiResponse(() => {
+        const value = record(payload),
+          current = record(value.currentExpenses);
+        if (!Array.isArray(value.rows)) throw Error("Invalid evidence rows");
+        const rows = value.rows.map(readEvidenceRow);
+        if (new Set(rows.map((row) => row.sourceRowId)).size !== rows.length)
+          throw Error("Duplicate evidence rows");
+        return {
+          ...readMetadata(value),
+          confirmation: nullable(value.confirmation, readConfirmation),
+          rows,
+          currentExpenses: {
+            count: count(current.count),
+            totalAmount: amount(current.totalAmount),
+          },
+        };
+      });
     },
   };
 }
-
-function readPage(value: unknown): StatementImportHistoryPage {
-  if (!isRecord(value) || !Array.isArray(value.items) || !(value.nextCursor === null || typeof value.nextCursor === 'string')) {
-    throw new Error('Invalid Statement Import history page');
-  }
-  return { items: value.items.map(readItem), nextCursor: value.nextCursor };
-}
-
-function readItem(value: unknown): StatementImportHistoryItem {
-  if (!isRecord(value) || typeof value.fileName !== 'string' || typeof value.provider !== 'string' ||
-      !(value.statementType === 'credit_card' || value.statementType === 'e_wallet') ||
-      typeof value.expenseCount !== 'string' || !/^\d+$/u.test(value.expenseCount)) {
-    throw new Error('Invalid Statement Import history item');
-  }
+function readMetadata(
+  value: Record<string, unknown>,
+): Omit<StatementImportHistoryItem, "expenseCount" | "originalExpenseCount"> {
+  if (!(
+    value.statementType === "credit_card" || value.statementType === "e_wallet"
+  ))
+    throw Error("Invalid Statement type");
   return {
-    id: readId(value.id),
-    fileName: value.fileName,
-    statementDate: nullableString(value.statementDate),
-    provider: value.provider,
-    accountFormat: nullableString(value.accountFormat),
+    id: id(value.id),
+    fileName: text(value.fileName),
+    provider: text(value.provider),
     statementType: value.statementType,
-    historyFromDate: nullableString(value.historyFromDate),
-    historyToDate: nullableString(value.historyToDate),
-    totalDebit: nullableString(value.totalDebit),
-    importedAt: readTimestamp(value.importedAt),
-    importedByUserId: readId(value.importedByUserId),
-    expenseCount: value.expenseCount,
+    statementDate: nullable(value.statementDate, date),
+    accountFormat: nullable(value.accountFormat, text),
+    historyFromDate: nullable(value.historyFromDate, date),
+    historyToDate: nullable(value.historyToDate, date),
+    totalDebit: nullable(value.totalDebit, amount),
+    importedAt: timestamp(value.importedAt),
+    importedByUserId: id(value.importedByUserId),
   };
-}
-
-function readId(value: unknown): string {
-  if (typeof value === 'string' && /^[1-9]\d*$/u.test(value)) return value;
-  throw new Error('Invalid identifier');
-}
-
-function nullableString(value: unknown): string | null {
-  if (value === null || typeof value === 'string') return value;
-  throw new Error('Invalid nullable string');
-}
-
-function readTimestamp(value: unknown): string {
-  if (typeof value === 'string' && Number.isFinite(Date.parse(value))) return value;
-  throw new Error('Invalid timestamp');
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
 }

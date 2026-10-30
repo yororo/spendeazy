@@ -52,9 +52,10 @@ export interface StatementImportRecord {
 
 export interface StatementImportHistoryRecord extends Omit<
   StatementImportRecord,
-  'fileHash'
+  'fileHash' | 'confirmation'
 > {
   expenseCount: string;
+  originalExpenseCount: string | null;
 }
 
 export interface NewStatementImport {

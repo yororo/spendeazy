@@ -78,7 +78,11 @@ describe('TypeOrmStatementImportStore', () => {
 
   it('queries a stable filtered page with Expense counts and a forward-only boundary', async () => {
     const entities = [
-      statementImportEntity({ id: '3', statementDate: '2026-08-03' }),
+      statementImportEntity({
+        id: '3',
+        statementDate: '2026-08-03',
+        originalExpenseCount: '20',
+      }),
       statementImportEntity({ id: '2', statementDate: '2026-08-03' }),
     ];
     const query = statementImportPageQuery(entities, [
@@ -108,6 +112,7 @@ describe('TypeOrmStatementImportStore', () => {
         id: '3',
         statementDate: '2026-08-03',
         expenseCount: '12',
+        originalExpenseCount: '20',
       }),
       statementImportHistoryRecord({
         id: '2',
@@ -142,6 +147,10 @@ describe('TypeOrmStatementImportStore', () => {
       'expenseCount',
     );
     expect(query.groupBy).toHaveBeenCalledWith('statementImport.id');
+    const selected = (query.select.mock.calls as unknown as [string[]][])[0][0];
+    expect(selected).toContain('statementImport.originalExpenseCount');
+    expect(selected).not.toContain('statementImport.confirmationEvidence');
+    expect(selected).not.toContain('statementImport.fileHash');
     expect(query.orderBy).toHaveBeenCalledWith(
       'statementImport.importedAt',
       'DESC',
@@ -197,6 +206,7 @@ function statementImportPageQuery(
   raw: object[],
 ): Record<string, jest.Mock> {
   return {
+    select: jest.fn().mockReturnThis(),
     leftJoin: jest.fn().mockReturnThis(),
     addSelect: jest.fn().mockReturnThis(),
     where: jest.fn().mockReturnThis(),
@@ -268,6 +278,7 @@ function statementImportHistoryRecord(
     totalDebit: null,
     importedAt: new Date('2026-08-29T00:00:00.000Z'),
     expenseCount: '2',
+    originalExpenseCount: null,
     ...overrides,
   };
 }

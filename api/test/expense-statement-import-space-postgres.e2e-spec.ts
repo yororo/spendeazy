@@ -1,3 +1,4 @@
+import { TypeOrmStatementImportDetailStore } from '../src/statement-imports/infrastructure/typeorm-statement-import-detail-store';
 import { TypeOrmSpaceLifecycleStore } from '../src/spaces/infrastructure/typeorm-space-lifecycle-store';
 import { ReviewedImportService } from '../src/statement-imports/application/reviewed-import.service';
 import { Test } from '@nestjs/testing';
@@ -1106,7 +1107,8 @@ describeDatabase(
         wire,
         new Date('2026-10-30T00:00:00Z'),
       );
-      payload.expenses.forEach((row) => {
+      payload.expenses.forEach((row, index) => {
+        row.amount = index === 0 ? '100.00' : '200.00';
         row.categoryId = category.id;
       });
       payload.rememberedRules.forEach((rule) => {
@@ -1142,7 +1144,7 @@ describeDatabase(
             includedCount: '2',
             excludedCount: '8',
             originalExpenseCount: '2',
-            originalExpenseTotal: '1300.00',
+            originalExpenseTotal: '300.00',
             acknowledgedWarnings: [],
             acknowledgedWarningDigest: null,
           },
@@ -1175,7 +1177,7 @@ describeDatabase(
           statementImportId: imported.id,
           confirmedAt: confirmedAt.toISOString(),
           originalExpenseCount: '2',
-          originalExpenseTotal: '1300.00',
+          originalExpenseTotal: '300.00',
         };
         await operations.commit(key, result);
         return { imported, rows, expenses, result };
@@ -1187,6 +1189,60 @@ describeDatabase(
       expect(initialRows).toHaveLength(10);
       expect(JSON.stringify(initialRows)).not.toContain('duplicateReference');
       expect(JSON.stringify(initialRows)).not.toContain('fictional-ref-');
+      const detailStore = new TypeOrmStatementImportDetailStore(database);
+      const initialDetail = await detailStore.read(spaceId, saved.imported.id);
+      expect(initialDetail?.currentExpenses).toEqual({
+        count: '2',
+        totalAmount: '300.00',
+      });
+      expect(
+        initialDetail?.statementImport.confirmation?.originalExpenseTotal,
+      ).toBe('300.00');
+      expect(
+        initialDetail?.rows
+          .filter((row) => row.disposition === 'excluded')
+          .every((row) => row.expense === null),
+      ).toBe(true);
+      expect(JSON.stringify(initialDetail?.rows)).not.toContain(
+        'referenceHash',
+      );
+      expect(await detailStore.read(spaceIds[1], saved.imported.id)).toBeNull();
+      for (const expense of saved.expenses)
+        await database
+          .getRepository(ExpenseEntity)
+          .update(expense.id, { amount: '9999999999999.99' });
+      expect(
+        (await detailStore.read(spaceId, saved.imported.id))?.currentExpenses
+          .totalAmount,
+      ).toBe('19999999999999.98');
+      await database
+        .getRepository(ExpenseEntity)
+        .update(saved.expenses[0].id, { amount: '100.00' });
+      await database
+        .getRepository(ExpenseEntity)
+        .update(saved.expenses[1].id, { amount: '200.00' });
+      for (const expense of saved.expenses) {
+        for (let i = 0; i < 2; i++)
+          await database.getRepository(ExpenseActivityEntity).save({
+            spaceId,
+            expenseId: expense.id,
+            actorUserId: userId,
+            type: 'edited',
+            occurredAt: new Date(),
+            beforeState: {
+              categoryId: expense.categoryId,
+              expenseDate: expense.expenseDate,
+              description: expense.description,
+              amount: expense.amount,
+            },
+            afterState: {
+              categoryId: expense.categoryId,
+              expenseDate: expense.expenseDate,
+              description: 'Edited',
+              amount: '150.00',
+            },
+          });
+      }
       await database.getRepository(ExpenseEntity).update(saved.expenses[0].id, {
         amount: '150.00',
         description: 'Edited',
@@ -1209,7 +1265,77 @@ describeDatabase(
             database.manager,
           ).findByIdInSpace(spaceId, saved.imported.id)
         )?.confirmation?.originalExpenseTotal,
-      ).toBe('1300.00');
+      ).toBe('300.00');
+
+      const changed = await detailStore.read(spaceId, saved.imported.id);
+      expect(changed?.currentExpenses).toEqual({
+        count: '1',
+        totalAmount: '150.00',
+      });
+      expect(
+        changed?.rows
+          .filter((row) => row.expense)
+          .every((row) => row.expense?.edited),
+      ).toBe(true);
+      expect(
+        changed?.rows.find((row) => row.expense?.id === saved.expenses[1].id)
+          ?.expense?.deletedAt,
+      ).not.toBeNull();
+      await database
+        .getRepository(ExpenseEntity)
+        .update(saved.expenses[0].id, { amount: '100.00' });
+      expect(
+        (await detailStore.read(spaceId, saved.imported.id))?.rows.find(
+          (row) => row.expense?.id === saved.expenses[0].id,
+        )?.expense?.edited,
+      ).toBe(true);
+      await database
+        .getRepository(ExpenseEntity)
+        .update(saved.expenses[0].id, { amount: '150.00' });
+      // Mutate after SUM has established the read snapshot, before linked status is read.
+      const concurrentSource = {
+        transaction: (
+          _isolation: string,
+          read: (manager: EntityManager) => Promise<unknown>,
+        ) =>
+          database.transaction('REPEATABLE READ', async (manager) => {
+            const query = manager.query.bind(manager) as (
+              sql: string,
+              parameters?: unknown[],
+            ) => Promise<unknown>;
+            const proxy = Object.create(manager) as EntityManager;
+            proxy.query = async (
+              ...args: Parameters<EntityManager['query']>
+            ) => {
+              const result: unknown = await query(...args);
+              if (String(args[0]).includes('SUM(amount)'))
+                await database
+                  .getRepository(ExpenseEntity)
+                  .update(saved.expenses[0].id, { deletedAt: new Date() });
+              return result;
+            };
+            return read(proxy);
+          }),
+      } as unknown as DataSource;
+      const during = await new TypeOrmStatementImportDetailStore(
+        concurrentSource,
+      ).read(spaceId, saved.imported.id);
+      expect(during?.currentExpenses).toEqual({
+        count: '1',
+        totalAmount: '150.00',
+      });
+      expect(
+        during?.rows.find((row) => row.expense?.id === saved.expenses[0].id)
+          ?.expense?.deletedAt,
+      ).toBeNull();
+      const after = await detailStore.read(spaceId, saved.imported.id);
+      expect(after?.currentExpenses).toEqual({
+        count: '0',
+        totalAmount: '0.00',
+      });
+      expect(after?.statementImport.confirmation?.originalExpenseTotal).toBe(
+        '300.00',
+      );
 
       await expect(
         database

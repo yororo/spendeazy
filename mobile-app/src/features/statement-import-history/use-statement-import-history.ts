@@ -1,99 +1,99 @@
-import { useEffect, useMemo, useState } from 'react';
-
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { createStatementImportHistoryApiClient } from "@/api/statement-import-history-api-client";
+import { useAuthorizedClient } from "@/application/authorized-client";
+import { useSpaces } from "@/application/spaces/provider";
 import {
-  createStatementImportHistoryApiClient,
-  type StatementImportHistoryItem,
-} from '@/api/statement-import-history-api-client';
-import { requestFailureMessage } from '@/api/request-failure';
-import { useAuthorizedClient } from '@/application/authorized-client';
-import { useSpaces } from '@/application/spaces/provider';
+  ALL_DATES,
+  createHistoryWorkflow,
+  filterError,
+  routeHistoryFilters,
+  type HistoryFilters,
+} from "./history-workflow";
 
-export function useStatementImportHistory() {
-  const { active } = useSpaces();
+export function useStatementImportHistory(
+  route: { sourceSpaceId?: unknown; fromDate?: unknown; toDate?: unknown } = {},
+  pageSize = 100,
+) {
+  const { active, loading: spacesLoading, error: spacesError } = useSpaces();
   const authorized = useAuthorizedClient();
   const api = useMemo(
     () => createStatementImportHistoryApiClient(authorized),
     [authorized],
   );
-  const [page, setPage] = useState<{
-    spaceId: string;
-    items: StatementImportHistoryItem[];
-    nextCursor: string | null;
-  } | null>(null);
-  const [loadedSpaceId, setLoadedSpaceId] = useState<string | null>(null);
-  const [failure, setFailure] = useState<{
-    spaceId: string;
-    error: string;
-  } | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [requestId, setRequestId] = useState(0);
-  const items = page && page.spaceId === active?.id ? page.items : [];
-  const nextCursor = page && page.spaceId === active?.id ? page.nextCursor : null;
-  const error = failure && failure.spaceId === active?.id ? failure.error : null;
-  const loading = active !== null && (loadedSpaceId !== active.id || refreshing);
-
-  useEffect(() => {
-    if (!active?.id) return;
-    let current = true;
-    void api.list(active.id).then((result) => {
-      if (!current) return;
-      setPage({
-        spaceId: active.id,
-        items: result.items,
-        nextCursor: result.nextCursor,
-      });
-      setLoadedSpaceId(active.id);
-      setFailure(null);
-      setRefreshing(false);
-    }).catch((cause: unknown) => {
-      if (!current) return;
-      setFailure({ spaceId: active.id, error: requestFailureMessage(cause) });
-      setLoadedSpaceId(active.id);
-      setRefreshing(false);
+  const scopeKey = JSON.stringify([authorized.scope, active?.id]);
+  // Apply route filters only on entry. A later Space/session lifetime starts unfiltered.
+  const [selection, setSelection] = useState(() => ({
+    scopeKey,
+    userId: authorized.scope.userId,
+    awaitingSpace: !active,
+    filters: routeHistoryFilters(route, active?.id ?? null),
+  }));
+  const awaitingInitialSpace =
+    selection.awaitingSpace && selection.userId === authorized.scope.userId;
+  const resetFilters = awaitingInitialSpace
+    ? routeHistoryFilters(route, active?.id ?? null)
+    : ALL_DATES;
+  if (selection.scopeKey !== scopeKey)
+    setSelection({
+      scopeKey,
+      userId: authorized.scope.userId,
+      awaitingSpace: awaitingInitialSpace && !active,
+      filters: resetFilters,
     });
-    return () => { current = false; };
-  }, [active?.id, api, requestId]);
-
-  async function loadMore() {
-    if (!active?.id || !nextCursor || loading || loadingMore) return;
-    const spaceId = active.id;
-    setLoadingMore(true);
-    setFailure(null);
-    try {
-      const next = await api.list(spaceId, nextCursor);
-      if (!authorized.isCurrent()) return;
-      setPage((current) => current?.spaceId === spaceId
-        ? {
-            spaceId,
-            items: [...current.items, ...next.items],
-            nextCursor: next.nextCursor,
-          }
-        : current);
-    } catch (cause) {
-      if (authorized.isCurrent()) {
-        setFailure({ spaceId, error: requestFailureMessage(cause) });
-      }
-    } finally {
-      setLoadingMore(false);
-    }
+  const filters =
+    selection.scopeKey === scopeKey ? selection.filters : resetFilters;
+  const workflow = useMemo(
+    () =>
+      createHistoryWorkflow(
+        active?.id ?? null,
+        filters,
+        authorized.isCurrent,
+        api.list,
+        pageSize,
+      ),
+    [active?.id, filters, authorized, api, pageSize],
+  );
+  const state = useSyncExternalStore(
+    workflow.subscribe,
+    workflow.snapshot,
+    workflow.snapshot,
+  );
+  useEffect(() => {
+    void workflow.refresh();
+    return () => workflow.cancel();
+  }, [workflow]);
+  function changeFilters(filters: HistoryFilters) {
+    setSelection({
+      scopeKey,
+      userId: authorized.scope.userId,
+      awaitingSpace: false,
+      filters,
+    });
   }
-
-  function refresh() {
-    if (!active?.id) return;
-    setRefreshing(true);
-    setRequestId((current) => current + 1);
-  }
-
   return {
     active,
-    items,
-    nextCursor,
-    error,
-    loading,
-    refreshing,
-    loadingMore,
-    loadMore,
-    refresh,
+    filters,
+    changeFilters,
+    filterError: filterError(filters),
+    items: state.page?.items ?? [],
+    nextCursor: state.page?.nextCursor ?? null,
+    error: state.error,
+    loading: !!active && !state.page && !state.error && !filterError(filters),
+    refreshing: !!state.page && state.operation?.kind === "replace",
+    loadingMore: state.operation?.kind === "append",
+    refresh: () => {
+      void workflow.refresh();
+    },
+    retry: () => {
+      void workflow.retry();
+    },
+    loadMore: workflow.loadMore,
+    importerName: (id: string) =>
+      spacesLoading
+        ? "Loading importer…"
+        : spacesError
+          ? "Importer unavailable"
+          : (active?.members.find((member) => member.id === id)?.name ??
+            "Deleted user"),
   };
 }

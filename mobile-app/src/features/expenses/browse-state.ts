@@ -12,6 +12,7 @@ export type ExpenseSort = "newest" | "oldest";
 
 export type ExpenseBrowseSelection = {
   spaceId: string;
+  statementImportId?: string;
   fromDate: string;
   toDate: string;
   categoryId: string | null;
@@ -20,6 +21,7 @@ export type ExpenseBrowseSelection = {
 };
 
 export type ExpenseListRequest = {
+  statementImportId?: string;
   fromDate?: string;
   toDate?: string;
   categoryId?: string;
@@ -81,6 +83,7 @@ export function expenseListQuery(
 ): ExpenseListRequest {
   const description = selection.description.trim();
   return {
+    ...(selection.statementImportId ? { statementImportId: selection.statementImportId } : {}),
     ...(selection.fromDate === "" ? {} : { fromDate: selection.fromDate }),
     ...(selection.toDate === "" ? {} : { toDate: selection.toDate }),
     ...(selection.categoryId === null

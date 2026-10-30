@@ -1,4 +1,3 @@
-import { ReviewedImportService } from '../application/reviewed-import.service';
 import { StatementImportDetailResponseDto } from './statement-import-detail.dto';
 import { Controller, Get, HttpStatus, Param, Query, Req } from '@nestjs/common';
 import {
@@ -51,7 +50,6 @@ export class SpaceStatementImportsController {
   constructor(
     private readonly statementImportsService: StatementImportsService,
     private readonly spaceAccessService: SpaceAccessService,
-    private readonly reviewedImports: ReviewedImportService,
   ) {}
 
   @Get(':statementImportId')
@@ -86,19 +84,16 @@ export class SpaceStatementImportsController {
   ): Promise<StatementImportDetailResponseDto> {
     const userId = requireAuthenticatedUserId(request);
     await this.spaceAccessService.requireReadAccess(userId, params.spaceId);
-    const statementImport =
-      await this.statementImportsService.getStatementImportInSpace(
+    const detail =
+      await this.statementImportsService.getStatementImportDetailInSpace(
         params.spaceId,
         params.statementImportId,
       );
     return {
-      ...toStatementImportResponse(statementImport),
-      confirmation: statementImport.confirmation ?? null,
-      rows: await this.reviewedImports.evidenceRows(
-        userId,
-        params.spaceId,
-        params.statementImportId,
-      ),
+      ...toStatementImportResponse(detail.statementImport),
+      confirmation: detail.statementImport.confirmation ?? null,
+      rows: detail.rows,
+      currentExpenses: detail.currentExpenses,
     };
   }
 

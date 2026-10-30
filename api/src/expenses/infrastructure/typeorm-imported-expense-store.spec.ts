@@ -282,7 +282,7 @@ function transactionalEntityManager(
   const userQuery = {
     where: jest.fn().mockReturnThis(),
     setLock: jest.fn().mockReturnThis(),
-    getOne: jest.fn().mockResolvedValue({ id: '8' }),
+    getOne: jest.fn().mockResolvedValue({ id: '8', deletionStatus: 'active' }),
   };
   const userRepository = {
     createQueryBuilder: jest.fn().mockReturnValue(userQuery),

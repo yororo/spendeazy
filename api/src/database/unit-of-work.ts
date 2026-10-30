@@ -1,3 +1,4 @@
+import { scopedTransaction } from './transaction-context';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { Injectable } from '@nestjs/common';
 import { DataSource, type EntityManager } from 'typeorm';
@@ -34,7 +35,7 @@ export class TypeOrmStatementImportConfirmationUnitOfWork implements StatementIm
   execute<TResult>(
     work: (context: StatementImportConfirmationContext) => Promise<TResult>,
   ): Promise<TResult> {
-    return this.dataSource.transaction((entityManager) =>
+    return scopedTransaction(this.dataSource, (entityManager) =>
       work(createStatementImportConfirmationContext(entityManager)),
     );
   }

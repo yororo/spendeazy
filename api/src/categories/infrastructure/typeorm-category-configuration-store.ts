@@ -1,3 +1,4 @@
+import { transactionManager } from '../../database/transaction-context';
 import { Injectable } from '@nestjs/common';
 import { InjectEntityManager } from '@nestjs/typeorm';
 import { QueryFailedError, type EntityManager, type Repository } from 'typeorm';
@@ -31,9 +32,12 @@ import { CATEGORY_REVISION_INCREMENT } from './typeorm-category-revision';
 
 @Injectable()
 export class TypeOrmCategoryConfigurationStore implements CategoryConfigurationStore {
+  get entityManager(): EntityManager {
+    return transactionManager(this.baseEntityManager);
+  }
   constructor(
     @InjectEntityManager()
-    private readonly entityManager: EntityManager,
+    private readonly baseEntityManager: EntityManager,
   ) {}
 
   async findInSpace(

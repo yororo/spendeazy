@@ -9,6 +9,11 @@ import { configureApiRouting } from './http/api-routing';
 import { ClerkAuthenticationGuard } from './authentication/clerk-authentication.guard';
 import { ProvisionedUserGuard } from './authentication/provisioned-user.guard';
 import { exceptionRequestContext } from './logging/exception-logger';
+import { ActiveIdentityInterceptor } from './authentication/active-identity.interceptor';
+import {
+  ACTIVE_IDENTITY_EXECUTION,
+  type ActiveIdentityExecution,
+} from './users/application/active-identity-execution';
 
 export function configureApp(app: INestApplication): void {
   configureApiRouting(app);
@@ -28,6 +33,13 @@ export function configureApp(app: INestApplication): void {
     }),
   );
   app.useGlobalFilters(new ApiExceptionFilter());
+  let identityExecution: ActiveIdentityExecution | undefined;
+  try {
+    identityExecution = app.get(ACTIVE_IDENTITY_EXECUTION);
+  } catch {
+    /* Metadata-only and unit-test compositions have no database. */
+  }
+  app.useGlobalInterceptors(new ActiveIdentityInterceptor(identityExecution));
   app.useGlobalGuards(
     app.get(ClerkAuthenticationGuard),
     app.get(ProvisionedUserGuard),

@@ -1,3 +1,4 @@
+import { transactionManager } from '../../database/transaction-context';
 import { Injectable } from '@nestjs/common';
 import { InjectEntityManager } from '@nestjs/typeorm';
 import {
@@ -38,9 +39,12 @@ const EXPENSE_SPACE_CATEGORY_FOREIGN_KEY = 'fk_expenses_category_space';
 
 @Injectable()
 export class TypeOrmExpenseStore implements SpaceExpenseStore {
+  get entityManager(): EntityManager {
+    return transactionManager(this.baseEntityManager);
+  }
   constructor(
     @InjectEntityManager()
-    public readonly entityManager: EntityManager,
+    private readonly baseEntityManager: EntityManager,
   ) {}
 
   async findByIdInSpace(

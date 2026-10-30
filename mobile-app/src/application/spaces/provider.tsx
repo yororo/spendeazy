@@ -1,5 +1,5 @@
 import { useAuth } from '@clerk/expo';
-import { createContext, use, useEffect, useMemo, useSyncExternalStore, type ReactNode } from 'react';
+import { createContext, useCallback, use, useEffect, useMemo, useSyncExternalStore, type ReactNode } from 'react';
 import { createSpacesApiClient } from '@/api/spaces-api-client';
 import { createUserApiClient } from '@/api/user-api-client';
 import { readRememberedSpaceId, writeRememberedSpaceId } from '@/navigation/device-memory';
@@ -43,9 +43,10 @@ export function SpacesProvider({ children }: { children: ReactNode }) {
     void workflow.load();
     return workflow.cancel;
   }, [workflow]);
+  const refresh = useCallback(() => workflow.load(), [workflow]);
   return <SpacesContext value={{
     ...state,
-    refresh: () => workflow.load(),
+    refresh,
     selectSpace: (space) => workflow.select(space.id),
     selectSpaceId: workflow.select,
     discardUnsavedExpense: workflow.discardUnsavedExpense,

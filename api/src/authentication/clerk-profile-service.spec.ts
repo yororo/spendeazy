@@ -16,6 +16,8 @@ describe('OfficialClerkProfileService', () => {
 
   it('returns the full name and every verified email from Clerk', async () => {
     const getUser = jest.fn().mockResolvedValue({
+      hasImage: true,
+      imageUrl: 'https://example.test/current-photo',
       fullName: 'Ada Lovelace',
       primaryEmailAddress: {
         emailAddress: 'ada@example.com',
@@ -42,6 +44,7 @@ describe('OfficialClerkProfileService', () => {
     const service = new OfficialClerkProfileService(testConfig());
 
     await expect(service.getUserProfile('user_42')).resolves.toEqual({
+      photoUrl: 'https://example.test/current-photo',
       fullName: 'Ada Lovelace',
       primaryVerifiedEmail: 'ada@example.com',
       verifiedEmails: ['ada@example.com', 'ada.secondary@example.com'],
@@ -73,6 +76,7 @@ describe('OfficialClerkProfileService', () => {
     const service = new OfficialClerkProfileService(testConfig());
 
     await expect(service.getUserProfile('user_42')).resolves.toEqual({
+      photoUrl: null,
       fullName: null,
       primaryVerifiedEmail: null,
       verifiedEmails: [],

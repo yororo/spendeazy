@@ -1,3 +1,4 @@
+import { transactionManager } from '../../database/transaction-context';
 import { Injectable } from '@nestjs/common';
 import { InjectEntityManager } from '@nestjs/typeorm';
 import { QueryFailedError, type EntityManager, type Repository } from 'typeorm';
@@ -17,9 +18,12 @@ import type {
 
 @Injectable()
 export class TypeOrmBudgetStore implements BudgetStore {
+  get entityManager(): EntityManager {
+    return transactionManager(this.baseEntityManager);
+  }
   constructor(
     @InjectEntityManager()
-    public readonly entityManager: EntityManager,
+    private readonly baseEntityManager: EntityManager,
   ) {}
 
   async findByCategoryId(categoryId: string): Promise<BudgetRecord | null> {

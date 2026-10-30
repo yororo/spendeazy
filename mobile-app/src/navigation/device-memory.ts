@@ -7,6 +7,19 @@ import {
 import { rememberedSpaceStorageKey } from '@/application/spaces/active-space';
 
 const APPEARANCE_KEY = 'appearance';
+let selectionWrites: Promise<unknown> = Promise.resolve();
+let selectionGeneration = 0;
+const selectionOwners = new Set<string>();
+
+export async function clearRememberedSpaces(userId: string | null) {
+  selectionGeneration++;
+  if (userId) selectionOwners.add(userId);
+  await selectionWrites;
+  for (const owner of selectionOwners) {
+    await SecureStore.deleteItemAsync(rememberedSpaceStorageKey(owner));
+    selectionOwners.delete(owner);
+  }
+}
 
 export async function readAppearancePreference(): Promise<AppearancePreference> {
   try {
@@ -39,8 +52,14 @@ export async function writeRememberedSpaceId(
   userId: string,
   spaceId: string,
 ): Promise<boolean> {
+  const generation = selectionGeneration;
+  selectionOwners.add(userId);
   try {
-    await SecureStore.setItemAsync(rememberedSpaceStorageKey(userId), spaceId);
+    const write = selectionWrites.catch(() => {}).then(async () => {
+      if (generation === selectionGeneration) await SecureStore.setItemAsync(rememberedSpaceStorageKey(userId), spaceId);
+    });
+    selectionWrites = write;
+    await write;
     return true;
   } catch {
     return false;

@@ -16,7 +16,7 @@ import { TypeOrmStatementImportStore } from './typeorm-statement-import-store';
 
 describe('TypeOrmStatementImportStore', () => {
   it('locks actor then exclusively locks Space before checking current membership', async () => {
-    const actorQuery = lockedQuery({ id: '7' });
+    const actorQuery = lockedQuery({ id: '7', deletionStatus: 'active' });
     const spaceQuery = lockedQuery({ status: 'active' });
     const membershipQuery = lockedQuery({ accessLevel: 'write' });
     const getRepository = jest.fn((entity: unknown) => ({

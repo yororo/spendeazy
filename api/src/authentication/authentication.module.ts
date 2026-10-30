@@ -8,6 +8,8 @@ import {
   OfficialClerkProfileService,
 } from './clerk-profile-service';
 import { OfficialClerkTokenVerifier } from './clerk-token-verifier';
+import { ClerkIdentityDeletionProvider } from './clerk-identity-deletion-provider';
+import { IDENTITY_DELETION_PROVIDER } from '../users/application/identity-deletion-provider';
 
 export interface AuthenticationModuleOptions {
   readonly tokenVerifier?: Provider;
@@ -46,12 +48,18 @@ export class AuthenticationModule {
         { provide: APP_CONFIG, useValue: config },
         ...tokenVerifierProviders,
         ...profileServiceProviders,
+        ClerkIdentityDeletionProvider,
+        {
+          provide: IDENTITY_DELETION_PROVIDER,
+          useExisting: ClerkIdentityDeletionProvider,
+        },
         ClerkAuthenticationGuard,
       ],
       exports: [
         APP_CONFIG,
         CLERK_TOKEN_VERIFIER,
         CLERK_PROFILE_SERVICE,
+        IDENTITY_DELETION_PROVIDER,
         ClerkAuthenticationGuard,
       ],
     };

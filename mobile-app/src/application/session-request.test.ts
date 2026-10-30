@@ -51,3 +51,17 @@ test('live credential changes reject a failure before the React identity observe
   await assert.rejects(result, (cause) => requestFailure(cause) === 'obsolete');
   assert.equal(session.snapshot().notice, null);
 });
+
+test('authoritative deletion signals clear private work and cannot be restored by unchanged Clerk observation', async () => {
+  for (const code of ['ACCOUNT_DELETION_PENDING', 'ACCOUNT_DELETED']) {
+    const session = createSession(); session.observeIdentity('ada', 'session');
+    session.saveDraft({ amount: '12', description: 'Lunch', categoryId: 'food', expenseDate: '2026-10-24' });
+    const run = sessionRequest(session, session.capture(), async () => { assert.fail('ordinary expiry recovery'); });
+    await assert.rejects(run(async () => { throw new ExpenseApiError(403, code, 'Deleted'); }));
+    session.observeIdentity('ada', 'session');
+    assert.equal(session.snapshot().userId, null);
+    assert.equal(session.snapshot().draft, null);
+    session.observeIdentity('new-owner', 'new-session');
+    assert.equal(session.snapshot().userId, 'new-owner');
+  }
+});

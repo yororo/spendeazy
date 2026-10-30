@@ -1,3 +1,4 @@
+import { transactionManager } from '../../database/transaction-context';
 import { Injectable } from '@nestjs/common';
 import { InjectEntityManager } from '@nestjs/typeorm';
 import { QueryFailedError, type EntityManager } from 'typeorm';
@@ -19,8 +20,11 @@ import type {
 
 @Injectable()
 export class TypeOrmInvitationStore implements InvitationStore {
+  get entityManager(): EntityManager {
+    return transactionManager(this.baseEntityManager);
+  }
   constructor(
-    @InjectEntityManager() private readonly entityManager: EntityManager,
+    @InjectEntityManager() private readonly baseEntityManager: EntityManager,
   ) {}
 
   async findPendingBySender(
@@ -59,6 +63,9 @@ export class TypeOrmInvitationStore implements InvitationStore {
         repository.create({
           ...input,
           status: 'pending',
+          // Request fencing starts a transaction before the application clock.
+          // Creation time must describe insertion, not transaction start.
+          createdAt: new Date(),
         }),
       );
       return toInvitationRecord(invitation);
@@ -171,6 +178,7 @@ async function lockRecipient(
     .createQueryBuilder('user')
     .where('user.id = :userId', { userId })
     .andWhere('user.deleted_at IS NULL')
+    .andWhere("user.deletion_status = 'active'")
     .setLock('pessimistic_write')
     .getOne();
 }
@@ -198,6 +206,7 @@ async function rotatePendingInTransaction(
       ...replacement,
       acceptedSpaceId: null,
       status: 'pending',
+      createdAt: new Date(),
     }),
   );
   return toInvitationRecord(created);

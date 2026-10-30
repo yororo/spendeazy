@@ -10,6 +10,18 @@ import {
 } as { name?: string; description?: string; additionalProperties?: boolean })
 export class UserResponseDto {
   @ApiProperty({
+    type: String,
+    nullable: true,
+    description: 'Current provider-owned photo URL.',
+  })
+  photoUrl!: string | null;
+
+  @ApiProperty({
+    enum: ['active'],
+    description: 'Only active identities can read a profile.',
+  })
+  deletionStatus!: 'active';
+  @ApiProperty({
     description: 'Positive bigint User identifier encoded as a string.',
     pattern: POSITIVE_INTEGER_ID_PATTERN.source,
     example: '42',

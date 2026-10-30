@@ -17,10 +17,13 @@ import { useAppTheme } from "@/navigation/app-theme";
 import type { ExpenseActivitySnapshot } from "@/api/expense-response";
 import type { ManualExpenseDraft, ManualExpenseField } from "./manual-draft";
 
+import { PersonAvatar } from "@/components/person-avatar";
+
 type DetailActivity = {
   id: string;
   type: "created" | "edited" | "deleted";
   actorName: string;
+  actorPhotoUrl?: string | null;
   occurredAt: string;
   before: (ExpenseActivitySnapshot & { categoryName: string }) | null;
   after: (ExpenseActivitySnapshot & { categoryName: string }) | null;
@@ -40,6 +43,7 @@ export type ExpenseDetailViewState = {
     categoryName: string;
     source: "manual" | "imported";
     addedByName: string | null;
+    addedByPhotoUrl?: string | null;
     statementImportId: string | null;
     sourceRowId: string | null;
     deletedAt: string | null;
@@ -138,11 +142,14 @@ export function ExpenseDetail({
             </SupportingText>
             <SupportingText>{`Space · ${state.spaceName}`}</SupportingText>
             {state.archived ? <SupportingText>This Shared Space is archived. Expense and Activity history are read-only.</SupportingText> : null}
-            <SupportingText>
-              {expense.addedByName
-                ? `Added By ${expense.addedByName}`
-                : "Added By is kept with this Expense."}
-            </SupportingText>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <PersonAvatar name={expense.addedByName ?? 'Person unavailable'} photoUrl={expense.addedByPhotoUrl} />
+              <View style={{ flex: 1 }}><SupportingText>
+                {expense.addedByName
+                  ? `Added By ${expense.addedByName}`
+                  : "Added By is kept with this Expense."}
+              </SupportingText></View>
+            </View>
             {expense.source === "imported" ? (
               <StackGap>
                 <SupportingText>
@@ -208,9 +215,12 @@ export function ExpenseDetail({
                     borderColor: palette.fieldBorder,
                   }}
                 >
-                  <SupportingText>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                  <PersonAvatar name={event.actorName} photoUrl={event.actorPhotoUrl} />
+                  <View style={{ flex: 1 }}><SupportingText>
                     {`${activityLabel(event.type)} · ${event.actorName} · ${event.occurredAt.slice(0, 16).replace("T", " ")}`}
-                  </SupportingText>
+                  </SupportingText></View>
+                  </View>
                   {event.before ? (
                     <SupportingText>{`Before · ${snapshotLabel(event.before)}`}</SupportingText>
                   ) : null}

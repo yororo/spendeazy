@@ -1,3 +1,4 @@
+import { transactionManager } from '../../database/transaction-context';
 import { Injectable } from '@nestjs/common';
 import { InjectEntityManager } from '@nestjs/typeorm';
 import type { EntityManager } from 'typeorm';
@@ -12,9 +13,12 @@ import {
 
 @Injectable()
 export class TypeOrmExpenseActivityStore implements ExpenseActivityStore {
+  get entityManager(): EntityManager {
+    return transactionManager(this.baseEntityManager);
+  }
   constructor(
     @InjectEntityManager()
-    public readonly entityManager: EntityManager,
+    private readonly baseEntityManager: EntityManager,
   ) {}
 
   async create(input: NewExpenseActivity): Promise<ExpenseActivityRecord> {

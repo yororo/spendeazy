@@ -65,9 +65,20 @@ test('remembers the last Space separately for each signed-in identity', () => {
 });
 
 test('reads an authorized Spaces response', () => {
-  assert.deepEqual(parseAccessibleSpaces([personal, shared]), [personal, shared]);
+  const decoded = parseAccessibleSpaces([personal, shared]);
+  assert.deepEqual(decoded.map(space => space.members.map(member => member.name)), [personal, shared].map(space => space.members.map(member => member.name)));
+  assert.equal(decoded[0].members[0].photoUrl, null);
 });
 
 test('rejects a Spaces response that is not a list of Spaces', () => {
   assert.throws(() => parseAccessibleSpaces({ id: '7' }), /Spaces response/);
+});
+
+test('keeps former attribution distinct from membership and validates photo URLs', () => {
+  const attribution = [{ id: '2', name: 'Deleted user', photoUrl: null }];
+  const [space] = parseAccessibleSpaces([{ ...personal, attribution }]);
+  assert.equal(space.members.length, 1);
+  assert.deepEqual(space.attribution, attribution);
+  assert.throws(() => parseAccessibleSpaces([{ ...personal, attribution: {} }]));
+  assert.throws(() => parseAccessibleSpaces([{ ...personal, attribution: [{ id: '2', name: 'Ada', photoUrl: 'file:///private' }] }]));
 });

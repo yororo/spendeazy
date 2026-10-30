@@ -12,6 +12,7 @@ describe('UsersService', () => {
       clerkUserId: 'user_42',
       name: 'Ada Lovelace',
       email: 'ada@example.com',
+      photoUrl: null,
       createdAt: new Date('2026-08-29T00:00:00.000Z'),
       updatedAt: new Date('2026-08-29T00:00:00.000Z'),
     };

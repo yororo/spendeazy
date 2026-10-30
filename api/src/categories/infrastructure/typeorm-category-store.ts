@@ -1,3 +1,4 @@
+import { transactionManager } from '../../database/transaction-context';
 import { Injectable } from '@nestjs/common';
 import { InjectEntityManager } from '@nestjs/typeorm';
 import {
@@ -31,9 +32,12 @@ type CategoryChanges = Omit<UpdateCategory, 'expectedUpdatedAt'>;
 
 @Injectable()
 export class TypeOrmCategoryStore implements CategoryStore {
+  get entityManager(): EntityManager {
+    return transactionManager(this.baseEntityManager);
+  }
   constructor(
     @InjectEntityManager()
-    public readonly entityManager: EntityManager,
+    private readonly baseEntityManager: EntityManager,
   ) {}
 
   async findBySpaceId(

@@ -13,7 +13,10 @@ import {
   requireAuthenticatedClerkUserId,
 } from './authentication';
 import { UnauthenticatedError } from './authentication-errors';
-import { UserNotProvisionedError } from '../users/application/user-errors';
+import {
+  UserNotProvisionedError,
+  AccountDeletionError,
+} from '../users/application/user-errors';
 import {
   isPublicRoute,
   normalizeRequestPath,
@@ -30,7 +33,7 @@ export class ProvisionedUserGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
 
-    if (isPublicRoute(request) || isProvisioningRoute(request)) {
+    if (isPublicRoute(request) || isDeletionProtocolRoute(request)) {
       return true;
     }
 
@@ -42,6 +45,12 @@ export class ProvisionedUserGuard implements CanActivate {
       throw new UserNotProvisionedError();
     }
 
+    const operation = await this.userStore.findDeletionOperationByClerkUserId?.(
+      requireAuthenticatedClerkUserId(request),
+    );
+    if (operation) throw new AccountDeletionError(operation.status);
+    if (isProvisioningRoute(request)) return true;
+
     const user = await this.userStore.findByClerkUserId(
       requireAuthenticatedClerkUserId(request),
     );
@@ -52,6 +61,14 @@ export class ProvisionedUserGuard implements CanActivate {
     request.authenticatedUserId = user.id;
     return true;
   }
+}
+
+function isDeletionProtocolRoute(request: Request): boolean {
+  const path = normalizeRequestPath(request.path);
+  return (
+    (request.method === 'DELETE' && path === `/${API_PREFIX}/users/me`) ||
+    (request.method === 'GET' && path === `/${API_PREFIX}/users/me/deletion`)
+  );
 }
 
 export { ProvisionedUserGuard as UserProvisioningGuard };

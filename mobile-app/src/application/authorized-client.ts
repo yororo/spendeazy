@@ -5,6 +5,7 @@ import type { AuthorizedRequestOptions } from '@/api/authorized-request';
 import type { SessionScope } from './session';
 import { session, useSessionSnapshot } from './session-runtime';
 import { sessionRequest } from './session-request';
+import { accountDeletion } from '@/features/account-deletion/deletion-runtime';
 
 export function useAuthorizedClient(): AuthorizedRequestOptions & { isCurrent: () => boolean; scope: SessionScope } {
   const transport = useSessionTransport();
@@ -37,13 +38,36 @@ export function useSessionTransport() {
       const credentialsCurrent = () => clerk.session?.id === sessionId && clerk.user?.id === scope.userId;
       return {
         getAccessToken: () => callbacks.current.getToken(),
-        execute: sessionRequest(session, scope, () => callbacks.current.signOut({ sessionId: sessionId ?? undefined }), credentialsCurrent),
+        execute: sessionRequest(session, scope, async () => {
+          const failedSession = clerk.session;
+          if (!credentialsCurrent() || !failedSession) return;
+          try {
+            // A live provider read distinguishes temporary token expiry from revocation.
+            await failedSession.reload();
+            if (!credentialsCurrent()) return;
+            if (failedSession.status === 'active') {
+              const token = await callbacks.current.getToken({ skipCache: true });
+              if (token && credentialsCurrent() && scope.userId) session.resumeVerifiedIdentity(scope.userId, sessionId ?? null);
+              return;
+            }
+            await session.signOut();
+          } catch (error) {
+            if (!credentialsCurrent()) return;
+            const status = typeof error === 'object' && error !== null && 'status' in error ? error.status : null;
+            if (status === 401 || status === 404) await session.signOut();
+            else return; // Outage is ambiguous: keep the recovery gate and drafts.
+          }
+          if (credentialsCurrent()) await callbacks.current.signOut({ sessionId: sessionId ?? undefined });
+        }, credentialsCurrent, async () => {
+          if (scope.userId && sessionId) await accountDeletion.signalDeleted({ userId: scope.userId, sessionId });
+        }),
         isCurrent: () => session.isCurrent(scope) && credentialsCurrent(),
       };
     },
     async signOut() {
       await session.signOut();
       await callbacks.current.signOut({ sessionId: sessionId ?? undefined });
+      await accountDeletion.forget();
     },
   }), [clerk, sessionId]);
 }

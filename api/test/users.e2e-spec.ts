@@ -15,6 +15,9 @@ import { APP_CONFIG, type AppConfig } from '../src/config/app-config';
 import { USER_STORE } from '../src/users/application/user-store';
 import { UsersController } from '../src/users/presentation/users.controller';
 import { UsersService } from '../src/users/application/users.service';
+import { AccountDeletionService } from '../src/users/application/account-deletion.service';
+import { ACCOUNT_DELETION_STORE } from '../src/users/application/account-deletion-store';
+import { IDENTITY_DELETION_PROVIDER } from '../src/users/application/identity-deletion-provider';
 
 describe('authenticated User routes', () => {
   let application: INestApplication;
@@ -32,7 +35,11 @@ describe('authenticated User routes', () => {
     getUserById: jest.fn(),
     deleteByClerkUserId: jest.fn(),
   };
+  const deletionStore = { find: jest.fn(), accept: jest.fn() };
+  const provider = { verifySession: jest.fn() };
   const userStore = {
+    findDeletionOperationByClerkUserId: (id: string) =>
+      deletionStore.find(id) as Promise<null>,
     findByClerkUserId: jest.fn(),
   };
 
@@ -50,6 +57,9 @@ describe('authenticated User routes', () => {
           useValue: userStore,
         },
         { provide: UsersService, useValue: usersService },
+        AccountDeletionService,
+        { provide: ACCOUNT_DELETION_STORE, useValue: deletionStore },
+        { provide: IDENTITY_DELETION_PROVIDER, useValue: provider },
         ClerkAuthenticationGuard,
         ProvisionedUserGuard,
       ],
@@ -62,6 +72,12 @@ describe('authenticated User routes', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    deletionStore.find.mockResolvedValue(null);
+    deletionStore.accept.mockResolvedValue({
+      status: 'pending',
+      initiatingSessionId: 'clerk_user_a_session',
+    });
+    provider.verifySession.mockResolvedValue(true);
     userStore.findByClerkUserId.mockImplementation((clerkUserId: string) =>
       Promise.resolve(clerkUserId === user.clerkUserId ? user : null),
     );
@@ -83,6 +99,8 @@ describe('authenticated User routes', () => {
     expect(response.status).toBe(201);
     expect(response.headers.location).toBe('/api/v1/users/me');
     expect(response.body).toEqual({
+      photoUrl: null,
+      deletionStatus: 'active',
       id: '42',
       name: 'Ada Lovelace',
       email: 'ada@example.com',
@@ -114,6 +132,86 @@ describe('authenticated User routes', () => {
       error: { code: 'USER_NOT_PROVISIONED' },
     });
     expect(usersService.getUserById).not.toHaveBeenCalled();
+  });
+
+  it('returns acceptance without waiting for cleanup', async () => {
+    const response = await request(httpServer(application))
+      .delete('/api/v1/users/me')
+      .set('Authorization', 'Bearer token-a');
+    expect(response.status).toBe(202);
+    expect(response.headers.location).toBe('/api/v1/users/me/deletion');
+    expect(response.headers['cache-control']).toBe('no-store');
+    expect(response.body).toEqual({ status: 'pending' });
+  });
+
+  it('restricts status and retries to the initiating live session', async () => {
+    deletionStore.find.mockResolvedValue({
+      status: 'pending',
+      initiatingSessionId: 'clerk_user_a_session',
+      oldClerkUserId: 'private',
+    });
+    const status = await request(httpServer(application))
+      .get('/api/v1/users/me/deletion')
+      .set('Authorization', 'Bearer token-a');
+    expect(status.status).toBe(200);
+    expect(status.body).toEqual({ status: 'pending' });
+    expect(status.headers['cache-control']).toBe('no-store');
+    const retry = await request(httpServer(application))
+      .delete('/api/v1/users/me')
+      .set('Authorization', 'Bearer token-a');
+    expect(retry.status).toBe(202);
+    expect(deletionStore.accept).not.toHaveBeenCalled();
+    deletionStore.find.mockResolvedValue({
+      status: 'completed',
+      initiatingSessionId: 'clerk_user_a_session',
+    });
+    const complete = await request(httpServer(application))
+      .delete('/api/v1/users/me')
+      .set('Authorization', 'Bearer token-a');
+    expect(complete.status).toBe(204);
+    expect(complete.text).toBe('');
+    const wrong = await request(httpServer(application))
+      .get('/api/v1/users/me/deletion')
+      .set('Authorization', 'Bearer token-b');
+    expect(wrong.status).toBe(403);
+    expect(wrong.body).toMatchObject({ error: { code: 'ACCOUNT_DELETED' } });
+  });
+
+  it('fences profiles and provisioning after acceptance', async () => {
+    deletionStore.find.mockResolvedValue({
+      status: 'pending',
+      initiatingSessionId: 'clerk_user_a_session',
+    });
+    for (const method of ['get', 'put'] as const) {
+      const response = await request(httpServer(application))
+        [method]('/api/v1/users/me')
+        .set('Authorization', 'Bearer token-a');
+      expect(response.status).toBe(403);
+      expect(response.body).toMatchObject({
+        error: { code: 'ACCOUNT_DELETION_PENDING' },
+      });
+      expect(response.body).not.toHaveProperty('email');
+    }
+    expect(usersService.provisionUser).not.toHaveBeenCalled();
+    expect(usersService.getUserById).not.toHaveBeenCalled();
+  });
+
+  it('does not infer completion from absence, revocation or provider outage', async () => {
+    const missing = await request(httpServer(application))
+      .get('/api/v1/users/me/deletion')
+      .set('Authorization', 'Bearer token-a');
+    expect(missing.status).toBe(404);
+    provider.verifySession.mockResolvedValue(false);
+    const revoked = await request(httpServer(application))
+      .get('/api/v1/users/me/deletion')
+      .set('Authorization', 'Bearer token-a');
+    expect(revoked.status).toBe(401);
+    provider.verifySession.mockRejectedValue(new Error('provider unavailable'));
+    const unavailable = await request(httpServer(application))
+      .delete('/api/v1/users/me')
+      .set('Authorization', 'Bearer token-a');
+    expect(unavailable.status).toBe(503);
+    expect(deletionStore.accept).not.toHaveBeenCalled();
   });
 
   it('keeps the removed Personal financial aliases unavailable', async () => {

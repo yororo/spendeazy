@@ -40,6 +40,12 @@ export function createImportWorkflow(deps: Dependencies) {
     snapshot: () => snapshot,
     initialize() { if (!initialized) { initialized = true; void recover(); } },
     recover,
+    async cleanupPrivateResources() {
+      clear();
+      await pending;
+      deps.sweep();
+      cleanup = 'ready'; publish();
+    },
     async select(draftId: string, op: ImportOperation) {
       if (selecting || cleanup !== 'ready' || !deps.store.start(draftId, op)) return;
       selecting = true; operation = op;

@@ -25,7 +25,7 @@ for (const operation of ['create', 'rotate', 'accept'] as const) {
       return Response.json(result);
     });
     const client = createInvitationsApiClient(options);
-    assert.deepEqual(await (operation === 'accept' ? client.accept(incoming.id) : client[operation]()), result);
+    assert.deepEqual(await (operation === 'accept' ? client.accept(incoming.id) : client[operation]()), operation === 'accept' ? { ...sharedSpace, members: sharedSpace.members.map(member => ({ ...member, photoUrl: null })), attribution: sharedSpace.members.map(member => ({ ...member, photoUrl: null })) } : result);
   });
 }
 

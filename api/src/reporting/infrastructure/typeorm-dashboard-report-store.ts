@@ -1,3 +1,4 @@
+import { scopedTransaction } from '../../database/transaction-context';
 import { Injectable } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource, type EntityManager } from 'typeorm';
@@ -21,12 +22,16 @@ export class TypeOrmDashboardReportStore implements DashboardReportStore {
   readDashboardReport(
     query: DashboardReportQuery,
   ): Promise<DashboardReportData> {
-    return this.dataSource.transaction('REPEATABLE READ', async (manager) => {
-      const categories = await readCategories(manager, query.spaceId);
-      const expenses = await readExpenses(manager, query);
-      const imports = await readImports(manager, query);
-      return { categories, expenses, imports };
-    });
+    return scopedTransaction(
+      this.dataSource,
+      'REPEATABLE READ',
+      async (manager) => {
+        const categories = await readCategories(manager, query.spaceId);
+        const expenses = await readExpenses(manager, query);
+        const imports = await readImports(manager, query);
+        return { categories, expenses, imports };
+      },
+    );
   }
 }
 

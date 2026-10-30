@@ -1,3 +1,4 @@
+import { PersonAvatar } from '@/components/person-avatar';
 import { useState } from "react";
 import type { StatementImportHistoryItem } from "@/api/statement-import-history-api-client";
 import {
@@ -108,6 +109,7 @@ export function StatementImportHistoryView({
                 key={item.id}
                 item={item}
                 importer={controller.importerName(item.importedByUserId)}
+                photoUrl={controller.importerPhoto(item.importedByUserId)}
                 onPress={() => {
                   if (active) onOpenImport(active.id, item.id);
                 }}
@@ -178,10 +180,12 @@ export function StatementImportHistoryView({
 export function ImportHistoryItem({
   item,
   importer,
+  photoUrl,
   onPress,
 }: {
   item: StatementImportHistoryItem;
   importer: string;
+  photoUrl?: string | null;
   onPress(): void;
 }) {
   const { palette, fonts } = useAppTheme();
@@ -244,13 +248,10 @@ export function ImportHistoryItem({
             fontSize: 12,
           }}
         >{`${confirmed} · PDF`}</Text>
-        <Text
-          style={{
-            color: palette.textSecondary,
-            fontFamily: fonts.regular,
-            fontSize: 12,
-          }}
-        >{`${importer} · ${imported}`}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <PersonAvatar name={importer} photoUrl={photoUrl} />
+          <Text style={{ flex: 1, color: palette.textSecondary, fontFamily: fonts.regular, fontSize: 12 }}>{`${importer} · ${imported}`}</Text>
+        </View>
         <Text
           style={{
             color: palette.textSecondary,

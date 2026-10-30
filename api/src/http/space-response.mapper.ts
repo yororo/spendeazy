@@ -12,6 +12,12 @@ export function toSpaceResponse(
     members: space.members.map((member) => ({
       id: member.id,
       name: member.name,
+      photoUrl: member.photoUrl ?? null,
+    })),
+    attribution: (space.attribution ?? space.members).map((actor) => ({
+      id: actor.id,
+      name: actor.name,
+      photoUrl: actor.photoUrl ?? null,
     })),
     createdAt: space.createdAt.toISOString(),
     updatedAt: space.updatedAt.toISOString(),

@@ -9,6 +9,8 @@ import { StatementImportRowEntity } from './entities/statement-import-row.entity
 import { StatementImportOperationEntity } from './entities/statement-import-operation.entity';
 import { ExpenseEntity } from './entities/expense.entity';
 import { UserEntity } from './entities/user.entity';
+import { AccountDeletionOperationEntity } from './entities/account-deletion-operation.entity';
+import { AddAccountDeletionPersistence2000000000000 } from './migrations/2000000000000-add-account-deletion-persistence';
 import { SpaceEntity } from './entities/space.entity';
 import { SpaceMembershipEntity } from './entities/space-membership.entity';
 import { ExpenseActivityEntity } from './entities/expense-activity.entity';
@@ -75,10 +77,12 @@ export const DATABASE_MIGRATIONS = [
   ExpenseProvenanceAndDeletionReplay1970000000000,
   AddCategoryConfigurationRevisions1980000000000,
   AddImportConfirmationEvidence1990000000000,
+  AddAccountDeletionPersistence2000000000000,
 ];
 
 export const DATABASE_ENTITIES = [
   UserEntity,
+  AccountDeletionOperationEntity,
   CategoryEntity,
   BudgetEntity,
   StatementImportEntity,

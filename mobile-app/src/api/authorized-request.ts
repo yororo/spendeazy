@@ -13,6 +13,8 @@ type AuthorizedRequestInit = {
   /** Already serialized by a workflow that must retry identical request bytes. */
   serializedBody?: string;
   ifMatch?: string;
+  /** Restricted protocol clients must inspect status and headers as well as JSON. */
+  responseMetadata?: boolean;
 };
 
 export async function authorizedRequest<T>(
@@ -62,7 +64,9 @@ async function sendAuthorizedRequest<T>(
     throw new ExpenseApiTransportError();
   }
 
-  if (response.status === 204) return undefined as T;
+  if (response.status === 204) return (init.responseMetadata
+    ? { status: response.status, location: response.headers.get('Location'), payload: undefined }
+    : undefined) as T;
 
   const payload = await readJson(response);
   if (!response.ok) {
@@ -81,7 +85,9 @@ async function sendAuthorizedRequest<T>(
       `The Spendeazy API returned HTTP ${response.status}`,
     );
   }
-  return payload as T;
+  return (init.responseMetadata
+    ? { status: response.status, location: response.headers.get('Location'), payload }
+    : payload) as T;
 }
 
 async function readJson(response: Response): Promise<unknown> {

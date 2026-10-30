@@ -13,6 +13,7 @@ import { StatementImportEntity } from '../src/database/entities/statement-import
 import { ExpenseEntity } from '../src/database/entities/expense.entity';
 import { ExpenseActivityEntity } from '../src/database/entities/expense-activity.entity';
 import { UserEntity } from '../src/database/entities/user.entity';
+import { AccountDeletionOperationEntity } from '../src/database/entities/account-deletion-operation.entity';
 import { TypeOrmCategoryStore } from '../src/categories/infrastructure/typeorm-category-store';
 import { TypeOrmCategorySummaryStore } from '../src/categories/infrastructure/typeorm-category-summary-store';
 import { DefaultCategoriesService } from '../src/categories/application/default-categories.service';
@@ -108,7 +109,9 @@ describeDatabase('Spaces with PostgreSQL', () => {
     expect(accessibleSpaces).toEqual([
       expect.objectContaining({
         id: spaces[0].id,
-        members: [{ id: first.user.id, name: 'New Space User' }],
+        members: [
+          { id: first.user.id, name: 'New Space User', photoUrl: null },
+        ],
       }),
     ]);
     expect(persistedCategories).toHaveLength(DEFAULT_CATEGORY_CATALOG.length);
@@ -174,8 +177,8 @@ describeDatabase('Spaces with PostgreSQL', () => {
         expect.objectContaining({
           id: sharedSpace.id,
           members: [
-            { id: owner.id, name: owner.name },
-            { id: member.id, name: member.name },
+            { id: owner.id, name: owner.name, photoUrl: null },
+            { id: member.id, name: member.name, photoUrl: null },
           ],
         }),
       ]),
@@ -360,6 +363,164 @@ describeDatabase('Spaces with PostgreSQL', () => {
     ).resolves.toEqual([
       expect.objectContaining({ actorUserId: owner.id, type: 'deleted' }),
     ]);
+  });
+
+  it('retains deletion progress and the old identity fence while excluding inactive Users', async () => {
+    const runner = database.createQueryRunner();
+    await runner.connect();
+    await runner.startTransaction();
+    try {
+      const users = runner.manager.getRepository(UserEntity);
+      const operations = runner.manager.getRepository(
+        AccountDeletionOperationEntity,
+      );
+      const store = new TypeOrmUserStore(runner.manager);
+      const unique = randomUUID();
+      const email = `${unique}@example.test`;
+      const clerkUserId = `deletion_${unique}`;
+      const user = await store.create({
+        clerkUserId,
+        name: 'Example User',
+        email,
+        photoUrl: 'https://example.test/photo.png',
+      });
+      expect(await store.findById(user.id)).toMatchObject({
+        photoUrl: 'https://example.test/photo.png',
+      });
+      const acceptedAt = new Date();
+      await users.update(user.id, {
+        deletionStatus: 'pending',
+        email: null,
+        name: 'Deleted user',
+        photoUrl: null,
+        clerkUserId: `deleted-user-${user.id}`,
+      });
+      await operations.insert({
+        oldClerkUserId: clerkUserId,
+        userId: user.id,
+        initiatingSessionId: 'session_example',
+        acceptedAt,
+        nextAttemptAt: acceptedAt,
+      });
+      expect(await store.findById(user.id)).toBeNull();
+      expect(await store.findByClerkUserId(clerkUserId)).toBeNull();
+      expect(
+        await store.findByClerkUserId(`deleted-user-${user.id}`),
+      ).toBeNull();
+      expect(await store.findByEmail(email)).toBeNull();
+      expect(await store.update(user.id, { name: 'Restored' })).toBeNull();
+      const fresh = await store.create({
+        clerkUserId: `fresh_${unique}`,
+        name: 'Fresh User',
+        email,
+      });
+      expect(fresh.id).not.toBe(user.id);
+      expect(fresh.photoUrl).toBeNull();
+      const pending =
+        await store.findDeletionOperationByClerkUserId(clerkUserId);
+      expect(pending).toMatchObject({
+        userId: user.id,
+        status: 'pending',
+        attemptCount: 0,
+        personalDataPurgedAt: null,
+        sessionsRevokedAt: null,
+        providerDeletedAt: null,
+      });
+      expect(pending).not.toHaveProperty('email');
+      expect(pending).not.toHaveProperty('photoUrl');
+      expect(pending).not.toHaveProperty('name');
+
+      // Failed PostgreSQL statements abort transactions; isolate rejected mutations.
+      async function rejectsMutation(
+        action: () => Promise<unknown>,
+        code: string,
+      ) {
+        await runner.query('SAVEPOINT invalid_mutation');
+        await expect(action()).rejects.toMatchObject({ driverError: { code } });
+        await runner.query('ROLLBACK TO SAVEPOINT invalid_mutation');
+        await runner.query('RELEASE SAVEPOINT invalid_mutation');
+      }
+      await rejectsMutation(
+        () =>
+          users.insert({
+            clerkUserId: `duplicate_${unique}`,
+            name: 'Duplicate',
+            email,
+          }),
+        '23505',
+      );
+      await rejectsMutation(
+        () =>
+          operations.insert({
+            oldClerkUserId: clerkUserId,
+            userId: fresh.id,
+            initiatingSessionId: 'session_other',
+          }),
+        '23505',
+      );
+      await rejectsMutation(
+        () =>
+          operations.insert({
+            oldClerkUserId: `other_${unique}`,
+            userId: user.id,
+            initiatingSessionId: 'session_other',
+          }),
+        '23505',
+      );
+      await rejectsMutation(
+        () =>
+          operations.update(
+            { userId: user.id },
+            {
+              status: 'completed',
+              completedAt: acceptedAt,
+              nextAttemptAt: null,
+            },
+          ),
+        '23514',
+      );
+      await rejectsMutation(
+        () => operations.update({ userId: user.id }, { attemptCount: -1 }),
+        '23514',
+      );
+      await rejectsMutation(
+        () =>
+          operations.update({ userId: user.id }, { claimToken: randomUUID() }),
+        '23514',
+      );
+      await rejectsMutation(
+        () =>
+          runner.query(
+            "UPDATE account_deletion_operations SET last_failure_code = 'raw provider error' WHERE user_id = $1",
+            [user.id],
+          ),
+        '23514',
+      );
+      await rejectsMutation(() => users.delete(user.id), '23503');
+      const completedAt = new Date();
+      await operations.update(
+        { userId: user.id },
+        {
+          personalDataPurgedAt: completedAt,
+          sessionsRevokedAt: completedAt,
+          providerDeletedAt: completedAt,
+          completedAt,
+          status: 'completed',
+          nextAttemptAt: null,
+        },
+      );
+      await users.update(user.id, {
+        deletionStatus: 'completed',
+        deletedAt: completedAt,
+      });
+      expect(await store.findById(user.id)).toBeNull();
+      expect(
+        await store.findDeletionOperationByClerkUserId(clerkUserId),
+      ).toMatchObject({ status: 'completed', userId: user.id });
+    } finally {
+      await runner.rollbackTransaction();
+      await runner.release();
+    }
   });
 
   async function createUser(label: string): Promise<UserEntity> {

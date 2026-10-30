@@ -4,6 +4,7 @@ import {
   DATABASE_MIGRATIONS,
 } from '../src/database/database-options';
 import { TypeOrmSpaceStore } from '../src/spaces/infrastructure/typeorm-space-store';
+import { AddAccountDeletionPersistence2000000000000 } from '../src/database/migrations/2000000000000-add-account-deletion-persistence';
 
 const databaseUrl = process.env.TEST_FINANCIAL_OWNERSHIP_MIGRATION_DATABASE_URL;
 const describeDatabase = databaseUrl ? describe : describe.skip;
@@ -267,6 +268,50 @@ describeDatabase(
           [personalSpaceId],
         ),
       ).rejects.toMatchObject({ driverError: { code: '23502' } });
+    });
+
+    it('backfills historical local deletion without inventing provider completion evidence', async () => {
+      const runner = database.createQueryRunner();
+      await runner.connect();
+      await runner.startTransaction();
+      try {
+        const migration = new AddAccountDeletionPersistence2000000000000();
+        await migration.down(runner);
+        await runner.query(
+          "UPDATE users SET deleted_at = CURRENT_TIMESTAMP WHERE clerk_user_id = 'migration-owner'",
+        );
+        await migration.up(runner);
+        const deleted: unknown = await runner.query(
+          "SELECT name, email, photo_url, deletion_status, deleted_at IS NOT NULL AS has_deletion_time FROM users WHERE clerk_user_id = 'migration-owner'",
+        );
+        expect(deleted).toEqual([
+          {
+            name: 'Deleted user',
+            email: null,
+            photo_url: null,
+            deletion_status: 'completed',
+            has_deletion_time: true,
+          },
+        ]);
+        const active: unknown = await runner.query(
+          "SELECT deletion_status, photo_url FROM users WHERE clerk_user_id = 'migration-other'",
+        );
+        expect(active).toEqual([
+          { deletion_status: 'active', photo_url: null },
+        ]);
+        const operations: unknown = await runner.query(
+          'SELECT * FROM account_deletion_operations',
+        );
+        expect(operations).toEqual([]);
+        await runner.query('SAVEPOINT guarded_rollback');
+        await expect(migration.down(runner)).rejects.toThrow(
+          'Cannot revert account deletion persistence',
+        );
+        await runner.query('ROLLBACK TO SAVEPOINT guarded_rollback');
+      } finally {
+        await runner.rollbackTransaction();
+        await runner.release();
+      }
     });
   },
 );

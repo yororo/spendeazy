@@ -6,7 +6,8 @@ This describes the current API schema. [Migrations](../src/database/migrations/)
 
 | Table | Purpose and relationships |
 | --- | --- |
-| `users` | Local User linked to a unique Clerk identity. |
+| `users` | Active identity projection with current name/photo and unique nullable email; pending/completed tombstones cannot authenticate. Acceptance scrubs name/email/photo and replaces the provider binding. `deleted_at` is set only at completion. |
+| `account_deletion_operations` | One durable operation per old Clerk identity and User. Retains the restricted old-provider fence, initiating session binding, independent purge/provider/session checkpoints, due time, expiring claim and allowlisted failure code. No bearer tokens or profile snapshots. |
 | `spaces` | Personal or Shared financial context with active/archived lifecycle. Personal Spaces have one private owner; Shared Space membership is created atomically when an Invite Code is accepted. |
 | `space_memberships` | User access to a Space, with read or write capability. |
 | `categories` | Space-owned classifications with optional description/color, a shared-catalog icon key, an aggregate configuration revision and active/inactive status. Names are unique per Space. |
@@ -31,6 +32,8 @@ The migration stops with an actionable error if saved rows lack a Category. It d
 Historical migrations remain in place as schema history. They explain how Spaces, membership, legacy Transactions and duplicate detection were introduced; they are not the current table contract. The migration chain can still be applied to a fresh disposable database.
 
 ## Values and lifecycle
+
+Account deletion acceptance marks the User pending, removes all their memberships and invitation authority, archives active Shared Spaces and sanitizes notifications in one transaction. Personal data is physically purged in foreign-key order, including soft-deleted Expenses, import evidence and operation results. Shared financial rows and immutable results remain unchanged; former actors resolve through sanitized attribution rather than membership. User → Space lock ordering and provider-ID advisory locks fence concurrent reads, writes and provisioning. The old-provider operation fence remains after completion; a fresh provider ID may reuse the erased email without inheriting access. Migration `2000000000000-add-account-deletion-persistence` refuses rollback when doing so would discard a deletion operation or require reconstructing an erased email.
 
 Database-generated `BIGINT` IDs are represented as positive decimal strings at application and HTTP boundaries. Expense amounts use exact `NUMERIC(15,2)` PHP values. Expense and statement-period dates use PostgreSQL `date`; timestamps use UTC `timestamptz` with millisecond precision. Expense mutations increment a bigint revision atomically.
 

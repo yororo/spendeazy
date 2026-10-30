@@ -1,4 +1,5 @@
 import { UserEntity } from '../../database/entities/user.entity';
+import { AccountDeletionError } from '../../users/application/user-errors';
 import { UserNotFoundError } from '../../users/application/user-errors';
 import { Injectable } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
@@ -75,6 +76,8 @@ export function createReviewedImportContext(
       if (nonblocking) actorQuery.setOnLocked('nowait');
       const actor = await actorQuery.getOne();
       if (!actor) throw new UserNotFoundError();
+      if (actor.deletionStatus !== 'active')
+        throw new AccountDeletionError(actor.deletionStatus);
       const spaceQuery = manager
         .getRepository(SpaceEntity)
         .createQueryBuilder('space')
@@ -85,6 +88,15 @@ export function createReviewedImportContext(
       if (!space) throw new SpaceNotFoundError();
     },
     async requireReadAccess(userId, spaceId) {
+      const actor = await manager
+        .getRepository(UserEntity)
+        .createQueryBuilder('actor')
+        .where('actor.id = :userId', { userId })
+        .setLock('pessimistic_read')
+        .getOne();
+      if (!actor) throw new UserNotFoundError();
+      if (actor.deletionStatus !== 'active')
+        throw new AccountDeletionError(actor.deletionStatus);
       if (
         !(await manager
           .getRepository(SpaceMembershipEntity)

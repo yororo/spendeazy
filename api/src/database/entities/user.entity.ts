@@ -24,8 +24,19 @@ export class UserEntity {
   @Column({ type: 'varchar', length: 200 })
   name!: string;
 
-  @Column({ type: 'varchar', length: 320 })
-  email!: string;
+  @Column({ type: 'varchar', length: 320, nullable: true })
+  email!: string | null;
+
+  @Column({ type: 'text', nullable: true, name: 'photo_url' })
+  photoUrl!: string | null;
+
+  @Column({
+    type: 'varchar',
+    length: 20,
+    default: 'active',
+    name: 'deletion_status',
+  })
+  deletionStatus!: 'active' | 'pending' | 'completed';
 
   @Column({
     type: 'bigint',

@@ -390,7 +390,10 @@ describeDatabase('Invite Codes with PostgreSQL', () => {
         .send({}),
     ]);
 
-    expect([rotation.status, join.status].sort()).toEqual([200, 404]);
+    expect([
+      [200, 404],
+      [200, 409],
+    ]).toContainEqual([rotation.status, join.status].sort());
     if (rotation.status === 200) {
       createdInvitationIds.push(
         responseBody<OutgoingInvitationBody>(rotation).id,

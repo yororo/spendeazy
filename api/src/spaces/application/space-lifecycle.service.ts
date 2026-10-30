@@ -3,7 +3,6 @@ import { Inject, Injectable } from '@nestjs/common';
 import {
   SPACE_LIFECYCLE_STORE,
   type ArchivedSpaceRecord,
-  type IdentityDeletionResult,
   type SpaceLifecycleStore,
 } from './space-lifecycle-store';
 import { SpaceNotFoundError } from './space-errors';
@@ -26,14 +25,6 @@ export class SpaceLifecycleService {
       new Date(),
     );
     await this.notifyOtherMember(archived);
-  }
-
-  async deleteIdentity(userId: string): Promise<IdentityDeletionResult> {
-    const result = await this.lifecycleStore.deleteIdentity(userId, new Date());
-    for (const archived of result.archivedSpaces) {
-      await this.notifyOtherMember(archived, 'Deleted user');
-    }
-    return result;
   }
 
   private async notifyOtherMember(

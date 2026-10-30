@@ -1,3 +1,4 @@
+import { transactionManager } from '../../database/transaction-context';
 import {
   IsNull,
   Not,
@@ -28,9 +29,12 @@ import type {
 
 @Injectable()
 export class TypeOrmImportedExpenseStore implements SpaceImportedExpenseStore {
+  get entityManager(): EntityManager {
+    return transactionManager(this.baseEntityManager);
+  }
   constructor(
     @InjectEntityManager()
-    public readonly entityManager: EntityManager,
+    private readonly baseEntityManager: EntityManager,
   ) {}
 
   async findByFingerprintInSpace(

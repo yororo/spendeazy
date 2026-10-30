@@ -13,6 +13,38 @@ import { createOpenApiDocument } from './openapi-document.factory';
 type SwaggerParserDocument = Parameters<typeof SwaggerParser.validate>[0];
 
 describe('canonical Expense OpenAPI contract', () => {
+  it('publishes durable deletion acceptance, restricted status and current profile fields', async () => {
+    const document = await createOpenApiDocument();
+    const account = document.paths['/api/v1/users/me'];
+    expect(account.delete?.responses).toHaveProperty('202');
+    expect(account.delete?.responses).toHaveProperty('204');
+    expect(account.delete?.responses).toHaveProperty('503');
+    const status = document.paths['/api/v1/users/me/deletion'].get;
+    expect(status?.responses['200']).toMatchObject({
+      headers: { 'Cache-Control': { schema: { example: 'no-store' } } },
+    });
+    expect(document.components?.schemas?.DeletionResponseDto).toMatchObject({
+      additionalProperties: false,
+      required: ['status'],
+      properties: { status: { enum: ['pending', 'completed'] } },
+    });
+    expect(document.components?.schemas?.UserResponseDto).toMatchObject({
+      properties: {
+        photoUrl: { nullable: true },
+        deletionStatus: { enum: ['active'] },
+      },
+    });
+    expect(document.components?.schemas?.SpaceMemberResponseDto).toMatchObject({
+      properties: { photoUrl: { nullable: true } },
+    });
+    expect(document.components?.schemas?.SpaceResponseDto).toMatchObject({
+      properties: {
+        attribution: { type: 'array' },
+        members: { type: 'array' },
+      },
+    });
+  });
+
   it('validates the document and exposes only Space-scoped financial routes', async () => {
     const document = await createOpenApiDocument();
     await expect(

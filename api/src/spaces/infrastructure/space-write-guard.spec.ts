@@ -81,7 +81,9 @@ describe('prepareWritableSpace', () => {
     const actorQuery = {
       where: jest.fn().mockReturnThis(),
       setLock: jest.fn().mockReturnThis(),
-      getOne: jest.fn().mockResolvedValue({ id: '7' }),
+      getOne: jest
+        .fn()
+        .mockResolvedValue({ id: '7', deletionStatus: 'active' }),
     };
     const spaceQuery = {
       where: jest.fn().mockReturnThis(),

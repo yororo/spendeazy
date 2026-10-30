@@ -1,3 +1,4 @@
+import { PersonAvatar } from '@/components/person-avatar';
 import { useState } from "react";
 import { FlatList, RefreshControl, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -107,7 +108,10 @@ export function StatementImportDetailView({
                   <SupportingText>{`Statement date: ${d.statementDate ?? "Unavailable"}`}</SupportingText>
                   <SupportingText>{`History dates: ${d.historyFromDate ?? "Unavailable"} to ${d.historyToDate ?? "Unavailable"}`}</SupportingText>
                   <SupportingText>{`Confirmed ${manilaTime(d.importedAt)} · Asia/Manila`}</SupportingText>
-                  <BodyText>{`Imported by ${c.importer}`}</BodyText>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                    <PersonAvatar name={c.importer} photoUrl={c.importerPhoto} />
+                    <View style={{ flex: 1 }}><BodyText>{`Imported by ${c.importer}`}</BodyText></View>
+                  </View>
                   <BodyText>{`Destination: ${spaceIdentityLabel(c.active)} · Space ${c.active.id}`}</BodyText>
                 </DesignSurface>
                 <DesignSurface style={{ padding: 22, gap: 10 }}>

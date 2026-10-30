@@ -298,6 +298,8 @@ function applicationErrorStatus(code: string): number {
     case UNAUTHENTICATED_CODE:
       return HttpStatus.UNAUTHORIZED;
     case USER_NOT_PROVISIONED_CODE:
+    case 'ACCOUNT_DELETION_PENDING':
+    case 'ACCOUNT_DELETED':
       return HttpStatus.FORBIDDEN;
     case SERVICE_UNAVAILABLE_CODE:
       return HttpStatus.SERVICE_UNAVAILABLE;

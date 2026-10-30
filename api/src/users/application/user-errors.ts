@@ -10,6 +10,17 @@ import {
 
 export const USER_EMAIL_ALREADY_EXISTS_CODE = 'EMAIL_ALREADY_EXISTS';
 
+export class AccountDeletionError extends ApplicationError {
+  constructor(status: 'pending' | 'completed') {
+    super(
+      status === 'pending' ? 'ACCOUNT_DELETION_PENDING' : 'ACCOUNT_DELETED',
+      status === 'pending'
+        ? 'Account deletion is pending'
+        : 'Account has been deleted',
+    );
+  }
+}
+
 export class UserNotFoundError extends ApplicationError {
   constructor() {
     super(USER_NOT_FOUND_CODE, 'User was not found');

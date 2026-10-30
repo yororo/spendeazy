@@ -55,6 +55,7 @@ new Function("require", "module", compiled.outputFiles[0].text)((name) => {
     };
   if (name === "react-native-safe-area-context")
     return { useSafeAreaInsets: () => ({ top: 0, bottom: 0 }) };
+  if (name === "@/components/person-avatar") return { PersonAvatar: "Avatar" };
   if (name === "@/components/buttons")
     return {
       SecondaryButton: ({ label, ...props }) =>

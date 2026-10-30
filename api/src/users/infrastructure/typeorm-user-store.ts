@@ -1,3 +1,4 @@
+import { transactionManager } from '../../database/transaction-context';
 import { InjectEntityManager } from '@nestjs/typeorm';
 import { Injectable } from '@nestjs/common';
 import {
@@ -7,6 +8,8 @@ import {
   type Repository,
 } from 'typeorm';
 import { UserEntity } from '../../database/entities/user.entity';
+import { AccountDeletionOperationEntity } from '../../database/entities/account-deletion-operation.entity';
+import type { AccountDeletionOperationRecord } from '../application/account-deletion-operation';
 import { POSTGRES_UNIQUE_VIOLATION } from '../../database/database-error-codes';
 import { UserEmailConflictError } from '../application/user-errors';
 import type {
@@ -18,31 +21,43 @@ import type {
 
 @Injectable()
 export class TypeOrmUserStore implements UserStore {
+  get entityManager(): EntityManager {
+    return transactionManager(this.baseEntityManager);
+  }
   constructor(
     @InjectEntityManager()
-    public readonly entityManager: EntityManager,
+    private readonly baseEntityManager: EntityManager,
   ) {}
 
-  async findById(id: string): Promise<UserRecord | null> {
+  async findDeletionOperationByClerkUserId(
+    clerkUserId: string,
+  ): Promise<AccountDeletionOperationRecord | null> {
     const entity = await this.entityManager
-      .getRepository(UserEntity)
-      .findOne({ where: { id } });
+      .getRepository(AccountDeletionOperationEntity)
+      .findOne({ where: { oldClerkUserId: clerkUserId } });
+    return entity ? { ...entity } : null;
+  }
+
+  async findById(id: string): Promise<UserRecord | null> {
+    const entity = await this.entityManager.getRepository(UserEntity).findOne({
+      where: { id, deletionStatus: 'active', deletedAt: IsNull() },
+    });
 
     return entity ? toUserRecord(entity) : null;
   }
 
   async findByClerkUserId(clerkUserId: string): Promise<UserRecord | null> {
-    const entity = await this.entityManager
-      .getRepository(UserEntity)
-      .findOne({ where: { clerkUserId, deletedAt: IsNull() } });
+    const entity = await this.entityManager.getRepository(UserEntity).findOne({
+      where: { clerkUserId, deletionStatus: 'active', deletedAt: IsNull() },
+    });
 
     return entity ? toUserRecord(entity) : null;
   }
 
   async findByEmail(email: string): Promise<UserRecord | null> {
-    const entity = await this.entityManager
-      .getRepository(UserEntity)
-      .findOne({ where: { email, deletedAt: IsNull() } });
+    const entity = await this.entityManager.getRepository(UserEntity).findOne({
+      where: { email, deletionStatus: 'active', deletedAt: IsNull() },
+    });
 
     return entity ? toUserRecord(entity) : null;
   }
@@ -53,6 +68,8 @@ export class TypeOrmUserStore implements UserStore {
       clerkUserId: input.clerkUserId,
       name: input.name,
       email: input.email,
+      photoUrl: input.photoUrl ?? null,
+      deletionStatus: 'active',
       deletedAt: null,
     });
 
@@ -61,7 +78,9 @@ export class TypeOrmUserStore implements UserStore {
 
   async update(id: string, input: UpdateUser): Promise<UserRecord | null> {
     const repository = this.entityManager.getRepository(UserEntity);
-    const entity = await repository.findOne({ where: { id } });
+    const entity = await repository.findOne({
+      where: { id, deletionStatus: 'active', deletedAt: IsNull() },
+    });
     if (!entity) {
       return null;
     }
@@ -71,6 +90,9 @@ export class TypeOrmUserStore implements UserStore {
     }
     if (input.email !== undefined) {
       entity.email = input.email;
+    }
+    if (input.photoUrl !== undefined) {
+      entity.photoUrl = input.photoUrl;
     }
 
     return saveUser(repository, entity);
@@ -89,11 +111,14 @@ async function saveUser(
 }
 
 function toUserRecord(entity: UserEntity): UserRecord {
+  // Only active Users are projected; nullable email belongs to scrubbed tombstones.
+  if (entity.email === null) throw new Error('Active User must have an email');
   return {
     id: entity.id,
     clerkUserId: entity.clerkUserId,
     name: entity.name,
     email: entity.email,
+    photoUrl: entity.photoUrl,
     createdAt: entity.createdAt,
     updatedAt: entity.updatedAt,
   };

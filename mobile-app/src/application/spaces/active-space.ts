@@ -5,6 +5,7 @@ export type SpaceAccessLevel = 'read' | 'write';
 export type SpaceMember = {
   id: string;
   name: string;
+  photoUrl?: string | null;
 };
 
 export type AccessibleSpace = {
@@ -13,6 +14,7 @@ export type AccessibleSpace = {
   status: SpaceStatus;
   accessLevel: SpaceAccessLevel;
   members: SpaceMember[];
+  attribution?: SpaceMember[];
 };
 
 const POSITIVE_ID = /^[1-9]\d*$/;
@@ -65,12 +67,16 @@ export function parseAccessibleSpace(value: unknown): AccessibleSpace {
   if (!Array.isArray(value.members) || value.members.length === 0) {
     throw new Error('Spaces response must include members');
   }
+  if (value.attribution !== undefined && !Array.isArray(value.attribution)) {
+    throw new Error('Invalid attribution');
+  }
   return {
     id,
     kind,
     status,
     accessLevel,
     members: value.members.map(parseMember),
+    attribution: Array.isArray(value.attribution) ? value.attribution.map(parseMember) : value.members.map(parseMember),
   };
 }
 
@@ -82,7 +88,8 @@ function parseMember(value: unknown): SpaceMember {
   if (typeof name !== 'string' || name.trim().length === 0) {
     throw new Error('Spaces response must include member names');
   }
-  return { id: requiredId(value.id, 'Member id'), name };
+  if (value.photoUrl !== null && value.photoUrl !== undefined && (typeof value.photoUrl !== 'string' || !/^https?:\/\//.test(value.photoUrl))) throw new Error('Invalid person photo');
+  return { id: requiredId(value.id, 'Member id'), name, photoUrl: value.photoUrl ?? null };
 }
 
 function requiredId(value: unknown, label: string): string {

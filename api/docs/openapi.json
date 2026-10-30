@@ -75,6 +75,9 @@
           "401": {
             "$ref": "#/components/responses/UnauthenticatedError"
           },
+          "403": {
+            "$ref": "#/components/responses/UserNotProvisionedError"
+          },
           "404": {
             "$ref": "#/components/responses/NotFoundError"
           },
@@ -132,12 +135,31 @@
         ]
       },
       "delete": {
-        "description": "The local User is retained as a Deleted user tombstone so immutable financial attribution remains readable. Active Shared Spaces become permanent read-only history for the remaining member.",
+        "description": "Acceptance durably fences access, scrubs identity and archives active Shared Spaces. Personal data, provider identity and sessions are reconciled without the app. Requires a live Clerk session. Only the initiating session can retry or read status.",
         "operationId": "Users_deleteUser",
         "parameters": [],
         "responses": {
+          "202": {
+            "description": "Deletion accepted; cleanup is pending.",
+            "headers": {
+              "Location": {
+                "required": true,
+                "schema": {
+                  "type": "string",
+                  "example": "/api/v1/users/me/deletion"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionResponseDto"
+                }
+              }
+            }
+          },
           "204": {
-            "description": "Identity access removed."
+            "description": "Every cleanup checkpoint is complete and the initiating credential remains valid."
           },
           "401": {
             "$ref": "#/components/responses/UnauthenticatedError"
@@ -150,9 +172,57 @@
           },
           "500": {
             "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailableError"
           }
         },
-        "summary": "Delete the local identity and archive any active Shared Space history.",
+        "summary": "Accept permanent account deletion and reconcile cleanup in the background.",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/api/v1/users/me/deletion": {
+      "get": {
+        "operationId": "Users_deletionStatus",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "example": "no-store"
+                }
+              }
+            },
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthenticatedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/UserNotProvisionedError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailableError"
+          }
+        },
+        "summary": "Read deletion status using the initiating, live Clerk session.",
         "tags": [
           "Users"
         ]
@@ -3254,6 +3324,18 @@
       "UserResponseDto": {
         "type": "object",
         "properties": {
+          "photoUrl": {
+            "type": "string",
+            "nullable": true,
+            "description": "Current provider-owned photo URL."
+          },
+          "deletionStatus": {
+            "type": "string",
+            "enum": [
+              "active"
+            ],
+            "description": "Only active identities can read a profile."
+          },
           "id": {
             "type": "string",
             "description": "Positive bigint User identifier encoded as a string.",
@@ -3290,6 +3372,8 @@
         },
         "additionalProperties": false,
         "required": [
+          "photoUrl",
+          "deletionStatus",
           "id",
           "name",
           "email",
@@ -3364,6 +3448,8 @@
       "ErrorCode": {
         "type": "string",
         "enum": [
+          "ACCOUNT_DELETION_PENDING",
+          "ACCOUNT_DELETED",
           "IMPORT_OPERATION_PAYLOAD_CONFLICT",
           "IMPORT_OPERATION_NOT_COMMITTED",
           "IMPORT_REVIEW_REQUIRED",
@@ -3593,6 +3679,22 @@
           "message",
           "categoryId",
           "expenseIndexes"
+        ]
+      },
+      "DeletionResponseDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "completed"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "status"
         ]
       },
       "CategoryResponseDto": {
@@ -4283,12 +4385,18 @@
             "description": "Display name of a User in the Space.",
             "minLength": 1,
             "example": "Ada Lovelace"
+          },
+          "photoUrl": {
+            "type": "string",
+            "nullable": true,
+            "description": "Current photo; null for deleted identities."
           }
         },
         "additionalProperties": false,
         "required": [
           "id",
-          "name"
+          "name",
+          "photoUrl"
         ]
       },
       "SpaceResponseDto": {
@@ -4335,6 +4443,13 @@
               "$ref": "#/components/schemas/SpaceMemberResponseDto"
             }
           },
+          "attribution": {
+            "description": "Current identities and former financial contributors. Does not grant membership or access.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SpaceMemberResponseDto"
+            }
+          },
           "createdAt": {
             "type": "string",
             "description": "UTC timestamp when the Space was created.",
@@ -4355,6 +4470,7 @@
           "status",
           "accessLevel",
           "members",
+          "attribution",
           "createdAt",
           "updatedAt"
         ]
@@ -7685,7 +7801,7 @@
         }
       },
       "UserNotProvisionedError": {
-        "description": "The verified Clerk identity is not linked to a local User. Provision the User first.",
+        "description": "The identity is not provisioned (USER_NOT_PROVISIONED), deletion is pending (ACCOUNT_DELETION_PENDING), or deletion completed (ACCOUNT_DELETED). Deletion errors require private-state cleanup; provisioning cannot restore access.",
         "content": {
           "application/json": {
             "schema": {

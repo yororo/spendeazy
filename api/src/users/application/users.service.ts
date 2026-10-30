@@ -9,10 +9,6 @@ import {
   PERSONAL_SPACE_PROVISIONER,
   type PersonalSpaceProvisioner,
 } from '../../spaces/application/space-store';
-import {
-  SPACE_LIFECYCLE,
-  SpaceLifecycleService,
-} from '../../spaces/application/space-lifecycle.service';
 import type {
   ClerkProfileService,
   ClerkUserProfile,
@@ -23,6 +19,7 @@ import {
   UserNotFoundError,
   UserProfileEmailRequiredError,
   UserProfileInvalidError,
+  AccountDeletionError,
 } from './user-errors';
 import {
   USER_EMAIL_MAX_LENGTH,
@@ -33,6 +30,10 @@ import {
   type UserRecord,
   type UserStore,
 } from './user-store';
+import {
+  ACTIVE_IDENTITY_EXECUTION,
+  type ActiveIdentityExecution,
+} from './active-identity-execution';
 
 export interface UserProvisioningResult {
   user: UserRecord;
@@ -52,16 +53,32 @@ export class UsersService {
     @Inject(PERSONAL_SPACE_PROVISIONER)
     private readonly personalSpaceProvisioner: PersonalSpaceProvisioner,
     @Optional()
-    @Inject(SPACE_LIFECYCLE)
-    private readonly spaceLifecycleService?: SpaceLifecycleService,
+    @Inject(ACTIVE_IDENTITY_EXECUTION)
+    private readonly identityExecution?: ActiveIdentityExecution,
   ) {}
 
   async provisionUser(clerkUserId: string): Promise<UserProvisioningResult> {
+    const operation =
+      await this.userStore.findDeletionOperationByClerkUserId(clerkUserId);
+    if (operation) throw new AccountDeletionError(operation.status);
     const profile = await this.fetchProfile(clerkUserId);
     if (!profile) {
       throw new UserNotFoundError();
     }
 
+    const work = () => this.synchronizeProfile(clerkUserId, profile);
+    return this.identityExecution
+      ? this.identityExecution.provision(clerkUserId, work)
+      : work();
+  }
+
+  private async synchronizeProfile(
+    clerkUserId: string,
+    profile: ClerkUserProfile,
+  ): Promise<UserProvisioningResult> {
+    const operation =
+      await this.userStore.findDeletionOperationByClerkUserId(clerkUserId);
+    if (operation) throw new AccountDeletionError(operation.status);
     const input = toProvisionedUserInput(clerkUserId, profile);
     const currentUser = await this.userStore.findByClerkUserId(clerkUserId);
     if (!currentUser) {
@@ -76,6 +93,7 @@ export class UsersService {
     const changes: UpdateUser = {
       name: input.name,
       email: input.email,
+      photoUrl: input.photoUrl,
     };
     if (isNoOp(currentUser, changes)) {
       await this.ensurePersonalSpaceDefaults(currentUser.id);
@@ -98,16 +116,6 @@ export class UsersService {
     }
 
     return user;
-  }
-
-  async deleteByClerkUserId(clerkUserId: string): Promise<void> {
-    const user = await this.userStore.findByClerkUserId(clerkUserId);
-    if (!user) throw new UserNotFoundError();
-    if (!this.spaceLifecycleService) {
-      throw new Error('Space lifecycle is not configured');
-    }
-
-    await this.spaceLifecycleService.deleteIdentity(user.id);
   }
 
   private async fetchProfile(clerkUserId: string) {
@@ -135,6 +143,9 @@ export class UsersService {
     try {
       user = await this.userStore.create(input);
     } catch (error: unknown) {
+      // Provider advisory locking already serializes same-identity creation.
+      // Let the transaction roll back before translating a competing email insert.
+      if (this.identityExecution) throw error;
       if (!(error instanceof UserEmailConflictError)) {
         throw error;
       }
@@ -170,12 +181,14 @@ export function normalizeName(name: string): string {
 }
 
 function isNoOp(
-  currentUser: { name: string; email: string },
+  currentUser: { name: string; email: string; photoUrl: string | null },
   changes: UpdateUser,
 ): boolean {
   return (
     (changes.name === undefined || changes.name === currentUser.name) &&
-    (changes.email === undefined || changes.email === currentUser.email)
+    (changes.email === undefined || changes.email === currentUser.email) &&
+    (changes.photoUrl === undefined ||
+      changes.photoUrl === currentUser.photoUrl)
   );
 }
 
@@ -195,5 +208,5 @@ function toProvisionedUserInput(
     throw new UserProfileInvalidError();
   }
 
-  return { clerkUserId, name, email };
+  return { clerkUserId, name, email, photoUrl: profile.photoUrl ?? null };
 }

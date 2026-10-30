@@ -3,6 +3,28 @@ import test from 'node:test';
 import { createSession } from './session.ts';
 import { interpretStatement } from '../features/statement-import/providers.ts';
 
+test('confirmed session termination clears work and fences old observation while a fresh same-user session can return', async () => {
+  const session = createSession(); session.observeIdentity('ada', 'revoked-session');
+  session.saveDraft({ amount: '12', description: 'Lunch', categoryId: 'food', expenseDate: '2026-10-24' });
+  await session.signOut();
+  session.observeIdentity('ada', 'revoked-session');
+  assert.equal(session.snapshot().userId, null);
+  session.observeIdentity('ada', 'fresh-session');
+  assert.equal(session.snapshot().userId, 'ada');
+  assert.equal(session.snapshot().draft, null);
+});
+
+test('unchanged provider observation does not unlock a 401; explicit live-session verification can retain its draft', () => {
+  const session = createSession(); session.observeIdentity('ada', 'session');
+  session.saveDraft({ amount: '12', description: 'Lunch', categoryId: 'food', expenseDate: '2026-10-24' });
+  session.expire(session.capture());
+  session.observeIdentity('ada', 'session');
+  assert.equal(session.snapshot().notice, 'expired');
+  session.resumeVerifiedIdentity('ada', 'session');
+  assert.equal(session.snapshot().notice, null);
+  assert.equal(session.snapshot().draft?.description, 'Lunch');
+});
+
 test('expiry retains work for the same identity and rejects old requests after recovery', () => {
   const session = createSession();
   session.observeIdentity('ada');

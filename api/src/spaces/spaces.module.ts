@@ -121,8 +121,6 @@ const unconfiguredSpaceAccessService = {
 const unconfiguredSpaceLifecycleService = {
   leaveSharedSpace: (): Promise<never> =>
     Promise.reject(new SpaceNotFoundError()),
-  deleteIdentity: (): Promise<never> =>
-    Promise.reject(new SpaceNotFoundError()),
 };
 
 const unconfiguredSpaceNotificationsService = {

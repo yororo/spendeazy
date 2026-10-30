@@ -80,29 +80,38 @@ describe('authenticated Space routes', () => {
       .set('Accept', 'application/json');
 
     expect(response.status).toBe(200);
-    expect(response.body).toEqual([
-      {
-        id: '10',
-        kind: 'personal',
-        status: 'active',
-        accessLevel: 'write',
-        members: [{ id: '42', name: 'Ada Lovelace' }],
-        createdAt: '2026-09-20T00:00:00.000Z',
-        updatedAt: '2026-09-20T00:00:00.000Z',
-      },
-      {
-        id: '11',
-        kind: 'shared',
-        status: 'archived',
-        accessLevel: 'read',
-        members: [
-          { id: '42', name: 'Ada Lovelace' },
-          { id: '43', name: 'Grace Hopper' },
-        ],
-        createdAt: '2026-09-20T00:00:00.000Z',
-        updatedAt: '2026-09-20T00:00:00.000Z',
-      },
-    ]);
+    expect(response.body).toEqual(
+      [
+        {
+          id: '10',
+          kind: 'personal',
+          status: 'active',
+          accessLevel: 'write',
+          members: [{ id: '42', name: 'Ada Lovelace' }],
+          createdAt: '2026-09-20T00:00:00.000Z',
+          updatedAt: '2026-09-20T00:00:00.000Z',
+        },
+        {
+          id: '11',
+          kind: 'shared',
+          status: 'archived',
+          accessLevel: 'read',
+          members: [
+            { id: '42', name: 'Ada Lovelace' },
+            { id: '43', name: 'Grace Hopper' },
+          ],
+          createdAt: '2026-09-20T00:00:00.000Z',
+          updatedAt: '2026-09-20T00:00:00.000Z',
+        },
+      ].map((space) => ({
+        ...space,
+        members: space.members.map((member) => ({ ...member, photoUrl: null })),
+        attribution: space.members.map((member) => ({
+          ...member,
+          photoUrl: null,
+        })),
+      })),
+    );
     expect(spaceAccessService.listAccessibleSpaces).toHaveBeenCalledWith('42');
   });
 

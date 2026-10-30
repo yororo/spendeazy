@@ -7,6 +7,7 @@ import { writeSync } from 'node:fs';
 import type { Request, RequestHandler } from 'express';
 
 type ExceptionEvent =
+  | 'account_deletion_reconciliation_failed'
   | 'request_failed'
   | 'default_category_creation_failed'
   | 'database_readiness_failed'
@@ -73,6 +74,26 @@ export class ExceptionLogger implements ExceptionReporter {
       writeSync(2, line);
     },
   ) {}
+
+  reportAccountDeletionStageFailure(
+    stage: 'personal' | 'provider',
+    code:
+      | 'provider_unavailable'
+      | 'provider_rate_limited'
+      | 'provider_configuration'
+      | 'personal_cleanup_failed'
+      | 'reconciliation_failed',
+  ): void {
+    this.write(
+      JSON.stringify({
+        timestamp: new Date().toISOString(),
+        level: 'error',
+        event: 'account_deletion_stage_failed',
+        stage,
+        code,
+      }) + '\n',
+    );
+  }
 
   report(event: ExceptionEvent, error: unknown, status?: number): void {
     if (error instanceof Error && this.reported.has(error)) return;

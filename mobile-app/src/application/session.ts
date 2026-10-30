@@ -19,14 +19,17 @@ type SessionSnapshot = {
 };
 
 /** Owns private-work retention and invalidates all work started in an older session/Space. */
-export function createSession(onResetSelections: () => void = () => {}, onImportSaved: () => void = onResetSelections, receipts?: ReceiptOwner) {
+export function createSession(onResetSelections: () => void = () => {}, onImportSaved: () => void = onResetSelections, receipts?: ReceiptOwner, cleanupResources?: () => Promise<void>) {
+  const fencedIdentities = new Set<string>();
+  const endedCredentials = new Set<string>();
+  const hasPrivateStorage = receipts !== undefined || cleanupResources !== undefined;
   let state: SessionSnapshot = {
     userId: null, authSessionId: null, ownerUserId: null, spaceId: null, spaceWritable: false, draft: null,
     notice: null, announceRecovery: false, generation: 0,
     cleanupPending: false, cleanupError: false,
   };
   const listeners = new Set<() => void>();
-  const authenticated = () => state.userId !== null && state.notice === null && !state.cleanupPending && !state.cleanupError;
+  const authenticated = () => state.userId !== null && !fencedIdentities.has(state.userId) && state.notice === null && !state.cleanupPending && !state.cleanupError;
   const imports = createImportStore(() => ({
     ...state, authenticated: authenticated(), writable: state.spaceWritable && !confirmation.hasReceipt(),
   }));
@@ -46,16 +49,20 @@ export function createSession(onResetSelections: () => void = () => {}, onImport
     for (const listener of listeners) listener();
   }
   function isCurrent(scope: SessionScope) {
-    return !state.cleanupPending && !state.cleanupError && state.notice === null && state.userId !== null && scope.userId === state.userId &&
+    return authenticated() && scope.userId === state.userId &&
       scope.spaceId === state.spaceId && scope.generation === state.generation;
   }
   let cleanup: Promise<void> = Promise.resolve();
   let cleanupVersion = 0;
   function cleanupPrivateStorage() {
-    if (!receipts) return Promise.resolve();
+    if (!receipts && !cleanupResources) return Promise.resolve();
     const request = ++cleanupVersion;
     publish({ cleanupPending: true, cleanupError: false });
-    cleanup = receipts.cleanup().then(() => { if (request === cleanupVersion) publish({ cleanupPending: false }); }, error => {
+    cleanup = cleanup.catch(() => {}).then(async () => {
+      // Run every cleanup even if an independent resource fails.
+      const outcomes = await Promise.allSettled([receipts?.cleanup(), cleanupResources?.()]);
+      if (outcomes.some(outcome => outcome.status === 'rejected')) throw new Error('Private cleanup failed');
+    }).then(() => { if (request === cleanupVersion) publish({ cleanupPending: false }); }, error => {
       if (request === cleanupVersion) publish({ cleanupPending: false, cleanupError: true }); throw error;
     });
     // Observe automatic identity cleanup failures; the retry surface retains them.
@@ -65,7 +72,7 @@ export function createSession(onResetSelections: () => void = () => {}, onImport
   function clearPrivateIdentity() {
     onResetSelections();
     publish({ userId: null, authSessionId: null, ownerUserId: null, spaceId: null, spaceWritable: false, draft: null,
-      notice: null, announceRecovery: false, cleanupPending: receipts !== undefined, generation: state.generation + 1 });
+      notice: null, announceRecovery: false, cleanupPending: hasPrivateStorage, generation: state.generation + 1 });
     return cleanupPrivateStorage();
   }
   return {
@@ -73,7 +80,14 @@ export function createSession(onResetSelections: () => void = () => {}, onImport
     confirmation,
     awaitCleanup: () => cleanup,
     retryCleanup: cleanupPrivateStorage,
-    acceptedAccountDeletion: clearPrivateIdentity,
+    blockIdentity(userId: string) {
+      fencedIdentities.add(userId);
+      publish({ generation: state.generation + 1 });
+    },
+    acceptedAccountDeletion() {
+      if (state.ownerUserId) fencedIdentities.add(state.ownerUserId);
+      return clearPrivateIdentity();
+    },
     snapshot: () => state,
     subscribe(listener: () => void) {
       listeners.add(listener);
@@ -82,6 +96,8 @@ export function createSession(onResetSelections: () => void = () => {}, onImport
     capture: (): SessionScope => ({ generation: state.generation, userId: state.userId, spaceId: state.spaceId }),
     isCurrent,
     observeIdentity(userId: string | null, authSessionId: string | null = null) {
+      if (userId && fencedIdentities.has(userId)) return;
+      if (userId && authSessionId && endedCredentials.has(`${userId}\0${authSessionId}`)) return;
       if (state.userId === userId && state.authSessionId === authSessionId) return;
       if (userId === null) {
         publish({ userId: null, authSessionId: null, notice: state.ownerUserId ? 'expired' : null, generation: state.generation + 1 });
@@ -92,21 +108,28 @@ export function createSession(onResetSelections: () => void = () => {}, onImport
       if (!sameOwner) onResetSelections();
       publish({
         userId, authSessionId, ownerUserId: userId, notice: null,
-        cleanupPending: state.cleanupPending || (changedOwner && receipts !== undefined),
+        cleanupPending: state.cleanupPending || (changedOwner && hasPrivateStorage),
         spaceId: sameOwner ? state.spaceId : null,
         spaceWritable: sameOwner ? state.spaceWritable : false,
         draft: sameOwner ? state.draft : null,
         announceRecovery: sameOwner && state.notice === 'expired' && (state.draft !== null || imports.hasWork()),
         generation: state.generation + 1,
       });
-      if (changedOwner) void cleanupPrivateStorage();
+      if (changedOwner && hasPrivateStorage) void cleanupPrivateStorage();
     },
     expire(scope: SessionScope) {
       if (!isCurrent(scope) || state.notice === 'expired') return false;
       publish({ notice: 'expired', generation: state.generation + 1 });
       return true;
     },
-    signOut: clearPrivateIdentity,
+    resumeVerifiedIdentity(userId: string, authSessionId: string | null) {
+      if (state.userId !== userId || state.authSessionId !== authSessionId || fencedIdentities.has(userId)) return;
+      publish({ notice: null, announceRecovery: state.draft !== null || imports.hasWork(), generation: state.generation + 1 });
+    },
+    signOut() {
+      if (state.userId && state.authSessionId) endedCredentials.add(`${state.userId}\0${state.authSessionId}`);
+      return clearPrivateIdentity();
+    },
     changeSpace(spaceId: string | null, writable = true) {
       if (state.cleanupPending || state.cleanupError) return false;
       if (state.spaceId === spaceId) {

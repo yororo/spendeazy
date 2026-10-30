@@ -1,3 +1,4 @@
+import { TypeOrmAccountDeletionStore } from '../src/users/infrastructure/typeorm-account-deletion-store';
 import { TypeOrmStatementImportDetailStore } from '../src/statement-imports/infrastructure/typeorm-statement-import-detail-store';
 import { TypeOrmSpaceLifecycleStore } from '../src/spaces/infrastructure/typeorm-space-lifecycle-store';
 import { ReviewedImportService } from '../src/statement-imports/application/reviewed-import.service';
@@ -176,6 +177,10 @@ describeDatabase(
         spaceId: In(spaceIds),
       });
       await database.getRepository(SpaceEntity).delete(spaceIds);
+      await database.query(
+        'DELETE FROM account_deletion_operations WHERE user_id = ANY($1::bigint[])',
+        [users.map((user) => user.id)],
+      );
       await database
         .getRepository(UserEntity)
         .delete(users.map((user) => user.id));
@@ -545,11 +550,12 @@ describeDatabase(
               spaceIds[0],
               new Date(),
             );
-          else await lifecycle.deleteIdentity(users[0].id, new Date());
-          expect((await getStatus(id)).body).toEqual({
-            status: 'pending',
-            operationId: id,
-          });
+          else
+            await new TypeOrmAccountDeletionStore(runner.manager).accept(
+              users[0].clerkUserId,
+              'deletion_session',
+            );
+          // Status reads share the actor lock; release acceptance before reading.
           resume.release();
           await runner.commitTransaction();
           let status = await getStatus(id);
@@ -565,11 +571,11 @@ describeDatabase(
             expect(body(response).error.code).toBe(body(status).failure.code);
             expect((await getStatus(id, 'second')).status).toBe(404);
           } else {
-            expect(status.status).toBe(404);
-            expect(response.status).toBe(404);
+            expect(status.status).toBe(403);
+            expect(response.status).toBe(403);
             await expect(
               activeService.status(users[0].id, spaceIds[0], id),
-            ).rejects.toMatchObject({ code: 'SPACE_NOT_FOUND' });
+            ).rejects.toMatchObject({ code: 'ACCOUNT_DELETION_PENDING' });
           }
           const after = await financialState();
           expect({ ...after, space: null, results: [] }).toEqual({
@@ -1038,10 +1044,10 @@ describeDatabase(
         entering = resolve;
       });
       const service = reviewedService((context) => {
-        const lock = context.lockExecutionScope.bind(
+        const lock = context.requireReadAccess.bind(
           context,
-        ) as typeof context.lockExecutionScope;
-        context.lockExecutionScope = async (...args) => {
+        ) as typeof context.requireReadAccess;
+        context.requireReadAccess = async (...args) => {
           entering();
           return lock(...args);
         };

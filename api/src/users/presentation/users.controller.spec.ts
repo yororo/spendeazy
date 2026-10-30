@@ -1,3 +1,4 @@
+import type { AccountDeletionService } from '../application/account-deletion.service';
 import type { Response } from 'express';
 import type { AuthenticatedRequest } from '../../authentication/authentication';
 import type { UsersService } from '../application/users.service';
@@ -12,6 +13,7 @@ describe('UsersController', () => {
     };
     const controller = new UsersController(
       usersService as unknown as UsersService,
+      {} as AccountDeletionService,
     );
     const status = jest.fn();
     const setHeader = jest.fn();
@@ -20,6 +22,8 @@ describe('UsersController', () => {
     await expect(
       controller.provisionUser(authenticatedRequest(), {}, response),
     ).resolves.toEqual({
+      photoUrl: null,
+      deletionStatus: 'active',
       id: '42',
       name: 'Ada Lovelace',
       email: 'ada@example.com',
@@ -48,6 +52,7 @@ function userRecord(): UserRecord {
     clerkUserId: 'user_42',
     name: 'Ada Lovelace',
     email: 'ada@example.com',
+    photoUrl: null,
     createdAt: new Date('2026-08-29T00:00:00.123Z'),
     updatedAt: new Date('2026-08-29T00:00:00.456Z'),
   };

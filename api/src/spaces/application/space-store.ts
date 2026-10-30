@@ -21,12 +21,14 @@ export interface SpaceRecord {
 export interface SpaceMemberRecord {
   id: string;
   name: string;
+  photoUrl?: string | null;
 }
 
 export interface AccessibleSpaceRecord extends SpaceRecord {
   userId: string;
   accessLevel: SpaceAccessLevel;
   members: readonly SpaceMemberRecord[];
+  attribution?: readonly SpaceMemberRecord[];
 }
 
 export interface SpaceStore {

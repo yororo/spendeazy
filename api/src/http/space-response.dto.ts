@@ -19,6 +19,13 @@ export class SpaceMemberResponseDto {
     example: 'Ada Lovelace',
   })
   name!: string;
+
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    description: 'Current photo; null for deleted identities.',
+  })
+  photoUrl!: string | null;
 }
 
 @ApiSchema({
@@ -61,6 +68,13 @@ export class SpaceResponseDto {
     minItems: 1,
   })
   members!: SpaceMemberResponseDto[];
+
+  @ApiProperty({
+    type: [SpaceMemberResponseDto],
+    description:
+      'Current identities and former financial contributors. Does not grant membership or access.',
+  })
+  attribution!: SpaceMemberResponseDto[];
 
   @ApiProperty({
     description: 'UTC timestamp when the Space was created.',

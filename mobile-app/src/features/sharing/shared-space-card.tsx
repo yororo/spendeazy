@@ -1,3 +1,4 @@
+import { PersonAvatar } from '@/components/person-avatar';
 import { ChevronRight, UserRoundCheck } from 'lucide-react-native';
 import { Pressable, Text, View } from 'react-native';
 
@@ -25,9 +26,7 @@ export function SharedSpaceCard({ space, ownMemberId, onManage }: {
     {onManage ? <Pressable accessibilityRole="button" accessibilityLabel={`Manage Shared Spaces: ${title}`} onPress={onManage} style={{ minHeight: 48, justifyContent: 'center' }}>{heading}</Pressable> : heading}
     {partners.length ? <View style={{ height: 1, backgroundColor: palette.divider }} /> : null}
     {partners.map((member) => <View key={member.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-      <View accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: palette.memberAvatar, alignItems: 'center', justifyContent: 'center' }}>
-        <Text maxFontSizeMultiplier={1.5} style={{ color: palette.statePositive, fontFamily: fonts.medium, fontSize: 20 }}>{member.name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase()}</Text>
-      </View>
+      <PersonAvatar name={member.name} photoUrl={member.photoUrl} size={46} />
       <View style={{ flex: 1, gap: 4 }}>
         <Text style={{ color: palette.textPrimary, fontFamily: fonts.medium, fontSize: 16 }}>{member.name}</Text>
         <Text style={{ color: palette.textSecondary, fontFamily: fonts.regular, fontSize: 13 }}>Shared member</Text>

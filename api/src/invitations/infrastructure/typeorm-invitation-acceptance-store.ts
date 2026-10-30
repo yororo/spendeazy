@@ -1,3 +1,4 @@
+import { transactionManager } from '../../database/transaction-context';
 import { Injectable } from '@nestjs/common';
 import { InjectEntityManager } from '@nestjs/typeorm';
 import { In, type EntityManager } from 'typeorm';
@@ -24,8 +25,11 @@ import type {
 
 @Injectable()
 export class TypeOrmInvitationAcceptanceStore implements InvitationAcceptanceStore {
+  get entityManager(): EntityManager {
+    return transactionManager(this.baseEntityManager);
+  }
   constructor(
-    @InjectEntityManager() private readonly entityManager: EntityManager,
+    @InjectEntityManager() private readonly baseEntityManager: EntityManager,
   ) {}
 
   accept(input: AcceptInvitationInput): Promise<AccessibleSpaceRecord> {
@@ -171,6 +175,7 @@ async function lockUsers(
     .createQueryBuilder('user')
     .where('user.id IN (:...userIds)', { userIds })
     .andWhere('user.deleted_at IS NULL')
+    .andWhere("user.deletion_status = 'active'")
     .orderBy('user.id', 'ASC')
     .setLock('pessimistic_write')
     .getMany();

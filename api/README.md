@@ -52,6 +52,26 @@ Both requests retain the 1 MiB JSON body limit; oversize requests return 413. No
 
 Operation GET/status recovery and durable device receipts belong to #154. Production mobile submission remains gated until its receipt writer is integrated; preview and final inspection are usable. Full history/detail presentation belongs to #155. Native Android and physical-iPhone acceptance and #138 parser launch certification remain separate gates.
 
+## Account deletion operations
+
+Account deletion requires an always-running API process. The Nest-managed worker
+starts with the API, polls every five seconds, and processes at most five operations
+sequentially per poll. PostgreSQL claims expire after two minutes; retries start at
+five seconds with jitter and cap at fifteen minutes (longer provider Retry-After
+values take precedence). Accepted operations are never abandoned. Shutdown hooks
+stop polling and await the current attempt. A deployment that scales to zero needs
+a scheduled invocation of the same reconciler before release. Run migrations before
+starting the process.
+
+`DELETE /api/v1/users/me` returns 202 with a deletion status Location after durable
+acceptance. The initiating live Clerk session can read the status or retry; 204
+requires every checkpoint to be complete. Revocation can end status access before
+completion. Normal routes return `ACCOUNT_DELETION_PENDING` or `ACCOUNT_DELETED`
+and cannot reprovision that identity. Profile GET/PUT includes the current provider
+photo and active lifecycle status; PUT reads identity fields only from Clerk.
+
+The mandatory PostgreSQL runner includes the deletion suite on `TEST_SPACES_DATABASE_URL`, sequentially with the other suites. It checks physical Personal removal, retained Shared evidence, acceptance concurrency, stale claims and the HTTP acceptance/status/fencing protocol. See [operational checks](docs/LOCAL_TESTING.md#account-deletion-recovery) for inspection and safe retries and the [consolidated IP-09 handoff](../docs/agents/implementation/IP-09_Report.md) for outstanding real-provider/device evidence.
+
 ## OpenAPI contract
 
 Nest controller/DTO metadata and the shared document factory generate the contract. `docs/openapi.yaml` is the canonical committed YAML specification; `docs/openapi.json` is generated from the same document for JSON tooling. Runtime `/docs`, `/docs-json`, and `/docs-yaml` use that document.

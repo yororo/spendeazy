@@ -1,6 +1,5 @@
 import type {
   ArchivedSpaceRecord,
-  IdentityDeletionResult,
   SpaceLifecycleStore,
 } from './space-lifecycle-store';
 import { SpaceLifecycleService } from './space-lifecycle.service';
@@ -36,41 +35,6 @@ describe('SpaceLifecycleService', () => {
       actorName: 'Ada Lovelace',
       recipient: { id: '2', name: 'Grace Hopper' },
     });
-  });
-
-  it('uses the Deleted user attribution when identity deletion archives a partnership', async () => {
-    const archived = archivedSpace();
-    const result: IdentityDeletionResult = {
-      deletedUserId: '1',
-      archivedSpaces: [archived],
-    };
-    const archiveSharedSpace = jest.fn();
-    const deleteIdentity = jest.fn().mockResolvedValue(result);
-    const store = {
-      archiveSharedSpace,
-      deleteIdentity,
-    } as unknown as SpaceLifecycleStore;
-    const notifySharedSpaceArchived = jest
-      .fn()
-      .mockResolvedValue(notification());
-    const notifications = {
-      notifySharedSpaceArchived,
-    } as unknown as SpaceNotificationsService;
-    const service = new SpaceLifecycleService(store, notifications);
-
-    await expect(service.deleteIdentity('1')).resolves.toEqual(result);
-
-    expect(deleteIdentity).toHaveBeenCalledWith('1', expect.any(Date));
-    expect(notifySharedSpaceArchived).toHaveBeenCalledWith(
-      expect.objectContaining({
-        actorUserId: '1',
-        actorName: 'Deleted user',
-        recipient: {
-          id: '2',
-          name: 'Grace Hopper',
-        },
-      }),
-    );
   });
 });
 

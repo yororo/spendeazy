@@ -7,6 +7,7 @@ import type { AppConfig } from '../config/app-config';
 export const CLERK_PROFILE_SERVICE = Symbol('CLERK_PROFILE_SERVICE');
 
 export interface ClerkUserProfile {
+  photoUrl?: string | null;
   fullName: string | null;
   primaryVerifiedEmail: string | null;
   /** All verified addresses currently attached to the identity. */
@@ -55,6 +56,7 @@ export class OfficialClerkProfileService implements ClerkProfileService {
       }
 
       return {
+        photoUrl: user.hasImage ? user.imageUrl : null,
         fullName: user.fullName,
         primaryVerifiedEmail,
         verifiedEmails,

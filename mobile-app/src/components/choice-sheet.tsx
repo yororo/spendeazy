@@ -7,7 +7,7 @@ import { radius, space, typeScale } from '@/constants/theme';
 import { useAppTheme } from '@/navigation/app-theme';
 import { CompactAction } from '@/components/buttons';
 
-type ShellProps = { title: string; visible: boolean; onDismiss: () => void; children: ReactNode; dismissOnBackdrop?: boolean; showClose?: boolean; restoreFocusRef?: RefObject<ElementRef<typeof View> | null> };
+type ShellProps = { title: string; visible: boolean; onDismiss: () => void; children: ReactNode; dismissOnBackdrop?: boolean; showClose?: boolean; restoreFocusRef?: RefObject<ElementRef<typeof View> | null>; initialFocusRef?: RefObject<ElementRef<typeof View> | null> };
 
 export function ChoiceSheet(props: ShellProps) {
   return <ModalShell {...props} />;
@@ -26,6 +26,7 @@ function ModalShell({
   dismissOnBackdrop = true,
   showClose = false,
   restoreFocusRef,
+  initialFocusRef,
 }: {
   title: string;
   visible: boolean;
@@ -35,6 +36,7 @@ function ModalShell({
   dismissOnBackdrop?: boolean;
   showClose?: boolean;
   restoreFocusRef?: RefObject<ElementRef<typeof View> | null>;
+  initialFocusRef?: RefObject<ElementRef<typeof View> | null>;
 }) {
   const insets = useSafeAreaInsets();
   const { palette, fonts } = useAppTheme();
@@ -59,7 +61,8 @@ function ModalShell({
       onRequestClose={onDismiss}
       onDismiss={restoreFocus}
       onShow={() => {
-        if (restoreFocusRef && titleRef.current) AccessibilityInfo.sendAccessibilityEvent(titleRef.current, 'focus');
+        if (initialFocusRef?.current) AccessibilityInfo.sendAccessibilityEvent(initialFocusRef.current, 'focus');
+        else if (restoreFocusRef && titleRef.current) AccessibilityInfo.sendAccessibilityEvent(titleRef.current, 'focus');
       }}
       accessibilityViewIsModal>
       <KeyboardAvoidingView behavior={process.env.EXPO_OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1, justifyContent: centered ? 'center' : 'flex-end', paddingTop: insets.top, paddingBottom: centered ? insets.bottom : 0, paddingHorizontal: centered ? space.screenHorizontal : 0 }}>

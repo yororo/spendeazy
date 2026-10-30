@@ -1,7 +1,7 @@
 import { useUser } from '@clerk/expo';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Image } from 'expo-image';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { LogOut, Mail, UsersRound } from 'lucide-react-native';
 import { Text, View } from 'react-native';
 
@@ -25,7 +25,8 @@ export default function ProfileScreen() {
   const { signOut } = useSessionTransport();
   const { user } = useUser();
   const { preference, setPreference, palette, fonts } = useAppTheme();
-  const { spaces, active } = useSpaces();
+  const { spaces, active, refresh } = useSpaces();
+  useFocusEffect(useCallback(() => { void refresh(); }, [refresh]));
   const sharedSpace = active?.kind === 'shared' ? active : spaces.find((space) => space.kind === 'shared' && space.status === 'active');
   const ownMemberId = spaces.find((space) => space.kind === 'personal')?.members[0]?.id;
   const [appearanceError, setAppearanceError] = useState<string | null>(null);
@@ -44,6 +45,7 @@ export default function ProfileScreen() {
           {user?.imageUrl ? (
             <Image
               source={{ uri: user.imageUrl }}
+              cachePolicy="none"
               accessibilityLabel={`${name} photo`}
               style={{ width: 84, height: 84, borderRadius: 42, borderWidth: 3, borderColor: palette.sharedCardBorder }}
             />
@@ -60,6 +62,8 @@ export default function ProfileScreen() {
             </View>
           ) : null}
         </View>
+        <SecondaryButton label="Edit profile" onPress={() => router.push('../edit-profile')} />
+        <SecondaryButton label="Account settings" onPress={() => router.push('../account-settings')} />
         <View style={{ gap: 14 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><UsersRound accessible={false} size={18} color={palette.brandPrimary} /><Text accessibilityRole="header" style={{ color: palette.textPrimary, fontFamily: fonts.semibold, fontSize: 15 }}>Shared Space</Text></View>
           {sharedSpace ? (

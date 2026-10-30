@@ -20,6 +20,8 @@ type ApiSchemaOptionsWithAdditionalProperties = {
 };
 
 const ERROR_CODES = [
+  'ACCOUNT_DELETION_PENDING',
+  'ACCOUNT_DELETED',
   'IMPORT_OPERATION_PAYLOAD_CONFLICT',
   'IMPORT_OPERATION_NOT_COMMITTED',
   'IMPORT_REVIEW_REQUIRED',
@@ -223,7 +225,7 @@ export const API_ERROR_RESPONSE_COMPONENTS = {
   UserNotProvisionedError: {
     status: HttpStatus.FORBIDDEN,
     description:
-      'The verified Clerk identity is not linked to a local User. Provision the User first.',
+      'The identity is not provisioned (USER_NOT_PROVISIONED), deletion is pending (ACCOUNT_DELETION_PENDING), or deletion completed (ACCOUNT_DELETED). Deletion errors require private-state cleanup; provisioning cannot restore access.',
     example: {
       error: {
         code: 'USER_NOT_PROVISIONED',

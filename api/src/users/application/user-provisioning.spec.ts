@@ -37,6 +37,7 @@ describe('UsersService provisioning', () => {
       clerkUserId: 'user_42',
       name: 'Ada Lovelace',
       email: 'ada@example.com',
+      photoUrl: null,
     });
     expect(defaultCategories.requestedSpaces).toEqual([
       { spaceId: '10', actorUserId: undefined },
@@ -78,6 +79,7 @@ describe('UsersService provisioning', () => {
     expect(store.updatedInput).toEqual({
       name: 'Ada Lovelace',
       email: 'ada@example.com',
+      photoUrl: null,
     });
 
     store.updatedInput = undefined;
@@ -305,6 +307,10 @@ class UserStoreFake implements UserStore {
     this.createRaceUser = options.createRaceUser;
   }
 
+  findDeletionOperationByClerkUserId() {
+    return Promise.resolve(null);
+  }
+
   findById(id: string): Promise<UserRecord | null> {
     return Promise.resolve(this.users.find((user) => user.id === id) ?? null);
   }
@@ -354,6 +360,7 @@ function userRecord(overrides: Partial<UserRecord> = {}): UserRecord {
     clerkUserId: 'user_1',
     name: 'Ada Lovelace',
     email: 'ada@example.com',
+    photoUrl: null,
     createdAt: timestamp,
     updatedAt: timestamp,
     ...overrides,

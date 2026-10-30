@@ -37,7 +37,15 @@
       ],
       "@clerk/expo",
       "expo-secure-store",
-      "@clerk/expo-google-signin"
+      "@clerk/expo-google-signin",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Choose a profile photo from your library.",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

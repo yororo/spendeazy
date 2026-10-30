@@ -65,13 +65,14 @@ export function useStatementImportDetail(route: {
     spacesLoading: spaces.loading,
     refresh,
     cancel: workflow.cancel,
+    importerPhoto: !spaces.loading && !spaces.error ? (spaces.active?.attribution ?? spaces.active?.members)?.find(member => member.id === state.detail?.importedByUserId)?.photoUrl ?? null : null,
     importer: spaces.loading
       ? "Loading importer…"
       : spaces.error
         ? "Importer unavailable"
-        : (spaces.active?.members.find(
+        : ((spaces.active?.attribution ?? spaces.active?.members)?.find(
             (m) => m.id === state.detail?.importedByUserId,
-          )?.name ?? "Deleted user"),
+          )?.name ?? "Importer unavailable"),
     categoryName: (id: string) =>
       categories.loading
         ? "Loading Category…"

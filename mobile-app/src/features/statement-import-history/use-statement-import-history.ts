@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useFocusEffect } from "expo-router";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { createStatementImportHistoryApiClient } from "@/api/statement-import-history-api-client";
 import { useAuthorizedClient } from "@/application/authorized-client";
 import { useSpaces } from "@/application/spaces/provider";
@@ -14,7 +15,8 @@ export function useStatementImportHistory(
   route: { sourceSpaceId?: unknown; fromDate?: unknown; toDate?: unknown } = {},
   pageSize = 100,
 ) {
-  const { active, loading: spacesLoading, error: spacesError } = useSpaces();
+  const { active, loading: spacesLoading, error: spacesError, refresh: refreshSpaces } = useSpaces();
+  useFocusEffect(useCallback(() => { void refreshSpaces(); }, [refreshSpaces]));
   const authorized = useAuthorizedClient();
   const api = useMemo(
     () => createStatementImportHistoryApiClient(authorized),
@@ -82,18 +84,20 @@ export function useStatementImportHistory(
     refreshing: !!state.page && state.operation?.kind === "replace",
     loadingMore: state.operation?.kind === "append",
     refresh: () => {
+      void refreshSpaces();
       void workflow.refresh();
     },
     retry: () => {
       void workflow.retry();
     },
     loadMore: workflow.loadMore,
+    importerPhoto: (id: string) => !spacesLoading && !spacesError ? (active?.attribution ?? active?.members)?.find(member => member.id === id)?.photoUrl ?? null : null,
     importerName: (id: string) =>
       spacesLoading
         ? "Loading importer…"
         : spacesError
           ? "Importer unavailable"
-          : (active?.members.find((member) => member.id === id)?.name ??
-            "Deleted user"),
+          : ((active?.attribution ?? active?.members)?.find((member) => member.id === id)?.name ??
+            "Person unavailable"),
   };
 }

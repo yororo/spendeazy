@@ -7,6 +7,7 @@ import {
   SpaceNotWritableError,
 } from '../application/space-errors';
 import { UserNotFoundError } from '../../users/application/user-errors';
+import { AccountDeletionError } from '../../users/application/user-errors';
 
 /**
  * Lock the actor before checking the destination Space. Financial-table
@@ -32,6 +33,8 @@ export async function prepareWritableSpace(
       .getOne();
 
     if (!actor) throw new UserNotFoundError();
+    if (actor.deletionStatus !== 'active')
+      throw new AccountDeletionError(actor.deletionStatus);
   }
 
   return findWritableSpace(entityManager, spaceId);

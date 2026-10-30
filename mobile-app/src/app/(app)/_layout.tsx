@@ -20,6 +20,8 @@ export default function SignedInLayout() {
         <Stack.Screen name="add-expense" />
         <Stack.Screen name="category-editor" />
         <Stack.Screen name="sharing" />
+        <Stack.Screen name="edit-profile" />
+        <Stack.Screen name="account-settings" />
         <Stack.Screen name="statement-import-history" />
         <Stack.Screen name="statement-import/[statementImportId]" />
         <Stack.Screen name="statement-import-expenses" />

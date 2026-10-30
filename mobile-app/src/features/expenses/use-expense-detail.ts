@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useFocusEffect } from "expo-router";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { createExpenseApiClient } from "@/api/expense-api-client";
 import { ExpenseApiError } from "@/api/request-failure";
 import { useAuthorizedClient } from "@/application/authorized-client";
@@ -13,7 +14,8 @@ import type { ExpenseActivitySnapshot } from "@/api/expense-response";
 import type { ManualExpenseDraft } from "./manual-draft";
 
 export function useExpenseDetail(expenseId: string) {
-  const { active, loading: spacesLoading, error: spacesError } = useSpaces();
+  const { active, loading: spacesLoading, error: spacesError, refresh: refreshSpaces } = useSpaces();
+  useFocusEffect(useCallback(() => { void refreshSpaces(); }, [refreshSpaces]));
   const authorized = useAuthorizedClient();
   const spaceId = active?.id ?? null;
   const categories = useSpaceCategories(spaceId);
@@ -81,8 +83,8 @@ export function useExpenseDetail(expenseId: string) {
       ? "Loading person…"
       : spacesError
         ? "Person unavailable"
-        : (active?.members.find((member) => member.id === id)?.name ??
-          "Deleted user");
+        : ((active?.attribution ?? active?.members)?.find((member) => member.id === id)?.name ??
+          "Person unavailable");
   const activitySnapshot = (snapshot: ExpenseActivitySnapshot | undefined) =>
     snapshot
       ? {
@@ -111,6 +113,7 @@ export function useExpenseDetail(expenseId: string) {
             id: event.id,
             type: event.type,
             actorName: memberName(event.actorUserId),
+            actorPhotoUrl: !spacesLoading && !spacesError ? (active?.attribution ?? active?.members)?.find(member => member.id === event.actorUserId)?.photoUrl ?? null : null,
             occurredAt: event.occurredAt,
             before: activitySnapshot(event.before),
             after: activitySnapshot(event.after),
@@ -124,6 +127,7 @@ export function useExpenseDetail(expenseId: string) {
           expenseDate: expense.expenseDate,
           categoryName: categoryName(expense.categoryId),
           source: expense.source,
+          addedByPhotoUrl: !spacesLoading && !spacesError ? (active?.attribution ?? active?.members)?.find(member => member.id === expense.addedByUserId)?.photoUrl ?? null : null,
           addedByName: memberName(expense.addedByUserId),
           statementImportId: expense.statementImportId,
           sourceRowId: expense.sourceRowId,
@@ -155,7 +159,7 @@ export function useExpenseDetail(expenseId: string) {
   return {
     state,
     load: workflow.load,
-    retry: workflow.retry,
+    retry: () => { void refreshSpaces(); return workflow.retry(); },
     beginEdit() {
       if (canEdit && expense) editWorkflow.begin(expense);
     },

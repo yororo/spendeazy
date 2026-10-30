@@ -8,6 +8,12 @@ framework errors, startup failures and fatal process exceptions. Routine 4xx
 responses, successful requests and framework lifecycle messages are silent.
 Repeated handling of the same Error object emits only one record.
 
+Account-deletion polling failures use the same safe reporter. Retryable stage
+failures emit only `account_deletion_stage_failed`, a fixed `personal`/`provider`
+stage and the persisted failure-code allowlist. They exclude operation identity,
+provider IDs, claim tokens and provider payloads. Restricted database inspection
+provides per-operation progress.
+
 Records contain a UTC timestamp, error level, a fixed event category, and safe
 stack locations when available. Request-scoped records also include a generated
 request ID, HTTP method and matched route template; HTTP failures include status.

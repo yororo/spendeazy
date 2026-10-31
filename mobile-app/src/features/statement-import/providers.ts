@@ -10,10 +10,12 @@ export class InterpretationFailure extends Error {
 type SourceLine = { text: string; pageIndex: number; sourceOrder: number };
 const normalize = (text: string) => text.trim().replace(/\s+/gu, ' ');
 const amountAtEnd = new RegExp(`(?:^|\\s)(${MONEY})$`, 'iu');
+const cardTotal = new RegExp(`^(?:SUBTOTAL|TOTAL)\\s+${MONEY}$`, 'iu');
 
 function recognize(text: string): ImportAccount {
   const accounts: ImportAccount[] = [];
-  const nonPhp = /\bdual[- ]currency\b|\bstatement\b[^\n]*(?:\bUSD\b|\bEUR\b|\bUS dollars?\b)|^(?:SALE POST )?CURRENCY\s+(?:USD|EUR)\b|\((?:USD|EUR)\)/imu.test(text);
+  // Account headings establish currency; general information may discuss other products.
+  const nonPhp = /^(?:(?:BDO\s+)?AMEX\b|EastWest\s+Visa\b|Statement\b)[^\n]*\bdual[- ]currency\b|\bstatement\b[^\n]*(?:\bUSD\b|\bEUR\b|\bUS dollars?\b)|^(?:SALE POST )?CURRENCY\s+(?:USD|EUR)\b|\((?:USD|EUR)\)/imu.test(text);
   if (!nonPhp && /\bBDO\b/iu.test(text) && /\bAMEX\b/iu.test(text) && /\bPHP\b/iu.test(text)) accounts.push({ provider: 'bdo', format: 'amex', statementType: 'credit-card' });
   if (!nonPhp && /\bEastWest\b/iu.test(text) && /\bVisa\b/iu.test(text) && /\b(?:PHP|PESO)\b/iu.test(text)) accounts.push({ provider: 'eastwest', format: 'visa', statementType: 'credit-card' });
   if (/\bGCash Transaction History\b/iu.test(text)) accounts.push({ provider: 'gcash', format: 'e-wallet', statementType: 'e-wallet' });
@@ -49,7 +51,8 @@ export function interpretStatement(input: {
     if (index < 0) { values.set(label, null); return; }
     const suffix = lines[index].text.slice(label.length).trim();
     const originalValue = suffix || lines[index + 1]?.text || '';
-    const amountMinor = minorUnits(originalValue);
+    // Summary amounts may carry a peso prefix; retain the original evidence verbatim.
+    const amountMinor = minorUnits(originalValue.replace(/^₱\s*/u, ''));
     controls.push({ key: `control-${controls.length}`, kind, sourceLabel: label, originalValue, amountMinor }); values.set(label, amountMinor);
   }
   const openingLabel = wallet ? 'STARTING BALANCE' : 'Previous Balance';
@@ -99,7 +102,7 @@ export function interpretStatement(input: {
         activeCardSection = true;
         if (account.provider === 'bdo' && sectionBalance === null && subtotals.length) sectionBalance = 0n;
       }
-      if (account.provider === 'bdo' && /^(?:SUBTOTAL|TOTAL)\s/iu.test(source.text)) {
+      if (account.provider === 'bdo' && cardTotal.test(source.text)) {
         const label = /^SUBTOTAL\b/iu.test(source.text) ? 'SUBTOTAL' : 'TOTAL';
         const originalValue = source.text.slice(label.length).trim(); const amountMinor = minorUnits(originalValue);
         controls.push({ key: `control-${controls.length}`, kind: label === 'SUBTOTAL' ? 'subtotal' : 'statement-total', sourceLabel: label, originalValue, amountMinor });
@@ -190,7 +193,7 @@ export function interpretStatement(input: {
   const failedPageIndices = pages.filter(page => page.outcome === 'failed').map(page => page.pageIndex);
   const unreadablePageIndices = pages.filter(page => page.outcome === 'unreadable').map(page => page.pageIndex);
   const partial = failedPageIndices.length + unreadablePageIndices.length + uncertainPages.size > 0;
-  const warnings: ImportWarning[] = [{ code: 'uncertain-completeness', sourceRowIds: [], pageIndices: [] }];
+  const warnings: ImportWarning[] = [];
   if (partial) warnings.push({ code: 'partial-extraction', sourceRowIds: [], pageIndices: [...new Set([...failedPageIndices, ...unreadablePageIndices, ...uncertainPages])] });
   if (rows.some(row => !row.classification.eligible && ['unknown-direction', 'invalid-date', 'invalid-amount'].includes(row.classification.reason))) warnings.push({ code: 'unresolved-classification', sourceRowIds: rows.filter(row => !row.classification.eligible && ['unknown-direction', 'invalid-date', 'invalid-amount'].includes(row.classification.reason)).map(row => row.sourceRowId), pageIndices: [] });
   if (reconciliation.outcome === 'mismatch') warnings.push({ code: 'reconciliation-mismatch', sourceRowIds: [], pageIndices: [] });

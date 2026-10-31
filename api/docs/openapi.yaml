@@ -3300,10 +3300,9 @@ components:
           example: '2026-08-01'
         description:
           type: string
-          description: Expense description, trimmed before storage.
-          minLength: 1
+          description: Expense description, trimmed before storage. May be empty.
+          minLength: 0
           maxLength: 500
-          pattern: \S
           example: Coffee
         amount:
           type: string
@@ -3332,10 +3331,9 @@ components:
           example: '2026-08-01'
         description:
           type: string
-          description: Expense description, trimmed before storage.
-          minLength: 1
+          description: Expense description, trimmed before storage. May be empty.
+          minLength: 0
           maxLength: 500
-          pattern: \S
           example: Coffee
         amount:
           type: string
@@ -3365,10 +3363,9 @@ components:
           example: '2026-08-01'
         description:
           type: string
-          description: Expense description, trimmed before storage.
-          minLength: 1
+          description: Expense description, trimmed before storage. May be empty.
+          minLength: 0
           maxLength: 500
-          pattern: \S
           example: Coffee
         amount:
           type: string
@@ -3411,9 +3408,8 @@ components:
         description:
           type: string
           description: Trimmed Expense description.
-          minLength: 1
+          minLength: 0
           maxLength: 500
-          pattern: \S
           example: Coffee
         amount:
           type: string
@@ -3491,9 +3487,8 @@ components:
         description:
           type: string
           description: Trimmed Expense description retained from the import.
-          minLength: 1
+          minLength: 0
           maxLength: 500
-          pattern: \S
           example: Coffee
         amount:
           type: string
@@ -3562,9 +3557,8 @@ components:
         description:
           type: string
           description: Trimmed Expense description.
-          minLength: 1
+          minLength: 0
           maxLength: 500
-          pattern: \S
           example: Coffee
         amount:
           type: string
@@ -3645,9 +3639,8 @@ components:
         description:
           type: string
           description: Trimmed Expense description retained from the import.
-          minLength: 1
+          minLength: 0
           maxLength: 500
-          pattern: \S
           example: Coffee
         amount:
           type: string
@@ -3766,9 +3759,8 @@ components:
         description:
           type: string
           description: Trimmed Expense description at the time of the event.
-          minLength: 1
+          minLength: 0
           maxLength: 500
-          pattern: \S
           example: Coffee
         amount:
           type: string

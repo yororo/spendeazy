@@ -238,6 +238,46 @@ describe('Space Expense API routes', () => {
     );
   });
 
+  it('accepts an empty manual description and trims whitespace', async () => {
+    for (const description of ['', '   ']) {
+      const response = await request(application.getHttpServer() as Server)
+        .post('/api/v1/users/me/spaces/10/expenses')
+        .set('Authorization', 'Bearer token-a')
+        .send({
+          expenseDate: '2026-08-01',
+          description,
+          amount: '4.50',
+          categoryId: '42',
+        });
+      expect(response.status).toBe(201);
+      expect(
+        expensesService.createManualExpenseInSpace,
+      ).toHaveBeenLastCalledWith('42', '10', {
+        expenseDate: '2026-08-01',
+        description: '',
+        amount: '4.50',
+        categoryId: '42',
+      });
+    }
+  });
+
+  it('allows clearing a description when editing', async () => {
+    const response = await request(application.getHttpServer() as Server)
+      .patch('/api/v1/users/me/spaces/10/expenses/100')
+      .set('Authorization', 'Bearer token-a')
+      .send({ description: '   ', expectedRevision: '1' });
+    expect(response.status).toBe(200);
+    expect(expensesService.updateSharedExpenseInSpace).toHaveBeenLastCalledWith(
+      '42',
+      '10',
+      '100',
+      {
+        description: '',
+        expectedRevision: '1',
+      },
+    );
+  });
+
   it('creates, edits and deletes through revision-bound Space routes', async () => {
     const createResponse = await request(application.getHttpServer() as Server)
       .post('/api/v1/users/me/spaces/10/expenses')

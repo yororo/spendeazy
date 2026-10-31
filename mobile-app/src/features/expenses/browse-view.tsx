@@ -88,7 +88,7 @@ export function ExpenseBrowse({
     return (
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`${item.description}, ${category?.name ?? 'Category'}, ${item.amount} Philippine pesos, ${item.expenseDate}${deletedOnly && item.deletedAt ? ', deleted ' + item.deletedAt.slice(0, 10) : ''}`}
+        accessibilityLabel={`${item.description || 'Expense'}, ${category?.name ?? 'Category'}, ${item.amount} Philippine pesos, ${item.expenseDate}${deletedOnly && item.deletedAt ? ', deleted ' + item.deletedAt.slice(0, 10) : ''}`}
         onPress={() => onOpenExpense(item.id)}
         style={{
           minHeight: controlSize.field,
@@ -114,7 +114,7 @@ export function ExpenseBrowse({
               fontSize: 14,
             }}
           >
-            {item.description}
+            {item.description || 'Expense'}
           </Text>
           <Text style={metadataStyle}>{category?.name ?? 'Category'}</Text>
           {deletedOnly && item.deletedAt ? <Text style={metadataStyle}>{`Deleted ${item.deletedAt.slice(0, 10)}`}</Text> : null}

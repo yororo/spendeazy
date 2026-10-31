@@ -52,9 +52,8 @@ export class ManualExpenseResponseDto {
 
   @ApiProperty({
     description: 'Trimmed Expense description.',
-    minLength: 1,
+    minLength: 0,
     maxLength: EXPENSE_DESCRIPTION_MAX_LENGTH,
-    pattern: '\\S',
     example: 'Coffee',
   })
   description!: string;
@@ -155,9 +154,8 @@ export class ImportedExpenseResponseDto {
 
   @ApiProperty({
     description: 'Trimmed Expense description retained from the import.',
-    minLength: 1,
+    minLength: 0,
     maxLength: EXPENSE_DESCRIPTION_MAX_LENGTH,
-    pattern: '\\S',
     example: 'Coffee',
   })
   description!: string;
@@ -240,9 +238,8 @@ export class ManualExpenseHistoryResponseDto {
 
   @ApiProperty({
     description: 'Trimmed Expense description.',
-    minLength: 1,
+    minLength: 0,
     maxLength: EXPENSE_DESCRIPTION_MAX_LENGTH,
-    pattern: '\\S',
     example: 'Coffee',
   })
   description!: string;
@@ -343,9 +340,8 @@ export class ImportedExpenseHistoryResponseDto {
 
   @ApiProperty({
     description: 'Trimmed Expense description retained from the import.',
-    minLength: 1,
+    minLength: 0,
     maxLength: EXPENSE_DESCRIPTION_MAX_LENGTH,
-    pattern: '\\S',
     example: 'Coffee',
   })
   description!: string;
@@ -446,9 +442,8 @@ export class ExpenseActivitySnapshotDto {
 
   @ApiProperty({
     description: 'Trimmed Expense description at the time of the event.',
-    minLength: 1,
+    minLength: 0,
     maxLength: EXPENSE_DESCRIPTION_MAX_LENGTH,
-    pattern: '\\S',
     example: 'Coffee',
   })
   description!: string;

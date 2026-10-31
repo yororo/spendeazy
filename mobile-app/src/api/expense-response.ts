@@ -71,7 +71,7 @@ export function readListedExpense(value: unknown): ListedExpense {
     id: requiredString(value.id, "Expense id"),
     categoryId: requiredString(value.categoryId, "Category id"),
     expenseDate: requiredString(value.expenseDate, "Expense date"),
-    description: requiredString(value.description, "Expense description"),
+    description: descriptionString(value.description),
     amount: readMoney(value.amount, true),
     source,
     addedByUserId:
@@ -130,7 +130,7 @@ function readActivitySnapshot(value: unknown): ExpenseActivitySnapshot {
   return {
     categoryId: requiredString(value.categoryId, "Activity Category id"),
     expenseDate: requiredString(value.expenseDate, "Activity Expense date"),
-    description: requiredString(value.description, "Activity description"),
+    description: descriptionString(value.description),
     amount: readMoney(value.amount, true),
   };
 }
@@ -155,4 +155,9 @@ function readMoney(value: unknown, positive = false): string {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function descriptionString(value: unknown): string {
+  if (typeof value !== "string") throw new InvalidApiResponseError();
+  return value;
 }

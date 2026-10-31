@@ -25,7 +25,7 @@ function fixture(): ImportResult {
       ...(['payment', 'refund', 'cash-in', 'unknown-direction'] as const).map((reason, i) => row(String(i + 2), reason === 'refund' ? 20000n : 500000n, { eligible: false, reason }))],
     parserVersion: 'fixture/1', extractionEngineVersion: 'fixture/1', controls: [], recognitionEvidence: [], pages: [{ pageIndex: 0, outcome: 'text', hasImages: false }],
     completeness: { assessment: 'uncertain', failedPageIndices: [], unreadablePageIndices: [] },
-    reconciliation: { comparisons: [], outcome: 'unavailable', differenceMinor: null }, warnings: [{ code: 'uncertain-completeness', sourceRowIds: [], pageIndices: [] }],
+    reconciliation: { comparisons: [], outcome: 'unavailable', differenceMinor: null }, warnings: [],
   };
 }
 function ready(data = catalog()): ReviewState {

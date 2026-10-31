@@ -178,7 +178,15 @@ describeDatabase(
         amount: '4.50',
         categoryId,
       });
-      expect(blank.status).toBe(400);
+      expect(blank.status).toBe(201);
+      expect(blank.body).toMatchObject({ description: '' });
+      const blankReloaded = await http()
+        .get(
+          `/api/v1/users/me/spaces/${spaceId}/expenses/${readId(blank.body)}`,
+        )
+        .set(...authorization(identity));
+      expect(blankReloaded.status).toBe(200);
+      expect(blankReloaded.body).toMatchObject({ description: '' });
 
       const zero = await createExpense(identity, spaceId, {
         expenseDate: '2026-03-15',

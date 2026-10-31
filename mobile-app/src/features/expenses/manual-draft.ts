@@ -60,12 +60,6 @@ export function prepareManualExpense(
       message: 'Enter a positive peso amount with exact centavos, such as 12.50.',
     });
   }
-  if (draft.description.trim().length === 0) {
-    issues.push({
-      field: 'description',
-      message: 'Enter a description.',
-    });
-  }
   if (!draft.categoryId || context.categories.spaceId !== context.spaceId ||
     !context.categories.items.some((category) => category.id === draft.categoryId && category.isActive)) {
     issues.push({

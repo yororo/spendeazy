@@ -10,7 +10,6 @@ import type { useStatementImport } from './use-statement-import';
 
 const warningText: Record<ImportWarning['code'], string> = {
   'partial-extraction': 'Some pages or activity could not be read. Extracted Transactions may be incomplete.',
-  'uncertain-completeness': 'Text extraction cannot establish that all statement activity is present.',
   'unresolved-classification': 'Some Transactions have an uncertain direction or date and cannot become Expenses.',
   'reconciliation-mismatch': 'Extracted activity does not match the statement controls.',
   'missing-control': 'Some statement controls are missing or unreadable. Reconciliation is limited.',

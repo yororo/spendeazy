@@ -46,15 +46,42 @@ for (const [provider, text] of [['bdo', bdo], ['eastwest', eastwest], ['gcash', 
     assert.equal(result.rows.reduce((sum, row) => sum + (row.classification.eligible ? row.classification.expenseMinor : 0n), 0n), 130000n);
     assert.equal(result.reconciliation.outcome, 'matched');
     assert.equal(result.completeness.assessment, 'uncertain');
-    assert.ok(result.warnings.some(warning => warning.code === 'uncertain-completeness'));
+    assert.deepEqual(result.warnings, []);
     assert.equal('text' in result.pages[0], false);
   });
 }
+test('BDO peso-prefixed summary controls reconcile inline and on the following line', () => {
+  const summaryLabels = ['Previous Balance', 'Total Amount Due', 'Purchases and Advances (+)',
+    'Finance Charge (+)', 'Fees/Other Debits (+)', 'Late Charge (+)', 'Payments/Other Credits (-)'];
+  for (const separator of [' ', '\n']) {
+    const text = bdo.split('\n').map(line => {
+      const label = summaryLabels.find(label => line.startsWith(`${label} `));
+      return label ? `${label}${separator}₱ ${line.slice(label.length + 1)}` : line;
+    }).join('\n');
+    const result = interpret(text);
+    assert.equal(result.reconciliation.outcome, 'matched');
+    assert.deepEqual(result.warnings, []);
+    assert.equal(result.completeness.assessment, 'uncertain');
+    assert.ok(result.reconciliation.comparisons.every(comparison => comparison.differenceMinor === 0n));
+    assert.equal(result.controls.find(control => control.sourceLabel === 'Previous Balance')?.originalValue, '₱ 500.00');
+  }
+});
+
+test('unreadable summary controls remain warnings without guessing malformed amounts', () => {
+  for (const amount of ['₱ 1,00.00', '₱ unknown', 'USD 500.00']) {
+    const result = interpret(bdo.replace('Previous Balance 500.00', `Previous Balance ${amount}`));
+    assert.equal(result.reconciliation.outcome, 'unavailable');
+    assert.ok(result.warnings.some(warning => warning.code === 'missing-control'));
+    assert.equal(result.rows.length, 4);
+  }
+});
+
 test('mismatched controls retain usable rows and an advisory warning', () => {
   const result = interpret(eastwest.replace('Total Statement Balance 1300.00', 'Total Statement Balance 1300.01'));
   assert.equal(result.rows.length, 4);
   assert.equal(result.reconciliation.outcome, 'mismatch');
   assert.equal(result.reconciliation.differenceMinor, -1n);
+  assert.ok(result.warnings.some(warning => warning.code === 'reconciliation-mismatch'));
 });
 test('BDO subtotal disagreement stays advisory and preserves original subtotal evidence', () => {
   const result = interpret(bdo.replace('SUBTOTAL 1300.00', 'SUBTOTAL 1300.01'));
@@ -69,6 +96,26 @@ test('dates remain date-only across New Year; wrapped references and duplicates 
   assert.equal(result.rows.length, 5);
   assert.equal(new Set(result.rows.map(row => row.sourceRowId)).size, 5);
 });
+test('BDO PHP recognition ignores general information about dual currency products', () => {
+  const result = interpret(bdo, [{ pageIndex: 1, outcome: 'text', hasImages: false,
+    text: 'General information\nAmerican Express Dual Currency cards may be billed in USD.\nOther USD payment options are available.' }]);
+  assert.equal(result.account.format, 'amex');
+  assert.equal(result.rows.length, 4);
+  for (const heading of ['BDO AMEX PHP dual-currency', 'AMEX EXPLORER Dual Currency PHP', 'BDO AMEX USD Statement']) {
+    assert.throws(() => interpret(bdo.replace('BDO AMEX PHP', heading)), (error: unknown) => error instanceof InterpretationFailure && error.code === 'unsupported');
+  }
+});
+
+test('BDO repeated page summaries preserve a continued card section and its subtotal', () => {
+  const first = bdo.slice(0, bdo.indexOf('01/03/26'));
+  const continuation = ['Total Amount Due 1300.00', 'Total Credit Limit 5000.00',
+    'Sale Date Post Date Transaction Details Amount', bdo.slice(bdo.indexOf('01/03/26'))].join('\n');
+  const result = interpret(first, [{ pageIndex: 1, outcome: 'text', hasImages: false, text: continuation }]);
+  assert.deepEqual(result.rows.map(row => row.signedActivityMinor), [100000n, 30000n, -40000n, -10000n]);
+  assert.equal(result.reconciliation.outcome, 'matched');
+  assert.equal(result.controls.filter(control => control.sourceLabel === 'TOTAL').length, 1);
+});
+
 test('GCash direction is never inferred from incoming-looking descriptions', () => {
   const result = interpret(gcash.replace('STARTING BALANCE 2000.00', 'STARTING BALANCE 9999.00').replace('FICTIONAL PURCHASE', 'Received refund'));
   assert.equal(result.rows[0].signedActivityMinor, null);
@@ -91,6 +138,7 @@ test('partial pages keep usable rows and exact failure indices; blanks do not im
   assert.deepEqual(result.completeness.failedPageIndices, [2]);
   assert.deepEqual(result.completeness.unreadablePageIndices, [3]);
   assert.equal(result.completeness.assessment, 'partial');
+  assert.ok(result.warnings.some(warning => warning.code === 'partial-extraction'));
   assert.equal(interpret(eastwest, [{ pageIndex: 1, outcome: 'blank', text: '', hasImages: false }]).completeness.assessment, 'uncertain');
 });
 test('unrecognized, ambiguous, non-PHP and rowless statements fail safely', () => {

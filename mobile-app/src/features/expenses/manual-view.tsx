@@ -1,7 +1,9 @@
+import { X } from 'lucide-react-native';
+import { useAppTheme } from '@/navigation/app-theme';
 import { useState } from 'react';
-import { PrimaryButton, SecondaryButton } from '@/components/buttons';
+import { CompactAction, PrimaryButton, SecondaryButton } from '@/components/buttons';
 import { ChoiceSheet } from '@/components/choice-sheet';
-import { BodyText, Screen, StackGap, SupportingText } from '@/components/screen';
+import { BodyText, Screen, StackGap } from '@/components/screen';
 import { ExpenseFields } from './expense-fields';
 import { ExpenseNotice } from './expense-notice';
 import type { ManualExpenseDraft, ManualExpenseField } from './manual-draft';
@@ -24,6 +26,7 @@ export function ManualExpenseForm({ state, onChange, onSave, onRetryCategories, 
   onRetryCategories: () => void;
   onBack: () => void;
 }) {
+  const { palette } = useAppTheme();
   const { availability, categories, draft, issues, saving, canSave, saveError, selectedCategoryName } = state;
   const [categoryOpen, setCategoryOpen] = useState(false);
   if (availability === 'missing-space') {
@@ -57,10 +60,9 @@ export function ManualExpenseForm({ state, onChange, onSave, onRetryCategories, 
   }
 
   return (
-    <Screen title="Add Expense">
+    <Screen compactHeader title="Add expense" headerAccessory={<CompactAction variant="icon" label="Close" icon={<X size={20} color={palette.textSecondary} />} onPress={onBack} />}>
       <StackGap>
-        <ExpenseFields draft={draft} issues={issues} categoryLabel={selectedCategoryName ?? 'Choose Category'} onChange={onChange} onOpenCategories={() => setCategoryOpen(true)} />
-        <SupportingText>Today in Manila is the suggested date. Added By is recorded by Spendeazy.</SupportingText>
+        <ExpenseFields disabled={saving} draft={draft} issues={issues} categoryLabel={selectedCategoryName ?? 'Choose Category'} onChange={onChange} onOpenCategories={() => setCategoryOpen(true)} />
         {categories.error ? (
           <StackGap>
             <BodyText>{categories.error}</BodyText>

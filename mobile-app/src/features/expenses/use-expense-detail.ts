@@ -71,6 +71,10 @@ export function useExpenseDetail(expenseId: string) {
     active.status === "active" &&
     expense !== null &&
     expense.deletedAt === undefined;
+  useEffect(() => {
+    if (canEdit && expense) editWorkflow.begin(expense);
+    else editWorkflow.cancel();
+  }, [canEdit, expense, editWorkflow]);
   const categoryName = (categoryId: string) =>
     categories.loading
       ? "Loading Category…"

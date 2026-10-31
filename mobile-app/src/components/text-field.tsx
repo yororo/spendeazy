@@ -45,7 +45,8 @@ export function TextField({
         {label}
       </Text> : null}
       <View style={{
-        flexDirection: 'row', alignItems: 'center', gap: 14,
+        flexDirection: 'row', alignItems: 'center', gap: variant === 'amount' ? 6 : 14,
+        justifyContent: variant === 'amount' ? 'center' : undefined,
         borderBottomWidth: variant === 'underlined' ? 1 : 0,
         borderWidth: variant === 'budget' && error ? 1 : 0,
         borderColor: error ? palette.stateNegative : palette.fieldBorder,
@@ -65,7 +66,10 @@ export function TextField({
         autoCapitalize={autoCapitalize}
         autoCorrect={false}
         style={{
-          flex: 1,
+          flex: variant === 'amount' ? undefined : 1,
+          flexShrink: 1,
+          minWidth: variant === 'amount' ? 96 : undefined,
+          maxWidth: variant === 'amount' ? '85%' : undefined,
           minHeight: controlSize.field,
           borderWidth: variant === 'filled' ? 1 : 0,
           borderColor: error ? palette.stateNegative : palette.fieldBorder,

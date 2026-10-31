@@ -215,3 +215,15 @@ test("edit and delete responses decode the retained Expense and Activity snapsho
   assert.equal(activity[0].before?.description, "Old");
   assert.equal(activity[0].after?.categoryId, "4");
 });
+
+test('empty descriptions decode in Expense detail, pages and Activity', async (t) => {
+  const client = createExpenseApiClient(options);
+  t.mock.method(globalThis, 'fetch', async () => Response.json({ ...expense, description: '' }));
+  assert.equal((await client.getExpense('personal', '1')).description, '');
+  t.mock.restoreAll();
+  t.mock.method(globalThis, 'fetch', async () => Response.json({ expenses: [{ ...expense, description: '' }], nextCursor: null, totalCount: '1', totalAmount: '10.00' }));
+  assert.equal((await client.listExpenses('personal')).expenses[0].description, '');
+  t.mock.restoreAll();
+  t.mock.method(globalThis, 'fetch', async () => Response.json([{ id: '3', expenseId: '1', type: 'created', actorUserId: '4', occurredAt: 'now', after: { categoryId: '2', expenseDate: '2026-10-24', description: '', amount: '10.00' } }]));
+  assert.equal((await client.listExpenseActivity('personal', '1'))[0].after.description, '');
+});

@@ -2,7 +2,6 @@ import { ApiProperty, ApiPropertyOptional, ApiSchema } from '@nestjs/swagger';
 import {
   IsIn,
   IsInt,
-  IsNotEmpty,
   IsString,
   Length,
   Max,
@@ -202,15 +201,12 @@ export class CreateManualExpenseDto {
   expenseDate!: string;
 
   @IsString()
-  @IsNotEmpty()
-  @Matches(/\S/u)
-  @Length(1, EXPENSE_DESCRIPTION_MAX_LENGTH)
+  @Length(0, EXPENSE_DESCRIPTION_MAX_LENGTH)
   @Transform(trimDescription)
   @ApiProperty({
-    description: 'Expense description, trimmed before storage.',
-    minLength: 1,
+    description: 'Expense description, trimmed before storage. May be empty.',
+    minLength: 0,
     maxLength: EXPENSE_DESCRIPTION_MAX_LENGTH,
-    pattern: '\\S',
     example: 'Coffee',
   })
   description!: string;
@@ -260,15 +256,12 @@ export class UpdateManualExpenseDto {
 
   @ValidateIf((_, value) => value !== undefined)
   @IsString()
-  @IsNotEmpty()
-  @Matches(/\S/u)
-  @Length(1, EXPENSE_DESCRIPTION_MAX_LENGTH)
+  @Length(0, EXPENSE_DESCRIPTION_MAX_LENGTH)
   @Transform(trimDescription)
   @ApiPropertyOptional({
-    description: 'Expense description, trimmed before storage.',
-    minLength: 1,
+    description: 'Expense description, trimmed before storage. May be empty.',
+    minLength: 0,
     maxLength: EXPENSE_DESCRIPTION_MAX_LENGTH,
-    pattern: '\\S',
     example: 'Coffee',
   })
   description?: string;

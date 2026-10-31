@@ -1,6 +1,10 @@
 import { useState } from "react";
-import { Text, View } from "react-native";
-import { CompactAction, PrimaryButton, SecondaryButton } from "@/components/buttons";
+import { Pressable, Text, View } from "react-native";
+import {
+  CompactAction,
+  PrimaryButton,
+  SecondaryButton,
+} from "@/components/buttons";
 import { CenteredDialog, ChoiceSheet } from "@/components/choice-sheet";
 import { MoneyAmount } from "@/components/money-amount";
 import {
@@ -9,7 +13,14 @@ import {
   StackGap,
   SupportingText,
 } from "@/components/screen";
-import { CalendarDays, Pencil, Shapes, Trash2 } from "lucide-react-native";
+import {
+  CalendarDays,
+  ChevronDown,
+  ChevronUp,
+  Shapes,
+  Trash2,
+  X,
+} from "lucide-react-native";
 import { ExpenseFields } from "./expense-fields";
 import { ExpenseNotice } from "./expense-notice";
 import { space, typeScale } from "@/constants/theme";
@@ -73,10 +84,8 @@ export function ExpenseDetail({
   state,
   onRetry,
   onBack,
-  onBeginEdit = () => {},
   onChangeEdit = () => {},
   onSaveEdit = () => {},
-  onCancelEdit = () => {},
   onReviewLatest = () => {},
   onContinueWithMyChanges = () => {},
   onDelete = async () => false,
@@ -84,16 +93,15 @@ export function ExpenseDetail({
   state: ExpenseDetailViewState;
   onRetry: () => void;
   onBack: () => void;
-  onBeginEdit?: () => void;
   onChangeEdit?: (patch: Partial<ManualExpenseDraft>) => void;
   onSaveEdit?: () => void;
-  onCancelEdit?: () => void;
   onReviewLatest?: () => void;
   onContinueWithMyChanges?: () => void;
   onDelete?: () => Promise<boolean>;
 }) {
   const { palette, fonts } = useAppTheme();
   const { phase, error, expense } = state;
+  const [activityOpen, setActivityOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [categoryOpen, setCategoryOpen] = useState(false);
   const activeEditCategories = state.editor.categories.filter(
@@ -110,7 +118,18 @@ export function ExpenseDetail({
   }
 
   return (
-    <Screen title="Expense">
+    <Screen
+      compactHeader
+      title={state.canEdit ? "Edit expense" : "Expense"}
+      headerAccessory={
+        <CompactAction
+          variant="icon"
+          label="Close"
+          icon={<X size={20} color={palette.textSecondary} />}
+          onPress={onBack}
+        />
+      }
+    >
       <StackGap>
         {phase === "loading" ? <BodyText>Loading Expense.</BodyText> : null}
         {phase === "error" && error ? (
@@ -130,70 +149,142 @@ export function ExpenseDetail({
         ) : null}
         {phase === "ready" && expense ? (
           <StackGap>
-            <View style={{ alignItems: 'center', gap: 5, paddingVertical: 12 }}>
-              <Text style={{ color: palette.textSecondary, fontFamily: fonts.regular, fontSize: 14, textAlign: 'center' }}>{expense.description}</Text>
-              <MoneyAmount amount={expense.amount} variant="total" />
-              <SupportingText>PHP</SupportingText>
-            </View>
-            <View style={{ minHeight: 58, flexDirection: 'row', gap: 14, alignItems: 'center', borderBottomWidth: 1, borderColor: palette.fieldBorder }}><CalendarDays color={palette.textSecondary} size={20} accessible={false} /><SupportingText>{expense.expenseDate}</SupportingText></View>
-            <View style={{ minHeight: 58, flexDirection: 'row', gap: 14, alignItems: 'center', borderBottomWidth: 1, borderColor: palette.fieldBorder }}><Shapes color={palette.textSecondary} size={20} accessible={false} /><SupportingText>{expense.categoryName}</SupportingText></View>
-            <SupportingText>
-              {expense.source === "manual" ? "Cash" : "Imported"}
-            </SupportingText>
-            <SupportingText>{`Space · ${state.spaceName}`}</SupportingText>
-            {state.archived ? <SupportingText>This Shared Space is archived. Expense and Activity history are read-only.</SupportingText> : null}
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-              <PersonAvatar name={expense.addedByName ?? 'Person unavailable'} photoUrl={expense.addedByPhotoUrl} />
-              <View style={{ flex: 1 }}><SupportingText>
-                {expense.addedByName
-                  ? `Added By ${expense.addedByName}`
-                  : "Added By is kept with this Expense."}
-              </SupportingText></View>
-            </View>
-            {expense.source === "imported" ? (
-              <StackGap>
-                <SupportingText>
-                  {expense.statementImportId
-                    ? `Statement Import ${expense.statementImportId}`
-                    : "Statement Import reference retained"}
-                </SupportingText>
-                {expense.sourceRowId ? (
-                  <SupportingText>{`Source row ${expense.sourceRowId}`}</SupportingText>
-                ) : null}
-              </StackGap>
-            ) : null}
-            {expense.deletedAt ? (
-              <SupportingText>{`Deleted ${expense.deletedAt.slice(0, 10)}. This Expense is retained for history.`}</SupportingText>
-            ) : null}
             {state.canEdit ? (
-              <View style={{ flexDirection: "row", gap: space.cardGap }}>
-                <View style={{ flex: 1 }}>
-                  <CompactAction label="Edit Expense" icon={<Pencil size={16} color={palette.brandPrimary} />} onPress={onBeginEdit} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <CompactAction
-                    icon={<Trash2 size={16} color={palette.stateNegative} />}
-                    label="Delete Expense"
-                    onPress={() => setDeleteOpen(true)}
+              <View style={{ gap: space.dialogGap }}>
+                {state.editor.draft ? (
+                  <ExpenseFields
+                    disabled={
+                      state.editor.phase !== "ready" ||
+                      state.editor.needsReview ||
+                      state.deleting
+                    }
+                    draft={state.editor.draft}
+                    issues={state.editor.issues}
+                    categoryLabel={
+                      selectedCategory
+                        ? selectedCategory.name +
+                          (selectedCategory.isActive ? "" : " (inactive)")
+                        : "Choose Category"
+                    }
+                    onChange={onChangeEdit}
+                    onOpenCategories={() => setCategoryOpen(true)}
                   />
+                ) : null}
+                {state.editor.error ? (
+                  <ExpenseNotice message={state.editor.error} />
+                ) : null}
+                {state.editor.needsReview ? (
+                  state.editor.latest ? (
+                    <StackGap>
+                      <SupportingText>
+                        {`Latest version · ${state.editor.latest.description} · ${state.editor.latest.amount} PHP · ${state.editor.latest.expenseDate} · ${state.editor.latest.categoryName}`}
+                      </SupportingText>
+                      <SecondaryButton
+                        label="Continue with my changes"
+                        onPress={onContinueWithMyChanges}
+                      />
+                    </StackGap>
+                  ) : (
+                    <SecondaryButton
+                      label={
+                        state.editor.phase === "reviewing"
+                          ? "Reviewing latest version"
+                          : "Review latest version"
+                      }
+                      onPress={onReviewLatest}
+                    />
+                  )
+                ) : null}
+                <PrimaryButton
+                  label={state.editor.error ? "Try again" : "Save changes"}
+                  onPress={onSaveEdit}
+                  busy={state.editor.phase === "saving"}
+                  disabled={!allowEditSave}
+                />
+              </View>
+            ) : (
+              <>
+                <View
+                  style={{ alignItems: "center", gap: 5, paddingVertical: 12 }}
+                >
+                  <Text
+                    style={{
+                      color: palette.textSecondary,
+                      fontFamily: fonts.regular,
+                      fontSize: 14,
+                      textAlign: "center",
+                    }}
+                  >
+                    {expense.description}
+                  </Text>
+                  <MoneyAmount amount={expense.amount} variant="total" />
+                  <SupportingText>PHP</SupportingText>
                 </View>
+                <View
+                  style={{
+                    minHeight: 58,
+                    flexDirection: "row",
+                    gap: 14,
+                    alignItems: "center",
+                    borderBottomWidth: 1,
+                    borderColor: palette.fieldBorder,
+                  }}
+                >
+                  <CalendarDays
+                    color={palette.textSecondary}
+                    size={20}
+                    accessible={false}
+                  />
+                  <SupportingText>{expense.expenseDate}</SupportingText>
+                </View>
+                <View
+                  style={{
+                    minHeight: 58,
+                    flexDirection: "row",
+                    gap: 14,
+                    alignItems: "center",
+                    borderBottomWidth: 1,
+                    borderColor: palette.fieldBorder,
+                  }}
+                >
+                  <Shapes
+                    color={palette.textSecondary}
+                    size={20}
+                    accessible={false}
+                  />
+                  <SupportingText>{expense.categoryName}</SupportingText>
+                </View>
+              </>
+            )}
+            {state.canEdit ? (
+              <View style={{ alignItems: "flex-end" }}>
+                <CompactAction
+                  variant="icon"
+                  label="Delete Expense"
+                  icon={<Trash2 size={20} color={palette.stateNegative} />}
+                  disabled={state.editor.phase === "saving" || state.deleting}
+                  onPress={() => setDeleteOpen(true)}
+                />
               </View>
             ) : null}
             {state.deleteError ? (
-              <Text
-                accessibilityLiveRegion="polite"
-                style={{
-                  color: palette.stateNegative,
-                  fontFamily: fonts.regular,
-                  fontSize: typeScale.body,
-                }}
-              >
-                {state.deleteError}
-              </Text>
+              <ExpenseNotice message={state.deleteError} />
             ) : null}
-            <View style={{ gap: space.rowGap }}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Activity"
+              accessibilityState={{ expanded: activityOpen }}
+              onPress={() => setActivityOpen(!activityOpen)}
+              style={{
+                minHeight: 48,
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+                borderTopWidth: 1,
+                borderColor: palette.fieldBorder,
+              }}
+            >
               <Text
-                accessibilityRole="header"
                 style={{
                   color: palette.textPrimary,
                   fontFamily: fonts.semibold,
@@ -202,74 +293,114 @@ export function ExpenseDetail({
               >
                 Activity
               </Text>
-              {state.activity.length === 0 ? (
-                <SupportingText>No Activity has been recorded.</SupportingText>
-              ) : null}
-              {state.activity.map((event) => (
+              {activityOpen ? (
+                <ChevronUp
+                  accessible={false}
+                  size={18}
+                  color={palette.textSecondary}
+                />
+              ) : (
+                <ChevronDown
+                  accessible={false}
+                  size={18}
+                  color={palette.textSecondary}
+                />
+              )}
+            </Pressable>
+            {activityOpen ? (
+              <StackGap>
+                <SupportingText>
+                  {expense.source === "manual" ? "Cash" : "Imported"}
+                </SupportingText>
+                <SupportingText>{`Space · ${state.spaceName}`}</SupportingText>
+                {state.archived ? (
+                  <SupportingText>
+                    This Shared Space is archived. Expense and Activity history
+                    are read-only.
+                  </SupportingText>
+                ) : null}
                 <View
-                  key={event.id}
                   style={{
-                    gap: space.fieldLabelGap,
-                    paddingVertical: 14,
-                    borderTopWidth: 1,
-                    borderColor: palette.fieldBorder,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 10,
                   }}
                 >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                  <PersonAvatar name={event.actorName} photoUrl={event.actorPhotoUrl} />
-                  <View style={{ flex: 1 }}><SupportingText>
-                    {`${activityLabel(event.type)} · ${event.actorName} · ${event.occurredAt.slice(0, 16).replace("T", " ")}`}
-                  </SupportingText></View>
+                  <PersonAvatar
+                    name={expense.addedByName ?? "Person unavailable"}
+                    photoUrl={expense.addedByPhotoUrl}
+                  />
+                  <View style={{ flex: 1 }}>
+                    <SupportingText>
+                      {expense.addedByName
+                        ? `Added By ${expense.addedByName}`
+                        : "Added By is kept with this Expense."}
+                    </SupportingText>
                   </View>
-                  {event.before ? (
-                    <SupportingText>{`Before · ${snapshotLabel(event.before)}`}</SupportingText>
-                  ) : null}
-                  {event.after ? (
-                    <SupportingText>{`After · ${snapshotLabel(event.after)}`}</SupportingText>
-                  ) : null}
                 </View>
-              ))}
-            </View>
+                {expense.source === "imported" ? (
+                  <StackGap>
+                    <SupportingText>
+                      {expense.statementImportId
+                        ? `Statement Import ${expense.statementImportId}`
+                        : "Statement Import reference retained"}
+                    </SupportingText>
+                    {expense.sourceRowId ? (
+                      <SupportingText>{`Source row ${expense.sourceRowId}`}</SupportingText>
+                    ) : null}
+                  </StackGap>
+                ) : null}
+                {expense.deletedAt ? (
+                  <SupportingText>{`Deleted ${expense.deletedAt.slice(0, 10)}. This Expense is retained for history.`}</SupportingText>
+                ) : null}
+                <View style={{ gap: space.rowGap }}>
+                  {state.activity.length === 0 ? (
+                    <SupportingText>
+                      No Activity has been recorded.
+                    </SupportingText>
+                  ) : null}
+                  {state.activity.map((event) => (
+                    <View
+                      key={event.id}
+                      style={{
+                        gap: space.fieldLabelGap,
+                        paddingVertical: 14,
+                        borderTopWidth: 1,
+                        borderColor: palette.fieldBorder,
+                      }}
+                    >
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 10,
+                        }}
+                      >
+                        <PersonAvatar
+                          name={event.actorName}
+                          photoUrl={event.actorPhotoUrl}
+                        />
+                        <View style={{ flex: 1 }}>
+                          <SupportingText>
+                            {`${activityLabel(event.type)} · ${event.actorName} · ${event.occurredAt.slice(0, 16).replace("T", " ")}`}
+                          </SupportingText>
+                        </View>
+                      </View>
+                      {event.before ? (
+                        <SupportingText>{`Before · ${snapshotLabel(event.before)}`}</SupportingText>
+                      ) : null}
+                      {event.after ? (
+                        <SupportingText>{`After · ${snapshotLabel(event.after)}`}</SupportingText>
+                      ) : null}
+                    </View>
+                  ))}
+                </View>
+              </StackGap>
+            ) : null}
           </StackGap>
         ) : null}
-        <CompactAction variant="quiet" label="Back" onPress={onBack} />
       </StackGap>
 
-      <CenteredDialog title="Edit Expense" showClose visible={state.editor.open && !categoryOpen} onDismiss={onCancelEdit}>
-        {state.editor.draft ? (
-          <ExpenseFields draft={state.editor.draft} issues={state.editor.issues} categoryLabel={selectedCategory ? selectedCategory.name + (selectedCategory.isActive ? '' : ' (inactive)') : 'Choose Category'} onChange={onChangeEdit} onOpenCategories={() => setCategoryOpen(true)} />
-        ) : null}
-        {state.editor.error ? <ExpenseNotice message={state.editor.error} /> : null}
-        {state.editor.needsReview ? (
-          state.editor.latest ? (
-            <StackGap>
-              <SupportingText>
-                {`Latest version · ${state.editor.latest.description} · ${state.editor.latest.amount} PHP · ${state.editor.latest.expenseDate} · ${state.editor.latest.categoryName}`}
-              </SupportingText>
-              <SecondaryButton
-                label="Continue with my changes"
-                onPress={onContinueWithMyChanges}
-              />
-            </StackGap>
-          ) : (
-            <SecondaryButton
-              label={
-                state.editor.phase === "reviewing"
-                  ? "Reviewing latest version"
-                  : "Review latest version"
-              }
-              onPress={onReviewLatest}
-            />
-          )
-        ) : null}
-        <PrimaryButton
-          label={state.editor.error ? "Try again" : "Save changes"}
-          onPress={onSaveEdit}
-          busy={state.editor.phase === "saving"}
-          disabled={!allowEditSave}
-        />
-        <SecondaryButton label="Cancel" onPress={onCancelEdit} />
-      </CenteredDialog>
       <ChoiceSheet
         title="Category"
         showClose
@@ -288,8 +419,16 @@ export function ExpenseDetail({
           />
         ))}
       </ChoiceSheet>
-      <CenteredDialog title="Delete Expense?" showClose visible={deleteOpen} onDismiss={() => setDeleteOpen(false)}>
-        <ExpenseNotice warning message="This Expense will leave active totals and remain in Deleted Expenses with its Activity history." />
+      <CenteredDialog
+        title="Delete Expense?"
+        showClose
+        visible={deleteOpen}
+        onDismiss={() => setDeleteOpen(false)}
+      >
+        <ExpenseNotice
+          warning
+          message="This Expense will leave active totals and remain in Deleted Expenses with its Activity history."
+        />
         {state.deleteError ? (
           <SupportingText>{state.deleteError}</SupportingText>
         ) : null}

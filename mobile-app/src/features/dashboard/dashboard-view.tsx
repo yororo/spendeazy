@@ -27,7 +27,6 @@ import {
   annualUsageText,
   compareMoney,
   dashboardPeriodLabel,
-  dashboardDateRange,
   formatPhp,
   labelMonth,
 } from "./dashboard-format";
@@ -109,6 +108,7 @@ export function DashboardView({
             flexDirection: "row",
             flexWrap: "wrap",
             alignItems: "center",
+            justifyContent: "space-between",
             gap: 6,
           }}
         >
@@ -152,7 +152,6 @@ export function DashboardView({
               }}
             >
               <SupportingText>{dashboardPeriodLabel(report)}</SupportingText>
-              <SupportingText>{dashboardDateRange(report)}</SupportingText>
             </View>
           ) : null}
         </View>
@@ -409,7 +408,6 @@ function DashboardSummary({
         restoreFocusRef={infoTrigger}
         showClose
       >
-        <BodyText>{dashboardDateRange(report)}</BodyText>
         <BodyText>
           Current active Budget configuration applies retrospectively to this period.
           Started months count in full; there is no daily proration. Annual Budgets

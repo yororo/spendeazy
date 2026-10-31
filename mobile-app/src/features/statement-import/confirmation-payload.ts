@@ -4,7 +4,6 @@ import { decimalAmount } from './values.ts';
 
 const diagnostics = {
   'partial-extraction': 'Some pages or rows could not be extracted.',
-  'uncertain-completeness': 'Extraction completeness has not been verified.',
   'unresolved-classification': 'Some activity could not be classified.',
   'reconciliation-mismatch': 'Original activity differs from statement controls.',
   'missing-control': 'An original control or comparison is unavailable.',

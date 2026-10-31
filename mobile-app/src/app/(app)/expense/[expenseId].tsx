@@ -42,12 +42,10 @@ function ExpenseDetailContainer({ expenseId }: { expenseId: string }) {
         void controller.retry();
       }}
       onBack={() => router.back()}
-      onBeginEdit={controller.beginEdit}
       onChangeEdit={controller.updateEdit}
       onSaveEdit={() => {
-        void controller.saveEdit();
+        void controller.saveEdit().then((saved) => { if (saved) router.back(); });
       }}
-      onCancelEdit={controller.cancelEdit}
       onReviewLatest={() => {
         void controller.reviewLatest();
       }}

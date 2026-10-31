@@ -41,7 +41,7 @@ export type PageOutcome = Readonly<{
   hasImages: boolean;
 }>;
 export type ImportWarning = Readonly<{
-  code: 'partial-extraction' | 'uncertain-completeness' | 'unresolved-classification' | 'reconciliation-mismatch' | 'missing-control';
+  code: 'partial-extraction' | 'unresolved-classification' | 'reconciliation-mismatch' | 'missing-control';
   sourceRowIds: readonly string[];
   pageIndices: readonly number[];
 }>;

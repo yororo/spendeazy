@@ -40,7 +40,7 @@ test('a positive exact peso amount, description, active Category and nonfuture d
   } });
 });
 
-test('create rejects a blank description, missing Category, inexact amount and future Manila date', () => {
+test('create rejects a missing Category, inexact amount and future Manila date', () => {
   const result = prepareManualExpense(
     {
       amount: '0.00',
@@ -55,7 +55,7 @@ test('create rejects a blank description, missing Category, inexact amount and f
 
   assert.deepEqual(
     result.issues.map((issue) => issue.field),
-    ['amount', 'description', 'categoryId', 'expenseDate'],
+    ['amount', 'categoryId', 'expenseDate'],
   );
 });
 
@@ -101,4 +101,12 @@ test('preparation returns normalized input with explicit Manila time and destina
     now: new Date('2026-10-23T16:01:00Z'), spaceId: 'personal',
     categories: { spaceId: 'personal', items: [{ id: 'food', isActive: true }] },
   }), { ok: true, input: { amount: '12.50', description: 'Lunch', categoryId: 'food', expenseDate: '2026-10-24' } });
+});
+
+test('a manual Expense can be saved without a description', () => {
+  for (const description of ['', '   ']) {
+    const result = prepareManualExpense({ amount: '12', description, categoryId: '42', expenseDate: TODAY }, context);
+    assert.equal(result.ok, true);
+    if (result.ok) assert.equal(result.input.description, '');
+  }
 });

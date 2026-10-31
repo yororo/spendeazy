@@ -1,5 +1,5 @@
 import { useRef, useState, type ElementRef, type ReactNode } from 'react';
-import { ArrowLeft, Bookmark, ChevronDown, FileText, Landmark, Pencil, Shapes, X } from 'lucide-react-native';
+import { ArrowLeft, Bookmark, Check, ChevronDown, FileText, Landmark, Pencil, Shapes, X } from 'lucide-react-native';
 import { Alert, FlatList, KeyboardAvoidingView, Pressable, Switch, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CompactAction, PrimaryButton, SecondaryButton } from '@/components/buttons';
@@ -31,6 +31,9 @@ export function StatementImportReviewView({ controller: c, destination, onBack, 
   const categories = review.catalog.snapshot?.categories.filter(category => category.isActive) ?? [];
   const category = review.catalog.snapshot?.categories.find(category => category.id === editor?.values.categoryId);
   const disabled = c.readOnly || review.catalog.status !== 'ready';
+  const includedCount = c.counts.all - c.counts.excluded;
+  const categorizedCount = includedCount - c.counts.unmapped;
+  const categorizationProgress = includedCount > 0 ? categorizedCount / includedCount : 0;
   const remember = (patch: Partial<NonNullable<typeof editor>>) => {
     if (editor) c.send({ type: 'editorChanged', editor: { ...editor, ...patch } });
   };
@@ -72,13 +75,17 @@ export function StatementImportReviewView({ controller: c, destination, onBack, 
           {review.catalog.status !== 'ready' ? <SupportingText>{review.catalog.status === 'failed' ? 'Categories and Rules could not be loaded. Your review is retained. Retry to assign or continue.' : 'Loading Categories and Rules…'}</SupportingText> : null}
           {review.catalog.status !== 'ready' ? <SecondaryButton label="Retry Categories and Rules" busy={review.catalog.status === 'loading'} onPress={c.refresh} /> : null}
           {review.catalog.status === 'ready' && categories.length === 0 ? <SupportingText>No active Categories. Activate a Category in this Space before assigning spending.</SupportingText> : null}
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <Text accessibilityRole="header" style={{ fontSize: 15, fontFamily: fonts.semibold, color: palette.textPrimary }}>{review.inspectedSourceRowId ? 'Transaction review' : 'Categorize'}</Text>
+            <View accessible accessibilityRole="progressbar" accessibilityLabel="Categorization progress"
+              accessibilityValue={{ min: 0, max: 100, now: Math.round(categorizationProgress * 100), text: includedCount > 0 ? `${categorizedCount} of ${includedCount} included transactions categorized` : 'No included transactions to categorize' }}
+              style={{ width: 112, height: 6, borderRadius: 3, overflow: 'hidden', backgroundColor: palette.meterTrack }}>
+              <View style={{ width: `${categorizationProgress * 100}%`, height: '100%', borderRadius: 3, backgroundColor: palette.brandPrimary }} />
+            </View>
+          </View>
           <View style={{ paddingBottom: 12 }}>
             {[{ inset: 8, bottom: 0, fill: palette.importCardBack }, { inset: 4, bottom: 6, fill: palette.importCardMiddle }].map(layer => <View key={layer.inset} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ position: 'absolute', left: layer.inset, right: layer.inset, top: 12, bottom: layer.bottom, borderRadius: 24, backgroundColor: layer.fill, borderWidth: 1, borderColor: palette.selectedSpaceBorder }} />)}
             <View style={{ padding: 18, gap: 16, borderRadius: 24, borderWidth: 1, borderColor: palette.selectedSpaceBorder, backgroundColor: palette.importCard }}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12 }}>
-                <Text style={{ fontSize: 11, fontFamily: fonts.semibold, color: palette.brandPrimary }}>{review.inspectedSourceRowId ? 'Transaction review' : 'Categorize'}</Text>
-                <Text style={{ fontSize: 12, fontFamily: fonts.medium, color: palette.brandPrimary }}>{`${c.counts.unmapped} left`}</Text>
-              </View>
               {source && selectedRow ? <>
                 <View style={{ gap: 5 }}>
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
@@ -169,8 +176,20 @@ export function StatementImportReviewView({ controller: c, destination, onBack, 
         <PrimaryButton label="Done · keep pending edits" onPress={() => setModal(null)} />
       </> : null}
     </CenteredDialog>
-    <ChoiceSheet title="Choose Category" visible={modal === 'categories'} onDismiss={() => setModal(null)} restoreFocusRef={editFocus}>
-      {categories.map(item => <View key={item.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}><CategoryIconMark iconKey={item.iconKey} colorKey={item.colorKey} /><View style={{ flex: 1 }}><SecondaryButton label={item.name} selected={editor?.values.categoryId === item.id} disabled={disabled} onPress={() => { c.patch({ categoryId: item.id }); setModal(null); }} /></View></View>)}
+    <ChoiceSheet title="Choose Category" visible={modal === 'categories'} onDismiss={() => setModal(null)} restoreFocusRef={editFocus} maxHeight="65%" showClose>
+      <View>
+        {categories.map(item => {
+          const selected = editor?.values.categoryId === item.id;
+          return <Pressable key={item.id} accessibilityRole="button" accessibilityLabel={item.name} accessibilityState={{ selected, disabled }} disabled={disabled}
+            onPress={() => { c.patch({ categoryId: item.id }); setModal(null); }}
+            style={{ minHeight: 52, paddingVertical: 7, paddingHorizontal: 8, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: selected ? palette.selectedSpace : 'transparent', opacity: disabled ? 0.55 : 1 }}>
+            <CategoryIconMark iconKey={item.iconKey} colorKey={item.colorKey} size={20} />
+            <Text style={{ flex: 1, fontFamily: selected ? fonts.semibold : fonts.medium, fontSize: 15, color: selected ? palette.brandPrimary : palette.textPrimary }}>{item.name}</Text>
+            {selected ? <Check size={18} color={palette.brandPrimary} /> : null}
+          </Pressable>;
+        })}
+        {categories.length === 0 ? <SupportingText>No active Categories available.</SupportingText> : null}
+      </View>
     </ChoiceSheet>
   </KeyboardAvoidingView>;
 }
@@ -191,7 +210,6 @@ function ErrorText({ message }: { message: string }) {
 function warningMessage(code: string) {
   const messages: Record<string, string> = {
     'partial-extraction': 'Some pages or activity could not be read. Extracted Transactions may be incomplete.',
-    'uncertain-completeness': 'Extraction cannot establish that all statement activity is present.',
     'unresolved-classification': 'Some Transactions have uncertain direction or dates and remain excluded.',
     'reconciliation-mismatch': 'Extracted activity does not match the original statement controls.',
     'missing-control': 'Some original statement controls are missing or unreadable.',

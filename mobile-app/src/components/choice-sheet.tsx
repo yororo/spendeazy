@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useRef, type RefObject, type ElementRef, type ReactNode } from 'react';
 import { X } from 'lucide-react-native';
 import { AccessibilityInfo, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import type { ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { radius, space, typeScale } from '@/constants/theme';
 import { useAppTheme } from '@/navigation/app-theme';
 import { CompactAction } from '@/components/buttons';
 
-type ShellProps = { title: string; visible: boolean; onDismiss: () => void; children: ReactNode; dismissOnBackdrop?: boolean; showClose?: boolean; restoreFocusRef?: RefObject<ElementRef<typeof View> | null>; initialFocusRef?: RefObject<ElementRef<typeof View> | null> };
+type ShellProps = { title: string; visible: boolean; onDismiss: () => void; children: ReactNode; dismissOnBackdrop?: boolean; showClose?: boolean; maxHeight?: ViewStyle['maxHeight']; restoreFocusRef?: RefObject<ElementRef<typeof View> | null>; initialFocusRef?: RefObject<ElementRef<typeof View> | null> };
 
 export function ChoiceSheet(props: ShellProps) {
   return <ModalShell {...props} />;
@@ -25,6 +26,7 @@ function ModalShell({
   centered = false,
   dismissOnBackdrop = true,
   showClose = false,
+  maxHeight = '100%',
   restoreFocusRef,
   initialFocusRef,
 }: {
@@ -35,6 +37,7 @@ function ModalShell({
   centered?: boolean;
   dismissOnBackdrop?: boolean;
   showClose?: boolean;
+  maxHeight?: ViewStyle['maxHeight'];
   restoreFocusRef?: RefObject<ElementRef<typeof View> | null>;
   initialFocusRef?: RefObject<ElementRef<typeof View> | null>;
 }) {
@@ -80,7 +83,7 @@ function ModalShell({
             backgroundColor: palette.scrim,
           }}
         />
-        <ScrollView keyboardShouldPersistTaps="handled" bounces={false} style={{ flexGrow: 0, maxHeight: '100%', borderRadius: centered ? radius.dialog : undefined }}>
+        <ScrollView keyboardShouldPersistTaps="handled" bounces={false} style={{ flexGrow: 0, maxHeight, borderRadius: centered ? radius.dialog : undefined }}>
         <View accessibilityViewIsModal
           style={{
             backgroundColor: palette.surfaceModal,

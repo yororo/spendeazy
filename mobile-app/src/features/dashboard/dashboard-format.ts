@@ -40,10 +40,6 @@ export function manilaDate(instant: Date): string {
   return new Date(instant.getTime() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
 }
 
-export function dashboardDateRange(report: DashboardReport): string {
-  return `${report.range.fromDate} – ${report.range.toDate} (inclusive, Asia/Manila)${report.range.inProgress ? " · In progress" : ""}`;
-}
-
 export function labelMonth(month: string): string {
   const date = new Date(`${month}-01T00:00:00.000Z`);
   return monthName.format(date);

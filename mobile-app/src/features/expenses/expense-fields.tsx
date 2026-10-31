@@ -6,7 +6,8 @@ import { useAppTheme } from '@/navigation/app-theme';
 import type { ManualExpenseDraft, ManualExpenseField } from './manual-draft';
 
 /** Shared presentation for manual creation and revision-protected editing. */
-export function ExpenseFields({ draft, issues, categoryLabel, onChange, onOpenCategories }: {
+export function ExpenseFields({ draft, issues, categoryLabel, onChange, onOpenCategories, disabled = false }: {
+  disabled?: boolean;
   draft: ManualExpenseDraft;
   issues: Partial<Record<ManualExpenseField, string>>;
   categoryLabel: string;
@@ -16,35 +17,36 @@ export function ExpenseFields({ draft, issues, categoryLabel, onChange, onOpenCa
   const { palette, fonts } = useAppTheme();
   return (
     <View style={{ gap: space.dialogGap }}>
-      <View style={{ gap: 3 }}>
-        <Text style={{ color: palette.textSecondary, fontFamily: fonts.regular, fontSize: typeScale.metadata, textAlign: 'center' }}>
-          Amount · PHP
-        </Text>
+      <View style={{ alignSelf: 'center', width: '100%', paddingVertical: 12 }}>
         <TextField
           label="Amount in Philippine pesos"
           showLabel={false}
+          editable={!disabled}
           variant="amount"
+          icon={<Text style={{ color: palette.textSecondary, fontFamily: fonts.medium, fontSize: 28 }}>₱</Text>}
           value={draft.amount}
           onChangeText={(amount) => onChange({ amount })}
           error={issues.amount}
-          placeholder="12.50"
+          placeholder="0"
           keyboardType="decimal-pad"
         />
       </View>
       <View>
         <TextField
-          label="Description"
+          label="Description (optional)"
           showLabel={false}
+          editable={!disabled}
           variant="underlined"
           icon={<Pencil size={20} color={palette.textSecondary} />}
           value={draft.description}
           onChangeText={(description) => onChange({ description })}
           error={issues.description}
-          placeholder="What was this Expense?"
+          placeholder="Description (optional)"
         />
         <TextField
           label="Date"
           showLabel={false}
+          editable={!disabled}
           variant="underlined"
           icon={<CalendarDays size={20} color={palette.textSecondary} />}
           value={draft.expenseDate}
@@ -56,6 +58,8 @@ export function ExpenseFields({ draft, issues, categoryLabel, onChange, onOpenCa
           accessibilityRole="button"
           accessibilityLabel={`Category: ${categoryLabel}`}
           onPress={onOpenCategories}
+          disabled={disabled}
+          accessibilityState={{ disabled }}
           style={{ minHeight: controlSize.field, flexDirection: 'row', alignItems: 'center', gap: 14, borderBottomWidth: 1, borderColor: issues.categoryId ? palette.stateNegative : palette.fieldBorder }}>
           <View accessible={false} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
             <Shapes size={20} color={palette.textSecondary} />

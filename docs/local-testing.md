@@ -1,215 +1,205 @@
 # Test the app locally
 
-Humans and AI agents use the same workflow: PostgreSQL in Docker, the API in one terminal, and Expo in another. Data survives shutdown. Start with **First-time setup**, then use **Daily startup** on subsequent visits. Existing automated checks are in [local checks](local-checks.md); they are not prerequisites to opening the app.
+Humans and AI agents use the same workflow: PostgreSQL in Docker, the API in one terminal, Expo in another. Data survives shutdown.
 
-## First-time setup
+All commands are Bash. Every block starts with `# cwd:` (relative to the repository root).
 
-### 1. Install the tools
+## Defaults
 
-- Git, Node.js **24.11.1** and npm (matching CI). Confirm `node -v` before installing. If another Node is first on `PATH`, prepend the 24.11.1 install.
-- Docker with Linux containers and `docker compose`. Docker Desktop is the usual local app; a cloud image may already be running the engine.
-- For Android: [Android Studio, SDK and JDK setup](https://docs.expo.dev/get-started/set-up-your-environment/). Set `ANDROID_HOME` to your SDK and put its `platform-tools` on `PATH`. Start an emulator with a **Google Play** image in Android Studio's Device Manager; native Google sign-in needs Google Play services. `adb devices` must list it as `device`.
-- For a physical iPhone: an Expo account, Apple Developer membership and the [iPhone instructions below](#physical-iphone).
-
-Examples work in PowerShell and Bash unless labeled. Every command block names its working directory. Docker must be running before database commands.
-
-### 2. Install the two projects
-
-From the repository root:
-
-```sh
-npm ci --prefix api
-npm ci --prefix mobile-app
-```
-
-Copy `api/.env.example` to `api/.env`, and `mobile-app/.env.example` to `mobile-app/.env.local`. Keep existing local files when returning to the repo; these ignored files hold your development settings. If a startup script already wrote `api/.env`, keep that file only when its `DATABASE_URL` is the Compose database below. Another port or database name is a different database.
-
-### 3. Configure the API
-
-Edit `api/.env`. Its example database URL matches the root Compose file: host `127.0.0.1`, port `55433`, database `spendeazy_disposable_manual`. The database's public development password is only for this loopback-bound local service.
-
-Generate a value **twice**, independently, with:
-
-```sh
-node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
-```
-
-Save one value as `INVITATION_CODE_ENCRYPTION_KEY` and the other as `GCASH_REFERENCE_HASH_KEY`. Retain both while retaining the database; do not regenerate them on normal startup.
-
-Use a dedicated **Clerk development instance**. Copy its `sk_test_` secret key to `CLERK_SECRET_KEY` and its RSA PEM public verification key to `CLERK_JWT_KEY`. For a single-line PEM value, use literal `\n` between lines. Without Clerk configuration `/health` can work while authenticated requests fail. When those values are already in the environment, copy them into `api/.env`. Leave them empty when they are not.
-
-Do not invent these values. Confirm with a developer when you do not have them.
-
-### 4. Configure mobile sign-in and connectivity
-
-Edit `mobile-app/.env.local`:
-
-| Setting | Value |
+| Item | Value |
 | --- | --- |
-| `EXPO_PUBLIC_API_BASE_URL` | `http://10.0.2.2:3000` for the standard Android emulator |
-| `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` | `pk_test_` key from the **same** Clerk instance as the API |
-| `EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID` | Google web OAuth client ID for the same Clerk instance |
-| `EXPO_PUBLIC_CLERK_GOOGLE_ANDROID_CLIENT_ID` | Android OAuth client ID matching `com.seyfsasy.spendeazymobile` and the installed build's signing SHA-1 |
-| iOS client ID and URL scheme | Required when building/testing iPhone; see below |
+| API port | `4000` (`PORT` in `api/.env`) |
+| API URL from Android emulator | `http://10.0.2.2:4000` |
+| Metro port | `8081` |
+| PostgreSQL | `127.0.0.1:55433`, database `spendeazy_disposable_manual` (root `compose.yaml`) |
+| Android emulator AVD | `Pixel_10` (prefer it; otherwise the first of `emulator -list-avds`) |
+| Android package | `com.seyfsasy.spendeazymobile` |
+| Node | `24.11.1` (check `node -v`; prepend the 24.11.1 install to `PATH` if another is first) |
 
-Copy public client IDs from the environment when they are already set. When the web client id is missing, take it from that instance's Google connection. If Google One Tap is enabled, the instance's public Frontend API environment includes it as `display_config.google_one_tap_client_id`.
+If you change a port, change every place that uses it (see [Alternative ports](#alternative-ports)).
 
-For a local Android debug build, obtain the signing SHA-1 with `./gradlew signingReport` from `mobile-app/android/` (`.\gradlew.bat signingReport` in PowerShell). If that directory is absent, generate it first with `npx expo prebuild --platform android` from `mobile-app/`. `expo prebuild` and `expo run:android` create `mobile-app/android/app/debug.keystore` when the project has none. Reuse the debug keystore registered on the Android OAuth client, or register this build's SHA-1. A new keystore does not match a client registered for another machine.
+## Stop conditions (ask the user)
 
-Only public identifiers belong in `EXPO_PUBLIC_*`. Backend secret keys stay in `api/.env`.
-
-Do not invent these values. Confirm with a developer when you do not have them.
+- Clerk or Google values are missing and not in the environment. Never invent them.
+- A credential, consent or MFA prompt appears on the device. Report it; do not claim Dashboard passed.
+- A port is busy with an instance you do not recognize. Do not kill unrelated listeners.
 
 ## Daily startup
 
-Before starting:
+Prerequisites: [first-time setup](#first-time-setup) done. Start from a clean session: stop old API, PostgreSQL, Metro and emulators first. Check that `api/.env` `DATABASE_URL` uses port `55433` and `mobile-app/.env.local` `EXPO_PUBLIC_API_BASE_URL` is `http://10.0.2.2:<API PORT>`.
 
-- Check the configuration files if they are synchronized: `./api/.env` for API, [compose](../compose.yaml) for the database, and `./mobile-app/.env.local` for the mobile-app. Existing local env files may still contain settings from an older setup.
-  - `./mobile-app/.env.local` - `EXPO_PUBLIC_API_BASE_URL` must use `http://10.0.2.2:<PORT>` with the API's `PORT`.
-- Shutdown existing API's, PostgreSQL, and mobile app emulators to ensure a fresh test session.
+### 1. PostgreSQL
 
-### 1. Start PostgreSQL
-
-From the repository root:
-
-```sh
+```bash
+# cwd: .
 docker compose up -d --wait
 ```
 
-- Wait for PostgreSQL to be healthy.
+Verify: `docker compose ps` shows `healthy`.
 
-### 2. Start the API
+### 2. API (own terminal, leave running)
 
-In an API terminal, working directory `api/`:
-
-```sh
+```bash
+# cwd: api
 npm run migration:run
 npm run start:dev
 ```
 
-- Continue only after migrations succeed. 
-- Leave watch mode running so you can inspect logs later if helpful.
-- Open [health](http://localhost:4000/health) to verify connection status.
+Continue only if migrations succeed. Verify: `curl -s -o /dev/null -w "%{http_code}" http://localhost:4000/health` prints `200`.
 
-### 3. Open the native app
+### 3. Android emulator
 
-For Android:
+```bash
+# cwd: .
+adb devices -l
+emulator -avd Pixel_10   # Pixel_10 default only; leave running
+adb -s <serial> shell getprop sys.boot_completed
+```
 
-3.1. Run `adb devices -l`. If no emulator is listed, start one with `emulator -avd Pixel_10` (leave it running), then wait for it before starting Expo. 
+Verify: the serial is `device` and `boot_completed` prints `1`.
 
-3.2. From the repository root, confirm the intended serial in `adb devices -l` is `device` and `adb -s <serial> shell getprop sys.boot_completed` prints `1`. 
+### 4. Metro and app (own terminal, leave running)
 
-3.3. In a terminal at `mobile-app/`, use the installed development build. Then, press `a` in the Expo terminal.:
-
-```sh
+```bash
+# cwd: mobile-app
 npm run statement-import:prepare
 npx expo start --dev-client --localhost
 ```
 
-On Windows, if `curl http://127.0.0.1:8081/status` fails, start Metro with IPv4 first. Then, press `a` in the Expo terminal: 
+Verify: `curl http://127.0.0.1:8081/status` prints `packager-status:running`. If it fails on Windows, Metro is on IPv6 only; restart it with:
 
-```sh
+```bash
+# cwd: mobile-app
 NODE_OPTIONS=--dns-result-order=ipv4first npx expo start --dev-client --localhost
 ```
 
-(PowerShell: `$env:NODE_OPTIONS="--dns-result-order=ipv4first"` first).
+Then press `a` in the Expo terminal. 
 
-3.3.1. If you can't access the app in the emulator, reverse Metro's default port to the emulator.
+If the app cannot reach Metro:
 
-```sh
-adb -s <serial> reverse tcp:8081 tcp:8081
+```bash
+# cwd: .
+adb -s <serial> reverse tcp:8081 tcp:8081   # use Expo's port on both sides if not 8081
 ```
 
-If Expo selects a different port, use it on both sides of the reverse command. This reverse is for Metro only; the API stays on `10.0.2.2:<PORT>`.
+The reverse is for Metro only; the API stays on `10.0.2.2:<API PORT>`. Keep one Metro server per checkout.
 
-If Expo reports no development build, or native dependencies/configuration changed, stop Metro and build/install instead:
+If there is no development build, or native dependencies/config changed, stop Metro and run:
 
-```sh
+```bash
+# cwd: mobile-app
 npx expo run:android --device
 ```
 
-Choose the intended device. Expo builds, installs and starts Metro. Parser preparation creates an ignored PDF.js module needed by the bundle, even if you are testing another screen. Expo Go cannot run this app's native Google integration.
+This builds, installs and starts Metro. Expo Go cannot run this app's native Google sign-in. `expo run:android` may rewrite the `android`/`ios` scripts in `package.json`; restore them unless the change is intended. `npm run android`/`npm run ios` only open an installed build.
 
-If `a` times out while querying installed packages, wait until `adb devices` lists the emulator as `device` and `adb shell getprop sys.boot_completed` prints `1`, then retry. No installed development build means stop Metro and use the build command above. `npx expo run:android` can rewrite the `android` and `ios` scripts in `package.json` so they compile. Restore those scripts unless that change is intentional. `npm run android` and `npm run ios` open an installed build.
+Startup is complete when the sign-in screen or Dashboard is usable. A blank dev client (gear visible) or a system "not responding" dialog on a slow emulator is normal: choose **Wait**. Dashboard needs the Google test account signed in on the device.
 
-On a slow emulator the system or the app can report that it is not responding while the bundle downloads or the runtime starts. Choose **Wait**. The dev client can stay blank, with its gear visible, until the sign-in screen appears. Startup is complete when the sign-in screen or Dashboard is usable. Dashboard still requires the Google test account signed in on that device. A credential, consent, or MFA prompt is a human step; report that stop instead of a Dashboard pass.
+## After a change
 
-If the dev-client connection drops, stop Metro, restart it with `--localhost`, and repeat the reverse using the port Expo reports.
+| Change | Action | Verify |
+| --- | --- | --- |
+| Mobile JS/TS | Fast Refresh; `r` in Expo for full reload | Screen updates |
+| `mobile-app/.env.local` | Full reload (`r`); no rebuild | New value takes effect |
+| API source | Nest watch restarts | `/health` returns 200 |
+| `api/.env` | Stop and rerun `npm run start:dev` in `api/` | `/health` returns 200 |
+| Migrations | Stop API; `npm run migration:run` in `api/`; restart | Migration succeeds |
+| Dependencies | `npm ci` in that project; rebuild mobile if native | Install succeeds |
+| Native deps, plugins, app config | Stop Metro; in `mobile-app/`: `npx expo prebuild --clean`, then `npx expo run:android --device` | App opens |
+| Parser implementation/assets | `npm run statement-import:prepare` in `mobile-app/`, then reload | Reload succeeds |
 
-Keep one Metro server for this checkout.
-
-## After changing code or configuration
-
-| Change | Action |
-| --- | --- |
-| JavaScript/TypeScript UI or logic | Fast Refresh; press `r` in Expo for a full reload when needed |
-| Mobile API URL or publishable key in `.env.local` | Full reload; no native rebuild needed for these JavaScript values |
-| API source | Nest watch restarts it |
-| API `.env` | Stop and restart `npm run start:dev` |
-| Database migrations | Stop API, run `npm run migration:run`, restart API |
-| Project dependencies | Run `npm ci` in the changed project; rebuild mobile when native dependencies changed |
-| Native dependencies, plugins or native app settings | Stop Metro; in `mobile-app/`, run `npx expo prebuild --clean`, then `npx expo run:android --device` (or rebuild with EAS for iPhone) |
-| Parser implementation/assets | Run `npm run statement-import:prepare`, then reload |
-
-`prebuild --clean` replaces the ignored generated native projects. Keep native changes in app config/plugins. Ordinary JS edits do not need native regeneration or cache clearing. [Expo environment behavior](https://docs.expo.dev/guides/environment-variables/), [native generation](https://docs.expo.dev/workflow/continuous-native-generation/).
-
-## Physical devices
-
-### Physical iPhone
-
-From Windows, use EAS cloud builds; local iOS builds/simulator require macOS and Xcode. Configure the Google iOS client ID and reversed-client-ID URL scheme from `.env.example`. Put the same public Clerk/Google build settings in the EAS **development** environment so the remote config plugin receives the iOS URL scheme. Local `.env.local` still configures the Metro-served JavaScript; a gitignored file is not automatically available to the remote build. [EAS environment setup](https://docs.expo.dev/eas/environment-variables/manage/).
-
-From `mobile-app/`:
-
-```sh
-npx eas-cli@latest device:create
-npx eas-cli@latest build --profile development --platform ios
-```
-
-Install the build on the registered iPhone, enable Developer Mode when prompted, run `npm run statement-import:prepare` and `npx expo start --dev-client`, and open the development server from the device. Use a LAN/HTTPS API URL reachable by the iPhone. Native configuration changes require another build. [Internal distribution](https://docs.expo.dev/build/internal-distribution/).
-
-For milestone checks without Metro, use the existing EAS `preview` profile, configuring its build environment for the dedicated development backend. Android/iPhone device acceptance and the parser limits/device/cleanup work in [#138](https://github.com/yororo/spendeazy/issues/138) remain separate release checks.
+`prebuild --clean` replaces ignored generated native projects; keep native changes in app config/plugins. See [Expo environment variables](https://docs.expo.dev/guides/environment-variables/) and [native generation](https://docs.expo.dev/workflow/continuous-native-generation/).
 
 ## Shutdown and reset
 
-Stop Expo and Nest with Ctrl+C in their terminals. From the repository root:
+Stop Expo and Nest with Ctrl+C, then:
 
-```sh
+```bash
+# cwd: .
 docker compose stop
 ```
 
-Data and keys remain available for the next session. `docker compose down` also removes containers/network while retaining the named database volume.
+Data and keys remain. `docker compose down` also removes containers/network but keeps the named volume.
 
-**Reset only when you want to delete all data in this manual database.** Stop the API, then from the repository root:
+**Reset only to delete all data in the manual database.** Stop the API, then:
 
-```sh
+```bash
+# cwd: .
 docker compose down --volumes
 docker compose up -d --wait
 ```
 
-Run migrations and restart the API using Daily startup. Keep your API keys; resetting PostgreSQL does not sign the device out of Clerk. Sign out/in to exercise fresh User provisioning against the empty database. Optional synthetic fixtures are described in [API seed/reset](../api/README.md#development-seedreset); they do not populate the real Google identity's Personal Space.
+Run migrations and restart the API per Daily startup. Keep your API keys. Resetting PostgreSQL does not sign the device out of Clerk; sign out and in to provision a fresh User. Optional synthetic fixtures: [API seed/reset](../api/README.md#development-seedreset) (they do not populate the real Google identity's Personal Space).
+
+## First-time setup
+
+### 1. Tools
+
+- Git, Node.js `24.11.1`, npm.
+- Docker with Linux containers and `docker compose`, running before database commands.
+- Android: [Expo environment setup](https://docs.expo.dev/get-started/set-up-your-environment/). Set `ANDROID_HOME`, put `platform-tools` on `PATH`, and use an emulator with a **Google Play** image (native Google sign-in needs Play services).
+- Physical iPhone: see [iPhone testing](local-testing-iphone.md).
+
+### 2. Install
+
+```bash
+# cwd: .
+npm ci --prefix api
+npm ci --prefix mobile-app
+cp api/.env.example api/.env
+cp mobile-app/.env.example mobile-app/.env.local
+```
+
+Keep existing `.env` files when returning. If a startup script already wrote `api/.env`, keep it only if its `DATABASE_URL` is the Compose database from [Defaults](#defaults).
+
+### 3. Configure values
+
+| File | Variable | Value / source |
+| --- | --- | --- |
+| `api/.env` | `INVITATION_CODE_ENCRYPTION_KEY` | Generated key (below). Keep with the database |
+| `api/.env` | `GCASH_REFERENCE_HASH_KEY` | A second, independently generated key. Keep with the database |
+| `api/.env` | `CLERK_SECRET_KEY` | `sk_test_…` from the dedicated Clerk development instance |
+| `api/.env` | `CLERK_JWT_KEY` | That instance's RSA PEM public key; single-line form uses literal `\n` |
+| `mobile-app/.env.local` | `EXPO_PUBLIC_API_BASE_URL` | `http://10.0.2.2:4000` |
+| `mobile-app/.env.local` | `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` | `pk_test_…` from the **same** Clerk instance |
+| `mobile-app/.env.local` | `EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID` | Web-type Google OAuth client ID used by that Clerk instance (required by Clerk's native Google sign-in as the server/token audience; not a web app) |
+| `mobile-app/.env.local` | `EXPO_PUBLIC_CLERK_GOOGLE_ANDROID_CLIENT_ID` | Android client ID for the package above and the build's signing SHA-1 |
+
+Generate each key separately:
+
+```bash
+# cwd: .
+node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
+```
+
+Copy values from the environment when already set; otherwise leave them empty and follow the stop conditions. Only public identifiers go in `EXPO_PUBLIC_*`; secrets stay in `api/.env`. Without Clerk values `/health` works but authenticated requests fail. Finding the web client ID and the Android SHA-1: [Google/Clerk setup](local-testing-auth.md).
 
 ## Troubleshooting
 
-| Symptom | Check |
+| Symptom | Action |
 | --- | --- |
-| Docker unavailable/database not healthy | Start Docker Desktop in Linux-container mode; from root, `docker compose ps` and `docker compose logs postgres` |
-| Database connection refused | Confirm Compose is healthy and `api/.env` uses port `55433`; run API commands from `api/` |
-| Missing encryption/hash key | Fill both independent 64-hex-character values in `api/.env`; retain them with the data |
-| API health works, private requests fail | Confirm matching development Clerk keys, Google setup, and completed sign-in; see [API auth troubleshooting](../api/docs/LOCAL_TESTING.md) |
-| Google configuration/developer error | Check web/native client IDs, Android package/signing SHA-1 or iOS bundle/URL scheme against the installed build |
-| Host API works, device cannot connect | Check device-specific API URL, API terminal and firewall; try Android USB reverse |
-| App cannot connect to Metro | Confirm the intended development build/server, LAN or USB connectivity, and Expo's displayed port. If the bundle downloaded and the dev connection then failed, use Metro `--localhost` and `adb reverse` for that port |
-| Android `unexpected end of stream on http://127.0.0.1:8081` | Metro is listening on IPv6 (`::1`) only, which `adb reverse` cannot reach (`curl 127.0.0.1:8081/status` fails, `localhost` works). Restart Metro with `NODE_OPTIONS=--dns-result-order=ipv4first` (PowerShell: `$env:NODE_OPTIONS=...`), then rerun the reverse |
-| Expo times out querying packages | Wait until the emulator has finished booting, then retry. No development build means `npx expo run:android --device` |
-| `Cannot find native module 'ExponentImagePicker'` | The installed development build predates `expo-image-picker`. Metro reloads and cache clearing cannot add native modules. Stop Metro; in `mobile-app/`, run `npx expo prebuild --platform android --no-install`, then `npx expo run:android --device`. Restore the `android`/`ios` scripts if Expo rewrites them. |
-| App or system is not responding on first open | Choose **Wait**. Software emulation can stall during download and startup; the sign-in screen can appear after a blank dev-client screen |
-| Sign-in stays on "Signing in" with no Google UI | Add the Google test account on the device, or register this build's debug SHA-1 on the Android OAuth client |
-| `npm run android` starts a native compile | `expo run:android` rewrote `package.json` scripts; restore them |
-| Old verification stack still running | Stop it from its original checkout before switching workflows; the new Compose project does not adopt or remove old runs |
-| Old configuration | Remove stale exported environment overrides; full reload mobile, restart API after API env changes |
-| Missing generated parser module | In `mobile-app/`, run `npm run statement-import:prepare`, then reload |
-| API cannot bind a free-looking port (`EACCES` on Windows) | Windows may reserve the port; choose another API `PORT` (for example `3307`) and update the mobile API URL to match |
-| Busy API/Metro/database port | Stop only the instance you recognize, or select another port; do not kill unrelated listeners |
+| Docker unavailable / database unhealthy | Start Docker (Linux containers); `docker compose ps`, `docker compose logs postgres` |
+| Database connection refused | Confirm Compose healthy and `DATABASE_URL` port `55433`; run API commands from `api/` |
+| Missing encryption/hash key | Set both independent 64-hex values in `api/.env` |
+| `/health` works, private requests fail | Clerk keys must be from one instance; complete sign-in; see [API auth](../api/docs/LOCAL_TESTING.md) |
+| Google configuration/developer error | See [Google/Clerk setup](local-testing-auth.md) |
+| Sign-in stuck on "Signing in", no Google UI | Add the Google test account on the device, or register the build's debug SHA-1 on the Android OAuth client |
+| Device cannot reach API | Check `EXPO_PUBLIC_API_BASE_URL` port, the API terminal and firewall; try `adb reverse tcp:4000 tcp:4000` with URL `http://localhost:4000` |
+| App cannot reach Metro | `curl http://127.0.0.1:8081/status`; restart with `--localhost`, rerun `adb reverse` with Expo's port |
+| `unexpected end of stream on http://127.0.0.1:8081` | Metro is IPv6-only; restart with `NODE_OPTIONS=--dns-result-order=ipv4first`, rerun `adb reverse` |
+| Expo times out querying packages | Wait for `boot_completed` = `1`, retry. No dev build: `npx expo run:android --device` |
+| `Cannot find native module 'ExponentImagePicker'` | Dev build predates the module. Stop Metro; in `mobile-app/`: `npx expo prebuild --platform android --no-install`, then `npx expo run:android --device`; restore `package.json` scripts |
+| `npm run android` starts a native compile | `expo run:android` rewrote the scripts; restore them |
+| Not responding on first open | Choose **Wait** |
+| Missing generated parser module | `npm run statement-import:prepare` in `mobile-app/`, then reload |
+| Old configuration | Unset stale exported env overrides; reload mobile, restart API |
+| Old stack still running | Stop it from its original checkout; the Compose project does not adopt or remove old runs |
+| `EACCES` binding API port (Windows) | Port is reserved; pick another `PORT` (e.g. `3307`) and update the mobile URL |
+| Busy port | Stop only the instance you recognize, or use another port |
 
-Alternative ports: set `PORT` in `api/.env` and update the mobile URL/reverse rule; use Expo `--port 8082` for Metro. For PostgreSQL set `SPENDEAZY_MANUAL_DB_PORT` in the shell (`$env:SPENDEAZY_MANUAL_DB_PORT='55434'` in PowerShell, `export SPENDEAZY_MANUAL_DB_PORT=55434` in Bash), rerun Compose, and match the port in `DATABASE_URL`. For concurrent checkouts use a distinct `docker compose -p <name>` project and ports consistently for startup/shutdown/reset. One shared emulator install can only run one checkout's app at a time.
+### Alternative ports
+
+- API: set `PORT` in `api/.env`; update `EXPO_PUBLIC_API_BASE_URL`.
+- Metro: `npx expo start --dev-client --localhost --port 8082`; use 8082 on both sides of `adb reverse`.
+- PostgreSQL: `export SPENDEAZY_MANUAL_DB_PORT=55434`, rerun Compose, match `DATABASE_URL`.
+- Concurrent checkouts: use distinct `docker compose -p <name>` projects and ports consistently for startup, shutdown and reset. One emulator can run only one checkout's app at a time.

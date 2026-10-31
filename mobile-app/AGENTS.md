@@ -1,6 +1,6 @@
 # Mobile agent guidance
 
-This project is the native Android/iPhone client. A local PDF.js parser prototype remains on `/parser-proof` and is not a product tab.
+This project is the native Android/iPhone client.
 
 ## Coding standards
 

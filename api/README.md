@@ -17,7 +17,7 @@ API settings:
 
 Keep both encryption/hash keys stable for the database lifetime. `src/config/app-config.ts` validates configuration. For focused bearer-token checks use [Clerk testing](docs/LOCAL_TESTING.md).
 
-Production uses `npm run build`, the compiled migration command and `npm run start:prod`; deployment details are in [releases](../docs/releases.md). The local runbook is for dedicated development data.
+Production uses `npm run build`, the compiled migration command and `npm run start:prod`;The local runbook is for dedicated development data.
 
 ### Development seed/reset
 

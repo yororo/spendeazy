@@ -96,7 +96,6 @@ function RootNavigator({ ready }: { ready: boolean }) {
       <Stack.Protected guard={!authenticated}>
         <Stack.Screen name="(auth)" />
       </Stack.Protected>
-      <Stack.Screen name="parser-proof" />
     </Stack>
   );
 }

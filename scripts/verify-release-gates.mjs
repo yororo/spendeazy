@@ -57,7 +57,7 @@ for (const command of ['npx eslint', 'npm run build', 'npm test -- --runInBand',
   assert.ok(ci.jobs.api.steps.some(step => step.run?.includes(command)), `API validation is missing ${command}`);
 }
 export function requireMobileChecks(job) {
-  for (const command of ['npm run lint', 'npm run typecheck', 'npm run parser:test', 'npm test']) {
+  for (const command of ['npm run lint', 'npm run typecheck', 'npm run statement-import:test', 'npm test']) {
     assert.ok(
       job.steps?.some(step => step.run === command && step['working-directory'] === 'mobile-app'),
       `Mobile validation is missing ${command}`,

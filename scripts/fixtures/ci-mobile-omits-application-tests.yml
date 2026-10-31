@@ -3,7 +3,7 @@
 jobs:
   mobile:
     steps:
-      - run: npm run parser:test
+      - run: npm run statement-import:test
         working-directory: mobile-app
       - run: npm run lint
         working-directory: mobile-app

@@ -22,7 +22,7 @@ The 10 MiB/100-page guards are development safety caps, not supported limits. #1
 
 ## Reproducible checks
 
-From `mobile-app/`, run `npm run parser:test`, `npm test`, `npm run lint`, `npm run typecheck`. Engine tests bundle the production entry with a deterministic PDF.js port, covering password/error/page outcomes. Native-file tests check the actual adapter with fake Expo ports, including asynchronous copy ordering and hashing decoded bytes. They do not prove native memory or filesystem behavior.
+From `mobile-app/`, run `npm run statement-import:test`, `npm test`, `npm run lint`, `npm run typecheck`. Engine tests bundle the production entry with a deterministic PDF.js port, covering password/error/page outcomes. Native-file tests check the actual adapter with fake Expo ports, including asynchronous copy ordering and hashing decoded bytes. They do not prove native memory or filesystem behavior.
 
 `npm test` includes `review.test.ts` alongside import lifecycle/session tests. To isolate review regression, run `node --experimental-strip-types --test src/features/statement-import/review.test.ts`. Its fictional mixed ledger covers PHP 1,000 purchase plus PHP 300 outgoing transfer, locked payment/refund/cash-in/unknown direction, independent duplicate-looking source rows and corrections that preserve original controls/reconciliation. The adapter spy exercises the real Category API client and application-owned store through catalog loading, local Rule staging, Continue and Back, asserting exactly two fixed-Space GETs and no writes. This proves the mocked workflow boundary; native network/device acceptance remains separate.
 

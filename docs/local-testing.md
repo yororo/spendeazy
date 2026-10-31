@@ -102,7 +102,7 @@ For Android:
 3.3. In a terminal at `mobile-app/`, use the installed development build. Then, press `a` in the Expo terminal.:
 
 ```sh
-npm run parser:prepare
+npm run statement-import:prepare
 npx expo start --dev-client --localhost
 ```
 
@@ -149,7 +149,7 @@ Keep one Metro server for this checkout.
 | Database migrations | Stop API, run `npm run migration:run`, restart API |
 | Project dependencies | Run `npm ci` in the changed project; rebuild mobile when native dependencies changed |
 | Native dependencies, plugins or native app settings | Stop Metro; in `mobile-app/`, run `npx expo prebuild --clean`, then `npx expo run:android --device` (or rebuild with EAS for iPhone) |
-| Parser implementation/assets | Run `npm run parser:prepare`, then reload |
+| Parser implementation/assets | Run `npm run statement-import:prepare`, then reload |
 
 `prebuild --clean` replaces the ignored generated native projects. Keep native changes in app config/plugins. Ordinary JS edits do not need native regeneration or cache clearing. [Expo environment behavior](https://docs.expo.dev/guides/environment-variables/), [native generation](https://docs.expo.dev/workflow/continuous-native-generation/).
 
@@ -166,7 +166,7 @@ npx eas-cli@latest device:create
 npx eas-cli@latest build --profile development --platform ios
 ```
 
-Install the build on the registered iPhone, enable Developer Mode when prompted, run `npm run parser:prepare` and `npx expo start --dev-client`, and open the development server from the device. Use a LAN/HTTPS API URL reachable by the iPhone. Native configuration changes require another build. [Internal distribution](https://docs.expo.dev/build/internal-distribution/).
+Install the build on the registered iPhone, enable Developer Mode when prompted, run `npm run statement-import:prepare` and `npx expo start --dev-client`, and open the development server from the device. Use a LAN/HTTPS API URL reachable by the iPhone. Native configuration changes require another build. [Internal distribution](https://docs.expo.dev/build/internal-distribution/).
 
 For milestone checks without Metro, use the existing EAS `preview` profile, configuring its build environment for the dedicated development backend. Android/iPhone device acceptance and the parser limits/device/cleanup work in [#138](https://github.com/yororo/spendeazy/issues/138) remain separate release checks.
 
@@ -208,7 +208,7 @@ Run migrations and restart the API using Daily startup. Keep your API keys; rese
 | `npm run android` starts a native compile | `expo run:android` rewrote `package.json` scripts; restore them |
 | Old verification stack still running | Stop it from its original checkout before switching workflows; the new Compose project does not adopt or remove old runs |
 | Old configuration | Remove stale exported environment overrides; full reload mobile, restart API after API env changes |
-| Missing generated parser module | In `mobile-app/`, run `npm run parser:prepare`, then reload |
+| Missing generated parser module | In `mobile-app/`, run `npm run statement-import:prepare`, then reload |
 | API cannot bind a free-looking port (`EACCES` on Windows) | Windows may reserve the port; choose another API `PORT` (for example `3307`) and update the mobile API URL to match |
 | Busy API/Metro/database port | Stop only the instance you recognize, or select another port; do not kill unrelated listeners |
 

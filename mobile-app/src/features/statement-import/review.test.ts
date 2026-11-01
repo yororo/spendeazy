@@ -155,14 +155,16 @@ test('refresh retains manual mappings, exposes inactive assignments and blocks w
   assert.equal(state.rows['1'].values.categoryId, 'travel');
 });
 
-test('Continue validates every included row outside filters and pending buffers, exact amounts and Manila dates', () => {
+test('Continue validates included rows outside filters and pending buffers while allowing blank descriptions', () => {
   let state = ready(catalog([rule('1', 'food', 'cafe luna')]));
   state = reduce(state, { type: 'filterChanged', filter: 'excluded' });
-  for (const values of [{ amount: '0' }, { amount: '-1' }, { amount: '1.001' }, { description: ' \n ' },
+  for (const values of [{ amount: '0' }, { amount: '-1' }, { amount: '1.001' },
     { expenseDate: '2026-02-29' }, { expenseDate: '2024-02-30' }, { expenseDate: '2026-10-30' }, { categoryId: 'retired' }, { categoryId: 'outside' }]) {
     const invalid = { ...state, rows: { ...state.rows, '0': { ...state.rows['0'], values: { ...state.rows['0'].values, ...values } } } };
     assert.ok(validateReview(invalid, now).issues.some(issue => issue.sourceRowId === '0'));
   }
+  const blankDescription = { ...state, rows: { ...state.rows, '0': { ...state.rows['0'], values: { ...state.rows['0'].values, description: ' \n ' } } } };
+  assert.ok(validateReview(blankDescription, now).handoff);
   const wrongSpace = { ...state, catalog: { ...state.catalog, snapshot: { ...state.catalog.snapshot!, spaceId: 'wrong' } } };
   assert.equal(validateReview(wrongSpace, now).handoff, null);
   const midnight = { ...state, rows: { ...state.rows, '0': { ...state.rows['0'], values: { ...state.rows['0'].values, expenseDate: '2026-10-30' } } } };

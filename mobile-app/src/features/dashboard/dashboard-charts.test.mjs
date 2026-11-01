@@ -12,7 +12,7 @@ const require = createRequire(import.meta.url);
 // Exercise the real view/chart interactions, replacing only native rendering.
 const compiled = await build({
   stdin: {
-    contents: `${await readFile(new URL('./dashboard-view.tsx', import.meta.url), 'utf8')}\nexport { MonthlyChart, CategoryChart };`,
+    contents: `${await readFile(new URL('./dashboard-view.tsx', import.meta.url), 'utf8')}\nexport { MonthlyChart, CategoryChart, YearPicker, MonthRangePicker };`,
     resolveDir: fileURLToPath(new URL('./', import.meta.url)), loader: 'tsx',
   },
   bundle: true, write: false, platform: 'node', format: 'cjs', packages: 'external', jsx: 'automatic',
@@ -36,6 +36,8 @@ new Function('require', 'module', compiled.outputFiles[0].text)((name) => {
   if (name === '@/components/buttons') return { CompactAction: button, SecondaryButton: button };
   if (name === '@/components/choice-sheet') return { ChoiceSheet: ({ visible, children, ...props }) =>
     React.createElement('Sheet', { visible, ...props }, visible ? children : null) };
+  if (name === '@/components/popover') return { Popover: ({ visible, children, ...props }) =>
+    React.createElement('Popover', { visible, ...props }, visible ? children : null) };
   if (name === '@/components/screen') return { BodyText: 'BodyText', Screen: 'Screen' };
   if (name === '@/components/design-surface') return { DesignSurface: 'Surface' };
   if (name === '@/components/text-field') return { TextField: 'TextField' };
@@ -44,7 +46,7 @@ new Function('require', 'module', compiled.outputFiles[0].text)((name) => {
   if (name === '@/features/categories/category-catalog') return { CATEGORY_COLOR_VALUES: {} };
   return require(name);
 }, compiledModule);
-const { MonthlyChart, CategoryChart } = compiledModule.exports;
+const { MonthlyChart, CategoryChart, YearPicker, MonthRangePicker } = compiledModule.exports;
 
 function fixture() {
   const point = (month, toDate, actualAmount) => ({
@@ -76,6 +78,32 @@ async function render(t, component, props) {
 }
 const action = (renderer, label) => renderer.root.findAllByType('Action').find((node) => node.props.label === label);
 const target = (renderer, prefix) => renderer.root.findAllByType('Pressable').find((node) => node.props.accessibilityLabel?.startsWith(prefix));
+
+test('year popover offers only three previous years and closes after selection', async (t) => {
+  const selected = [];
+  const renderer = await render(t, YearPicker, { year: '2026', today: '2026-11-01', onSelect: (year) => selected.push(year) });
+  await act(async () => target(renderer, 'Choose year').props.onPress());
+  assert.deepEqual(renderer.root.findAllByType('Action').map((node) => node.props.label), ['2025', '2024', '2023']);
+  assert.equal(renderer.root.findAllByType('TextField').length, 0);
+  await act(async () => action(renderer, '2024').props.onPress());
+  assert.deepEqual(selected, ['2024']);
+  assert.equal(renderer.root.findByType('Popover').props.visible, false);
+  await act(async () => renderer.update(React.createElement(YearPicker, { year: '2024', today: '2027-01-01', onSelect() {} })));
+  await act(async () => target(renderer, 'Choose year').props.onPress());
+  assert.deepEqual(renderer.root.findAllByType('Action').map((node) => node.props.label), ['2026', '2025', '2024']);
+  assert.equal(action(renderer, '2024').props.selected, true);
+});
+
+test('monthly popover preserves all ranges and dismisses after selection', async (t) => {
+  const selected = [];
+  const renderer = await render(t, MonthRangePicker, { months: 3, onSelect: (months) => selected.push(months) });
+  await act(async () => target(renderer, 'Choose monthly range').props.onPress());
+  assert.deepEqual(renderer.root.findAllByType('Action').map((node) => node.props.label), ['Last 1 month', 'Last 3 months', 'Last 6 months']);
+  assert.equal(action(renderer, 'Last 3 months').props.selected, true);
+  await act(async () => action(renderer, 'Last 6 months').props.onPress());
+  assert.deepEqual(selected, [6]);
+  assert.equal(renderer.root.findByType('Popover').props.visible, false);
+});
 
 test('zero bars and current-month details expose complete breakdowns and exact supplied filters', async (t) => {
   const report = fixture();

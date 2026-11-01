@@ -16,6 +16,7 @@ import type { SpaceCategory } from "@/api/categories-api-client";
 import { CompactAction, SecondaryButton } from "@/components/buttons";
 import { ChevronDown, Info } from "lucide-react-native";
 import { ChoiceSheet } from "@/components/choice-sheet";
+import { Popover } from "@/components/popover";
 import { TextField } from "@/components/text-field";
 import { BodyText, Screen } from "@/components/screen";
 import { space, typeScale } from "@/constants/theme";
@@ -401,22 +402,19 @@ function DashboardSummary({
         variant="quiet"
         onPress={() => onOpenExpenses({ fromDate: range.fromDate, toDate: range.toDate })}
       />
-      <ChoiceSheet
+      <Popover
         title="About this summary"
         visible={showDetails}
         onDismiss={() => setShowDetails(false)}
-        restoreFocusRef={infoTrigger}
-        showClose
+        anchorRef={infoTrigger}
       >
-        <BodyText>
-          Current active Budget configuration applies retrospectively to this period.
-          Started months count in full; there is no daily proration. Annual Budgets
-          contribute their Monthly equivalent to planning and retain their full annual limits for checks.
-        </BodyText>
-        <BodyText>{`${summary.planned.months} ${summary.planned.months === 1 ? "month" : "months"} counted`}</BodyText>
-        <BodyText>{`Monthly equivalent ${formatPhp(summary.planned.monthlyEquivalent.amount)}`}</BodyText>
-        <BodyText>{`Annual equivalent ${formatPhp(summary.planned.annualEquivalent.amount)}`}</BodyText>
-      </ChoiceSheet>
+        <View style={{ padding: 8, gap: 12 }}>
+          <BodyText>Uses current budgets for this period. Started months count in full. Annual budgets use a monthly equivalent; yearly checks use the full annual limit.</BodyText>
+          <SummaryDetail label="Months counted" value={String(summary.planned.months)} />
+          <SummaryDetail label="Monthly equivalent" value={formatPhp(summary.planned.monthlyEquivalent.amount)} />
+          <SummaryDetail label="Annual equivalent" value={formatPhp(summary.planned.annualEquivalent.amount)} />
+        </View>
+      </Popover>
     </ChartCard>
   );
 }
@@ -938,6 +936,13 @@ function ChartCard({
     </DesignSurface>
   );
 }
+function SummaryDetail({ label, value }: { label: string; value: string }) {
+  const { palette, fonts } = useAppTheme();
+  return <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", gap: 8 }}>
+    <SupportingText>{label}</SupportingText>
+    <Text style={{ color: palette.textPrimary, fontFamily: fonts.medium, fontSize: 14 }}>{value}</Text>
+  </View>;
+}
 function YearPicker({ year, today, onSelect }: {
   year: string;
   today: string | null;
@@ -945,50 +950,35 @@ function YearPicker({ year, today, onSelect }: {
 }) {
   const { palette, fonts } = useAppTheme();
   const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState("");
-  const [visibleCount, setVisibleCount] = useState(30);
+  const trigger = useRef<ElementRef<typeof View>>(null);
   const currentYear = today?.slice(0, 4) ?? "";
-  const years = Array.from({ length: Number(currentYear) }, (_, index) =>
-    String(Number(currentYear) - index).padStart(4, "0"),
-  ).filter((candidate) => candidate.includes(search.trim()));
+  const years = today ? [1, 2, 3].map((offset) => String(Number(currentYear) - offset).padStart(4, "0")) : [];
   const label = year ? `${year}${year === currentYear ? " · YTD" : ""}` : "Calendar year";
   return (
     <>
       <Pressable
+        ref={trigger}
         accessibilityRole="button"
         accessibilityLabel={`Choose year, ${label}`}
         accessibilityState={{ expanded: open, disabled: today === null }}
         disabled={today === null}
-        onPress={() => {
-          setSearch("");
-          setVisibleCount(30);
-          setOpen(true);
-        }}
+        onPress={() => setOpen(true)}
         style={{ minHeight: 48, minWidth: 48, paddingHorizontal: 4, flexDirection: "row", alignItems: "center", gap: 6 }}
       >
         <Text style={{ color: palette.textPrimary, fontFamily: fonts.medium, fontSize: 14 }}>{label}</Text>
         <ChevronDown size={16} color={palette.textSecondary} />
       </Pressable>
-      <ChoiceSheet title="Choose year" visible={open && today !== null} onDismiss={() => setOpen(false)} showClose>
-        <TextField
-          label="Search year"
-          placeholder="YYYY"
-          value={search}
-          keyboardType="decimal-pad"
-          onChangeText={(value) => { setSearch(value); setVisibleCount(30); }}
-        />
-        {years.length === 0 ? <BodyText>No matching years. Choose a year through the current Manila year.</BodyText> : null}
-        {years.slice(0, visibleCount).map((candidate) => (
+      <Popover title="Year" visible={open && today !== null} onDismiss={() => setOpen(false)} anchorRef={trigger} showHeader={false} width={120}>
+        {years.map((candidate) => (
           <CompactAction
             key={candidate}
-            label={`${candidate}${candidate === currentYear ? " · YTD" : ""}`}
+            label={candidate}
             selected={candidate === year}
             variant="quiet"
             onPress={() => { onSelect(candidate); setOpen(false); }}
           />
         ))}
-        {years.length > visibleCount ? <CompactAction label="Show earlier years" onPress={() => setVisibleCount((count) => count + 30)} /> : null}
-      </ChoiceSheet>
+      </Popover>
     </>
   );
 }
@@ -1018,10 +1008,12 @@ function MonthRangePicker({ months, onSelect }: {
 }) {
   const { palette, fonts } = useAppTheme();
   const [open, setOpen] = useState(false);
+  const trigger = useRef<ElementRef<typeof View>>(null);
   const label = months === 1 ? "Last 1 month" : "Last " + months + " months";
   return (
     <>
       <Pressable
+        ref={trigger}
         accessibilityRole="button"
         accessibilityLabel={"Choose monthly range, " + label}
         accessibilityState={{ expanded: open }}
@@ -1031,14 +1023,13 @@ function MonthRangePicker({ months, onSelect }: {
         <Text style={{ color: palette.textPrimary, fontFamily: fonts.medium, fontSize: 14 }}>{label}</Text>
         <ChevronDown size={16} color={palette.textSecondary} />
       </Pressable>
-      <ChoiceSheet title="Choose monthly range" visible={open} onDismiss={() => setOpen(false)} showClose>
-        <BodyText>Shows complete calendar months through last month.</BodyText>
+      <Popover title="Monthly range" visible={open} onDismiss={() => setOpen(false)} anchorRef={trigger} showHeader={false} width={180}>
         {([1, 3, 6] as const).map((candidate) => (
           <CompactAction key={candidate} label={"Last " + candidate + (candidate === 1 ? " month" : " months")}
             selected={candidate === months} variant="quiet"
             onPress={() => { onSelect(candidate); setOpen(false); }} />
         ))}
-      </ChoiceSheet>
+      </Popover>
     </>
   );
 }

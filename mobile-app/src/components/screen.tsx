@@ -45,7 +45,7 @@ export function Screen({
         paddingHorizontal: space.screenHorizontal,
         gap: space.cardGap,
       }}>
-      <ScreenHeader title={title} accessory={headerAccessory} showBrand={!compactHeader} compact={compactHeader} />
+      <ScreenHeader title={title} accessory={headerAccessory} compact={compactHeader} />
       {children}
     </ScrollView>
     </KeyboardAvoidingView>

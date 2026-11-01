@@ -173,7 +173,7 @@ export function StatementImportReviewView({ controller: c, destination, onBack, 
         <ExpenseFields draft={{ ...editor.values }} issues={{}} categoryLabel={category?.name ?? 'Choose Category'} onChange={c.patch} onOpenCategories={() => setModal('categories')} />
         {source ? <View style={{ gap: 4 }}><SupportingText>{`Original evidence · ${source.originalDate} · ${source.originalAmount}`}</SupportingText><BodyText>{source.description}</BodyText><SupportingText>{source.classification.eligible ? `Eligible ${source.classification.kind}` : `Excluded: ${source.classification.reason}`}</SupportingText></View> : null}
         {editorDirty(review, editor) ? <SecondaryButton label="Abandon pending edits" disabled={c.readOnly} onPress={() => { c.send({ type: 'editorAbandoned' }); setModal(null); }} /> : null}
-        <PrimaryButton label="Done · keep pending edits" onPress={() => setModal(null)} />
+        <PrimaryButton label="Done" onPress={() => setModal(null)} />
       </> : null}
     </CenteredDialog>
     <ChoiceSheet title="Choose Category" visible={modal === 'categories'} onDismiss={() => setModal(null)} restoreFocusRef={editFocus} maxHeight="65%" showClose>

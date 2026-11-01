@@ -17,7 +17,7 @@ Node references below were resolved through Pencil on 2026-10-29. This establish
 | Source nodes | Implementation owner and treatment |
 | --- | --- |
 | `FInDV`, `MONtk`, `VvvB3` | `CanvasBackground` in `components/design-surface.tsx`; viewport wash, native safe areas and scrolling via `Screen` |
-| `oV7Mn` | `ScreenHeader`; exact transparent logo export in `assets/design/oV7Mn.png`, 4× the source 30 × 34 |
+| `oV7Mn` | Product adaptation: omit the top logo/wordmark row on every screen to save vertical space. `ScreenHeader` renders only the page title and optional accessory, with no reserved branding gap. The source logo export remains in `assets/design/oV7Mn.png`. |
 | `MONtk`, `VvvB3`, `ur6VR`, `oMcp7`, `BfC6x` | `features/dashboard/dashboard-view.tsx` and `dashboard-charts.tsx`; period controls, summary, checks, monthly bars and Category series |
 | `jaqBA`, `W8UYh6`, `QtZkz` | Yearly selector and About this summary sheet; YTD/In progress and current configuration basis. Manual-testing refinement: align the active range/year selector to the right of the period tabs and omit the verbose inclusive date range. |
 | `sJKV1`, `oUFRH`, `aXuG0`, `rNiyc`/`UYKIg`, `u91Za`/`SYiAK` | Summary and annual allocation/excess meters; completed-month aggregate frequency; separate Expenses and configuration actions |

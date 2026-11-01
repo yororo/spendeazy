@@ -1,5 +1,5 @@
 import { useRef, useState, type ElementRef, type ReactNode } from 'react';
-import { ArrowLeft, Bookmark, Check, ChevronDown, FileText, Landmark, Pencil, Shapes, X } from 'lucide-react-native';
+import { ArrowLeft, Bookmark, Check, ChevronDown, ChevronRight, FileText, Landmark, Pencil, Shapes, X } from 'lucide-react-native';
 import { Alert, FlatList, KeyboardAvoidingView, Pressable, Switch, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CompactAction, PrimaryButton, SecondaryButton } from '@/components/buttons';
@@ -20,6 +20,7 @@ export function StatementImportReviewView({ controller: c, destination, onBack, 
   const { palette, fonts } = useAppTheme();
   const insets = useSafeAreaInsets();
   const [modal, setModal] = useState<'edit' | 'categories' | null>(null);
+  const [transactionsExpanded, setTransactionsExpanded] = useState(false);
   const editFocus = useRef<ElementRef<typeof View>>(null);
   const list = useRef<FlatList>(null);
   const review = c.review;
@@ -46,7 +47,7 @@ export function StatementImportReviewView({ controller: c, destination, onBack, 
   };
   return <KeyboardAvoidingView style={{ flex: 1, backgroundColor: palette.canvas }} behavior={process.env.EXPO_OS === 'ios' ? 'padding' : 'height'}>
     <CanvasBackground />
-    <FlatList ref={list} data={c.rows} extraData={review} keyExtractor={row => row.sourceRowId}
+    <FlatList ref={list} data={transactionsExpanded ? c.rows : []} extraData={review} keyExtractor={row => row.sourceRowId}
       keyboardShouldPersistTaps="handled" contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={{ paddingTop: insets.top + 14, paddingBottom: insets.bottom + 24, paddingHorizontal: 20, gap: 14 }}
       ListHeaderComponent={<StackGap>
@@ -77,10 +78,14 @@ export function StatementImportReviewView({ controller: c, destination, onBack, 
           {review.catalog.status === 'ready' && categories.length === 0 ? <SupportingText>No active Categories. Activate a Category in this Space before assigning spending.</SupportingText> : null}
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
             <Text accessibilityRole="header" style={{ fontSize: 15, fontFamily: fonts.semibold, color: palette.textPrimary }}>{review.inspectedSourceRowId ? 'Transaction review' : 'Categorize'}</Text>
-            <View accessible accessibilityRole="progressbar" accessibilityLabel="Categorization progress"
-              accessibilityValue={{ min: 0, max: 100, now: Math.round(categorizationProgress * 100), text: includedCount > 0 ? `${categorizedCount} of ${includedCount} included transactions categorized` : 'No included transactions to categorize' }}
-              style={{ width: 112, height: 6, borderRadius: 3, overflow: 'hidden', backgroundColor: palette.meterTrack }}>
-              <View style={{ width: `${categorizationProgress * 100}%`, height: '100%', borderRadius: 3, backgroundColor: palette.brandPrimary }} />
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <View accessible accessibilityRole="progressbar" accessibilityLabel="Categorization progress"
+                accessibilityValue={{ min: 0, max: 100, now: Math.round(categorizationProgress * 100), text: includedCount > 0 ? `${categorizedCount} of ${includedCount} included transactions categorized` : 'No included transactions to categorize' }}
+                style={{ width: 112, height: 6, borderRadius: 3, overflow: 'hidden', backgroundColor: palette.meterTrack }}>
+                <View style={{ width: `${categorizationProgress * 100}%`, height: '100%', borderRadius: 3, backgroundColor: palette.brandPrimary }} />
+              </View>
+              <Text accessibilityLabel={`${c.counts.unmapped} of ${includedCount} included transactions left to categorize`}
+                style={{ fontSize: 12, fontFamily: fonts.regular, color: palette.textSecondary }}>{`${c.counts.unmapped}/${includedCount}`}</Text>
             </View>
           </View>
           <View style={{ paddingBottom: 12 }}>
@@ -136,18 +141,23 @@ export function StatementImportReviewView({ controller: c, destination, onBack, 
             <ErrorText message={issue.message} />
             {issue.sourceRowId ? <SecondaryButton label={`Review Transaction ${review.original.rows.findIndex(row => row.sourceRowId === issue.sourceRowId) + 1}`} onPress={() => open(issue.sourceRowId!)} /> : null}
           </View>)}
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-            <Text accessibilityRole="header" style={{ fontSize: 15, fontFamily: fonts.semibold, color: palette.textPrimary }}>Transactions</Text>
-            <Text style={{ fontSize: 12, fontFamily: fonts.regular, color: palette.textSecondary }}>{`${c.counts.all - c.counts.excluded} included · ${c.counts.excluded} excluded`}</Text>
-          </View>
-          <View style={{ flexDirection: 'row', gap: 6 }}>
-            {(['all', 'unmapped', 'excluded'] as const).map(filter => <Pressable key={filter} accessibilityRole="button" accessibilityState={{ selected: review.ledgerFilter === filter }} onPress={() => c.send({ type: 'filterChanged', filter })}
+          <Pressable accessibilityRole="button" accessibilityLabel={`Transactions, ${includedCount} included, ${c.counts.excluded} excluded`}
+            accessibilityState={{ expanded: transactionsExpanded }} onPress={() => setTransactionsExpanded(expanded => !expanded)}
+            style={{ minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <View style={{ flex: 1, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+              <Text accessibilityRole="header" style={{ fontSize: 15, fontFamily: fonts.semibold, color: palette.textPrimary }}>Transactions</Text>
+              <Text style={{ fontSize: 12, fontFamily: fonts.regular, color: palette.textSecondary }}>{`${includedCount} included · ${c.counts.excluded} excluded`}</Text>
+            </View>
+            {transactionsExpanded ? <ChevronDown size={18} color={palette.textSecondary} /> : <ChevronRight size={18} color={palette.textSecondary} />}
+          </Pressable>
+          {transactionsExpanded ? <View style={{ flexDirection: 'row', gap: 6 }}>
+            {(['unmapped', 'excluded', 'all'] as const).map(filter => <Pressable key={filter} accessibilityRole="button" accessibilityState={{ selected: review.ledgerFilter === filter }} onPress={() => c.send({ type: 'filterChanged', filter })}
               style={{ flex: 1, minHeight: 48, justifyContent: 'center' }}>
               <View style={{ paddingVertical: 9, paddingHorizontal: 4, borderRadius: 10, backgroundColor: review.ledgerFilter === filter ? palette.textPrimary : palette.editorField }}>
                 <Text style={{ fontSize: 12, fontFamily: fonts.medium, textAlign: 'center', color: review.ledgerFilter === filter ? palette.canvas : palette.textSecondary }}>{`${filter === 'all' ? 'All' : filter === 'unmapped' ? 'Unmapped' : 'Excluded'} ${c.counts[filter]}`}</Text>
               </View>
             </Pressable>)}
-          </View>
+          </View> : null}
         </>
       </StackGap>}
       renderItem={({ item }) => {
@@ -166,7 +176,7 @@ export function StatementImportReviewView({ controller: c, destination, onBack, 
           </View>
         </Pressable>;
       }}
-      ListEmptyComponent={<SupportingText>No Transactions in this filter.</SupportingText>}
+      ListEmptyComponent={transactionsExpanded ? <SupportingText>No Transactions in this filter.</SupportingText> : undefined}
       ListFooterComponent={<View style={{ paddingTop: 16, gap: 14 }}><PrimaryButton label="Continue" disabled={disabled} onPress={c.continue} /><QueueAction label="Refresh Categories and Rules" disabled={review.catalog.status === 'loading'} onPress={c.refresh} /><SupportingText>Review stays in memory. Closing the app loses it. Nothing is saved until confirmation.</SupportingText></View>} />
     <CenteredDialog title="Correct Transaction" visible={modal === 'edit' && !!editor} onDismiss={() => setModal(null)} restoreFocusRef={editFocus}>
       {editor ? <>

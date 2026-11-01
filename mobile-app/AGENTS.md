@@ -31,4 +31,6 @@ The parser launch envelope, older-device support and temporary-file cleanup rema
 
 ## Visual design
 
-For any changes that involves designing the user interface, (especially for new elements, screens, designs, or components), treat [design-token.md](design/design-token.md) and [mobile design source](design/mobile-design.pen) as the authoritative sources.
+The UX is **minimalist and simple: icons and short intuitive labels over text**. Read [ux-principles.md](design/ux-principles.md) before any UI or copy change.
+
+For any change that designs the user interface (especially new elements, screens or components), treat [design-token.md](design/design-token.md) and the [mobile design source](design/mobile-design.pen) as the authoritative sources for visual values.

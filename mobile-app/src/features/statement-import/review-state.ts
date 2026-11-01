@@ -13,7 +13,7 @@ export function initializeReview(original: ImportResult): ReviewState {
       inclusion: row.classification.eligible ? 'included' : 'locked-excluded', assignment: null,
     }])),
     editor: null, pendingQueueEditor: null, queueSourceRowId: null, deferredSourceRowIds: [],
-    ledgerFilter: 'all', stagedRules: [], catalog: { status: 'idle', request: null, snapshot: null }, handoff: null,
+    ledgerFilter: 'unmapped', stagedRules: [], catalog: { status: 'idle', request: null, snapshot: null }, handoff: null,
   };
 }
 

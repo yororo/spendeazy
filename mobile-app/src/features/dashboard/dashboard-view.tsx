@@ -406,6 +406,7 @@ function DashboardSummary({
       />
       <Popover
         title="About this summary"
+        showHeader={false}
         visible={showDetails}
         onDismiss={() => setShowDetails(false)}
         anchorRef={infoTrigger}
@@ -556,7 +557,11 @@ function CategoryChart({
     );
   };
   return (
-    <ChartCard title="Category spending">
+    <ChartCard title="Category spending" accessory={
+      <DashboardInfo label="About Category spending">
+        Annual Budgets retain their calendar-year limits; no monthly cap is plotted.
+      </DashboardInfo>
+    }>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
         {visibleChips.map((category) => (
           <CompactAction
@@ -648,10 +653,6 @@ function CategoryChart({
               </View>
             ))}
           </View>
-          <SupportingText>
-            Annual Budgets retain their calendar-year limits; no monthly cap is
-            plotted.
-          </SupportingText>
           <CompactAction
             label={
               showValues
@@ -700,7 +701,11 @@ function BudgetChecks({
 }) {
   const { palette, fonts } = useAppTheme();
   return (
-    <ChartCard title="Budget checks" inset={20}>
+    <ChartCard title="Budget checks" inset={20} accessory={
+      <DashboardInfo label="About Budget checks">
+        Monthly frequency excludes the in-progress month. Dots show counts, not the sequence of months. Yearly status uses calendar-year Expenses and the annual limit.
+      </DashboardInfo>
+    }>
       <SupportingText>Months over Budget</SupportingText>
       {report.budgetChecks.monthly.length === 0 ? (
         <SupportingText>No active Monthly Budgets.</SupportingText>
@@ -827,11 +832,6 @@ function BudgetChecks({
           </View>
         ))
       )}
-      <SupportingText>
-        Monthly frequency excludes the in-progress month. Dots show counts, not
-        the sequence of months. Yearly status uses calendar-year Expenses and
-        the annual limit.
-      </SupportingText>
     </ChartCard>
   );
 }
@@ -902,6 +902,30 @@ function ValueAction({
       </View>
       <SupportingText>{detail}</SupportingText>
     </Pressable>
+  );
+}
+function DashboardInfo({ label, children }: { label: string; children: string }) {
+  const { palette } = useAppTheme();
+  const [open, setOpen] = useState(false);
+  const trigger = useRef<ElementRef<typeof View>>(null);
+  return (
+    <>
+      <Pressable
+        ref={trigger}
+        accessibilityRole="button"
+        accessibilityLabel={label}
+        accessibilityState={{ expanded: open }}
+        onPress={() => setOpen(true)}
+        style={{ minHeight: 48, minWidth: 48, alignItems: "center", justifyContent: "center" }}
+      >
+        <Info size={18} color={palette.textSecondary} />
+      </Pressable>
+      <Popover title={label} visible={open} onDismiss={() => setOpen(false)} anchorRef={trigger} showHeader={false}>
+        <View style={{ padding: 8 }}>
+          <BodyText>{children}</BodyText>
+        </View>
+      </Popover>
+    </>
   );
 }
 function ChartCard({

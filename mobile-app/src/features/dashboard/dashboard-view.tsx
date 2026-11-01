@@ -26,7 +26,6 @@ import {
   meterSegments,
   annualUsageText,
   compareMoney,
-  dashboardPeriodLabel,
   formatPhp,
   labelMonth,
 } from "./dashboard-format";
@@ -145,15 +144,6 @@ export function DashboardView({
           ) : (
             <MonthRangePicker months={controller.months} onSelect={controller.selectMonths} />
           )}
-          {report ? (
-            <View
-              style={{
-                width: "100%",
-              }}
-            >
-              <SupportingText>{dashboardPeriodLabel(report)}</SupportingText>
-            </View>
-          ) : null}
         </View>
 
         {controller.error ? (

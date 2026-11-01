@@ -76,7 +76,7 @@ async function render(t, component, props) {
   t.after(async () => { await act(async () => renderer.unmount()); });
   return renderer;
 }
-const action = (renderer, label) => renderer.root.findAllByType('Action').find((node) => node.props.label === label);
+const action = (renderer, label) => renderer.root.findAllByType('Action').find((node) => node.props.label === label || node.props.accessibilityLabel === label);
 const target = (renderer, prefix) => renderer.root.findAllByType('Pressable').find((node) => node.props.accessibilityLabel?.startsWith(prefix));
 
 test('year popover offers only three previous years and closes after selection', async (t) => {

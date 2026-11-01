@@ -190,8 +190,8 @@ test("original/current values, retained excluded rows and overlapping edited/del
   assert.match(text(), /Jan 2, 2026/);
   const action = (label) =>
     tree.root.findAllByType("Action").find((n) => n.props.label === label);
-  await act(async () => action("View current Expenses").props.onPress());
-  await act(async () => action("View deleted Expenses").props.onPress());
+  await act(async () => action("Current").props.onPress());
+  await act(async () => action("Deleted").props.onPress());
   assert.deepEqual(modes, ["active", "deleted"]);
   await act(async () => action("Show all 2 original rows").props.onPress());
   assert.match(text(), /Edited since confirmation/);
@@ -227,7 +227,7 @@ test("legacy detail retains current actions and failure/unavailable states expos
   assert.equal(
     tree.root
       .findAllByType("Action")
-      .some((n) => n.props.label === "View current Expenses"),
+      .some((n) => n.props.label === "Current"),
     true,
   );
   await act(async () =>

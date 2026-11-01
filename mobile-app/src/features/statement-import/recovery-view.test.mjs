@@ -47,7 +47,7 @@ test('terminal presentation works without handoff, and navigation waits for rece
       handoff: null, acknowledge: async () => cleared };
     let tree;
     await act(async () => { tree = create(React.createElement(ImportRecoveryView, { controller, destination: 'Shared', writable: false, historyAvailable: true, onClose() {}, onAcknowledged: () => { navigated++; }, onHistory: () => { navigated++; } })); });
-    const action = tree.root.findAllByType('Action').find(n => n.props.label === (phase === 'committed' ? 'Acknowledge import' : 'Start a new review'));
+    const action = tree.root.findAllByType('Action').find(n => n.props.label === (phase === 'committed' ? 'Done' : 'Start a new review'));
     assert.equal(tree.root.findAllByType('Action').some(n => n.props.label === 'Check status'), false);
     await act(async () => action.props.onPress()); assert.equal(navigated, 0);
     cleared = true; await act(async () => action.props.onPress()); assert.equal(navigated, 1);

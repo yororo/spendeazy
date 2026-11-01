@@ -38,7 +38,7 @@ export function ImportConfirmationView({ controller: c, destination, readOnly, o
   const centerTotal = fontScale <= 1.2 && total.length <= 11;
   return <View style={{ flex: 1, backgroundColor: palette.canvas }}>
     <CanvasBackground />
-    <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingTop: insets.top + 14, paddingBottom: insets.bottom + 24, paddingHorizontal: 20, gap: 22 }}>
+    <ScrollView contentInsetAdjustmentBehavior="never" automaticallyAdjustContentInsets={false} contentContainerStyle={{ paddingTop: insets.top + 14, paddingBottom: insets.bottom + 24, paddingHorizontal: 20, gap: 22 }}>
       <ScreenHeader title="Import statement" />
       <View style={{ flexDirection: 'row', gap: 8 }}>
         <View style={{ flex: 1 }}><SecondaryButton label="Back to review" disabled={c.locked} onPress={c.back} /></View>

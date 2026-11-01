@@ -34,7 +34,9 @@ export function Screen({
       behavior={process.env.EXPO_OS === 'ios' ? 'padding' : 'height'}>
     <CanvasBackground />
     <ScrollView
-      contentInsetAdjustmentBehavior="automatic"
+      // Safe-area padding below owns the insets; iOS must not add them again.
+      contentInsetAdjustmentBehavior="never"
+      automaticallyAdjustContentInsets={false}
       keyboardShouldPersistTaps="handled"
       refreshControl={
         onRefresh ? (

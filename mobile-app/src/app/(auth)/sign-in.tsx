@@ -64,7 +64,7 @@ export default function SignInScreen() {
         backgroundColor: palette.canvas,
       }}>
       <CanvasBackground />
-      <ScrollView contentInsetAdjustmentBehavior="automatic" style={{ flex: 1 }} contentContainerStyle={{
+      <ScrollView contentInsetAdjustmentBehavior="never" automaticallyAdjustContentInsets={false} style={{ flex: 1 }} contentContainerStyle={{
         flexGrow: 1,
         paddingTop: insets.top + space.dialogInset,
         paddingBottom: insets.bottom + space.screenBottom,

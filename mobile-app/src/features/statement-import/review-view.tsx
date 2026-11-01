@@ -48,7 +48,7 @@ export function StatementImportReviewView({ controller: c, destination, onBack, 
   return <KeyboardAvoidingView style={{ flex: 1, backgroundColor: palette.canvas }} behavior={process.env.EXPO_OS === 'ios' ? 'padding' : 'height'}>
     <CanvasBackground />
     <FlatList ref={list} data={transactionsExpanded ? c.rows : []} extraData={review} keyExtractor={row => row.sourceRowId}
-      keyboardShouldPersistTaps="handled" contentInsetAdjustmentBehavior="automatic"
+      keyboardShouldPersistTaps="handled" contentInsetAdjustmentBehavior="never" automaticallyAdjustContentInsets={false}
       contentContainerStyle={{ paddingTop: insets.top + 14, paddingBottom: insets.bottom + 24, paddingHorizontal: 20, gap: 14 }}
       ListHeaderComponent={<StackGap>
         <ScreenHeader title="Import" accessory={<View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>

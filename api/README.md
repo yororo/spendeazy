@@ -4,7 +4,7 @@ NestJS REST backend for the native Spendeazy client. Private routes use `/api/v1
 
 ## Setup and run
 
-Follow the shared [local runbook](../docs/local-testing.md) for first-time setup, daily PostgreSQL/API/mobile startup, device connectivity, shutdown and reset. Local development uses the root Compose database and host Nest watch mode. Configuration stays in ignored `api/.env`.
+Follow the shared [local runbook](../docs/local-testing.md) for first-time setup, daily PostgreSQL/API/mobile startup, device connectivity, shutdown and reset. Local development uses the root Compose database and host Nest watch mode. Configuration stays in ignored `api/.env.local`, loaded with Node's built-in environment-file support for API startup, migrations and seeds. Existing shell variables take precedence. Move an existing `api/.env` to `api/.env.local` when upgrading; `.env` is no longer loaded automatically.
 
 API settings:
 

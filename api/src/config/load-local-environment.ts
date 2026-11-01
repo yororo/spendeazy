@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs';
 
-export const LOCAL_ENV_FILE = '.env';
+export const LOCAL_ENV_FILE = '.env.local';
 
 export function loadLocalEnvironment(
   filePath: string = LOCAL_ENV_FILE,

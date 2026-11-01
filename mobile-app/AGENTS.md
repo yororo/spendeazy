@@ -31,4 +31,4 @@ The parser launch envelope, older-device support and temporary-file cleanup rema
 
 ## Visual design
 
-Read [design-token.md](design/design-token.md) and use the current [mobile design source](design/mobile-design.pen).
+For any changes that involves designing the user interface, (especially for new elements, screens, designs, or components), treat [design-token.md](design/design-token.md) and [mobile design source](design/mobile-design.pen) as the authoritative sources.

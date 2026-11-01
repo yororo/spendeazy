@@ -8,7 +8,7 @@ All commands are Bash. Every block starts with `# cwd:` (relative to the reposit
 
 | Item | Value |
 | --- | --- |
-| API port | `4000` (`PORT` in `api/.env`) |
+| API port | `4000` (`PORT` in `api/.env.local`) |
 | API URL from Android emulator | `http://10.0.2.2:4000` |
 | Metro port | `8081` |
 | PostgreSQL | `127.0.0.1:55433`, database `spendeazy_disposable_manual` (root `compose.yaml`) |
@@ -26,7 +26,7 @@ If you change a port, change every place that uses it (see [Alternative ports](#
 
 ## Daily startup
 
-Prerequisites: [first-time setup](#first-time-setup) done. Start from a clean session: stop old API, PostgreSQL, Metro and emulators first. Check that `api/.env` `DATABASE_URL` uses port `55433` and `mobile-app/.env.local` `EXPO_PUBLIC_API_BASE_URL` is `http://10.0.2.2:<API PORT>`.
+Prerequisites: [first-time setup](#first-time-setup) done. Start from a clean session: stop old API, PostgreSQL, Metro and emulators first. Check that `api/.env.local` `DATABASE_URL` uses port `55433` and `mobile-app/.env.local` `EXPO_PUBLIC_API_BASE_URL` is `http://10.0.2.2:<API PORT>`.
 
 ### 1. PostgreSQL
 
@@ -102,7 +102,7 @@ Startup is complete when the sign-in screen or Dashboard is usable. A blank dev 
 | Mobile JS/TS | Fast Refresh; `r` in Expo for full reload | Screen updates |
 | `mobile-app/.env.local` | Full reload (`r`); no rebuild | New value takes effect |
 | API source | Nest watch restarts | `/health` returns 200 |
-| `api/.env` | Stop and rerun `npm run start:dev` in `api/` | `/health` returns 200 |
+| `api/.env.local` | Stop and rerun `npm run start:dev` in `api/` | `/health` returns 200 |
 | Migrations | Stop API; `npm run migration:run` in `api/`; restart | Migration succeeds |
 | Dependencies | `npm ci` in that project; rebuild mobile if native | Install succeeds |
 | Native deps, plugins, app config | Stop Metro; in `mobile-app/`: `npx expo prebuild --clean`, then `npx expo run:android --device` | App opens |
@@ -146,20 +146,20 @@ Run migrations and restart the API per Daily startup. Keep your API keys. Resett
 # cwd: .
 npm ci --prefix api
 npm ci --prefix mobile-app
-cp api/.env.example api/.env
+cp api/.env.example api/.env.local
 cp mobile-app/.env.example mobile-app/.env.local
 ```
 
-Keep existing `.env` files when returning. If a startup script already wrote `api/.env`, keep it only if its `DATABASE_URL` is the Compose database from [Defaults](#defaults).
+Keep existing `.env.local` files when returning. Move an existing `api/.env` to `api/.env.local`; the API no longer loads `.env` automatically. If a startup script already wrote `api/.env.local`, keep it only if its `DATABASE_URL` is the Compose database from [Defaults](#defaults).
 
 ### 3. Configure values
 
 | File | Variable | Value / source |
 | --- | --- | --- |
-| `api/.env` | `INVITATION_CODE_ENCRYPTION_KEY` | Generated key (below). Keep with the database |
-| `api/.env` | `GCASH_REFERENCE_HASH_KEY` | A second, independently generated key. Keep with the database |
-| `api/.env` | `CLERK_SECRET_KEY` | `sk_test_…` from the dedicated Clerk development instance |
-| `api/.env` | `CLERK_JWT_KEY` | That instance's RSA PEM public key; single-line form uses literal `\n` |
+| `api/.env.local` | `INVITATION_CODE_ENCRYPTION_KEY` | Generated key (below). Keep with the database |
+| `api/.env.local` | `GCASH_REFERENCE_HASH_KEY` | A second, independently generated key. Keep with the database |
+| `api/.env.local` | `CLERK_SECRET_KEY` | `sk_test_…` from the dedicated Clerk development instance |
+| `api/.env.local` | `CLERK_JWT_KEY` | That instance's RSA PEM public key; single-line form uses literal `\n` |
 | `mobile-app/.env.local` | `EXPO_PUBLIC_API_BASE_URL` | `http://10.0.2.2:4000` |
 | `mobile-app/.env.local` | `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` | `pk_test_…` from the **same** Clerk instance |
 | `mobile-app/.env.local` | `EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID` | Web-type Google OAuth client ID used by that Clerk instance (required by Clerk's native Google sign-in as the server/token audience; not a web app) |
@@ -172,7 +172,7 @@ Generate each key separately:
 node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
 ```
 
-Copy values from the environment when already set; otherwise leave them empty and follow the stop conditions. Only public identifiers go in `EXPO_PUBLIC_*`; secrets stay in `api/.env`. Without Clerk values `/health` works but authenticated requests fail. Finding the web client ID and the Android SHA-1: [Google/Clerk setup](local-testing-auth.md).
+Copy values from the environment when already set; otherwise leave them empty and follow the stop conditions. Only public identifiers go in `EXPO_PUBLIC_*`; secrets stay in `api/.env.local`. Without Clerk values `/health` works but authenticated requests fail. Finding the web client ID and the Android SHA-1: [Google/Clerk setup](local-testing-auth.md).
 
 ## Troubleshooting
 
@@ -180,7 +180,7 @@ Copy values from the environment when already set; otherwise leave them empty an
 | --- | --- |
 | Docker unavailable / database unhealthy | Start Docker (Linux containers); `docker compose ps`, `docker compose logs postgres` |
 | Database connection refused | Confirm Compose healthy and `DATABASE_URL` port `55433`; run API commands from `api/` |
-| Missing encryption/hash key | Set both independent 64-hex values in `api/.env` |
+| Missing encryption/hash key | Set both independent 64-hex values in `api/.env.local` |
 | `/health` works, private requests fail | Clerk keys must be from one instance; complete sign-in; see [API auth](../api/docs/LOCAL_TESTING.md) |
 | Google configuration/developer error | See [Google/Clerk setup](local-testing-auth.md) |
 | Sign-in stuck on "Signing in", no Google UI | Add the Google test account on the device, or register the build's debug SHA-1 on the Android OAuth client |
@@ -199,7 +199,7 @@ Copy values from the environment when already set; otherwise leave them empty an
 
 ### Alternative ports
 
-- API: set `PORT` in `api/.env`; update `EXPO_PUBLIC_API_BASE_URL`.
+- API: set `PORT` in `api/.env.local`; update `EXPO_PUBLIC_API_BASE_URL`.
 - Metro: `npx expo start --dev-client --localhost --port 8082`; use 8082 on both sides of `adb reverse`.
 - PostgreSQL: `export SPENDEAZY_MANUAL_DB_PORT=55434`, rerun Compose, match `DATABASE_URL`.
 - Concurrent checkouts: use distinct `docker compose -p <name>` projects and ports consistently for startup, shutdown and reset. One emulator can run only one checkout's app at a time.

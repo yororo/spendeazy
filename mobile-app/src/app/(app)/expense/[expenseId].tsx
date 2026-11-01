@@ -3,8 +3,6 @@ import { ExpenseDetail } from "@/features/expenses/detail-view";
 import { useExpenseDetail } from "@/features/expenses/use-expense-detail";
 import { BodyText, Screen } from "@/components/screen";
 import { useSpaces } from "@/application/spaces/provider";
-import { SecondaryButton } from "@/components/buttons";
-
 export default function ExpenseDetailScreen() {
   const { expenseId, sourceSpaceId } = useLocalSearchParams();
   const { active } = useSpaces();
@@ -16,9 +14,8 @@ export default function ExpenseDetailScreen() {
       sourceSpaceId !== active?.id)
   ) {
     return (
-      <Screen title="Expense">
+      <Screen title="Expense" onBack={() => router.back()}>
         <BodyText>This Expense is unavailable in the current Space.</BodyText>
-        <SecondaryButton label="Back" onPress={() => router.back()} />
       </Screen>
     );
   }

@@ -64,11 +64,9 @@ export function SharingView({
   }
 
   return (
-    <Screen title="Sharing" refreshing={state.loading} onRefresh={() => void controller.load()} headerAccessory={<SpaceStatus />}>
+    <Screen title="Sharing" onBack={onBack} backDisabled={disabled} refreshing={state.loading} onRefresh={() => void controller.load()} headerAccessory={<SpaceStatus />}>
       <StackGap>
         {active?.kind === 'shared' ? <SharedSpaceCard space={active} /> : null}
-        <SupportingText>Invite someone with a code you share directly. Codes last seven days. Spendeazy does not email invitations or send notifications.</SupportingText>
-
         {hasActiveSharedSpace ? (
           <SupportingText>You already belong to an active Shared Space. Leave it before joining another.</SupportingText>
         ) : null}
@@ -83,15 +81,12 @@ export function SharingView({
               <SupportingText>{`Expires ${formatDate(outgoing.expiresAt)}`}</SupportingText>
               <PrimaryButton label="Copy Invite Code" busy={state.busy === 'copy'} onPress={() => void controller.copyCode()} />
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center' }}>
-                <CompactAction variant="quiet" label="Rotate Invite Code" disabled={disabled} onPress={() => setConfirmation('rotate')} />
-                <CompactAction variant="quiet" label="Revoke Invite Code" disabled={disabled} onPress={() => setConfirmation('revoke')} />
+                <CompactAction variant="quiet" label="Rotate" disabled={disabled} onPress={() => setConfirmation('rotate')} />
+                <CompactAction variant="quiet" label="Revoke" disabled={disabled} onPress={() => setConfirmation('revoke')} />
               </View>
             </StackGap>
           ) : (
-            <StackGap>
-              <SupportingText>Create a code for another person to enter on their device.</SupportingText>
-              <PrimaryButton label="Create Invite Code" busy={state.busy === 'create'} disabled={hasActiveSharedSpace} onPress={() => void controller.create()} />
-            </StackGap>
+            <PrimaryButton label="Create code" busy={state.busy === 'create'} disabled={hasActiveSharedSpace} onPress={() => void controller.create()} />
           )}
         </SharingSection>
 
@@ -106,7 +101,7 @@ export function SharingView({
               variant="underlined"
               icon={<Link size={20} color={palette.textSecondary} />}
             />
-            <PrimaryButton label="Save code and preview" busy={state.busy === 'claim'} disabled={hasActiveSharedSpace || code.trim().length === 0} onPress={() => void controller.claim(code)} />
+            <PrimaryButton label="Preview" busy={state.busy === 'claim'} disabled={hasActiveSharedSpace || code.trim().length === 0} onPress={() => void controller.claim(code)} />
           </StackGap>
         </SharingSection>
 
@@ -117,27 +112,25 @@ export function SharingView({
               <SharingSection key={invitation.id} title={`Invitation from ${invitation.senderName}`}>
                 <SupportingText>{`Expires ${formatDate(invitation.expiresAt)}`}</SupportingText>
                 <SupportingText>Joining gives both members equal edit access. Your Personal Space remains private.</SupportingText>
-                <PrimaryButton label={`Join ${invitation.senderName}'s Shared Space`} busy={state.busy === 'accept'} disabled={hasActiveSharedSpace} onPress={() => void controller.accept(invitation.id)} />
-                <SecondaryButton label="Decline invitation" disabled={disabled} onPress={() => void controller.decline(invitation.id)} />
+                <PrimaryButton label="Join" busy={state.busy === 'accept'} disabled={hasActiveSharedSpace} onPress={() => void controller.accept(invitation.id)} />
+                <SecondaryButton label="Decline" disabled={disabled} onPress={() => void controller.decline(invitation.id)} />
               </SharingSection>
             ))}
           </StackGap>
         ) : null}
 
         {active?.id ? (
-          <SecondaryButton label="Statement Import history" disabled={disabled} onPress={onOpenImportHistory} />
+          <SecondaryButton label="Import history" disabled={disabled} onPress={onOpenImportHistory} />
         ) : null}
         {activeSharedSpace ? (
           <SharingSection title="Archive Shared Space">
             <TriangleAlert accessible={false} size={24} color={palette.stateWarning} />
-            <SupportingText>Leaving ends sharing for both members. The Shared Space and its Expenses, Activity, and Statement Import history remain permanently as read-only history.</SupportingText>
-            <SecondaryButton label="Leave and archive Shared Space" disabled={disabled} onPress={() => setConfirmation('leave')} />
+            <SecondaryButton label="Leave Space" disabled={disabled} onPress={() => setConfirmation('leave')} />
           </SharingSection>
         ) : null}
 
         {state.error ? <Text selectable accessibilityLiveRegion="polite" style={{ color: palette.stateNegative, fontFamily: fonts.regular, fontSize: 16 }}>{state.error}</Text> : null}
         {state.notice ? <SupportingText>{state.notice}</SupportingText> : null}
-        <SecondaryButton label="Back" disabled={disabled} onPress={onBack} />
       </StackGap>
 
       <CenteredDialog

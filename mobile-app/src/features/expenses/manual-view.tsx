@@ -39,22 +39,16 @@ export function ManualExpenseForm({ state, onChange, onSave, onRetryCategories, 
 
   if (availability === 'read-only') {
     return (
-      <Screen title="Add Expense">
-        <StackGap>
-          <BodyText>This Space is read-only. Expenses cannot be added.</BodyText>
-          <SecondaryButton label="Back" onPress={() => onBack()} />
-        </StackGap>
+      <Screen title="Add Expense" onBack={onBack}>
+        <BodyText>This Space is read-only. Expenses cannot be added.</BodyText>
       </Screen>
     );
   }
 
   if (availability === 'archived') {
     return (
-      <Screen title="Add Expense">
-        <StackGap>
-          <BodyText>This Shared Space is archived. Expenses cannot be added; existing history remains available to inspect or copy.</BodyText>
-          <SecondaryButton label="Back" onPress={() => onBack()} />
-        </StackGap>
+      <Screen title="Add Expense" onBack={onBack}>
+        <BodyText>This Shared Space is archived. Expenses cannot be added.</BodyText>
       </Screen>
     );
   }

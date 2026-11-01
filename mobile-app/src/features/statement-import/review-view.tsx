@@ -1,5 +1,5 @@
 import { useRef, useState, type ElementRef, type ReactNode } from 'react';
-import { ArrowLeft, Bookmark, Check, ChevronDown, ChevronRight, FileText, Landmark, Pencil, Shapes, X } from 'lucide-react-native';
+import { ArrowLeft, Bookmark, Check, ChevronDown, ChevronRight, FileText, Landmark, Pencil, RefreshCw, Shapes, X } from 'lucide-react-native';
 import { Alert, FlatList, KeyboardAvoidingView, Pressable, Switch, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CompactAction, PrimaryButton, SecondaryButton } from '@/components/buttons';
@@ -74,7 +74,7 @@ export function StatementImportReviewView({ controller: c, destination, onBack, 
         {c.readOnly ? <SupportingText>This destination is read-only. Review remains available for inspection.</SupportingText> : null}
         <>
           {review.catalog.status !== 'ready' ? <SupportingText>{review.catalog.status === 'failed' ? 'Categories and Rules could not be loaded. Your review is retained. Retry to assign or continue.' : 'Loading Categories and Rules…'}</SupportingText> : null}
-          {review.catalog.status !== 'ready' ? <SecondaryButton label="Retry Categories and Rules" busy={review.catalog.status === 'loading'} onPress={c.refresh} /> : null}
+          {review.catalog.status !== 'ready' ? <SecondaryButton label="Retry" busy={review.catalog.status === 'loading'} onPress={c.refresh} /> : null}
           {review.catalog.status === 'ready' && categories.length === 0 ? <SupportingText>No active Categories. Activate a Category in this Space before assigning spending.</SupportingText> : null}
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
             <Text accessibilityRole="header" style={{ fontSize: 15, fontFamily: fonts.semibold, color: palette.textPrimary }}>{review.inspectedSourceRowId ? 'Transaction review' : 'Categorize'}</Text>
@@ -177,7 +177,7 @@ export function StatementImportReviewView({ controller: c, destination, onBack, 
         </Pressable>;
       }}
       ListEmptyComponent={transactionsExpanded ? <SupportingText>No Transactions in this filter.</SupportingText> : undefined}
-      ListFooterComponent={<View style={{ paddingTop: 16, gap: 14 }}><PrimaryButton label="Continue" disabled={disabled} onPress={c.continue} /><QueueAction label="Refresh Categories and Rules" disabled={review.catalog.status === 'loading'} onPress={c.refresh} /><SupportingText>Review stays in memory. Closing the app loses it. Nothing is saved until confirmation.</SupportingText></View>} />
+      ListFooterComponent={<View style={{ paddingTop: 16, gap: 14 }}><PrimaryButton label="Continue" disabled={disabled} onPress={c.continue} /><View style={{ alignItems: 'center' }}><QueueAction label="" accessibilityLabel="Refresh Categories and Rules" icon={<RefreshCw size={18} color={palette.textSecondary} />} disabled={review.catalog.status === 'loading'} onPress={c.refresh} /></View></View>} />
     <CenteredDialog title="Correct Transaction" visible={modal === 'edit' && !!editor} onDismiss={() => setModal(null)} restoreFocusRef={editFocus}>
       {editor ? <>
         <ExpenseFields draft={{ ...editor.values }} issues={{}} categoryLabel={category?.name ?? 'Choose Category'} onChange={c.patch} onOpenCategories={() => setModal('categories')} />
@@ -210,7 +210,7 @@ function QueueAction({ label, accessibilityLabel = label, onPress, disabled = fa
   return <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel} accessibilityState={{ disabled }} disabled={disabled} onPress={onPress}
     style={{ minHeight: 48, minWidth: 48, flexShrink: 1, flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8, opacity: disabled ? 0.55 : 1 }}>
     {icon}
-    <Text style={{ flexShrink: 1, fontSize: 12, fontFamily: brand ? fonts.medium : fonts.regular, color: brand ? palette.brandPrimary : palette.textSecondary }}>{label}</Text>
+    {label ? <Text style={{ flexShrink: 1, fontSize: 12, fontFamily: brand ? fonts.medium : fonts.regular, color: brand ? palette.brandPrimary : palette.textSecondary }}>{label}</Text> : null}
   </Pressable>;
 }
 function ErrorText({ message }: { message: string }) {

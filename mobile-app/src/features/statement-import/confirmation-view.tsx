@@ -89,10 +89,9 @@ export function ImportConfirmationView({ controller: c, destination, readOnly, o
       <View accessibilityLiveRegion="polite" style={{ gap: 12 }}>
         {c.phase === 'previewing' ? <SupportingText>Checking the final review…</SupportingText> : null}
         {c.preview?.warnings.map(w => <Text key={w.id} style={{ color: palette.stateWarning, fontFamily: fonts.regular, fontSize: 15 }}>{`${w.message}${w.sourceRowIds.length ? ` (${w.sourceRowIds.length} rows)` : ''}`}</Text>)}
-        {warning ? <SupportingText>Review these warnings. Import anyway explicitly acknowledges every warning shown above.</SupportingText> : null}
         {c.message ? <BodyText>{c.message}</BodyText> : null}
         {readOnly ? <SupportingText>This destination is read-only. Your review remains available to inspect.</SupportingText> : null}
-        {!c.canSend ? <SupportingText>Saving is unavailable until submission recovery is connected. You can inspect warnings and return to review.</SupportingText> : null}
+        {!c.canSend ? <SupportingText>Saving is unavailable.</SupportingText> : null}
       </View>
       {c.phase === 'failed' ? <SecondaryButton label="Retry final check" onPress={c.retryPreview} /> : null}
       <PrimaryButton label={c.phase === 'uncertain' ? 'Retry same import' : warning ? 'Import anyway' : `Import to ${destination}`} busy={c.phase === 'saving'}

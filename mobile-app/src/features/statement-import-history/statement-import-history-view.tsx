@@ -8,9 +8,10 @@ import {
   Wallet,
   CircleCheck,
   ChevronRight,
+  ListFilter,
 } from "lucide-react-native";
 import { Pressable, Text, View } from "react-native";
-import { SecondaryButton } from "@/components/buttons";
+import { CompactAction, SecondaryButton } from "@/components/buttons";
 import { ChoiceSheet } from "@/components/choice-sheet";
 import { TextField } from "@/components/text-field";
 import { DesignSurface } from "@/components/design-surface";
@@ -47,24 +48,26 @@ export function StatementImportHistoryView({
   return (
     <>
       <Screen
-        title="Statement Import history"
+        title="Import history"
         refreshing={refreshing}
         onRefresh={refresh}
-      >
-        <StackGap>
-          <SupportingText>
-            Recorded Statement Imports for this Space. Dates use confirmation
-            time in Asia/Manila.
-          </SupportingText>
-          <SecondaryButton
-            label="Confirmation dates"
+        onBack={onBack}
+        headerAccessory={
+          <CompactAction
+            variant="icon"
+            label="Filter by confirmation date"
+            selected={filtered}
+            icon={<ListFilter size={20} color={filtered ? palette.brandPrimary : palette.textPrimary} />}
             onPress={() => setFiltersOpen(true)}
           />
+        }
+      >
+        <StackGap>
           {filtered ? (
             <>
               <SupportingText>{`${filters.fromDate || "Any start"} to ${filters.toDate || "Any end"}`}</SupportingText>
               <SecondaryButton
-                label="Clear filters"
+                label="Clear"
                 onPress={() => changeFilters(ALL_DATES)}
               />
             </>
@@ -130,19 +133,18 @@ export function StatementImportHistoryView({
                 {error}
               </Text>
               <SecondaryButton
-                label="Retry history"
+                label="Retry"
                 onPress={controller.retry}
               />
             </>
           ) : null}
           {nextCursor ? (
             <SecondaryButton
-              label="Load more history"
+              label="Load more"
               busy={loadingMore}
               onPress={() => void loadMore()}
             />
           ) : null}
-          <SecondaryButton label="Back" onPress={onBack} />
         </StackGap>
       </Screen>
       <ChoiceSheet
@@ -167,7 +169,7 @@ export function StatementImportHistoryView({
             <SupportingText>{controller.filterError}</SupportingText>
           ) : null}
           <SecondaryButton
-            label="Clear filters"
+            label="Clear"
             onPress={() => changeFilters(ALL_DATES)}
           />
           <SecondaryButton label="Done" onPress={() => setFiltersOpen(false)} />
@@ -247,20 +249,11 @@ export function ImportHistoryItem({
             fontFamily: fonts.regular,
             fontSize: 12,
           }}
-        >{`${confirmed} · PDF`}</Text>
+        >{confirmed}</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <PersonAvatar name={importer} photoUrl={photoUrl} />
           <Text style={{ flex: 1, color: palette.textSecondary, fontFamily: fonts.regular, fontSize: 12 }}>{`${importer} · ${imported}`}</Text>
         </View>
-        <Text
-          style={{
-            color: palette.textSecondary,
-            fontFamily: fonts.regular,
-            fontSize: 12,
-          }}
-        >
-          Successfully imported
-        </Text>
       </View>
       <CircleCheck accessible={false} size={18} color={palette.brandPrimary} />
       <ChevronRight

@@ -14,7 +14,7 @@ import type {
 } from "@/api/dashboard-report-api-client";
 import type { SpaceCategory } from "@/api/categories-api-client";
 import { CompactAction, SecondaryButton } from "@/components/buttons";
-import { ChevronDown, Info } from "lucide-react-native";
+import { ChevronDown, ChevronRight, Info } from "lucide-react-native";
 import { ChoiceSheet } from "@/components/choice-sheet";
 import { Popover } from "@/components/popover";
 import { TextField } from "@/components/text-field";
@@ -398,7 +398,9 @@ function DashboardSummary({
         </Pressable>
       </View>
       <CompactAction
-        label={`${summary.expenseCount} Expenses · View Expenses`}
+        label={`${summary.expenseCount} Expenses`}
+        accessibilityLabel={`${summary.expenseCount} Expenses · View Expenses`}
+        icon={<ChevronRight size={16} color={palette.textSecondary} />}
         variant="quiet"
         onPress={() => onOpenExpenses({ fromDate: range.fromDate, toDate: range.toDate })}
       />
@@ -440,7 +442,7 @@ function MonthlyChart({
         {point ? <>
           <BodyText>{`${point.fromDate}–${point.toDate} · Asia/Manila${point.inProgress ? " · In progress" : ""}`}</BodyText>
           <BodyText>{`${formatPhp(point.actualAmount)} · ${point.expenseCount} Expenses · plan ${formatPhp(plan)}`}</BodyText>
-          <CompactAction label="View all Expenses for this month" onPress={() => { setDetail(null); onOpenExpenses(point.expenseFilter); }} />
+          <CompactAction label="Expenses" accessibilityLabel="View all Expenses for this month" onPress={() => { setDetail(null); onOpenExpenses(point.expenseFilter); }} />
           <BodyText>All Categories</BodyText>
           {report.categoryExpenses.map((category) => {
             const month = category.months.find((item) => item.month === point.month);
@@ -623,7 +625,7 @@ function CategoryChart({
                   <BodyText>{category.name}</BodyText>
                 </View>
                 <BodyText>{`${formatPhp(month.actualAmount)} · ${month.expenseCount} Expenses${month.monthlyBudgetAmount !== null ? ` · Monthly limit ${formatPhp(month.monthlyBudgetAmount)}` : " · No Monthly limit"}${month.annualBudgetAmount !== null ? ` · Annual limit ${formatPhp(month.annualBudgetAmount)}` : ""}`}</BodyText>
-                <CompactAction label={`View Expenses · ${category.name}`} onPress={() => { setDetail(null); onOpenExpenses(month.expenseFilter); }} />
+                <CompactAction label="Expenses" accessibilityLabel={`View Expenses · ${category.name}`} onPress={() => { setDetail(null); onOpenExpenses(month.expenseFilter); }} />
               </View> : null;
             })}
           </ChoiceSheet>
@@ -810,12 +812,14 @@ function BudgetChecks({
             </Text>
             <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
               <CompactAction
-                label={`View Expenses · ${check.name} ${check.year}`}
+                label="Expenses"
+                accessibilityLabel={`View Expenses · ${check.name} ${check.year}`}
                 variant="quiet"
                 onPress={() => onOpenExpenses(check.expenseFilter)}
               />
               <CompactAction
-                label={`Configure Budget · ${check.name}`}
+                label="Budget"
+                accessibilityLabel={`Configure Budget · ${check.name}`}
                 variant="quiet"
                 onPress={() => onOpenBudgetCategory(check.categoryId)}
               />

@@ -42,9 +42,9 @@ export function ImportRecoveryView({ controller: c, destination, writable, histo
       {!terminal ? <PrimaryButton label="Check status" busy={busy} onPress={c.checkStatus} /> : null}
       {!terminal && c.canRetry && writable ? <SecondaryButton label="Retry same import" disabled={busy} onPress={() => c.submit()} /> : null}
       {!terminal ? <SupportingText>Saving may still complete. Keep checking this operation before starting another import.</SupportingText> : null}
-      {!terminal && historyAvailable ? <SecondaryButton label="Open original Space history" onPress={onHistory} /> : null}
-      {terminal ? <PrimaryButton busy={clearing} label={c.phase === 'committed' ? 'Acknowledge import' : c.handoff ? 'Return to review' : 'Start a new review'} onPress={() => { void acknowledge(false); }} /> : null}
-      {c.phase === 'committed' && historyAvailable ? <SecondaryButton label="Acknowledge and open original Space history" disabled={clearing} onPress={() => { void acknowledge(true); }} /> : null}
+      {!terminal && historyAvailable ? <SecondaryButton label="History" onPress={onHistory} /> : null}
+      {terminal ? <PrimaryButton busy={clearing} label={c.phase === 'committed' ? 'Done' : c.handoff ? 'Return to review' : 'Start a new review'} onPress={() => { void acknowledge(false); }} /> : null}
+      {c.phase === 'committed' && historyAvailable ? <SecondaryButton label="Done · History" disabled={clearing} onPress={() => { void acknowledge(true); }} /> : null}
     </DesignSurface>
     <CenteredDialog visible={closing} title="Saving may still complete" restoreFocusRef={closeRef} onDismiss={() => setClosing(false)}>
       <SupportingText>{`Check import history in ${destination} (Space ${c.receipt?.spaceId}). Closing this message keeps the operation available through Check import status.`}</SupportingText>

@@ -81,37 +81,30 @@ export function CategoryConfigurationView({
   }
   if (state.availability === 'space-changed') {
     return (
-      <Screen title="Category">
-        <StackGap>
-          <BodyText>The active Space changed. Return to Budget and open this Category again to continue.</BodyText>
-          <SecondaryButton label="Back" onPress={onBack} />
-        </StackGap>
+      <Screen title="Category" onBack={onBack}>
+        <BodyText>The active Space changed. Return to Budget and open this Category again to continue.</BodyText>
       </Screen>
     );
   }
   if ((state.availability === 'archived' || state.availability === 'read-only') && state.isNew) {
     const title = state.isNew ? 'New Category' : 'Category';
     return (
-      <Screen title={title}>
-        <StackGap>
-          <BodyText>
-            {state.availability === 'archived'
-              ? 'This Shared Space is archived. Category configuration is read-only.'
-              : 'This Space is read-only. Category configuration cannot be changed.'}
-          </BodyText>
-          <SecondaryButton label="Back" onPress={onBack} />
-        </StackGap>
+      <Screen title={title} onBack={onBack}>
+        <BodyText>
+          {state.availability === 'archived'
+            ? 'This Shared Space is archived. Category configuration is read-only.'
+            : 'This Space is read-only. Category configuration cannot be changed.'}
+        </BodyText>
       </Screen>
     );
   }
 
   if (state.phase === 'error') {
     return (
-      <Screen title={state.isNew ? 'New Category' : 'Edit Category'}>
+      <Screen title={state.isNew ? 'New Category' : 'Edit Category'} onBack={onBack}>
         <StackGap>
           <BodyText>{state.error ?? 'Could not load Category configuration.'}</BodyText>
           <SecondaryButton label="Try again" onPress={onRetry} />
-          <SecondaryButton label="Back" onPress={onBack} />
         </StackGap>
       </Screen>
     );
@@ -121,7 +114,7 @@ export function CategoryConfigurationView({
   }
 
   return (
-    <Screen title={state.isNew ? 'New Category' : 'Edit Category'}>
+    <Screen title={state.isNew ? 'New Category' : 'Edit Category'} onBack={onBack}>
       <View style={{ flexGrow: 1, gap: space.cardGap }}>
         {state.availability === 'archived' ? <BodyText>This Shared Space is archived. Configuration is read-only.</BodyText> : null}
         {state.availability === 'read-only' ? <BodyText>This Space is read-only. Configuration cannot be changed.</BodyText> : null}
@@ -147,9 +140,8 @@ export function CategoryConfigurationView({
                     ? state.latestConfiguration.rules.map((rule) => `${rule.matchType}: ${rule.pattern}`).join(' · ')
                     : 'none'}`}
                 </SupportingText>
-                <SupportingText>Keeping your draft will use the latest revision checks. You can review it again before saving.</SupportingText>
-                <PrimaryButton label="Continue with my draft" disabled={state.checkingLatest} onPress={onContinueWithDraft} />
-                <SecondaryButton label="Use latest configuration" disabled={state.checkingLatest} onPress={() => setConfirmUseLatest(true)} />
+                <PrimaryButton label="Keep draft" disabled={state.checkingLatest} onPress={onContinueWithDraft} />
+                <SecondaryButton label="Use latest" disabled={state.checkingLatest} onPress={() => setConfirmUseLatest(true)} />
               </View>
             ) : state.conflict === 'space-rules' && state.latestRules ? (
               <View style={{ gap: space.fieldLabelGap, borderWidth: 1, borderColor: palette.fieldBorder, borderRadius: radius.control, backgroundColor: palette.surfaceModal, padding: 12 }}>
@@ -160,8 +152,7 @@ export function CategoryConfigurationView({
                     {`Category ${rule.categoryId ?? 'unknown'} · ${rule.matchType}: ${rule.pattern}`}
                   </SupportingText>
                 )) : <SupportingText>No Category Rules are set.</SupportingText>}
-                <SupportingText>Review the shared Rules. Continuing keeps your new Category draft and refreshes its Space Rule revision check.</SupportingText>
-                <PrimaryButton label="Continue with my draft" disabled={state.checkingLatest} onPress={onContinueWithDraft} />
+                <PrimaryButton label="Keep draft" disabled={state.checkingLatest} onPress={onContinueWithDraft} />
               </View>
             ) : (
               <>
@@ -304,7 +295,6 @@ export function CategoryConfigurationView({
             disabled={!state.canSave}
             busy={state.saving}
           />
-          <CompactAction variant="quiet" label="Back" onPress={onBack} />
         </View>
       </View>
 

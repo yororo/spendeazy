@@ -1,7 +1,7 @@
-import { FileUp } from 'lucide-react-native';
+import { FileUp, History } from 'lucide-react-native';
 import { useState, type ReactNode } from 'react';
 import { Alert, Text, TextInput, View } from 'react-native';
-import { PrimaryButton, SecondaryButton } from '@/components/buttons';
+import { CompactAction, PrimaryButton, SecondaryButton } from '@/components/buttons';
 import { DesignSurface } from '@/components/design-surface';
 import { BodyText, Screen, StackGap, SupportingText } from '@/components/screen';
 import { useAppTheme } from '@/navigation/app-theme';
@@ -33,7 +33,7 @@ export function StatementImportView({ controller: c, recentHistory, onHistory, o
   const discard = () => Alert.alert('Discard Statement Import?', 'This clears the living import work. You can then select again or switch Spaces.', [
     { text: 'Keep editing', style: 'cancel' }, { text: 'Discard', style: 'destructive', onPress: c.discard },
   ]);
-  return <Screen title="Import statement">
+  return <Screen title="Import statement" onBack={onBack} headerAccessory={<CompactAction variant="icon" label="Import history" icon={<History size={20} color={palette.textPrimary} />} onPress={onHistory} />}>
     <SupportingText>{`Destination: ${c.destination}`}</SupportingText>
     {c.readOnly ? <SupportingText>This Space is unavailable for new imports or is read-only. Retained extraction results remain available for inspection.</SupportingText> : null}
     <View style={{ flexDirection: 'row', gap: 8 }} accessibilityLabel="Step 1 of 3, Select file">
@@ -44,9 +44,7 @@ export function StatementImportView({ controller: c, recentHistory, onHistory, o
     </View>
     <DesignSurface style={{ paddingHorizontal: 20, paddingVertical: 40, gap: 22 }}>
       <View accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ alignSelf: 'center', width: 90, height: 110, borderRadius: 18, backgroundColor: palette.surfaceModal, alignItems: 'center', justifyContent: 'center', transform: [{ rotate: '-6deg' }] }}><FileUp size={44} color={palette.brandPrimary} /></View>
-      <BodyText>Bring your expenses together</BodyText>
       <SupportingText>PDF · BDO Amex · EastWest Visa · GCash E-Wallet</SupportingText>
-      <SupportingText>Your statement is read on this device.</SupportingText>
       {c.canSelect ? <PrimaryButton label={state.phase === 'idle' ? 'Select PDF' : 'Select PDF again'} onPress={c.select} /> : null}
       {c.cleanup !== 'ready' ? <SupportingText>{c.cleanup === 'starting' ? 'Checking temporary-file cleanup…' : 'Temporary-file cleanup failed. Retry before selecting a PDF.'}</SupportingText> : null}
       {c.cleanup === 'failed' ? <SecondaryButton label="Retry cleanup" onPress={c.retryCleanup} /> : null}
@@ -64,14 +62,11 @@ export function StatementImportView({ controller: c, recentHistory, onHistory, o
         <BodyText>Extraction ready</BodyText>
         <SupportingText>{`${result.file.name} · ${result.rows.length} Transactions · ${result.rows.filter(row => row.classification.eligible).length} eligible spending candidates`}</SupportingText>
         {result.warnings.map(warning => <Text key={warning.code} style={{ color: palette.stateWarning, fontFamily: fonts.regular, fontSize: 15 }}>{warningText[warning.code]}</Text>)}
-        <SupportingText>Opening local review. Nothing has been saved. This result remains here when you go Back; closing the app loses it.</SupportingText>
       </StackGap> : null}
-      {!running && state.phase !== 'idle' ? <SecondaryButton label="Discard and start again" onPress={discard} /> : null}
+      {!running && state.phase !== 'idle' ? <SecondaryButton label="Discard" onPress={discard} /> : null}
     </DesignSurface>
     <BodyText>Recent statements</BodyText>
     {recentHistory}
-    <SecondaryButton label="View Statement Import history" onPress={onHistory} />
-    <SecondaryButton label={state.phase === 'idle' ? 'Back' : 'Back · keep import work'} onPress={onBack} />
   </Screen>;
 }
 

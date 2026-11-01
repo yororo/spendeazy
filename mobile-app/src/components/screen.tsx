@@ -14,6 +14,8 @@ export function Screen({
   onRefresh,
   headerAccessory,
   compactHeader = false,
+  onBack,
+  backDisabled,
 }: {
   title: string;
   children: ReactNode;
@@ -21,6 +23,8 @@ export function Screen({
   onRefresh?: () => void;
   headerAccessory?: ReactNode;
   compactHeader?: boolean;
+  onBack?: () => void;
+  backDisabled?: boolean;
 }) {
   const insets = useSafeAreaInsets();
   const { palette } = useAppTheme();
@@ -45,7 +49,7 @@ export function Screen({
         paddingHorizontal: space.screenHorizontal,
         gap: space.cardGap,
       }}>
-      <ScreenHeader title={title} accessory={headerAccessory} compact={compactHeader} />
+      <ScreenHeader title={title} accessory={headerAccessory} compact={compactHeader} onBack={onBack} backDisabled={backDisabled} />
       {children}
     </ScrollView>
     </KeyboardAvoidingView>

@@ -61,8 +61,7 @@ export function StatementImportDetailView({
         }
         ListHeaderComponent={
           <StackGap>
-            <ScreenHeader title="Statement Import" />
-            <SecondaryButton label="Back" onPress={onBack} />
+            <ScreenHeader title="Statement Import" onBack={onBack} />
             {c.contextUnavailable ? (
               <SupportingText>
                 {c.spacesLoading
@@ -129,11 +128,11 @@ export function StatementImportDetailView({
                   {heading("Current Expenses")}
                   <BodyText>{`${d.currentExpenses.count} nondeleted Expenses · PHP ${d.currentExpenses.totalAmount}`}</BodyText>
                   <SecondaryButton
-                    label="View current Expenses"
+                    label="Current"
                     onPress={() => onExpenses("active")}
                   />
                   <SecondaryButton
-                    label="View deleted Expenses"
+                    label="Deleted"
                     onPress={() => onExpenses("deleted")}
                   />
                 </DesignSurface>

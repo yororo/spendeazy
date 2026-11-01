@@ -211,7 +211,6 @@ export function BudgetListView({
 
           <View style={{ gap: space.rowGap }}>
             {sectionTitle('Sort by')}
-            <SupportingText>Amount sorts compare exact monthly equivalents.</SupportingText>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
               <CompactAction label="Name" selected={sort === 'name'} onPress={() => setSort('name')} />
               <CompactAction label="Amount" selected={sort === 'amount'} onPress={() => setSort('amount')} />
@@ -243,7 +242,7 @@ export function BudgetListView({
           {categoriesInView.length > 0 && visibleCategories.length === 0 ? (
             <View style={{ gap: space.rowGap }}>
               <SupportingText>No Categories match this search and Budget filter.</SupportingText>
-              <SecondaryButton label="Clear search and filters" onPress={() => { setSearch(''); setFilter('all'); }} />
+              <SecondaryButton label="Clear" onPress={() => { setSearch(''); setFilter('all'); }} />
             </View>
           ) : null}
           {visibleCategories.map(renderCategoryRow)}

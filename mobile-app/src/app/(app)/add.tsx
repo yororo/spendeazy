@@ -23,7 +23,7 @@ export default function AddScreen() {
   const writable = active?.status === 'active' && active.accessLevel === 'write';
   return (
     <View style={{ flex: 1 }}>
-      <Popover title="Add" presentation="inline" visible onDismiss={() => router.back()} showHeader={false}>
+      <Popover title="Add" presentation="inline" visible onDismiss={() => router.back()} showHeader={false} width={240}>
         {writable ? <>
           <AddChoice title="Add expense" icon={<PenLine size={20} color={palette.brandPrimary} />} onPress={() => router.push('/add-expense')} />
           <AddChoice title="Import statement" icon={<FileUp size={20} color={palette.brandPrimary} />} onPress={() => router.push('/import-statement')} />

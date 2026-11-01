@@ -41,7 +41,7 @@ export function SpaceStatus() {
           <ChevronDown color={palette.textSecondary} size={14} />
         </View>
       </Pressable>
-      {active.status === 'archived' ? <SupportingText>This Shared Space is archived. Expenses, Activity, and import history are read-only.</SupportingText> : null}
+      {active.status === 'archived' ? <SupportingText>Archived · Read-only</SupportingText> : null}
       {recovering ? <SupportingText>Check import status and acknowledge its outcome before changing destination.</SupportingText> : null}
       {memoryError ? <SupportingText>{memoryError}</SupportingText> : null}
       <Popover title="Spaces" visible={open && pendingSpaceId === null} onDismiss={() => setOpen(false)} anchorRef={switchTrigger} restoreFocusOnDismiss={pendingSpaceId === null} showHeader={false}>
@@ -63,8 +63,8 @@ export function SpaceStatus() {
       </Popover>
       <ChoiceSheet title={hasImportWork ? 'Statement Import in progress' : 'Unsaved Expense'} visible={pendingSpaceId !== null} onDismiss={() => setPendingSpaceId(null)}>
         <BodyText>{hasImportWork ? 'This Statement Import belongs to the current Space. Discard unsaved work before switching, then select the file again in the destination Space.' : 'Save this Expense first, or discard it before switching Spaces. Its Category selection clears when you switch.'}</BodyText>
-        <SecondaryButton label={hasImportWork ? 'Keep editing' : 'Keep working on Expense'} onPress={() => setPendingSpaceId(null)} />
-        <SecondaryButton label={hasImportWork ? 'Discard work and switch' : 'Discard Expense and switch'} onPress={() => {
+        <SecondaryButton label="Keep editing" onPress={() => setPendingSpaceId(null)} />
+        <SecondaryButton label="Discard" onPress={() => {
           const nextSpaceId = pendingSpaceId;
           setPendingSpaceId(null);
           setOpen(false);

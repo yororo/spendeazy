@@ -1,5 +1,5 @@
 import type { CommittedImport, ImportConfirmationApi, ImportPreview, ImportOperationStatus } from '../../api/statement-import-confirmation-api-client.ts';
-import { requestFailureMessage } from '../../api/request-failure.ts';
+import { confirmationErrorMessage } from './confirmation-error.ts';
 import { serializeConfirmation } from './confirmation-payload.ts';
 import type { ReviewHandoff } from './review-model.ts';
 import type { ImportAccess } from './import-store.ts';
@@ -152,7 +152,7 @@ export function createConfirmationWorkflow(deps: {
         const preview = await api.preview(h.owner.spaceId, serializeConfirmation(h));
         if (version === request && current(h, g)) publish({ type: 'previewSucceeded', preview });
       } catch (error) {
-        if (version === request && current(h, g)) publish({ type: 'rejected', preview: null, message: requestFailureMessage(error) });
+        if (version === request && current(h, g)) publish({ type: 'rejected', preview: null, message: confirmationErrorMessage(error, h) });
       }
     },
     async submit(api: ImportConfirmationApi, operationId: () => string, beforeSend?: ReceiptWriter, override = false) {

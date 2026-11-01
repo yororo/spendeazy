@@ -204,7 +204,7 @@ export function validateConfirmationPayload(
     rule.pattern = rule.pattern.trim().replace(/\s+/gu, ' ');
   }
   statement.fileName = statement.fileName.trim();
-  // Reject obvious account/document secrets, plus reference copies in admitted text.
+  // Reject PDF/password content and reference copies in admitted text.
   const references = evidence.transactions.flatMap((row) =>
     row.duplicateReference ? [row.duplicateReference] : [],
   );
@@ -226,15 +226,8 @@ export function validateConfirmationPayload(
       path.startsWith('/acknowledgedWarnings/')
     )
       return;
-    const humanText = /\/(?:description|fileName|label|pattern|message)$/u.test(
-      path,
-    );
     if (
-      /%PDF-|data:application\/pdf|\bpassword\s*[:=]|\b(?:card|account|wallet|mobile)\s*(?:number|no\.?|id)\s*[:=]/iu.test(
-        value,
-      ) ||
-      (humanText &&
-        /\b(?:\d[ -]?){12,19}\b|\b09\d{9}\b|\+63\d{10}\b/u.test(value)) ||
+      /%PDF-|data:application\/pdf|\bpassword\s*[:=]/iu.test(value) ||
       references.some(
         (reference) => reference.length >= 4 && value.includes(reference),
       )

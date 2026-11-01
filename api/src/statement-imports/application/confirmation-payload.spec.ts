@@ -186,9 +186,27 @@ describe('complete reviewed import contract', () => {
     value.evidence.reconciliation.diagnostics[0].message =
       'Private statement text';
     expect(() => validateConfirmationPayload(value, now)).toThrow();
-    value.expenses[0].description = 'Card 4111 1111 1111 1111';
-    expect(() => validateConfirmationPayload(value, now)).toThrow();
   });
+
+  it.each([
+    'Example-12345678-06182026.pdf',
+    'Card 4111 1111 1111 1111',
+    '09123456789',
+    '+639123456789',
+    'Account number: 1234567890123456',
+  ])(
+    'accepts identifier-like text without guessing its meaning (%#)',
+    (text) => {
+      const value = fixture();
+      value.statement.fileName = text;
+      value.expenses[0].description = text;
+      value.evidence.transactions[0].original.description = text;
+      const result = validateConfirmationPayload(value, now);
+      expect(result.statement.fileName).toBe(text);
+      expect(result.expenses[0].description).toBe(text);
+      expect(result.evidence.transactions[0].original.description).toBe(text);
+    },
+  );
 
   it('checks remembered Rule targets even if their originating row was excluded', async () => {
     const value = checked();

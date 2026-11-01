@@ -24,6 +24,31 @@ test('summary totals use included edited centavos independently of original cont
   assert.equal(summary.total, 130000n); assert.equal(summary.found, 10); assert.equal(summary.included, 2); assert.equal(summary.excluded, 8);
   assert.equal(summary.categories.reduce((sum, c) => sum + c.total, 0n), 130000n);
 });
+test('failed final check identifies the original review row and preserves server validation reasons', async () => {
+  const s = setup();
+  s.api.preview = async () => { throw new ExpenseApiError(400, 'VALIDATION_FAILED', 'The request contains invalid fields.', [
+    { field: '/expenses/1/description', code: 'too_long', message: 'description must be shorter than or equal to 255 characters' },
+    { field: '/statement/fileName', code: 'required' },
+    null,
+  ]); };
+  await s.workflow.preview(s.api);
+  const state = s.workflow.snapshot();
+  const row = s.handoff().rows.filter(row => row.inclusion === 'included')[1];
+  const index = s.handoff().original.rows.findIndex(source => source.sourceRowId === row.sourceRowId);
+  assert.equal(state.phase, 'failed');
+  assert.ok(state.message?.includes(`Row ${index + 1} · description: description must be shorter than or equal to 255 characters`));
+  assert.ok(state.message?.includes('statement · file name: required'));
+  assert.ok(state.message?.includes('Go back to review'));
+  s.api.preview = async () => preview;
+  await s.workflow.preview(s.api);
+  assert.equal(s.workflow.snapshot().message, null);
+  assert.equal(s.workflow.snapshot().phase, 'ready');
+});
+test('final-check transport errors retain their actionable fallback', async () => {
+  const s = setup(); s.api.preview = async () => { throw new ExpenseApiTransportError(); };
+  await s.workflow.preview(s.api);
+  assert.equal(s.workflow.snapshot().message, 'Could not reach Spendeazy. Check your connection and try again.');
+});
 test('stale preview after edits, Back or session change cannot authorize submission', async () => {
   for (const change of ['edit', 'back', 'session'] as const) {
     const s = setup(); const pending = deferred<ImportPreview>(); s.api.preview = () => pending.promise;

@@ -22,7 +22,7 @@ function SpaceInitials({ space, compact = false }: { space: AccessibleSpace; com
   </View>;
 }
 
-export function SpaceStatus() {
+export function SpaceStatus({ readOnly = false }: { readOnly?: boolean } = {}) {
   const { spaces, active, loading, error, memoryError, refresh, selectSpace, hasUnsavedWork, hasImportWork, discardUnsavedWork } = useSpaces();
   const { palette, fonts } = useAppTheme();
   const [open, setOpen] = useState(false);
@@ -33,13 +33,17 @@ export function SpaceStatus() {
   if (loading && !active) return <SupportingText>Loading Spaces.</SupportingText>;
   if (error || !active) return <StackGap><BodyText>{error ?? 'Personal Space is unavailable.'}</BodyText><SecondaryButton label="Retry" onPress={() => void refresh()} /></StackGap>;
 
+  const badge = <View pointerEvents="none" style={{ minHeight: 44, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 22, borderWidth: 1, borderColor: palette.selectedSpaceBorder, backgroundColor: palette.selectedSpace, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+    <SpaceInitials space={active} compact />
+    {readOnly ? null : <ChevronDown color={palette.textSecondary} size={14} />}
+  </View>;
+
+  if (readOnly) return <View accessible accessibilityLabel={`Destination Space: ${spaceIdentityLabel(active)}`} style={{ alignSelf: 'flex-start', flexShrink: 1 }}>{badge}</View>;
+
   return (
     <View style={{ flexShrink: 1, gap: 6 }}>
       <Pressable ref={switchTrigger} disabled={recovering} accessibilityRole="button" accessibilityLabel={`Active Space: ${spaceIdentityLabel(active)}.${recovering ? ' Fixed until import acknowledgment.' : ' Switch Space'}`} accessibilityState={{ expanded: open, disabled: recovering }} onPress={() => setOpen(true)} style={{ minHeight: 48, alignSelf: 'flex-start', justifyContent: 'center' }}>
-        <View pointerEvents="none" style={{ minHeight: 44, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 22, borderWidth: 1, borderColor: palette.selectedSpaceBorder, backgroundColor: palette.selectedSpace, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <SpaceInitials space={active} compact />
-          <ChevronDown color={palette.textSecondary} size={14} />
-        </View>
+        {badge}
       </Pressable>
       {active.status === 'archived' ? <SupportingText>Archived · Read-only</SupportingText> : null}
       {recovering ? <SupportingText>Check import status and acknowledge its outcome before changing destination.</SupportingText> : null}

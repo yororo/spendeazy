@@ -1,4 +1,4 @@
-import { GlassView } from 'expo-glass-effect';
+import { GlassView, isGlassEffectAPIAvailable, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { useId, type ReactNode } from 'react';
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import Svg, { Defs, Ellipse, LinearGradient, RadialGradient, Rect, Stop } from 'react-native-svg';
@@ -32,7 +32,7 @@ export function CanvasBackground() {
   );
 }
 
-/** Native glass is enhanced by a gradient and highlight on every platform. */
+/** Navigation leaves native glass unobscured; other platforms use the source fill. */
 export function DesignSurface({ children, style, accessibilityLabel, variant = 'summary', containerStyle }: {
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
@@ -44,21 +44,22 @@ export function DesignSurface({ children, style, accessibilityLabel, variant = '
   const id = useId().replace(/:/g, '');
   const recipe = designRecipes[scheme];
   const isSummary = variant === 'summary';
+  const nativeNavigation = variant === 'navigation' && isGlassEffectAPIAvailable() && isLiquidGlassAvailable();
   const cornerRadius = isSummary ? radius.summaryCard : radius.navigation;
   const colors = variant === 'add' ? recipe.add : recipe.glass;
   const highlight = variant === 'add' ? recipe.addHighlight : variant === 'navigation' ? recipe.navigationHighlight : recipe.highlight;
   return (
     <View style={[{ borderRadius: cornerRadius, shadowColor: isSummary ? palette.summaryCardShadow : variant === 'add' ? palette.addShadow : palette.shadow, shadowOffset: { width: 0, height: isSummary ? 10 : variant === 'add' ? 6 : 8 }, shadowOpacity: 1, shadowRadius: isSummary ? 30 : variant === 'add' ? 18 : 24, elevation: 6 }, containerStyle]}>
-      <GlassView accessible={!!accessibilityLabel} accessibilityRole={accessibilityLabel ? 'summary' : undefined} accessibilityLabel={accessibilityLabel} glassEffectStyle="regular" colorScheme={scheme} style={[{ borderRadius: cornerRadius, overflow: 'hidden', borderWidth: isSummary ? 1 : 1.5, borderColor: isSummary ? palette.glassBorder : variant === 'add' ? palette.addBorder : palette.navigationBorder }, style]}>
-        <View pointerEvents="none" accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={StyleSheet.absoluteFill}>
+      <GlassView accessible={!!accessibilityLabel} accessibilityRole={accessibilityLabel ? 'summary' : undefined} accessibilityLabel={accessibilityLabel} glassEffectStyle={variant === 'add' ? 'none' : 'regular'} colorScheme={scheme} style={[{ borderRadius: cornerRadius, overflow: 'hidden', borderWidth: variant === 'add' || nativeNavigation ? 0 : isSummary ? 1 : 1.5, borderColor: isSummary ? palette.glassBorder : variant === 'add' ? palette.addBorder : palette.navigationBorder }, style]}>
+        {!nativeNavigation ? <View pointerEvents="none" accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={StyleSheet.absoluteFill}>
           <Svg width="100%" height="100%">
             <Defs><LinearGradient id={`${id}glass`} x1="0%" y1="0%" x2="100%" y2="100%">
               <Stop offset="0" {...gradientStop(colors[0])} /><Stop offset={variant === 'add' ? '0.48' : '0.52'} {...gradientStop(colors[1])} /><Stop offset="1" {...gradientStop(colors[2])} />
             </LinearGradient></Defs>
             <Rect width="100%" height="100%" fill={variant === 'navigation' ? palette.navigation : `url(#${id}glass)`} />
-            <Rect width="100%" height="1" fill={highlight} />
+            {variant !== 'add' ? <Rect width="100%" height="1" fill={highlight} /> : null}
           </Svg>
-        </View>
+        </View> : null}
         {children}
       </GlassView>
     </View>

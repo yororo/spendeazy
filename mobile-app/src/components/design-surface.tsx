@@ -1,5 +1,5 @@
 import { GlassView, isGlassEffectAPIAvailable, isLiquidGlassAvailable } from 'expo-glass-effect';
-import { useId, type ReactNode } from 'react';
+import { useId, useState, type ReactNode } from 'react';
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import Svg, { Defs, Ellipse, LinearGradient, RadialGradient, Rect, Stop } from 'react-native-svg';
 
@@ -43,6 +43,8 @@ export function DesignSurface({ children, style, accessibilityLabel, variant = '
   const { palette, scheme } = useAppTheme();
   const id = useId().replace(/:/g, '');
   const recipe = designRecipes[scheme];
+  // Explicit SVG dimensions keep the fill spanning tall, growing cards.
+  const [backgroundSize, setBackgroundSize] = useState({ width: 0, height: 0 });
   const isSummary = variant === 'summary';
   const nativeNavigation = variant === 'navigation' && isGlassEffectAPIAvailable() && isLiquidGlassAvailable();
   const cornerRadius = isSummary ? radius.summaryCard : radius.navigation;
@@ -51,8 +53,10 @@ export function DesignSurface({ children, style, accessibilityLabel, variant = '
   return (
     <View style={[{ borderRadius: cornerRadius, shadowColor: isSummary ? palette.summaryCardShadow : variant === 'add' ? palette.addShadow : palette.shadow, shadowOffset: { width: 0, height: isSummary ? 10 : variant === 'add' ? 6 : 8 }, shadowOpacity: 1, shadowRadius: isSummary ? 30 : variant === 'add' ? 18 : 24, elevation: 6 }, containerStyle]}>
       <GlassView accessible={!!accessibilityLabel} accessibilityRole={accessibilityLabel ? 'summary' : undefined} accessibilityLabel={accessibilityLabel} glassEffectStyle={variant === 'add' ? 'none' : 'regular'} colorScheme={scheme} style={[{ borderRadius: cornerRadius, overflow: 'hidden', borderWidth: variant === 'add' || nativeNavigation ? 0 : isSummary ? 1 : 1.5, borderColor: isSummary ? palette.glassBorder : variant === 'add' ? palette.addBorder : palette.navigationBorder }, style]}>
-        {!nativeNavigation ? <View pointerEvents="none" accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={StyleSheet.absoluteFill}>
-          <Svg width="100%" height="100%">
+        {!nativeNavigation ? <View pointerEvents="none" accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={StyleSheet.absoluteFill}
+          onLayout={({ nativeEvent: { layout } }) => setBackgroundSize((size) =>
+            size.width === layout.width && size.height === layout.height ? size : { width: layout.width, height: layout.height })}>
+          <Svg width={backgroundSize.width} height={backgroundSize.height}>
             <Defs><LinearGradient id={`${id}glass`} x1="0%" y1="0%" x2="100%" y2="100%">
               <Stop offset="0" {...gradientStop(colors[0])} /><Stop offset={variant === 'add' ? '0.48' : '0.52'} {...gradientStop(colors[1])} /><Stop offset="1" {...gradientStop(colors[2])} />
             </LinearGradient></Defs>

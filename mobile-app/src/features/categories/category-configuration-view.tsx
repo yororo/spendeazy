@@ -1,13 +1,13 @@
-import { useState } from 'react';
+import { useRef, useState, type ElementRef } from 'react';
 import { Pressable, Text, View } from 'react-native';
-import { Bookmark, ChevronDown, Plus, Trash2 } from 'lucide-react-native';
-import { CategoryIconMark } from '@/components/category-mark';
+import { Check, ChevronDown, Info, Plus, Trash2 } from 'lucide-react-native';
 import { CompactAction, PrimaryButton, SecondaryButton } from '@/components/buttons';
+import { Popover } from '@/components/popover';
 import { ChoiceSheet } from '@/components/choice-sheet';
 import { BodyText, Screen, StackGap, SupportingText } from '@/components/screen';
 import { TextField } from '@/components/text-field';
 import { CATEGORY_COLOR_KEYS, CATEGORY_ICON_KEYS, type CategoryColorKey, type CategoryConfiguration, type CategoryIconKey, type CategoryRule, type CategoryRuleCollection } from '@/api/categories-api-client';
-import { radius, space, typeScale } from '@/constants/theme';
+import { controlSize, radius, space, typeScale } from '@/constants/theme';
 import { useAppTheme } from '@/navigation/app-theme';
 import { CATEGORY_COLOR_VALUES, CATEGORY_ICON_COMPONENTS } from './category-catalog';
 import type { CategoryConfigurationField } from './category-configuration-draft';
@@ -58,13 +58,23 @@ export function CategoryConfigurationView({
   const { palette, fonts } = useAppTheme();
   const [identityVisible, setIdentityVisible] = useState(false);
   const [matchTypeVisible, setMatchTypeVisible] = useState(false);
+  const matchTypeRef = useRef<ElementRef<typeof View>>(null);
   const [rulePattern, setRulePattern] = useState('');
   const [ruleMatchType, setRuleMatchType] = useState<CategoryRule['matchType']>('exact');
   const [confirmDeactivate, setConfirmDeactivate] = useState(false);
   const [confirmUseLatest, setConfirmUseLatest] = useState(false);
+  const [info, setInfo] = useState<'rules' | 'status' | null>(null);
+  const rulesRef = useRef<ElementRef<typeof View>>(null);
+  const statusRef = useRef<ElementRef<typeof View>>(null);
+  const infoButton = (kind: 'rules' | 'status') => <Pressable ref={kind === 'rules' ? rulesRef : statusRef} accessibilityRole="button" accessibilityLabel={kind === 'rules' ? 'About matching rules' : 'About Category status'} accessibilityState={{ expanded: info === kind }} onPress={() => setInfo(kind)} style={{ minHeight: 48, minWidth: 48, alignItems: 'center', justifyContent: 'center' }}><Info size={18} color={palette.textSecondary} accessible={false} /></Pressable>;
   const draft = state.draft;
   const editable = state.availability === 'editable' && !state.saving && state.phase === 'ready' && state.conflict === null;
 
+  const sectionHeading = (label: string) => (
+    <Text accessibilityRole="header" style={{ color: palette.textPrimary, fontFamily: fonts.semibold, fontSize: typeScale.sectionTitle }}>
+      {label}
+    </Text>
+  );
   const sectionLabel = (label: string) => (
     <Text style={{ color: palette.textSecondary, fontFamily: fonts.medium, fontSize: 12, letterSpacing: 1 }}>
       {label}
@@ -113,9 +123,11 @@ export function CategoryConfigurationView({
     return <Screen title={state.isNew ? 'New Category' : 'Edit Category'}><BodyText>Loading Category configuration.</BodyText></Screen>;
   }
 
+  const CategoryIcon = CATEGORY_ICON_COMPONENTS[draft.iconKey];
+
   return (
     <Screen title={state.isNew ? 'New Category' : 'Edit Category'} onBack={onBack}>
-      <View style={{ flexGrow: 1, gap: space.cardGap }}>
+      <View style={{ flexGrow: 1, gap: space.sheetGap }}>
         {state.availability === 'archived' ? <BodyText>This Shared Space is archived. Configuration is read-only.</BodyText> : null}
         {state.availability === 'read-only' ? <BodyText>This Space is read-only. Configuration cannot be changed.</BodyText> : null}
         {state.conflict !== null ? (
@@ -157,22 +169,30 @@ export function CategoryConfigurationView({
             ) : (
               <>
                 {state.error ? <BodyText>{state.error}</BodyText> : null}
-                <SecondaryButton label={state.checkingLatest ? 'Loading latest configuration' : 'Reload latest configuration'} disabled={state.checkingLatest} onPress={onRetry} />
+                <SecondaryButton label={state.checkingLatest ? 'Loading latest' : 'Reload latest'} disabled={state.checkingLatest} onPress={onRetry} />
               </>
             )}
           </View>
         ) : state.error ? <BodyText>{state.error}</BodyText> : null}
-        <View style={{ gap: 10 }}>
-          {sectionLabel('CATEGORY')}
+        <View style={{ gap: space.fieldLabelGap }}>
+          {sectionHeading('Category')}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-            <CompactAction variant="icon" label="Choose Category icon and color" disabled={!editable} onPress={() => setIdentityVisible(true)} icon={<CategoryIconMark iconKey={draft.iconKey} colorKey={draft.colorKey} />} />
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Choose Category icon and color"
+              accessibilityState={{ disabled: !editable, expanded: identityVisible }}
+              disabled={!editable}
+              onPress={() => setIdentityVisible(true)}
+              style={{ width: controlSize.field, minHeight: controlSize.field, alignSelf: 'stretch', borderRadius: radius.control, backgroundColor: CATEGORY_COLOR_VALUES[draft.colorKey] + '20', alignItems: 'center', justifyContent: 'center', opacity: editable ? 1 : 0.55 }}>
+              <CategoryIcon size={22} color={CATEGORY_COLOR_VALUES[draft.colorKey]} strokeWidth={1.8} accessible={false} />
+            </Pressable>
             <View style={{ flex: 1 }}>
               <TextField label="Category name" showLabel={false} value={draft.name} onChangeText={(name) => onChange({ name })} error={state.issues.name} placeholder="e.g. Dining Out" autoCapitalize="words" editable={editable} />
             </View>
           </View>
         </View>
-        <View style={{ gap: 10 }}>
-          {sectionLabel('BUDGET')}
+        <View style={{ gap: space.fieldLabelGap }}>
+          {sectionHeading('Budget')}
           {draft.budget ? <>
             <TextField label="Budget amount (PHP)" showLabel={false} variant="budget" suffix="PHP" value={draft.budget.amount} onChangeText={(amount) => onChange({ budget: { ...draft.budget!, amount } })} error={state.issues.budget} placeholder="0.00" keyboardType="decimal-pad" editable={editable} />
             <View style={{ flexDirection: 'row', gap: 4, padding: 5, borderRadius: radius.control, backgroundColor: palette.segmentedTrack }}>
@@ -182,37 +202,48 @@ export function CategoryConfigurationView({
             </View>
             <CompactAction variant="quiet" label="Remove Budget" disabled={!editable} onPress={() => onChange({ budget: null })} />
           </> : <>
-            <SupportingText>No Budget is set.</SupportingText>
-            <CompactAction label="Add Budget" disabled={!editable} onPress={() => onChange({ budget: { amount: '', currency: 'PHP', recurrence: 'monthly' } })} />
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: space.fieldLabelGap }}>
+              <SupportingText>No budget</SupportingText>
+              <CompactAction label="Add budget" icon={<Plus size={16} color={palette.brandPrimary} />} disabled={!editable} onPress={() => onChange({ budget: { amount: '', currency: 'PHP', recurrence: 'monthly' } })} />
+            </View>
           </>}
         </View>
-        <View style={{ gap: 10 }}>
+        <View style={{ gap: space.fieldLabelGap }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Bookmark size={16} color={palette.brandPrimary} accessible={false} />
-            <Text accessibilityRole="header" style={{ color: palette.textPrimary, fontFamily: fonts.medium, fontSize: 14 }}>Matching Rules</Text>
+            <View style={{ flex: 1 }}>{sectionHeading('Matching rules')}</View>
+            {infoButton('rules')}
           </View>
-          <Text style={{ color: palette.textSecondary, fontFamily: fonts.regular, fontSize: 12 }}>Exact matches the full description. Contains matches text anywhere in it.</Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 5 }}>
-            <CompactAction label={ruleMatchType === 'exact' ? 'Exact' : 'Contains'} disabled={!editable} icon={<ChevronDown size={14} color={palette.textSecondary} />} onPress={() => setMatchTypeVisible(true)} />
-            <View style={{ flex: 1, minWidth: 100 }}>
-              <TextField label="Rule text" showLabel={false} value={rulePattern} onChangeText={setRulePattern} placeholder="Matching text…" editable={editable} />
-            </View>
-            <CompactAction variant="icon" label="Add Rule" icon={<Plus size={18} color={palette.brandPrimary} />} disabled={!editable || rulePattern.trim().length === 0} onPress={() => { onAddRule(rulePattern.trim(), ruleMatchType); setRulePattern(''); }} />
+          <TextField label="Rule text" showLabel={false} value={rulePattern} onChangeText={setRulePattern} placeholder="Match a description…" autoCapitalize="none" editable={editable} />
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: space.fieldLabelGap }}>
+            <Pressable ref={matchTypeRef} accessibilityRole="button" accessibilityLabel={`Match type: ${ruleMatchType}. Change match type`} accessibilityState={{ expanded: matchTypeVisible }} onPress={() => setMatchTypeVisible(true)} style={{ minHeight: 48, minWidth: 48, justifyContent: 'center' }}>
+              <View pointerEvents="none" style={{ flexDirection: 'row', alignItems: 'center', gap: space.fieldLabelGap, paddingHorizontal: 12, paddingVertical: 7, minHeight: 36, borderRadius: 18, borderWidth: 1, borderColor: palette.fieldBorder, backgroundColor: palette.surfaceModal }}>
+                <Text style={{ color: palette.textPrimary, fontFamily: fonts.medium, fontSize: typeScale.button }}>{ruleMatchType === 'exact' ? 'Exact' : 'Contains'}</Text>
+                <ChevronDown size={14} color={palette.textSecondary} accessible={false} />
+              </View>
+            </Pressable>
+            <CompactAction label="Add rule" icon={<Plus size={18} color={palette.brandPrimary} />} disabled={!editable || rulePattern.trim().length === 0} onPress={() => { onAddRule(rulePattern.trim(), ruleMatchType); setRulePattern(''); }} />
           </View>
           {state.issues.rules ? issueText(state.issues.rules) : null}
-          {(['exact', 'contains'] as const).map((matchType) => <View key={matchType} style={{ gap: 4 }}>
-            <Text accessibilityRole="header" style={{ color: palette.textSecondary, fontFamily: fonts.medium, fontSize: 12, letterSpacing: 1 }}>{matchType === 'exact' ? 'EXACT' : 'CONTAINS'}</Text>
-            {draft.rules.some((rule) => rule.matchType === matchType) ? draft.rules.map((rule, index) => rule.matchType === matchType ? <View key={rule.id ?? 'new-' + index} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, borderBottomWidth: 1, borderColor: palette.fieldBorder, paddingLeft: 10 }}>
-              <Text style={{ flex: 1, color: palette.textPrimary, fontFamily: fonts.regular, fontSize: 14 }}>{rule.pattern}</Text>
-              <CompactAction variant="icon" label={'Remove Rule ' + (index + 1) + ': ' + rule.pattern} icon={<Trash2 size={16} color={palette.textSecondary} />} onPress={() => onRemoveRule(index)} disabled={!editable} />
-            </View> : null) : <Text style={{ color: palette.textSecondary, fontFamily: fonts.regular, fontSize: 12 }}>No entries yet</Text>}
-          </View>)}
+          {!draft.rules.some((rule) => rule.matchType === ruleMatchType) ? (
+            <SupportingText>{`No ${ruleMatchType} rules. Enter a description to add one.`}</SupportingText>
+          ) : null}
+          <View style={{ gap: space.rowGap }}>
+            {draft.rules.map((rule, index) => rule.matchType === ruleMatchType ? (
+              <View key={rule.id ?? 'new-' + index} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, borderBottomWidth: 1, borderColor: palette.fieldBorder, paddingLeft: 10 }}>
+                <Text style={{ flex: 1, color: palette.textPrimary, fontFamily: fonts.regular, fontSize: 14 }}>{rule.pattern}</Text>
+                <CompactAction variant="icon" label={'Remove Rule ' + (index + 1) + ': ' + rule.pattern} icon={<Trash2 size={16} color={palette.textSecondary} />} onPress={() => onRemoveRule(index)} disabled={!editable} />
+              </View>
+            ) : null)}
+          </View>
         </View>
         <View style={{ gap: space.fieldLabelGap }}>
-          {sectionLabel('STATUS')}
-          <SupportingText>{draft.isActive ? 'Active Categories are available for Expenses and Rule matching.' : 'Inactive Categories keep their history and configuration.'}</SupportingText>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}><View style={{ flex: 1 }}>{sectionHeading('Status')}</View>{infoButton('status')}</View>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: space.fieldLabelGap }}>
+          <SupportingText>{draft.isActive ? 'Active' : 'Inactive'}</SupportingText>
           <CompactAction
-            label={draft.isActive ? 'Deactivate Category' : 'Reactivate Category'}
+            variant="quiet"
+            label={draft.isActive ? 'Deactivate' : 'Reactivate'}
+            accessibilityLabel={draft.isActive ? 'Deactivate Category' : 'Reactivate Category'}
             disabled={!editable}
             selected={!draft.isActive}
             onPress={() => {
@@ -220,6 +251,7 @@ export function CategoryConfigurationView({
               else onChange({ isActive: true });
             }}
           />
+          </View>
         </View>
 
         <ChoiceSheet title="Category icon and color" visible={identityVisible} onDismiss={() => setIdentityVisible(false)} showClose>
@@ -283,12 +315,8 @@ export function CategoryConfigurationView({
             </View>
           </View>
 
-          <CompactAction label="Done" onPress={() => setIdentityVisible(false)} />
         </ChoiceSheet>
-        <ChoiceSheet title="Rule match type" visible={matchTypeVisible} onDismiss={() => setMatchTypeVisible(false)} showClose>
-          {(['exact', 'contains'] as const).map((matchType) => <CompactAction key={matchType} label={matchType === 'exact' ? 'Exact' : 'Contains'} selected={ruleMatchType === matchType} disabled={!editable} onPress={() => { setRuleMatchType(matchType); setMatchTypeVisible(false); }} />)}
-        </ChoiceSheet>
-        <View style={{ marginTop: 'auto', gap: 4, paddingTop: 10 }}>
+        <View style={{ marginTop: 'auto', gap: 4, paddingTop: space.sheetGap }}>
           <PrimaryButton
             label={state.isNew ? 'Create Category' : 'Save Category'}
             onPress={onSave}
@@ -298,6 +326,15 @@ export function CategoryConfigurationView({
         </View>
       </View>
 
+<Popover title="Rule match type" visible={matchTypeVisible} onDismiss={() => setMatchTypeVisible(false)} anchorRef={matchTypeRef} showHeader={false} width={180}>
+        {(['exact', 'contains'] as const).map((matchType) => (
+          <Pressable key={matchType} accessibilityRole="button" accessibilityLabel={matchType === 'exact' ? 'Exact' : 'Contains'} accessibilityState={{ selected: ruleMatchType === matchType }} onPress={() => { setRuleMatchType(matchType); setMatchTypeVisible(false); }} style={{ minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 12, padding: 8 }}>
+            <Text style={{ flex: 1, color: palette.textPrimary, fontFamily: fonts.medium, fontSize: typeScale.button }}>{matchType === 'exact' ? 'Exact' : 'Contains'}</Text>
+            {ruleMatchType === matchType ? <Check size={18} color={palette.brandPrimary} accessible={false} /> : null}
+          </Pressable>
+        ))}
+      </Popover>
+      <Popover title={info === 'rules' ? 'About matching rules' : 'About Category status'} showHeader={false} visible={info !== null} onDismiss={() => setInfo(null)} anchorRef={info === 'rules' ? rulesRef : statusRef}><View style={{ padding: 8 }}><BodyText>{info === 'rules' ? 'Exact matches the full description. Contains matches text anywhere in it.' : 'Active Categories are available for Expenses and Rule matching. Inactive Categories keep their history and configuration.'}</BodyText></View></Popover>
       <ChoiceSheet title="Deactivate Category?" visible={confirmDeactivate} onDismiss={() => setConfirmDeactivate(false)}>
         <BodyText>Existing Expenses, Budget and Rules stay with this Category. It will no longer be available for new Expenses or Rule matching.</BodyText>
         <SecondaryButton label="Keep active" onPress={() => setConfirmDeactivate(false)} />
@@ -308,8 +345,8 @@ export function CategoryConfigurationView({
       </ChoiceSheet>
       <ChoiceSheet title="Use latest configuration?" visible={confirmUseLatest} onDismiss={() => setConfirmUseLatest(false)}>
         <BodyText>This replaces your unsaved draft with the latest saved Category, Budget and Rules.</BodyText>
-        <SecondaryButton label="Keep my draft" onPress={() => setConfirmUseLatest(false)} />
-        <PrimaryButton label="Replace with latest" onPress={() => {
+        <SecondaryButton label="Keep draft" onPress={() => setConfirmUseLatest(false)} />
+        <PrimaryButton label="Use latest" onPress={() => {
           setConfirmUseLatest(false);
           onUseLatestConfiguration();
         }} />

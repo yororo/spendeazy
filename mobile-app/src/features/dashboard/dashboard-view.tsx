@@ -14,10 +14,9 @@ import type {
 } from "@/api/dashboard-report-api-client";
 import type { SpaceCategory } from "@/api/categories-api-client";
 import { CompactAction, SecondaryButton } from "@/components/buttons";
-import { ChevronDown, ChevronRight, Info } from "lucide-react-native";
+import { Check, ChevronDown, ChevronRight, Info } from "lucide-react-native";
 import { ChoiceSheet } from "@/components/choice-sheet";
 import { Popover } from "@/components/popover";
-import { TextField } from "@/components/text-field";
 import { BodyText, Screen } from "@/components/screen";
 import { space, typeScale } from "@/constants/theme";
 import { CATEGORY_COLOR_VALUES } from "@/features/categories/category-catalog";
@@ -518,15 +517,11 @@ function CategoryChart({
   const [choosing, setChoosing] = useState(false);
   const [detail, setDetail] = useState<{ month: string } | null>(null);
   const detailTrigger: ChartTrigger = useRef<ElementRef<typeof View>>(null);
-  const [search, setSearch] = useState("");
   const chooserTrigger = useRef<ElementRef<typeof View>>(null);
   const selected = categories.filter((category) =>
     selectedCategoryIds.length === 0 || selectedCategoryIds.includes(category.id),
   );
   const visibleChips = selected.slice(0, 3);
-  const matching = categories.filter((category) =>
-    category.name.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()),
-  );
   const categoryColor = (colorKey: string | null) =>
     CATEGORY_COLOR_VALUES[colorKey as keyof typeof CATEGORY_COLOR_VALUES] ?? palette.brandPrimary;
   const toggleCategory = (categoryId: string) => {
@@ -577,7 +572,7 @@ function CategoryChart({
           accessibilityRole="button"
           accessibilityLabel={`Choose categories, ${selected.length} of ${categories.length} selected`}
           accessibilityState={{ expanded: choosing }}
-          onPress={() => { setSearch(""); setChoosing(true); }}
+          onPress={() => setChoosing(true)}
           style={{ minHeight: 48, minWidth: 48, justifyContent: "center" }}
         >
           <SupportingText>{selected.length > 3 ? `+${selected.length - 3} · Choose categories` : "Choose categories"}</SupportingText>
@@ -588,24 +583,22 @@ function CategoryChart({
         visible={choosing}
         onDismiss={() => setChoosing(false)}
         restoreFocusRef={chooserTrigger}
+        maxHeight="65%"
         showClose
       >
-        <Text accessibilityLiveRegion="polite" style={{ color: palette.textSecondary, fontSize: 14 }}>
-          {`${selected.length} of ${categories.length} selected`}
-        </Text>
-        <TextField label="Search Categories" value={search} onChangeText={setSearch} autoCapitalize="none" />
-        <CompactAction label="All Categories" selected={selectedCategoryIds.length === 0} onPress={chooseAll} />
-        {matching.length === 0 ? (
-          <BodyText>No matching Categories.</BodyText>
-        ) : matching.map((category) => (
-          <CompactAction
-            key={category.id}
-            label={category.isActive ? category.name : `${category.name} · inactive`}
-            icon={<CategoryMarker markerIndex={categoryMarkers[category.id]} color={categoryColor(category.colorKey)} />}
-            selected={selectedCategoryIds.length === 0 || selectedCategoryIds.includes(category.id)}
-            onPress={() => toggleCategory(category.id)}
-          />
-        ))}
+        <View>
+          <CategoryChoice label="All Categories" selected={selectedCategoryIds.length === 0} onPress={chooseAll} />
+          {categories.map((category) => (
+            <CategoryChoice
+              key={category.id}
+              label={category.isActive ? category.name : `${category.name} · inactive`}
+              icon={<CategoryMarker markerIndex={categoryMarkers[category.id]} color={categoryColor(category.colorKey)} />}
+              selected={selectedCategoryIds.length === 0 || selectedCategoryIds.includes(category.id)}
+              onPress={() => toggleCategory(category.id)}
+            />
+          ))}
+          {categories.length === 0 ? <SupportingText>No Categories available.</SupportingText> : null}
+        </View>
       </ChoiceSheet>
       {categoriesLoading && categories.length === 0 ? (
         <SupportingText>Loading Categories…</SupportingText>
@@ -686,6 +679,27 @@ function CategoryChart({
         </>
       )}
     </ChartCard>
+  );
+}
+function CategoryChoice({ label, icon, selected, onPress }: {
+  label: string;
+  icon?: ReactNode;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  const { palette, fonts } = useAppTheme();
+  return (
+    <Pressable
+      accessibilityRole="checkbox"
+      accessibilityLabel={label}
+      accessibilityState={{ checked: selected }}
+      onPress={onPress}
+      style={{ minHeight: 52, paddingVertical: 7, paddingHorizontal: 8, borderRadius: 12, flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: selected ? palette.selectedSpace : "transparent" }}
+    >
+      {icon}
+      <Text style={{ flex: 1, fontFamily: selected ? fonts.semibold : fonts.medium, fontSize: 15, color: selected ? palette.brandPrimary : palette.textPrimary }}>{label}</Text>
+      {selected ? <Check size={18} color={palette.brandPrimary} /> : null}
+    </Pressable>
   );
 }
 function BudgetChecks({
@@ -941,26 +955,23 @@ function ChartCard({
 }) {
   const { palette, fonts } = useAppTheme();
   return (
-    <DesignSurface
-      style={{
-        gap: 16,
-        padding: inset,
-      }}
-    >
-      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-        <Text
-          accessibilityRole="header"
-          style={{
-            color: palette.textPrimary,
-            fontFamily: fonts.semibold,
-            fontSize: typeScale.sectionTitle,
-          }}
-        >
-          {title}
-        </Text>
-        {accessory}
+    <DesignSurface>
+      <View style={{ gap: 16, padding: inset }}>
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+          <Text
+            accessibilityRole="header"
+            style={{
+              color: palette.textPrimary,
+              fontFamily: fonts.semibold,
+              fontSize: typeScale.sectionTitle,
+            }}
+          >
+            {title}
+          </Text>
+          {accessory}
+        </View>
+        {children}
       </View>
-      {children}
     </DesignSurface>
   );
 }

@@ -13,6 +13,7 @@ export function TextField({
   keyboardType = 'default',
   autoCapitalize = 'sentences',
   onBlur,
+  onSubmitEditing, returnKeyType, autoFocus,
   editable = true,
   variant = 'filled',
   icon,
@@ -27,6 +28,9 @@ export function TextField({
   keyboardType?: 'default' | 'decimal-pad';
   autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
   onBlur?: () => void;
+  onSubmitEditing?: () => void;
+  returnKeyType?: "search";
+  autoFocus?: boolean;
   editable?: boolean;
   variant?: 'filled' | 'underlined' | 'amount' | 'budget';
   icon?: ReactNode;
@@ -48,9 +52,9 @@ export function TextField({
         flexDirection: 'row', alignItems: 'center', gap: variant === 'amount' ? 6 : 14,
         justifyContent: variant === 'amount' ? 'center' : undefined,
         borderBottomWidth: variant === 'underlined' ? 1 : 0,
-        borderWidth: variant === 'budget' && error ? 1 : 0,
+        borderWidth: variant === 'budget' ? 1 : 0,
         borderColor: error ? palette.stateNegative : palette.fieldBorder,
-        backgroundColor: variant === 'budget' ? palette.editorField : undefined,
+        backgroundColor: variant === 'budget' ? palette.surfaceModal : undefined,
         borderRadius: variant === 'budget' ? radius.control : undefined,
       }}>
       {icon ? <View pointerEvents="none" accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">{icon}</View> : null}
@@ -62,6 +66,9 @@ export function TextField({
         placeholderTextColor={palette.textSecondary}
         keyboardType={keyboardType}
         onBlur={onBlur}
+        onSubmitEditing={onSubmitEditing}
+        returnKeyType={returnKeyType}
+        autoFocus={autoFocus}
         editable={editable}
         autoCapitalize={autoCapitalize}
         autoCorrect={false}
@@ -78,15 +85,15 @@ export function TextField({
           color: palette.textPrimary,
           backgroundColor: variant === 'filled' ? palette.surfaceModal : 'transparent',
           opacity: editable ? 1 : 0.55,
-          fontFamily: variant === 'filled' ? fonts.regular : fonts.medium,
-          fontSize: variant === 'amount' ? 48 : variant === 'budget' ? typeScale.budgetAmount : typeScale.body,
+          fontFamily: variant === 'filled' || variant === 'budget' ? fonts.regular : fonts.medium,
+          fontSize: variant === 'amount' ? 48 : typeScale.body,
           letterSpacing: variant === 'amount' ? -1.5 : 0,
           textAlign: variant === 'amount' ? 'center' : 'left',
-          paddingHorizontal: variant === 'filled' ? space.screenBottom : variant === 'budget' ? 20 : 0,
-          paddingVertical: variant === 'budget' ? 20 : undefined,
+          paddingHorizontal: variant === 'filled' || variant === 'budget' ? space.screenBottom : 0,
+          
         }}
       />
-      {suffix ? <Text style={{ paddingRight: 20, color: palette.textSecondary, fontFamily: fonts.regular, fontSize: typeScale.metadata }}>{suffix}</Text> : null}
+      {suffix ? <Text style={{ paddingRight: space.screenBottom, color: palette.textSecondary, fontFamily: fonts.regular, fontSize: typeScale.metadata }}>{suffix}</Text> : null}
       </View>
       {error ? (
         <Text

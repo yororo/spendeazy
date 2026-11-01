@@ -1,17 +1,20 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ElementRef, type ReactNode } from "react";
 import {
   FlatList,
   KeyboardAvoidingView,
+  Keyboard,
+  Platform,
   Pressable,
   RefreshControl,
   Text,
   View,
   type ListRenderItem,
 } from "react-native";
+import { DateTimePicker } from "@expo/ui/community/datetime-picker";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { SpaceCategory } from "@/api/categories-api-client";
 import type { ListedExpense } from "@/api/expense-response";
-import { ArrowDownWideNarrow, CalendarRange, Search, Shapes } from "lucide-react-native";
+import { ArrowDownWideNarrow, ArrowUpWideNarrow, CalendarRange, Search, Shapes, Check, X, ChevronLeft, ChevronDown, Ellipsis } from "lucide-react-native";
 import { CompactAction, SecondaryButton } from "@/components/buttons";
 import { CategoryIconMark } from "@/components/category-mark";
 import { ChoiceSheet } from "@/components/choice-sheet";
@@ -22,6 +25,7 @@ import { BodyText, StackGap, SupportingText } from "@/components/screen";
 import { TextField } from "@/components/text-field";
 import { controlSize, space, typeScale } from "@/constants/theme";
 import { useAppTheme } from "@/navigation/app-theme";
+import { expenseBrowseIssues } from "./browse-state";
 import type { ExpenseBrowseSelection } from "./browse-state";
 import type { useExpenseBrowse } from "./use-expense-browse";
 
@@ -66,6 +70,10 @@ export function ExpenseBrowse({
   const deletedOnly = controller.deletedOnly ?? false;
   const [categoryOpen, setCategoryOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [optionsOpen, setOptionsOpen] = useState(false);
+  const [dates, setDates] = useState({ fromDate: '', toDate: '' });
+  const toolbarRef = useRef<ElementRef<typeof View>>(null);
   const listRef = useRef<FlatList<ListedExpense>>(null);
   const restoredQuery = useRef("");
   useEffect(() => {
@@ -127,12 +135,6 @@ export function ExpenseBrowse({
     );
   };
 
-  const fromError =
-    issues.find((issue) => issue.field === "fromDate")?.message ?? null;
-  const toError =
-    issues.find((issue) => issue.field === "toDate" || issue.field === "range")
-      ?.message ?? null;
-
   return (
     <View style={{ flex: 1, backgroundColor: palette.canvas }}>
       <CanvasBackground />
@@ -174,7 +176,10 @@ export function ExpenseBrowse({
           }}
           ListHeaderComponent={
             <StackGap>
-              <ScreenHeader title={deletedOnly ? "Deleted Expenses" : "Expenses"} accessory={spaceStatus} />
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                {onBackToDashboard || (deletedOnly && onOpenOtherList) ? <CompactAction variant="icon" label="Back" icon={<ChevronLeft size={22} color={palette.textPrimary} />} onPress={onBackToDashboard ?? onOpenOtherList!} /> : null}
+                <View style={{ flex: 1 }}><ScreenHeader title={deletedOnly ? "Deleted Expenses" : "Expenses"} accessory={spaceStatus} /></View>
+              </View>
               {scopeLabel ? <SupportingText>{scopeLabel}</SupportingText> : null}
               {loaded && phase === "ready" && issues.length === 0 ? (
                 <View style={{ alignItems: 'center', gap: 3, paddingTop: 8, paddingBottom: 4 }}>
@@ -184,19 +189,16 @@ export function ExpenseBrowse({
                 </View>
               ) : null}
               {selection ? <View style={{ gap: 6 }}>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
-                  <CompactAction label="Dates" selected={!!selection.fromDate || !!selection.toDate} icon={<CalendarRange size={16} color={palette.brandPrimary} />} onPress={() => setFiltersOpen(true)} />
-                  <CompactAction label="Category" selected={selection.categoryId !== null} icon={<Shapes size={16} color={palette.brandPrimary} />} onPress={() => setCategoryOpen(true)} />
-                  <CompactAction label="Search Expenses" variant="icon" selected={selection.description !== ''} icon={<Search size={17} color={palette.textSecondary} />} onPress={() => setFiltersOpen(true)} />
-                  <CompactAction label={selection.sort === 'newest' ? 'Sorted newest first. Switch to oldest first' : 'Sorted oldest first. Switch to newest first'} variant="icon" selected={selection.sort === 'oldest'} icon={<ArrowDownWideNarrow size={17} color={palette.textSecondary} />} onPress={() => onChange({ sort: selection.sort === 'newest' ? 'oldest' : 'newest' })} />
+                <View ref={toolbarRef} style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
+                  <CompactAction accessibilityLabel={`Dates: ${selection.fromDate || "Any start"} to ${selection.toDate || "Any end"}`} variant="icon" label={selection.fromDate || selection.toDate ? `${selection.fromDate || "Any"} – ${selection.toDate || "Any"}` : "Dates"} selected={!!selection.fromDate || !!selection.toDate} icon={<CalendarRange size={16} color={palette.brandPrimary} />} onPress={() => { setDates({ fromDate: selection.fromDate, toDate: selection.toDate }); setFiltersOpen(true); }} />
+                  <CompactAction accessibilityLabel={`Category: ${selection.categoryId ? categoryName(categories.categories, selection.categoryId) : "All categories"}`} variant="icon" label={selection.categoryId ? categoryName(categories.categories, selection.categoryId) : "Category"} selected={selection.categoryId !== null} icon={<Shapes size={16} color={palette.brandPrimary} />} onPress={() => setCategoryOpen(true)} />
+                  <CompactAction label="Search Expenses" variant="icon" selected={selection.description !== ''} icon={<Search size={17} color={palette.textSecondary} />} onPress={() => setSearchOpen(true)} />
+                  <CompactAction label={selection.sort === 'newest' ? 'Sorted newest first. Switch to oldest first' : 'Sorted oldest first. Switch to newest first'} variant="icon" selected={selection.sort === 'oldest'} icon={selection.sort === "newest" ? <ArrowDownWideNarrow size={17} color={palette.textSecondary} /> : <ArrowUpWideNarrow size={17} color={palette.textSecondary} />} onPress={() => onChange({ sort: selection.sort === 'newest' ? 'oldest' : 'newest' })} />
+                  {onOpenOtherList && !deletedOnly ? <CompactAction variant="icon" icon={<Ellipsis size={22} color={palette.textSecondary} />} label="More options" onPress={() => setOptionsOpen(true)} /> : null}
                 </View>
-                {hasExpenseFilter(selection) ? <Text style={metadataStyle}>{[selection.fromDate || selection.toDate ? (selection.fromDate || 'Any start') + ' – ' + (selection.toDate || 'Any end') : '', selection.categoryId ? categoryName(categories.categories, selection.categoryId) : '', selection.description ? 'Search: ' + selection.description : '', selection.sort === 'oldest' ? 'Oldest first' : ''].filter(Boolean).join(' · ')}</Text> : null}
+                {searchOpen || selection.description ? <DescriptionSearch key={`${selection.spaceId}:${selection.description}`} selection={selection} onChange={onChange} onClose={() => { Keyboard.dismiss(); setSearchOpen(false); onChange({ description: "" }); }} /> : null}
                 {issues.length > 0 ? <Text accessibilityLiveRegion="polite" style={{ ...metadataStyle, color: palette.stateNegative }}>{issues.map((issue) => issue.message).join(' ')}</Text> : null}
               </View> : null}
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                {onBackToDashboard ? <CompactAction variant="quiet" label="Back to Dashboard" onPress={onBackToDashboard} /> : null}
-                {onOpenOtherList ? <CompactAction variant="quiet" label={deletedOnly ? 'Active Expenses' : 'Deleted Expenses'} onPress={onOpenOtherList} /> : null}
-              </View>
               {phase === "loading" && !loaded ? (
                 <BodyText>Loading Expenses.</BodyText>
               ) : null}
@@ -210,13 +212,13 @@ export function ExpenseBrowse({
           }
           ListEmptyComponent={
             phase === "ready" && loaded && loaded.expenses.length === 0 ? (
-              <BodyText>
+              <StackGap><BodyText>
                 {selection && hasExpenseFilter(selection)
                   ? "No Expenses match these filters."
                   : deletedOnly
                     ? "No deleted Expenses in this Space."
-                    : "No Expenses in this Space yet."}
-              </BodyText>
+                    : "No expenses yet. Use + to add an expense or import a statement."}
+              </BodyText>{selection && hasExpenseFilter(selection) ? <SecondaryButton label="Clear filters" onPress={() => onChange({ fromDate: "", toDate: "", categoryId: null, description: "" })} /> : null}</StackGap>
             ) : undefined
           }
           ListFooterComponent={
@@ -236,18 +238,24 @@ export function ExpenseBrowse({
       </KeyboardAvoidingView>
       {selection ? (
         <>
-          <ChoiceSheet title="Filter Expenses" showClose visible={filtersOpen && !categoryOpen} onDismiss={() => setFiltersOpen(false)}>
-            <ExpenseFilters selection={selection} categories={categories.categories} fromError={fromError} toError={toError} onOpenCategories={() => setCategoryOpen(true)} onChange={onChange} />
-            <SecondaryButton label="Show Expenses" onPress={() => setFiltersOpen(false)} />
+          <ChoiceSheet title="Options" visible={optionsOpen} showClose onDismiss={() => setOptionsOpen(false)}><SecondaryButton label="Deleted" onPress={() => { setOptionsOpen(false); onOpenOtherList?.(); }} /></ChoiceSheet>
+          <ChoiceSheet restoreFocusRef={toolbarRef} title="Dates" visible={filtersOpen} showClose onDismiss={() => setFiltersOpen(false)}>
+            <BrowseDateField label="From" value={dates.fromDate} onChange={fromDate => setDates({ ...dates, fromDate })} />
+            <BrowseDateField label="To" value={dates.toDate} onChange={toDate => setDates({ ...dates, toDate })} />
+            {expenseBrowseIssues({ ...selection, ...dates }).map(issue => <BodyText key={issue.field}>{issue.message}</BodyText>)}
+            <SecondaryButton label="Clear" onPress={() => setDates({ fromDate: '', toDate: '' })} />
+            <SecondaryButton label="Apply" disabled={expenseBrowseIssues({ ...selection, ...dates }).length > 0} onPress={() => { onChange(dates); setFiltersOpen(false); }} />
           </ChoiceSheet>
           <ChoiceSheet
+            restoreFocusRef={toolbarRef}
+            maxHeight="65%"
             title="Category"
             showClose
             visible={categoryOpen}
             onDismiss={() => setCategoryOpen(false)}
           >
             <SecondaryButton
-              label="All Categories"
+              label={selection.categoryId === null ? "✓ All Categories" : "All Categories"}
               selected={selection.categoryId === null}
               onPress={() => {
                 onChange({ categoryId: null });
@@ -255,19 +263,11 @@ export function ExpenseBrowse({
               }}
             />
             {categories.categories.map((category) => (
-              <SecondaryButton
-                key={category.id}
-                label={
-                  category.isActive
-                    ? category.name
-                    : `${category.name} (inactive)`
-                }
-                selected={selection.categoryId === category.id}
-                onPress={() => {
-                  onChange({ categoryId: category.id });
-                  setCategoryOpen(false);
-                }}
-              />
+              <Pressable key={category.id} accessibilityRole="button" accessibilityLabel={category.name + (category.isActive ? '' : ', inactive')} accessibilityState={{ selected: selection.categoryId === category.id }} onPress={() => { onChange({ categoryId: category.id }); setCategoryOpen(false); }} style={{ minHeight: 52, paddingVertical: 7, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <CategoryIconMark iconKey={category.iconKey} colorKey={category.colorKey} size={20} />
+                <Text style={{ ...metadataStyle, flex: 1 }}>{category.name}{category.isActive ? '' : ' (inactive)'}</Text>
+                {selection.categoryId === category.id ? <Check size={18} color={palette.brandPrimary} /> : null}
+              </Pressable>
             ))}
           </ChoiceSheet>
         </>
@@ -276,92 +276,17 @@ export function ExpenseBrowse({
   );
 }
 
-function ExpenseFilters({
-  selection,
-  categories,
-  fromError,
-  toError,
-  onOpenCategories,
-  onChange,
-}: {
-  selection: ExpenseBrowseSelection;
-  categories: SpaceCategory[];
-  fromError: string | null;
-  toError: string | null;
-  onOpenCategories: () => void;
-  onChange: (patch: Partial<Omit<ExpenseBrowseSelection, "spaceId">>) => void;
-}) {
-  const selected = categories.find(
-    (category) => category.id === selection.categoryId,
-  );
-  return (
-    <StackGap>
-      <TextField
-        label="From"
-        value={selection.fromDate}
-        onChangeText={(fromDate) => onChange({ fromDate })}
-        error={fromError}
-        placeholder="YYYY-MM-DD"
-      />
-      <TextField
-        label="To"
-        value={selection.toDate}
-        onChangeText={(toDate) => onChange({ toDate })}
-        error={toError}
-        placeholder="YYYY-MM-DD"
-      />
-      <SecondaryButton
-        label={selected ? selected.name : "All Categories"}
-        selected={selection.categoryId !== null}
-        onPress={onOpenCategories}
-      />
-      <DescriptionSearch
-        key={`${selection.spaceId}:${selection.description}`}
-        selection={selection}
-        onChange={onChange}
-      />
-      <View style={{ flexDirection: "row", gap: space.cardGap }}>
-        <View style={{ flex: 1 }}>
-          <SecondaryButton
-            label="Newest"
-            selected={selection.sort === "newest"}
-            onPress={() => onChange({ sort: "newest" })}
-          />
-        </View>
-        <View style={{ flex: 1 }}>
-          <SecondaryButton
-            label="Oldest"
-            selected={selection.sort === "oldest"}
-            onPress={() => onChange({ sort: "oldest" })}
-          />
-        </View>
-      </View>
-      {hasExpenseFilter(selection) ? (
-        <SecondaryButton
-          label="Clear filters"
-          onPress={() =>
-            onChange({
-              fromDate: "",
-              toDate: "",
-              categoryId: null,
-              description: "",
-              sort: "newest",
-            })
-          }
-        />
-      ) : null}
-    </StackGap>
-  );
-}
-
 function DescriptionSearch({
   selection,
   onChange,
+  onClose,
 }: {
   selection: ExpenseBrowseSelection;
   onChange: (patch: Partial<Omit<ExpenseBrowseSelection, "spaceId">>) => void;
+  onClose: () => void;
 }) {
   const [description, setDescription] = useState(selection.description);
+
 
   function commit() {
     if (description === selection.description) return;
@@ -374,10 +299,12 @@ function DescriptionSearch({
         label="Search description"
         value={description}
         onChangeText={setDescription}
-        onBlur={commit}
+        onSubmitEditing={commit}
+        returnKeyType="search"
+        autoFocus
         placeholder="Search"
       />
-      <SecondaryButton label="Search" onPress={commit} />
+      <CompactAction label="Close search" variant="icon" icon={<X size={20} />} onPress={onClose} />
     </StackGap>
   );
 }
@@ -387,8 +314,7 @@ function hasExpenseFilter(selection: ExpenseBrowseSelection): boolean {
     selection.fromDate !== "" ||
     selection.toDate !== "" ||
     selection.categoryId !== null ||
-    selection.description.trim() !== "" ||
-    selection.sort !== "newest"
+    selection.description.trim() !== ""
   );
 }
 
@@ -401,4 +327,46 @@ function categoryName(categories: SpaceCategory[], categoryId: string): string {
 
 function expenseCountLabel(totalCount: string): string {
   return totalCount === "1" ? "1 Expense" : `${totalCount} Expenses`;
+}
+
+// Keep calendar days local: UTC serialization can shift a selected date by a day.
+function BrowseDateField({ label, value, onChange }: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const { palette, scheme, fonts } = useAppTheme();
+  const [open, setOpen] = useState(false);
+  const [pickerValue, setPickerValue] = useState(new Date());
+  const parts = value.split('-').map(Number);
+  const dateLabel = value ? new Date(parts[0], parts[1] - 1, parts[2], 12).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Any date';
+  return <View style={{ gap: space.fieldLabelGap }}>
+    <Text style={{ color: palette.textSecondary, fontFamily: fonts.medium, fontSize: typeScale.metadata }}>{label}</Text>
+    <Pressable accessibilityRole="button" accessibilityLabel={label + ': ' + dateLabel} accessibilityState={{ expanded: open }} style={({ pressed }) => ({ minHeight: controlSize.field, flexDirection: 'row', alignItems: 'center', gap: space.cardGap, borderBottomWidth: 1, borderColor: palette.fieldBorder, paddingVertical: space.fieldLabelGap, opacity: pressed ? 0.55 : 1 })} onPress={() => {
+      const parts = value.split('-').map(Number);
+      const date = value ? new Date(parts[0], parts[1] - 1, parts[2], 12) : new Date();
+      setPickerValue(Number.isNaN(date.getTime()) ? new Date() : date);
+      Keyboard.dismiss();
+      setOpen(true);
+    }}>
+      <View accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants"><CalendarRange size={20} color={palette.brandPrimary} /></View>
+      <Text style={{ flex: 1, color: value ? palette.textPrimary : palette.textSecondary, fontFamily: fonts.medium, fontSize: typeScale.body }}>{dateLabel}</Text>
+      <View accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants"><ChevronDown size={18} color={palette.textSecondary} /></View>
+    </Pressable>
+    {open ? <DateTimePicker
+      value={pickerValue}
+      mode="date"
+      presentation={Platform.OS === 'android' ? 'dialog' : 'inline'}
+      display={Platform.OS === 'ios' ? 'inline' : 'default'}
+      themeVariant={scheme}
+      accentColor={palette.brandPrimary}
+      onDismiss={() => setOpen(false)}
+      onValueChange={(_, date) => {
+        setPickerValue(date);
+        onChange([date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-'));
+        if (Platform.OS === 'android') setOpen(false);
+      }}
+    /> : null}
+    {open && Platform.OS === 'ios' ? <SecondaryButton label="Done" onPress={() => setOpen(false)} /> : null}
+  </View>;
 }

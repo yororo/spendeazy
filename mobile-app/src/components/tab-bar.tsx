@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { ArrowLeftRight, LayoutDashboard, PieChart, Plus, UserRound } from 'lucide-react-native';
+import { ArrowLeftRight, LayoutDashboard, PieChart, Plus, RotateCcw, UserRound } from 'lucide-react-native';
 import { Pressable, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -28,10 +28,11 @@ export function SpendeazyTabBar({ state, navigateToTab }: TabBarProps) {
   const { palette } = useAppTheme();
   const current = state.routes[state.index]?.name;
   const recovering = useSyncExternalStore(session.confirmation.subscribe, session.confirmation.hasReceipt, () => false);
-  if (recovering) return null;
+  const ActionIcon = recovering ? RotateCcw : Plus;
 
   return (
-    <View pointerEvents="box-none" style={{ position: 'absolute', left: space.screenHorizontal, right: space.screenHorizontal, bottom: Math.max(insets.bottom, 8), flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+    // Native tab screens must stay below this floating navigation overlay.
+    <View pointerEvents="box-none" style={{ position: 'absolute', zIndex: 1, elevation: 8, left: space.screenHorizontal, right: space.screenHorizontal, bottom: Math.max(insets.bottom, 8), flexDirection: 'row', alignItems: 'center', gap: 12 }}>
       <DesignSurface variant="navigation" containerStyle={{ flex: 1 }} style={{ height: controlSize.navigation, padding: 6, paddingHorizontal: width < 324 ? 4 : 6 }}>
         <View accessibilityRole="tablist" style={{ flex: 1, flexDirection: 'row' }}>
           {tabs.map((tab) => {
@@ -49,8 +50,8 @@ export function SpendeazyTabBar({ state, navigateToTab }: TabBarProps) {
         </View>
       </DesignSurface>
       <DesignSurface variant="add" style={{ width: controlSize.addAction, height: controlSize.addAction }}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Add" onPress={() => router.push('/add')} style={{ flex: 1, borderRadius: radius.navigation, alignItems: 'center', justifyContent: 'center' }}>
-          <View pointerEvents="none" accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants"><Plus color={palette.onAdd} size={30} /></View>
+        <Pressable accessibilityRole="button" accessibilityLabel={recovering ? 'Check import status' : 'Add'} onPress={() => router.push(recovering ? '/import-statement' : '/add')} style={{ flex: 1, borderRadius: radius.navigation, alignItems: 'center', justifyContent: 'center' }}>
+          <View pointerEvents="none" accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants"><ActionIcon color={palette.onAdd} size={30} /></View>
         </Pressable>
       </DesignSurface>
     </View>

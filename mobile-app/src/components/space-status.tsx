@@ -1,4 +1,5 @@
 import { ChevronDown, CircleCheck } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
 import { useRef, useState, useSyncExternalStore, type ElementRef } from 'react';
 import { session } from '@/application/session-runtime';
 import { Pressable, Text, View } from 'react-native';
@@ -23,6 +24,7 @@ function SpaceInitials({ space, compact = false }: { space: AccessibleSpace; com
 }
 
 export function SpaceStatus({ readOnly = false }: { readOnly?: boolean } = {}) {
+  const router = useRouter();
   const { spaces, active, loading, error, memoryError, refresh, selectSpace, hasUnsavedWork, hasImportWork, discardUnsavedWork } = useSpaces();
   const { palette, fonts } = useAppTheme();
   const [open, setOpen] = useState(false);
@@ -41,14 +43,13 @@ export function SpaceStatus({ readOnly = false }: { readOnly?: boolean } = {}) {
   if (readOnly) return <View accessible accessibilityLabel={`Destination Space: ${spaceIdentityLabel(active)}`} style={{ alignSelf: 'flex-start', flexShrink: 1 }}>{badge}</View>;
 
   return (
-    <View style={{ flexShrink: 1, gap: 6 }}>
-      <Pressable ref={switchTrigger} disabled={recovering} accessibilityRole="button" accessibilityLabel={`Active Space: ${spaceIdentityLabel(active)}.${recovering ? ' Fixed until import acknowledgment.' : ' Switch Space'}`} accessibilityState={{ expanded: open, disabled: recovering }} onPress={() => setOpen(true)} style={{ minHeight: 48, alignSelf: 'flex-start', justifyContent: 'center' }}>
+    <View style={{ flexShrink: 1, gap: 6, alignItems: 'flex-end' }}>
+      <Pressable ref={switchTrigger} accessibilityRole="button" accessibilityLabel={`Active Space: ${spaceIdentityLabel(active)}.${recovering ? ' Fixed until import acknowledgment. Check import status' : ' Switch Space'}`} accessibilityState={{ expanded: open }} onPress={() => recovering ? router.push('/import-statement') : setOpen(true)} style={{ minHeight: 48, alignSelf: 'flex-end', justifyContent: 'center' }}>
         {badge}
       </Pressable>
       {active.status === 'archived' ? <SupportingText>Archived · Read-only</SupportingText> : null}
-      {recovering ? <SupportingText>Check import status and acknowledge its outcome before changing destination.</SupportingText> : null}
       {memoryError ? <SupportingText>{memoryError}</SupportingText> : null}
-      <Popover title="Spaces" visible={open && pendingSpaceId === null} onDismiss={() => setOpen(false)} anchorRef={switchTrigger} restoreFocusOnDismiss={pendingSpaceId === null} showHeader={false}>
+      <Popover title="Spaces" visible={!recovering && open && pendingSpaceId === null} onDismiss={() => setOpen(false)} anchorRef={switchTrigger} restoreFocusOnDismiss={pendingSpaceId === null} showHeader={false}>
         {spaces.map((space) => {
           const selected = space.id === active.id;
           return <Pressable key={space.id} accessibilityRole="button" accessibilityLabel={spaceIdentityLabel(space)} accessibilityState={{ selected }} onPress={() => {

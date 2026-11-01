@@ -24,7 +24,7 @@ export default function AddScreen() {
   const writable = active?.status === 'active' && active.accessLevel === 'write';
   return (
     <View style={{ flex: 1 }}>
-      <ChoiceSheet title="Add" visible onDismiss={() => router.back()} showClose>
+      <ChoiceSheet title="Add" presentation="inline" visible onDismiss={() => router.back()} showClose>
         {writable ? <>
           <AddChoice title="Import statement" description="Not available yet" icon={<FileUp size={22} color={palette.brandPrimary} />} onPress={() => router.push('/import-statement')} />
           <AddChoice title="Add Expense" description="Enter an Expense manually" icon={<PenLine size={22} color={palette.brandPrimary} />} onPress={() => router.push('/add-expense')} />

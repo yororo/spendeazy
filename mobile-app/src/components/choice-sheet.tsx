@@ -10,7 +10,7 @@ import { CompactAction } from '@/components/buttons';
 
 type ShellProps = { title: string; visible: boolean; onDismiss: () => void; children: ReactNode; dismissOnBackdrop?: boolean; showClose?: boolean; maxHeight?: ViewStyle['maxHeight']; restoreFocusRef?: RefObject<ElementRef<typeof View> | null>; initialFocusRef?: RefObject<ElementRef<typeof View> | null> };
 
-export function ChoiceSheet(props: ShellProps) {
+export function ChoiceSheet(props: ShellProps & { presentation?: 'modal' | 'inline' }) {
   return <ModalShell {...props} />;
 }
 
@@ -29,6 +29,7 @@ function ModalShell({
   maxHeight = '100%',
   restoreFocusRef,
   initialFocusRef,
+  presentation = 'modal',
 }: {
   title: string;
   visible: boolean;
@@ -40,6 +41,7 @@ function ModalShell({
   maxHeight?: ViewStyle['maxHeight'];
   restoreFocusRef?: RefObject<ElementRef<typeof View> | null>;
   initialFocusRef?: RefObject<ElementRef<typeof View> | null>;
+  presentation?: 'modal' | 'inline';
 }) {
   const insets = useSafeAreaInsets();
   const { palette, fonts } = useAppTheme();
@@ -52,22 +54,11 @@ function ModalShell({
     const dismissed = wasVisible.current && !visible;
     wasVisible.current = visible;
     // iOS supplies onDismiss after the native window closes; Android does not.
-    if (!dismissed || Platform.OS === 'ios') return;
+    if (!dismissed || (presentation === 'modal' && Platform.OS === 'ios')) return;
     const frame = requestAnimationFrame(restoreFocus);
     return () => cancelAnimationFrame(frame);
-  }, [visible, restoreFocus]);
-  return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="none"
-      onRequestClose={onDismiss}
-      onDismiss={restoreFocus}
-      onShow={() => {
-        if (initialFocusRef?.current) AccessibilityInfo.sendAccessibilityEvent(initialFocusRef.current, 'focus');
-        else if (restoreFocusRef && titleRef.current) AccessibilityInfo.sendAccessibilityEvent(titleRef.current, 'focus');
-      }}
-      accessibilityViewIsModal>
+  }, [visible, restoreFocus, presentation]);
+  const content = (
       <KeyboardAvoidingView behavior={process.env.EXPO_OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1, justifyContent: centered ? 'center' : 'flex-end', paddingTop: insets.top, paddingBottom: centered ? insets.bottom : 0, paddingHorizontal: centered ? space.screenHorizontal : 0 }}>
         <Pressable
           accessibilityRole="button"
@@ -116,6 +107,23 @@ function ModalShell({
         </View>
         </ScrollView>
       </KeyboardAvoidingView>
+  );
+  // A transparent modal route already owns the native presentation. Nesting a
+  // React Native Modal there can leave iOS blocking touches after a child pops.
+  if (presentation === 'inline') return visible ? <View style={{ flex: 1 }} accessibilityViewIsModal>{content}</View> : null;
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="none"
+      onRequestClose={onDismiss}
+      onDismiss={restoreFocus}
+      onShow={() => {
+        if (initialFocusRef?.current) AccessibilityInfo.sendAccessibilityEvent(initialFocusRef.current, 'focus');
+        else if (restoreFocusRef && titleRef.current) AccessibilityInfo.sendAccessibilityEvent(titleRef.current, 'focus');
+      }}
+      accessibilityViewIsModal>
+      {content}
     </Modal>
   );
 }

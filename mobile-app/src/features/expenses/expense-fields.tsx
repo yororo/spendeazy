@@ -1,12 +1,15 @@
 import { CalendarDays, ChevronDown, Pencil, Shapes } from 'lucide-react-native';
 import { Pressable, Text, View } from 'react-native';
+import { BrowseDateField } from '@/components/native-date-field';
 import { TextField } from '@/components/text-field';
 import { controlSize, space, typeScale } from '@/constants/theme';
 import { useAppTheme } from '@/navigation/app-theme';
 import type { ManualExpenseDraft, ManualExpenseField } from './manual-draft';
 
 /** Shared presentation for manual creation and revision-protected editing. */
-export function ExpenseFields({ draft, issues, categoryLabel, onChange, onOpenCategories, disabled = false }: {
+export function ExpenseFields({ draft, issues, categoryLabel, onChange, onOpenCategories, disabled = false, compact = false, nativeDatePicker = false }: {
+  compact?: boolean;
+  nativeDatePicker?: boolean;
   disabled?: boolean;
   draft: ManualExpenseDraft;
   issues: Partial<Record<ManualExpenseField, string>>;
@@ -17,7 +20,7 @@ export function ExpenseFields({ draft, issues, categoryLabel, onChange, onOpenCa
   const { palette, fonts } = useAppTheme();
   return (
     <View style={{ gap: space.dialogGap }}>
-      <View style={{ alignSelf: 'center', width: '100%', paddingVertical: 12 }}>
+      <View style={{ alignSelf: 'center', width: '100%', paddingVertical: compact ? 0 : 12 }}>
         <TextField
           label="Amount in Philippine pesos"
           showLabel={false}
@@ -43,7 +46,7 @@ export function ExpenseFields({ draft, issues, categoryLabel, onChange, onOpenCa
           error={issues.description}
           placeholder="Description (optional)"
         />
-        <TextField
+        {nativeDatePicker ? <BrowseDateField label="Date" showLabel={false} disabled={disabled} value={draft.expenseDate} onChange={expenseDate => onChange({ expenseDate })} /> : <TextField
           label="Date"
           showLabel={false}
           editable={!disabled}
@@ -53,7 +56,7 @@ export function ExpenseFields({ draft, issues, categoryLabel, onChange, onOpenCa
           onChangeText={(expenseDate) => onChange({ expenseDate })}
           error={issues.expenseDate}
           placeholder="YYYY-MM-DD"
-        />
+        />}
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`Category: ${categoryLabel}`}

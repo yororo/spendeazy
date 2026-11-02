@@ -305,3 +305,18 @@ test('mixed ledger keeps PHP 1300 spending, locked exclusions and duplicate sour
   state = save(edit(state, { categoryId: 'food' }));
   assert.equal(validateReview(state, now).handoff?.rows[6].amount, '1000.00');
 });
+
+
+test('opening the current queue transaction edits it without retaining a stale duplicate buffer', () => {
+  let state = edit(ready(), { description: 'Pending correction' });
+  const editor = state.editor;
+  state = reduce(state, { type: 'rowOpened', sourceRowId: editor!.sourceRowId });
+  assert.equal(state.inspectedSourceRowId, editor!.sourceRowId);
+  assert.equal(state.editor, editor);
+  assert.equal(state.pendingQueueEditor, null);
+  state = edit(state, { categoryId: 'food' });
+  state = save(state);
+  assert.equal(state.inspectedSourceRowId, null);
+  assert.notEqual(state.editor?.sourceRowId, editor!.sourceRowId);
+  assert.equal(state.rows[editor!.sourceRowId].values.description, 'Pending correction');
+});

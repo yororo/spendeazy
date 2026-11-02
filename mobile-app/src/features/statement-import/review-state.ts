@@ -43,14 +43,14 @@ export function reviewReducer(state: ReviewState, event: ReviewEvent): ReviewSta
   switch (event.type) {
     case 'rowOpened': {
       const row = state.rows[event.sourceRowId];
-      if (!row || state.editor?.sourceRowId === row.sourceRowId) return state;
+      if (!row || state.inspectedSourceRowId === row.sourceRowId) return state;
       if (state.pendingQueueEditor?.sourceRowId === row.sourceRowId) return reviewReducer(state, { type: 'queueReturned' });
       // A ledger editor cannot replace another dirty ledger buffer.
       if (state.inspectedSourceRowId && editorDirty(state, state.editor)) {
         return { ...state, errors: ['Save or abandon these ledger edits before opening another Transaction.'] };
       }
-      return { ...state, pendingQueueEditor: state.pendingQueueEditor ?? (state.inspectedSourceRowId ? null : state.editor),
-        editor: row.inclusion === 'included' ? editorFor(row) : null, inspectedSourceRowId: row.sourceRowId, errors: [] };
+      return { ...state, pendingQueueEditor: state.pendingQueueEditor ?? (state.inspectedSourceRowId || state.editor?.sourceRowId === row.sourceRowId ? null : state.editor),
+        editor: row.inclusion === 'included' ? (state.editor?.sourceRowId === row.sourceRowId ? state.editor : editorFor(row)) : null, inspectedSourceRowId: row.sourceRowId, errors: [] };
     }
     case 'queueReturned': return state.inspectedSourceRowId && editorDirty(state, state.editor)
       ? { ...state, errors: ['Save or abandon these ledger edits before returning to the queue.'] }

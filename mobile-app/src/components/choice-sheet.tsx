@@ -8,7 +8,7 @@ import { radius, space, typeScale } from '@/constants/theme';
 import { useAppTheme } from '@/navigation/app-theme';
 import { CompactAction } from '@/components/buttons';
 
-type ShellProps = { title: string; visible: boolean; onDismiss: () => void; children: ReactNode; dismissOnBackdrop?: boolean; showClose?: boolean; maxHeight?: ViewStyle['maxHeight']; restoreFocusRef?: RefObject<ElementRef<typeof View> | null>; initialFocusRef?: RefObject<ElementRef<typeof View> | null> };
+type ShellProps = { headerAccessory?: ReactNode; title: string; visible: boolean; onDismiss: () => void; children: ReactNode; dismissOnBackdrop?: boolean; showClose?: boolean; maxHeight?: ViewStyle['maxHeight']; restoreFocusRef?: RefObject<ElementRef<typeof View> | null>; initialFocusRef?: RefObject<ElementRef<typeof View> | null> };
 
 export function ChoiceSheet(props: ShellProps & { presentation?: 'modal' | 'inline' }) {
   return <ModalShell {...props} />;
@@ -19,7 +19,7 @@ export function CenteredDialog(props: ShellProps) {
 }
 
 function ModalShell({
-  title,
+  title, headerAccessory,
   visible,
   onDismiss,
   children,
@@ -31,7 +31,7 @@ function ModalShell({
   initialFocusRef,
   presentation = 'modal',
 }: {
-  title: string;
+  title: string; headerAccessory?: ReactNode;
   visible: boolean;
   onDismiss: () => void;
   children: ReactNode;
@@ -101,6 +101,7 @@ function ModalShell({
             }}>
             {title}
           </Text>
+          {headerAccessory}
           {showClose ? <CompactAction label={`Close ${title}`} variant="icon" icon={<X size={20} color={palette.textSecondary} />} onPress={onDismiss} /> : null}
           </View>
           {children}
@@ -127,3 +128,5 @@ function ModalShell({
     </Modal>
   );
 }
+
+

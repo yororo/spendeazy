@@ -1,6 +1,7 @@
+import { Image } from 'expo-image';
 import { FileUp, History } from 'lucide-react-native';
 import { useState, type ReactNode } from 'react';
-import { Alert, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Text, TextInput, View } from 'react-native';
 import { CompactAction, PrimaryButton, SecondaryButton } from '@/components/buttons';
 import { DesignSurface } from '@/components/design-surface';
 import { BodyText, Screen, StackGap, SupportingText } from '@/components/screen';
@@ -43,14 +44,21 @@ export function StatementImportView({ controller: c, recentHistory, onHistory, o
       </View>)}
     </View>
     <DesignSurface style={{ paddingHorizontal: 20, paddingVertical: 40, gap: 22 }}>
-      <View accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ alignSelf: 'center', width: 90, height: 110, borderRadius: 18, backgroundColor: palette.surfaceModal, alignItems: 'center', justifyContent: 'center', transform: [{ rotate: '-6deg' }] }}><FileUp size={44} color={palette.brandPrimary} /></View>
-      <SupportingText>PDF · BDO Amex · EastWest Visa · GCash E-Wallet</SupportingText>
+      <View accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ alignSelf: 'center', width: 90, height: 110, borderRadius: 18, backgroundColor: palette.surfaceModal, alignItems: 'center', justifyContent: 'center', shadowColor: palette.shadow, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 1, shadowRadius: 8, elevation: 3, transform: [{ rotate: '-6deg' }] }}><FileUp size={44} color={palette.brandPrimary} /></View>
+      <View accessible accessibilityLabel="Supported providers: BDO AMEX, EastWest VISA, GCash E-Wallet" style={{ flexDirection: 'row', alignSelf: 'center', alignItems: 'center', gap: 16, marginBottom: 14 }}>
+        <Image source={require('../../../assets/providers/bdo.svg')} contentFit="contain" accessible={false} style={{ height: 18, aspectRatio: 415.4375 / 145.15625 }} />
+        <Image source={require('../../../assets/providers/eastwest.webp')} contentFit="contain" accessible={false} style={{ height: 18, aspectRatio: 330 / 66 }} />
+        <Image source={require('../../../assets/providers/gcash.svg')} contentFit="contain" accessible={false} style={{ height: 18, aspectRatio: 72 / 61 }} />
+      </View>
       {c.canSelect ? <PrimaryButton label={state.phase === 'idle' ? 'Select PDF' : 'Select PDF again'} onPress={c.select} /> : null}
       {c.cleanup !== 'ready' ? <SupportingText>{c.cleanup === 'starting' ? 'Checking temporary-file cleanup…' : 'Temporary-file cleanup failed. Retry before selecting a PDF.'}</SupportingText> : null}
       {c.cleanup === 'failed' ? <SecondaryButton label="Retry cleanup" onPress={c.retryCleanup} /> : null}
-      {running ? <View accessibilityLiveRegion="polite"><BodyText>{state.phase === 'extracting'
-        ? `Reading pages ${state.completedPages}${state.totalPages ? ` of ${state.totalPages}` : ''}…`
-        : state.phase === 'picking' ? 'Select a PDF from your files.' : state.phase === 'preparing' ? 'Preparing PDF…' : state.phase === 'interpreting' ? 'Interpreting statement…' : 'This PDF needs a password.'}</BodyText></View> : null}
+      {running ? <View accessibilityLiveRegion="polite">{state.phase === 'extracting'
+        ? <ExtractionProgress completedPages={state.completedPages} totalPages={state.totalPages} />
+        : state.phase === 'preparing'
+          ? <ActivityIndicator accessible accessibilityRole="progressbar" accessibilityLabel="Preparing PDF"
+            accessibilityState={{ busy: true }} color={palette.brandPrimary} size="small" />
+          : <BodyText>{state.phase === 'picking' ? 'Select a PDF from your files.' : state.phase === 'interpreting' ? 'Interpreting statement…' : 'This PDF needs a password.'}</BodyText>}</View> : null}
       {state.phase === 'password-required' ? <StackGap>
         <SupportingText>{state.reason === 'incorrect' ? 'That password did not unlock this PDF. Try again.' : 'Enter the statement password to unlock it on this device.'}</SupportingText>
         <PasswordEntry onUnlock={c.unlock} />
@@ -68,6 +76,22 @@ export function StatementImportView({ controller: c, recentHistory, onHistory, o
     <BodyText>Recent statements</BodyText>
     {recentHistory}
   </Screen>;
+}
+
+function ExtractionProgress({ completedPages, totalPages }: { completedPages: number; totalPages: number | null }) {
+  const { palette } = useAppTheme();
+  const percent = totalPages ? Math.round((completedPages / totalPages) * 100) : 0;
+  const value = totalPages ? {
+    min: 0,
+    max: 100,
+    now: percent,
+    text: `${completedPages} of ${totalPages} pages read`,
+  } : undefined;
+  return <View accessible accessibilityRole="progressbar" accessibilityLabel="Reading PDF"
+    accessibilityState={{ busy: true }} accessibilityValue={value}
+    style={{ height: 6, borderRadius: 3, overflow: 'hidden', backgroundColor: palette.meterTrack }}>
+    <View style={{ width: `${percent}%`, height: '100%', borderRadius: 3, backgroundColor: palette.brandPrimary }} />
+  </View>;
 }
 
 function PasswordEntry({ onUnlock }: { onUnlock(password: string): void }) {

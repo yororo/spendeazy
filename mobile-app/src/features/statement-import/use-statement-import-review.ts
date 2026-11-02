@@ -40,7 +40,11 @@ export function useStatementImportReview() {
     patch(patch: Partial<ReviewValues>) {
       if (review?.editor) send({ type: 'editorChanged', editor: { ...review.editor, values: { ...review.editor.values, ...patch } } });
     },
-    save: () => send({ type: 'saved', now: new Date(), localId: Crypto.randomUUID() }),
+    save: () => {
+      send({ type: 'saved', now: new Date(), localId: Crypto.randomUUID() });
+      const next = store.snapshot();
+      return 'review' in next && !!next.review && next.review.revision !== review?.revision;
+    },
     continue: () => send({ type: 'continued', now: new Date() }),
     backToReview() { const scope = store.captureReview(); if (scope) store.backToReview(scope); },
   };

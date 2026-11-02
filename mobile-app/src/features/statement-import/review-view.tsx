@@ -1,8 +1,9 @@
 import { useRef, useState, type ElementRef, type ReactNode } from 'react';
-import { ArrowLeft, Bookmark, Check, ChevronDown, ChevronRight, FileText, Landmark, Pencil, RefreshCw, Shapes, X } from 'lucide-react-native';
+import { ArrowLeft, Bookmark, CalendarDays, Check, ChevronDown, ChevronRight, Info, CircleMinus, Pencil, CircleQuestionMark, X } from 'lucide-react-native';
 import { Alert, FlatList, KeyboardAvoidingView, Pressable, Switch, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CompactAction, PrimaryButton, SecondaryButton } from '@/components/buttons';
+import { Popover } from '@/components/popover';
 import { CategoryIconMark } from '@/components/category-mark';
 import { CenteredDialog, ChoiceSheet } from '@/components/choice-sheet';
 import { CanvasBackground } from '@/components/design-surface';
@@ -13,17 +14,26 @@ import { ExpenseFields } from '@/features/expenses/expense-fields';
 import { useAppTheme } from '@/navigation/app-theme';
 import type { useStatementImportReview } from './use-statement-import-review';
 import { editorDirty, validAssignment } from './review-rules';
+import { ProviderIdentity } from './provider-identity';
 
 function withThousandsSeparators(value: string | number) {
   return String(value).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 }
 
-export function StatementImportReviewView({ controller: c, destination, onBack, onDiscard }: {
+function readableDate(value: string) {
+  const [year, month, day] = value.split('-');
+  const months = ['Jan.', 'Feb.', 'Mar.', 'Apr.', 'May', 'Jun.', 'Jul.', 'Aug.', 'Sep.', 'Oct.', 'Nov.', 'Dec.'];
+  return `${months[Number(month) - 1]} ${Number(day)}, ${year}`;
+}
+
+export function StatementImportReviewView({ controller: c, onBack, onDiscard }: {
   controller: ReturnType<typeof useStatementImportReview>; destination: string; onBack(): void; onDiscard(): void;
 }) {
   const { palette, fonts } = useAppTheme();
   const insets = useSafeAreaInsets();
   const [modal, setModal] = useState<'edit' | 'categories' | null>(null);
+  const [showEvidence, setShowEvidence] = useState(false);
+  const evidenceTrigger = useRef<ElementRef<typeof View>>(null);
   const [transactionsExpanded, setTransactionsExpanded] = useState(false);
   const editFocus = useRef<ElementRef<typeof View>>(null);
   const list = useRef<FlatList>(null);
@@ -47,9 +57,20 @@ export function StatementImportReviewView({ controller: c, destination, onBack, 
   ]);
   const open = (sourceRowId: string) => {
     c.send({ type: 'rowOpened', sourceRowId });
-    const switchingDirtyEditor = review.inspectedSourceRowId && editorDirty(review, editor) && editor?.sourceRowId !== sourceRowId;
-    if (!disabled && review.rows[sourceRowId]?.inclusion === 'included' && !switchingDirtyEditor) setModal('edit');
-    list.current?.scrollToOffset({ offset: 0, animated: false });
+    setShowEvidence(false);
+    setModal(null);
+  };
+  const dismissEditor = () => {
+    const dismiss = () => {
+      if (editorDirty(review, editor)) c.send({ type: 'editorAbandoned' });
+      setModal(null);
+      if (review.inspectedSourceRowId) c.send({ type: 'queueReturned' });
+    };
+    if (editorDirty(review, editor)) Alert.alert('Discard changes?', undefined, [
+      { text: 'Keep editing', style: 'cancel' },
+      { text: 'Discard changes', style: 'destructive', onPress: dismiss },
+    ]);
+    else dismiss();
   };
   return <KeyboardAvoidingView style={{ flex: 1, backgroundColor: palette.canvas }} behavior={process.env.EXPO_OS === 'ios' ? 'padding' : 'height'}>
     <CanvasBackground />
@@ -67,14 +88,10 @@ export function StatementImportReviewView({ controller: c, destination, onBack, 
             <Text style={{ fontSize: 12, fontFamily: fonts.medium, color: index === 1 ? palette.brandPrimary : palette.textSecondary }}>{label}</Text>
           </View>)}
         </View>
-        <View style={{ paddingVertical: 12, paddingHorizontal: 14, borderRadius: 16, backgroundColor: palette.editorField, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-          <Landmark size={18} color={palette.brandPrimary} />
-          <View style={{ flex: 1, gap: 2 }}>
-            <Text style={{ fontSize: 13, fontFamily: fonts.medium, color: palette.textPrimary }}>{`${review.original.account.provider.toUpperCase()} · ${review.original.account.format}`}</Text>
-            <Text style={{ fontSize: 12, fontFamily: fonts.regular, color: palette.textSecondary }}>{`${withThousandsSeparators(review.original.rows.length)} transactions · ${review.original.file.name}`}</Text>
-            <Text style={{ fontSize: 12, fontFamily: fonts.regular, color: palette.textSecondary }}>{`Destination: ${destination}`}</Text>
-          </View>
-          <FileText size={18} color={palette.textSecondary} />
+        <View style={{ paddingVertical: 12, paddingHorizontal: 14, borderRadius: 16, backgroundColor: palette.editorField, gap: 4 }}>
+          <ProviderIdentity account={review.original.account} />
+          <Text style={{ fontSize: 12, fontFamily: fonts.regular, color: palette.textSecondary }}>{review.original.file.name}</Text>
+          <Text style={{ fontSize: 12, fontFamily: fonts.regular, color: palette.textSecondary }}>{`${withThousandsSeparators(review.original.rows.length)} transactions`}</Text>
         </View>
         {review.original.warnings.map(warning => <Text key={warning.code} style={{ color: palette.stateWarning, fontSize: 14, fontFamily: fonts.regular }}>{warningMessage(warning.code)}</Text>)}
         {c.readOnly ? <SupportingText>This destination is read-only. Review remains available for inspection.</SupportingText> : null}
@@ -82,8 +99,9 @@ export function StatementImportReviewView({ controller: c, destination, onBack, 
           {review.catalog.status !== 'ready' ? <SupportingText>{review.catalog.status === 'failed' ? 'Categories and Rules could not be loaded. Your review is retained. Retry to assign or continue.' : 'Loading Categories and Rules…'}</SupportingText> : null}
           {review.catalog.status !== 'ready' ? <SecondaryButton label="Retry" busy={review.catalog.status === 'loading'} onPress={c.refresh} /> : null}
           {review.catalog.status === 'ready' && categories.length === 0 ? <SupportingText>No active Categories. Activate a Category in this Space before assigning spending.</SupportingText> : null}
+          {!review.inspectedSourceRowId ? <>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-            <Text accessibilityRole="header" style={{ fontSize: 15, fontFamily: fonts.semibold, color: palette.textPrimary }}>{review.inspectedSourceRowId ? 'Transaction review' : 'Categorize'}</Text>
+            <Text accessibilityRole="header" style={{ fontSize: 15, fontFamily: fonts.semibold, color: palette.textPrimary }}>Categorize</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <View accessible accessibilityRole="progressbar" accessibilityLabel="Categorization progress"
                 accessibilityValue={{ min: 0, max: 100, now: Math.round(categorizationProgress * 100), text: includedCount > 0 ? `${withThousandsSeparators(categorizedCount)} of ${withThousandsSeparators(includedCount)} included transactions categorized` : 'No included transactions to categorize' }}
@@ -98,21 +116,22 @@ export function StatementImportReviewView({ controller: c, destination, onBack, 
             {[{ inset: 8, bottom: 0, fill: palette.importCardBack }, { inset: 4, bottom: 6, fill: palette.importCardMiddle }].map(layer => <View key={layer.inset} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ position: 'absolute', left: layer.inset, right: layer.inset, top: 12, bottom: layer.bottom, borderRadius: 24, backgroundColor: layer.fill, borderWidth: 1, borderColor: palette.selectedSpaceBorder }} />)}
             <View style={{ padding: 18, gap: 16, borderRadius: 24, borderWidth: 1, borderColor: palette.selectedSpaceBorder, backgroundColor: palette.importCard }}>
               {source && selectedRow ? <>
-                <View style={{ gap: 5 }}>
+                <View style={{ gap: 8 }}>
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                    <Text style={{ flexGrow: 1, flexShrink: 1, fontSize: 18, fontFamily: fonts.semibold, color: palette.textPrimary }}>{editor?.values.description || source.description}</Text>
-                    <Text style={{ fontSize: 22, fontFamily: fonts.semibold, color: palette.textPrimary }}>{`PHP ${withThousandsSeparators(editor?.values.amount || source.originalAmount)}`}</Text>
+                    <View style={{ flexShrink: 1, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <CalendarDays size={16} color={palette.textSecondary} accessible={false} />
+                      <Text style={{ flexShrink: 1, fontSize: 14, fontFamily: fonts.regular, color: palette.textSecondary }}>{readableDate(editor?.values.expenseDate || source.originalDate)}</Text>
+                    </View>
+                    {editor ? <View ref={editFocus}><CompactAction label="Edit" variant="quiet" disabled={disabled} onPress={() => setModal('edit')} icon={<Pencil size={14} color={palette.textPrimary} />} /></View> : null}
                   </View>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                    <Text style={{ flex: 1, fontSize: 12, fontFamily: fonts.regular, color: palette.textSecondary }}>{editor?.values.expenseDate || source.originalDate}</Text>
-                    {editor ? <View ref={editFocus}><QueueAction label="Correct details" disabled={disabled} onPress={() => setModal('edit')} icon={<Pencil size={14} color={palette.textSecondary} />} /></View> : null}
-                  </View>
+                  <Text style={{ fontSize: 18, fontFamily: fonts.semibold, color: palette.textPrimary }}>{editor?.values.description || source.description}</Text>
+                  <Text style={{ marginVertical: 4, fontSize: 18, fontFamily: fonts.medium, color: palette.textPrimary, textAlign: 'center' }}>{`PHP ${withThousandsSeparators(editor?.values.amount || source.originalAmount)}`}</Text>
                 </View>
                 {editor ? <>
                   <View style={{ gap: 7 }}>
                     <Text style={{ fontSize: 12, fontFamily: fonts.medium, color: palette.textSecondary }}>Category</Text>
                     <Pressable accessibilityRole="button" accessibilityLabel={`Category: ${category?.name ?? 'Choose Category'}`} accessibilityState={{ disabled }} disabled={disabled} onPress={() => setModal('categories')} style={{ minHeight: 48, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: palette.importCategoryBorder, backgroundColor: palette.importCategory, flexDirection: 'row', alignItems: 'center', gap: 8, opacity: disabled ? 0.55 : 1 }}>
-                      {category ? <CategoryIconMark iconKey={category.iconKey} colorKey={category.colorKey} size={18} /> : <Shapes size={18} color={palette.brandPrimary} />}
+                      {category ? <CategoryIconMark iconKey={category.iconKey} colorKey={category.colorKey} size={18} /> : <CircleQuestionMark size={18} color={palette.brandPrimary} />}
                       <Text style={{ flex: 1, fontSize: 15, fontFamily: fonts.medium, color: palette.textPrimary }}>{category?.name ?? 'Choose Category'}</Text>
                       <ChevronDown size={18} color={palette.brandPrimary} />
                     </Pressable>
@@ -127,12 +146,11 @@ export function StatementImportReviewView({ controller: c, destination, onBack, 
                       {(['exact', 'contains'] as const).map(mode => <View key={mode} style={{ flex: 1 }}><CompactAction label={mode === 'exact' ? 'Exactly' : 'Contains'} variant="segmented" selected={editor.matchType === mode} disabled={disabled} onPress={() => remember({ matchType: mode })} /></View>)}
                     </View>
                     <TextField label="Rule pattern" value={editor.pattern} editable={!disabled} onChangeText={pattern => remember({ pattern })} />
-                    <SupportingText>Staged only in this draft. No Rule is saved yet.</SupportingText>
                   </> : null}
                   {(review.errors ?? []).map(message => <ErrorText key={message} message={message} />)}
-                  <PrimaryButton label="Save & next" disabled={disabled} onPress={c.save} />
+                  <PrimaryButton label="Save & next" disabled={disabled} onPress={() => { if (c.save()) setModal(null); }} />
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 8 }}>
-                    <QueueAction label="Exclude" accessibilityLabel="Exclude Transaction and abandon unapplied edits" disabled={c.readOnly} onPress={() => c.send({ type: 'excluded', sourceRowId: editor.sourceRowId })} />
+                    <QueueAction label="Exclude" outlined accessibilityLabel="Exclude Transaction and abandon unapplied edits" icon={<CircleMinus size={14} color={palette.textPrimary} />} disabled={c.readOnly} onPress={() => c.send({ type: 'excluded', sourceRowId: editor.sourceRowId })} />
                     <QueueAction label="Skip for now →" accessibilityLabel="Skip for now and abandon unapplied edits" disabled={c.readOnly} onPress={() => c.send({ type: 'skipped' })} brand />
                   </View>
                 </> : selectedRow.inclusion === 'user-excluded' ? <SecondaryButton label="Restore Transaction" disabled={c.readOnly} onPress={() => c.send({ type: 'restored', sourceRowId: selectedRow.sourceRowId })} /> : <SupportingText>{`Excluded: ${source.classification.eligible ? 'Not included' : source.classification.reason}. Its original classification cannot be overridden here.`}</SupportingText>}
@@ -143,6 +161,7 @@ export function StatementImportReviewView({ controller: c, destination, onBack, 
               {review.inspectedSourceRowId ? <SecondaryButton label="Return to queue" onPress={() => c.send({ type: 'queueReturned' })} /> : null}
             </View>
           </View>
+          </> : null}
           {(review.validationIssues ?? []).map((issue, index) => <View key={index} style={{ gap: 6 }}>
             <ErrorText message={issue.message} />
             {issue.sourceRowId ? <SecondaryButton label={`Review Transaction ${withThousandsSeparators(review.original.rows.findIndex(row => row.sourceRowId === issue.sourceRowId) + 1)}`} onPress={() => open(issue.sourceRowId!)} /> : null}
@@ -171,7 +190,7 @@ export function StatementImportReviewView({ controller: c, destination, onBack, 
         const mapped = review.catalog.snapshot?.categories.find(category => category.id === item.values.categoryId);
         return <Pressable accessibilityRole="button" accessibilityLabel={`${item.values.description || original.description}, ${item.inclusion !== 'included' ? 'Excluded' : validAssignment(review, item) ? mapped?.name : 'Unmapped'}. Open review.`}
           onPress={() => open(item.sourceRowId)} style={{ minHeight: 64, paddingVertical: 12, paddingHorizontal: 8, borderRadius: item.sourceRowId === selectedId ? 12 : 0, backgroundColor: item.sourceRowId === selectedId ? palette.selectedSpace : 'transparent', borderBottomWidth: 1, borderColor: palette.divider, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-          {mapped ? <CategoryIconMark iconKey={mapped.iconKey} colorKey={mapped.colorKey} size={18} /> : <Shapes size={18} color={palette.textSecondary} />}
+          {mapped ? <CategoryIconMark iconKey={mapped.iconKey} colorKey={mapped.colorKey} size={18} /> : <CircleQuestionMark size={18} color={palette.textSecondary} />}
           <View style={{ flex: 1, gap: 4 }}>
             <Text style={{ fontSize: 14, fontFamily: fonts.medium, color: palette.textPrimary }}>{item.values.description || original.description}</Text>
             <Text style={{ fontSize: 11, fontFamily: fonts.regular, color: item.inclusion === 'included' && !validAssignment(review, item) ? palette.stateWarning : palette.textSecondary }}>{`${item.values.expenseDate || original.originalDate} · ${item.inclusion !== 'included' ? 'Excluded' : validAssignment(review, item) ? mapped?.name : 'Unmapped'}`}</Text>
@@ -183,13 +202,29 @@ export function StatementImportReviewView({ controller: c, destination, onBack, 
         </Pressable>;
       }}
       ListEmptyComponent={transactionsExpanded ? <SupportingText>No Transactions in this filter.</SupportingText> : undefined}
-      ListFooterComponent={<View style={{ paddingTop: 16, gap: 14 }}><PrimaryButton label="Continue" disabled={disabled} onPress={c.continue} /><View style={{ alignItems: 'center' }}><QueueAction label="" accessibilityLabel="Refresh Categories and Rules" icon={<RefreshCw size={18} color={palette.textSecondary} />} disabled={review.catalog.status === 'loading'} onPress={c.refresh} /></View></View>} />
-    <CenteredDialog title="Correct Transaction" visible={modal === 'edit' && !!editor} onDismiss={() => setModal(null)} restoreFocusRef={editFocus}>
-      {editor ? <>
-        <ExpenseFields draft={{ ...editor.values }} issues={{}} categoryLabel={category?.name ?? 'Choose Category'} onChange={c.patch} onOpenCategories={() => setModal('categories')} />
+      ListFooterComponent={<View style={{ paddingTop: 16, gap: 14 }}><PrimaryButton label="Continue" disabled={disabled || c.counts.unmapped > 0} onPress={c.continue} /></View>} />
+    <CenteredDialog title="Edit transaction" showClose headerAccessory={<View style={{ flexDirection: 'row' }}><Pressable ref={evidenceTrigger} accessibilityRole="button" accessibilityLabel="Original evidence" accessibilityState={{ expanded: showEvidence }} onPress={() => setShowEvidence(true)} style={{ minWidth: 48, minHeight: 48, alignItems: 'center', justifyContent: 'center' }}><Info size={20} color={palette.textSecondary} /></Pressable><CompactAction label="Exclude transaction" variant="icon" disabled={c.readOnly || selectedRow?.inclusion !== 'included'} icon={<CircleMinus size={20} color={palette.textSecondary} />} onPress={() => {
+      if (c.readOnly || !selectedRow || selectedRow.inclusion !== 'included') return;
+      c.send({ type: 'excluded', sourceRowId: selectedRow.sourceRowId });
+      setShowEvidence(false);
+      setModal(null);
+    }} /></View>} visible={review.inspectedSourceRowId ? modal !== 'categories' : modal === 'edit' && !!editor} onDismiss={dismissEditor} restoreFocusRef={editFocus}>
+      <Popover title="Original evidence" visible={showEvidence} onDismiss={() => setShowEvidence(false)} anchorRef={evidenceTrigger} showHeader={false}>
         {source ? <View style={{ gap: 4 }}><SupportingText>{`Original evidence · ${source.originalDate} · ${withThousandsSeparators(source.originalAmount)}`}</SupportingText><BodyText>{source.description}</BodyText><SupportingText>{source.classification.eligible ? `Eligible ${source.classification.kind}` : `Excluded: ${source.classification.reason}`}</SupportingText></View> : null}
-        {editorDirty(review, editor) ? <SecondaryButton label="Abandon pending edits" disabled={c.readOnly} onPress={() => { c.send({ type: 'editorAbandoned' }); setModal(null); }} /> : null}
-        <PrimaryButton label="Done" onPress={() => setModal(null)} />
+      </Popover>
+      {editor ? <>
+        <ExpenseFields nativeDatePicker compact disabled={disabled} draft={{ ...editor.values }} issues={{}} categoryLabel={category?.name ?? 'Choose Category'} onChange={c.patch} onOpenCategories={() => setModal('categories')} />
+
+        {review.inspectedSourceRowId ? <>
+          {(review.errors ?? []).map(message => <ErrorText key={message} message={message} />)}
+          <PrimaryButton label="Save" disabled={disabled} onPress={c.save} />
+        </> : null}
+        {!review.inspectedSourceRowId ? <PrimaryButton label="Save" disabled={disabled} onPress={() => { if (c.save()) setModal(null); }} /> : null}
+      </> : source && selectedRow ? <>
+        <BodyText>{source.description}</BodyText>
+        <SupportingText>{`${source.originalDate} · PHP ${withThousandsSeparators(source.originalAmount)}`}</SupportingText>
+        {selectedRow.inclusion === 'user-excluded' ? <SecondaryButton label="Restore Transaction" disabled={c.readOnly} onPress={() => c.send({ type: 'restored', sourceRowId: selectedRow.sourceRowId })} /> : <SupportingText>{source.classification.eligible ? 'Excluded' : source.classification.reason}</SupportingText>}
+
       </> : null}
     </CenteredDialog>
     <ChoiceSheet title="Choose Category" visible={modal === 'categories'} onDismiss={() => setModal(null)} restoreFocusRef={editFocus} maxHeight="65%" showClose>
@@ -209,14 +244,16 @@ export function StatementImportReviewView({ controller: c, destination, onBack, 
     </ChoiceSheet>
   </KeyboardAvoidingView>;
 }
-function QueueAction({ label, accessibilityLabel = label, onPress, disabled = false, brand = false, icon }: {
-  label: string; accessibilityLabel?: string; onPress(): void; disabled?: boolean; brand?: boolean; icon?: ReactNode;
+function QueueAction({ label, accessibilityLabel = label, onPress, disabled = false, brand = false, outlined = false, icon }: {
+  label: string; accessibilityLabel?: string; onPress(): void; disabled?: boolean; brand?: boolean; outlined?: boolean; icon?: ReactNode;
 }) {
   const { palette, fonts } = useAppTheme();
   return <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel} accessibilityState={{ disabled }} disabled={disabled} onPress={onPress}
     style={{ minHeight: 48, minWidth: 48, flexShrink: 1, flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8, opacity: disabled ? 0.55 : 1 }}>
-    {icon}
-    {label ? <Text style={{ flexShrink: 1, fontSize: 12, fontFamily: brand ? fonts.medium : fonts.regular, color: brand ? palette.brandPrimary : palette.textSecondary }}>{label}</Text> : null}
+    <View pointerEvents="none" style={{ flexShrink: 1, flexDirection: 'row', alignItems: 'center', gap: 6, ...(outlined ? { minHeight: 32, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 16, borderWidth: 1, borderColor: palette.fieldBorder, backgroundColor: palette.surfaceModal } : {}) }}>
+      {icon}
+      {label ? <Text style={{ flexShrink: 1, fontSize: 12, fontFamily: brand || outlined ? fonts.medium : fonts.regular, color: brand ? palette.brandPrimary : outlined ? palette.textPrimary : palette.textSecondary }}>{label}</Text> : null}
+    </View>
   </Pressable>;
 }
 function ErrorText({ message }: { message: string }) {

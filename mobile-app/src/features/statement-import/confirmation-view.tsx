@@ -14,9 +14,16 @@ import { CATEGORY_COLOR_VALUES } from '@/features/categories/category-catalog';
 import { useAppTheme } from '@/navigation/app-theme';
 import { decimalAmount } from './values';
 import type { useImportConfirmation } from './use-import-confirmation';
+import { ProviderIdentity } from './provider-identity';
 
 function withThousandsSeparators(value: string | number) {
   return String(value).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
+function readableDate(value: string) {
+  const [year, month, day] = value.split('-');
+  const months = ['Jan.', 'Feb.', 'Mar.', 'Apr.', 'May', 'Jun.', 'Jul.', 'Aug.', 'Sep.', 'Oct.', 'Nov.', 'Dec.'];
+  return `${months[Number(month) - 1]} ${Number(day)}, ${year}`;
 }
 
 export function ImportConfirmationView({ controller: c, readOnly, onDiscard }: {
@@ -33,7 +40,8 @@ export function ImportConfirmationView({ controller: c, readOnly, onDiscard }: {
   const h = c.handoff; const summary = c.summary;
   if (!h || !summary) return null;
   const statement = h.original;
-  const statementDate = statement.dates.statementDate ?? `${statement.dates.historyPeriod?.from} – ${statement.dates.historyPeriod?.to}`;
+  const statementDate = statement.dates.statementDate ? readableDate(statement.dates.statementDate)
+    : statement.dates.historyPeriod ? `${readableDate(statement.dates.historyPeriod.from)} to ${readableDate(statement.dates.historyPeriod.to)}` : null;
   const segments = summary.categories.map((item, index) => {
     const fraction = summary.total === 0n ? 0 : Number(item.total * 1000000n / summary.total) / 1000000;
     const preceding = summary.categories.slice(0, index).reduce((sum, category) => sum + category.total, 0n);
@@ -56,9 +64,9 @@ export function ImportConfirmationView({ controller: c, readOnly, onDiscard }: {
       </View>
       <DesignSurface style={{ padding: 20, gap: 20 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-          <View accessible accessibilityLabel={`Card: ${statement.account.provider.toUpperCase()}, ${statement.account.format}. Statement date: ${statementDate}`} style={{ flex: 1, gap: 4 }}>
-            <Text style={{ color: palette.textPrimary, fontFamily: fonts.semibold, fontSize: 18 }}>{`${statement.account.provider.toUpperCase()} · ${statement.account.format}`}</Text>
-            <Text style={{ color: palette.textSecondary, fontFamily: fonts.regular, fontSize: 12 }}>{statementDate}</Text>
+          <View accessible accessibilityLabel={`${statement.account.provider.toUpperCase()}, ${statement.account.format}${statementDate ? `. Statement date: ${statementDate}` : ''}`} style={{ flex: 1, gap: 4 }}>
+            <ProviderIdentity account={statement.account} prominent />
+            {statementDate ? <Text style={{ color: palette.textSecondary, fontFamily: fonts.regular, fontSize: 12 }}>{statementDate}</Text> : null}
           </View>
           <SpaceStatus readOnly />
         </View>

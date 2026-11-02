@@ -29,6 +29,9 @@ import { expenseBrowseIssues } from "./browse-state";
 import type { ExpenseBrowseSelection } from "./browse-state";
 import type { useExpenseBrowse } from "./use-expense-browse";
 
+import { ListSkeleton } from '@/components/skeleton';
+
+import { useSpaces } from '@/application/spaces/provider';
 export function ExpenseBrowse({
   controller,
   onOpenExpense,
@@ -44,6 +47,7 @@ export function ExpenseBrowse({
   spaceStatus: ReactNode;
   scopeLabel?: string;
 }) {
+  const spaces = useSpaces();
   const insets = useSafeAreaInsets();
   const { palette, fonts } = useAppTheme();
   const {
@@ -145,7 +149,7 @@ export function ExpenseBrowse({
         <FlatList
           ref={listRef}
           data={
-            issues.length === 0 && phase === "ready"
+            issues.length === 0 && (phase === "ready" || phase === "refreshing" || phase === "appending")
               ? (loaded?.expenses ?? [])
               : []
           }
@@ -181,7 +185,7 @@ export function ExpenseBrowse({
                 <View style={{ flex: 1 }}><ScreenHeader title={deletedOnly ? "Deleted Expenses" : "Expenses"} accessory={spaceStatus} /></View>
               </View>
               {scopeLabel ? <SupportingText>{scopeLabel}</SupportingText> : null}
-              {loaded && phase === "ready" && issues.length === 0 ? (
+              {loaded && issues.length === 0 ? (
                 <View style={{ alignItems: 'center', gap: 3, paddingTop: 8, paddingBottom: 4 }}>
                   <Text style={metadataStyle}>{deletedOnly ? 'Deleted total · PHP' : 'Total spent · PHP'}</Text>
                   <MoneyAmount amount={loaded.totalAmount} variant="total" />
@@ -199,10 +203,10 @@ export function ExpenseBrowse({
                 {searchOpen || selection.description ? <DescriptionSearch key={`${selection.spaceId}:${selection.description}`} selection={selection} onChange={onChange} onClose={() => { Keyboard.dismiss(); setSearchOpen(false); onChange({ description: "" }); }} /> : null}
                 {issues.length > 0 ? <Text accessibilityLiveRegion="polite" style={{ ...metadataStyle, color: palette.stateNegative }}>{issues.map((issue) => issue.message).join(' ')}</Text> : null}
               </View> : null}
-              {phase === "loading" && !loaded ? (
-                <BodyText>Loading Expenses.</BodyText>
+              {!loaded && !error && !spaces.error && (phase === "loading" || spacesLoading) ? (
+                <ListSkeleton label="Loading Expenses" />
               ) : null}
-              {error ? (
+              {spaces.error && !spaceId ? <StackGap><BodyText>{spaces.error}</BodyText><SecondaryButton label="Retry" onPress={() => void refreshSpaces()} /></StackGap> : null}{error ? (
                 <StackGap>
                   <BodyText>{error}</BodyText>
                   <SecondaryButton label="Retry" onPress={() => void retry()} />

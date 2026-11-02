@@ -19,6 +19,8 @@ import { CategoryIconMark } from '@/components/category-mark';
 import { space, typeScale } from '@/constants/theme';
 import { useAppTheme } from '@/navigation/app-theme';
 
+import { SkeletonBlock, ListSkeleton } from '@/components/skeleton';
+
 export function BudgetListView({
   categories,
   loading,
@@ -128,7 +130,7 @@ export function BudgetListView({
   }
 
   return (
-    <Screen title="Budget" refreshing={loading || refreshing} onRefresh={onRetry} headerAccessory={spaceStatus}>
+    <Screen title="Budget" refreshing={refreshing} onRefresh={onRetry} headerAccessory={spaceStatus}>
       <View style={{ gap: space.cardGap }}>
         <View
           accessibilityLabel={planAvailable
@@ -138,11 +140,9 @@ export function BudgetListView({
           <Text style={{ color: palette.textSecondary, fontFamily: fonts.regular, fontSize: 12 }}>
             Monthly-equivalent plan
           </Text>
-          <Text
-            accessibilityLiveRegion="polite"
+          {loading && !error ? <SkeletonBlock width="55%" height={42} /> : <Text accessibilityLiveRegion="polite"
             style={{ color: palette.textPrimary, fontFamily: fonts.semibold, fontSize: typeScale.budgetTotal, letterSpacing: -1.5, textAlign: 'center' }}>
-            {planAvailable ? plan.monthlyEquivalent : loading ? 'Loading…' : 'Unavailable'}
-          </Text>
+            {planAvailable ? plan.monthlyEquivalent : 'Unavailable'}</Text>}
           <Text style={{ color: palette.textSecondary, fontFamily: fonts.regular, fontSize: 12, textAlign: 'center' }}>
             Annual equivalent {planAvailable ? plan.annualEquivalent : ''}
           </Text>
@@ -155,8 +155,7 @@ export function BudgetListView({
 
         {error ? (
           <View style={{ gap: space.rowGap }}>
-            <Text
-              accessibilityLiveRegion="polite"
+            <Text accessibilityLiveRegion="polite"
               style={{ color: palette.stateNegative, fontFamily: fonts.regular, fontSize: typeScale.body }}>
               {error}
             </Text>
@@ -231,7 +230,7 @@ export function BudgetListView({
             {canEdit ? <CompactAction variant="icon" label="Create Category" icon={<FolderPlus size={18} color={palette.brandPrimary} />} onPress={onCreate} /> : null}
           </View>
           {loading && categories.length === 0 ? (
-            <SupportingText>Loading Categories and Budgets.</SupportingText>
+            <ListSkeleton label="Loading Budget" total={false} />
           ) : null}
           {!loading && !error && categories.length === 0 ? (
             <SupportingText>No Categories yet. Create one to start organizing Expenses.</SupportingText>

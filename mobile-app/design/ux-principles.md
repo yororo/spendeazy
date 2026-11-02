@@ -4,7 +4,7 @@ Read before adding or changing any screen, component, or copy. These rules decid
 
 ## Theme: minimalist and simple
 
-Show the least UI that lets the user finish the task. Prefer icons and short, intuitive labels over text.
+Show the least UI that lets the user finish the task. Prefer icons and short, intuitive labels over text. Be creative!
 
 ## Rules
 

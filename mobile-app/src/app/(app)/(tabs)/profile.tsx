@@ -1,3 +1,4 @@
+import { ListSkeleton } from '@/components/skeleton';
 import { useUser } from '@clerk/expo';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Image } from 'expo-image';
@@ -20,12 +21,14 @@ const appearanceOptions: { value: AppearancePreference; label: string }[] = [
   { value: 'dark', label: 'Dark' },
 ];
 
+
+
 export default function ProfileScreen() {
   const router = useRouter();
   const { signOut } = useSessionTransport();
-  const { user } = useUser();
+  const { user, isLoaded } = useUser();
   const { preference, setPreference, palette, fonts } = useAppTheme();
-  const { spaces, active, refresh } = useSpaces();
+  const { spaces, active, refresh, loading, error } = useSpaces();
   useFocusEffect(useCallback(() => { void refresh(); }, [refresh]));
   const sharedSpace = active?.kind === 'shared' ? active : spaces.find((space) => space.kind === 'shared' && space.status === 'active');
   const ownMemberId = spaces.find((space) => space.kind === 'personal')?.members[0]?.id;
@@ -41,7 +44,7 @@ export default function ProfileScreen() {
   return (
     <Screen title="Profile" headerAccessory={<SpaceStatus />}>
       <StackGap>
-        <View style={{ alignItems: 'center', gap: 10, paddingTop: 8, paddingBottom: 18 }}>
+        {!isLoaded ? <ListSkeleton label="Loading Profile" rows={0} /> : <View style={{ alignItems: 'center', gap: 10, paddingTop: 8, paddingBottom: 18 }}>
           {user?.imageUrl ? (
             <Image
               source={{ uri: user.imageUrl }}
@@ -62,11 +65,11 @@ export default function ProfileScreen() {
             </View>
           ) : null}
         </View>
-        <SecondaryButton label="Edit profile" onPress={() => router.push('../edit-profile')} />
+        } <SecondaryButton label="Edit profile" onPress={() => router.push('../edit-profile')} />
         <SecondaryButton label="Account settings" onPress={() => router.push('../account-settings')} />
         <View style={{ gap: 14 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><UsersRound accessible={false} size={18} color={palette.brandPrimary} /><Text accessibilityRole="header" style={{ color: palette.textPrimary, fontFamily: fonts.semibold, fontSize: 15 }}>Shared Space</Text></View>
-          {sharedSpace ? (
+          {loading && !error ? <ListSkeleton label="Loading Shared Space" rows={2} /> : error && !sharedSpace ? <View><BodyText>{error}</BodyText><SecondaryButton label="Retry" onPress={() => void refresh()} /></View> : sharedSpace ? (
             <SharedSpaceCard space={sharedSpace} ownMemberId={ownMemberId} onManage={() => router.push('../sharing')} />
           ) : (
             <View style={{ gap: 14 }}>

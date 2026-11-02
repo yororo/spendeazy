@@ -23,7 +23,7 @@ import { retainCategoryMarkers } from "./dashboard-category-identity";
 const EMPTY_CATEGORY_SELECTION: string[] = [];
 
 export function useDashboardReport() {
-  const { active } = useSpaces();
+  const { active, loading: spacesLoading, error: spacesError, refresh: refreshSpaces } = useSpaces();
   const activeSpaceId = active?.id ?? null;
   const authorized = useAuthorizedClient();
   const categories = useSpaceCategories(activeSpaceId);
@@ -138,6 +138,9 @@ export function useDashboardReport() {
   const loading =
     active !== null && state.data === null && state.error === null;
   const report = state.data;
+  const [calendar, setCalendar] = useState({ scopeKey, today: null as string | null });
+  const today = report?.range.today ?? (calendar.scopeKey === scopeKey ? calendar.today : null);
+  if (calendar.scopeKey !== scopeKey || (report && calendar.today !== report.range.today)) setCalendar({ scopeKey, today: report?.range.today ?? null });
   const categoryMarkers = retainCategoryMarkers(selection.categoryMarkers, [
     ...(report?.categoryExpenses.map((category) => category.categoryId) ?? []),
     ...categories.categories.map((category) => category.id),
@@ -172,11 +175,11 @@ export function useDashboardReport() {
     (next: string) => {
       if (
         !activeSpaceId || !authorized.isCurrent() ||
-        !report || !isSelectableYear(next, report.range.today)
+        !today || !isSelectableYear(next, today)
       ) return;
       setSelection((current) => ({ ...current, year: next }));
     },
-    [activeSpaceId, authorized, report],
+    [activeSpaceId, authorized, today],
   );
   const categoryReport = useMemo(
     () =>
@@ -201,10 +204,11 @@ export function useDashboardReport() {
     view,
     report,
     categoryReport,
-    error: state.error,
-    loading,
+    error: state.error ?? spacesError ?? null,
+    today,
+    loading: loading || Boolean(spacesLoading && !spacesError),
     refreshing: state.loading && state.data !== null,
-    refresh,
+    refresh: activeSpaceId ? refresh : refreshSpaces,
     selectView,
     selectYear,
     scopeKey,

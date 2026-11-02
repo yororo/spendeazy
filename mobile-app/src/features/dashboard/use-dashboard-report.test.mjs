@@ -305,3 +305,19 @@ test('three stable defaults include inactive history; explicit All and larger se
   assert.deepEqual(screen.controller.chartCategoryIds, []);
   assert.deepEqual(screen.controller.categoryMarkers, markers);
 });
+
+test('period replacement retains only calendar metadata and resets it across Spaces', async (t) => {
+  const screen = await mountController(t);
+  await screen.resolve(fixture());
+  assert.equal(screen.controller.today, '2026-10-29');
+  await act(async () => screen.controller.selectView('yearly'));
+  assert.equal(screen.controller.report, null);
+  assert.equal(screen.controller.today, '2026-10-29');
+  await act(async () => screen.controller.selectYear('2025'));
+  assert.equal(screen.requests.at(-1).query.year, '2025');
+  harness.active = { id: '11' };
+  harness.authorized = { scope: {}, isCurrent: () => true };
+  await screen.rerender();
+  assert.equal(screen.controller.today, null);
+  assert.equal(screen.controller.report, null);
+});

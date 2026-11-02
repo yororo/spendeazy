@@ -38,6 +38,7 @@ new Function('require', 'module', compiled.outputFiles[0].text)((name) => {
     React.createElement('Sheet', { visible, ...props }, visible ? children : null) };
   if (name === '@/components/popover') return { Popover: ({ visible, children, ...props }) =>
     React.createElement('Popover', { visible, ...props }, visible ? children : null) };
+  if (name === '@/components/skeleton') return { SkeletonBlock: 'SkeletonBlock', SkeletonRegion: 'SkeletonRegion' };
   if (name === '@/components/screen') return { BodyText: 'BodyText', Screen: 'Screen' };
   if (name === '@/components/design-surface') return { DesignSurface: 'Surface' };
   if (name === '@/components/text-field') return { TextField: 'TextField' };

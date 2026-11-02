@@ -7,7 +7,7 @@ import { useBudgetCategories } from '@/features/categories/use-budget-categories
 
 export default function BudgetScreen() {
   const router = useRouter();
-  const { active } = useSpaces();
+  const { active, loading, error, refresh } = useSpaces();
   const categories = useBudgetCategories(active?.id ?? null);
   const reloadCategories = categories.reload;
   const focused = useRef(false);
@@ -19,12 +19,12 @@ export default function BudgetScreen() {
     <BudgetListView
       key={active?.id ?? 'no-space'}
       categories={categories.categories}
-      loading={categories.loading}
+      loading={categories.loading || (loading && !error)}
       refreshing={categories.refreshing}
-      error={categories.error}
+      error={categories.error ?? error}
       canEdit={active?.status === 'active' && active.accessLevel === 'write'}
       spaceStatus={<SpaceStatus />}
-      onRetry={reloadCategories}
+      onRetry={active ? reloadCategories : () => void refresh()}
       onCreate={() => active && router.push(`/category-editor?spaceId=${encodeURIComponent(active.id)}` as Href)}
       onOpen={(categoryId) => active && router.push(`/category-editor?spaceId=${encodeURIComponent(active.id)}&categoryId=${encodeURIComponent(categoryId)}` as Href)}
     />

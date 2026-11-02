@@ -33,6 +33,7 @@ import { DesignSurface } from "@/components/design-surface";
 import { CategoryMarker } from "./category-marker";
 import { MonthlyBars, CategoryLines, type ChartTrigger } from "./dashboard-charts";
 import type { useDashboardReport } from "./use-dashboard-report";
+import { SkeletonBlock, SkeletonRegion } from '@/components/skeleton';
 type DashboardController = ReturnType<typeof useDashboardReport>;
 export function DashboardView({
   controller,
@@ -77,7 +78,7 @@ export function DashboardView({
   return (
     <Screen
       title="Dashboard"
-      refreshing={controller.loading || controller.refreshing}
+      refreshing={controller.refreshing}
       onRefresh={controller.refresh}
       headerAccessory={spaceStatus}
     >
@@ -138,7 +139,7 @@ export function DashboardView({
             <YearPicker
               key={selectedYear}
               year={selectedYear}
-              today={report?.range.today ?? null}
+              today={controller.today}
               onSelect={controller.selectYear}
             />
           ) : (
@@ -166,7 +167,7 @@ export function DashboardView({
           </View>
         ) : null}
         {controller.loading && !report ? (
-          <BodyText>Loading Dashboard report.</BodyText>
+          <SkeletonRegion label="Loading Dashboard">{["Summary", "Budget checks", "Monthly spending", "Category spending"].map((title, index) => <ChartCard key={title} title={title}><SkeletonBlock width="60%" height={24} /><SkeletonBlock height={index > 1 ? 180 : 72} /><SkeletonBlock width="45%" /></ChartCard>)}</SkeletonRegion>
         ) : null}
 
         {report ? (

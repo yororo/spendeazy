@@ -1,13 +1,24 @@
-export type ImportReceipt = Readonly<{ userId: string; spaceId: string; operationId: string }>;
+import type { ImportAccount } from './import-model.ts';
+
+export type ImportReceipt = Readonly<{ userId: string; spaceId: string; operationId: string; account?: ImportAccount }>;
 export const RECEIPT_KEY = 'statement-import-receipt.v1';
 export type ReceiptStorage = { getItemAsync(key: string): Promise<string | null>; setItemAsync(key: string, value: string): Promise<void>; deleteItemAsync(key: string): Promise<void> };
 
 export function parseReceipt(json: string): ImportReceipt {
   const value = JSON.parse(json);
-  if (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).sort().join(',') !== 'operationId,spaceId,userId' ||
+  if (!value || typeof value !== 'object' || Array.isArray(value) || !['operationId,spaceId,userId', 'account,operationId,spaceId,userId'].includes(Object.keys(value).sort().join(',')) ||
     typeof value.userId !== 'string' || !value.userId.trim() || typeof value.spaceId !== 'string' || !/^[1-9]\d*$/u.test(value.spaceId) ||
     typeof value.operationId !== 'string' || !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/iu.test(value.operationId)) throw Error('Invalid import receipt');
-  return { userId: value.userId, spaceId: value.spaceId, operationId: value.operationId };
+  let account: ImportAccount | undefined;
+  if ('account' in value) {
+    const a = value.account;
+    if (!a || typeof a !== 'object' || Array.isArray(a) || Object.keys(a).sort().join(',') !== 'format,provider,statementType') throw Error('Invalid import account');
+    if (a.provider === 'bdo' && a.format === 'amex' && a.statementType === 'credit-card') account = { provider: 'bdo', format: 'amex', statementType: 'credit-card' };
+    else if (a.provider === 'eastwest' && a.format === 'visa' && a.statementType === 'credit-card') account = { provider: 'eastwest', format: 'visa', statementType: 'credit-card' };
+    else if (a.provider === 'gcash' && a.format === 'e-wallet' && a.statementType === 'e-wallet') account = { provider: 'gcash', format: 'e-wallet', statementType: 'e-wallet' };
+    else throw Error('Invalid import account');
+  }
+  return { userId: value.userId, spaceId: value.spaceId, operationId: value.operationId, ...(account ? { account } : {}) };
 }
 const same = (a: ImportReceipt | null, b: ImportReceipt) => a?.userId === b.userId && a.spaceId === b.spaceId && a.operationId === b.operationId;
 

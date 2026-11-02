@@ -171,7 +171,7 @@ export function createConfirmationWorkflow(deps: {
       if (!frozen) {
         if (state.phase !== 'ready' || !state.preview || (state.preview.warnings.length > 0 && !override)) return;
         const acknowledgment = state.preview.warnings.length ? { ids: state.preview.warnings.map(w => w.id), digest: state.preview.warningDigest } : { ids: [], digest: null };
-        frozen = { json: JSON.stringify(serializeConfirmation(h, acknowledgment)), receipt: { ...h.owner, operationId: operationId() }, generation: a.generation, handoff: h };
+        frozen = { json: JSON.stringify(serializeConfirmation(h, acknowledgment)), receipt: { ...h.owner, operationId: operationId(), account: h.original.account }, generation: a.generation, handoff: h };
         deps.lock(true);
       }
       if (frozen.handoff !== h) return;

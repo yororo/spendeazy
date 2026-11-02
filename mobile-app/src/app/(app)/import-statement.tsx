@@ -12,14 +12,16 @@ import { useImportConfirmation } from '@/features/statement-import/use-import-co
 import { ImportConfirmationView } from '@/features/statement-import/confirmation-view';
 import { ImportRecoveryView } from '@/features/statement-import/recovery-view';
 import { useSpaces } from '@/application/spaces/provider';
+import { spaceIdentityLabel } from '@/application/spaces/active-space';
 
 export default function ImportStatementScreen() {
   const router = useRouter();
   const controller = useStatementImport();
   const review = useStatementImportReview();
   const confirmation = useImportConfirmation();
-  const { active, refresh } = useSpaces();
-  if (confirmation.receipt) return <ImportRecoveryView controller={confirmation} destination={controller.destination}
+  const { active, spaces, refresh } = useSpaces();
+  const receiptSpace = spaces.find(space => space.id === confirmation.receipt?.spaceId);
+  if (confirmation.receipt) return <ImportRecoveryView controller={confirmation} destination={receiptSpace ? spaceIdentityLabel(receiptSpace) : 'Original Space unavailable'}
     writable={!controller.readOnly} historyAvailable={active?.id === confirmation.receipt.spaceId}
     onClose={() => router.replace('/(app)/(tabs)')}
     onHistory={() => router.replace('/(app)/statement-import-history')}

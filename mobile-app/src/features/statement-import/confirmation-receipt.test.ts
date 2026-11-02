@@ -11,12 +11,32 @@ function storage(initial: string | null = null) {
   return { adapter, value: () => value };
 }
 
-test('receipt parsing is exact and persisted content contains only owner, Space and operation', async () => {
+test('legacy receipt parsing is exact and preserves owner, Space and operation', async () => {
   for (const value of [{ ...receipt, rows: [] }, { ...receipt, spaceId: '0' }, { ...receipt, operationId: 'bad' }, [], null]) assert.throws(() => parseReceipt(JSON.stringify(value)));
   const s = storage(); const owner = createReceiptOwner(s.adapter);
   await owner.hydrate(receipt.userId); await owner.write(receipt);
   assert.deepEqual(JSON.parse(s.value()!), receipt);
   await assert.rejects(owner.write({ ...receipt, operationId: '22222222-2222-4222-8222-222222222222' }));
+});
+
+test('provider identity survives storage and restart without retaining statement data', async () => {
+  for (const account of [
+    { provider: 'bdo', format: 'amex', statementType: 'credit-card' },
+    { provider: 'eastwest', format: 'visa', statementType: 'credit-card' },
+    { provider: 'gcash', format: 'e-wallet', statementType: 'e-wallet' },
+  ] as const) {
+    const enriched = { ...receipt, account };
+    const s = storage(); const owner = createReceiptOwner(s.adapter);
+    await owner.hydrate(receipt.userId); await owner.write(enriched);
+    assert.deepEqual(await createReceiptOwner(s.adapter).hydrate(receipt.userId), enriched);
+    assert.deepEqual(Object.keys(JSON.parse(s.value()!)).sort(), ['account', 'operationId', 'spaceId', 'userId']);
+    await owner.clearMatching(receipt);
+    assert.equal(s.value(), null);
+  }
+  for (const account of [null, {}, { provider: 'bdo', format: 'visa', statementType: 'credit-card' },
+    { provider: 'gcash', format: 'e-wallet', statementType: 'e-wallet', rows: [] }]) {
+    assert.throws(() => parseReceipt(JSON.stringify({ ...receipt, account })));
+  }
 });
 
 test('sign-out during an in-flight write deletes after the late write and revokes the sender', async () => {

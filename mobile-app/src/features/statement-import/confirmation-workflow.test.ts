@@ -59,10 +59,10 @@ test('stale preview after edits, Back or session change cannot authorize submiss
     await s.workflow.submit(s.api, () => id, async () => {}); assert.equal(s.calls.length, 0);
   }
 });
-test('missing or failed receipt prevents every PUT; receipt contains identity only', async () => {
+test('missing or failed receipt prevents every PUT; receipt contains recovery IDs and account identity only', async () => {
   const s = setup(); await s.workflow.preview(s.api);
   await s.workflow.submit(s.api, () => id); assert.equal(s.calls.length, 0);
-  await s.workflow.submit(s.api, () => id, async receipt => { assert.deepEqual(Object.keys(receipt).sort(), ['operationId', 'spaceId', 'userId']); throw Error(); });
+  await s.workflow.submit(s.api, () => id, async receipt => { assert.deepEqual(Object.keys(receipt).sort(), ['account', 'operationId', 'spaceId', 'userId']); assert.deepEqual(receipt.account, s.handoff().original.account); throw Error(); });
   assert.equal(s.calls.length, 0); assert.equal(s.locked(), false); assert.equal(s.workflow.snapshot().phase, 'failed');
 });
 test('repeated taps send once, receipt precedes PUT, and completion refreshes once', async () => {

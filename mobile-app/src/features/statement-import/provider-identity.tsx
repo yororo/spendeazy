@@ -15,10 +15,8 @@ const networkLogos = {
   amex: { source: require('../../../assets/providers/amex.svg'), aspectRatio: 1, label: 'AMEX' },
   visa: { source: require('../../../assets/providers/visa.webp'), aspectRatio: 3840 / 1247, label: 'VISA' },
 };
-const logoHeight = 18;
-
-export function ProviderIdentity({ account, showName = true, networkPlacement = 'adjacent' }: {
-  account: ImportAccount; showName?: boolean; networkPlacement?: 'adjacent' | 'trailing';
+export function ProviderIdentity({ account, showName = true, networkPlacement = 'adjacent', logoHeight = 18 }: {
+  account: ImportAccount; showName?: boolean; networkPlacement?: 'adjacent' | 'trailing'; logoHeight?: number;
 }) {
   const { palette, fonts } = useAppTheme();
   const logo = providerLogos[account.provider];

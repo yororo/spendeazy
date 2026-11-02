@@ -24,7 +24,7 @@ function SpaceAvatars({ space, compact = false }: { space: AccessibleSpace; comp
   </View>;
 }
 
-export function SpaceStatus({ readOnly = false }: { readOnly?: boolean } = {}) {
+export function SpaceStatus({ readOnly = false, spaceId }: { readOnly?: boolean; spaceId?: string } = {}) {
   const router = useRouter();
   const { spaces, active, loading, error, memoryError, refresh, selectSpace, hasUnsavedWork, hasImportWork, discardUnsavedWork } = useSpaces();
   const { palette, fonts } = useAppTheme();
@@ -32,16 +32,19 @@ export function SpaceStatus({ readOnly = false }: { readOnly?: boolean } = {}) {
   const switchTrigger = useRef<ElementRef<typeof View>>(null);
   const [pendingSpaceId, setPendingSpaceId] = useState<string | null>(null);
   const recovering = useSyncExternalStore(session.confirmation.subscribe, session.confirmation.hasReceipt, () => false);
+  const destination = readOnly && spaceId ? spaces.find(space => space.id === spaceId) : active;
 
   if (loading && !active) return <SupportingText>Loading Spaces.</SupportingText>;
+  if (readOnly && spaceId && !destination) return <SupportingText>Original Space unavailable</SupportingText>;
   if (error || !active) return <StackGap><BodyText>{error ?? 'Personal Space is unavailable.'}</BodyText><SecondaryButton label="Retry" onPress={() => void refresh()} /></StackGap>;
+  const badgeSpace = destination ?? active;
 
   const badge = <View pointerEvents="none" style={{ minHeight: 44, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 22, borderWidth: 1, borderColor: palette.selectedSpaceBorder, backgroundColor: palette.selectedSpace, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-    <SpaceAvatars space={active} compact />
+    <SpaceAvatars space={badgeSpace} compact />
     {readOnly ? null : <ChevronDown color={palette.textSecondary} size={14} />}
   </View>;
 
-  if (readOnly) return <View accessible accessibilityLabel={`Destination Space: ${spaceIdentityLabel(active)}`} style={{ alignSelf: 'flex-start', flexShrink: 1 }}>{badge}</View>;
+  if (readOnly) return <View accessible accessibilityLabel={`Destination Space: ${spaceIdentityLabel(badgeSpace)}`} style={{ alignSelf: 'flex-start', flexShrink: 1 }}>{badge}</View>;
 
   return (
     <View style={{ flexShrink: 1, gap: 6, alignItems: 'flex-end' }}>

@@ -65,7 +65,8 @@ export default function ProfileScreen() {
             </View>
           ) : null}
         </View>
-        } <SecondaryButton label="Edit profile" onPress={() => router.push('../edit-profile')} />
+        }
+        <SecondaryButton label="Edit profile" onPress={() => router.push('../edit-profile')} />
         <SecondaryButton label="Account settings" onPress={() => router.push('../account-settings')} />
         <View style={{ gap: 14 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><UsersRound accessible={false} size={18} color={palette.brandPrimary} /><Text accessibilityRole="header" style={{ color: palette.textPrimary, fontFamily: fonts.semibold, fontSize: 15 }}>Shared Space</Text></View>

@@ -270,3 +270,13 @@ Import provider identity (2026-11-02): user-requested Update/Confirm refinement 
 Import Categorize hierarchy refinement (2026-11-02): user feedback promotes the full-width description to 22-unit semibold, enlarges the date to 14-unit regular with a 16-unit calendar icon, and centers the amount below the description at 16-unit medium. Exclude uses a compact outlined 32-unit minimum visual capsule, 12-unit medium label, 14-unit CircleMinus and 8-unit horizontal inset inside a minimum 48-unit touch target. Semantic colors remain shared across themes; native visual and large-text acceptance remains pending.
 
 Import Categorize type adjustment (2026-11-02): final user refinement restores the description to its original 18-unit semibold size and matches the centered amount at 18-unit medium. The larger date and compact Exclude treatment remain as above.
+
+Import network identity refinement (2026-11-02): user-requested Update/Confirm layout supersedes the uppercase provider and account-format labels above. ProviderIdentity shows the provider name (BDO, EastWest or GCash) below the provider artwork. Bundled AMEX SVG or VISA WebP appears only for the matching credit-card format, with 18-unit height and preserved proportions. Update aligns the network artwork at the summary card's upper right; Confirm places it directly to the provider logo's right with an 8-unit gap. E-wallet accounts have no network artwork. Native visual verification remains pending.
+
+Import identity height refinement (2026-11-02): crop AMEX's SVG viewBox to its 500-by-500 artwork bounds so its visible height matches the 18-unit provider and VISA logos. Use a shared 18-unit logo height. E-wallet accounts retain their provider logo/name and show an 18-unit Lucide Wallet in the network position, using the secondary text color and the same per-screen alignment.
+
+Import Categorize emphasis (2026-11-02): user preference promotes the date and calendar icon to textPrimary. Edit reuses the local 12-unit regular QueueAction; Edit and Exclude labels/icons use textSecondary, retaining 48-unit touch targets and Exclude's outlined capsule. Existing semantic roles apply in both themes. Native visual verification remains pending.
+
+Import confirmation identity refinement (2026-11-02): Confirm omits the visible provider name below the logos; its existing grouped accessibility label retains provider identification. Update keeps the provider name. Logo sizing, network/wallet icons and statement date remain unchanged.
+
+Import review identity label refinement (2026-11-02): Update appends the account format beside the provider name: BDO AMEX, EastWest VISA or GCash E-wallet. Confirm continues to omit this visible label.

@@ -44,6 +44,7 @@ export function StatementImportReviewView({ controller: c, onBack, onDiscard }: 
   const source = review.original.rows.find(row => row.sourceRowId === selectedId);
   const selectedRow = selectedId ? review.rows[selectedId] : null;
   const categories = review.catalog.snapshot?.categories.filter(category => category.isActive) ?? [];
+  const hasActiveCategory = categories.some(item => item.id === editor?.values.categoryId);
   const category = review.catalog.snapshot?.categories.find(category => category.id === editor?.values.categoryId);
   const disabled = c.readOnly || review.catalog.status !== 'ready';
   const includedCount = c.counts.all - c.counts.excluded;
@@ -89,7 +90,7 @@ export function StatementImportReviewView({ controller: c, onBack, onDiscard }: 
           </View>)}
         </View>
         <View style={{ paddingVertical: 12, paddingHorizontal: 14, borderRadius: 16, backgroundColor: palette.editorField, gap: 4 }}>
-          <ProviderIdentity account={review.original.account} />
+          <ProviderIdentity account={review.original.account} networkPlacement="trailing" />
           <Text style={{ fontSize: 12, fontFamily: fonts.regular, color: palette.textSecondary }}>{review.original.file.name}</Text>
           <Text style={{ fontSize: 12, fontFamily: fonts.regular, color: palette.textSecondary }}>{`${withThousandsSeparators(review.original.rows.length)} transactions`}</Text>
         </View>
@@ -119,10 +120,10 @@ export function StatementImportReviewView({ controller: c, onBack, onDiscard }: 
                 <View style={{ gap: 8 }}>
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                     <View style={{ flexShrink: 1, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <CalendarDays size={16} color={palette.textSecondary} accessible={false} />
-                      <Text style={{ flexShrink: 1, fontSize: 14, fontFamily: fonts.regular, color: palette.textSecondary }}>{readableDate(editor?.values.expenseDate || source.originalDate)}</Text>
+                      <CalendarDays size={16} color={palette.textPrimary} accessible={false} />
+                      <Text style={{ flexShrink: 1, fontSize: 14, fontFamily: fonts.regular, color: palette.textPrimary }}>{readableDate(editor?.values.expenseDate || source.originalDate)}</Text>
                     </View>
-                    {editor ? <View ref={editFocus}><CompactAction label="Edit" variant="quiet" disabled={disabled} onPress={() => setModal('edit')} icon={<Pencil size={14} color={palette.textPrimary} />} /></View> : null}
+                    {editor ? <View ref={editFocus}><QueueAction label="Edit" disabled={disabled} onPress={() => setModal('edit')} icon={<Pencil size={14} color={palette.textSecondary} />} /></View> : null}
                   </View>
                   <Text style={{ fontSize: 18, fontFamily: fonts.semibold, color: palette.textPrimary }}>{editor?.values.description || source.description}</Text>
                   <Text style={{ marginVertical: 4, fontSize: 18, fontFamily: fonts.medium, color: palette.textPrimary, textAlign: 'center' }}>{`PHP ${withThousandsSeparators(editor?.values.amount || source.originalAmount)}`}</Text>
@@ -148,9 +149,9 @@ export function StatementImportReviewView({ controller: c, onBack, onDiscard }: 
                     <TextField label="Rule pattern" value={editor.pattern} editable={!disabled} onChangeText={pattern => remember({ pattern })} />
                   </> : null}
                   {(review.errors ?? []).map(message => <ErrorText key={message} message={message} />)}
-                  <PrimaryButton label="Save & next" disabled={disabled} onPress={() => { if (c.save()) setModal(null); }} />
+                  <PrimaryButton label="Save & next" disabled={disabled || !hasActiveCategory} onPress={() => { if (c.save()) setModal(null); }} />
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 8 }}>
-                    <QueueAction label="Exclude" outlined accessibilityLabel="Exclude Transaction and abandon unapplied edits" icon={<CircleMinus size={14} color={palette.textPrimary} />} disabled={c.readOnly} onPress={() => c.send({ type: 'excluded', sourceRowId: editor.sourceRowId })} />
+                    <QueueAction label="Exclude" outlined accessibilityLabel="Exclude Transaction and abandon unapplied edits" icon={<CircleMinus size={14} color={palette.textSecondary} />} disabled={c.readOnly} onPress={() => c.send({ type: 'excluded', sourceRowId: editor.sourceRowId })} />
                     <QueueAction label="Skip for now →" accessibilityLabel="Skip for now and abandon unapplied edits" disabled={c.readOnly} onPress={() => c.send({ type: 'skipped' })} brand />
                   </View>
                 </> : selectedRow.inclusion === 'user-excluded' ? <SecondaryButton label="Restore Transaction" disabled={c.readOnly} onPress={() => c.send({ type: 'restored', sourceRowId: selectedRow.sourceRowId })} /> : <SupportingText>{`Excluded: ${source.classification.eligible ? 'Not included' : source.classification.reason}. Its original classification cannot be overridden here.`}</SupportingText>}
@@ -252,7 +253,7 @@ function QueueAction({ label, accessibilityLabel = label, onPress, disabled = fa
     style={{ minHeight: 48, minWidth: 48, flexShrink: 1, flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8, opacity: disabled ? 0.55 : 1 }}>
     <View pointerEvents="none" style={{ flexShrink: 1, flexDirection: 'row', alignItems: 'center', gap: 6, ...(outlined ? { minHeight: 32, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 16, borderWidth: 1, borderColor: palette.fieldBorder, backgroundColor: palette.surfaceModal } : {}) }}>
       {icon}
-      {label ? <Text style={{ flexShrink: 1, fontSize: 12, fontFamily: brand || outlined ? fonts.medium : fonts.regular, color: brand ? palette.brandPrimary : outlined ? palette.textPrimary : palette.textSecondary }}>{label}</Text> : null}
+      {label ? <Text style={{ flexShrink: 1, fontSize: 12, fontFamily: brand || outlined ? fonts.medium : fonts.regular, color: brand ? palette.brandPrimary : palette.textSecondary }}>{label}</Text> : null}
     </View>
   </Pressable>;
 }

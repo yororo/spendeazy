@@ -65,7 +65,7 @@ export function ImportConfirmationView({ controller: c, readOnly, onDiscard }: {
       <DesignSurface style={{ padding: 20, gap: 20 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
           <View accessible accessibilityLabel={`${statement.account.provider.toUpperCase()}, ${statement.account.format}${statementDate ? `. Statement date: ${statementDate}` : ''}`} style={{ flex: 1, gap: 4 }}>
-            <ProviderIdentity account={statement.account} prominent />
+            <ProviderIdentity account={statement.account} showName={false} />
             {statementDate ? <Text style={{ color: palette.textSecondary, fontFamily: fonts.regular, fontSize: 12 }}>{statementDate}</Text> : null}
           </View>
           <SpaceStatus readOnly />

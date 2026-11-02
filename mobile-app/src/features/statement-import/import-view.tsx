@@ -48,7 +48,7 @@ export function StatementImportView({ controller: c, recentHistory, onHistory, o
       <View accessible accessibilityLabel="Supported providers: BDO AMEX, EastWest VISA, GCash E-Wallet" style={{ flexDirection: 'row', alignSelf: 'center', alignItems: 'center', gap: 16, marginBottom: 14 }}>
         <Image source={require('../../../assets/providers/bdo.svg')} contentFit="contain" accessible={false} style={{ height: 18, aspectRatio: 415.4375 / 145.15625 }} />
         <Image source={require('../../../assets/providers/eastwest.webp')} contentFit="contain" accessible={false} style={{ height: 18, aspectRatio: 330 / 66 }} />
-        <Image source={require('../../../assets/providers/gcash.svg')} contentFit="contain" accessible={false} style={{ height: 18, aspectRatio: 72 / 61 }} />
+        <Image source={require('../../../assets/providers/gcash.svg')} contentFit="contain" accessible={false} style={{ height: 18, aspectRatio: 330 / 79 }} />
       </View>
       {c.canSelect ? <PrimaryButton label={state.phase === 'idle' ? 'Select PDF' : 'Select PDF again'} onPress={c.select} /> : null}
       {c.cleanup !== 'ready' ? <SupportingText>{c.cleanup === 'starting' ? 'Checking temporary-file cleanup…' : 'Temporary-file cleanup failed. Retry before selecting a PDF.'}</SupportingText> : null}

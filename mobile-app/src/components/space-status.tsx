@@ -7,18 +7,19 @@ import { Pressable, Text, View } from 'react-native';
 import { SecondaryButton } from '@/components/buttons';
 import { ChoiceSheet } from '@/components/choice-sheet';
 import { Popover } from '@/components/popover';
+import { PersonAvatar } from '@/components/person-avatar';
 import { BodyText, StackGap, SupportingText } from '@/components/screen';
 import { spaceIdentityLabel, type AccessibleSpace } from '@/application/spaces/active-space';
 import { useSpaces } from '@/application/spaces/provider';
 import { useAppTheme } from '@/navigation/app-theme';
 
-function SpaceInitials({ space, compact = false }: { space: AccessibleSpace; compact?: boolean }) {
-  const { palette, fonts } = useAppTheme();
+function SpaceAvatars({ space, compact = false }: { space: AccessibleSpace; compact?: boolean }) {
+  const { palette } = useAppTheme();
   const size = compact ? 28 : 32;
   const members = space.members.slice(0, space.kind === 'personal' ? 1 : 2);
   return <View accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ width: compact ? size + (members.length - 1) * 18 : 48, height: size }}>
     {members.map((member, index) => <View key={member.id} style={{ position: 'absolute', left: index * (compact ? 18 : 16), width: size, height: size, borderRadius: size / 2, backgroundColor: palette.avatar, borderWidth: 2, borderColor: palette.spaceOption, alignItems: 'center', justifyContent: 'center' }}>
-      <Text maxFontSizeMultiplier={1.5} style={{ color: palette.textPrimary, fontFamily: fonts.medium, fontSize: compact ? 10 : 12 }}>{member.name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase()}</Text>
+      <PersonAvatar name={member.name} photoUrl={member.photoUrl} size={size - 4} />
     </View>)}
   </View>;
 }
@@ -36,7 +37,7 @@ export function SpaceStatus({ readOnly = false }: { readOnly?: boolean } = {}) {
   if (error || !active) return <StackGap><BodyText>{error ?? 'Personal Space is unavailable.'}</BodyText><SecondaryButton label="Retry" onPress={() => void refresh()} /></StackGap>;
 
   const badge = <View pointerEvents="none" style={{ minHeight: 44, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 22, borderWidth: 1, borderColor: palette.selectedSpaceBorder, backgroundColor: palette.selectedSpace, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-    <SpaceInitials space={active} compact />
+    <SpaceAvatars space={active} compact />
     {readOnly ? null : <ChevronDown color={palette.textSecondary} size={14} />}
   </View>;
 
@@ -57,7 +58,7 @@ export function SpaceStatus({ readOnly = false }: { readOnly?: boolean } = {}) {
             else if (hasUnsavedWork) setPendingSpaceId(space.id);
             else { void selectSpace(space); setOpen(false); }
           }} style={{ minHeight: 48, paddingVertical: 8, paddingHorizontal: 8, borderRadius: 12, backgroundColor: selected ? palette.selectedSpace : 'transparent', flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-            <SpaceInitials space={space} />
+            <SpaceAvatars space={space} />
             <View style={{ flex: 1, gap: 3 }}>
               <Text style={{ color: palette.textPrimary, fontFamily: fonts.medium, fontSize: 15 }}>{space.kind === 'personal' ? 'Personal' : space.members.map((member) => member.name).join(' & ')}</Text>
               {space.status === 'archived' ? <Text style={{ color: palette.textSecondary, fontFamily: fonts.regular, fontSize: 12 }}>Archived · Read-only</Text> : null}

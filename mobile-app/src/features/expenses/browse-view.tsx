@@ -1,3 +1,4 @@
+import { PullRefreshControl } from '@/components/pull-refresh-control';
 import { useEffect, useRef, useState, type ElementRef, type ReactNode } from "react";
 import {
   FlatList,
@@ -5,7 +6,6 @@ import {
   Keyboard,
   Platform,
   Pressable,
-  RefreshControl,
   Text,
   View,
   type ListRenderItem,
@@ -158,7 +158,7 @@ export function ExpenseBrowse({
           }}
           scrollEventThrottle={32}
           refreshControl={
-            <RefreshControl
+            <PullRefreshControl
               refreshing={refreshing || spacesLoading || spacesRefreshing}
               onRefresh={() => {
                 refreshSpaces();

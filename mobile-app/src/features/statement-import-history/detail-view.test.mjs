@@ -34,6 +34,7 @@ const compiled = await build({
 });
 const module = { exports: {} };
 new Function("require", "module", compiled.outputFiles[0].text)((name) => {
+  if (name === "@/components/pull-refresh-control") return { PullRefreshControl: "RefreshControl" };
   if (name === "react-native")
     return {
       View: "View",

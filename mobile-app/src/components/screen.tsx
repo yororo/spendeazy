@@ -1,6 +1,7 @@
+import { PullRefreshControl } from '@/components/pull-refresh-control';
 import { ScreenHeader } from '@/components/screen-header';
 import { type ReactNode } from 'react';
-import { KeyboardAvoidingView, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { KeyboardAvoidingView, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CanvasBackground } from '@/components/design-surface';
@@ -40,7 +41,7 @@ export function Screen({
       keyboardShouldPersistTaps="handled"
       refreshControl={
         onRefresh ? (
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={palette.brandPrimary} />
+          <PullRefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={palette.brandPrimary} />
         ) : undefined
       }
       style={{ flex: 1 }}

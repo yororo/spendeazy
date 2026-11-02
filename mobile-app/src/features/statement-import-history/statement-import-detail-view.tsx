@@ -1,6 +1,7 @@
+import { PullRefreshControl } from '@/components/pull-refresh-control';
 import { PersonAvatar } from '@/components/person-avatar';
 import { useState } from "react";
-import { FlatList, RefreshControl, Text, View } from "react-native";
+import { FlatList, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { ImportEvidenceRow } from "@/api/statement-import-detail-response";
 import { SecondaryButton } from "@/components/buttons";
@@ -53,7 +54,7 @@ export function StatementImportDetailView({
           gap: space.cardGap,
         }}
         refreshControl={
-          <RefreshControl
+          <PullRefreshControl
             refreshing={c.loading}
             onRefresh={c.refresh}
             tintColor={palette.brandPrimary}

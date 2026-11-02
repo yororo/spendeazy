@@ -46,13 +46,13 @@ export function DesignSurface({ children, style, accessibilityLabel, variant = '
   // Explicit SVG dimensions keep the fill spanning tall, growing cards.
   const [backgroundSize, setBackgroundSize] = useState({ width: 0, height: 0 });
   const isSummary = variant === 'summary';
-  const nativeNavigation = variant === 'navigation' && isGlassEffectAPIAvailable() && isLiquidGlassAvailable();
+  const nativeNavigation = !isSummary && isGlassEffectAPIAvailable() && isLiquidGlassAvailable();
   const cornerRadius = isSummary ? radius.summaryCard : radius.navigation;
   const colors = variant === 'add' ? recipe.add : recipe.glass;
   const highlight = variant === 'add' ? recipe.addHighlight : variant === 'navigation' ? recipe.navigationHighlight : recipe.highlight;
   return (
     <View style={[{ borderRadius: cornerRadius, shadowColor: isSummary ? palette.summaryCardShadow : variant === 'add' ? palette.addShadow : palette.shadow, shadowOffset: { width: 0, height: isSummary ? 10 : variant === 'add' ? 6 : 8 }, shadowOpacity: 1, shadowRadius: isSummary ? 30 : variant === 'add' ? 18 : 24, elevation: 6 }, containerStyle]}>
-      <GlassView accessible={!!accessibilityLabel} accessibilityRole={accessibilityLabel ? 'summary' : undefined} accessibilityLabel={accessibilityLabel} glassEffectStyle={variant === 'add' ? 'none' : 'regular'} colorScheme={scheme} style={[{ borderRadius: cornerRadius, overflow: 'hidden', borderWidth: variant === 'add' || nativeNavigation ? 0 : isSummary ? 1 : 1.5, borderColor: isSummary ? palette.glassBorder : variant === 'add' ? palette.addBorder : palette.navigationBorder }, style]}>
+      <GlassView accessible={!!accessibilityLabel} accessibilityRole={accessibilityLabel ? 'summary' : undefined} accessibilityLabel={accessibilityLabel} glassEffectStyle={nativeNavigation ? variant === 'navigation' ? 'clear' : 'regular' : variant === 'add' ? 'none' : 'regular'} tintColor={nativeNavigation && variant === 'add' ? palette.add : undefined} colorScheme={scheme} style={[{ borderRadius: cornerRadius, overflow: 'hidden', borderWidth: variant === 'add' || nativeNavigation ? 0 : isSummary ? 1 : 1.5, borderColor: isSummary ? palette.glassBorder : variant === 'add' ? palette.addBorder : palette.navigationBorder }, style]}>
         {!nativeNavigation ? <View pointerEvents="none" accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={StyleSheet.absoluteFill}
           onLayout={({ nativeEvent: { layout } }) => setBackgroundSize((size) =>
             size.width === layout.width && size.height === layout.height ? size : { width: layout.width, height: layout.height })}>

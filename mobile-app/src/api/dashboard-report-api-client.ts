@@ -105,7 +105,7 @@ export type DashboardReport = {
 export type DashboardReportQuery = {
   view: DashboardView;
   endMonth?: string;
-  months?: 1 | 3 | 6;
+  months?: 1 | 3 | 6 | 12;
   year?: string;
   chartCategoryIds?: readonly string[];
 };

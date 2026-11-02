@@ -3,7 +3,7 @@ import test from 'node:test';
 
 import { displayMoneyAmount } from './money-amount.ts';
 
-test('shows the API decimal exactly, including a one-cent remainder', () => {
+test('shows API decimals with thousands separators and preserves a one-cent remainder', () => {
   assert.equal(displayMoneyAmount('400.01'), '400.01');
-  assert.equal(displayMoneyAmount('1000'), '1000');
+  assert.equal(displayMoneyAmount('1000'), '1,000');
 });

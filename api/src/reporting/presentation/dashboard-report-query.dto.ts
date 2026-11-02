@@ -37,11 +37,11 @@ export class DashboardReportQueryDto {
 
   @IsOptional()
   @IsString()
-  @IsIn(['1', '3', '6'])
+  @IsIn(['1', '3', '6', '12'])
   @ApiPropertyOptional({
     description:
       'Number of calendar months for the Monthly view. Defaults to 1.',
-    enum: ['1', '3', '6'],
+    enum: ['1', '3', '6', '12'],
     default: '1',
   })
   months?: string;

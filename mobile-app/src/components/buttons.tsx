@@ -1,5 +1,5 @@
 import { type ElementRef, type ReactNode, type Ref } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 
 import { controlSize, radius, space, typeScale } from '@/constants/theme';
 import { useAppTheme } from '@/navigation/app-theme';
@@ -9,12 +9,14 @@ export function PrimaryButton({
   onPress,
   disabled = false,
   busy = false,
+  showSpinner = false,
   tone = 'brand',
 }: {
   label: string;
   onPress: () => void;
   disabled?: boolean;
   busy?: boolean;
+  showSpinner?: boolean;
   tone?: 'brand' | 'destructive';
 }) {
   const { palette, fonts } = useAppTheme();
@@ -33,12 +35,16 @@ export function PrimaryButton({
         backgroundColor: tone === 'destructive' ? palette.stateNegative : palette.brandPrimary,
         alignItems: 'center',
         justifyContent: 'center',
+        flexDirection: 'row',
+        gap: space.fieldLabelGap,
         paddingHorizontal: space.screenBottom,
         paddingVertical: space.sheetPaddingTop,
         opacity: disabled || busy ? 0.55 : 1,
       }}>
+      {showSpinner ? <ActivityIndicator size="small" color={palette.onBrand} accessible={false} /> : null}
       <Text
         style={{
+          flexShrink: 1,
           color: palette.onBrand,
           fontFamily: fonts.semibold,
           fontSize: typeScale.button,

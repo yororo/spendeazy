@@ -52,7 +52,7 @@ export class SpaceDashboardReportController {
   @ApiQuery({
     name: 'months',
     required: false,
-    enum: ['1', '3', '6'],
+    enum: ['1', '3', '6', '12'],
     description: 'Monthly window length. Defaults to 1.',
   })
   @ApiQuery({

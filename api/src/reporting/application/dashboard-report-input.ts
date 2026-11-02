@@ -68,12 +68,12 @@ export function resolveDashboardRange(
     const monthsInput = input.months === undefined ? '1' : input.months;
     if (
       typeof monthsInput !== 'string' ||
-      !['1', '3', '6'].includes(monthsInput)
+      !['1', '3', '6', '12'].includes(monthsInput)
     ) {
       details.push({
         field: '/months',
         code: 'invalid_value',
-        message: 'Months must be 1, 3, or 6',
+        message: 'Months must be 1, 3, 6, or 12',
       });
     }
     const endMonth =

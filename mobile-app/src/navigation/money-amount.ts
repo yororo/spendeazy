@@ -4,5 +4,5 @@ export function displayMoneyAmount(amount: string): string {
   if (!EXACT_DECIMAL.test(amount)) {
     throw new Error('Money amounts must be exact decimal strings');
   }
-  return amount;
+  return amount.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 }

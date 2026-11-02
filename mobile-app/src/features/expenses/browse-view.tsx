@@ -187,7 +187,10 @@ export function ExpenseBrowse({
               {loaded && issues.length === 0 ? (
                 <View style={{ alignItems: 'center', gap: 3, paddingTop: 8, paddingBottom: 4 }}>
                   <Text style={metadataStyle}>{deletedOnly ? 'Deleted total · PHP' : 'Total spent · PHP'}</Text>
-                  <MoneyAmount amount={loaded.totalAmount} variant="total" />
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                    <Text accessible={false} style={{ color: palette.textPrimary, fontFamily: fonts.semibold, fontSize: 42, letterSpacing: -2 }}>₱</Text>
+                    <MoneyAmount amount={loaded.totalAmount} variant="total" />
+                  </View>
                   <Text style={metadataStyle}>{expenseCountLabel(loaded.totalCount)}</Text>
                 </View>
               ) : null}

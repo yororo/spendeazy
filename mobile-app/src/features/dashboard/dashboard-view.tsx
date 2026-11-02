@@ -4,7 +4,6 @@ import {
   Pressable,
   Text,
   View,
-  useWindowDimensions,
 } from "react-native";
 import type { ElementRef, ReactNode } from "react";
 import type {
@@ -18,7 +17,7 @@ import { Calendar, CalendarDays, Check, CircleCheck, ChevronDown, ExternalLink, 
 import { ChoiceSheet } from "@/components/choice-sheet";
 import { Popover } from "@/components/popover";
 import { BodyText, Screen } from "@/components/screen";
-import { radius, space, typeScale } from "@/constants/theme";
+import { controlSize, radius, space, typeScale } from "@/constants/theme";
 import { CATEGORY_COLOR_VALUES } from "@/features/categories/category-catalog";
 import { CategoryIconMark } from "@/components/category-mark";
 import { useAppTheme } from "@/navigation/app-theme";
@@ -52,10 +51,8 @@ export function DashboardView({
   onOpenBudgetCategory: (categoryId: string) => void;
   onOpenImportHistory: () => void;
 }) {
-  const { fontScale } = useWindowDimensions();
   const { palette, fonts } = useAppTheme();
   const { report } = controller;
-  const selectedYear = controller.year ?? report?.range.today.slice(0, 4) ?? "";
   const categoryChoices = controller.categories.filter(
     (category) =>
       category.isActive ||
@@ -108,43 +105,14 @@ export function DashboardView({
             flexDirection: "row",
             flexWrap: "wrap",
             alignItems: "center",
-            justifyContent: "space-between",
+            justifyContent: "flex-end",
             gap: 6,
           }}
         >
-          <View
-            accessibilityRole="tablist"
-            style={{
-              flexDirection: "row",
-              width: 190 * fontScale,
-              maxWidth: "100%",
-              alignSelf: "flex-start",
-              padding: 3,
-              borderRadius: 18,
-              backgroundColor: palette.segmentedTrack,
-            }}
-          >
-            <PeriodButton
-              label="Monthly"
-              selected={controller.view === "monthly"}
-              onPress={() => controller.selectView("monthly")}
-            />
-            <PeriodButton
-              label="Yearly"
-              selected={controller.view === "yearly"}
-              onPress={() => controller.selectView("yearly")}
-            />
-          </View>
-          {controller.view === "yearly" ? (
-            <YearPicker
-              key={selectedYear}
-              year={selectedYear}
-              today={controller.today}
-              onSelect={controller.selectYear}
-            />
-          ) : (
-            <MonthRangePicker months={controller.months} onSelect={controller.selectMonths} />
-          )}
+          <MonthRangePicker months={controller.view === "yearly" ? "ytd" : controller.months} onSelect={(period) => {
+            if (period === "ytd") controller.selectYearToDate();
+            else { controller.selectMonths(period); controller.selectView("monthly"); }
+          }} />
         </View>
 
         {controller.error ? (
@@ -1033,89 +1001,55 @@ function SummaryDetail({ label, value }: { label: string; value: string }) {
     <Text style={{ color: palette.textPrimary, fontFamily: fonts.medium, fontSize: 14 }}>{value}</Text>
   </View>;
 }
-function YearPicker({ year, today, onSelect }: {
-  year: string;
-  today: string | null;
-  onSelect: (year: string) => void;
-}) {
-  const { palette, fonts } = useAppTheme();
-  const [open, setOpen] = useState(false);
-  const trigger = useRef<ElementRef<typeof View>>(null);
-  const currentYear = today?.slice(0, 4) ?? "";
-  const years = today ? [1, 2, 3].map((offset) => String(Number(currentYear) - offset).padStart(4, "0")) : [];
-  const label = year ? `${year}${year === currentYear ? " · YTD" : ""}` : "Calendar year";
-  return (
-    <>
-      <Pressable
-        ref={trigger}
-        accessibilityRole="button"
-        accessibilityLabel={`Choose year, ${label}`}
-        accessibilityState={{ expanded: open, disabled: today === null }}
-        disabled={today === null}
-        onPress={() => setOpen(true)}
-        style={{ minHeight: 48, minWidth: 48, paddingHorizontal: 4, flexDirection: "row", alignItems: "center", gap: 6 }}
-      >
-        <Text style={{ color: palette.textPrimary, fontFamily: fonts.medium, fontSize: 14 }}>{label}</Text>
-        <ChevronDown size={16} color={palette.textSecondary} />
-      </Pressable>
-      <Popover title="Year" visible={open && today !== null} onDismiss={() => setOpen(false)} anchorRef={trigger} showHeader={false} width={120}>
-        {years.map((candidate) => (
-          <CompactAction
-            key={candidate}
-            label={candidate}
-            selected={candidate === year}
-            variant="quiet"
-            onPress={() => { onSelect(candidate); setOpen(false); }}
-          />
-        ))}
-      </Popover>
-    </>
-  );
-}
-function PeriodButton({
-  label,
-  selected,
-  onPress,
-}: {
-  label: string;
-  selected: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <View style={{ flex: 1 }}>
-      <CompactAction
-        label={label}
-        selected={selected}
-        onPress={onPress}
-        variant="segmented"
-      />
-    </View>
-  );
-}
 function MonthRangePicker({ months, onSelect }: {
-  months: 1 | 3 | 6;
-  onSelect: (months: 1 | 3 | 6) => void;
+  months: 1 | 3 | 6 | 12 | "ytd";
+  onSelect: (months: 1 | 3 | 6 | 12 | "ytd") => void;
 }) {
   const { palette, fonts } = useAppTheme();
   const [open, setOpen] = useState(false);
   const trigger = useRef<ElementRef<typeof View>>(null);
-  const label = months === 1 ? "Last 1 month" : "Last " + months + " months";
+  const label = months === "ytd" ? "Year to date" : months === 1 ? "Last 1 month" : "Last " + months + " months";
   return (
     <>
       <Pressable
         ref={trigger}
         accessibilityRole="button"
-        accessibilityLabel={"Choose monthly range, " + label}
+        accessibilityLabel={"Choose period, " + label}
+        accessibilityHint="Filters all dashboard reports by date"
         accessibilityState={{ expanded: open }}
         onPress={() => setOpen(true)}
-        style={{ minHeight: 48, minWidth: 48, paddingHorizontal: 4, flexDirection: "row", alignItems: "center", gap: 6 }}
+        style={({ pressed }) => ({
+          minHeight: controlSize.minimumTarget,
+          minWidth: controlSize.minimumTarget,
+          maxWidth: "100%",
+          justifyContent: "center",
+          opacity: pressed ? 0.7 : 1,
+        })}
       >
-        <Text style={{ color: palette.textPrimary, fontFamily: fonts.medium, fontSize: 14 }}>{label}</Text>
-        <ChevronDown size={16} color={palette.textSecondary} />
+        <View pointerEvents="none" style={{
+          minHeight: 44,
+          paddingHorizontal: 10,
+          paddingVertical: 6,
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 6,
+          borderRadius: 22,
+          borderWidth: 1,
+          borderColor: open ? palette.brandPrimary : palette.selectedSpaceBorder,
+          backgroundColor: palette.selectedSpace,
+        }}>
+          <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+            <CalendarDays size={16} color={palette.brandPrimary} />
+          </View>
+          <Text style={{ flexShrink: 1, color: palette.textPrimary, fontFamily: fonts.medium, fontSize: typeScale.button }}>{label}</Text>
+          <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+            <ChevronDown size={14} color={palette.textSecondary} style={{ transform: [{ rotate: open ? "180deg" : "0deg" }] }} />
+          </View>
+        </View>
       </Pressable>
-      <Popover title="Monthly range" visible={open} onDismiss={() => setOpen(false)} anchorRef={trigger} showHeader={false} width={180}>
-        {([1, 3, 6] as const).map((candidate) => (
-          <CompactAction key={candidate} label={"Last " + candidate + (candidate === 1 ? " month" : " months")}
+      <Popover title="Period" visible={open} onDismiss={() => setOpen(false)} anchorRef={trigger} showHeader={false} width={180}>
+        {([1, 3, 6, 12, "ytd"] as const).map((candidate) => (
+          <CompactAction key={candidate} label={candidate === "ytd" ? "Year to date" : "Last " + candidate + (candidate === 1 ? " month" : " months")}
             selected={candidate === months} variant="quiet"
             onPress={() => { onSelect(candidate); setOpen(false); }} />
         ))}

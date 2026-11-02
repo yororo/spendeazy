@@ -242,6 +242,8 @@ Category identity sizing (2026-11-02): the tinted editor control now uses the 58
 
 Category Budget input sizing (2026-11-02): user preference supersedes the prominent HraLL amount recipe in the Category editor. The budget TextField variant now matches other filled inputs: 58-unit minimum height, 16-unit regular Outfit, 16-unit horizontal padding, modal fill, one-unit field border and 16-unit corners. PHP remains inside the same surface. Validation, decimal keyboard and scalable content remain. Native visual acceptance remains pending.
 
+Category Budget default (2026-11-02): user preference supersedes the empty Budget/Add budget row and Remove Budget action. Always show the filled amount field and Monthly/Yearly controls; a missing saved Budget opens as 0.00 PHP with Monthly selected. Entering zero keeps the Budget unset, so the request sends null; positive amounts remain the only stored Budget values. The field uses the existing filled input sizing and both themes retain the same semantic roles. Native visual acceptance remains pending.
+
 
 User-requested iOS glass refinement (2026-11-02): supported native navigation uses clear Liquid Glass for greater transparency. Add uses regular Liquid Glass tinted with the existing violet Add token, replacing the SVG gradient only when native glass is available. Other platforms retain the source fills. Physical iPhone light/dark visual acceptance remains pending.
 
@@ -280,3 +282,5 @@ Import Categorize emphasis (2026-11-02): user preference promotes the date and c
 Import confirmation identity refinement (2026-11-02): Confirm omits the visible provider name below the logos; its existing grouped accessibility label retains provider identification. Update keeps the provider name. Logo sizing, network/wallet icons and statement date remain unchanged.
 
 Import review identity label refinement (2026-11-02): Update appends the account format beside the provider name: BDO AMEX, EastWest VISA or GCash E-wallet. Confirm continues to omit this visible label.
+
+Dashboard period filter refinement (2026-11-02): user-requested emphasis adapts the compact dropdown in MONtk/jaqBA into a content-width tinted control aligned to the right content edge. Match the Space accessory capsule recipe: selectedSpace/selectedSpaceBorder, 44-unit minimum visual height inside a 48-unit minimum touch target, radius 22, horizontal/vertical padding 10/6 and gap 6. Use a 16-unit brandPrimary calendar, 14-unit textSecondary chevron and 15-unit medium label. The border gains brandPrimary and the chevron rotates while the existing anchored period menu is open; press feedback uses opacity. Text can wrap and height grows with scaling. Both themes use the same semantic roles. Native visual and screen-reader acceptance remains pending.

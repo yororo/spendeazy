@@ -318,7 +318,7 @@ describe('DashboardReportService', () => {
     });
   });
 
-  it.each(['1', '3', '6'])(
+  it.each(['1', '3', '6', '12'])(
     'uses %s complete months for totals and planning',
     async (months) => {
       const report = await service.getDashboardReportInSpace('7', { months });
@@ -336,7 +336,7 @@ describe('DashboardReportService', () => {
     },
   );
 
-  it.each(['0', '2', '12', 'abc'])(
+  it.each(['0', '2', '13', 'abc'])(
     'rejects unsupported month count %s',
     async (months) => {
       await expect(

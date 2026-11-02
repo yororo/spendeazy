@@ -104,7 +104,6 @@ export function ImportConfirmationView({ controller: c, readOnly, onDiscard }: {
         </View>)}
       </View>
       <View accessibilityLiveRegion="polite" style={{ gap: 12 }}>
-        {c.phase === 'previewing' ? <SupportingText>Checking the final review…</SupportingText> : null}
         {c.preview?.warnings.map(w => <Text key={w.id} style={{ color: palette.stateWarning, fontFamily: fonts.regular, fontSize: 15 }}>{`${w.message}${w.sourceRowIds.length ? ` (${withThousandsSeparators(w.sourceRowIds.length)} rows)` : ''}`}</Text>)}
         {c.message ? <View accessibilityRole="alert" accessibilityLiveRegion="assertive" style={{ gap: 8 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -119,7 +118,7 @@ export function ImportConfirmationView({ controller: c, readOnly, onDiscard }: {
       {c.phase === 'failed' ? <SecondaryButton label="Retry final check" onPress={c.retryPreview} /> : null}
       <SecondaryButton label="Back to review" disabled={c.locked} onPress={c.back} />
       <SecondaryButton label="Close" disabled={c.locked} onPress={() => setClosing(true)} />
-      <PrimaryButton label={c.phase === 'uncertain' ? 'Retry same import' : warning ? 'Import anyway' : `Import`} busy={c.phase === 'saving'}
+      <PrimaryButton label={c.phase === 'previewing' ? 'Validating statement' : c.phase === 'uncertain' ? 'Retry same import' : warning ? 'Import anyway' : `Import`} busy={c.phase === 'saving' || c.phase === 'previewing'} showSpinner={c.phase === 'previewing'}
         disabled={!c.canSend || readOnly || !['ready', 'uncertain'].includes(c.phase)} onPress={() => c.submit(warning)} />
     </ScrollView>
     <CenteredDialog visible={closing} title="Discard Statement Import?" onDismiss={() => setClosing(false)}>

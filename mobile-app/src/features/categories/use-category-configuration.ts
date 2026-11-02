@@ -4,6 +4,7 @@ import { ApiError, requestFailureMessage } from '@/api/request-failure';
 import { useAuthorizedClient } from '@/application/authorized-client';
 import { useSpaces } from '@/application/spaces/provider';
 import {
+  defaultCategoryBudget,
   defaultCategoryConfigurationDraft,
   makeCategoryConfigurationSave,
   prepareCategoryConfiguration,
@@ -355,7 +356,7 @@ function draftFromConfiguration(configuration: CategoryConfiguration): CategoryC
     iconKey: configuration.category.iconKey,
     colorKey: configuration.category.colorKey,
     isActive: configuration.category.isActive,
-    budget: configuration.budget ? { ...configuration.budget } : null,
+    budget: configuration.budget ? { ...configuration.budget } : defaultCategoryBudget(),
     rules: configuration.rules.map((rule) => ({ ...rule })),
   };
 }

@@ -10,7 +10,12 @@ import { CATEGORY_COLOR_KEYS, CATEGORY_ICON_KEYS, type CategoryColorKey, type Ca
 import { controlSize, radius, space, typeScale } from '@/constants/theme';
 import { useAppTheme } from '@/navigation/app-theme';
 import { CATEGORY_COLOR_VALUES, CATEGORY_ICON_COMPONENTS } from './category-catalog';
-import type { CategoryConfigurationField } from './category-configuration-draft';
+import {
+  defaultCategoryBudget,
+  type CategoryConfigurationField,
+} from './category-configuration-draft';
+
+const ZERO_BUDGET = defaultCategoryBudget();
 
 export type CategoryConfigurationFormState = {
   availability: 'missing-space' | 'space-changed' | 'read-only' | 'archived' | 'editable';
@@ -68,6 +73,8 @@ export function CategoryConfigurationView({
   const statusRef = useRef<ElementRef<typeof View>>(null);
   const infoButton = (kind: 'rules' | 'status') => <Pressable ref={kind === 'rules' ? rulesRef : statusRef} accessibilityRole="button" accessibilityLabel={kind === 'rules' ? 'About matching rules' : 'About Category status'} accessibilityState={{ expanded: info === kind }} onPress={() => setInfo(kind)} style={{ minHeight: 48, minWidth: 48, alignItems: 'center', justifyContent: 'center' }}><Info size={18} color={palette.textSecondary} accessible={false} /></Pressable>;
   const draft = state.draft;
+  const budget = draft?.budget ?? ZERO_BUDGET;
+  const latestConfigurationBudget = state.latestConfiguration?.budget ?? ZERO_BUDGET;
   const editable = state.availability === 'editable' && !state.saving && state.phase === 'ready' && state.conflict === null;
 
   const sectionHeading = (label: string) => (
@@ -143,9 +150,7 @@ export function CategoryConfigurationView({
                 <SupportingText>{`${state.latestConfiguration.category.name} · ${state.latestConfiguration.category.isActive ? 'Active' : 'Inactive'}`}</SupportingText>
                 <SupportingText>{`Icon: ${state.latestConfiguration.category.iconKey} · Color: ${state.latestConfiguration.category.colorKey}`}</SupportingText>
                 <SupportingText>
-                  {`Budget: ${state.latestConfiguration.budget
-                    ? `${state.latestConfiguration.budget.amount} PHP · ${state.latestConfiguration.budget.recurrence}`
-                    : 'none'}`}
+                  {`Budget: ${latestConfigurationBudget.amount} PHP · ${latestConfigurationBudget.recurrence}`}
                 </SupportingText>
                 <SupportingText>
                   {`Rules: ${state.latestConfiguration.rules.length
@@ -193,20 +198,12 @@ export function CategoryConfigurationView({
         </View>
         <View style={{ gap: space.fieldLabelGap }}>
           {sectionHeading('Budget')}
-          {draft.budget ? <>
-            <TextField label="Budget amount (PHP)" showLabel={false} variant="budget" suffix="PHP" value={draft.budget.amount} onChangeText={(amount) => onChange({ budget: { ...draft.budget!, amount } })} error={state.issues.budget} placeholder="0.00" keyboardType="decimal-pad" editable={editable} />
-            <View style={{ flexDirection: 'row', gap: 4, padding: 5, borderRadius: radius.control, backgroundColor: palette.segmentedTrack }}>
-              {(['monthly', 'yearly'] as const).map((recurrence) => <View key={recurrence} style={{ flex: 1 }}>
-                <CompactAction variant="segmented" label={recurrence === 'monthly' ? 'Monthly' : 'Yearly'} selected={draft.budget?.recurrence === recurrence} disabled={!editable} onPress={() => onChange({ budget: { ...draft.budget!, recurrence } })} />
-              </View>)}
-            </View>
-            <CompactAction variant="quiet" label="Remove Budget" disabled={!editable} onPress={() => onChange({ budget: null })} />
-          </> : <>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: space.fieldLabelGap }}>
-              <SupportingText>No budget</SupportingText>
-              <CompactAction label="Add budget" icon={<Plus size={16} color={palette.brandPrimary} />} disabled={!editable} onPress={() => onChange({ budget: { amount: '', currency: 'PHP', recurrence: 'monthly' } })} />
-            </View>
-          </>}
+          <TextField label="Budget amount (PHP)" showLabel={false} variant="budget" suffix="PHP" value={budget.amount} onChangeText={(amount) => onChange({ budget: { ...budget, amount } })} error={state.issues.budget} placeholder="0.00" keyboardType="decimal-pad" editable={editable} />
+          <View style={{ flexDirection: 'row', gap: 4, padding: 5, borderRadius: radius.control, backgroundColor: palette.segmentedTrack }}>
+            {(['monthly', 'yearly'] as const).map((recurrence) => <View key={recurrence} style={{ flex: 1 }}>
+              <CompactAction variant="segmented" label={recurrence === 'monthly' ? 'Monthly' : 'Yearly'} selected={budget.recurrence === recurrence} disabled={!editable} onPress={() => onChange({ budget: { ...budget, recurrence } })} />
+            </View>)}
+          </View>
         </View>
         <View style={{ gap: space.fieldLabelGap }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>

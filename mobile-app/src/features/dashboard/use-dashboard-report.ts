@@ -31,8 +31,9 @@ export function useDashboardReport() {
   const initialSelection = {
     scopeKey,
     view: "monthly" as DashboardView,
-    months: 1 as 1 | 3 | 6,
+    months: 1 as 1 | 3 | 6 | 12,
     year: null as string | null,
+    yearToDate: false,
     chartCategoryIds: EMPTY_CATEGORY_SELECTION,
     categoriesInitialized: false,
     categoryMarkers: {} as Readonly<Record<string, number>>,
@@ -47,11 +48,11 @@ export function useDashboardReport() {
       view,
       ...(view === "monthly"
         ? { months }
-        : year === null
+        : selection.yearToDate || year === null
           ? {}
           : { year }),
     }),
-    [months, view, year],
+    [months, view, year, selection.yearToDate],
   );
   const queryKey = useMemo(
     () => JSON.stringify([activeSpaceId, query]),
@@ -193,8 +194,8 @@ export function useDashboardReport() {
         : report,
     [chartCategoryIds, report],
   );
-  const selectMonths = useCallback((next: 1 | 3 | 6) => {
-    if (!activeSpaceId || !authorized.isCurrent() || ![1, 3, 6].includes(next)) return;
+  const selectMonths = useCallback((next: 1 | 3 | 6 | 12) => {
+    if (!activeSpaceId || !authorized.isCurrent() || ![1, 3, 6, 12].includes(next)) return;
     setSelection((current) => ({ ...current, months: next }));
   }, [activeSpaceId, authorized]);
   return {
@@ -210,6 +211,7 @@ export function useDashboardReport() {
     refreshing: state.loading && state.data !== null,
     refresh: activeSpaceId ? refresh : refreshSpaces,
     selectView,
+    selectYearToDate: () => setSelection((current) => ({ ...current, view: "yearly", yearToDate: true })),
     selectYear,
     scopeKey,
     months,

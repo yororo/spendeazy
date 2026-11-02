@@ -9,13 +9,19 @@ export type CategoryConfigurationIssue = {
   message: string;
 };
 
+export function defaultCategoryBudget(): NonNullable<
+  CategoryConfigurationDraft['budget']
+> {
+  return { amount: '0.00', currency: 'PHP', recurrence: 'monthly' };
+}
+
 export function defaultCategoryConfigurationDraft(): CategoryConfigurationDraft {
   return {
     name: '',
     iconKey: 'shapes',
     colorKey: 'teal',
     isActive: true,
-    budget: null,
+    budget: defaultCategoryBudget(),
     rules: [],
   };
 }
@@ -28,14 +34,15 @@ export function prepareCategoryConfiguration(
   if (name.length === 0) issues.push({ field: 'name', message: 'Enter a Category name.' });
   if (name.length > 100) issues.push({ field: 'name', message: 'Category names can be up to 100 characters.' });
 
-  let budget = draft.budget;
-  if (budget) {
-    const amount = positivePhp(budget.amount);
-    if (amount === null) {
-      issues.push({ field: 'budget', message: 'Enter a positive peso amount with up to two decimal places.' });
-    } else {
-      budget = { ...budget, amount };
-    }
+  const budgetInput = draft.budget ?? defaultCategoryBudget();
+  const amount = nonNegativePhp(budgetInput.amount);
+  let budget: CategoryConfigurationDraft['budget'] = null;
+  if (amount === null) {
+    issues.push({ field: 'budget', message: 'Enter a positive peso amount with up to two decimal places.' });
+  } else if (amount === '0.00') {
+    budget = null;
+  } else {
+    budget = { ...budgetInput, amount };
   }
 
   const rules = draft.rules.map((rule) => ({ ...rule, pattern: rule.pattern.trim() }));
@@ -71,11 +78,9 @@ export function makeCategoryConfigurationSave(
   };
 }
 
-function positivePhp(value: string): string | null {
+function nonNegativePhp(value: string): string | null {
   const trimmed = value.trim();
   if (!/^(?:0|[1-9]\d{0,12})(?:\.\d{0,2})?$/u.test(trimmed)) return null;
   const [whole, fraction = ''] = trimmed.split('.');
-  const cents = fraction.padEnd(2, '0');
-  if (!/[1-9]/u.test(`${whole}${cents}`)) return null;
-  return `${whole}.${cents}`;
+  return `${whole}.${fraction.padEnd(2, '0')}`;
 }

@@ -125,7 +125,7 @@ export function StatementImportReviewView({ controller: c, onBack, onDiscard }: 
                     </View>
                     {editor ? <View ref={editFocus}><QueueAction label="Edit" disabled={disabled} onPress={() => setModal('edit')} icon={<Pencil size={14} color={palette.textSecondary} />} /></View> : null}
                   </View>
-                  <Text style={{ fontSize: 18, fontFamily: fonts.semibold, color: palette.textPrimary }}>{editor?.values.description || source.description}</Text>
+                  <Text style={{ fontSize: 18, fontFamily: fonts.semibold, color: palette.textPrimary, textAlign: 'center' }}>{editor?.values.description || source.description}</Text>
                   <Text style={{ marginVertical: 4, fontSize: 18, fontFamily: fonts.medium, color: palette.textPrimary, textAlign: 'center' }}>{`PHP ${withThousandsSeparators(editor?.values.amount || source.originalAmount)}`}</Text>
                 </View>
                 {editor ? <>

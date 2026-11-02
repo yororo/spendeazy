@@ -14,7 +14,7 @@ export function useImportConfirmation(beforeSend: ReceiptWriter = confirmationRe
   const state = useSyncExternalStore(workflow.subscribe, workflow.snapshot, workflow.snapshot);
   const draft = useSyncExternalStore(statementImportStore.subscribe, statementImportStore.snapshot, statementImportStore.snapshot);
   const handoff = draft.phase === 'review-ready' ? draft.review.handoff : null;
-  const receipt = workflow.receipt();
+  const { receipt, canRetry } = state;
   useEffect(() => {
     if (!loading && !error && receipt) void workflow.checkStatus(api);
   }, [api, receipt, loading, error, workflow]);
@@ -25,7 +25,7 @@ export function useImportConfirmation(beforeSend: ReceiptWriter = confirmationRe
   return {
     ...state, receipt, handoff, summary: handoff ? confirmationSummary(handoff) : null,
     locked: receipt !== null || state.phase === 'saving',
-    canRetry: workflow.canRetry(),
+    canRetry,
     checkStatus: () => { void workflow.checkStatus(api); },
     acknowledge: workflow.acknowledge,
     canSend: beforeSend !== undefined,

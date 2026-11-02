@@ -9,6 +9,7 @@ export type { ImportReceipt } from './confirmation-receipt.ts';
 export type ReceiptWriter = (receipt: ImportReceipt) => Promise<void>;
 type Phase = 'idle' | 'previewing' | 'ready' | 'saving' | 'checking' | 'uncertain' | 'failed' | 'committed' | 'not_committed';
 type Snapshot = { phase: Phase; preview: ImportPreview | null; message: string | null; result: CommittedImport | null };
+type WorkflowSnapshot = Snapshot & { receipt: ImportReceipt | null; canRetry: boolean };
 type Frozen = { json: string; receipt: ImportReceipt; generation: number; handoff: ReviewHandoff };
 function failureMessage(code: string) {
   if (code === 'SPACE_NOT_WRITABLE') return 'The destination is read-only. No Expenses were saved by this import.';
@@ -52,10 +53,16 @@ export function createConfirmationWorkflow(deps: {
   let generation = -1;
   let frozen: Frozen | null = null;
   let receipt: ImportReceipt | null = null;
+  // React consumers must observe recovery capabilities through the same immutable snapshot.
+  let snapshot: WorkflowSnapshot = { ...state, receipt, canRetry: false };
   let failure: Extract<ImportOperationStatus, { status: 'not_committed' }>['failure'] | null = null;
   let checkingGeneration = -1;
   const listeners = new Set<() => void>();
-  const publish = (event: ConfirmationEvent) => { state = confirmationReducer(state, event); for (const listener of listeners) listener(); };
+  const publishSnapshot = () => {
+    snapshot = { ...state, receipt, canRetry: frozen !== null };
+    for (const listener of listeners) listener();
+  };
+  const publish = (event: ConfirmationEvent) => { state = confirmationReducer(state, event); publishSnapshot(); };
   const current = (handoff: ReviewHandoff, g: number) => {
     const a = deps.access();
     return a.authenticated && a.generation === g && a.userId === handoff.owner.userId && a.spaceId === handoff.owner.spaceId && deps.handoff() === handoff;
@@ -88,7 +95,7 @@ export function createConfirmationWorkflow(deps: {
     }
   }
   return {
-    snapshot: () => state,
+    snapshot: () => snapshot,
     receipt: () => receipt,
     hasReceipt: () => receipt !== null,
     canRetry: () => frozen !== null,
@@ -102,6 +109,7 @@ export function createConfirmationWorkflow(deps: {
       if (recovered && !receipt) {
         receipt = recovered; deps.lock(true);
         if (state.phase !== 'saving') publish({ type: 'uncertain', message: 'Saving hasn’t been confirmed. Check the original operation’s status.' });
+        else publishSnapshot();
       }
     },
     async checkStatus(api: ImportConfirmationApi) {
@@ -175,6 +183,7 @@ export function createConfirmationWorkflow(deps: {
         await beforeSend(attempt.receipt);
         if (frozen !== attempt) return;
         receipt = attempt.receipt;
+        publishSnapshot();
         if (!current(h, attempt.generation)) {
           if (state.phase !== 'checking') publish({ type: 'uncertain', message: 'Submission paused. Restore the original session to resolve this operation.' });
           return;

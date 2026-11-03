@@ -1,189 +1,143 @@
-# Mobile design-token reference
+# Mobile design implementation guideline
 
-Use this document when implementing or reviewing mobile colors, typography, spacing, shapes, icons, surfaces, navigation, or dialogs.
+How to execute [ux-principles.md](ux-principles.md) visually. The principles decide *what* to show; this file decides *how it looks*. If they conflict, ask the user.
 
-## Source and authority
+This file is generic. It holds rules, token roles and recipes only. Do not add per-screen, per-component or per-feature notes, node-ID maps, status/acceptance records or product copy here.
 
-Source: [`mobile-design.pen`](mobile-design.pen). The confirmed source contains light screens and unthemed variables. Dark values in this document are implementation adaptations, not a dark design board.
+## Sources of truth (in priority order)
 
-**Declared** light tokens below exist in the source `variables` object; dark values are adaptations. **Derived** names are conventions introduced here for repeated literal values or component recipes; they are not existing Pencil variables or runtime exports. Node IDs are lookup keys in the source JSON. When the design changes, update the affected table and its evidence together. Resolve conflicts against the current source node, and record intentional departures rather than silently choosing another value.
+1. [`src/constants/theme.ts`](../src/constants/theme.ts): **all values** (colors per theme, fonts, type scale, spacing, radius, control sizes, gradient/canvas recipes). Read it; never copy values from memory or from this file.
+2. [`mobile-design.pen`](mobile-design.pen): visual reference for layout and composition. This is only to provide visual ideas, inspiration, and direction; not to be treated as the actual state. `.pen` files are encrypted; read only via the Pencil MCP tools. Sample data in it is illustrative. 
+3. Existing shared components in `src/components/`: the implementation of the recipes below.
+4. This file: rules for anything the above do not answer.
 
-[`src/constants/theme.ts`](../src/constants/theme.ts) implements the declared colors, Outfit families, page/section/button sizes, and shared spacing, radius, and control sizes. Navigation uses the source translucent fill and white glass border; Add uses the three-stop violet gradient with explicit stop opacity. The shared canvas paints the light wash and a dark adaptation behind the viewport; Expenses uses the same background behind its virtualized list.
+Light values come from the design source. Dark values are implementation adaptations; the source has no dark board.
 
-## Implemented source map
+## Workflow
 
-Node references below were resolved through Pencil on 2026-10-29. This establishes source correspondence, not rendered native acceptance. The [visual handoff](../../implementation-plan.md) contains the pending manual checklist.
+1. Search `src/components/` and `theme.ts` for an existing component/token that fits. Reuse it (ux-principles rule 6).
+2. If none fits, compose from existing tokens. Look at the closest design-source screen for composition only.
+3. Add a new token only when a value is used in 2+ places or must differ per theme. Add it to `theme.ts` with a semantic name, with both themes.
+4. Verify: light and dark, 320-wide screen, large text, keyboard, safe areas, screen reader.
+5. If a design decision is missing, say so in the change summary. Do not invent a value and present it as design-derived.
 
-| Source nodes | Implementation owner and treatment |
-| --- | --- |
-| `FInDV`, `MONtk`, `VvvB3` | `CanvasBackground` in `components/design-surface.tsx`; viewport wash, native safe areas and scrolling via `Screen` |
-| `oV7Mn` | Product adaptation: omit the top logo/wordmark row on every screen to save vertical space. `ScreenHeader` renders only the page title and optional accessory, with no reserved branding gap. The source logo export remains in `assets/design/oV7Mn.png`. |
-| `MONtk`, `VvvB3`, `ur6VR`, `oMcp7`, `BfC6x` | `features/dashboard/dashboard-view.tsx` and `dashboard-charts.tsx`; period controls, summary, checks, monthly bars and Category series |
-| `jaqBA`, `W8UYh6`, `QtZkz` | Yearly selector and About this summary sheet; YTD/In progress and current configuration basis. Manual-testing refinement: align the active range/year selector to the right of the period tabs and omit the verbose inclusive date range. |
-| `sJKV1`, `oUFRH`, `aXuG0`, `rNiyc`/`UYKIg`, `u91Za`/`SYiAK` | Summary and annual allocation/excess meters; completed-month aggregate frequency; separate Expenses and configuration actions |
-| `U0W2qG`, `bqcvI`, `ppce3` | Chart cards and Category multiselect; compact rows with selected tint/check, a 65% sheet height limit and no search (matching Import review). Three chips plus `+N`, stable ID markers, native month detail sheets |
-| `Qd5CZ` | `features/expenses/browse-view.tsx`; centered total, toolbar, virtualized divider rows with shared Category marks |
-| `Qd5CZ`, `BjioB` | Browse refinement: overflow shares the filter toolbar; search close clears the query and dismisses the keyboard. From/To controls open the existing Expo UI native date picker (Android dialog, iOS inline calendar), with local calendar-day serialization and draft Apply/Clear. From/To use the shared underlined field recipe: 58-unit minimum rows, separate metadata labels, calendar/chevron icons and readable local dates. Reuses modal sheet and semantic theme accent; native calendar typography/layout follows the platform. Native emulator stutter, light/dark and screen-reader verification remain pending. |
-| `KJplB`, `muRAO`, `Hzbwi`, `T9esGN`, `H9S5y` | `CenteredDialog`, `TextField` and feature-owned `ExpenseFields`; amount and underlined rows shared by manual Add and Edit |
-| `VgDBB`, `Ataa3` | `ExpenseNotice` and existing failure/delete actions; inline save failures, centered soft-delete confirmation |
-| `DQLz1` | `features/categories/budget-list-view.tsx`; unboxed 42-unit total and divider rows |
-| `D99In`, `k3FtB`, `HraLL` | `features/categories/category-configuration-view.tsx`; filled editor rows, recurrence track, grouped Rules and aggregate Save |
-| `ZZMFP`, `LNW8t`, `eY68d` | Profile and feature-owned `SharedSpaceCard`, reused by Sharing; centered identity and flat translucent membership card |
-| `XS1TB`, `LNW8t`, `VgDBB` | Profile's Edit profile action opens `features/profile/profile-editor-view.tsx`. Adapt the source's email-edit intent to provider-owned first/optional last name and one library photo; email stays read-only. No dedicated editor board exists. Reuse Screen, filled TextField and 52-unit buttons, semantic error/success colors and Outfit in both themes. The source's compact Edit action grows to an accessible 52-unit control. Failures announce inline and retain unfinished edits; API refresh failure replaces Save with Retry synchronization. No new animation; Screen owns keyboard/safe-area scrolling and text scaling. Native layout, focus, screen-reader and light/dark acceptance remains pending. |
-| `pXNTs`, `Ataa3`, `VgDBB`, `Jbjz1` | Profile's Account settings action opens the account feature's Screen and permanent-deletion CenteredDialog. The source's 44-unit settings target becomes a 52-unit button. Cancel receives initial accessibility focus; confirmation explains Personal removal, identity/all-session removal, Shared archival and retained Deleted user attribution. Status/error screens use existing Outfit, semantic theme colors, scalable text, safe-area scrolling, 48-unit minimum targets and 52-unit actions without new animation. There is no dedicated account/status board. Pending copy is “Your deletion request was accepted. Cleanup continues even if you close the app or sign out.” Access-ending copy preserves uncertainty and never equates sign-out with completed deletion. Native light/dark, large-text, focus restoration, TalkBack/VoiceOver and reduced-motion acceptance remains pending. |
-| `aStNQ`, `BjioB`, `qZVeU` | `SpaceStatus` and `ChoiceSheet`; compact accessory, checked options, explicit close |
-| `Z92ldV`, `y7GYIH`, `eqQ7w` | `TabBar`, `DesignSurface` navigation/Add variants and `SelectedTabBackground` |
-| `naq2A`, `ugsNK`, `X2rbb` | `features/statement-import/import-view.tsx`; three-step strip, translucent selection surface and rotated file symbol. Source inspected through Pencil on 2026-10-29. Product adaptations: fixed Space, explicit accessible PDF button, supported providers, real recent history; stack route hides tabs/Add. Surface height grows for text scaling, progress, recovery and warnings. Dark uses existing semantic tokens; source has no dark import board. |
-| `BjioB`, `qZVeU` | Import review Category selection adapts the shared choice sheet: maximum 65% height, scrolling compact rows with Category icon/label, selected tint/check and explicit close. Uses the same semantic colors in both themes; native narrow-screen, large-text and screen-reader acceptance remains pending. |
-| `naq2A`, `aStNQ`, `VDouI` | Import confirmation combines metadata and counts in one shared `DesignSurface` (user refinement, 2026-11-01), with consistent 20-unit outer padding and section spacing, 12-unit column gaps and 4-unit text gaps. The header vertically centers the card identity against the Space capsule. Card name/type and date occupy the upper left; the display-only `SpaceStatus` capsule stays upper right. Found, Import and Excluded form three equal columns below. Card name and counts share 18-unit semibold Outfit; date and count labels share 12-unit regular Outfit with secondary text color. No extra icons, arrows, prefixes or nested cards. Currency remains on monetary amounts. Content grows with text, and each count has an explicit accessible label. Uses existing semantic colors in both themes; native visual and screen-reader acceptance remains pending. |
-| `UPHFB`, `Qd5CZ`, `VDouI` | Statement Import history/detail and import-scoped Expense browsing adapt the recent-row hierarchy, existing Expense list, and shared glass section recipe. Detail uses separate evidence, original confirmation and current Expense sections, expandable virtualized original rows, text statuses and existing scalable buttons. No dedicated detail board exists. Dark uses the same semantic roles; native visual/accessibility and return-journey acceptance remains pending. |
+## Hard rules
 
-Implementation owners in this table are relative to `mobile-app/src/` unless an asset path is given. Shared `PrimaryButton`/`CompactAction`, `CategoryIconMark`, `MoneyAmount`, and modal shells supply repeated controls instead of screen-specific copies. Category glyph/color choices remain in `features/categories/category-catalog.ts`.
+- No hardcoded colors, font names, sizes, spacing, radii or shadows in components. Import from `theme.ts`.
+- Name by role (`textSecondary`, `stateNegative`), never by appearance (`lavender`, `coral`) or by feature.
+- Same semantic role in both themes. Never assume a light-theme value (e.g. white label) is valid in dark; use the `on*` foreground token paired with the fill.
+- Never use a `state*` color for data encoding, or a data/category color for status.
+- Never convey meaning by color alone (pair with icon, text or shape).
+- Do not round values to a 4/8 grid; intermediate values (5, 7, 14, 22) are intentional. Use existing tokens.
+- Do not render a simulated phone frame, device indicators or absolute canvas coordinates. Design-source `fill_container` means "available space".
+- Layout must flex: reference width is 390, not fixed. Heights grow with content and text scaling.
 
-### Yearly Dashboard interactions
+## Token map (roles, not values)
 
-Monthly uses a compact anchored popover, shared with the Yearly selector, with Last 1 month (default), Last 3 months and Last 6 months. Ranges include complete calendar months through last month. The Dashboard retains the Monthly range, Yearly selection and Category choice within the current identity/Space. Returning from a pushed Expenses/configuration screen retains the Dashboard scroll position; focus refreshes the report. Identity/Space changes reset that context. Foreground refresh uses Manila dates, retaining a selected year across New Year. The initial current-year view is labeled `YYYY · YTD`. The year popover offers only the three years preceding the report’s current Manila year (2025, 2024, 2023 when today is in 2026), without search or pagination. It does not include the current year.
+Values: `theme.ts`. Exports: `palette` (per theme, via `paletteFor`), `fontFamily`, `typeScale`, `space`, `radius`, `controlSize`, `designRecipes`.
 
-Summary, checks and monthly bar details use the complete report. Category selection filters only line series and their supplied Monthly references. A monthly bar opens its exact total/count and all-Category breakdown, with separate all-Expenses and Category-month actions. A Category chart month opens exact values/references and Expenses actions for visible Categories; sharing one month hit column avoids overlapping targets when points coincide. Legend entries open Category totals for the report period. Extended value lists are initially collapsed. Month targets include zero bars and share the plot/label scroll coordinates. A period change dismisses chart details; ordinary report refresh retains chart position. Yearly charts follow the API's represented months: January through the current started month for YTD and twelve months for a past year.
+| Group | Roles | Use |
+| --- | --- | --- |
+| Text | `textPrimary`, `textSecondary` | Primary: content and foreground icons. Secondary: supporting text, inactive labels, metadata |
+| Brand | `brandPrimary` + `onBrand` | Primary actions, selection, emphasis. Always pair fill with its `on*` foreground |
+| State | `stateWarning`, `statePositive`, `stateNegative` | Status meaning only (warning, success, error/destructive) |
+| Surface | `canvas`, `surfaceModal`, glass/card/field fills | Canvas = screen background. Modal = dialogs and sheets. Cards use glass recipe |
+| Line | `divider`, `fieldBorder`, glass/navigation borders | 1-unit hairlines unless a recipe says otherwise |
+| Overlay | `scrim`, `shadow` | Behind modals; elevation |
+| Data | chart/meter colors | Data encoding only |
 
-Server range, planning and filter semantics follow the [OpenAPI contract](../../api/docs/openapi.yaml). Annual limits are never divided into Category chart caps. A meter retains lavender allocation and adds coral only for excess, using exact text to communicate a one-cent overage. Zero plan has no percentage/remaining claim. The frequency dots describe counts rather than a chronological breach sequence.
-
-Dark mode keeps the same hierarchy and uses the adapted slate surfaces, brighter text and semantic colors. The native sheets, 48-unit month/control targets, scalable labels and explicit actions intentionally increase height over the illustrative 390-unit board. PHP, real represented months, no-plan/empty copy and accessible details supersede the source's six-month/USD samples. These are documented adaptations, not claims of light/dark parity. See the [IP-03 verification record](../../docs/agents/implementation/IP-03-issue-150-verification.md) for observed Android results and pending fixture, iPhone, layout and screen-reader acceptance.
-
-## Agent implementation workflow
-
-1. Locate the matching screen and component in the source, and identify any dark adaptation. Read its `context` for interaction intent; sample amounts and counts are illustrative data.
-2. Resolve declared semantic tokens for the active theme. Reuse the derived recipe for the same component role; retain source-specific variants where they differ.
-3. Centralize implemented values in the mobile theme layer. Keep semantic names stable across themes and let components consume those names instead of duplicating literals.
-4. Compare light and dark implementations at the reference width, then check narrow screens, large text, scrolling, keyboard clearance, and safe areas. Record any intentional visual departure and any states not covered by the source.
-
-Completion: every changed component maps to a source node/recipe, both themes use the same semantic roles, and missing design decisions are explicitly identified.
-
-## Declared design tokens
-
-Use the exact kebab-case names for design interchange. Pencil references prefix them with `$`, for example `$text-primary`. A code adapter may expose camelCase, with a direct mapping back to these names.
-
-| Token | Type | Light | Dark | Role |
-| --- | --- | --- | --- | --- |
-| `font-ui` | string | Outfit | Outfit | All 940 text nodes reference this family |
-| `text-primary` | color | `#25334D` | `#EEF1FC` | Main text and foreground icons |
-| `text-secondary` | color | `#64738B` | `#A6B1C8` | Supporting text and inactive labels |
-| `brand-primary` | color | `#5361D8` | `#A4AEFF` | Primary actions, selection, emphasis |
-| `surface-modal` | color | `#FAFAFE` | `#22283D` | Dialogs and bottom sheets |
-| `state-warning` | color | `#986224` | `#F1C17E` | Warning meaning |
-| `state-positive` | color | `#397F7A` | `#85D3C4` | Positive meaning |
-| `state-negative` | color | `#A64F3D` | `#F3A594` | Error or destructive meaning |
-| `type-page-title` | number | 27 | 27 | Page heading size |
-| `type-section-title` | number | 15 | 15 | Section heading size |
-| `type-button` | number | 15 | 15 | Primary action label size |
-
-Colors with eight hex digits elsewhere in the design use `#RRGGBBAA`: preserve the alpha channel (for example `80` is approximately 50% opacity). Transparent layers must be evaluated over their actual background.
+Alpha: 8-digit hex is `#RRGGBBAA`; keep the alpha. Evaluate translucent layers over their real background, in both themes. In SVG, pass RGB to `stopColor` and alpha to `stopOpacity` separately; omitting opacity renders opaque.
 
 ## Typography
 
-Sizes and lengths below are source design units; map them to logical layout units, not physical device pixels. Preserve text scaling and content-driven height.
+- One family: Outfit, loaded via the app theme. Use `fontFamily.regular|medium|semibold` (400/500/600); do not use other weights or raw family strings.
+- Use `typeScale` roles. Do not add sizes; pick the nearest existing role. A new role needs a new `typeScale` entry.
+- Roles: page title (heading, tight tracking), section title, button label, body, metadata (dense secondary text), metric (large figures).
+- Sizes are logical units, not pixels. Always allow text scaling; never clip or fix height on text containers.
+- Line height and tracking: leave at font default unless the role defines one in `theme.ts`. Do not add a universal line-height.
+- Hierarchy comes from size/weight and `textPrimary` vs `textSecondary`, not from extra colors.
+- Monetary amounts use the shared money component; do not format currency ad hoc.
 
-| Derived style | Size | Weight | Tracking | Evidence |
-| --- | --- | --- | --- | --- |
-| `type.pageTitle` | `type-page-title` (27) | 600 | -0.9 | `ZhdzI`, `dCYjf` |
-| `type.sectionTitle` | `type-section-title` (15) | 600 | Unspecified | `GU1dJ` |
-| `type.button` | `type-button` (15) | 600 | Unspecified | `SMOu5` |
-| `type.amountInput` | 48 | 500 | -1.5 | `H9S5y` |
+## Layout, spacing, shape
 
-The source also uses 10–16 for dense labels/body text and 22, 23, 34, 36, and 42 for metrics. These are role-specific variants, not a requirement to use every size on every screen. Inspect the target node before choosing one. Weights are normal (400), 500, and 600. The app loads the corresponding Outfit faces through `src/navigation/app-theme.tsx`.
+- Screen: horizontal padding `space.screenHorizontal`; scrolling, safe areas, keyboard avoidance and text scaling are owned by the shared `Screen`. Do not reimplement them.
+- Use `space.*` for insets and gaps; use `radius.*` for corners. Nested radius must be smaller than its container.
+- Radius scale by role: control < dialog < summary card < navigation. Sheets round the top corners only.
+- Padding arrays: top/right/bottom/left; two values = vertical/horizontal. Radius arrays: TL/TR/BR/BL.
+- Sheet/dialog bottom inset = max(native safe-area inset, `space.sheetPaddingBottom`).
+- Prefer dividers and whitespace over nested boxes. No card inside a card.
 
-Most text has no explicit line height. Some text, such as `IUxWP`, specifies a 1.25 multiplier. Preserve explicit multipliers; do not interpret 1.25 as an absolute line height or invent a universal line-height token. Unspecified tracking and line height should retain the font/layout defaults until a component requires an explicit decision.
+## Controls and sizes
 
-## Layout, spacing, and shape
+Use `controlSize.*`. Do not hand-size controls.
 
-Derived names describe reusable roles rather than a forced global spacing grid. The design uses intermediate values such as 5, 7, 9, 14, and 22; rounding everything to multiples of four changes the design.
+| Rule | Requirement |
+| --- | --- |
+| Minimum touch target | `controlSize.minimumTarget` (48) for every interactive element, including icon-only. Decorative icon size never defines hit area; extend the hit area (padding/hitSlop) |
+| Primary action | `controlSize.primaryAction` height, `radius.control`, `brandPrimary` fill, `onBrand` label, button type role, centered content. Use shared button components |
+| Field | Minimum `controlSize.field` height, `radius.control` if filled; labels sit above with `space.fieldLabelGap`. Use shared `TextField`/date field |
+| Field variants | Filled (boxed) or underlined (bottom `fieldBorder`). Pick one per form; do not mix within a form |
+| Segmented/toggle | Themed track, transparent unselected options, selected uses `segmentedSelected` |
+| Selected state | Tint fill and/or check icon; never color alone |
+| Disabled | Reduce emphasis (lower opacity), keep layout; also set the accessibility disabled state |
 
-| Derived token/recipe | Value | Evidence and use |
-| --- | --- | --- |
-| `layout.referenceWidth` | 390 | `FInDV`, `ZZMFP`; reference viewport, not fixed app width |
-| `space.screenHorizontal` | 20 | `FInDV` padding `[0,20,16,20]` |
-| `space.screenBottom` | 16 | Same source; account for runtime safe areas separately |
-| `space.cardInset` | 22 | Summary card `VDouI` |
-| `space.dialogInset` | 24 | Edit dialog `KJplB` |
-| `space.cardGap` | 14 | Summary card `VDouI` |
-| `space.dialogGap` | 24 | Edit dialog `KJplB` |
-| `radius.control` | 16 | Primary action `iZLQM`, budget input `HraLL` |
-| `radius.summaryCard` | 30 | `VDouI` |
-| `radius.dialog` | 26 | `KJplB` |
-| `radius.sheet` | `[28,28,0,0]` | `BjioB`; top corners only |
-| `radius.navigation` | 32 | `Z92ldV` |
-| `size.primaryAction` | height 52 | `iZLQM`, `B4i0Nm` |
-| `size.fieldRow` | height 58 | `muRAO`, `Hzbwi`, `T9esGN` |
-| `size.navigation` | height 64 | `Z92ldV`; enclosing row `cL45w` is 68 |
-| `size.addAction` | 64 × 64 | `eqQ7w` |
+## Surfaces and effects
 
-Padding arrays use top/right/bottom/left order; two-value arrays mean vertical/horizontal. Radius arrays use top-left/top-right/bottom-right/bottom-left. Source `fill_container` means available space, not a numeric width.
+A surface is a recipe: fill + border + blur + shadow + highlight. Reuse `DesignSurface` variants rather than rebuilding.
 
-The 40-unit radius, outer shadow, device indicators, and absolute canvas coordinates of phone frames are presentation framing. Implement native screen/safe-area behavior rather than drawing a simulated phone inside the app. The 350-unit dialog at x=20 is the 390-unit reference with 20-unit side margins; preserve those margins responsively. Sheet y positions are mockup placement, not runtime constants.
+- **Canvas:** `designRecipes.*.canvas` radial-gradient wash over `palette.canvas`, painted behind the viewport by the shared canvas component. Do not add per-screen backgrounds.
+- **Glass card:** gradient fill (`designRecipes.*.glass`), 1-unit `glassBorder`, 1-unit top highlight, soft outer shadow. Native `GlassView` where supported; the SVG fill, border, highlight and shadow must remain as the fallback.
+- **Navigation / floating action:** use the existing `DesignSurface` variants. On native Liquid Glass, let the system material own fill and rim (omit painted fill, highlight, border). Elsewhere keep the painted recipe.
+- **Modal:** `surfaceModal` over `scrim`.
+- Pencil blur radii and gradient angles are design parameters, not native intensities or the same angle convention. Match visually; document a fallback when an effect cannot be reproduced and check foreground legibility on it.
+- Keep a visible foreground contrast on translucent surfaces in both themes.
 
-## Theme surfaces and effects
+## Icons
 
-These derived recipes preserve the multi-layer appearance. Gradient rotations and sizes below are Pencil metadata; translate them to the renderer and compare visually rather than assuming another renderer uses the same angle convention.
+- Lucide only. Choose by meaning (ux-principles rule 1). Reuse the icon already used for the same concept elsewhere in the app.
+- Sizes follow adjacent text: roughly 14-18 inline, ~22 for standalone actions. Color via `textPrimary`, `textSecondary`, `brandPrimary` or a `state*` role.
+- Icon-only controls require an accessible label.
 
-| Derived role | Light | Dark | Evidence |
-| --- | --- | --- | --- |
-| `surface.canvas` | `#F6F7FC` | `#141A2B` | `FInDV`; dark adapted |
-| `surface.navigation` | `#FFFFFF80` | `#272E41D9` | `Z92ldV`; dark adapted |
-| `border.glass` | `#FFFFFFE6` | `#A7B1DC26` | Summary card and navigation |
-| `surface.glassTint` | `#FFFFFF66` | `#272E4180` | Middle stop of the summary-card gradient; used as its tint and platform fallback |
-| `shadow.summaryCard` | `#646A9D12` | `#00000040` | Summary card outer shadow |
-| `border.field` | `#E5E7EF` | `#A7B1DC26` | `muRAO`; dark adapted; bottom edge, width 1 |
-| `overlay.scrim` | `#20283B66` | `#06091399` | `qIxLt`; dark adapted |
+## Overlays
 
-### Canvas wash
+- **Dialog:** centered, `surfaceModal`, `radius.dialog`, `space.dialogInset`/`dialogGap`, side margins preserved responsively. Destructive confirmations: initial focus on the safe (cancel) action.
+- **Sheet:** bottom, `surfaceModal`, `radius.sheet` top only, `space.sheet`* padding/gap, content scrolls, max height ~65% for choice lists, explicit close control (48 target).
+- **Popover:** anchored, for short option lists and secondary options.
+- All overlays: scrim behind, keyboard-aware, backdrop tap dismisses unless data loss risk, Android Back dismisses.
+- Use the shared choice sheet/popover/dialog components; do not build new shells.
 
-Light source `FInDV` layers three radial gradients over `surface.canvas`. Each runs from stop 0 to stop 1:
+## Data visualization
 
-| Layer | Colors | Center (x,y) | Size (width,height) |
-| --- | --- | --- | --- |
-| Violet | `#CBC5F1A0` → `#DFDAF400` | (1, 0.22) | (1.6, 0.8) |
-| Teal | `#BCE8E690` → `#D4ECE900` | (0, 0.43) | (1.6, 0.65) |
-| Lower violet | `#E2D5F276` → `#EAE0F000` | (0.85, 0.87) | (1.7, 0.6) |
+- Chart/meter colors encode data; keep one stable identity color per series across legend, marks and breakdowns.
+- Do not remap series colors to `state*`. Do not invent a global series palette; reuse the existing catalog.
+- Show exact values on demand (tap/detail), not as permanent clutter. Meters: track + fill; add the excess color only for overage.
+- Provide text/accessible equivalents for every graphic (ux-principles rule 5).
 
-The dark adaptation uses two layers: `#51437D40` → `#141A2B00` at (1, 0.22), size (1.6, 0.8), then `#28636130` → `#141A2B00` at (0, 0.43), size (1.6, 0.65). Match the target screen if it differs.
+## States and motion
 
-### Glass summary card
+The design source does not define focus, pressed, loading, disabled or motion tokens. Treat these as implementation decisions:
 
-`VDouI`: radius 30, padding 22, gap 14, border width 1, background blur radius 24. Linear gradient rotation 145, stops at 0 / 0.52 / 1:
+- Reuse existing semantic colors; do not label new values as design-derived.
+- Loading: use the shared skeleton component with existing track colors; keep loaded content visible during refresh.
+- Motion: minimal, functional, no decorative animation. Honor reduced motion (live changes).
+- Errors: inline, near the cause, `stateNegative` + icon/text, and retain user input.
+- Pressed/focus: use opacity or tint from existing tokens; keep focus visible for assistive tech.
 
-- Light: `#FFFFFFD9` / `#FFFFFF66` / `#FFFFFFA6`.
-- Dark: `#272E41D9` / `#272E4180` / `#272E41D9`.
-- Outer shadow: offset (0,10), blur 30; light `#646A9D12`, dark `#00000040`.
-- Inner highlight: offset (0,1), blur 2; light `#FFFFFFCC`, dark `#C5CDFF12`.
+## Accessibility checklist
 
-Dashboard cards use the shared `DesignSurface`: native `GlassView` where supported, with the three-stop SVG gradient, border, top highlight, and outer shadow also present in the fallback. Summary/check cards use padding 20; chart cards use 22. Budget's main total is unboxed. The highlight is a one-unit line rather than a blurred inner shadow, and native blur/elevation vary by platform. The gradient direction is an approximation pending device comparison. SVG stops pass RGB and alpha separately through `stopColor` and `stopOpacity`; omitting the latter previously produced opaque canvas shapes.
+- 48-unit targets, accessible labels on icon-only controls, roles/states set (selected, disabled, expanded).
+- Text scales without clipping; layouts work at 320 width.
+- Contrast holds on every surface in both themes; no color-only meaning.
+- Screen-reader order matches visual order; overlays move and restore focus.
+- Reduced motion and reduced transparency respected.
 
-### Navigation and Add action
+## Definition of done
 
-`Z92ldV`: navigation surface, radius 32, height 64, padding 6, border width 1.5, background blur radius 32. Outer shadow offset (0,8), blur 24, light `#4E558F20` / dark `#00000040`. Inner highlight offset (0,1), blur 2, light `#FFFFFF` / dark `#C5CDFF12`.
+- No raw literals for color, size, spacing, radius, font; all from `theme.ts`.
+- Reused shared components; any new token exists in both themes.
+- Both themes, narrow width, large text, keyboard and safe areas checked.
+- Unspecified design decisions listed explicitly in the summary.
 
-`eqQ7w`: Add action uses the same linear gradient in both themes: rotation 145, stops `#9AA6F4D9` at 0, `#6976E6EB` at 0.48, `#505ACAD9` at 1. Border width 1.5, light `#FFFFFFCC` / dark `#A7B1DC26`; blur radius 32. Outer shadow offset (0,6), blur 18, light `#535FC94D` / dark `#00000040`. Inner highlight offset (0,2), blur 3, light `#FFFFFFA6` / dark `#C5CDFF12`.
+## Maintaining this file
 
-Treat each surface as a recipe combining fill, stroke, blur, and shadow. If the target platform cannot reproduce an effect, document the fallback and verify foreground legibility on the replacement surface. Pencil blur values are design parameters, not guaranteed native API intensity values.
-
-The app omits the Add action's source stroke, native glass effect, and top-edge highlight so its gradient fills the circle edge to edge without a pale fringe. Its gradient and shadow remain; navigation retains its source border and glass effect.
-
-Liquid Glass refinement (2026-11-01, user iOS reference): on builds/devices supporting native Liquid Glass, navigation delegates its fill and rim to `GlassView` (`regular`, app color scheme). Omit the painted navigation fill, one-unit highlight and explicit border there so they do not obscure the system material. Keep the floating 64-unit capsule, lavender selected-tab pill, separate violet Add circle and safe-area placement from `Z92ldV`/`y7GYIH`/`eqQ7w`. Unsupported platforms retain the source fill, stroke and highlight; the native material owns its accessibility appearance. This is an intentional rendering adaptation of the source, not a new geometry. iPhone light/dark and Reduce Transparency visual acceptance remains pending.
-
-`DesignSurface` exposes `navigation` and `add` variants alongside the default summary card. All variants retain SVG fill and shadow when `GlassView` falls back to a regular View; summary and navigation retain their highlights and borders. Add disables the native glass effect and top-edge highlight to avoid a pale fringe. Native glass is an enhancement on supported iOS versions, not a reproduction of the source's numerical blur radius. Navigation highlights remain one-unit lines and gradient directions are approximate. The selected tab uses `y7GYIH`'s `#E1E4FFCC` → `#F4F5FFB3` gradient and white border; its small outer shadow is omitted. Dark selection uses an adapted slate gradient. At widths below 324, navigation horizontal padding reduces from 6 to 4 to retain 48-unit tab targets at width 320.
-
-Space selection adapts accessory `aStNQ` and sheet `BjioB`: lavender fill `#EEECFA`, border `#D8D4F0`, overlapping 28-unit initials in the accessory, and 32-unit initials in compact option rows with a 48-unit minimum. Option rows grow with text. The popover uses transparent unselected rows; the selected row retains its lavender tint and CircleCheck. Redundant Only you/Shared Space subtitles are omitted; archived Spaces retain Archived · Read-only. Names come from current Space members; no mock member photos are fetched. Archived/read-only and remembered-selection messages remain visible alongside the accessory. Dark Space fills/borders are adaptations. The sheet close target is 48 units to preserve accessibility, exceeding the source's 44-unit control.
-
-## Component and state rules
-
-- **Primary action:** `iZLQM` uses `brand-primary`, height 52, radius 16, centered content, gap 8, and `type.button`. Light label `SMOu5` is white. Check the adapted dark foreground separately; a light-theme foreground is not automatically suitable over the dark-theme brand color.
-- **Fields:** edit-expense rows use height 58, gap 14, and a one-unit bottom divider. Budget amount inputs (`HraLL`) use a filled surface, radius 16, and padding 20. Keep these distinct component variants.
-- **Modal:** use `surface-modal` above a scrim. Edit dialog `KJplB` uses radius 26, padding/gap 24. Switcher sheet `BjioB` uses top-only radius 28, padding `[12,24,30,24]`, and gap 20. Shared shells scroll and avoid the keyboard. Their bottom inset is the greater of the native inset and 30. Backdrop dismissal defaults to enabled; Android Back invokes the supplied dismissal callback independently. Native focus/background exclusion still requires manual acceptance.
-- **Icons:** the source uses Lucide icons. Match the source icon name, size, and semantic foreground. Common sizes include 14, 16, 18, and 22; small decorative icons do not define the interactive hit area. Sheet close control `qZVeU` is 44 × 44 in the source and at least 48 × 48 in the app.
-- **Charts:** retain category identity across legend, bars, and breakdowns; copy the relevant chart node's palette. Category colors are data encoding, while `state-*` colors convey status. Do not infer a universal category palette or remap categories to warning/error colors from a single swatch.
-
-## Unspecified states and implementation checks
-
-The source does not declare a complete token system for focus, pressed, disabled, loading, motion, or reduced transparency. These remain implementation decisions requiring explicit documentation when introduced. Do not label newly chosen values as extracted design tokens.
-
-The default filled `TextField`, used by filter/search controls, has minimum height `controlSize.field` (58), radius `radius.control` (16), horizontal padding `space.screenBottom` (16), label gap `space.fieldLabelGap` (6), a one-unit `border.field`, and `palette.surfaceModal` as fill. This fill choice is not a Pencil variable. Manual Add and Edit share the prominent 48-unit amount and 58-unit underlined rows; their date opens the shared native calendar picker with local calendar-day serialization. The Budget variant uses a 34-unit amount, `#FFFFFF90` light fill, padding 20 and PHP suffix. Recurrence/Appearance segmented controls use themed tracks and transparent unselected options.
+Update it only when a generic rule or token role changes. Values live in `theme.ts`. If a rule needs a component name or screen name to make sense, it belongs somewhere else.

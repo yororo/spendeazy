@@ -1,6 +1,6 @@
 import { PullRefreshControl } from '@/components/pull-refresh-control';
 import { ScreenHeader } from '@/components/screen-header';
-import { type ReactNode } from 'react';
+import { type ReactNode, type Ref } from 'react';
 import { KeyboardAvoidingView, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -17,6 +17,7 @@ export function Screen({
   compactHeader = false,
   onBack,
   backDisabled,
+  scrollRef,
 }: {
   title: string;
   children: ReactNode;
@@ -26,6 +27,7 @@ export function Screen({
   compactHeader?: boolean;
   onBack?: () => void;
   backDisabled?: boolean;
+  scrollRef?: Ref<React.ComponentRef<typeof ScrollView>>;
 }) {
   const insets = useSafeAreaInsets();
   const { palette } = useAppTheme();
@@ -35,6 +37,7 @@ export function Screen({
       behavior={process.env.EXPO_OS === 'ios' ? 'padding' : 'height'}>
     <CanvasBackground />
     <ScrollView
+      ref={scrollRef}
       // Safe-area padding below owns the insets; iOS must not add them again.
       contentInsetAdjustmentBehavior="never"
       automaticallyAdjustContentInsets={false}

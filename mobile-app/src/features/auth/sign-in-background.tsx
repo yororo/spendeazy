@@ -1,20 +1,20 @@
 import { useCallback, useEffect, useId, useState } from 'react';
-import { AccessibilityInfo, AppState, StyleSheet, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import Animated, { cancelAnimation, Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
+import { AccessibilityInfo, AppState, StyleSheet, View } from 'react-native';
 import Svg, { Defs, Ellipse, RadialGradient, Stop } from 'react-native-svg';
 
 import { designRecipes } from '@/constants/theme';
 import { useAppTheme } from '@/navigation/app-theme';
 
-/** Sign-in-only halo; foreground content never moves with the wash. */
+/** Slowly drifting canvas behind the sign-in pebble. */
 export function SignInBackground() {
   const { palette, scheme } = useAppTheme();
   const id = useId().replace(/:/g, '');
+  const drift = useSharedValue(0);
   const [focused, setFocused] = useState(false);
   const [active, setActive] = useState(AppState.currentState === 'active');
   const [reduced, setReduced] = useState(true);
-  const drift = useSharedValue(0);
   useFocusEffect(useCallback(() => {
     setFocused(true);
     return () => setFocused(false);
@@ -23,7 +23,7 @@ export function SignInBackground() {
     let alive = true;
     void AccessibilityInfo.isReduceMotionEnabled().then(value => {
       if (alive) setReduced(value);
-    }).catch(() => { /* Keep the static fallback if the preference cannot be read. */ });
+    }).catch(() => { /* Preference unavailable: retain the static composition. */ });
     const motion = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduced);
     const app = AppState.addEventListener('change', state => setActive(state === 'active'));
     return () => { alive = false; motion.remove(); app.remove(); };
@@ -32,13 +32,12 @@ export function SignInBackground() {
     cancelAnimation(drift);
     if (reduced) drift.value = 0;
     else if (focused && active) {
-      drift.value = 0;
-      drift.value = withRepeat(withTiming(1, { duration: 5500, easing: Easing.inOut(Easing.sin) }), -1, true);
+      drift.value = withRepeat(withTiming(1, { duration: 8000, easing: Easing.inOut(Easing.sin) }), -1, true);
     }
     return () => cancelAnimation(drift);
   }, [active, drift, focused, reduced]);
   const motionStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: drift.value * 22 }, { translateY: drift.value * -18 }, { scale: 1 + drift.value * 0.025 }],
+    transform: [{ translateX: drift.value * 12 }, { translateY: drift.value * 10 }, { scale: 1 + drift.value * 0.015 }],
   }));
   return <View pointerEvents="none" accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[StyleSheet.absoluteFill, { backgroundColor: palette.canvas, overflow: 'hidden' }]}>
     <Animated.View style={[{ position: 'absolute', top: -24, bottom: -24, left: -24, right: -24 }, motionStyle]}>

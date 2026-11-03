@@ -6,6 +6,8 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect, useLayoutEffect, useState, type ReactNode } from 'react';
 import { Text, View } from 'react-native';
 
+import { SignInTransitionProvider, useSignInTransition } from '@/features/auth/sign-in-transition';
+
 import { palette, typeScale } from '@/constants/theme';
 import { AppearanceGate, useAppTheme } from '@/navigation/app-theme';
 import { observeAuthUser, useSessionSnapshot, session as sessionOwner } from '@/application/session-runtime';
@@ -36,7 +38,9 @@ function ThemedNavigation() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.canvas }}>
       <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
-      <RootNavigator ready={ready} />
+      <SignInTransitionProvider>
+        <RootNavigator ready={ready} />
+      </SignInTransitionProvider>
       <StatementExtractionHost />
     </View>
   );
@@ -44,6 +48,7 @@ function ThemedNavigation() {
 
 function RootNavigator({ ready }: { ready: boolean }) {
   const { isLoaded, isSignedIn, userId, sessionId, getToken } = useAuth();
+  const { holding } = useSignInTransition();
   const clerk = useClerk();
   const deletion = useDeletionSnapshot();
   const transport = useSessionTransport();
@@ -90,10 +95,10 @@ function RootNavigator({ ready }: { ready: boolean }) {
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Protected guard={authenticated} redirectTo="/(auth)/sign-in">
-        <Stack.Screen name="(app)" />
+      <Stack.Protected guard={authenticated && !holding} redirectTo="/(auth)/sign-in">
+        <Stack.Screen name="(app)" options={{ animation: 'none' }} />
       </Stack.Protected>
-      <Stack.Protected guard={!authenticated}>
+      <Stack.Protected guard={!authenticated || holding}>
         <Stack.Screen name="(auth)" />
       </Stack.Protected>
     </Stack>

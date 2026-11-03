@@ -1,23 +1,25 @@
-import { useState, type ReactNode } from 'react';
-import { KeyRound, Link, TriangleAlert } from 'lucide-react-native';
-import { Text, View } from 'react-native';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Ellipsis, Info, KeyRound, Link, LogIn, TriangleAlert, X } from 'lucide-react-native';
+import { Keyboard, Pressable, type ScrollView, Text, View } from 'react-native';
 
 import type { InvitationInbox } from '@/api/invitations-api-client';
 import { CompactAction, PrimaryButton, SecondaryButton } from '@/components/buttons';
 import { CenteredDialog } from '@/components/choice-sheet';
 import { DesignSurface } from '@/components/design-surface';
+import { Popover } from '@/components/popover';
 import { SpaceStatus } from '@/components/space-status';
 import { BodyText, Screen, StackGap, SupportingText } from '@/components/screen';
 import { TextField } from '@/components/text-field';
 import type { useSharing } from './use-sharing';
 import { SharedSpaceCard } from './shared-space-card';
+import { controlSize, radius } from '@/constants/theme';
 import { useAppTheme } from '@/navigation/app-theme';
 
 const confirmationCopy = {
   rotate: {
-    title: 'Rotate Invite Code?',
+    title: 'Replace Invite Code?',
     message: 'The old code stops working immediately, and invitation previews saved with it are removed.',
-    confirmLabel: 'Rotate code',
+    confirmLabel: 'Replace code',
   },
   revoke: {
     title: 'Revoke Invite Code?',
@@ -50,6 +52,19 @@ export function SharingView({
   const inbox: InvitationInbox | null = state.inbox;
   const outgoing = inbox?.outgoing ?? null;
   const disabled = state.busy !== null;
+  const manageAnchor = useRef<React.ComponentRef<typeof View>>(null);
+  const [toast, setToast] = useState<string | null>(null);
+  useEffect(() => {
+    setToast(state.notice);
+    if (!state.notice) return;
+    const timeout = setTimeout(() => setToast(null), 4000);
+    return () => clearTimeout(timeout);
+  }, [state.notice]);
+  const [manageCode, setManageCode] = useState(false);
+  const [joiningId, setJoiningId] = useState<string | null>(null);
+  const [previewFailed, setPreviewFailed] = useState(false);
+  const CodeButton = inbox?.incoming.length ? SecondaryButton : PrimaryButton;
+  const scrollRef = useRef<React.ComponentRef<typeof ScrollView>>(null);
   const actions = {
     rotate: controller.rotate,
     revoke: controller.revoke,
@@ -64,60 +79,86 @@ export function SharingView({
   }
 
   return (
-    <Screen title="Sharing" onBack={onBack} backDisabled={disabled} refreshing={state.loading} onRefresh={() => void controller.load()} headerAccessory={<SpaceStatus />}>
+    <View style={{ flex: 1 }}>
+    <Screen scrollRef={scrollRef} title="Sharing" onBack={onBack} backDisabled={disabled} refreshing={state.loading} onRefresh={disabled ? undefined : () => { setPreviewFailed(false); void controller.load(); }} headerAccessory={<SpaceStatus />}>
       <StackGap>
         {active?.kind === 'shared' ? <SharedSpaceCard space={active} /> : null}
-        {hasActiveSharedSpace ? (
-          <SupportingText>You already belong to an active Shared Space. Leave it before joining another.</SupportingText>
+        {hasActiveSharedSpace && !inbox?.incoming.length ? (
+          <SupportingText>{activeSharedSpace ? 'You already belong to an active Shared Space. Archive it before joining another.' : 'You already belong to an active Shared Space. Switch to it to manage your membership.'}</SupportingText>
         ) : null}
-
-        <SharingSection title="Invite Code">
-          {outgoing?.status === 'pending' ? (
-            <StackGap>
-              <View style={{ padding: 16, borderRadius: 16, backgroundColor: palette.editorField, borderWidth: 1, borderColor: palette.fieldBorder, gap: 10 }}>
-                <KeyRound accessible={false} size={20} color={palette.brandPrimary} />
-                <Text selectable accessibilityLabel={`Invite Code: ${outgoing.code}`} style={{ color: palette.textPrimary, fontFamily: fonts.medium, fontSize: 23, letterSpacing: 1 }}>{outgoing.code}</Text>
-              </View>
-              <SupportingText>{`Expires ${formatDate(outgoing.expiresAt)}`}</SupportingText>
-              <PrimaryButton label="Copy Invite Code" busy={state.busy === 'copy'} onPress={() => void controller.copyCode()} />
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center' }}>
-                <CompactAction variant="quiet" label="Rotate" disabled={disabled} onPress={() => setConfirmation('rotate')} />
-                <CompactAction variant="quiet" label="Revoke" disabled={disabled} onPress={() => setConfirmation('revoke')} />
-              </View>
-            </StackGap>
-          ) : (
-            <PrimaryButton label="Create code" busy={state.busy === 'create'} disabled={hasActiveSharedSpace} onPress={() => void controller.create()} />
-          )}
-        </SharingSection>
-
-        <SharingSection title="Join a Shared Space">
-          <StackGap>
-            <TextField
-              label="Invite Code"
-              value={code}
-              onChangeText={(value) => onCodeChange(value.toUpperCase())}
-              placeholder="XXXX-XXXX-XXXX-XXXX-XXXX-XXXX"
-              autoCapitalize="characters"
-              variant="underlined"
-              icon={<Link size={20} color={palette.textSecondary} />}
-            />
-            <PrimaryButton label="Preview" busy={state.busy === 'claim'} disabled={hasActiveSharedSpace || code.trim().length === 0} onPress={() => void controller.claim(code)} />
-          </StackGap>
-        </SharingSection>
 
         {inbox?.incoming.length ? (
           <StackGap>
             <SupportingText>Invitations</SupportingText>
             {inbox.incoming.map((invitation) => (
-              <SharingSection key={invitation.id} title={`Invitation from ${invitation.senderName}`}>
+              <SharingSection key={invitation.id} title={invitation.senderName} headerAccessory={hasActiveSharedSpace ? undefined : <InvitationInfo />}>
                 <SupportingText>{`Expires ${formatDate(invitation.expiresAt)}`}</SupportingText>
-                <SupportingText>Joining gives both members equal edit access. Your Personal Space remains private.</SupportingText>
-                <PrimaryButton label="Join" busy={state.busy === 'accept'} disabled={hasActiveSharedSpace} onPress={() => void controller.accept(invitation.id)} />
-                <SecondaryButton label="Decline" disabled={disabled} onPress={() => void controller.decline(invitation.id)} />
+                {hasActiveSharedSpace ? (
+                  <SupportingText>{activeSharedSpace
+                    ? 'Archive your active Shared Space before joining another.'
+                    : 'Archive your active Shared Space before joining another. Switch to it to manage membership.'}</SupportingText>
+                ) : null}
+                <PrimaryButton label="Join" icon={LogIn} busy={state.busy === 'accept' && joiningId === invitation.id} disabled={disabled || hasActiveSharedSpace} onPress={() => { setPreviewFailed(false); setJoiningId(invitation.id); void controller.accept(invitation.id); }} />
+                <SecondaryButton label="Decline" icon={X} disabled={disabled} onPress={() => { setPreviewFailed(false); void controller.decline(invitation.id); }} />
               </SharingSection>
             ))}
           </StackGap>
         ) : null}
+
+        {!hasActiveSharedSpace ? <>
+          <SharingSection title="Invite someone">
+            {outgoing?.status === 'pending' ? (
+              <StackGap>
+                <View style={{ padding: 16, borderRadius: 16, backgroundColor: palette.editorField, borderWidth: 1, borderColor: palette.fieldBorder, gap: 10 }}>
+                  <KeyRound accessible={false} size={20} color={palette.brandPrimary} />
+                  <Text selectable accessibilityLabel={`Invite Code: ${outgoing.code}`} style={{ color: palette.textPrimary, fontFamily: fonts.medium, fontSize: 23, letterSpacing: 1 }}>{outgoing.code}</Text>
+                </View>
+                <SupportingText>{`Expires ${formatDate(outgoing.expiresAt)}`}</SupportingText>
+                <View style={{ flexDirection: 'row', alignItems: 'stretch', gap: 8 }}>
+                  <View style={{ flex: 1 }}>
+                    <CodeButton label="Copy code" disabled={disabled} busy={state.busy === 'copy'} onPress={() => { setPreviewFailed(false); void controller.copyCode(); }} />
+                  </View>
+                  <View ref={manageAnchor} collapsable={false} style={{ width: controlSize.minimumTarget }}>
+                    <Pressable accessibilityRole="button" accessibilityLabel="Manage code" accessibilityState={{ disabled, expanded: manageCode }} disabled={disabled} onPress={() => setManageCode(true)} style={{ flex: 1, minHeight: controlSize.primaryAction, borderRadius: radius.control, borderWidth: 1, borderColor: palette.fieldBorder, backgroundColor: palette.editorField, alignItems: 'center', justifyContent: 'center', opacity: disabled ? 0.55 : 1 }}>
+                      <Ellipsis accessible={false} color={palette.textPrimary} />
+                    </Pressable>
+                  </View>
+                </View>
+                <Popover title="Manage code" visible={manageCode} anchorRef={manageAnchor} showHeader={false} onDismiss={() => setManageCode(false)}>
+                  <CompactAction variant="quiet" label="Replace code" onPress={() => { setManageCode(false); setConfirmation('rotate'); }} />
+                  <CompactAction variant="quiet" label="Revoke code" onPress={() => { setManageCode(false); setConfirmation('revoke'); }} />
+                </Popover>
+              </StackGap>
+            ) : (
+              <CodeButton label="Create code" busy={state.busy === 'create'} disabled={disabled} onPress={() => { setPreviewFailed(false); void controller.create(); }} />
+            )}
+          </SharingSection>
+
+          <SharingSection title="Join space">
+            <StackGap>
+              <TextField
+                label="Invite Code"
+                value={code}
+                error={previewFailed ? state.error : null}
+                onChangeText={(value) => onCodeChange(value.toUpperCase())}
+                placeholder="Paste code"
+                autoCapitalize="characters"
+                variant="underlined"
+                icon={<Link size={20} color={palette.textSecondary} />}
+              />
+              <CodeButton label="Preview invite" busy={state.busy === 'claim'} disabled={disabled || code.trim().length === 0} onPress={async () => {
+                const success = await controller.claim(code);
+                setPreviewFailed(!success);
+                if (success) {
+                onCodeChange('');
+                Keyboard.dismiss();
+                requestAnimationFrame(() => scrollRef.current?.scrollTo({ y: 0 }));
+              }
+              }} />
+            </StackGap>
+          </SharingSection>
+
+        </> : null}
 
         {active?.id ? (
           <SecondaryButton label="Import history" disabled={disabled} onPress={onOpenImportHistory} />
@@ -125,12 +166,11 @@ export function SharingView({
         {activeSharedSpace ? (
           <SharingSection title="Archive Shared Space">
             <TriangleAlert accessible={false} size={24} color={palette.stateWarning} />
-            <SecondaryButton label="Leave Space" disabled={disabled} onPress={() => setConfirmation('leave')} />
+            <SecondaryButton label="Archive" disabled={disabled} onPress={() => setConfirmation('leave')} />
           </SharingSection>
         ) : null}
 
-        {state.error ? <Text selectable accessibilityLiveRegion="polite" style={{ color: palette.stateNegative, fontFamily: fonts.regular, fontSize: 16 }}>{state.error}</Text> : null}
-        {state.notice ? <SupportingText>{state.notice}</SupportingText> : null}
+        {state.error && !previewFailed ? <Text selectable accessibilityLiveRegion="polite" style={{ color: palette.stateNegative, fontFamily: fonts.regular, fontSize: 16 }}>{state.error}</Text> : null}
       </StackGap>
 
       <CenteredDialog
@@ -142,17 +182,42 @@ export function SharingView({
         <SecondaryButton label="Cancel" disabled={disabled} onPress={() => setConfirmation(null)} />
       </CenteredDialog>
     </Screen>
+    {toast ? (
+      <View pointerEvents="none" style={{ position: 'absolute', left: 20, right: 20, bottom: 48, alignItems: 'center' }}>
+        <Text accessibilityLiveRegion="polite" style={{ backgroundColor: palette.textPrimary, color: palette.surfaceModal, borderRadius: radius.control, padding: 12, overflow: 'hidden', fontFamily: fonts.medium }}>
+          {toast}
+        </Text>
+      </View>
+    ) : null}
+    </View>
   );
 }
 
-function SharingSection({ title, children }: { title: string; children: ReactNode }) {
+function InvitationInfo() {
+  const { palette } = useAppTheme();
+  const anchor = useRef<React.ComponentRef<typeof View>>(null);
+  const [visible, setVisible] = useState(false);
+  return (
+    <View ref={anchor} collapsable={false}>
+      <CompactAction label="About joining" variant="icon" icon={<Info size={18} color={palette.textSecondary} />} onPress={() => setVisible(true)} />
+      <Popover title="About joining" visible={visible} anchorRef={anchor} onDismiss={() => setVisible(false)}>
+        <BodyText>Both members can edit the Shared Space. Your Personal Space stays private.</BodyText>
+      </Popover>
+    </View>
+  );
+}
+
+function SharingSection({ title, children, headerAccessory }: { title: string; children: ReactNode; headerAccessory?: ReactNode }) {
   const { palette, fonts } = useAppTheme();
   return <DesignSurface style={{ padding: 20, gap: 14 }}>
-    <Text accessibilityRole="header" style={{ color: palette.textPrimary, fontFamily: fonts.semibold, fontSize: 15 }}>{title}</Text>
+    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+      <Text accessibilityRole="header" style={{ flex: 1, color: palette.textPrimary, fontFamily: fonts.semibold, fontSize: 15 }}>{title}</Text>
+      {headerAccessory}
+    </View>
     {children}
   </DesignSurface>;
 }
 
 function formatDate(value: string): string {
-  return new Date(value).toLocaleDateString();
+  return new Date(value).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
 }

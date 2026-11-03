@@ -90,7 +90,6 @@ export function useSharing() {
       return perform('claim', async () => {
         const incoming = await api.claim(code.trim());
         setState((current) => ({ ...current, inbox: current.inbox ? { ...current.inbox, incoming: [incoming, ...current.inbox.incoming.filter((item) => item.id !== incoming.id)] } : { outgoing: null, incoming: [incoming] } }));
-        return `Invitation from ${incoming.senderName} saved. Review it below and choose Join or Decline.`;
       });
     },
     async decline(claimId: string) {

@@ -1,3 +1,4 @@
+import type { LucideIcon } from 'lucide-react-native';
 import { type ElementRef, type ReactNode, type Ref } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 
@@ -6,6 +7,7 @@ import { useAppTheme } from '@/navigation/app-theme';
 
 export function PrimaryButton({
   label,
+  icon: Icon,
   onPress,
   disabled = false,
   busy = false,
@@ -13,6 +15,7 @@ export function PrimaryButton({
   tone = 'brand',
 }: {
   label: string;
+  icon?: LucideIcon;
   onPress: () => void;
   disabled?: boolean;
   busy?: boolean;
@@ -42,6 +45,7 @@ export function PrimaryButton({
         opacity: disabled || busy ? 0.55 : 1,
       }}>
       {showSpinner ? <ActivityIndicator size="small" color={palette.onBrand} accessible={false} /> : null}
+      {Icon ? <Icon size={18} color={palette.onBrand} accessible={false} /> : null}
       <Text
         style={{
           flexShrink: 1,
@@ -59,6 +63,7 @@ export function PrimaryButton({
 export function SecondaryButton({
   ref,
   label,
+  icon: Icon,
   onPress,
   selected = false,
   disabled = false,
@@ -66,6 +71,7 @@ export function SecondaryButton({
 }: {
   ref?: Ref<ElementRef<typeof View>>;
   label: string;
+  icon?: LucideIcon;
   onPress: () => void;
   selected?: boolean;
   disabled?: boolean;
@@ -90,12 +96,16 @@ export function SecondaryButton({
         backgroundColor: palette.surfaceModal,
         alignItems: 'center',
         justifyContent: 'center',
+        flexDirection: Icon ? 'row' : undefined,
+        gap: space.fieldLabelGap,
         paddingHorizontal: space.screenBottom,
         paddingVertical: space.sheetPaddingTop,
         opacity: disabled || busy ? 0.55 : 1,
       }}>
+      {Icon ? <Icon size={18} color={selected ? palette.brandPrimary : palette.textPrimary} accessible={false} /> : null}
       <Text
         style={{
+          flexShrink: Icon ? 1 : undefined,
           color: selected ? palette.brandPrimary : palette.textPrimary,
           fontFamily: fonts.semibold,
           fontSize: typeScale.button,

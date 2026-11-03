@@ -1,11 +1,10 @@
 import { useSignInWithGoogle } from '@clerk/expo/google';
 import { useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { Image, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PrimaryButton } from '@/components/buttons';
-import { CanvasBackground, DesignSurface } from '@/components/design-surface';
-import { ScreenHeader } from '@/components/screen-header';
+import { SignInBackground } from '@/features/auth/sign-in-background';
 import { space, typeScale } from '@/constants/theme';
 import { useAppTheme } from '@/navigation/app-theme';
 import {
@@ -63,26 +62,28 @@ export default function SignInScreen() {
         flex: 1,
         backgroundColor: palette.canvas,
       }}>
-      <CanvasBackground />
+      <SignInBackground />
       <ScrollView contentInsetAdjustmentBehavior="never" automaticallyAdjustContentInsets={false} style={{ flex: 1 }} contentContainerStyle={{
         flexGrow: 1,
         paddingTop: insets.top + space.dialogInset,
         paddingBottom: insets.bottom + space.screenBottom,
         paddingHorizontal: space.screenHorizontal,
         justifyContent: 'center',
-        gap: space.cardGap,
+        gap: space.dialogGap * 2,
       }}>
-        <ScreenHeader title="Welcome to Spendeazy" />
-        <DesignSurface style={{ padding: space.dialogInset, gap: space.dialogGap }}>
+        <View style={{ alignItems: 'center', gap: space.cardGap }}>
+          <Image source={require('../../../assets/design/oV7Mn.png')} resizeMode="contain" accessible={false} style={{ width: 72, height: 82 }} />
+          <Text accessibilityRole="header" style={{ color: palette.textPrimary, fontFamily: fonts.semibold, fontSize: typeScale.pageTitle, letterSpacing: typeScale.pageTitleTracking, textAlign: 'center' }}>Spendeazy</Text>
+        </View>
+        <View style={{ gap: space.dialogGap }}>
+          <Text style={{ color: palette.textPrimary, fontFamily: fonts.medium, fontSize: typeScale.body, textAlign: 'center' }}>
+            {session.notice === 'expired' ? 'Welcome back' : 'Welcome'}
+          </Text>
           {session.notice === 'expired' ? (
-            <Text selectable style={{ color: palette.textPrimary, fontFamily: fonts.regular, fontSize: typeScale.body }}>
+            <Text selectable style={{ color: palette.textPrimary, fontFamily: fonts.regular, fontSize: typeScale.body, textAlign: 'center' }}>
               Your session expired. Sign in to continue.
             </Text>
-          ) : (
-            <Text selectable style={{ color: palette.textSecondary, fontFamily: fonts.regular, fontSize: typeScale.body }}>
-              Sign in with Google to open your Personal Space.
-            </Text>
-          )}
+          ) : null}
           {phase === 'cancelled' ? (
             <Text selectable style={{ color: palette.textPrimary, fontFamily: fonts.regular, fontSize: typeScale.body }}>
               Sign-in cancelled.
@@ -94,7 +95,7 @@ export default function SignInScreen() {
             </Text>
           ) : null}
           <PrimaryButton label={label} onPress={() => void signIn()} busy={phase === 'loading'} />
-        </DesignSurface>
+        </View>
       </ScrollView>
     </View>
   );

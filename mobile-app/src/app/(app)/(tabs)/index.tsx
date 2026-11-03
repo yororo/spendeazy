@@ -10,7 +10,6 @@ import { DashboardView } from "@/features/dashboard/dashboard-view";
 import { useDashboardReport } from "@/features/dashboard/use-dashboard-report";
 import type { DashboardExpenseFilter } from "@/api/dashboard-report-api-client";
 import { useSpaces } from "@/application/spaces/provider";
-import { dashboardHistoryTarget } from '@/features/statement-import-history/history-navigation';
 
 export default function DashboardScreen() {
   const router = useRouter();
@@ -56,10 +55,10 @@ export default function DashboardScreen() {
           `/category-editor?spaceId=${encodeURIComponent(active.id)}&categoryId=${encodeURIComponent(categoryId)}` as Href,
         );
       }}
+      onImport={active?.status === "active" && active.accessLevel === "write" ? () => router.push("/import-statement") : undefined}
       onOpenImportHistory={() => {
-        const report = controller.report;
-        if (!active || !report) return;
-        router.push(dashboardHistoryTarget(active.id, report.summary.statementImports.filter));
+        if (!active) return;
+        router.push({ pathname: "/statement-import-history", params: { sourceSpaceId: active.id } });
       }}
     />
   );

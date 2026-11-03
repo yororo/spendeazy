@@ -7,23 +7,20 @@ import {
 } from "react-native";
 import type { ElementRef, ReactNode } from "react";
 import type {
-  DashboardBudgetStatus,
   DashboardExpenseFilter,
   DashboardReport,
 } from "@/api/dashboard-report-api-client";
-import type { SpaceCategory } from "@/api/categories-api-client";
 import { CompactAction, SecondaryButton } from "@/components/buttons";
-import { Calendar, CalendarDays, Check, CircleCheck, ChevronDown, ExternalLink, Info } from "lucide-react-native";
+import { CalendarDays, Check, ChevronDown, ExternalLink, FileUp, History, Info } from "lucide-react-native";
 import { ChoiceSheet } from "@/components/choice-sheet";
 import { Popover } from "@/components/popover";
 import { BodyText, Screen } from "@/components/screen";
 import { controlSize, radius, space, typeScale } from "@/constants/theme";
 import { CATEGORY_COLOR_VALUES } from "@/features/categories/category-catalog";
-import { CategoryIconMark } from "@/components/category-mark";
 import { useAppTheme } from "@/navigation/app-theme";
 import {
   meterSegments,
-  annualUsageText,
+  dashboardPeriodLabel,
   compareMoney,
   formatPhp,
   labelMonth,
@@ -32,6 +29,7 @@ import { DesignSurface } from "@/components/design-surface";
 import { CategoryMarker } from "./category-marker";
 import { MonthlyBars, CategoryLines, type ChartTrigger } from "./dashboard-charts";
 import type { useDashboardReport } from "./use-dashboard-report";
+import { BudgetReview, CategoryReview } from './dashboard-budget-review';
 import { SkeletonBlock, SkeletonRegion } from '@/components/skeleton';
 const reportSectionGap = 26;
 type DashboardController = ReturnType<typeof useDashboardReport>;
@@ -43,6 +41,7 @@ export function DashboardView({
   onOpenExpenses,
   onOpenBudgetCategory,
   onOpenImportHistory,
+  onImport,
 }: {
   controller: DashboardController;
   spaceStatus: ReactNode;
@@ -51,9 +50,11 @@ export function DashboardView({
   onOpenExpenses: (filter: DashboardExpenseFilter) => void;
   onOpenBudgetCategory: (categoryId: string) => void;
   onOpenImportHistory: () => void;
+  onImport?: () => void;
 }) {
   const { palette, fonts } = useAppTheme();
   const { report } = controller;
+  const [showTrends, setShowTrends] = useState(false);
   const categoryChoices = controller.categories.filter(
     (category) =>
       category.isActive ||
@@ -109,7 +110,7 @@ export function DashboardView({
             justifyContent: "flex-start", marginBottom: space.cardGap - reportSectionGap,
           }}
         >
-          <MonthRangePicker months={controller.view === "yearly" ? "ytd" : controller.months} onSelect={(period) => {
+          <MonthRangePicker resolvedLabel={report ? dashboardPeriodLabel(report) : undefined} months={controller.view === "yearly" ? "ytd" : controller.months} onSelect={(period) => {
             if (period === "ytd") controller.selectYearToDate();
             else { controller.selectMonths(period); controller.selectView("monthly"); }
           }} />
@@ -135,7 +136,7 @@ export function DashboardView({
           </View>
         ) : null}
         {controller.loading && !report ? (
-          <SkeletonRegion label="Loading Dashboard">{["Summary", "Budget checks", "Monthly spending", "Category spending"].map((title, index) => <ChartCard key={title} title={title}><SkeletonBlock width="60%" height={24} /><SkeletonBlock height={index > 1 ? 180 : 72} /><SkeletonBlock width="45%" /></ChartCard>)}</SkeletonRegion>
+          <SkeletonRegion label="Loading Dashboard">{["Summary", "Budget checks", "Category spending"].map((title, index) => <ChartCard key={title} title={title}><SkeletonBlock width="60%" height={24} /><SkeletonBlock height={index > 1 ? 180 : 72} /><SkeletonBlock width="45%" /></ChartCard>)}</SkeletonRegion>
         ) : null}
 
         {report ? (
@@ -144,14 +145,15 @@ export function DashboardView({
               report={report}
               onOpenExpenses={onOpenExpenses}
               onOpenImportHistory={onOpenImportHistory}
+              onImport={onImport}
             />
-            <BudgetChecks
-              report={report}
-              categories={categoryChoices}
-              onOpenBudgetCategory={onOpenBudgetCategory}
-              onOpenExpenses={onOpenExpenses}
-            />
-            <MonthlyChart key={`monthly:${report.range.view}:${report.range.fromDate}:${report.range.toDate}`} report={report} onOpenExpenses={onOpenExpenses} />
+            <BudgetReview key={`checks:${report.range.fromDate}:${report.range.toDate}`} report={report} onOpenExpenses={onOpenExpenses} onOpenBudgetCategory={onOpenBudgetCategory} />
+            {report.summary.expenseCount !== "0" ? <>
+            <CategoryReview key={`review:${report.range.fromDate}:${report.range.toDate}`} report={report} onOpenExpenses={onOpenExpenses} onOpenBudgetCategory={onOpenBudgetCategory} />
+            {report.monthlyExpenses.length > 1 ? <>
+            <MonthlyChart key={`monthly:${report.range.fromDate}:${report.range.toDate}`} report={report} onOpenExpenses={onOpenExpenses} />
+            <CompactAction label="Trends" selected={showTrends} onPress={() => setShowTrends(!showTrends)} />
+            {showTrends ?
             <CategoryChart
               key={`category:${report.range.view}:${report.range.fromDate}:${report.range.toDate}`}
               report={controller.categoryReport ?? report}
@@ -162,7 +164,9 @@ export function DashboardView({
               onToggleCategory={controller.toggleChartCategory}
               onClearCategories={controller.clearChartCategories}
               onOpenExpenses={onOpenExpenses}
-            />
+            /> : null}
+            </> : null}
+            </> : null}
           </>
         ) : null}
       </View>
@@ -173,10 +177,12 @@ function DashboardSummary({
   report,
   onOpenExpenses,
   onOpenImportHistory,
+  onImport,
 }: {
   report: DashboardReport;
   onOpenExpenses: (filter: DashboardExpenseFilter) => void;
   onOpenImportHistory: () => void;
+  onImport?: () => void;
 }) {
   const { palette, fonts } = useAppTheme();
   const [showDetails, setShowDetails] = useState(false);
@@ -188,9 +194,7 @@ function DashboardSummary({
       : summary.comparison.direction === "equal_plan"
         ? "Exactly on plan"
         : `${formatPhp(summary.comparison.difference.amount.replace(/^-/, ""))} ${summary.comparison.direction === "above_plan" ? "above" : "below"} plan${summary.comparison.percentage ? ` (${summary.comparison.percentage.amount}%)` : ""}`;
-  const highest = summary.highestCategory; const highestCategory = report.categoryExpenses.find((category) => category.categoryId === highest?.categoryId);
   const overPlan = summary.comparison.direction === "above_plan";
-  const latestImport = summary.statementImports.latestConfirmedAt;
   return (
     <ChartCard title="Summary" inset={20} accessory={
       <Pressable
@@ -223,15 +227,17 @@ function DashboardSummary({
           }
           style={{
             minHeight: 48,
+            maxWidth: "100%",
+            flexBasis: "100%",
             gap: 3,
           }}
         >
-          <SupportingText>Spent</SupportingText>
+          <SupportingText>Recorded spending</SupportingText>
           <Text
             style={{
               color: palette.textPrimary,
               fontFamily: fonts.medium,
-              fontSize: 23,
+              fontSize: 34,
               fontVariant: ["tabular-nums"],
             }}
           >
@@ -248,7 +254,7 @@ function DashboardSummary({
             style={{
               color: palette.textPrimary,
               fontFamily: fonts.medium,
-              fontSize: 23,
+              fontSize: 18,
               fontVariant: ["tabular-nums"],
             }}
           >
@@ -268,9 +274,7 @@ function DashboardSummary({
           style={{
             color: overPlan
               ? palette.stateNegative
-              : summary.comparison.direction === "no_plan"
-                ? palette.textSecondary
-                : palette.statePositive,
+              : palette.textSecondary,
             fontFamily: fonts.medium,
             fontSize: 12,
             textAlign: "right",
@@ -279,82 +283,11 @@ function DashboardSummary({
           {comparisonText}
         </Text>
       </View>
-      <View
-        style={{
-          height: 1,
-          backgroundColor: palette.fieldBorder,
-        }}
-      />
-      <View
-        style={{
-          flexDirection: "row",
-          flexWrap: "wrap",
-          gap: 20,
-        }}
-      >
-        {highest ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`Highest Category ${highest.name}, ${formatPhp(highest.amount)}, view Expenses`}
-            onPress={() => onOpenExpenses(highest.expenseFilter)}
-            style={{
-              minHeight: 48,
-              flexGrow: 1,
-              flexBasis: 120,
-              gap: 6,
-            }}
-          >
-            <SupportingText>Highest spend</SupportingText>
-            <Text
-              style={{
-                color: palette.textPrimary,
-                fontFamily: fonts.medium,
-                fontSize: 22,
-              }}
-            >
-              {formatPhp(highest.amount)}
-            </Text>
-            <View style={{ minHeight: 30, flexDirection: "row", alignItems: "center", gap: 6 }}>{highestCategory ? <CategoryIconMark iconKey={highestCategory.iconKey as SpaceCategory["iconKey"]} colorKey={(highestCategory.colorKey ?? "violet") as SpaceCategory["colorKey"]} size={14} /> : null}<SupportingText>{highest.name}</SupportingText></View>
-          </Pressable>
-        ) : (
-          <View
-            style={{
-              flex: 1,
-              gap: 6,
-            }}
-          >
-            <SupportingText>Highest spend</SupportingText>
-            <SupportingText>No Expenses yet</SupportingText>
-          </View>
-        )}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`${summary.statementImports.count} Statement Imports confirmed in this period${latestImport ? `, latest ${importDate(latestImport)}` : ""}. View history`}
-          onPress={onOpenImportHistory}
-          style={{
-            minHeight: 48,
-            flexGrow: 1,
-            flexBasis: 120,
-            gap: 6,
-          }}
-        >
-          <SupportingText>Imported</SupportingText>
-          <Text
-            style={{
-              color: palette.textPrimary,
-              fontFamily: fonts.medium,
-              fontSize: 22,
-            }}
-          >
-            {summary.statementImports.count}
-          </Text>
-          <View style={{ minHeight: 30, flexDirection: "row", alignItems: "center", gap: 6 }}>
-            {latestImport ? <Calendar size={14} color={palette.textSecondary} /> : null}
-            <SupportingText>
-              {latestImport ? importDate(latestImport) : "None in this period"}
-            </SupportingText>
-          </View>
-        </Pressable>
+      <SupportingText>Based on recorded expenses.</SupportingText>
+      {summary.expenseCount === "0" ? <BodyText>{onImport ? "No recorded expenses in this period. Import a statement or choose another period." : "No recorded expenses in this period. Choose another period to review spending."}</BodyText> : null}
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+        {onImport ? <CompactAction label="Import statement" icon={<FileUp size={18} color={palette.brandPrimary} />} onPress={onImport} /> : null}
+        <CompactAction label="Statements" variant="quiet" icon={<History size={18} color={palette.textSecondary} />} onPress={onOpenImportHistory} />
       </View>
       <Pressable
         accessibilityRole="button"
@@ -681,193 +614,6 @@ function CategoryChoice({ label, icon, selected, onPress }: {
     </Pressable>
   );
 }
-function BudgetChecks({
-  report,
-  categories,
-  onOpenExpenses,
-  onOpenBudgetCategory,
-}: {
-  report: DashboardReport;
-  categories: readonly SpaceCategory[];
-  onOpenBudgetCategory: (categoryId: string) => void;
-  onOpenExpenses: (filter: DashboardExpenseFilter) => void;
-}) {
-  const { palette, fonts } = useAppTheme();
-  const monthlyOverBudget = report.budgetChecks.monthly.filter(
-    (check) => check.overBudgetMonths > 0,
-  );
-  return (
-    <ChartCard title="Budget checks" inset={20} accessory={
-      <DashboardInfo label="About Budget checks">
-        Monthly frequency excludes the in-progress month. Dots show counts, not the sequence of months. Yearly status uses calendar-year Expenses and the annual limit.
-      </DashboardInfo>
-    }>
-      {monthlyOverBudget.length > 0 ? <SupportingText>Months over Budget</SupportingText> : null}
-      {monthlyOverBudget.length === 0 ? (
-        <BudgetCheckEmpty
-          label="Monthly budgets"
-          message={report.budgetChecks.monthly.length === 0
-            ? "None set"
-            : report.budgetChecks.monthly.some((check) => check.eligibleMonths > 0)
-              ? "No overruns"
-              : "No completed months"}
-          positive={report.budgetChecks.monthly.some((check) => check.eligibleMonths > 0)}
-        />
-      ) : (
-        monthlyOverBudget.map((check) => {
-          const category = categories.find(
-            (item) => item.id === check.categoryId,
-          );
-          return (
-            <Pressable
-              key={check.categoryId}
-              accessibilityRole="button"
-              accessibilityLabel={`${check.name}, ${check.overBudgetMonths} over Budget months out of ${check.eligibleMonths} completed months, monthly limit ${formatPhp(check.budgetAmount)}. Open Category Budget`}
-              onPress={() => onOpenBudgetCategory(check.categoryId)}
-              style={{
-                minHeight: 48,
-                gap: 6,
-              }}
-            >
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  flexWrap: "wrap",
-                  gap: 8,
-                }}
-              >
-                {category ? (
-                  <CategoryIconMark
-                    iconKey={category.iconKey}
-                    colorKey={category.colorKey}
-                    size={14}
-                  />
-                ) : null}
-                <Text
-                  style={{
-                    flex: 1,
-                    color: palette.textPrimary,
-                    fontFamily: fonts.medium,
-                    fontSize: 14,
-                  }}
-                >
-                  {check.name}
-                </Text>
-                <View
-                  accessible={false}
-                  style={{
-                    flexDirection: "row",
-                    flexWrap: "wrap",
-                    gap: 5,
-                  }}
-                >
-                  {Array.from(
-                    {
-                      length: check.eligibleMonths,
-                    },
-                    (_, index) => (
-                      <View
-                        key={index}
-                        style={{
-                          width: 6,
-                          height: 6,
-                          borderRadius: 3,
-                          backgroundColor:
-                            index < check.overBudgetMonths
-                              ? palette.chartBar
-                              : palette.meterTrack,
-                        }}
-                      />
-                    ),
-                  )}
-                </View>
-                <Text
-                  style={{
-                    color: palette.textSecondary,
-                    fontFamily: fonts.medium,
-                    fontSize: 12,
-                  }}
-                >
-                  {check.eligibleMonths === 0
-                    ? "—"
-                    : `${check.overBudgetMonths}/${check.eligibleMonths}`}
-                </Text>
-              </View>
-              <SupportingText>{`${check.eligibleMonths === 0 ? "No completed months · " : ""}Monthly limit ${formatPhp(check.budgetAmount)}`}</SupportingText>
-            </Pressable>
-          );
-        })
-      )}
-      <View
-        style={{
-          height: 1,
-          backgroundColor: palette.fieldBorder,
-        }}
-      />
-      {report.budgetChecks.yearly.length > 0 ? <SupportingText>Yearly Budgets</SupportingText> : null}
-      {report.budgetChecks.yearly.length === 0 ? (
-        <BudgetCheckEmpty label="Yearly budgets" message="None active" />
-      ) : (
-        report.budgetChecks.yearly.map((check) => (
-          <View key={`${check.categoryId}-${check.year}`} style={{ gap: 8 }}>
-            <Text accessibilityRole="header" style={{ color: palette.textPrimary, fontFamily: fonts.medium, fontSize: 14 }}>
-              {`${check.name} · ${check.year}`}
-            </Text>
-            <SupportingText>{`${formatPhp(check.actualAmount)} of ${formatPhp(check.limitAmount)} annual limit`}</SupportingText>
-            <SpendingMeter actual={check.actualAmount} limit={check.limitAmount} />
-            <Text style={{ color: statusColor(check.status, palette), fontFamily: fonts.medium, fontSize: 12 }}>
-              {`${check.status.replaceAll("_", " ")} · ${annualUsageText(check.actualAmount, check.limitAmount)}${check.usageToDate === report.range.today ? " · year to date" : ""}`}
-            </Text>
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-              <CompactAction
-                label="Expenses"
-                accessibilityLabel={`View Expenses · ${check.name} ${check.year}`}
-                variant="quiet"
-                onPress={() => onOpenExpenses(check.expenseFilter)}
-              />
-              <CompactAction
-                label="Budget"
-                accessibilityLabel={`Configure Budget · ${check.name}`}
-                variant="quiet"
-                onPress={() => onOpenBudgetCategory(check.categoryId)}
-              />
-            </View>
-          </View>
-        ))
-      )}
-    </ChartCard>
-  );
-}
-function BudgetCheckEmpty({ label, message, positive = false }: {
-  label: string;
-  message: string;
-  positive?: boolean;
-}) {
-  const { palette, fonts } = useAppTheme();
-  const Icon = positive ? CircleCheck : CalendarDays;
-  return (
-    <View
-      accessible
-      accessibilityLabel={`${label}: ${message}`}
-      style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 4 }}
-    >
-      <View
-        accessibilityElementsHidden
-        importantForAccessibility="no-hide-descendants"
-        style={{ padding: 12, borderRadius: radius.control, backgroundColor: palette.selectedSpace }}
-      >
-        <Icon size={22} color={positive ? palette.statePositive : palette.textSecondary} />
-      </View>
-      <View style={{ flex: 1, gap: space.rowGap }}>
-        <SupportingText>{label}</SupportingText>
-        <Text style={{ color: palette.textPrimary, fontFamily: fonts.medium, fontSize: typeScale.sectionTitle }}>
-          {message}
-        </Text>
-      </View>
-    </View>
-  );
-}
 function SpendingMeter({ actual, limit, prominent = false }: { actual: string; limit: string; prominent?: boolean }) {
   const { palette } = useAppTheme();
   const { allocation, excess } = meterSegments(actual, limit);
@@ -1001,14 +747,15 @@ function SummaryDetail({ label, value }: { label: string; value: string }) {
     <Text style={{ color: palette.textPrimary, fontFamily: fonts.medium, fontSize: 14 }}>{value}</Text>
   </View>;
 }
-function MonthRangePicker({ months, onSelect }: {
+function MonthRangePicker({ months, onSelect, resolvedLabel }: {
+  resolvedLabel?: string;
   months: 1 | 3 | 6 | 12 | "ytd";
   onSelect: (months: 1 | 3 | 6 | 12 | "ytd") => void;
 }) {
   const { palette, fonts } = useAppTheme();
   const [open, setOpen] = useState(false);
   const trigger = useRef<ElementRef<typeof View>>(null);
-  const label = months === "ytd" ? "Year to date" : months === 1 ? "Last 1 month" : "Last " + months + " months";
+  const label = resolvedLabel ?? (months === "ytd" ? "Year to date" : months === 1 ? "Last 1 month" : "Last " + months + " months");
   return (
     <>
       <Pressable
@@ -1101,24 +848,6 @@ function Legend({
       </Text>
     </View>
   );
-}
-function statusColor(
-  status: DashboardBudgetStatus,
-  palette: ReturnType<typeof useAppTheme>["palette"],
-) {
-  return status === "over"
-    ? palette.stateNegative
-    : status === "normal"
-      ? palette.statePositive
-      : palette.stateWarning;
-}
-function importDate(value: string) {
-  return new Intl.DateTimeFormat("en-PH", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    timeZone: "Asia/Manila",
-  }).format(new Date(value));
 }
 function SupportingText({ children }: { children: string }) {
   const { palette, fonts } = useAppTheme();

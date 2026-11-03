@@ -203,10 +203,17 @@ export function ImportHistoryItem({
     day: "numeric",
   }).format(new Date(item.importedAt));
   const Icon = item.statementType === "credit_card" ? CreditCard : Wallet;
+  const displayDate = (value: string) => new Intl.DateTimeFormat('en-PH', {
+    month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC',
+  }).format(new Date(`${value}T00:00:00Z`));
+  const statementPeriod = item.historyFromDate && item.historyToDate
+    ? `${displayDate(item.historyFromDate)} – ${displayDate(item.historyToDate)}`
+    : item.statementDate ? `Statement · ${displayDate(item.statementDate)}`
+      : 'Statement dates unavailable';
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${provider}, ${item.fileName}, PDF, ${confirmed}, ${importer}, confirmed ${imported} Asia/Manila, successful. Open Statement Import`}
+      accessibilityLabel={`${provider}, ${statementPeriod}, ${item.fileName}, PDF, ${confirmed}, ${importer}, imported ${imported} Asia/Manila. Open Statement Import`}
       onPress={onPress}
       style={{
         minHeight: 52,
@@ -249,10 +256,11 @@ export function ImportHistoryItem({
             fontFamily: fonts.regular,
             fontSize: 12,
           }}
-        >{confirmed}</Text>
+        >{statementPeriod}</Text>
+        <Text style={{ color: palette.textSecondary, fontFamily: fonts.regular, fontSize: 12 }}>{`Imported ${imported}`}</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <PersonAvatar name={importer} photoUrl={photoUrl} />
-          <Text style={{ flex: 1, color: palette.textSecondary, fontFamily: fonts.regular, fontSize: 12 }}>{`${importer} · ${imported}`}</Text>
+          <Text style={{ flex: 1, color: palette.textSecondary, fontFamily: fonts.regular, fontSize: 12 }}>{importer}</Text>
         </View>
       </View>
       <CircleCheck accessible={false} size={18} color={palette.brandPrimary} />

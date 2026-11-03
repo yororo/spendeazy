@@ -1,6 +1,6 @@
 import type { DashboardReport } from "@/api/dashboard-report-api-client";
+import { displayMoneyAmount } from '../../navigation/money-amount.ts';
 
-const phpNumber = new Intl.NumberFormat("en-PH", { maximumFractionDigits: 0 });
 const monthName = new Intl.DateTimeFormat("en-PH", {
   month: "short",
   timeZone: "UTC",
@@ -10,7 +10,9 @@ export function formatPhp(amount: string): string {
   const match = /^(-?)(\d+)(?:\.(\d{2}))?$/u.exec(amount);
   if (!match) throw new Error("Dashboard money values must be exact decimals");
   const fraction = match[3] ?? "00";
-  return `${match[1] === "-" ? "-" : ""}₱${phpNumber.format(Number(match[2]))}.${fraction}`;
+  // Native Intl implementations may reject BigInt; keep exact monetary digits as strings.
+  const whole = match[2].replace(/^0+(?=\d)/u, '');
+  return `${match[1] === "-" ? "-" : ""}₱${displayMoneyAmount(whole)}.${fraction}`;
 }
 
 export function dashboardPeriodLabel(report: DashboardReport): string {
@@ -24,11 +26,9 @@ export function dashboardPeriodLabel(report: DashboardReport): string {
     report.monthlyExpenses.at(-1)?.month ?? report.range.toDate.slice(0, 7);
   const firstLabel = labelMonth(first);
   const lastLabel = labelMonth(last);
-  const suffix =
-    first.slice(0, 4) === last.slice(0, 4)
-      ? last.slice(0, 4)
-      : `${first.slice(0, 4)} – ${last.slice(0, 4)}`;
-  const period = first === last ? `${firstLabel} ${suffix}` : `${firstLabel} – ${lastLabel} ${suffix}`;
+  const period = first === last ? `${firstLabel} ${last.slice(0, 4)}`
+    : first.slice(0, 4) === last.slice(0, 4) ? `${firstLabel} – ${lastLabel} ${last.slice(0, 4)}`
+      : `${firstLabel} ${first.slice(0, 4)} – ${lastLabel} ${last.slice(0, 4)}`;
   return `${period}${report.range.inProgress ? " · In progress" : ""}`;
 }
 

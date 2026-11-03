@@ -12,7 +12,7 @@ const require = createRequire(import.meta.url);
 // Exercise the real view/chart interactions, replacing only native rendering.
 const compiled = await build({
   stdin: {
-    contents: `${await readFile(new URL('./dashboard-view.tsx', import.meta.url), 'utf8')}\nexport { MonthlyChart, CategoryChart, YearPicker, MonthRangePicker };`,
+    contents: `${await readFile(new URL('./dashboard-view.tsx', import.meta.url), 'utf8')}\nexport { MonthlyChart, CategoryChart, MonthRangePicker, DashboardSummary, BudgetReview, CategoryReview };`,
     resolveDir: fileURLToPath(new URL('./', import.meta.url)), loader: 'tsx',
   },
   bundle: true, write: false, platform: 'node', format: 'cjs', packages: 'external', jsx: 'automatic',
@@ -29,7 +29,7 @@ new Function('require', 'module', compiled.outputFiles[0].text)((name) => {
     AccessibilityInfo: { announceForAccessibility() {} },
   };
   if (name === 'react-native-svg') return { __esModule: true, default: 'Svg', G: 'G', Line: 'Line', Polyline: 'Polyline', Rect: 'Rect', Circle: 'Circle', Path: 'Path', Polygon: 'Polygon' };
-  if (name === 'lucide-react-native') return { ChevronDown: 'ChevronDown', Info: 'Info' };
+  if (name === 'lucide-react-native') return new Proxy({}, { get: (_, name) => name });
   if (name === '@/navigation/app-theme') return { useAppTheme: () => ({
     palette: new Proxy({}, { get: () => '#123456' }), fonts: { regular: 'Outfit', medium: 'Outfit', semibold: 'Outfit' },
   }) };
@@ -43,11 +43,11 @@ new Function('require', 'module', compiled.outputFiles[0].text)((name) => {
   if (name === '@/components/design-surface') return { DesignSurface: 'Surface' };
   if (name === '@/components/text-field') return { TextField: 'TextField' };
   if (name === '@/components/category-mark') return { CategoryIconMark: 'CategoryIconMark' };
-  if (name === '@/constants/theme') return { space: {}, typeScale: { sectionTitle: 15 } };
+  if (name === '@/constants/theme') return { space: {}, radius: { control: 16 }, controlSize: { minimumTarget: 48 }, typeScale: { sectionTitle: 15 } };
   if (name === '@/features/categories/category-catalog') return { CATEGORY_COLOR_VALUES: {} };
   return require(name);
 }, compiledModule);
-const { MonthlyChart, CategoryChart, YearPicker, MonthRangePicker } = compiledModule.exports;
+const { DashboardView, MonthlyChart, CategoryChart, MonthRangePicker, DashboardSummary, BudgetReview, CategoryReview } = compiledModule.exports;
 
 function fixture() {
   const point = (month, toDate, actualAmount) => ({
@@ -80,26 +80,11 @@ async function render(t, component, props) {
 const action = (renderer, label) => renderer.root.findAllByType('Action').find((node) => node.props.label === label || node.props.accessibilityLabel === label);
 const target = (renderer, prefix) => renderer.root.findAllByType('Pressable').find((node) => node.props.accessibilityLabel?.startsWith(prefix));
 
-test('year popover offers only three previous years and closes after selection', async (t) => {
-  const selected = [];
-  const renderer = await render(t, YearPicker, { year: '2026', today: '2026-11-01', onSelect: (year) => selected.push(year) });
-  await act(async () => target(renderer, 'Choose year').props.onPress());
-  assert.deepEqual(renderer.root.findAllByType('Action').map((node) => node.props.label), ['2025', '2024', '2023']);
-  assert.equal(renderer.root.findAllByType('TextField').length, 0);
-  await act(async () => action(renderer, '2024').props.onPress());
-  assert.deepEqual(selected, ['2024']);
-  assert.equal(renderer.root.findByType('Popover').props.visible, false);
-  await act(async () => renderer.update(React.createElement(YearPicker, { year: '2024', today: '2027-01-01', onSelect() {} })));
-  await act(async () => target(renderer, 'Choose year').props.onPress());
-  assert.deepEqual(renderer.root.findAllByType('Action').map((node) => node.props.label), ['2026', '2025', '2024']);
-  assert.equal(action(renderer, '2024').props.selected, true);
-});
-
 test('monthly popover preserves all ranges and dismisses after selection', async (t) => {
   const selected = [];
   const renderer = await render(t, MonthRangePicker, { months: 3, onSelect: (months) => selected.push(months) });
-  await act(async () => target(renderer, 'Choose monthly range').props.onPress());
-  assert.deepEqual(renderer.root.findAllByType('Action').map((node) => node.props.label), ['Last 1 month', 'Last 3 months', 'Last 6 months']);
+  await act(async () => target(renderer, 'Choose period').props.onPress());
+  assert.deepEqual(renderer.root.findAllByType('Action').map((node) => node.props.label), ['Last 1 month', 'Last 3 months', 'Last 6 months', 'Last 12 months', 'Year to date']);
   assert.equal(action(renderer, 'Last 3 months').props.selected, true);
   await act(async () => action(renderer, 'Last 6 months').props.onPress());
   assert.deepEqual(selected, [6]);
@@ -140,4 +125,71 @@ test('Category month and period actions retain Category/date identity and suppli
   assert.deepEqual(opened.pop(), { fromDate: '2026-10-01', toDate: '2026-10-29', categoryId: '2' });
   await act(async () => target(renderer, 'Category 1,').props.onPress());
   assert.deepEqual(opened.pop(), { fromDate: '2026-01-01', toDate: '2026-10-29', categoryId: '1' });
+});
+
+function reviewFixture() {
+  const report = fixture();
+  report.range.view = 'monthly';
+  report.range.today = '2026-11-03';
+  report.summary = {
+    actualAmount: '400.01', expenseCount: '1',
+    planned: { amount: '800.00', months: 2, monthlyEquivalent: { amount: '400.00' }, annualEquivalent: { amount: '4800.00' } },
+    comparison: { direction: 'below_plan', difference: { amount: '399.99' }, percentage: null },
+  };
+  report.budgetChecks = { monthly: [{ categoryId: '1', name: 'Category 1', budgetAmount: '400.00', overBudgetMonths: 1, eligibleMonths: 2 }], yearly: [{ categoryId: '2', name: 'Insurance', year: '2026', actualAmount: '0.00', limitAmount: '30000.00', usageFromDate: '2026-01-01', usageToDate: '2026-11-03', expenseFilter: { fromDate: '2026-01-01', toDate: '2026-11-03', categoryId: '2' } }] };
+  report.monthlyExpenses.forEach(point => { point.inProgress = false; });
+  return report;
+}
+
+test('summary opens statements and import and keeps incomplete-data context visible', async (t) => {
+  const calls = [];
+  const renderer = await render(t, DashboardSummary, { report: reviewFixture(), onOpenExpenses() {}, onOpenImportHistory: () => calls.push('history'), onImport: () => calls.push('import') });
+  await act(async () => action(renderer, 'Statements').props.onPress());
+  await act(async () => action(renderer, 'Import statement').props.onPress());
+  assert.deepEqual(calls, ['history', 'import']);
+  const text = renderer.root.findAllByType('Text').map(node => node.props.children).join(' ');
+  assert.match(text, /Based on recorded expenses/);
+  assert.doesNotMatch(text, /Highest spend|Imported/);
+});
+
+test('budget review keeps annual checks when selected period is empty and opens exact annual expenses', async (t) => {
+  const report = reviewFixture(); report.summary.expenseCount = '0';
+  const calls = [];
+  const renderer = await render(t, BudgetReview, { report, onOpenExpenses: filter => calls.push(filter), onOpenBudgetCategory() {} });
+  assert.equal(target(renderer, 'Category 1,'), undefined);
+  assert.ok(target(renderer, 'Insurance · 2026,').props.accessibilityLabel.includes('₱30,000.00 remaining'));
+  await act(async () => target(renderer, 'Insurance · 2026,').props.onPress());
+  await act(async () => action(renderer, 'Expenses').props.onPress());
+  assert.deepEqual(calls[0], report.budgetChecks.yearly[0].expenseFilter);
+  assert.equal(renderer.root.findByType('Sheet').props.visible, false);
+});
+
+test('category review reveals low spending through More and opens budget without leaving the sheet open', async (t) => {
+  const report = reviewFixture();
+  report.categoryExpenses.push(...['3','4'].map(id => ({ ...report.categoryExpenses[1], categoryId: id, name: 'Category ' + id })));
+  const calls = [];
+  const renderer = await render(t, CategoryReview, { report, onOpenExpenses() {}, onOpenBudgetCategory: id => calls.push(id) });
+  assert.equal(target(renderer, 'Category 4,'), undefined);
+  await act(async () => target(renderer, 'More, show all').props.onPress());
+  assert.ok(target(renderer, 'Category 4,'));
+  await act(async () => target(renderer, 'Category 4,').props.onPress());
+  await act(async () => action(renderer, 'Budget').props.onPress());
+  assert.deepEqual(calls, ['4']);
+  assert.ok(renderer.root.findAllByType('Sheet').every(sheet => !sheet.props.visible));
+});
+
+
+test('dashboard shows resolved months and omits charts for a single month or an empty report', async (t) => {
+  const report = reviewFixture();
+  report.monthlyExpenses = [report.monthlyExpenses[1]];
+  report.range.fromDate = '2026-10-01'; report.range.toDate = '2026-10-31';
+  const controller = { report, categories: [], chartCategoryIds: [], categoryMarkers: {}, months: 1, view: 'monthly', refresh() {} };
+  const renderer = await render(t, DashboardView, { controller, spaceStatus: null, onOpenExpenses() {}, onOpenBudgetCategory() {}, onOpenImportHistory() {} });
+  assert.ok(target(renderer, 'Choose period, Oct 2026'));
+  assert.equal(renderer.root.findAllByType('Svg').length, 0);
+  assert.ok(renderer.root.findAllByType('Text').some(node => node.props.children === 'Category spending'));
+  const empty = { ...report, summary: { ...report.summary, expenseCount: '0' } };
+  await act(async () => renderer.update(React.createElement(DashboardView, { controller: { ...controller, report: empty }, spaceStatus: null, onOpenExpenses() {}, onOpenBudgetCategory() {}, onOpenImportHistory() {} })));
+  assert.equal(renderer.root.findAllByType('Text').some(node => node.props.children === 'Category spending'), false);
+  assert.ok(target(renderer, 'Insurance · 2026,'));
 });

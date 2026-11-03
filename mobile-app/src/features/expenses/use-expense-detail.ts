@@ -175,6 +175,10 @@ export function useExpenseDetail(expenseId: string) {
     },
     reviewLatest: editWorkflow.reviewLatest,
     continueWithMyChanges: editWorkflow.continueWithMyChanges,
+    hasUnsavedChanges: edit.base !== null && edit.draft !== null && (
+      edit.base.amount !== edit.draft.amount || edit.base.description !== edit.draft.description ||
+      edit.base.expenseDate !== edit.draft.expenseDate || edit.base.categoryId !== edit.draft.categoryId
+    ),
     async saveEdit() {
       if (!spaceId || !editCanSave) return false;
       const result = await editWorkflow.submit({

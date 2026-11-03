@@ -1,8 +1,10 @@
+import { Popover } from '@/components/popover';
+import type { View } from 'react-native';
 import { X } from 'lucide-react-native';
 import { useAppTheme } from '@/navigation/app-theme';
-import { useState } from 'react';
+import { type ElementRef, useRef, useState } from 'react';
 import { CompactAction, PrimaryButton, SecondaryButton } from '@/components/buttons';
-import { ChoiceSheet } from '@/components/choice-sheet';
+
 import { BodyText, Screen, StackGap } from '@/components/screen';
 import { ExpenseFields } from './expense-fields';
 import { ExpenseNotice } from './expense-notice';
@@ -28,6 +30,7 @@ export function ManualExpenseForm({ state, onChange, onSave, onRetryCategories, 
 }) {
   const { palette } = useAppTheme();
   const { availability, categories, draft, issues, saving, canSave, saveError, selectedCategoryName } = state;
+  const categoryRef = useRef<ElementRef<typeof View>>(null);
   const [categoryOpen, setCategoryOpen] = useState(false);
   if (availability === 'missing-space') {
     return (
@@ -56,7 +59,7 @@ export function ManualExpenseForm({ state, onChange, onSave, onRetryCategories, 
   return (
     <Screen compactHeader title="Add expense" headerAccessory={<CompactAction variant="icon" label="Close" icon={<X size={20} color={palette.textSecondary} />} onPress={onBack} />}>
       <StackGap>
-        <ExpenseFields disabled={saving} draft={draft} issues={issues} categoryLabel={selectedCategoryName ?? 'Choose Category'} onChange={onChange} onOpenCategories={() => setCategoryOpen(true)} />
+        <ExpenseFields nativeDatePicker categoryRef={categoryRef} categoryDisabled={categories.loading || !!categories.error || categories.items.length === 0} disabled={saving} draft={draft} issues={issues} categoryLabel={selectedCategoryName ?? 'Choose Category'} onChange={onChange} onOpenCategories={() => setCategoryOpen(true)} />
         {categories.error ? (
           <StackGap>
             <BodyText>{categories.error}</BodyText>
@@ -74,11 +77,11 @@ export function ManualExpenseForm({ state, onChange, onSave, onRetryCategories, 
           busy={saving}
           disabled={!canSave}
         />
-        <ChoiceSheet showClose title="Category" visible={categoryOpen} onDismiss={() => setCategoryOpen(false)}>
+        <Popover anchorRef={categoryRef} showHeader={false} title="Category" visible={categoryOpen} onDismiss={() => setCategoryOpen(false)}>
           {categories.items.map((category) => (
             <SecondaryButton
               key={category.id}
-              label={category.name}
+              label={category.id === draft.categoryId ? `✓ ${category.name}` : category.name}
               selected={category.id === draft.categoryId}
               onPress={() => {
                 onChange({ categoryId: category.id });
@@ -86,9 +89,8 @@ export function ManualExpenseForm({ state, onChange, onSave, onRetryCategories, 
               }}
             />
           ))}
-        </ChoiceSheet>
+        </Popover>
       </StackGap>
     </Screen>
   );
 }
-

@@ -11,7 +11,7 @@ export function ScreenHeader({ title, accessory, compact = false, onBack, backDi
       {onBack ? <Pressable accessibilityRole="button" accessibilityLabel="Back" accessibilityState={{ disabled: backDisabled }} disabled={backDisabled} onPress={onBack} hitSlop={4} style={{ minWidth: 48, minHeight: 48, marginLeft: -12, alignItems: 'center', justifyContent: 'center', opacity: backDisabled ? 0.55 : 1 }}>
         <ChevronLeft color={palette.textPrimary} size={26} />
       </Pressable> : null}
-      <Text accessibilityRole="header" style={{ flexShrink: 1, color: palette.textPrimary, fontFamily: fonts.semibold, fontSize: compact ? typeScale.sectionTitle : typeScale.pageTitle, letterSpacing: typeScale.pageTitleTracking }}>{title}</Text>
+      <Text accessibilityRole="header" style={{ flexShrink: 1, color: palette.textPrimary, fontFamily: fonts.semibold, fontSize: compact ? 22 : typeScale.pageTitle, letterSpacing: compact ? undefined : typeScale.pageTitleTracking }}>{title}</Text>
     </View>
     {accessory ? <View style={{ flexShrink: 0, alignItems: 'flex-end', maxWidth: '50%' }}>{accessory}</View> : null}
   </View>;

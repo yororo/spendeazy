@@ -1,11 +1,12 @@
-import { useState } from "react";
+import { Popover } from '@/components/popover';
+import { type ElementRef, useRef, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import {
   CompactAction,
   PrimaryButton,
   SecondaryButton,
 } from "@/components/buttons";
-import { CenteredDialog, ChoiceSheet } from "@/components/choice-sheet";
+import { CenteredDialog } from "@/components/choice-sheet";
 import { MoneyAmount } from "@/components/money-amount";
 import {
   BodyText,
@@ -101,8 +102,10 @@ export function ExpenseDetail({
 }) {
   const { palette, fonts } = useAppTheme();
   const { phase, error, expense } = state;
+  const [snapshotEventId, setSnapshotEventId] = useState<string | null>(null);
   const [activityOpen, setActivityOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const categoryRef = useRef<ElementRef<typeof View>>(null);
   const [categoryOpen, setCategoryOpen] = useState(false);
   const activeEditCategories = state.editor.categories.filter(
     (category) =>
@@ -152,7 +155,7 @@ export function ExpenseDetail({
             {state.canEdit ? (
               <View style={{ gap: space.dialogGap }}>
                 {state.editor.draft ? (
-                  <ExpenseFields
+                  <ExpenseFields nativeDatePicker categoryRef={categoryRef}
                     disabled={
                       state.editor.phase !== "ready" ||
                       state.editor.needsReview ||
@@ -386,11 +389,26 @@ export function ExpenseDetail({
                           </SupportingText>
                         </View>
                       </View>
-                      {event.before ? (
-                        <SupportingText>{`Before · ${snapshotLabel(event.before)}`}</SupportingText>
+                      {event.type === "edited" && event.before && event.after ? (
+                        <>
+                          {activityChanges(event.before, event.after).map(({ label, before, after }) => (
+                            <SupportingText key={label}>{`${label} · ${before} → ${after}`}</SupportingText>
+                          ))}
+                          <Pressable
+                            accessibilityRole="button"
+                            accessibilityState={{ expanded: snapshotEventId === event.id }}
+                            onPress={() => setSnapshotEventId(snapshotEventId === event.id ? null : event.id)}
+                            style={{ minHeight: 48, justifyContent: "center" }}
+                          >
+                            <SupportingText>Snapshots</SupportingText>
+                          </Pressable>
+                        </>
                       ) : null}
-                      {event.after ? (
-                        <SupportingText>{`After · ${snapshotLabel(event.after)}`}</SupportingText>
+                      {event.type !== "edited" || snapshotEventId === event.id || !event.before || !event.after ? (
+                        <>
+                          {event.before ? <SupportingText>{`Before · ${snapshotLabel(event.before)}`}</SupportingText> : null}
+                          {event.after ? <SupportingText>{`After · ${snapshotLabel(event.after)}`}</SupportingText> : null}
+                        </>
                       ) : null}
                     </View>
                   ))}
@@ -401,16 +419,15 @@ export function ExpenseDetail({
         ) : null}
       </StackGap>
 
-      <ChoiceSheet
+      <Popover anchorRef={categoryRef} showHeader={false}
         title="Category"
-        showClose
         visible={categoryOpen && state.editor.open}
         onDismiss={() => setCategoryOpen(false)}
       >
         {activeEditCategories.map((category) => (
           <SecondaryButton
             key={category.id}
-            label={`${category.name}${category.isActive ? "" : " (inactive)"}`}
+            label={`${category.id === state.editor.draft?.categoryId ? "✓ " : ""}${category.name}${category.isActive ? "" : " (inactive)"}`}
             selected={category.id === state.editor.draft?.categoryId}
             onPress={() => {
               onChangeEdit({ categoryId: category.id });
@@ -418,7 +435,7 @@ export function ExpenseDetail({
             }}
           />
         ))}
-      </ChoiceSheet>
+      </Popover>
       <CenteredDialog
         title="Delete Expense?"
         showClose
@@ -459,4 +476,16 @@ function snapshotLabel(
   snapshot: ExpenseActivitySnapshot & { categoryName: string },
 ): string {
   return `${snapshot.expenseDate} · ${snapshot.amount} PHP · ${snapshot.description} · ${snapshot.categoryName}`;
+}
+
+function activityChanges(
+  before: NonNullable<DetailActivity["before"]>,
+  after: NonNullable<DetailActivity["after"]>,
+) {
+  return [
+    { label: "Amount", before: `₱${before.amount}`, after: `₱${after.amount}` },
+    { label: "Description", before: before.description || "Empty", after: after.description || "Empty" },
+    { label: "Date", before: before.expenseDate, after: after.expenseDate },
+    { label: "Category", before: before.categoryName, after: after.categoryName },
+  ].filter((change) => change.before !== change.after);
 }

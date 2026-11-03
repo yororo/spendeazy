@@ -1,3 +1,4 @@
+import type { ElementRef, RefObject } from 'react';
 import { CalendarDays, ChevronDown, Pencil, Shapes } from 'lucide-react-native';
 import { Pressable, Text, View } from 'react-native';
 import { BrowseDateField } from '@/components/native-date-field';
@@ -7,7 +8,9 @@ import { useAppTheme } from '@/navigation/app-theme';
 import type { ManualExpenseDraft, ManualExpenseField } from './manual-draft';
 
 /** Shared presentation for manual creation and revision-protected editing. */
-export function ExpenseFields({ draft, issues, categoryLabel, onChange, onOpenCategories, disabled = false, compact = false, nativeDatePicker = false }: {
+export function ExpenseFields({ categoryRef, categoryDisabled = false, draft, issues, categoryLabel, onChange, onOpenCategories, disabled = false, compact = false, nativeDatePicker = false }: {
+  categoryRef?: RefObject<ElementRef<typeof View> | null>;
+  categoryDisabled?: boolean;
   compact?: boolean;
   nativeDatePicker?: boolean;
   disabled?: boolean;
@@ -57,12 +60,15 @@ export function ExpenseFields({ draft, issues, categoryLabel, onChange, onOpenCa
           error={issues.expenseDate}
           placeholder="YYYY-MM-DD"
         />}
-        <Pressable
+        {nativeDatePicker && issues.expenseDate ? (
+          <Text accessibilityLiveRegion="polite" style={{ color: palette.stateNegative, fontFamily: fonts.regular, fontSize: typeScale.metadata }}>{issues.expenseDate}</Text>
+        ) : null}
+        <Pressable ref={categoryRef}
           accessibilityRole="button"
           accessibilityLabel={`Category: ${categoryLabel}`}
           onPress={onOpenCategories}
-          disabled={disabled}
-          accessibilityState={{ disabled }}
+          disabled={disabled || categoryDisabled}
+          accessibilityState={{ disabled: disabled || categoryDisabled }}
           style={{ minHeight: controlSize.field, flexDirection: 'row', alignItems: 'center', gap: 14, borderBottomWidth: 1, borderColor: issues.categoryId ? palette.stateNegative : palette.fieldBorder }}>
           <View accessible={false} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
             <Shapes size={20} color={palette.textSecondary} />

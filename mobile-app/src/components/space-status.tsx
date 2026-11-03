@@ -9,6 +9,7 @@ import { ChoiceSheet } from '@/components/choice-sheet';
 import { Popover } from '@/components/popover';
 import { PersonAvatar } from '@/components/person-avatar';
 import { BodyText, StackGap, SupportingText } from '@/components/screen';
+import { SkeletonBlock, SkeletonRegion } from '@/components/skeleton';
 import { spaceIdentityLabel, type AccessibleSpace } from '@/application/spaces/active-space';
 import { useSpaces } from '@/application/spaces/provider';
 import { useAppTheme } from '@/navigation/app-theme';
@@ -34,7 +35,13 @@ export function SpaceStatus({ readOnly = false, spaceId }: { readOnly?: boolean;
   const recovering = useSyncExternalStore(session.confirmation.subscribe, session.confirmation.hasReceipt, () => false);
   const destination = readOnly && spaceId ? spaces.find(space => space.id === spaceId) : active;
 
-  if (loading && !active) return <SupportingText>Loading Spaces.</SupportingText>;
+  if (loading && !active) {
+    return (
+      <SkeletonRegion label="Loading Spaces">
+        <SkeletonBlock width={readOnly ? 50 : 70} height={44} />
+      </SkeletonRegion>
+    );
+  }
   if (readOnly && spaceId && !destination) return <SupportingText>Original Space unavailable</SupportingText>;
   if (error || !active) return <StackGap><BodyText>{error ?? 'Personal Space is unavailable.'}</BodyText><SecondaryButton label="Retry" onPress={() => void refresh()} /></StackGap>;
   const badgeSpace = destination ?? active;

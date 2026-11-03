@@ -33,6 +33,7 @@ import { CategoryMarker } from "./category-marker";
 import { MonthlyBars, CategoryLines, type ChartTrigger } from "./dashboard-charts";
 import type { useDashboardReport } from "./use-dashboard-report";
 import { SkeletonBlock, SkeletonRegion } from '@/components/skeleton';
+const reportSectionGap = 26;
 type DashboardController = ReturnType<typeof useDashboardReport>;
 export function DashboardView({
   controller,
@@ -81,7 +82,7 @@ export function DashboardView({
     >
       <View
         style={{
-          gap: 26,
+          gap: reportSectionGap,
         }}
       >
         {recoveryMessage ? (
@@ -105,8 +106,7 @@ export function DashboardView({
             flexDirection: "row",
             flexWrap: "wrap",
             alignItems: "center",
-            justifyContent: "flex-end",
-            gap: 6,
+            justifyContent: "flex-start", marginBottom: space.cardGap - reportSectionGap,
           }}
         >
           <MonthRangePicker months={controller.view === "yearly" ? "ytd" : controller.months} onSelect={(period) => {

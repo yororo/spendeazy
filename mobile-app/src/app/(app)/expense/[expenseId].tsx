@@ -1,4 +1,7 @@
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useEffect, useState } from 'react';
+import { CenteredDialog } from '@/components/choice-sheet';
+import { PrimaryButton, SecondaryButton } from '@/components/buttons';
+import { useLocalSearchParams, usePreventRemove, useRouter } from "expo-router";
 import { ExpenseDetail } from "@/features/expenses/detail-view";
 import { useExpenseDetail } from "@/features/expenses/use-expense-detail";
 import { BodyText, Screen } from "@/components/screen";
@@ -32,7 +35,16 @@ export default function ExpenseDetailScreen() {
 function ExpenseDetailContainer({ expenseId }: { expenseId: string }) {
   const router = useRouter();
   const controller = useExpenseDetail(expenseId);
+  const [discard, setDiscard] = useState<(() => void) | null>(null);
+  const [finished, setFinished] = useState(false);
+  usePreventRemove(controller.hasUnsavedChanges && !finished, ({ repeat }) => {
+    setDiscard(() => repeat);
+  });
+  useEffect(() => {
+    if (finished) router.back();
+  }, [finished, router]);
   return (
+    <>
     <ExpenseDetail
       state={controller.state}
       onRetry={() => {
@@ -41,7 +53,7 @@ function ExpenseDetailContainer({ expenseId }: { expenseId: string }) {
       onBack={() => router.back()}
       onChangeEdit={controller.updateEdit}
       onSaveEdit={() => {
-        void controller.saveEdit().then((saved) => { if (saved) router.back(); });
+        void controller.saveEdit().then((saved) => { if (saved) setFinished(true); });
       }}
       onReviewLatest={() => {
         void controller.reviewLatest();
@@ -49,9 +61,17 @@ function ExpenseDetailContainer({ expenseId }: { expenseId: string }) {
       onContinueWithMyChanges={controller.continueWithMyChanges}
       onDelete={async () => {
         const deleted = await controller.deleteExpense();
-        if (deleted) router.back();
+        if (deleted) setFinished(true);
         return deleted;
       }}
     />
+    <CenteredDialog title="Discard changes?" visible={discard !== null} onDismiss={() => setDiscard(null)}>
+      <SecondaryButton label="Keep editing" onPress={() => setDiscard(null)} />
+      <PrimaryButton label="Discard" tone="destructive" onPress={() => {
+        setDiscard(null);
+        discard?.();
+      }} />
+    </CenteredDialog>
+    </>
   );
 }

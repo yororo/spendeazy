@@ -1,10 +1,13 @@
-import { useRef, useState, type ElementRef, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ElementRef, type ReactNode } from 'react';
 import { ArrowLeft, Bookmark, CalendarDays, Check, ChevronDown, ChevronRight, Info, CircleMinus, Pencil, CircleQuestionMark, X } from 'lucide-react-native';
-import { Alert, FlatList, KeyboardAvoidingView, Pressable, Switch, Text, View } from 'react-native';
+import { Alert, FlatList, KeyboardAvoidingView, Pressable, Switch, Text, useWindowDimensions, View } from 'react-native';
+import Animated, { Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CompactAction, PrimaryButton, SecondaryButton } from '@/components/buttons';
 import { Popover } from '@/components/popover';
 import { CategoryIconMark } from '@/components/category-mark';
+import { ConfettiBurst } from '@/components/confetti-burst';
 import { CenteredDialog, ChoiceSheet } from '@/components/choice-sheet';
 import { CanvasBackground } from '@/components/design-surface';
 import { BodyText, StackGap, SupportingText } from '@/components/screen';
@@ -31,12 +34,34 @@ export function StatementImportReviewView({ controller: c, onBack, onDiscard }: 
 }) {
   const { palette, fonts } = useAppTheme();
   const insets = useSafeAreaInsets();
-  const [modal, setModal] = useState<'edit' | 'categories' | null>(null);
+  const [modal, setModal] = useState<'edit' | 'categories' | 'category-popover' | null>(null);
   const [showEvidence, setShowEvidence] = useState(false);
+  const categoryTrigger = useRef<ElementRef<typeof View>>(null);
   const evidenceTrigger = useRef<ElementRef<typeof View>>(null);
   const [transactionsExpanded, setTransactionsExpanded] = useState(false);
   const editFocus = useRef<ElementRef<typeof View>>(null);
   const list = useRef<FlatList>(null);
+  const { width } = useWindowDimensions();
+  const reducedMotion = useReducedMotion();
+  const discarding = useRef(false);
+  const cardX = useSharedValue(0);
+  const cardIn = useSharedValue(1);
+  const cardStyle = useAnimatedStyle(() => ({
+    opacity: cardIn.value * (1 - Math.min(1, Math.abs(cardX.value) / width)),
+    transform: [{ translateX: cardX.value }, { rotate: `${(cardX.value / width) * 6}deg` }, { scale: 0.97 + 0.03 * cardIn.value }],
+  }));
+  const [celebrating, setCelebrating] = useState(false);
+  const hadCard = useRef(false);
+  const queueComplete = !!c.review && !c.review.inspectedSourceRowId && !c.review.editor && c.counts.unmapped === 0
+    && c.review.original.rows.some(row => row.classification.eligible);
+  useEffect(() => {
+    if (!queueComplete) hadCard.current = true;
+    else if (hadCard.current) {
+      hadCard.current = false;
+      setCelebrating(true);
+    }
+  }, [queueComplete]);
+  const endCelebration = useCallback(() => setCelebrating(false), []);
   const review = c.review;
   if (!review) return null;
   const editor = review.editor;
@@ -73,6 +98,41 @@ export function StatementImportReviewView({ controller: c, onBack, onDiscard }: 
     ]);
     else dismiss();
   };
+  const commitSave = () => {
+    discarding.current = false;
+    if (c.save()) {
+      setModal(null);
+      cardX.set(0);
+      cardIn.set(0);
+      cardIn.set(withTiming(1, { duration: 200, easing: Easing.out(Easing.cubic) }));
+    } else cardX.set(withSpring(0));
+  };
+  const saveAndNext = () => {
+    if (reducedMotion) {
+      if (c.save()) setModal(null);
+      return;
+    }
+    if (discarding.current) return;
+    discarding.current = true;
+    cardX.set(withTiming(-width, { duration: 220, easing: Easing.in(Easing.cubic) }, finished => {
+      if (finished) scheduleOnRN(commitSave);
+    }));
+  };
+  const categoryChoices = (
+      <View>
+        {categories.map(item => {
+          const selected = editor?.values.categoryId === item.id;
+          return <Pressable key={item.id} accessibilityRole="button" accessibilityLabel={item.name} accessibilityState={{ selected, disabled }} disabled={disabled}
+            onPress={() => { c.patch({ categoryId: item.id }); setModal(null); }}
+            style={{ minHeight: 52, paddingVertical: 7, paddingHorizontal: 8, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: selected ? palette.selectedSpace : 'transparent', opacity: disabled ? 0.55 : 1 }}>
+            <CategoryIconMark iconKey={item.iconKey} colorKey={item.colorKey} size={20} />
+            <Text style={{ flex: 1, fontFamily: selected ? fonts.semibold : fonts.medium, fontSize: 15, color: selected ? palette.brandPrimary : palette.textPrimary }}>{item.name}</Text>
+            {selected ? <Check size={18} color={palette.brandPrimary} /> : null}
+          </Pressable>;
+        })}
+        {categories.length === 0 ? <SupportingText>No active Categories available.</SupportingText> : null}
+      </View>
+  );
   return <KeyboardAvoidingView style={{ flex: 1, backgroundColor: palette.canvas }} behavior={process.env.EXPO_OS === 'ios' ? 'padding' : 'height'}>
     <CanvasBackground />
     <FlatList ref={list} data={transactionsExpanded ? c.rows : []} extraData={review} keyExtractor={row => row.sourceRowId}
@@ -113,9 +173,10 @@ export function StatementImportReviewView({ controller: c, onBack, onDiscard }: 
                 style={{ fontSize: 12, fontFamily: fonts.regular, color: palette.textSecondary }}>{`${withThousandsSeparators(categorizedCount)}/${withThousandsSeparators(includedCount)}`}</Text>
             </View>
           </View>
-          <View style={{ paddingBottom: 12 }}>
-            {[{ inset: 8, bottom: 0, fill: palette.importCardBack }, { inset: 4, bottom: 6, fill: palette.importCardMiddle }].map(layer => <View key={layer.inset} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ position: 'absolute', left: layer.inset, right: layer.inset, top: 12, bottom: layer.bottom, borderRadius: 24, backgroundColor: layer.fill, borderWidth: 1, borderColor: palette.selectedSpaceBorder }} />)}
-            <View style={{ padding: 18, gap: 16, borderRadius: 24, borderWidth: 1, borderColor: palette.selectedSpaceBorder, backgroundColor: palette.importCard }}>
+          <View style={{ paddingBottom: queueComplete ? 0 : 12 }}>
+            {celebrating ? <ConfettiBurst colors={[palette.brandPrimary, palette.stateWarning, palette.stateNegative, palette.importCategoryBorder]} onDone={endCelebration} /> : null}
+            {queueComplete ? null : [{ inset: 8, bottom: 0, fill: palette.importCardBack }, { inset: 4, bottom: 6, fill: palette.importCardMiddle }].map(layer => <View key={layer.inset} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ position: 'absolute', left: layer.inset, right: layer.inset, top: 12, bottom: layer.bottom, borderRadius: 24, backgroundColor: layer.fill, borderWidth: 1, borderColor: palette.selectedSpaceBorder }} />)}
+            <Animated.View style={[{ padding: 18, gap: 16, borderRadius: 24, borderWidth: 1, borderColor: palette.selectedSpaceBorder, backgroundColor: palette.importCard }, cardStyle]}>
               {source && selectedRow ? <>
                 <View style={{ gap: 8 }}>
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
@@ -131,7 +192,7 @@ export function StatementImportReviewView({ controller: c, onBack, onDiscard }: 
                 {editor ? <>
                   <View style={{ gap: 7 }}>
                     <Text style={{ fontSize: 12, fontFamily: fonts.medium, color: palette.textSecondary }}>Category</Text>
-                    <Pressable accessibilityRole="button" accessibilityLabel={`Category: ${category?.name ?? 'Choose Category'}`} accessibilityState={{ disabled }} disabled={disabled} onPress={() => setModal('categories')} style={{ minHeight: 48, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: palette.importCategoryBorder, backgroundColor: palette.importCategory, flexDirection: 'row', alignItems: 'center', gap: 8, opacity: disabled ? 0.55 : 1 }}>
+                    <Pressable accessibilityRole="button" accessibilityLabel={`Category: ${category?.name ?? 'Choose Category'}`} ref={categoryTrigger} accessibilityState={{ disabled, expanded: modal === 'category-popover' }} disabled={disabled} onPress={() => setModal('category-popover')} style={{ minHeight: 48, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: palette.importCategoryBorder, backgroundColor: palette.importCategory, flexDirection: 'row', alignItems: 'center', gap: 8, opacity: disabled ? 0.55 : 1 }}>
                       {category ? <CategoryIconMark iconKey={category.iconKey} colorKey={category.colorKey} size={18} /> : <CircleQuestionMark size={18} color={palette.brandPrimary} />}
                       <Text style={{ flex: 1, fontSize: 15, fontFamily: fonts.medium, color: palette.textPrimary }}>{category?.name ?? 'Choose Category'}</Text>
                       <ChevronDown size={18} color={palette.brandPrimary} />
@@ -149,7 +210,7 @@ export function StatementImportReviewView({ controller: c, onBack, onDiscard }: 
                     <TextField label="Rule pattern" value={editor.pattern} editable={!disabled} onChangeText={pattern => remember({ pattern })} />
                   </> : null}
                   {(review.errors ?? []).map(message => <ErrorText key={message} message={message} />)}
-                  <PrimaryButton label="Save & next" disabled={disabled || !hasActiveCategory} onPress={() => { if (c.save()) setModal(null); }} />
+                  <PrimaryButton label="Save & next" disabled={disabled || !hasActiveCategory} onPress={saveAndNext} />
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 8 }}>
                     <QueueAction label="Exclude" outlined accessibilityLabel="Exclude Transaction and abandon unapplied edits" icon={<CircleMinus size={14} color={palette.textSecondary} />} disabled={c.readOnly} onPress={() => c.send({ type: 'excluded', sourceRowId: editor.sourceRowId })} />
                     <QueueAction label="Skip for now →" accessibilityLabel="Skip for now and abandon unapplied edits" disabled={c.readOnly} onPress={() => c.send({ type: 'skipped' })} brand />
@@ -160,7 +221,7 @@ export function StatementImportReviewView({ controller: c, onBack, onDiscard }: 
                 <PrimaryButton label="Review skipped" onPress={() => c.send({ type: 'skippedReviewed' })} />
               </> : <SupportingText>{review.original.rows.some(row => row.classification.eligible) ? 'Queue complete. Review the ledger, then Continue.' : 'No eligible spending was extracted. The original activity remains in the ledger.'}</SupportingText>}
               {review.inspectedSourceRowId ? <SecondaryButton label="Return to queue" onPress={() => c.send({ type: 'queueReturned' })} /> : null}
-            </View>
+            </Animated.View>
           </View>
           </> : null}
           {(review.validationIssues ?? []).map((issue, index) => <View key={index} style={{ gap: 6 }}>
@@ -228,20 +289,11 @@ export function StatementImportReviewView({ controller: c, onBack, onDiscard }: 
 
       </> : null}
     </CenteredDialog>
+    <Popover title="Choose Category" visible={modal === 'category-popover'} onDismiss={() => setModal(null)} anchorRef={categoryTrigger} showHeader={false}>
+      {categoryChoices}
+    </Popover>
     <ChoiceSheet title="Choose Category" visible={modal === 'categories'} onDismiss={() => setModal(null)} restoreFocusRef={editFocus} maxHeight="65%" showClose>
-      <View>
-        {categories.map(item => {
-          const selected = editor?.values.categoryId === item.id;
-          return <Pressable key={item.id} accessibilityRole="button" accessibilityLabel={item.name} accessibilityState={{ selected, disabled }} disabled={disabled}
-            onPress={() => { c.patch({ categoryId: item.id }); setModal(null); }}
-            style={{ minHeight: 52, paddingVertical: 7, paddingHorizontal: 8, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: selected ? palette.selectedSpace : 'transparent', opacity: disabled ? 0.55 : 1 }}>
-            <CategoryIconMark iconKey={item.iconKey} colorKey={item.colorKey} size={20} />
-            <Text style={{ flex: 1, fontFamily: selected ? fonts.semibold : fonts.medium, fontSize: 15, color: selected ? palette.brandPrimary : palette.textPrimary }}>{item.name}</Text>
-            {selected ? <Check size={18} color={palette.brandPrimary} /> : null}
-          </Pressable>;
-        })}
-        {categories.length === 0 ? <SupportingText>No active Categories available.</SupportingText> : null}
-      </View>
+      {categoryChoices}
     </ChoiceSheet>
   </KeyboardAvoidingView>;
 }

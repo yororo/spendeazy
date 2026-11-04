@@ -33,6 +33,7 @@ export type BudgetPlan = {
 };
 
 export type BudgetDetails = {
+  monthlyEquivalentRounded: boolean;
   originalAmount: string;
   originalPeriod: 'month' | 'year';
   monthlyEquivalent: string;
@@ -59,6 +60,7 @@ export function formatBudgetDetails(budget: BrowseBudget): BudgetDetails {
   const annualEquivalentCents = monthlyEquivalentNumerator(budget);
 
   return {
+    monthlyEquivalentRounded: annualEquivalentCents % TWELVE !== 0n,
     originalAmount: formatPhpCents(parsePhpCents(budget.amount)),
     originalPeriod: budget.recurrence === 'monthly' ? 'month' : 'year',
     monthlyEquivalent: formatPhpCents(roundHalfUp(annualEquivalentCents, TWELVE)),
@@ -100,13 +102,13 @@ function compareCategories(
     return compareCategoryNames(left, right, directionMultiplier);
   }
 
-  const leftEquivalent = left.budget ? monthlyEquivalentNumerator(left.budget) : null;
-  const rightEquivalent = right.budget ? monthlyEquivalentNumerator(right.budget) : null;
-  if (leftEquivalent === null && rightEquivalent !== null) return 1;
-  if (leftEquivalent !== null && rightEquivalent === null) return -1;
-  if (leftEquivalent !== null && rightEquivalent !== null) {
-    const byEquivalent = compareBigInts(leftEquivalent, rightEquivalent) * directionMultiplier;
-    if (byEquivalent !== 0) return byEquivalent;
+  const leftAmount = left.budget ? parsePhpCents(left.budget.amount) : null;
+  const rightAmount = right.budget ? parsePhpCents(right.budget.amount) : null;
+  if (leftAmount === null && rightAmount !== null) return 1;
+  if (leftAmount !== null && rightAmount === null) return -1;
+  if (leftAmount !== null && rightAmount !== null) {
+    const byAmount = compareBigInts(leftAmount, rightAmount) * directionMultiplier;
+    if (byAmount !== 0) return byAmount;
   }
 
   return compareCategoryNames(left, right, 1);

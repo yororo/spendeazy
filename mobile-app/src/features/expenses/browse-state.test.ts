@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { formatBrowseDate, formatBrowseDateRange } from './browse-format.ts';
 
 import {
   applyExpensePage,
@@ -25,6 +26,26 @@ const page = (
   expenses,
   nextCursor,
   ...totals,
+});
+
+test('date filter summaries retain boundaries while shortening complete months and shared date parts', () => {
+  const ranges = [
+    ['', '', 'Dates'],
+    ['2026-11-01', '2026-11-30', 'Nov 2026'],
+    ['2024-02-01', '2024-02-29', 'Feb 2024'],
+    ['2026-02-01', '2026-02-28', 'Feb 2026'],
+    ['2026-11-04', '2026-11-18', 'Nov 4–18, 2026'],
+    ['2026-10-28', '2026-11-04', 'Oct 28–Nov 4, 2026'],
+    ['2025-12-28', '2026-01-04', 'Dec 28, 2025–Jan 4, 2026'],
+    ['2026-11-04', '2026-11-04', 'Nov 4, 2026'],
+    ['2026-11-04', '', 'From Nov 4, 2026'],
+    ['', '2026-11-04', 'Until Nov 4, 2026'],
+  ];
+  for (const [from, to, expected] of ranges) {
+    assert.equal(formatBrowseDateRange(from, to), expected);
+  }
+  assert.equal(formatBrowseDate('2026-11-01'), 'Nov 1, 2026');
+  assert.equal(formatBrowseDate('2026-11-30'), 'Nov 30, 2026');
 });
 
 test("a date and Category selection asks for one page without summing later pages", () => {

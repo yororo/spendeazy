@@ -4,6 +4,7 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Pressable,
+  Switch,
   Text,
   View,
   type ListRenderItem,
@@ -25,6 +26,7 @@ import { TextField } from "@/components/text-field";
 import { controlSize, space, typeScale } from "@/constants/theme";
 import { useAppTheme } from "@/navigation/app-theme";
 import { expenseBrowseIssues } from "./browse-state";
+import { formatBrowseDate, formatBrowseDateRange } from './browse-format';
 import type { ExpenseBrowseSelection } from "./browse-state";
 import type { useExpenseBrowse } from "./use-expense-browse";
 
@@ -74,9 +76,12 @@ export function ExpenseBrowse({
   const [categoryOpen, setCategoryOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [optionsOpen, setOptionsOpen] = useState(false);
+  const [sortOpen, setSortOpen] = useState(false);
   const [dates, setDates] = useState({ fromDate: '', toDate: '' });
+  const categoryRef = useRef<ElementRef<typeof View>>(null);
   const toolbarRef = useRef<ElementRef<typeof View>>(null);
   const optionsRef = useRef<ElementRef<typeof View>>(null);
+  const sortRef = useRef<ElementRef<typeof View>>(null);
   const listRef = useRef<FlatList<ListedExpense>>(null);
   const restoredQuery = useRef("");
   useEffect(() => {
@@ -94,6 +99,9 @@ export function ExpenseBrowse({
   }, [loaded?.expenses.length, queryKey, readScroll, spaceId]);
 
   const metadataStyle = { color: palette.textSecondary, fontFamily: fonts.regular, fontSize: typeScale.metadata };
+  const sortByDate = selection?.sort === 'newest' || selection?.sort === 'oldest';
+  const sortAscending = selection?.sort === 'oldest' || selection?.sort === 'lowest';
+  const sortLabels = { newest: 'Newest first', oldest: 'Oldest first', highest: 'Highest first', lowest: 'Lowest first' } as const;
   const renderExpense: ListRenderItem<ListedExpense> = ({ item }) => {
     const category = categories.categories.find((entry) => entry.id === item.categoryId);
     return (
@@ -182,7 +190,6 @@ export function ExpenseBrowse({
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.fieldLabelGap }}>
                 {onBackToDashboard || (deletedOnly && onOpenOtherList) ? <CompactAction variant="icon" label="Back" icon={<ChevronLeft size={22} color={palette.textPrimary} />} onPress={onBackToDashboard ?? onOpenOtherList!} /> : null}
                 <View style={{ flex: 1 }}><ScreenHeader title={deletedOnly ? "Deleted Expenses" : "Expenses"} accessory={spaceStatus} /></View>
-                {onOpenOtherList && !deletedOnly ? <View ref={optionsRef} collapsable={false}><CompactAction variant="icon" icon={<Ellipsis size={22} color={palette.textSecondary} />} label="More options" onPress={() => setOptionsOpen(true)} /></View> : null}
               </View>
               {scopeLabel ? <SupportingText>{scopeLabel}</SupportingText> : null}
               {loaded && issues.length === 0 ? (
@@ -198,13 +205,22 @@ export function ExpenseBrowse({
               {selection ? <View style={{ gap: space.fieldLabelGap }}>
                 <DescriptionSearch key={selection.spaceId} selection={selection} onChange={onChange} />
                 <View ref={toolbarRef} style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.fieldLabelGap }}>
-                  <CompactAction accessibilityLabel={`Dates: ${selection.fromDate || "Any start"} to ${selection.toDate || "Any end"}`} label={selection.fromDate || selection.toDate ? `${selection.fromDate || "Any"} – ${selection.toDate || "Any"}` : "Dates"} selected={!!selection.fromDate || !!selection.toDate} icon={<CalendarRange size={16} color={palette.brandPrimary} />} onPress={() => { setDates({ fromDate: selection.fromDate, toDate: selection.toDate }); setFiltersOpen(true); }} />
-                  <CompactAction accessibilityLabel={`Category: ${selection.categoryId ? categoryName(categories.categories, selection.categoryId) : "All categories"}`} label={selection.categoryId ? categoryName(categories.categories, selection.categoryId) : "Category"} selected={selection.categoryId !== null} icon={<Shapes size={16} color={palette.brandPrimary} />} onPress={() => setCategoryOpen(true)} />
+                  <CompactAction wrapLabel accessibilityLabel={`Dates: ${selection.fromDate ? formatBrowseDate(selection.fromDate) : "Any start"} to ${selection.toDate ? formatBrowseDate(selection.toDate) : "Any end"}`} label={formatBrowseDateRange(selection.fromDate, selection.toDate)} selected={!!selection.fromDate || !!selection.toDate} icon={<CalendarRange size={16} color={palette.brandPrimary} />} onPress={() => { setDates({ fromDate: selection.fromDate, toDate: selection.toDate }); setFiltersOpen(true); }} />
+                  <View ref={categoryRef} collapsable={false} style={{ maxWidth: '100%' }}>
+                  <CompactAction wrapLabel accessibilityLabel={`Category: ${selection.categoryId ? categoryName(categories.categories, selection.categoryId) : "All categories"}`} label={selection.categoryId ? categoryName(categories.categories, selection.categoryId) : "Category"} selected={selection.categoryId !== null} icon={<Shapes size={16} color={palette.brandPrimary} />} onPress={() => setCategoryOpen(true)} />
+                  </View>
+                  <View style={{ flex: 1 }} />
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.fieldLabelGap, maxWidth: '100%' }}>
+                    <View ref={sortRef} collapsable={false} style={{ flexShrink: 1 }}>
+                      <CompactAction wrapLabel label={sortByDate ? 'Date' : 'Amount'} accessibilityLabel={`Sort by ${sortByDate ? 'date' : 'amount'}: ${sortLabels[selection.sort]}; opens sort options`}
+                        icon={sortAscending ? <ArrowUp size={17} color={palette.textSecondary} /> : <ArrowDown size={17} color={palette.textSecondary} />}
+                        onPress={() => setSortOpen(true)} />
+                    </View>
+                    {onOpenOtherList ? <View ref={optionsRef} collapsable={false}>
+                      <CompactAction variant="icon" label="More options" selected={deletedOnly} icon={<Ellipsis size={22} color={palette.textSecondary} />} onPress={() => setOptionsOpen(true)} />
+                    </View> : null}
+                  </View>
                 </View>
-                {!deletedOnly ? <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: space.fieldLabelGap }}>
-                  <CompactAction label="Date" selected={selection.sort === 'newest' || selection.sort === 'oldest'} accessibilityLabel={`Sort by date: ${selection.sort === 'oldest' ? 'oldest first; switch to newest' : selection.sort === 'newest' ? 'newest first; switch to oldest' : 'select newest first'}`} variant="quiet" icon={selection.sort === 'newest' ? <ArrowDown size={17} color={palette.textSecondary} /> : selection.sort === 'oldest' ? <ArrowUp size={17} color={palette.textSecondary} /> : undefined} onPress={() => onChange({ sort: selection.sort === 'newest' ? 'oldest' : 'newest' })} />
-                  <CompactAction label="Amount" selected={selection.sort === 'highest' || selection.sort === 'lowest'} accessibilityLabel={`Sort by amount: ${selection.sort === 'lowest' ? 'lowest first; switch to highest' : selection.sort === 'highest' ? 'highest first; switch to lowest' : 'select highest first'}`} variant="quiet" icon={selection.sort === 'highest' ? <ArrowDown size={17} color={palette.textSecondary} /> : selection.sort === 'lowest' ? <ArrowUp size={17} color={palette.textSecondary} /> : undefined} onPress={() => onChange({ sort: selection.sort === 'highest' ? 'lowest' : 'highest' })} />
-                </View> : null}
                 {issues.length > 0 ? <Text accessibilityLiveRegion="polite" style={{ ...metadataStyle, color: palette.stateNegative }}>{issues.map((issue) => issue.message).join(' ')}</Text> : null}
               </View> : null}
               {!loaded && !error && !spaces.error && (phase === "loading" || spacesLoading) ? (
@@ -246,9 +262,25 @@ export function ExpenseBrowse({
       </KeyboardAvoidingView>
       {selection ? (
         <>
-          <Popover anchorRef={optionsRef} title="Options" visible={optionsOpen} showHeader={false} onDismiss={() => setOptionsOpen(false)} width={controlSize.minimumTarget * 4}>
-            <CompactAction variant="quiet" label="Deleted" onPress={() => { setOptionsOpen(false); onOpenOtherList?.(); }} />
+          <Popover anchorRef={sortRef} title="Sort" showHeader={false} visible={sortOpen} onDismiss={() => setSortOpen(false)} width={controlSize.minimumTarget * 5}>
+            {(['Date', 'Amount'] as const).map(field => (
+              <View key={field} style={{ gap: space.rowGap }}>
+                <Text accessibilityRole="header" style={{ color: palette.textPrimary, fontFamily: fonts.semibold, fontSize: typeScale.sectionTitle }}>{field}</Text>
+                {(field === 'Date' ? ['newest', 'oldest'] as const : ['highest', 'lowest'] as const).map(sort => (
+                  <CompactAction wrapLabel key={sort} variant="quiet" label={sortLabels[sort]} accessibilityLabel={`Sort by ${field.toLowerCase()}: ${sortLabels[sort]}`} selected={selection.sort === sort}
+                    icon={selection.sort === sort ? <Check size={18} color={palette.brandPrimary} /> : undefined}
+                    onPress={() => { onChange({ sort }); setSortOpen(false); }} />
+                ))}
+              </View>
+            ))}
           </Popover>
+          {onOpenOtherList ? <Popover anchorRef={optionsRef} title="Options" visible={optionsOpen} showHeader={false} onDismiss={() => setOptionsOpen(false)} width={controlSize.minimumTarget * 5}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.fieldLabelGap, minHeight: controlSize.minimumTarget }}>
+              <Text style={{ flex: 1, color: palette.textPrimary, fontFamily: fonts.medium, fontSize: typeScale.button }}>Deleted only</Text>
+              <Switch accessibilityLabel="Deleted only" value={deletedOnly} onValueChange={() => { setOptionsOpen(false); onOpenOtherList(); }}
+                style={{ minWidth: controlSize.minimumTarget, minHeight: controlSize.minimumTarget }} />
+            </View>
+          </Popover> : null}
           <ChoiceSheet restoreFocusRef={toolbarRef} title="Dates" visible={filtersOpen} showClose onDismiss={() => setFiltersOpen(false)}>
             <BrowseDateField label="From" value={dates.fromDate} onChange={fromDate => setDates({ ...dates, fromDate })} />
             <BrowseDateField label="To" value={dates.toDate} onChange={toDate => setDates({ ...dates, toDate })} />
@@ -256,11 +288,11 @@ export function ExpenseBrowse({
             <SecondaryButton label="Clear" onPress={() => setDates({ fromDate: '', toDate: '' })} />
             <SecondaryButton label="Apply" disabled={expenseBrowseIssues({ ...selection, ...dates }).length > 0} onPress={() => { onChange(dates); setFiltersOpen(false); }} />
           </ChoiceSheet>
-          <ChoiceSheet
-            restoreFocusRef={toolbarRef}
-            maxHeight="65%"
+          <Popover
+            anchorRef={categoryRef}
+            width={controlSize.minimumTarget * 6}
             title="Category"
-            showClose
+            showHeader={false}
             visible={categoryOpen}
             onDismiss={() => setCategoryOpen(false)}
           >
@@ -279,7 +311,7 @@ export function ExpenseBrowse({
                 {selection.categoryId === category.id ? <Check size={18} color={palette.brandPrimary} /> : null}
               </Pressable>
             ))}
-          </ChoiceSheet>
+          </Popover>
         </>
       ) : null}
     </View>

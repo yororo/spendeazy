@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   useSyncExternalStore,
 } from "react";
@@ -17,6 +18,7 @@ import { createSessionResource } from "@/application/session-resource";
 import { session } from "@/application/session-runtime";
 import { useSpaces } from "@/application/spaces/provider";
 import { useSpaceCategories } from "@/features/expenses/use-space-categories";
+import { updateExpenseBrowse } from "@/features/expenses/browse-state";
 import { isSelectableYear, manilaDate } from "./dashboard-format";
 import { retainCategoryMarkers } from "./dashboard-category-identity";
 
@@ -139,6 +141,17 @@ export function useDashboardReport() {
   const loading =
     active !== null && state.data === null && state.error === null;
   const report = state.data;
+  const syncedBrowsePeriod = useRef<string | null>(null);
+  const fromDate = report?.range.fromDate;
+  const toDate = report?.range.toDate;
+  useEffect(() => {
+    if (!activeSpaceId || !authorized.isCurrent() || !fromDate || !toDate) return;
+    const period = JSON.stringify([scopeKey, queryKey, fromDate, toDate]);
+    // Refreshes must not overwrite dates subsequently edited in Browse.
+    if (syncedBrowsePeriod.current === period) return;
+    syncedBrowsePeriod.current = period;
+    updateExpenseBrowse(activeSpaceId, { fromDate, toDate });
+  }, [activeSpaceId, authorized, fromDate, queryKey, scopeKey, toDate]);
   const [calendar, setCalendar] = useState({ scopeKey, today: null as string | null });
   const today = report?.range.today ?? (calendar.scopeKey === scopeKey ? calendar.today : null);
   if (calendar.scopeKey !== scopeKey || (report && calendar.today !== report.range.today)) setCalendar({ scopeKey, today: report?.range.today ?? null });

@@ -141,15 +141,15 @@ function reviewFixture() {
   return report;
 }
 
-test('summary opens statements and import and keeps incomplete-data context visible', async (t) => {
+test('summary opens statements and import and shows concise budget wording', async (t) => {
   const calls = [];
   const renderer = await render(t, DashboardSummary, { report: reviewFixture(), onOpenExpenses() {}, onOpenImportHistory: () => calls.push('history'), onImport: () => calls.push('import') });
   await act(async () => action(renderer, 'Statements').props.onPress());
   await act(async () => action(renderer, 'Import statement').props.onPress());
   assert.deepEqual(calls, ['history', 'import']);
   const text = renderer.root.findAllByType('Text').map(node => node.props.children).join(' ');
-  assert.match(text, /Based on recorded expenses/);
-  assert.doesNotMatch(text, /Highest spend|Imported/);
+  assert.match(text, /Budgeted/);
+  assert.doesNotMatch(text, /Planned|Based on recorded expenses|Highest spend|Imported/);
 });
 
 test('budget review keeps annual checks when selected period is empty and opens exact annual expenses', async (t) => {

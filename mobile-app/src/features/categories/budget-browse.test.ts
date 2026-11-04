@@ -46,6 +46,7 @@ test('calculates exact monthly and annual equivalents across mixed recurrences',
     budgetCount: 4,
   });
   assert.deepEqual(formatBudgetDetails(categories[3]!.budget!), {
+    monthlyEquivalentRounded: false,
     originalAmount: '₱2,400.00',
     originalPeriod: 'year',
     monthlyEquivalent: '₱200.00',
@@ -55,6 +56,7 @@ test('calculates exact monthly and annual equivalents across mixed recurrences',
 
 test('rounds only the displayed monthly equivalent half up and preserves the annual total', () => {
   const yearlyThousand = category('1', 'Travel', { amount: '1000.00', recurrence: 'yearly' });
+  assert.equal(formatBudgetDetails(yearlyThousand.budget!).monthlyEquivalentRounded, true);
   assert.deepEqual(calculateBudgetPlan([yearlyThousand]), {
     monthlyEquivalent: '₱83.33',
     annualEquivalent: '₱1,000.00',
@@ -84,7 +86,7 @@ test('filters active and inactive Categories while retaining unbudgeted Categori
   assert.deepEqual(selectBudgetCategories(categories, { ...defaultOptions, view: 'inactive' }).map(({ id }) => id), ['4']);
 });
 
-test('searches Category names and sorts exact monthly equivalents with unset Categories last in both directions', () => {
+test('searches Category names and sorts entered amounts across periods with unset Categories last in both directions', () => {
   const categories = [
     category('1', 'Cafe', { amount: '1200.00', recurrence: 'yearly' }),
     category('2', 'Groceries', { amount: '100.00' }),
@@ -96,7 +98,7 @@ test('searches Category names and sorts exact monthly equivalents with unset Cat
     ...defaultOptions,
     sort: 'amount',
   });
-  assert.deepEqual(ascending.map(({ id }) => id), ['1', '2', '4', '3']);
+  assert.deepEqual(ascending.map(({ id }) => id), ['2', '1', '4', '3']);
 
   const descending = selectBudgetCategories(categories, {
     ...defaultOptions,
@@ -120,7 +122,7 @@ test('breaks amount ties by Category name then numeric ID independent of amount 
   const categories = [
     category('10', 'Same', { amount: '100.00' }),
     category('2', 'Same', { amount: '100.00' }),
-    category('4', 'Alpha', { amount: '100.00' }),
+    category('4', 'Alpha', { amount: '100.00', recurrence: 'yearly' }),
   ];
 
   for (const direction of ['ascending', 'descending'] as const) {

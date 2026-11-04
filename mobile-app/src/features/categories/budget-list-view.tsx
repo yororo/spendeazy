@@ -1,7 +1,7 @@
-import { useMemo, useState, type ReactNode } from 'react';
-import { Pressable, Text, View } from 'react-native';
-import { ArrowDownWideNarrow, ChevronRight, FolderPlus, ListFilter, Search } from 'lucide-react-native';
-import { ChoiceSheet } from '@/components/choice-sheet';
+import { useMemo, useRef, useState, type ElementRef, type ReactNode } from 'react';
+import { Pressable, Switch, Text, View } from 'react-native';
+import { ArrowDown, ArrowUp, Check, ChevronRight, Ellipsis, FolderPlus, ListFilter, Search, X } from 'lucide-react-native';
+import { Popover } from '@/components/popover';
 import { CompactAction, SecondaryButton } from '@/components/buttons';
 import { Screen, SupportingText } from '@/components/screen';
 import { TextField } from '@/components/text-field';
@@ -16,7 +16,7 @@ import {
   type BudgetSortField,
 } from './budget-browse';
 import { CategoryIconMark } from '@/components/category-mark';
-import { space, typeScale } from '@/constants/theme';
+import { controlSize, space, typeScale } from '@/constants/theme';
 import { useAppTheme } from '@/navigation/app-theme';
 
 import { SkeletonBlock, ListSkeleton } from '@/components/skeleton';
@@ -44,6 +44,11 @@ export function BudgetListView({
 }) {
   const { palette, fonts } = useAppTheme();
   const [filtersVisible, setFiltersVisible] = useState(false);
+  const [sortVisible, setSortVisible] = useState(false);
+  const [optionsVisible, setOptionsVisible] = useState(false);
+  const filterRef = useRef<ElementRef<typeof View>>(null);
+  const sortRef = useRef<ElementRef<typeof View>>(null);
+  const optionsRef = useRef<ElementRef<typeof View>>(null);
   const [showEquivalents, setShowEquivalents] = useState(false);
   const [view, setView] = useState<BudgetBrowseView>('active');
   const [filter, setFilter] = useState<BudgetPeriodFilter>('all');
@@ -58,6 +63,9 @@ export function BudgetListView({
   const categoriesInView = categories.filter((category) => category.isActive === (view === 'active'));
   const planAvailable = categories.length > 0 || (!loading && !error);
   const categoryViewLabel = view === 'active' ? 'Active Categories' : 'Inactive Categories';
+  const sortOrderLabel = sort === 'name'
+    ? direction === 'ascending' ? 'A to Z' : 'Z to A'
+    : direction === 'ascending' ? 'lowest first' : 'highest first';
 
   const sectionTitle = (label: string) => (
     <Text
@@ -114,6 +122,13 @@ export function BudgetListView({
                 style={{ color: palette.textSecondary, fontFamily: fonts.regular, fontSize: typeScale.metadata }}>
                 per {details.originalPeriod}
               </Text>
+              {showEquivalents ? (
+                <Text style={{ color: palette.textSecondary, fontFamily: fonts.regular, fontSize: typeScale.metadata, textAlign: 'right' }}>
+                  {details.originalPeriod === 'month'
+                    ? `${details.annualEquivalent}/yr`
+                    : `${details.monthlyEquivalentRounded ? '≈ ' : ''}${details.monthlyEquivalent}/mo`}
+                </Text>
+              ) : null}
             </>
           ) : (
             <Text style={{ color: palette.brandPrimary, fontFamily: fonts.medium, fontSize: 14 }}>
@@ -122,9 +137,6 @@ export function BudgetListView({
           )}
         </View>
         <ChevronRight size={14} color={palette.textSecondary} accessible={false} />
-        {showEquivalents && details ? <Text style={{ width: '100%', color: palette.textSecondary, fontFamily: fonts.regular, fontSize: 12 }}>
-          Monthly equivalent {details.monthlyEquivalent} · Annual equivalent {details.annualEquivalent}
-        </Text> : null}
       </Pressable>
     );
   }
@@ -163,67 +175,75 @@ export function BudgetListView({
           </View>
         ) : null}
 
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 4 }}>
-          <CompactAction label={filter === 'all' ? 'All' : filter[0]!.toUpperCase() + filter.slice(1)} selected={filter !== 'all' || view === 'inactive'} icon={<ListFilter size={16} color={palette.brandPrimary} />} onPress={() => setFiltersVisible(true)} />
-          <CompactAction label="Unset" selected={filter === 'unset'} onPress={() => setFilter(filter === 'unset' ? 'all' : 'unset')} />
-          <View style={{ flex: 1 }} />
-          <CompactAction variant="icon" label="Search Categories" icon={<Search size={17} color={palette.textSecondary} />} onPress={() => setFiltersVisible(true)} />
-          <CompactAction variant="icon" label="Sort Categories" icon={<ArrowDownWideNarrow size={17} color={palette.textSecondary} />} onPress={() => setFiltersVisible(true)} />
+        <View style={{ gap: space.fieldLabelGap }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.fieldLabelGap }}>
+            <View style={{ flex: 1 }}>
+              <TextField label="Search categories" showLabel={false} value={search} onChangeText={setSearch}
+                placeholder="Search categories" variant="underlined" autoCapitalize="none" returnKeyType="search"
+                icon={<Search size={17} color={palette.textSecondary} />} />
+            </View>
+            {search ? <CompactAction label="Clear search" variant="icon" icon={<X size={20} color={palette.textSecondary} />} onPress={() => setSearch('')} /> : null}
+          </View>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.fieldLabelGap }}>
+            <View ref={filterRef} collapsable={false}>
+              <CompactAction label={filter === 'all' ? 'Budget' : filter[0]!.toUpperCase() + filter.slice(1)}
+                accessibilityLabel={'Budget filter: ' + (filter === 'all' ? 'All budgets' : filter)} selected={filter !== 'all'}
+                icon={<ListFilter size={16} color={palette.brandPrimary} />} onPress={() => setFiltersVisible(true)} />
+            </View>
+            <View style={{ flex: 1 }} />
+            <View ref={sortRef} collapsable={false} style={{ maxWidth: '100%' }}>
+              <CompactAction label={sort === 'name' ? 'Name' : 'Amount'}
+                accessibilityLabel={`Sort by ${sort}: ${sortOrderLabel}; opens sort options`}
+                icon={direction === 'ascending'
+                  ? <ArrowUp size={17} color={palette.textSecondary} />
+                  : <ArrowDown size={17} color={palette.textSecondary} />}
+                onPress={() => setSortVisible(true)} />
+            </View>
+            <View ref={optionsRef} collapsable={false}>
+              <CompactAction variant="icon" label="More options" selected={view === 'inactive' || showEquivalents}
+                icon={<Ellipsis size={22} color={palette.textSecondary} />} onPress={() => setOptionsVisible(true)} />
+            </View>
+          </View>
         </View>
-        <ChoiceSheet title="Search, filter and sort" visible={filtersVisible} onDismiss={() => setFiltersVisible(false)} showClose>
-          <TextField
-            label="Search Categories"
-            value={search}
-            onChangeText={setSearch}
-            placeholder="Find a Category"
-          />
-
-          <View style={{ gap: space.rowGap }}>
-            {sectionTitle('Category view')}
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-              <CompactAction
-                label="Active"
-                selected={view === 'active'}
-                onPress={() => setView('active')}
-              />
-              <CompactAction
-                label="Inactive"
-                selected={view === 'inactive'}
-                onPress={() => setView('inactive')}
-              />
+        <Popover title="Sort" showHeader={false} anchorRef={sortRef} visible={sortVisible} width={controlSize.minimumTarget * 3.5} onDismiss={() => setSortVisible(false)}>
+          {(['name', 'amount'] as const).map((field) => (
+            <View key={field} style={{ gap: space.rowGap }}>
+              {sectionTitle(field === 'name' ? 'Name' : 'Amount')}
+              {(field === 'name' ? ['ascending', 'descending'] as const : ['descending', 'ascending'] as const).map((order) => {
+                const selected = sort === field && direction === order;
+                const label = field === 'name'
+                  ? order === 'ascending' ? 'A–Z' : 'Z–A'
+                  : order === 'ascending' ? 'Lowest first' : 'Highest first';
+                return <CompactAction key={order} variant="quiet" label={label}
+                  accessibilityLabel={`Sort by ${field}: ${label}`}
+                  selected={selected} icon={selected ? <Check size={18} color={palette.brandPrimary} /> : undefined}
+                  onPress={() => { setSort(field); setDirection(order); setSortVisible(false); }} />;
+              })}
             </View>
+          ))}
+        </Popover>
+        <Popover title="Budget" showHeader={false} anchorRef={filterRef} visible={filtersVisible} width={controlSize.minimumTarget * 3.5} onDismiss={() => setFiltersVisible(false)}>
+          {(['all', 'monthly', 'yearly', 'unset'] as const).map((value) => (
+            <CompactAction key={value} variant="quiet" label={value === 'all' ? 'All budgets' : value[0]!.toUpperCase() + value.slice(1)}
+              selected={filter === value} icon={filter === value ? <Check size={18} color={palette.brandPrimary} /> : undefined}
+              onPress={() => { setFilter(value); setFiltersVisible(false); }} />
+          ))}
+        </Popover>
+        <Popover title="Options" showHeader={false} anchorRef={optionsRef} visible={optionsVisible} width={controlSize.minimumTarget * 5} onDismiss={() => setOptionsVisible(false)}>
+          {(['active', 'inactive'] as const).map((value) => (
+            <CompactAction key={value} variant="quiet" label={value === 'active' ? 'Active' : 'Inactive'}
+              accessibilityLabel={'Show ' + value + ' categories'} selected={view === value}
+              icon={view === value ? <Check size={18} color={palette.brandPrimary} /> : undefined}
+              onPress={() => { setView(value); setOptionsVisible(false); }} />
+          ))}
+          <View style={{ borderTopWidth: 1, borderColor: palette.fieldBorder, flexDirection: 'row', alignItems: 'center', gap: space.fieldLabelGap, minHeight: controlSize.minimumTarget }}>
+            <Text style={{ flex: 1, color: palette.textPrimary, fontFamily: fonts.medium, fontSize: typeScale.button }}>
+              Show equivalents
+            </Text>
+            <Switch accessibilityLabel="Show equivalents" value={showEquivalents} onValueChange={setShowEquivalents}
+              style={{ minWidth: controlSize.minimumTarget, minHeight: controlSize.minimumTarget }} />
           </View>
-
-          <View style={{ gap: space.rowGap }}>
-            {sectionTitle('Budget filter')}
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-              {(['all', 'monthly', 'yearly', 'unset'] as const).map((value) => (
-                <CompactAction
-                  key={value}
-                  label={value[0]!.toUpperCase() + value.slice(1)}
-                  selected={filter === value}
-                  onPress={() => setFilter(value)}
-                />
-              ))}
-            </View>
-          </View>
-
-          <View style={{ gap: space.rowGap }}>
-            {sectionTitle('Sort by')}
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-              <CompactAction label="Name" selected={sort === 'name'} onPress={() => setSort('name')} />
-              <CompactAction label="Amount" selected={sort === 'amount'} onPress={() => setSort('amount')} />
-              <SortDirectionButton
-                sort={sort}
-                direction={direction}
-                onPress={() => setDirection((current) => current === 'ascending' ? 'descending' : 'ascending')}
-              />
-            </View>
-          </View>
-
-          <CompactAction label={showEquivalents ? 'Hide equivalent amounts' : 'Show equivalent amounts'} selected={showEquivalents} onPress={() => setShowEquivalents(!showEquivalents)} />
-          <CompactAction label="Done" onPress={() => setFiltersVisible(false)} />
-        </ChoiceSheet>
+        </Popover>
         <View>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
             {sectionTitle(categoryViewLabel)}
@@ -249,19 +269,4 @@ export function BudgetListView({
       </View>
     </Screen>
   );
-}
-
-function SortDirectionButton({
-  sort,
-  direction,
-  onPress,
-}: {
-  sort: BudgetSortField;
-  direction: BudgetSortDirection;
-  onPress: () => void;
-}) {
-  const label = sort === 'name'
-    ? direction === 'ascending' ? 'A–Z' : 'Z–A'
-    : direction === 'ascending' ? 'Low to high' : 'High to low';
-  return <CompactAction label={'Sort order: ' + label} onPress={onPress} />;
 }

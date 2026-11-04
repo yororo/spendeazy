@@ -249,7 +249,7 @@ function DashboardSummary({
             gap: 3,
           }}
         >
-          <SupportingText>Planned</SupportingText>
+          <SupportingText>Budgeted</SupportingText>
           <Text
             style={{
               color: palette.textPrimary,
@@ -283,7 +283,6 @@ function DashboardSummary({
           {comparisonText}
         </Text>
       </View>
-      <SupportingText>Based on recorded expenses.</SupportingText>
       {summary.expenseCount === "0" ? <BodyText>{onImport ? "No recorded expenses in this period. Import a statement or choose another period." : "No recorded expenses in this period. Choose another period to review spending."}</BodyText> : null}
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
         {onImport ? <CompactAction label="Import statement" icon={<FileUp size={18} color={palette.brandPrimary} />} onPress={onImport} /> : null}

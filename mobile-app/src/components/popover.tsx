@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ElementRef, type ReactNode, type RefObject } from 'react';
 import { AccessibilityInfo, Modal, Platform, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import { X } from 'lucide-react-native';
+import Animated, { Extrapolation, interpolate, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CompactAction } from '@/components/buttons';
@@ -69,12 +70,26 @@ export function Popover({ title, visible, onDismiss, children, anchorRef, presen
       : { top: anchor.y + anchor.height + gap, maxHeight: below }
     : { bottom: Math.max(insets.bottom, 8) + controlSize.addAction + gap, maxHeight: height - topEdge - Math.max(insets.bottom, 8) - controlSize.addAction - gap };
   const ready = !anchorRef || anchor !== null;
+  const opensUpward = !anchor || openAbove;
+  const progress = useSharedValue(0);
+  useEffect(() => {
+    progress.value = visible && ready ? withSpring(1, { damping: 16, stiffness: 240, mass: 0.8 }) : 0;
+  }, [visible, ready, progress]);
+  const scrimStyle = useAnimatedStyle(() => ({ opacity: Math.min(1, progress.value * 1.5) }));
+  const panelStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(progress.value, [0, 0.4], [0, 1], Extrapolation.CLAMP),
+    transform: [
+      { translateY: interpolate(progress.value, [0, 1], [opensUpward ? 12 : -12, 0]) },
+      { scale: interpolate(progress.value, [0, 1], [0.85, 1]) },
+    ],
+  }));
   const content = (
     <View style={{ flex: 1 }} accessibilityViewIsModal>
-      <Pressable accessibilityRole="button" accessibilityLabel={`Dismiss ${title}`} onPress={onDismiss}
-        style={{ position: 'absolute', inset: 0, backgroundColor: palette.scrim }} />
-      {ready ? <View accessibilityViewIsModal onAccessibilityEscape={onDismiss}
-        style={{ position: 'absolute', left, width: popoverWidth, ...position, borderRadius: radius.control, borderWidth: 1, borderColor: palette.fieldBorder, backgroundColor: palette.surfaceModal, overflow: 'hidden' }}>
+      <Animated.View style={[{ position: 'absolute', inset: 0, backgroundColor: palette.scrim }, scrimStyle]}>
+        <Pressable accessibilityRole="button" accessibilityLabel={`Dismiss ${title}`} onPress={onDismiss} style={{ flex: 1 }} />
+      </Animated.View>
+      {ready ? <Animated.View accessibilityViewIsModal onAccessibilityEscape={onDismiss}
+        style={[{ position: 'absolute', left, width: popoverWidth, ...position, borderRadius: radius.control, borderWidth: 1, borderColor: palette.fieldBorder, backgroundColor: palette.surfaceModal, overflow: 'hidden', transformOrigin: opensUpward ? 'bottom right' : 'top right' }, panelStyle]}>
         <ScrollView keyboardShouldPersistTaps="handled" bounces={false} contentContainerStyle={{ padding: 12, gap: 4 }}>
           {showHeader ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingLeft: 8 }}>
             <Text ref={titleRef} accessible accessibilityRole="header" onLayout={focusTitle}
@@ -83,7 +98,7 @@ export function Popover({ title, visible, onDismiss, children, anchorRef, presen
           </View> : null}
           {children}
         </ScrollView>
-      </View> : null}
+      </Animated.View> : null}
     </View>
   );
   if (presentation === 'inline') return visible ? content : null;

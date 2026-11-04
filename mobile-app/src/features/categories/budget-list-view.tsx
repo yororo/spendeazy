@@ -1,9 +1,9 @@
 import { useMemo, useRef, useState, type ElementRef, type ReactNode } from 'react';
 import { Pressable, Switch, Text, View } from 'react-native';
-import { ArrowDown, ArrowUp, Check, ChevronRight, Ellipsis, FolderPlus, ListFilter, Search, X } from 'lucide-react-native';
+import { ArrowDown, ArrowUp, Check, ChevronRight, Ellipsis, FolderPlus, Info, ListFilter, Search, X } from 'lucide-react-native';
 import { Popover } from '@/components/popover';
 import { CompactAction, SecondaryButton } from '@/components/buttons';
-import { Screen, SupportingText } from '@/components/screen';
+import { BodyText, Screen, SupportingText } from '@/components/screen';
 import { TextField } from '@/components/text-field';
 import type { SpaceBudgetCategory } from './budget-category-loader';
 import {
@@ -43,6 +43,8 @@ export function BudgetListView({
   onOpen: (categoryId: string) => void;
 }) {
   const { palette, fonts } = useAppTheme();
+  const [planInfoVisible, setPlanInfoVisible] = useState(false);
+  const planInfoRef = useRef<ElementRef<typeof View>>(null);
   const [filtersVisible, setFiltersVisible] = useState(false);
   const [sortVisible, setSortVisible] = useState(false);
   const [optionsVisible, setOptionsVisible] = useState(false);
@@ -149,21 +151,30 @@ export function BudgetListView({
             ? `Monthly-equivalent plan ${plan.monthlyEquivalent}; annual equivalent ${plan.annualEquivalent}; ${plan.budgetCount} active ${plan.budgetCount === 1 ? 'Budget' : 'Budgets'}`
             : 'Budget plan loading'}
           style={{ gap: 4, alignItems: 'center', paddingTop: 4, paddingBottom: 6 }}>
-          <Text style={{ color: palette.textSecondary, fontFamily: fonts.regular, fontSize: 12 }}>
-            Monthly-equivalent plan
-          </Text>
+          <View ref={planInfoRef} collapsable={false}>
+            <Pressable accessibilityRole="button" accessibilityLabel="About monthly plan"
+              accessibilityState={{ expanded: planInfoVisible }} onPress={() => setPlanInfoVisible(true)}
+              style={{ minWidth: controlSize.minimumTarget, minHeight: controlSize.minimumTarget, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.fieldLabelGap }}>
+              <Text style={{ color: palette.textSecondary, fontFamily: fonts.regular, fontSize: typeScale.metadata }}>
+                Monthly plan
+              </Text>
+              <Info size={18} color={palette.textSecondary} accessible={false} />
+            </Pressable>
+          </View>
           {loading && !error ? <SkeletonBlock width="55%" height={42} /> : <Text accessibilityLiveRegion="polite"
             style={{ color: palette.textPrimary, fontFamily: fonts.semibold, fontSize: typeScale.budgetTotal, letterSpacing: -1.5, textAlign: 'center' }}>
             {planAvailable ? plan.monthlyEquivalent : 'Unavailable'}</Text>}
           <Text style={{ color: palette.textSecondary, fontFamily: fonts.regular, fontSize: 12, textAlign: 'center' }}>
-            Annual equivalent {planAvailable ? plan.annualEquivalent : ''}
-          </Text>
-          <Text style={{ color: palette.textSecondary, fontFamily: fonts.regular, fontSize: 12, textAlign: 'center' }}>
             {planAvailable
-              ? `${plan.budgetCount} active ${plan.budgetCount === 1 ? 'Budget' : 'Budgets'} · inactive Categories excluded`
+              ? `${plan.budgetCount} active ${plan.budgetCount === 1 ? 'Budget' : 'Budgets'}`
               : 'Active Budget totals'}
           </Text>
         </View>
+
+        <Popover title="About monthly plan" visible={planInfoVisible} onDismiss={() => setPlanInfoVisible(false)} anchorRef={planInfoRef}>
+          <BodyText>Monthly Budgets plus Yearly Budgets divided by 12. Includes only active Categories. Yearly Budgets retain their annual limits.</BodyText>
+          <SupportingText>{`Annual equivalent: ${planAvailable ? plan.annualEquivalent : 'Unavailable'}`}</SupportingText>
+        </Popover>
 
         {error ? (
           <View style={{ gap: space.rowGap }}>

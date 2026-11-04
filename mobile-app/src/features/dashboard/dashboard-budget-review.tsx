@@ -1,6 +1,6 @@
 import { createContext, useContext, useRef, useState, type ElementRef, type ReactNode } from 'react';
 import { Pressable, Text, View } from 'react-native';
-import { ChevronDown, ChevronRight, Info } from 'lucide-react-native';
+import { CalendarDays, CalendarRange, ChevronDown, ChevronRight, Info } from 'lucide-react-native';
 import type { DashboardExpenseFilter, DashboardReport } from '@/api/dashboard-report-api-client';
 import type { SpaceCategory } from '@/api/categories-api-client';
 import { CompactAction } from '@/components/buttons';
@@ -9,7 +9,7 @@ import { ChoiceSheet } from '@/components/choice-sheet';
 import { DesignSurface } from '@/components/design-surface';
 import { Popover } from '@/components/popover';
 import { BodyText } from '@/components/screen';
-import { controlSize, space, typeScale } from '@/constants/theme';
+import { controlSize, radius, space, typeScale } from '@/constants/theme';
 import { useAppTheme } from '@/navigation/app-theme';
 import { compareMoney, formatPhp, labelMonth, meterSegments } from './dashboard-format';
 import { budgetBalance, categoryBudgetDetail, rankReviewCategories } from './dashboard-review-rules';
@@ -18,6 +18,7 @@ type Props = {
   report: DashboardReport;
   onOpenExpenses: (filter: DashboardExpenseFilter) => void;
   onOpenBudgetCategory: (id: string) => void;
+  embedded?: boolean;
 };
 
 function Caption({ children, warning = false }: { children: string; warning?: boolean }) {
@@ -25,10 +26,11 @@ function Caption({ children, warning = false }: { children: string; warning?: bo
   return <Text style={{ color: warning ? palette.stateNegative : palette.textSecondary, fontFamily: fonts.regular, fontSize: 12 }}>{children}</Text>;
 }
 
-function ReviewCard({ title, explanation, children }: { title: string; explanation: string; children: ReactNode }) {
+function ReviewCard({ title, explanation, children, embedded = false }: { title: string; explanation: string; children: ReactNode; embedded?: boolean }) {
   const { palette, fonts } = useAppTheme();
   const [open, setOpen] = useState(false);
   const trigger = useRef<ElementRef<typeof View>>(null);
+  if (embedded) return <>{children}</>;
   return <DesignSurface style={{ padding: 20, gap: space.cardGap }}>
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
       <Text accessibilityRole="header" style={{ flex: 1, fontFamily: fonts.semibold, fontSize: 15, color: palette.textPrimary }}>{title}</Text>
@@ -119,10 +121,18 @@ export function BudgetReview({ report, onOpenExpenses, onOpenBudgetCategory }: P
   const { palette } = useAppTheme();
   const monthly = report.budgetChecks.monthly.filter((check) => check.overBudgetMonths > 0);
   const hasExpenses = report.summary.expenseCount !== '0';
+  const [selectedView, setSelectedView] = useState<'monthly' | 'yearly' | null>(null);
+  const view = selectedView ?? (hasExpenses ? 'monthly' : 'yearly');
   if (!hasExpenses && report.budgetChecks.yearly.length === 0) return null;
   return <ReviewCard title="Budget checks" explanation="Monthly checks use completed calendar months and current budgets. Recorded spending can be incomplete until you import all statements. Annual limits apply to the full calendar year, not a monthly allowance. At limit does not mean a bill has been paid.">
-    {hasExpenses ? <>
-      <Caption>Monthly</Caption>
+    <View style={{ flexDirection: 'row', backgroundColor: palette.segmentedTrack, borderRadius: radius.control, padding: space.rowGap, gap: space.rowGap }}>
+      {(['monthly', 'yearly'] as const).map((option) => <View key={option} style={{ flex: 1 }}>
+        <CompactAction label={option === 'monthly' ? 'Monthly' : 'Yearly'} variant="segmented" selected={view === option}
+          icon={option === 'monthly' ? <CalendarDays size={typeScale.body} color={palette.textPrimary} /> : <CalendarRange size={typeScale.body} color={palette.textPrimary} />}
+          onPress={() => setSelectedView(option)} />
+      </View>)}
+    </View>
+    {view === 'monthly' ? <>
       {monthly.length === 0 ? <Caption>{report.budgetChecks.monthly.length === 0 ? 'No monthly budgets' : report.budgetChecks.monthly.some((check) => check.eligibleMonths > 0) ? 'No recorded overruns' : 'No completed months'}</Caption> : monthly.map((check) => {
         const category = report.categoryExpenses.find((item) => item.categoryId === check.categoryId);
         const months = category?.months.filter((month) => !report.monthlyExpenses.find((item) => item.month === month.month)?.inProgress) ?? [];
@@ -133,8 +143,8 @@ export function BudgetReview({ report, onOpenExpenses, onOpenBudgetCategory }: P
         </ReviewRow>;
       })}
     </> : null}
-    {report.budgetChecks.yearly.length > 0 ? <>
-      <Caption>Yearly</Caption>
+    {view === 'yearly' ? <>
+      {report.budgetChecks.yearly.length === 0 ? <Caption>No yearly budgets</Caption> : null}
       {report.budgetChecks.yearly.map((check) => {
         const segments = meterSegments(check.actualAmount, check.limitAmount);
         const category = report.categoryExpenses.find((item) => item.categoryId === check.categoryId);
@@ -154,13 +164,13 @@ export function BudgetReview({ report, onOpenExpenses, onOpenBudgetCategory }: P
   </ReviewCard>;
 }
 
-export function CategoryReview({ report, onOpenExpenses, onOpenBudgetCategory }: Props) {
+export function CategoryReview({ report, onOpenExpenses, onOpenBudgetCategory, embedded = false }: Props) {
   const { palette, fonts } = useAppTheme();
   const [expanded, setExpanded] = useState(false);
   const categories = rankReviewCategories(report.categoryExpenses);
   const single = report.monthlyExpenses.length === 1;
   const highest = categories.reduce((max, item) => compareMoney(item.actualAmount, max) > 0 ? item.actualAmount : max, '0.00');
-  return <ReviewCard title="Category spending" explanation="All categories combine recorded expenses across statements and cash entries. Compare each month with the current monthly budget; previous budget settings are not retained here. Low recorded spending can reflect missing statements. Annual budgets retain their full-year limits in Budget checks.">
+  return <ReviewCard embedded={embedded} title="Category spending" explanation="All categories combine recorded expenses across statements and cash entries. Compare each month with the current monthly budget; previous budget settings are not retained here. Low recorded spending can reflect missing statements. Annual budgets retain their full-year limits in Budget checks.">
     <View>
       {(expanded ? categories : categories.slice(0, 3)).map((category) => {
         const limit = category.months[0]?.monthlyBudgetAmount;

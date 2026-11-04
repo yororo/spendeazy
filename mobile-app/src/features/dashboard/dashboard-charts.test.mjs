@@ -35,7 +35,7 @@ new Function('require', 'module', compiled.outputFiles[0].text)((name) => {
   }) };
   if (name === '@/components/buttons') return { CompactAction: button, SecondaryButton: button };
   if (name === '@/components/choice-sheet') return { ChoiceSheet: ({ visible, children, ...props }) =>
-    React.createElement('Sheet', { visible, ...props }, visible ? children : null) };
+    React.createElement('Sheet', { visible, ...props }, visible ? React.createElement(React.Fragment, null, props.headerAccessory, children) : null) };
   if (name === '@/components/popover') return { Popover: ({ visible, children, ...props }) =>
     React.createElement('Popover', { visible, ...props }, visible ? children : null) };
   if (name === '@/components/skeleton') return { SkeletonBlock: 'SkeletonBlock', SkeletonRegion: 'SkeletonRegion' };
@@ -118,11 +118,18 @@ test('Category month and period actions retain Category/date identity and suppli
     onToggleCategory() {}, onClearCategories() {}, onOpenExpenses: (filter) => opened.push(filter),
   });
   await act(async () => target(renderer, 'Oct 2026').props.onPress());
-  const contents = renderer.root.findAllByType('BodyText').map((node) => node.props.children).join(' ');
+  const contents = renderer.root.findAllByType('Text').map((node) => node.props.children).join(' ');
   assert.match(contents, /Monthly limit ₱400.00/u);
-  assert.match(contents, /No Monthly limit · Annual limit ₱1,200.00/u);
-  await act(async () => action(renderer, 'View Expenses · Category 2').props.onPress());
-  assert.deepEqual(opened.pop(), { fromDate: '2026-10-01', toDate: '2026-10-29', categoryId: '2' });
+  assert.match(contents, /No monthly limit · Annual limit ₱1,200.00/u);
+  assert.match(contents, /In progress/);
+  assert.doesNotMatch(contents, /2026-10-01/);
+  assert.equal(target(renderer, 'Category 2, ₱0.00, No expenses'), undefined);
+  const info = target(renderer, 'Period details');
+  await act(async () => info.props.onPress());
+  assert.match(renderer.root.findAllByType('Text').map(node => node.props.children).join(' '), /October 1, 2026 – October 29, 2026/);
+  await act(async () => target(renderer, 'Category 1, ₱400.01, 1 expense').props.onPress());
+  assert.deepEqual(opened.pop(), { fromDate: '2026-10-01', toDate: '2026-10-29', categoryId: '1' });
+  assert.ok(renderer.root.findAllByType('Sheet').every(sheet => !sheet.props.visible));
   await act(async () => target(renderer, 'Category 1,').props.onPress());
   assert.deepEqual(opened.pop(), { fromDate: '2026-01-01', toDate: '2026-10-29', categoryId: '1' });
 });
@@ -187,9 +194,76 @@ test('dashboard shows resolved months and omits charts for a single month or an 
   const renderer = await render(t, DashboardView, { controller, spaceStatus: null, onOpenExpenses() {}, onOpenBudgetCategory() {}, onOpenImportHistory() {} });
   assert.ok(target(renderer, 'Choose period, Oct 2026'));
   assert.equal(renderer.root.findAllByType('Svg').length, 0);
+  assert.equal(action(renderer, 'Totals'), undefined);
+  assert.equal(action(renderer, 'Trends'), undefined);
   assert.ok(renderer.root.findAllByType('Text').some(node => node.props.children === 'Category spending'));
   const empty = { ...report, summary: { ...report.summary, expenseCount: '0' } };
   await act(async () => renderer.update(React.createElement(DashboardView, { controller: { ...controller, report: empty }, spaceStatus: null, onOpenExpenses() {}, onOpenBudgetCategory() {}, onOpenImportHistory() {} })));
   assert.equal(renderer.root.findAllByType('Text').some(node => node.props.children === 'Category spending'), false);
   assert.ok(target(renderer, 'Insurance · 2026,'));
 });
+
+
+test('category spending starts with Trends before monthly spending and switches to all-category Totals', async (t) => {
+  const report = reviewFixture();
+  const controller = { report, categoryReport: { ...report, categoryExpenses: [report.categoryExpenses[0]] }, categories: [], chartCategoryIds: ['1'], categoryMarkers: { '1': 0, '2': 1 }, months: 12, view: 'monthly', refresh() {} };
+  const budgets = [];
+  const renderer = await render(t, DashboardView, { controller, spaceStatus: null, onOpenExpenses() {}, onOpenBudgetCategory: id => budgets.push(id), onOpenImportHistory() {} });
+  const headings = () => renderer.root.findAllByType('Text').filter(node => node.props.accessibilityRole === 'header').map(node => node.props.children);
+  assert.equal(headings().filter(title => title === 'Category spending').length, 1);
+  assert.ok(headings().indexOf('Category spending') < headings().indexOf('Monthly spending'));
+  assert.equal(action(renderer, 'Trends').props.selected, true);
+  assert.ok(target(renderer, 'Choose categories'));
+  await act(async () => action(renderer, 'Totals').props.onPress());
+  assert.equal(action(renderer, 'Totals').props.selected, true);
+  assert.equal(target(renderer, 'Choose categories'), undefined);
+  assert.ok(target(renderer, 'Category 2,'));
+  await act(async () => target(renderer, 'Category 2,').props.onPress());
+  await act(async () => action(renderer, 'Budget').props.onPress());
+  assert.deepEqual(budgets, ['2']);
+  await act(async () => action(renderer, 'Trends').props.onPress());
+  assert.ok(target(renderer, 'Choose categories'));
+});
+
+
+test('budget checks switches between monthly and yearly details', async (t) => {
+  const report = reviewFixture();
+  const opened = [];
+  const renderer = await render(t, BudgetReview, { report, onOpenExpenses: filter => opened.push(filter), onOpenBudgetCategory() {} });
+  assert.equal(action(renderer, 'Monthly').props.selected, true);
+  assert.ok(target(renderer, 'Category 1,'));
+  assert.equal(target(renderer, 'Insurance · 2026,'), undefined);
+  await act(async () => action(renderer, 'Yearly').props.onPress());
+  assert.equal(action(renderer, 'Yearly').props.selected, true);
+  assert.equal(target(renderer, 'Category 1,'), undefined);
+  await act(async () => target(renderer, 'Insurance · 2026,').props.onPress());
+  await act(async () => action(renderer, 'Expenses').props.onPress());
+  assert.deepEqual(opened, [report.budgetChecks.yearly[0].expenseFilter]);
+  await act(async () => action(renderer, 'Monthly').props.onPress());
+  assert.ok(target(renderer, 'Category 1,'));
+});
+
+
+test('monthly limits toggle hides thresholds and rescales spending while preserving exact budget details', async (t) => {
+  const report = fixture();
+  report.categoryExpenses[0].months.forEach(month => { month.monthlyBudgetAmount = '10000.00'; });
+  const renderer = await render(t, CategoryChart, {
+    report, categories: [], selectedCategoryIds: [], categoryMarkers: { '1': 0, '2': 1 }, categoriesLoading: false,
+    onToggleCategory() {}, onClearCategories() {}, onOpenExpenses() {},
+  });
+  const limits = () => renderer.root.findAllByType('Line').filter(node => node.props.strokeDasharray === '4 4');
+  const labels = () => renderer.root.findAllByType('Text').map(node => node.props.children);
+  assert.equal(action(renderer, 'Hide monthly limits').props.selected, true);
+  assert.ok(limits().length > 0);
+  assert.ok(labels().includes('₱10,000.00'));
+  await act(async () => action(renderer, 'Hide monthly limits').props.onPress());
+  assert.equal(action(renderer, 'Show monthly limits').props.selected, false);
+  assert.equal(limits().length, 0);
+  assert.ok(labels().includes('₱400.01'));
+  assert.ok(!labels().includes('₱10,000.00'));
+  await act(async () => target(renderer, 'Oct 2026').props.onPress());
+  assert.match(renderer.root.findAllByType('Text').map(node => node.props.children).join(' '), /Monthly limit ₱10,000.00/u);
+  await act(async () => action(renderer, 'Show monthly limits').props.onPress());
+  assert.ok(limits().length > 0);
+});
+

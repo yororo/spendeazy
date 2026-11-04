@@ -11,7 +11,7 @@ import type {
   DashboardReport,
 } from "@/api/dashboard-report-api-client";
 import { CompactAction, SecondaryButton } from "@/components/buttons";
-import { CalendarDays, Check, ChevronDown, ExternalLink, FileUp, History, Info } from "lucide-react-native";
+import { CalendarDays, ChartLine, Check, ChevronDown, ExternalLink, Eye, EyeOff, FileUp, History, Info, List } from "lucide-react-native";
 import { ChoiceSheet } from "@/components/choice-sheet";
 import { Popover } from "@/components/popover";
 import { BodyText, Screen } from "@/components/screen";
@@ -28,6 +28,7 @@ import {
 import { DesignSurface } from "@/components/design-surface";
 import { CategoryMarker } from "./category-marker";
 import { MonthlyBars, CategoryLines, type ChartTrigger } from "./dashboard-charts";
+import { CategoryTrendDetails } from "./category-trend-details";
 import type { useDashboardReport } from "./use-dashboard-report";
 import { BudgetReview, CategoryReview } from './dashboard-budget-review';
 import { SkeletonBlock, SkeletonRegion } from '@/components/skeleton';
@@ -54,7 +55,6 @@ export function DashboardView({
 }) {
   const { palette, fonts } = useAppTheme();
   const { report } = controller;
-  const [showTrends, setShowTrends] = useState(false);
   const categoryChoices = controller.categories.filter(
     (category) =>
       category.isActive ||
@@ -149,29 +149,59 @@ export function DashboardView({
             />
             <BudgetReview key={`checks:${report.range.fromDate}:${report.range.toDate}`} report={report} onOpenExpenses={onOpenExpenses} onOpenBudgetCategory={onOpenBudgetCategory} />
             {report.summary.expenseCount !== "0" ? <>
-            <CategoryReview key={`review:${report.range.fromDate}:${report.range.toDate}`} report={report} onOpenExpenses={onOpenExpenses} onOpenBudgetCategory={onOpenBudgetCategory} />
-            {report.monthlyExpenses.length > 1 ? <>
-            <MonthlyChart key={`monthly:${report.range.fromDate}:${report.range.toDate}`} report={report} onOpenExpenses={onOpenExpenses} />
-            <CompactAction label="Trends" selected={showTrends} onPress={() => setShowTrends(!showTrends)} />
-            {showTrends ?
-            <CategoryChart
-              key={`category:${report.range.view}:${report.range.fromDate}:${report.range.toDate}`}
-              report={controller.categoryReport ?? report}
+            <CategorySpending
+              key={`categories:${report.range.fromDate}:${report.range.toDate}`}
+              controller={controller}
               categories={chartChoices}
-              selectedCategoryIds={controller.chartCategoryIds}
-              categoryMarkers={controller.categoryMarkers}
-              categoriesLoading={controller.categoriesLoading}
-              onToggleCategory={controller.toggleChartCategory}
-              onClearCategories={controller.clearChartCategories}
               onOpenExpenses={onOpenExpenses}
-            /> : null}
-            </> : null}
+              onOpenBudgetCategory={onOpenBudgetCategory}
+            />
+            {report.monthlyExpenses.length > 1 ? (
+              <MonthlyChart key={`monthly:${report.range.fromDate}:${report.range.toDate}`} report={report} onOpenExpenses={onOpenExpenses} />
+            ) : null}
+
             </> : null}
           </>
         ) : null}
       </View>
     </Screen>
   );
+}
+function CategorySpending({ controller, categories, onOpenExpenses, onOpenBudgetCategory }: {
+  controller: DashboardController;
+  categories: Parameters<typeof CategoryChart>[0]["categories"];
+  onOpenExpenses: (filter: DashboardExpenseFilter) => void;
+  onOpenBudgetCategory: (categoryId: string) => void;
+}) {
+  const { palette } = useAppTheme();
+  const [view, setView] = useState<"totals" | "trends">("trends");
+  const report = controller.report;
+  if (!report) return null;
+  const multipleMonths = report.monthlyExpenses.length > 1;
+  return <ChartCard title="Category spending" accessory={
+    <DashboardInfo label="About Category spending">
+      Recorded expenses combine statements and cash entries. Totals include all categories; chart selections apply only to Trends. Comparisons use current budgets. Low spending can reflect missing statements. Annual budgets retain their calendar-year limits in Budget checks; no monthly cap is plotted.
+    </DashboardInfo>
+  }>
+    {multipleMonths ? <View style={{ flexDirection: "row", backgroundColor: palette.segmentedTrack, borderRadius: radius.control, padding: space.rowGap, gap: space.rowGap }}>
+      {(["trends", "totals"] as const).map((option) => <View key={option} style={{ flex: 1 }}>
+        <CompactAction label={option === "totals" ? "Totals" : "Trends"} variant="segmented" selected={view === option}
+          icon={option === "totals" ? <List size={typeScale.body} color={palette.textPrimary} /> : <ChartLine size={typeScale.body} color={palette.textPrimary} />}
+          onPress={() => setView(option)} />
+      </View>)}
+    </View> : null}
+    {multipleMonths && view === "trends" ? <CategoryChart
+      embedded
+      report={controller.categoryReport ?? report}
+      categories={categories}
+      selectedCategoryIds={controller.chartCategoryIds}
+      categoryMarkers={controller.categoryMarkers}
+      categoriesLoading={controller.categoriesLoading}
+      onToggleCategory={controller.toggleChartCategory}
+      onClearCategories={controller.clearChartCategories}
+      onOpenExpenses={onOpenExpenses}
+    /> : <CategoryReview embedded report={report} onOpenExpenses={onOpenExpenses} onOpenBudgetCategory={onOpenBudgetCategory} />}
+  </ChartCard>;
 }
 function DashboardSummary({
   report,
@@ -393,6 +423,7 @@ function MonthlyChart({
   );
 }
 function CategoryChart({
+  embedded = false,
   report,
   categories,
   selectedCategoryIds,
@@ -402,6 +433,7 @@ function CategoryChart({
   onClearCategories,
   onOpenExpenses,
 }: {
+  embedded?: boolean;
   report: DashboardReport;
   categories: readonly {
     id: string;
@@ -418,6 +450,7 @@ function CategoryChart({
 }) {
   const { palette, fonts } = useAppTheme();
   const [showValues, setShowValues] = useState(false);
+  const [showMonthlyLimits, setShowMonthlyLimits] = useState(true);
   const [choosing, setChoosing] = useState(false);
   const [detail, setDetail] = useState<{ month: string } | null>(null);
   const detailTrigger: ChartTrigger = useRef<ElementRef<typeof View>>(null);
@@ -456,7 +489,7 @@ function CategoryChart({
     );
   };
   return (
-    <ChartCard title="Category spending" accessory={
+    <ChartCard embedded={embedded} title="Category spending" accessory={
       <DashboardInfo label="About Category spending">
         Annual Budgets retain their calendar-year limits; no monthly cap is plotted.
       </DashboardInfo>
@@ -512,34 +545,32 @@ function CategoryChart({
         <>
           <CategoryLines
             report={report}
+            showMonthlyLimits={showMonthlyLimits}
+            selectedMonth={detail?.month}
             colorFor={colorFor}
             markerIndexFor={(id) => categoryMarkers[id]}
             onSelectMonth={(month, trigger) => { detailTrigger.current = trigger.current; setDetail({ month }); }}
           />
-          <ChoiceSheet title={detail ? `${labelMonth(detail.month)} ${detail.month.slice(0, 4)} · Categories` : "Category spending"}
-            visible={detail !== null} onDismiss={() => setDetail(null)} restoreFocusRef={detailTrigger} showClose>
-            {detail ? <BodyText>{`${report.monthlyExpenses.find((month) => month.month === detail.month)?.fromDate}–${report.monthlyExpenses.find((month) => month.month === detail.month)?.toDate} · Asia/Manila`}</BodyText> : null}
-            {points.map((category) => {
-              const month = category.months.find((item) => item.month === detail?.month);
-              return month ? <View key={category.categoryId} style={{ gap: 4 }}>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                  <CategoryMarker markerIndex={categoryMarkers[category.categoryId]} color={colorFor(category)} />
-                  <BodyText>{category.name}</BodyText>
-                </View>
-                <BodyText>{`${formatPhp(month.actualAmount)} · ${month.expenseCount} Expenses${month.monthlyBudgetAmount !== null ? ` · Monthly limit ${formatPhp(month.monthlyBudgetAmount)}` : " · No Monthly limit"}${month.annualBudgetAmount !== null ? ` · Annual limit ${formatPhp(month.annualBudgetAmount)}` : ""}`}</BodyText>
-                <CompactAction label="Expenses" accessibilityLabel={`View Expenses · ${category.name}`} onPress={() => { setDetail(null); onOpenExpenses(month.expenseFilter); }} />
-              </View> : null;
-            })}
-          </ChoiceSheet>
+          <CategoryTrendDetails report={report} month={detail?.month} categories={points}
+            categoryMarkers={categoryMarkers} colorFor={colorFor} restoreFocusRef={detailTrigger}
+            onDismiss={() => setDetail(null)} onOpenExpenses={onOpenExpenses} />
           <View
             style={{
               flexDirection: "row",
               gap: 16,
               flexWrap: "wrap",
+              alignItems: "center",
+              justifyContent: "flex-end",
             }}
           >
-            <Legend color={palette.textSecondary} label="Spending" />
-            <Legend color={palette.textSecondary} label="Monthly limit" line />
+            <CompactAction
+              label="Monthly limits"
+              accessibilityLabel={showMonthlyLimits ? "Hide monthly limits" : "Show monthly limits"}
+              variant="quiet"
+              selected={showMonthlyLimits}
+              icon={showMonthlyLimits ? <Eye size={typeScale.body} color={palette.brandPrimary} /> : <EyeOff size={typeScale.body} color={palette.textSecondary} />}
+              onPress={() => setShowMonthlyLimits((visible) => !visible)}
+            />
           </View>
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
             {points.map((point) => (
@@ -710,14 +741,17 @@ function ChartCard({
   title,
   accessory,
   children,
-  inset = 22,
+  inset = space.cardInset,
+  embedded = false,
 }: {
   title: string;
   children: ReactNode;
   inset?: number;
+  embedded?: boolean;
   accessory?: ReactNode;
 }) {
   const { palette, fonts } = useAppTheme();
+  if (embedded) return <>{children}</>;
   return (
     <DesignSurface>
       <View style={{ gap: 16, padding: inset }}>

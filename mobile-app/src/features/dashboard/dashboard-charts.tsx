@@ -4,6 +4,7 @@ import Svg, { G, Line, Polyline, Rect } from "react-native-svg";
 import { CategoryPoint } from "./category-marker";
 import type { DashboardReport } from "@/api/dashboard-report-api-client";
 import { useAppTheme } from "@/navigation/app-theme";
+import { controlSize, space, typeScale } from "@/constants/theme";
 import {
   barHeightPercent,
   compareMoney,
@@ -40,17 +41,19 @@ function Plot({
   children,
   onSelectMonth,
   monthLabel,
+  selectedMonth,
 }: {
   maximum: string;
   months: readonly string[];
   children: (width: number) => ReactNode;
   onSelectMonth: MonthSelection;
   monthLabel: (month: string) => string;
+  selectedMonth?: string;
 }) {
   const { palette, fonts } = useAppTheme();
   const [availableWidth, setAvailableWidth] = useState(0);
   const { fontScale } = useWindowDimensions();
-  const width = Math.max(1, availableWidth, months.length * 48 * fontScale);
+  const width = Math.max(1, availableWidth, months.length * controlSize.minimumTarget * fontScale);
   return (
     <View
       style={{
@@ -114,6 +117,11 @@ function Plot({
                     stroke={palette.fieldBorder}
                   />
                 ))}
+                {selectedMonth && months.includes(selectedMonth) ? <Line
+                  x1={((months.indexOf(selectedMonth) + 0.5) * width) / months.length}
+                  x2={((months.indexOf(selectedMonth) + 0.5) * width) / months.length}
+                  y1={0} y2={plotHeight} stroke={palette.brandPrimary}
+                /> : null}
                 {children(width)}
               </Svg>
             </View>
@@ -133,9 +141,9 @@ function Plot({
                   style={{
                     width: width / months.length,
                     textAlign: "center",
-                    color: palette.textSecondary,
-                    fontFamily: fonts.regular,
-                    fontSize: 12,
+                    color: month === selectedMonth ? palette.brandPrimary : palette.textSecondary,
+                    fontFamily: month === selectedMonth ? fonts.semibold : fonts.regular,
+                    fontSize: typeScale.metadata,
                   }}
                 >
                   {labelMonth(month)}
@@ -200,11 +208,15 @@ export function MonthlyBars({ report, onSelectMonth }: { report: DashboardReport
 }
 export function CategoryLines({
   report,
+  showMonthlyLimits = true,
+  selectedMonth,
   colorFor,
   markerIndexFor,
   onSelectMonth,
 }: {
   report: DashboardReport;
+  showMonthlyLimits?: boolean;
+  selectedMonth?: string;
   colorFor: (category: CategorySeries) => string;
   markerIndexFor: (categoryId: string) => number;
   onSelectMonth: MonthSelection;
@@ -214,14 +226,14 @@ export function CategoryLines({
     report.categoryExpenses.flatMap((category) =>
       category.months.flatMap((point) => [
         point.actualAmount,
-        ...(point.monthlyBudgetAmount === null
+        ...(!showMonthlyLimits || point.monthlyBudgetAmount === null
           ? []
           : [point.monthlyBudgetAmount]),
       ]),
     ),
   );
   return (
-    <Plot maximum={maximum} months={months} onSelectMonth={onSelectMonth}
+    <Plot maximum={maximum} months={months} onSelectMonth={onSelectMonth} selectedMonth={selectedMonth}
       monthLabel={(month) => `${labelMonth(month)} ${month.slice(0, 4)}, Category spending details`}>
       {(width) => {
         const x = (month: string) =>
@@ -262,12 +274,13 @@ export function CategoryLines({
                     x={x(point.month)}
                     y={y(point.actualAmount, maximum)}
                     color={color}
+                    size={point.month === selectedMonth ? space.fieldLabelGap : space.rowGap}
                   />
                 ) : null,
               )}
               {points.map((point, index) => {
                 // Annual limits are never divided into invented monthly caps.
-                if (!point || point.monthlyBudgetAmount === null) return null;
+                if (!showMonthlyLimits || !point || point.monthlyBudgetAmount === null) return null;
                 return (
                   <Line
                     key={`budget-${point.month}`}

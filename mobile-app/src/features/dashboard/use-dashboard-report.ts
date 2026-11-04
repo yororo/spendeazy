@@ -21,6 +21,7 @@ import { useSpaceCategories } from "@/features/expenses/use-space-categories";
 import { updateExpenseBrowse } from "@/features/expenses/browse-state";
 import { isSelectableYear, manilaDate } from "./dashboard-format";
 import { retainCategoryMarkers } from "./dashboard-category-identity";
+import { rankChartCategories } from "./dashboard-category-ranking";
 
 const EMPTY_CATEGORY_SELECTION: string[] = [];
 
@@ -162,12 +163,12 @@ export function useDashboardReport() {
   if (categoryMarkers !== selection.categoryMarkers && selection.scopeKey === scopeKey) {
     setSelection((current) => ({ ...current, categoryMarkers }));
   }
-  // Initialize once per identity/Space from stable report order, including history.
+  // Initialize once per identity/Space with the largest overruns, then spending.
   if (report && !selection.categoriesInitialized && selection.scopeKey === scopeKey) {
     setSelection((current) => ({
       ...current,
       categoriesInitialized: true,
-      chartCategoryIds: report.categoryExpenses.slice(0, 3).map((category) => category.categoryId),
+      chartCategoryIds: rankChartCategories(report).slice(0, 3).map((category) => category.categoryId),
     }));
   }
   // Capture the default before displaying it if Yearly was opened while loading.

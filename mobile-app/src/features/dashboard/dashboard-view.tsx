@@ -422,9 +422,9 @@ function CategoryChart({
   const [detail, setDetail] = useState<{ month: string } | null>(null);
   const detailTrigger: ChartTrigger = useRef<ElementRef<typeof View>>(null);
   const chooserTrigger = useRef<ElementRef<typeof View>>(null);
-  const selected = categories.filter((category) =>
-    selectedCategoryIds.length === 0 || selectedCategoryIds.includes(category.id),
-  );
+  const selected = selectedCategoryIds.length === 0 ? categories : selectedCategoryIds
+    .map((id) => categories.find((category) => category.id === id))
+    .filter((category) => category !== undefined);
   const visibleChips = selected.slice(0, 3);
   const categoryColor = (colorKey: string | null) =>
     CATEGORY_COLOR_VALUES[colorKey as keyof typeof CATEGORY_COLOR_VALUES] ?? palette.brandPrimary;

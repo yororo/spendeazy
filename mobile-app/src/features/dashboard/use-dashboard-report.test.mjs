@@ -11,7 +11,7 @@ const require = createRequire(import.meta.url);
 let harness;
 const compiled = await build({
   stdin: {
-    contents: "export { useDashboardReport } from './use-dashboard-report';",
+    contents: "export { useDashboardReport } from './use-dashboard-report'; export { readExpenseBrowse, updateExpenseBrowse, clearExpenseBrowse } from '../expenses/browse-state';",
     resolveDir: fileURLToPath(new URL('./', import.meta.url)),
     loader: 'ts',
   },
@@ -62,16 +62,23 @@ new Function('require', 'module', compiled.outputFiles[0].text)((name) => {
   }
 }, compiledModule);
 const { useDashboardReport } = compiledModule.exports;
+const { readExpenseBrowse, updateExpenseBrowse, clearExpenseBrowse } = compiledModule.exports;
+
+function category(categoryId, overrides = {}) {
+  return { categoryId, name: categoryId, actualAmount: '0.00', months: [], ...overrides };
+}
 
 function fixture(view = 'monthly', today = '2026-10-29', year = '2026') {
   return {
     range: { view, today, fromDate: view === 'yearly' ? `${year}-01-01` : '2026-05-01', toDate: today },
     monthlyExpenses: [{ month: view === 'yearly' ? `${year}-10` : '2026-10' }],
-    categoryExpenses: [{ categoryId: '1' }, { categoryId: '2' }],
+    categoryExpenses: [category('1'), category('2')],
+    budgetChecks: { monthly: [], yearly: [] },
   };
 }
 
 async function mountController(t) {
+  clearExpenseBrowse();
   const requests = [];
   harness = {
     active: { id: '10' },
@@ -92,6 +99,31 @@ async function mountController(t) {
     resolve: (report = fixture()) => act(async () => requests.at(-1).resolve(report)),
   };
 }
+
+test('dashboard periods carry over to Browse while preserving other filters and independent date edits', async (t) => {
+  const screen = await mountController(t);
+  updateExpenseBrowse('10', { categoryId: '2', description: 'Coffee', sort: 'highest' });
+  await screen.resolve();
+  assert.deepEqual(readExpenseBrowse('10'), {
+    spaceId: '10', fromDate: '2026-05-01', toDate: '2026-10-29',
+    categoryId: '2', description: 'Coffee', sort: 'highest',
+  });
+  updateExpenseBrowse('10', { fromDate: '2026-10-01' });
+  await act(async () => screen.controller.refresh());
+  await screen.resolve();
+  assert.equal(readExpenseBrowse('10').fromDate, '2026-10-01');
+  await act(async () => screen.controller.selectYearToDate());
+  await screen.resolve(fixture('yearly'));
+  assert.equal(readExpenseBrowse('10').fromDate, '2026-01-01');
+  assert.equal(readExpenseBrowse('10').toDate, '2026-10-29');
+  assert.equal(readExpenseBrowse('10').categoryId, '2');
+  await act(async () => {
+    screen.controller.selectMonths(3);
+    screen.controller.selectView('monthly');
+  });
+  await screen.resolve();
+  assert.equal(readExpenseBrowse('10').fromDate, '2026-05-01');
+});
 
 test('Monthly and Yearly remember independent periods and reject invalid or future years', async (t) => {
   const screen = await mountController(t);
@@ -210,7 +242,8 @@ test('Category filters update only chart data, retain the report, and survive re
   const report = {
     range: { view: 'monthly', today: '2026-10-29', fromDate: '2026-05-01' },
     monthlyExpenses: [{ month: '2026-10' }],
-    categoryExpenses: [{ categoryId: '1' }, { categoryId: '2' }],
+    categoryExpenses: [category('1'), category('2')],
+    budgetChecks: { monthly: [], yearly: [] },
   };
   harness = {
     active: { id: '10' },
@@ -252,7 +285,7 @@ test('Category filters update only chart data, retain the report, and survive re
   assert.equal(requests.length, 2);
   assert.equal(requests[1].query.chartCategoryIds, undefined);
   await act(async () => requests[1].resolve(report));
-  assert.deepEqual(controller.categoryReport.categoryExpenses, [{ categoryId: '2' }]);
+  assert.deepEqual(controller.categoryReport.categoryExpenses, [category('2')]);
 
   // Space changes clear the filter and cannot display the previous Space's data.
   harness.active = { id: '11' };
@@ -271,10 +304,10 @@ test('three stable defaults include inactive history; explicit All and larger se
   const complete = {
     ...fixture(),
     categoryExpenses: [
-      { categoryId: '7', isActive: false },
-      { categoryId: '2', isActive: true },
-      { categoryId: '9', isActive: true },
-      { categoryId: '4', isActive: true },
+      category('4', { isActive: true, actualAmount: '50.00' }),
+      category('9', { isActive: true, actualAmount: '1000.00' }),
+      category('2', { isActive: true, actualAmount: '150.00', months: [{ actualAmount: '150.00', monthlyBudgetAmount: '100.00' }] }),
+      category('7', { isActive: false, actualAmount: '200.00', months: [{ actualAmount: '200.00', monthlyBudgetAmount: '100.00' }] }),
     ],
     summary: { actualAmount: '400.01', expenseCount: '9', planned: { amount: '400.00' }, statementImports: { count: '3' } },
     budgetChecks: { monthly: [{ eligibleMonths: 9, overBudgetMonths: 2 }], yearly: [{ status: 'over' }] },

@@ -147,15 +147,15 @@ export class ExpenseCollectionQueryDto {
 
   @ValidateIf((_, value) => value !== undefined)
   @IsString()
-  @IsIn(['newest', 'oldest'])
+  @IsIn(['newest', 'oldest', 'highest', 'lowest'])
   @ApiPropertyOptional({
     description:
-      'Expense date ordering. Newest is the default; deleted Expenses retain their fixed deletion-time ordering.',
-    enum: ['newest', 'oldest'],
+      'Expense date (newest/oldest) or numeric amount (highest/lowest) ordering, with Expense ID as the tie-breaker. Newest is the default; deleted Expenses retain their fixed deletion-time ordering.',
+    enum: ['newest', 'oldest', 'highest', 'lowest'],
     default: 'newest',
     example: 'oldest',
   })
-  sort?: 'newest' | 'oldest';
+  sort?: 'newest' | 'oldest' | 'highest' | 'lowest';
 
   @ValidateIf((_, value) => value !== undefined)
   @Transform(parsePageSize)

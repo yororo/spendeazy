@@ -783,6 +783,24 @@ describeDatabase(
       ).toEqual([march.id, cafe.id, cafeLate.id, may.id]);
       expect(oldest.every((page) => page.totalAmount === '135.25')).toBe(true);
 
+      for (const [sort, expected] of [
+        ['highest', [may.id, cafe.id, march.id, cafeLate.id]],
+        ['lowest', [cafeLate.id, march.id, cafe.id, may.id]],
+      ] as const) {
+        const amountPages = await collectPages(identity, spaceId, {
+          ...selection,
+          sort,
+        });
+        expect(
+          amountPages.flatMap((page) =>
+            page.expenses.map((expense) => expense.id),
+          ),
+        ).toEqual(expected);
+        expect(amountPages.every((page) => page.totalAmount === '135.25')).toBe(
+          true,
+        );
+      }
+
       const widerPage = await listExpenses(identity, spaceId, {
         ...selection,
         pageSize: '2',
@@ -834,6 +852,30 @@ describeDatabase(
         cursor: cursor ?? '',
       });
       expect(changedSpace.status).toBe(400);
+      const equalAmount = await saveExpense(
+        identity,
+        spaceId,
+        categoryA,
+        '2026-01-01',
+        'Same amount',
+        '20.00',
+      );
+      for (const [sort, expected] of [
+        ['highest', [equalAmount.id, cafe.id]],
+        ['lowest', [cafe.id, equalAmount.id]],
+      ] as const) {
+        const tiedPages = await collectPages(identity, spaceId, {
+          categoryId: categoryA,
+          sort,
+          pageSize: '1',
+        });
+        const ids = tiedPages.flatMap((page) =>
+          page.expenses
+            .filter((expense) => expense.amount === '20.00')
+            .map((expense) => expense.id),
+        );
+        expect(ids).toEqual(expected);
+      }
       expect(otherUserId).toEqual(expect.any(String));
     });
 

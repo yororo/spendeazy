@@ -51,11 +51,11 @@ export function useExpenseBrowse({
   const localKey = JSON.stringify([authorized.scope, fixedScope, deletedOnly]);
   const [local, setLocal] = useState(() => ({
     key: localKey,
-    selection: emptyExpenseBrowse(spaceId ?? ""),
+    selection: emptyImportBrowse(spaceId ?? ""),
   }));
   const localScroll = useRef({ key: localKey, offset: 0 });
   if (local.key !== localKey) {
-    setLocal({ key: localKey, selection: emptyExpenseBrowse(spaceId ?? "") });
+    setLocal({ key: localKey, selection: emptyImportBrowse(spaceId ?? "") });
   }
   const selection = useMemo(
     () =>
@@ -65,7 +65,7 @@ export function useExpenseBrowse({
           ? {
               ...(local.key === localKey
                 ? local.selection
-                : emptyExpenseBrowse(spaceId)),
+                : emptyImportBrowse(spaceId)),
               spaceId,
               statementImportId: fixedScope.statementImportId,
             }
@@ -192,4 +192,8 @@ export function useExpenseBrowse({
     retry: resource.retry,
     loadMore: resource.loadMore,
   };
+}
+
+function emptyImportBrowse(spaceId: string): ExpenseBrowseSelection {
+  return { ...emptyExpenseBrowse(spaceId), fromDate: '', toDate: '' };
 }

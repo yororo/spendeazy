@@ -16,7 +16,7 @@ import {
 export { ExpenseApiError, ExpenseApiTransportError };
 
 export type ExpenseSource = "manual" | "imported";
-export type ExpenseSort = "newest" | "oldest";
+export type ExpenseSort = "newest" | "oldest" | "highest" | "lowest";
 
 export type Expense = ListedExpense;
 

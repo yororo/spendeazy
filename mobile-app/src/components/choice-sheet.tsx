@@ -8,7 +8,7 @@ import { radius, space, typeScale } from '@/constants/theme';
 import { useAppTheme } from '@/navigation/app-theme';
 import { CompactAction } from '@/components/buttons';
 
-type ShellProps = { headerAccessory?: ReactNode; title: string; visible: boolean; onDismiss: () => void; children: ReactNode; dismissOnBackdrop?: boolean; showClose?: boolean; maxHeight?: ViewStyle['maxHeight']; restoreFocusRef?: RefObject<ElementRef<typeof View> | null>; initialFocusRef?: RefObject<ElementRef<typeof View> | null> };
+type ShellProps = { titleLeading?: ReactNode; headerAccessory?: ReactNode; title: string; visible: boolean; onDismiss: () => void; children: ReactNode; dismissOnBackdrop?: boolean; showClose?: boolean; maxHeight?: ViewStyle['maxHeight']; restoreFocusRef?: RefObject<ElementRef<typeof View> | null>; initialFocusRef?: RefObject<ElementRef<typeof View> | null> };
 
 export function ChoiceSheet(props: ShellProps & { presentation?: 'modal' | 'inline' }) {
   return <ModalShell {...props} />;
@@ -19,7 +19,7 @@ export function CenteredDialog(props: ShellProps) {
 }
 
 function ModalShell({
-  title, headerAccessory,
+  title, headerAccessory, titleLeading,
   visible,
   onDismiss,
   children,
@@ -31,7 +31,7 @@ function ModalShell({
   initialFocusRef,
   presentation = 'modal',
 }: {
-  title: string; headerAccessory?: ReactNode;
+  title: string; headerAccessory?: ReactNode; titleLeading?: ReactNode;
   visible: boolean;
   onDismiss: () => void;
   children: ReactNode;
@@ -89,6 +89,7 @@ function ModalShell({
           }}>
           {showClose && !centered ? <View accessible={false} style={{ alignSelf: 'center', width: 36, height: 4, borderRadius: 2, backgroundColor: palette.fieldBorder }} /> : null}
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          {titleLeading}
           <Text
             ref={titleRef}
             accessible

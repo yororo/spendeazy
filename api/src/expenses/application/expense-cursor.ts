@@ -37,7 +37,9 @@ export interface DecodedExpenseCursor {
 type ExpenseCursorOrdering =
   | 'expenseDate:desc,id:desc'
   | 'expenseDate:asc,id:asc'
-  | 'deletedAt:desc,id:desc';
+  | 'deletedAt:desc,id:desc'
+  | 'amount:desc,id:desc'
+  | 'amount:asc,id:asc';
 
 interface ExpenseCursorPayload extends DecodedExpenseCursor {
   version: typeof CURSOR_VERSION;
@@ -107,6 +109,8 @@ function cursorOrdering(
   deletedOnly: boolean,
 ): ExpenseCursorOrdering {
   if (deletedOnly) return 'deletedAt:desc,id:desc';
+  if (filters.sort === 'highest') return 'amount:desc,id:desc';
+  if (filters.sort === 'lowest') return 'amount:asc,id:asc';
   return filters.sort === 'oldest'
     ? 'expenseDate:asc,id:asc'
     : 'expenseDate:desc,id:desc';
@@ -181,6 +185,13 @@ function isCursorPosition(
   ) {
     return false;
   }
+  if (ordering === 'amount:desc,id:desc' || ordering === 'amount:asc,id:asc') {
+    return (
+      Object.keys(value).length === 2 &&
+      typeof value.amount === 'string' &&
+      /^-?\d{1,13}\.\d{2}$/.test(value.amount)
+    );
+  }
   if (ordering === 'deletedAt:desc,id:desc') {
     return (
       Object.keys(value).length === 2 &&
@@ -216,7 +227,10 @@ function isNormalizedFilters(
     isNullablePositiveId(value.statementImportId) &&
     isNullableSource(value.source) &&
     isNullableText(value.description) &&
-    (value.sort === 'newest' || value.sort === 'oldest')
+    (value.sort === 'newest' ||
+      value.sort === 'oldest' ||
+      value.sort === 'highest' ||
+      value.sort === 'lowest')
   );
 }
 
@@ -224,7 +238,9 @@ function isCursorOrdering(value: unknown): value is ExpenseCursorOrdering {
   return (
     value === 'expenseDate:desc,id:desc' ||
     value === 'expenseDate:asc,id:asc' ||
-    value === 'deletedAt:desc,id:desc'
+    value === 'deletedAt:desc,id:desc' ||
+    value === 'amount:desc,id:desc' ||
+    value === 'amount:asc,id:asc'
   );
 }
 

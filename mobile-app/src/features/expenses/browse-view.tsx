@@ -3,7 +3,6 @@ import { useEffect, useRef, useState, type ElementRef, type ReactNode } from "re
 import {
   FlatList,
   KeyboardAvoidingView,
-  Keyboard,
   Pressable,
   Text,
   View,
@@ -13,9 +12,10 @@ import { BrowseDateField } from "@/components/native-date-field";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { SpaceCategory } from "@/api/categories-api-client";
 import type { ListedExpense } from "@/api/expense-response";
-import { ArrowDownWideNarrow, ArrowUpWideNarrow, CalendarRange, Search, Shapes, Check, X, ChevronLeft, Ellipsis } from "lucide-react-native";
+import { ArrowDown, ArrowUp, CalendarRange, Search, Shapes, Check, X, ChevronLeft, Ellipsis } from "lucide-react-native";
 import { CompactAction, SecondaryButton } from "@/components/buttons";
 import { CategoryIconMark } from "@/components/category-mark";
+import { Popover } from '@/components/popover';
 import { ChoiceSheet } from "@/components/choice-sheet";
 import { CanvasBackground } from "@/components/design-surface";
 import { MoneyAmount } from "@/components/money-amount";
@@ -73,10 +73,10 @@ export function ExpenseBrowse({
   const deletedOnly = controller.deletedOnly ?? false;
   const [categoryOpen, setCategoryOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [dates, setDates] = useState({ fromDate: '', toDate: '' });
   const toolbarRef = useRef<ElementRef<typeof View>>(null);
+  const optionsRef = useRef<ElementRef<typeof View>>(null);
   const listRef = useRef<FlatList<ListedExpense>>(null);
   const restoredQuery = useRef("");
   useEffect(() => {
@@ -99,7 +99,7 @@ export function ExpenseBrowse({
     return (
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`${item.description || 'Expense'}, ${category?.name ?? 'Category'}, ${item.amount} Philippine pesos, ${item.expenseDate}${deletedOnly && item.deletedAt ? ', deleted ' + item.deletedAt.slice(0, 10) : ''}`}
+        accessibilityLabel={`${item.description || 'Expense'}, ${category?.name ?? 'Category'}, ${item.amount} Philippine pesos, ${formatExpenseDate(item.expenseDate)}${deletedOnly && item.deletedAt ? ', deleted ' + item.deletedAt.slice(0, 10) : ''}`}
         onPress={() => onOpenExpense(item.id)}
         style={{
           minHeight: controlSize.field,
@@ -132,7 +132,7 @@ export function ExpenseBrowse({
         </View>
         <View style={{ flexShrink: 1, alignItems: 'flex-end', gap: 5 }}>
           <MoneyAmount amount={item.amount} variant="row" />
-          <Text style={metadataStyle}>{item.expenseDate}</Text>
+          <Text style={metadataStyle}>{formatExpenseDate(item.expenseDate)}</Text>
         </View>
       </Pressable>
     );
@@ -179,14 +179,15 @@ export function ExpenseBrowse({
           }}
           ListHeaderComponent={
             <StackGap>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.fieldLabelGap }}>
                 {onBackToDashboard || (deletedOnly && onOpenOtherList) ? <CompactAction variant="icon" label="Back" icon={<ChevronLeft size={22} color={palette.textPrimary} />} onPress={onBackToDashboard ?? onOpenOtherList!} /> : null}
                 <View style={{ flex: 1 }}><ScreenHeader title={deletedOnly ? "Deleted Expenses" : "Expenses"} accessory={spaceStatus} /></View>
+                {onOpenOtherList && !deletedOnly ? <View ref={optionsRef} collapsable={false}><CompactAction variant="icon" icon={<Ellipsis size={22} color={palette.textSecondary} />} label="More options" onPress={() => setOptionsOpen(true)} /></View> : null}
               </View>
               {scopeLabel ? <SupportingText>{scopeLabel}</SupportingText> : null}
               {loaded && issues.length === 0 ? (
                 <View style={{ alignItems: 'center', gap: 3, paddingTop: 8, paddingBottom: 4 }}>
-                  <Text style={metadataStyle}>{deletedOnly ? 'Deleted total · PHP' : 'Total spent · PHP'}</Text>
+                  <Text style={metadataStyle}>{deletedOnly ? 'Deleted total' : 'Total spent'}</Text>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
                     <Text accessible={false} style={{ color: palette.textPrimary, fontFamily: fonts.semibold, fontSize: 42, letterSpacing: -2 }}>₱</Text>
                     <MoneyAmount amount={loaded.totalAmount} variant="total" />
@@ -194,16 +195,16 @@ export function ExpenseBrowse({
                   <Text style={metadataStyle}>{expenseCountLabel(loaded.totalCount)}</Text>
                 </View>
               ) : null}
-              {selection ? <View style={{ gap: 6 }}>
-                <View ref={toolbarRef} style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
+              {selection ? <View style={{ gap: space.fieldLabelGap }}>
+                <DescriptionSearch key={selection.spaceId} selection={selection} onChange={onChange} />
+                <View ref={toolbarRef} style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.fieldLabelGap }}>
                   <CompactAction accessibilityLabel={`Dates: ${selection.fromDate || "Any start"} to ${selection.toDate || "Any end"}`} label={selection.fromDate || selection.toDate ? `${selection.fromDate || "Any"} – ${selection.toDate || "Any"}` : "Dates"} selected={!!selection.fromDate || !!selection.toDate} icon={<CalendarRange size={16} color={palette.brandPrimary} />} onPress={() => { setDates({ fromDate: selection.fromDate, toDate: selection.toDate }); setFiltersOpen(true); }} />
                   <CompactAction accessibilityLabel={`Category: ${selection.categoryId ? categoryName(categories.categories, selection.categoryId) : "All categories"}`} label={selection.categoryId ? categoryName(categories.categories, selection.categoryId) : "Category"} selected={selection.categoryId !== null} icon={<Shapes size={16} color={palette.brandPrimary} />} onPress={() => setCategoryOpen(true)} />
-                  <View style={{ flex: 1 }} />
-                  {onOpenOtherList && !deletedOnly ? <CompactAction variant="icon" icon={<Ellipsis size={22} color={palette.textSecondary} />} label="More options" onPress={() => setOptionsOpen(true)} /> : null}
-                  <CompactAction label="Search Expenses" variant="icon" selected={selection.description !== ''} icon={<Search size={17} color={palette.textSecondary} />} onPress={() => setSearchOpen(true)} />
-                  <CompactAction label={selection.sort === 'newest' ? 'Sorted newest first. Switch to oldest first' : 'Sorted oldest first. Switch to newest first'} variant="icon" selected={selection.sort === 'oldest'} icon={selection.sort === "newest" ? <ArrowDownWideNarrow size={17} color={palette.textSecondary} /> : <ArrowUpWideNarrow size={17} color={palette.textSecondary} />} onPress={() => onChange({ sort: selection.sort === 'newest' ? 'oldest' : 'newest' })} />
                 </View>
-                {searchOpen || selection.description ? <DescriptionSearch key={`${selection.spaceId}:${selection.description}`} selection={selection} onChange={onChange} onClose={() => { Keyboard.dismiss(); setSearchOpen(false); onChange({ description: "" }); }} /> : null}
+                {!deletedOnly ? <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: space.fieldLabelGap }}>
+                  <CompactAction label="Date" selected={selection.sort === 'newest' || selection.sort === 'oldest'} accessibilityLabel={`Sort by date: ${selection.sort === 'oldest' ? 'oldest first; switch to newest' : selection.sort === 'newest' ? 'newest first; switch to oldest' : 'select newest first'}`} variant="quiet" icon={selection.sort === 'newest' ? <ArrowDown size={17} color={palette.textSecondary} /> : selection.sort === 'oldest' ? <ArrowUp size={17} color={palette.textSecondary} /> : undefined} onPress={() => onChange({ sort: selection.sort === 'newest' ? 'oldest' : 'newest' })} />
+                  <CompactAction label="Amount" selected={selection.sort === 'highest' || selection.sort === 'lowest'} accessibilityLabel={`Sort by amount: ${selection.sort === 'lowest' ? 'lowest first; switch to highest' : selection.sort === 'highest' ? 'highest first; switch to lowest' : 'select highest first'}`} variant="quiet" icon={selection.sort === 'highest' ? <ArrowDown size={17} color={palette.textSecondary} /> : selection.sort === 'lowest' ? <ArrowUp size={17} color={palette.textSecondary} /> : undefined} onPress={() => onChange({ sort: selection.sort === 'highest' ? 'lowest' : 'highest' })} />
+                </View> : null}
                 {issues.length > 0 ? <Text accessibilityLiveRegion="polite" style={{ ...metadataStyle, color: palette.stateNegative }}>{issues.map((issue) => issue.message).join(' ')}</Text> : null}
               </View> : null}
               {!loaded && !error && !spaces.error && (phase === "loading" || spacesLoading) ? (
@@ -245,7 +246,9 @@ export function ExpenseBrowse({
       </KeyboardAvoidingView>
       {selection ? (
         <>
-          <ChoiceSheet title="Options" visible={optionsOpen} showClose onDismiss={() => setOptionsOpen(false)}><SecondaryButton label="Deleted" onPress={() => { setOptionsOpen(false); onOpenOtherList?.(); }} /></ChoiceSheet>
+          <Popover anchorRef={optionsRef} title="Options" visible={optionsOpen} showHeader={false} onDismiss={() => setOptionsOpen(false)} width={controlSize.minimumTarget * 4}>
+            <CompactAction variant="quiet" label="Deleted" onPress={() => { setOptionsOpen(false); onOpenOtherList?.(); }} />
+          </Popover>
           <ChoiceSheet restoreFocusRef={toolbarRef} title="Dates" visible={filtersOpen} showClose onDismiss={() => setFiltersOpen(false)}>
             <BrowseDateField label="From" value={dates.fromDate} onChange={fromDate => setDates({ ...dates, fromDate })} />
             <BrowseDateField label="To" value={dates.toDate} onChange={toDate => setDates({ ...dates, toDate })} />
@@ -286,33 +289,42 @@ export function ExpenseBrowse({
 function DescriptionSearch({
   selection,
   onChange,
-  onClose,
 }: {
   selection: ExpenseBrowseSelection;
   onChange: (patch: Partial<Omit<ExpenseBrowseSelection, "spaceId">>) => void;
-  onClose: () => void;
 }) {
   const [description, setDescription] = useState(selection.description);
-
-
-  function commit() {
-    if (description === selection.description) return;
-    onChange({ description });
+  const [previousDescription, setPreviousDescription] = useState(selection.description);
+  if (previousDescription !== selection.description) {
+    setPreviousDescription(selection.description);
+    setDescription(selection.description);
   }
+  const { palette } = useAppTheme();
+  const changeRef = useRef(onChange);
+  useEffect(() => { changeRef.current = onChange; }, [onChange]);
+  useEffect(() => {
+    if (description === selection.description) return;
+    const timeout = setTimeout(() => changeRef.current({ description }), 300);
+    return () => clearTimeout(timeout);
+  }, [description, selection.description]);
 
   return (
-    <StackGap>
-      <TextField
-        label="Search description"
-        value={description}
-        onChangeText={setDescription}
-        onSubmitEditing={commit}
-        returnKeyType="search"
-        autoFocus
-        placeholder="Search"
-      />
-      <CompactAction label="Close search" variant="icon" icon={<X size={20} />} onPress={onClose} />
-    </StackGap>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.fieldLabelGap }}>
+      <View style={{ flex: 1 }}>
+        <TextField
+          label="Search description"
+          showLabel={false}
+          value={description}
+          onChangeText={setDescription}
+          onSubmitEditing={() => onChange({ description })}
+          returnKeyType="search"
+          placeholder="Search description"
+          variant="underlined"
+          icon={<Search size={17} color={palette.textSecondary} />}
+        />
+      </View>
+      {description ? <CompactAction label="Clear search" variant="icon" icon={<X size={20} color={palette.textSecondary} />} onPress={() => { setDescription(''); onChange({ description: '' }); }} /> : null}
+    </View>
   );
 }
 
@@ -336,4 +348,8 @@ function expenseCountLabel(totalCount: string): string {
   return totalCount === "1" ? "1 Expense" : `${totalCount} Expenses`;
 }
 
-// Keep calendar days local: UTC serialization can shift a selected date by a day.
+function formatExpenseDate(value: string): string {
+  const [year, month, day] = value.split('-');
+  const months = ['Jan.', 'Feb.', 'Mar.', 'Apr.', 'May', 'Jun.', 'Jul.', 'Aug.', 'Sep.', 'Oct.', 'Nov.', 'Dec.'];
+  return `${months[Number(month) - 1]} ${Number(day)}, ${year}`;
+}

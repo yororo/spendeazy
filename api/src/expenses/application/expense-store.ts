@@ -2,7 +2,7 @@ export const SPACE_EXPENSE_STORE = Symbol('SPACE_EXPENSE_STORE');
 export const EXPENSE_DESCRIPTION_MAX_LENGTH = 500;
 
 export type ExpenseSource = 'manual' | 'imported';
-export type ExpenseSort = 'newest' | 'oldest';
+export type ExpenseSort = 'newest' | 'oldest' | 'highest' | 'lowest';
 
 export interface ExpenseFilters {
   fromDate?: string;
@@ -16,7 +16,8 @@ export interface ExpenseFilters {
 
 export type ExpenseCursorPosition =
   | { expenseDate: string; expenseId: string }
-  | { deletedAt: string; expenseId: string };
+  | { deletedAt: string; expenseId: string }
+  | { amount: string; expenseId: string };
 
 export interface SpaceExpensePageQuery {
   spaceId: string;

@@ -173,6 +173,20 @@ describe('Space Expense API routes', () => {
     expect(expensesService.listExpensesInSpace).toHaveBeenCalledWith('10', {});
   });
 
+  it.each(['highest', 'lowest'])(
+    'accepts amount ordering: %s',
+    async (sort) => {
+      const response = await request(application.getHttpServer() as Server)
+        .get('/api/v1/users/me/spaces/10/expenses')
+        .query({ sort })
+        .set('Authorization', 'Bearer token-a');
+      expect(response.status).toBe(200);
+      expect(expensesService.listExpensesInSpace).toHaveBeenCalledWith('10', {
+        sort,
+      });
+    },
+  );
+
   it('lists retained deleted Expenses separately', async () => {
     const response = await request(application.getHttpServer() as Server)
       .get('/api/v1/users/me/spaces/10/expenses/deleted')

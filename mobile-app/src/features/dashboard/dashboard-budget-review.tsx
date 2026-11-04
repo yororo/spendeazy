@@ -9,7 +9,7 @@ import { ChoiceSheet } from '@/components/choice-sheet';
 import { DesignSurface } from '@/components/design-surface';
 import { Popover } from '@/components/popover';
 import { BodyText } from '@/components/screen';
-import { radius, space } from '@/constants/theme';
+import { controlSize, space, typeScale } from '@/constants/theme';
 import { useAppTheme } from '@/navigation/app-theme';
 import { compareMoney, formatPhp, labelMonth, meterSegments } from './dashboard-format';
 import { budgetBalance, categoryBudgetDetail, rankReviewCategories } from './dashboard-review-rules';
@@ -44,7 +44,7 @@ function ReviewCard({ title, explanation, children }: { title: string; explanati
 }
 
 function ReviewRow({ title, detail, status, over = false, mark, meter, sheetDetail, children }: {
-  title: string; detail: string; status?: string; over?: boolean; mark?: ReactNode; meter?: ReactNode; sheetDetail?: string; children: ReactNode;
+  title: string; detail: string; status?: string; over?: boolean; mark?: ReactNode; meter?: ReactNode; sheetDetail?: ReactNode; children: ReactNode;
 }) {
   const { palette, fonts } = useAppTheme();
   const [open, setOpen] = useState(false);
@@ -60,10 +60,10 @@ function ReviewRow({ title, detail, status, over = false, mark, meter, sheetDeta
       </View>
       <ChevronRight accessible={false} size={16} color={palette.textSecondary} />
     </Pressable>
-    <ChoiceSheet title={title} visible={open} onDismiss={() => setOpen(false)} restoreFocusRef={trigger} showClose>
+    <ChoiceSheet title={title} titleLeading={mark} visible={open} onDismiss={() => setOpen(false)} restoreFocusRef={trigger} showClose>
       <View style={{ gap: space.cardGap }}>
-        <BodyText>{sheetDetail ?? detail}</BodyText>
-        {status ? <Caption warning={over}>{status}</Caption> : null}
+        {sheetDetail ?? <BodyText>{detail}</BodyText>}
+        {status && !sheetDetail ? <Caption warning={over}>{status}</Caption> : null}
         {/* Dismiss before navigating so the next screen is never behind this modal. */}
         <DismissContext onDismiss={() => setOpen(false)}>{children}</DismissContext>
       </View>
@@ -81,13 +81,37 @@ function DetailAction({ label, onPress }: { label: string; onPress: () => void }
   return <CompactAction label={label} variant="quiet" onPress={() => { dismiss(); onPress(); }} />;
 }
 
-function MonthRow({ month, onOpenExpenses }: { month: DashboardReport['categoryExpenses'][number]['months'][number]; onOpenExpenses: Props['onOpenExpenses'] }) {
+type ReviewMonth = DashboardReport['categoryExpenses'][number]['months'][number];
+function MonthRow({ month, onOpenExpenses }: { month: ReviewMonth; onOpenExpenses: Props['onOpenExpenses'] }) {
   const { palette } = useAppTheme();
-  return <View style={{ gap: 6, padding: 12, borderRadius: radius.control, backgroundColor: palette.selectedSpace }}>
-    <BodyText>{`${labelMonth(month.month)} ${month.month.slice(0, 4)}`}</BodyText>
-    <Caption>{`${formatPhp(month.actualAmount)}${month.monthlyBudgetAmount ? ` / ${formatPhp(month.monthlyBudgetAmount)} monthly budget` : month.annualBudgetAmount ? ' · Annual budget' : ' · No budget'}`}</Caption>
-    {month.monthlyBudgetAmount ? <Caption warning={compareMoney(month.actualAmount, month.monthlyBudgetAmount) > 0}>{budgetBalance(month.actualAmount, month.monthlyBudgetAmount)}</Caption> : null}
-    <DetailAction label="Expenses" onPress={() => onOpenExpenses(month.expenseFilter)} />
+  const dismiss = useContext(Dismiss);
+  const label = labelMonth(month.month) + ' ' + month.month.slice(0, 4);
+  const active = month.expenseCount !== '0';
+  const balance = month.monthlyBudgetAmount ? budgetBalance(month.actualAmount, month.monthlyBudgetAmount) : month.annualBudgetAmount ? 'Annual budget' : 'No budget';
+  const segments = month.monthlyBudgetAmount && compareMoney(month.monthlyBudgetAmount, '0.00') > 0 ? meterSegments(month.actualAmount, month.monthlyBudgetAmount) : null;
+  const content = <>
+    <View style={{ flex: 1, gap: space.rowGap }}>
+      <BodyText>{label + ' · ' + formatPhp(month.actualAmount)}</BodyText>
+      {segments ? <View accessible={false} style={{ height: space.rowGap, flexDirection: 'row', overflow: 'hidden', backgroundColor: palette.meterTrack }}>
+        <View style={{ width: (segments.allocation + '%') as `${number}%`, backgroundColor: palette.spendingMeter }} />
+        <View style={{ width: (segments.excess + '%') as `${number}%`, backgroundColor: palette.meterExcess }} />
+      </View> : null}
+      <Caption warning={!!month.monthlyBudgetAmount && compareMoney(month.actualAmount, month.monthlyBudgetAmount) > 0}>{active ? balance : 'No expenses'}</Caption>
+    </View>
+    {active ? <ChevronRight accessible={false} size={typeScale.body} color={palette.textSecondary} /> : null}
+  </>;
+  const style = { minHeight: controlSize.minimumTarget, paddingVertical: space.sheetPaddingTop, flexDirection: 'row' as const, alignItems: 'center' as const, gap: space.fieldLabelGap, borderBottomWidth: 1, borderColor: palette.divider };
+  return active ? <Pressable accessibilityRole="button" accessibilityLabel={label + ', ' + formatPhp(month.actualAmount) + ', ' + balance + '. View expenses'} style={style} onPress={() => { dismiss(); onOpenExpenses(month.expenseFilter); }}>{content}</Pressable> : <View style={style}>{content}</View>;
+}
+function MonthList({ months, onOpenExpenses, defaultOver = false }: { months: ReviewMonth[]; onOpenExpenses: Props['onOpenExpenses']; defaultOver?: boolean }) {
+  const [overOnly, setOverOnly] = useState(defaultOver);
+  const over = months.filter((month) => month.monthlyBudgetAmount !== null && compareMoney(month.actualAmount, month.monthlyBudgetAmount) > 0);
+  return <View>
+    {over.length ? <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.fieldLabelGap }}>
+      <CompactAction label={'Months over (' + over.length + ')'} selected={overOnly} onPress={() => setOverOnly(true)} />
+      <CompactAction label="All months" selected={!overOnly} onPress={() => setOverOnly(false)} />
+    </View> : null}
+    {(overOnly && over.length ? over : months).map((month) => <MonthRow key={month.month} month={month} onOpenExpenses={onOpenExpenses} />)}
   </View>;
 }
 
@@ -103,8 +127,8 @@ export function BudgetReview({ report, onOpenExpenses, onOpenBudgetCategory }: P
         const category = report.categoryExpenses.find((item) => item.categoryId === check.categoryId);
         const months = category?.months.filter((month) => !report.monthlyExpenses.find((item) => item.month === month.month)?.inProgress) ?? [];
         const single = months.length === 1 ? months[0] : null;
-        return <ReviewRow key={check.categoryId} title={check.name} detail={single ? `${formatPhp(single.actualAmount)} / ${formatPhp(check.budgetAmount)}` : `Monthly budget ${formatPhp(check.budgetAmount)}`} status={single ? budgetBalance(single.actualAmount, check.budgetAmount) : `Over in ${check.overBudgetMonths} of ${check.eligibleMonths} months`} over>
-          {months.map((month) => <MonthRow key={month.month} month={month} onOpenExpenses={onOpenExpenses} />)}
+        return <ReviewRow mark={category ? <CategoryIconMark iconKey={category.iconKey as SpaceCategory['iconKey']} colorKey={(category.colorKey ?? 'violet') as SpaceCategory['colorKey']} size={typeScale.body} /> : undefined} key={check.categoryId} title={check.name} detail={single ? `${formatPhp(single.actualAmount)} / ${formatPhp(check.budgetAmount)}` : `Monthly budget ${formatPhp(check.budgetAmount)}`} status={single ? budgetBalance(single.actualAmount, check.budgetAmount) : `Over in ${check.overBudgetMonths} of ${check.eligibleMonths} months`} over>
+          <MonthList months={months} onOpenExpenses={onOpenExpenses} defaultOver />
           <DetailAction label="Budget" onPress={() => onOpenBudgetCategory(check.categoryId)} />
         </ReviewRow>;
       })}
@@ -113,8 +137,9 @@ export function BudgetReview({ report, onOpenExpenses, onOpenBudgetCategory }: P
       <Caption>Yearly</Caption>
       {report.budgetChecks.yearly.map((check) => {
         const segments = meterSegments(check.actualAmount, check.limitAmount);
+        const category = report.categoryExpenses.find((item) => item.categoryId === check.categoryId);
         return <View key={`${check.categoryId}:${check.year}`}>
-          <ReviewRow title={`${check.name} · ${check.year}`} detail={`${formatPhp(check.actualAmount)} / ${formatPhp(check.limitAmount)}`} status={budgetBalance(check.actualAmount, check.limitAmount)} over={compareMoney(check.actualAmount, check.limitAmount) > 0}>
+          <ReviewRow mark={category ? <CategoryIconMark iconKey={category.iconKey as SpaceCategory['iconKey']} colorKey={(category.colorKey ?? 'violet') as SpaceCategory['colorKey']} size={typeScale.body} /> : undefined} title={`${check.name} · ${check.year}`} detail={`${formatPhp(check.actualAmount)} / ${formatPhp(check.limitAmount)}`} status={budgetBalance(check.actualAmount, check.limitAmount)} over={compareMoney(check.actualAmount, check.limitAmount) > 0}>
             <Caption>{`${check.usageFromDate} – ${check.usageToDate} · Recorded expenses`}</Caption>
             <DetailAction label="Expenses" onPress={() => onOpenExpenses(check.expenseFilter)} />
             <DetailAction label="Budget" onPress={() => onOpenBudgetCategory(check.categoryId)} />
@@ -140,7 +165,7 @@ export function CategoryReview({ report, onOpenExpenses, onOpenBudgetCategory }:
       {(expanded ? categories : categories.slice(0, 3)).map((category) => {
         const limit = category.months[0]?.monthlyBudgetAmount;
         const scale = single ? limit : highest;
-        const segments = scale && compareMoney(scale, '0.00') > 0 ? meterSegments(category.actualAmount, scale) : null;
+        const segments = limit && compareMoney(limit, '0.00') > 0 && scale && compareMoney(scale, '0.00') > 0 ? meterSegments(category.actualAmount, scale) : null;
         const overruns = category.months.filter((month) => month.monthlyBudgetAmount !== null && compareMoney(month.actualAmount, month.monthlyBudgetAmount) > 0).length;
         const exactDetail = categoryBudgetDetail(category);
         const status = single
@@ -148,13 +173,24 @@ export function CategoryReview({ report, onOpenExpenses, onOpenBudgetCategory }:
           : overruns ? 'Over in ' + overruns + (overruns === 1 ? ' month' : ' months') : undefined;
         return <ReviewRow key={category.categoryId} title={category.name}
           detail={single && !segments ? exactDetail : formatPhp(category.actualAmount) + ' spent'}
-          sheetDetail={exactDetail} status={status} over={overruns > 0}
+          sheetDetail={<DesignSurface style={{ padding: space.cardInset, gap: space.cardGap }}>
+            <Caption>{labelMonth(report.range.fromDate.slice(0, 7)) + ' ' + report.range.fromDate.slice(0, 4) + ' – ' + labelMonth(report.range.toDate.slice(0, 7)) + ' ' + report.range.toDate.slice(0, 4)}</Caption>
+            <Caption>Total</Caption>
+            <Text style={{ color: palette.textPrimary, fontFamily: fonts.semibold, fontSize: typeScale.summaryMetric }}>{formatPhp(category.actualAmount)}</Text>
+            <View style={{ borderTopWidth: 1, borderColor: palette.divider, paddingTop: space.cardGap, gap: space.cardGap }}>
+              {category.months[0]?.monthlyBudgetAmount ? <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: space.fieldLabelGap }}>
+                <Caption>Monthly budget</Caption>
+                <BodyText>{formatPhp(category.months[0].monthlyBudgetAmount)}</BodyText>
+              </View> : <Caption>{exactDetail}</Caption>}
+              {status ? <Caption warning={overruns > 0}>{status}</Caption> : null}
+            </View>
+          </DesignSurface>} status={status} over={overruns > 0}
           meter={segments ? <View accessible={false} style={{ height: 4, borderRadius: 4, overflow: 'hidden', flexDirection: 'row', backgroundColor: palette.meterTrack }}>
             <View style={{ width: (segments.allocation + '%') as `${number}%`, backgroundColor: palette.spendingMeter }} />
             <View style={{ width: (segments.excess + '%') as `${number}%`, backgroundColor: palette.meterExcess }} />
           </View> : null}
           mark={<CategoryIconMark iconKey={category.iconKey as SpaceCategory['iconKey']} colorKey={(category.colorKey ?? 'violet') as SpaceCategory['colorKey']} size={14} />}>
-          {single ? null : category.months.map((month) => <MonthRow key={month.month} month={month} onOpenExpenses={onOpenExpenses} />)}
+          {single ? null : <MonthList months={category.months} onOpenExpenses={onOpenExpenses} />}
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
             <DetailAction label={single ? 'Expenses' : 'All Expenses'} onPress={() => onOpenExpenses({ fromDate: report.range.fromDate, toDate: report.range.toDate, categoryId: category.categoryId })} />
             <DetailAction label="Budget" onPress={() => onOpenBudgetCategory(category.categoryId)} />

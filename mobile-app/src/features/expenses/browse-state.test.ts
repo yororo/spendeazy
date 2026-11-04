@@ -149,3 +149,19 @@ test("opening detail keeps filters and scroll, and a Space change clears them", 
   assert.equal(readExpenseScroll(), 0);
   assert.deepEqual(ensureExpenseBrowse("11"), emptyExpenseBrowse("11"));
 });
+
+for (const [year, month, last] of [[2026, 11, 30], [2026, 12, 31], [2028, 2, 29], [2027, 2, 28]]) {
+  test(`default dates span the entire local month: ${year}-${month}`, () => {
+    const prefix = `${year}-${String(month).padStart(2, '0')}`;
+    for (const day of [1, 15, last]) {
+      const selection = emptyExpenseBrowse('10', new Date(year, month - 1, day, 23, 59));
+      assert.equal(selection.fromDate, `${prefix}-01`);
+      assert.equal(selection.toDate, `${prefix}-${last}`);
+    }
+  });
+}
+test('amount sorting is included in every page request', () => {
+  const selection = { ...emptyExpenseBrowse('10'), sort: 'highest' as const };
+  assert.equal(expenseListQuery(selection, 'next').sort, 'highest');
+  assert.equal(expenseListQuery({ ...selection, sort: 'lowest' }).sort, 'lowest');
+});

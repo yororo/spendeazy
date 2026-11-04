@@ -8,7 +8,7 @@ export {
 
 export const EXPENSE_PAGE_SIZE = 20;
 
-export type ExpenseSort = "newest" | "oldest";
+export type ExpenseSort = "newest" | "oldest" | "highest" | "lowest";
 
 export type ExpenseBrowseSelection = {
   spaceId: string;
@@ -31,11 +31,14 @@ export type ExpenseListRequest = {
   cursor?: string;
 };
 
-export function emptyExpenseBrowse(spaceId: string): ExpenseBrowseSelection {
+export function emptyExpenseBrowse(spaceId: string, today = new Date()): ExpenseBrowseSelection {
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const lastDay = new Date(year, today.getMonth() + 1, 0).getDate();
   return {
     spaceId,
-    fromDate: "",
-    toDate: "",
+    fromDate: `${year}-${month}-01`,
+    toDate: `${year}-${month}-${lastDay}`,
     categoryId: null,
     description: "",
     sort: "newest",

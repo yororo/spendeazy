@@ -586,10 +586,12 @@ function toExpensePage(
                   deletedAt: lastItem.deletedAt!.toISOString(),
                   expenseId: lastItem.id,
                 }
-              : {
-                  expenseDate: lastItem.expenseDate,
-                  expenseId: lastItem.id,
-                },
+              : filters.sort === 'highest' || filters.sort === 'lowest'
+                ? { amount: lastItem.amount, expenseId: lastItem.id }
+                : {
+                    expenseDate: lastItem.expenseDate,
+                    expenseId: lastItem.id,
+                  },
             filters,
             spaceId,
             deletedOnly,

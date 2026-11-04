@@ -141,7 +141,7 @@ export class SpaceExpensesController {
   @ApiOperation({
     summary: 'List Expenses in an authorized Space.',
     description:
-      'Returns manual and imported Expenses only after authorizing the requested Space. Active pages default to expenseDate descending then Expense ID descending; sort=oldest reverses both. Cursors are bound to the Space, filters, deletion selection and sort; page size is not part of a cursor. Deleted Expense pages use deletedAt descending then Expense ID descending.',
+      'Returns manual and imported Expenses only after authorizing the requested Space. Active pages default to expenseDate descending then Expense ID descending; sort=oldest reverses both. sort=highest/lowest orders by numeric amount descending/ascending then Expense ID in the same direction. Cursors are bound to the Space, filters, deletion selection and sort; page size is not part of a cursor. Deleted Expense pages use deletedAt descending then Expense ID descending.',
   })
   @ApiResponse({
     status: HttpStatus.OK,

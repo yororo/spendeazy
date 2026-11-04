@@ -115,6 +115,12 @@ export class TypeOrmExpenseStore implements SpaceExpenseStore {
             cursorId: query.after.expenseId,
           },
         );
+      } else if ('amount' in query.after) {
+        const operator = query.filters.sort === 'lowest' ? '>' : '<';
+        expenseQuery.andWhere(
+          `(expense.amount ${operator} :cursorAmount OR (expense.amount = :cursorAmount AND expense.id ${operator} :cursorId))`,
+          { cursorAmount: query.after.amount, cursorId: query.after.expenseId },
+        );
       } else if ('expenseDate' in query.after) {
         const operator = query.filters.sort === 'oldest' ? '>' : '<';
         expenseQuery.andWhere(
@@ -130,9 +136,12 @@ export class TypeOrmExpenseStore implements SpaceExpenseStore {
     const ordering = query.deletedOnly
       ? { column: 'expense.deletedAt', direction: 'DESC' as const }
       : {
-          column: 'expense.expenseDate',
+          column:
+            query.filters.sort === 'highest' || query.filters.sort === 'lowest'
+              ? 'expense.amount'
+              : 'expense.expenseDate',
           direction:
-            query.filters.sort === 'oldest'
+            query.filters.sort === 'oldest' || query.filters.sort === 'lowest'
               ? ('ASC' as const)
               : ('DESC' as const),
         };

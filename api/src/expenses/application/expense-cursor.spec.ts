@@ -72,3 +72,37 @@ describe('Expense cursors', () => {
     });
   });
 });
+
+describe('Amount cursors', () => {
+  it.each(['highest', 'lowest'] as const)(
+    'binds %s to its amount position and selection',
+    (sort) => {
+      const position = { amount: '-123.45', expenseId: '100' };
+      const cursor = encodeExpenseCursor(position, { sort }, '7');
+      expect(decodeExpenseCursor(cursor, { sort }, '7').position).toEqual(
+        position,
+      );
+      expect(() =>
+        decodeExpenseCursor(cursor, { sort: 'newest' }, '7'),
+      ).toThrow(ApplicationError);
+      expect(() =>
+        decodeExpenseCursor(
+          cursor,
+          { sort: sort === 'highest' ? 'lowest' : 'highest' },
+          '7',
+        ),
+      ).toThrow(ApplicationError);
+      const payload = JSON.parse(
+        Buffer.from(cursor, 'base64url').toString('utf8'),
+      ) as { position: { amount: string } };
+      payload.position.amount = 'NaN';
+      expect(() =>
+        decodeExpenseCursor(
+          Buffer.from(JSON.stringify(payload)).toString('base64url'),
+          { sort },
+          '7',
+        ),
+      ).toThrow(ApplicationError);
+    },
+  );
+});

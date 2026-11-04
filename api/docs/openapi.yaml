@@ -1123,7 +1123,7 @@ paths:
       tags:
         - Expenses
     get:
-      description: Returns manual and imported Expenses only after authorizing the requested Space. Active pages default to expenseDate descending then Expense ID descending; sort=oldest reverses both. Cursors are bound to the Space, filters, deletion selection and sort; page size is not part of a cursor. Deleted Expense pages use deletedAt descending then Expense ID descending.
+      description: Returns manual and imported Expenses only after authorizing the requested Space. Active pages default to expenseDate descending then Expense ID descending; sort=oldest reverses both. sort=highest/lowest orders by numeric amount descending/ascending then Expense ID in the same direction. Cursors are bound to the Space, filters, deletion selection and sort; page size is not part of a cursor. Deleted Expense pages use deletedAt descending then Expense ID descending.
       operationId: SpaceExpenses_listExpenses
       parameters:
         - name: spaceId
@@ -1190,7 +1190,7 @@ paths:
         - name: sort
           required: false
           in: query
-          description: Expense date ordering. Newest is the default; deleted Expenses retain their fixed deletion-time ordering.
+          description: Expense date (newest/oldest) or numeric amount (highest/lowest) ordering, with Expense ID as the tie-breaker. Newest is the default; deleted Expenses retain their fixed deletion-time ordering.
           schema:
             default: newest
             example: oldest
@@ -1198,6 +1198,8 @@ paths:
             enum:
               - newest
               - oldest
+              - highest
+              - lowest
         - name: pageSize
           required: false
           in: query
@@ -1307,7 +1309,7 @@ paths:
         - name: sort
           required: false
           in: query
-          description: Expense date ordering. Newest is the default; deleted Expenses retain their fixed deletion-time ordering.
+          description: Expense date (newest/oldest) or numeric amount (highest/lowest) ordering, with Expense ID as the tie-breaker. Newest is the default; deleted Expenses retain their fixed deletion-time ordering.
           schema:
             default: newest
             example: oldest
@@ -1315,6 +1317,8 @@ paths:
             enum:
               - newest
               - oldest
+              - highest
+              - lowest
         - name: pageSize
           required: false
           in: query

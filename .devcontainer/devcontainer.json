@@ -1,0 +1,33 @@
+{
+  "name": "Spendeazy mobile",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": "."
+  },
+  "remoteUser": "node",
+  "forwardPorts": [8081],
+  "portsAttributes": {
+    "8081": {
+      "label": "Metro",
+      "onAutoForward": "notify",
+      "protocol": "http"
+    }
+  },
+  "containerEnv": {
+    "ADB_SERVER_SOCKET": "tcp:host.docker.internal:5037",
+    "ANDROID_HOME": "/opt/android-sdk",
+    "ANDROID_SDK_ROOT": "/opt/android-sdk",
+    "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk",
+    "REACT_NATIVE_PACKAGER_HOSTNAME": "127.0.0.1",
+    "EXPO_NO_TELEMETRY": "1",
+    "MAESTRO_CLI_NO_ANALYTICS": "1",
+    "MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED": "true"
+  },
+  "runArgs": ["--add-host=host.docker.internal:host-gateway"],
+  "customizations": {
+    "vscode": {
+      "extensions": ["expo.vscode-expo-tools"]
+    }
+  },
+  "postCreateCommand": "npm ci --prefix mobile-app && npm run statement-import:prepare --prefix mobile-app"
+}

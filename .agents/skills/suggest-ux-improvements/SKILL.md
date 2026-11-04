@@ -1,15 +1,15 @@
 ---
-name: improve-ux
-description: Review one or more Spendeazy mobile UI elements (screens, pages, or components) against the project's UX principles and design tokens. Propose justified improvements in a before/after table for approval, allowing no recommendations when none are warranted. Use for UX reviews, not routine UI implementation.
+name: suggest-ux-improvements
+description: Review and suggest improvements in the user experience/interface or design against the project's UX principles and design tokens. Use for UX or UI reviews, not routine UI implementation.
 ---
 
-# Review Spendeazy UX
+# Suggest UX Improvements
 
 Review the requested user interface/s for concrete improvements to the user's experience. Do not implement improvements until the user approves the presented proposals.
 
 ## Scope and evidence
 
-Be creative, innovative, and unique when coming up with design/UX improvements! At the same time, follow the `mobile-app/design/ux-principles.md` as the guiding design philosophy. 
+Be creative, innovative, and unique when coming up with design/UX improvements! Challenge existing design. Follow the `mobile-app/design/ux-principles.md` as the guiding design philosophy. 
 
 If the checkout or required documents cannot be found, request their location rather than substitute generic design advice.
 
@@ -19,7 +19,7 @@ Do not invent observations from screenshots or code paths you have not inspected
 
 If the ask is unclear or some critical details are missing, ask the user for confirmation rather than assuming.
 
-## Judge improvements
+## Categorize Proposals
 
 Distinguish usability issues from personal aesthetic preferences. Do not manufacture findings, fill a quota, broaden the assignment. A documented pending native check alone is not a confirmed defect. Put material unanswered verification questions outside the recommendation table.
 
@@ -27,9 +27,9 @@ Rate impact by user benefit, not implementation effort:
 
 - **High:** removes a task blocker, serious misunderstanding, inaccessible essential action, or substantial risk of an unintended action.
 - **Med:** meaningfully improves a recurring interaction, discoverability, comprehension, or recovery while the task remains possible.
-- **Low:** a smaller, evidenced improvement to scanning, clarity, or consistency with limited effect on task completion.
+- **Low:** a smaller, evidenced improvement to scanning, clarity, or consistency with limited effect on task completion; but still useful. 
 
-## Present for approval
+## Output
 
 Briefly identify the reviewed scope and evidence, then present only justified recommendations ordered by impact. Give proposals stable IDs for selective approval. Use this table:
 

@@ -53,9 +53,13 @@ export function SharingView({
   const outgoing = inbox?.outgoing ?? null;
   const disabled = state.busy !== null;
   const manageAnchor = useRef<React.ComponentRef<typeof View>>(null);
-  const [toast, setToast] = useState<string | null>(null);
-  useEffect(() => {
+  const [toast, setToast] = useState<string | null>(state.notice);
+  const [seenNotice, setSeenNotice] = useState<string | null>(state.notice);
+  if (seenNotice !== state.notice) {
+    setSeenNotice(state.notice);
     setToast(state.notice);
+  }
+  useEffect(() => {
     if (!state.notice) return;
     const timeout = setTimeout(() => setToast(null), 4000);
     return () => clearTimeout(timeout);

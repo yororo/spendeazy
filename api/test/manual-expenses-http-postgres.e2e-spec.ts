@@ -757,7 +757,7 @@ describeDatabase(
         sort: 'newest',
         pageSize: '1',
       };
-      const pages = await collectPages(identity, spaceId, selection);
+      const pages = await collectPages(identity, spaceId, selection, 4);
       expect(pages.map((page) => page.totalCount)).toEqual([
         '4',
         '4',
@@ -774,10 +774,15 @@ describeDatabase(
         pages.flatMap((page) => page.expenses.map((expense) => expense.id)),
       ).toEqual([may.id, cafeLate.id, cafe.id, march.id]);
 
-      const oldest = await collectPages(identity, spaceId, {
-        ...selection,
-        sort: 'oldest',
-      });
+      const oldest = await collectPages(
+        identity,
+        spaceId,
+        {
+          ...selection,
+          sort: 'oldest',
+        },
+        4,
+      );
       expect(
         oldest.flatMap((page) => page.expenses.map((expense) => expense.id)),
       ).toEqual([march.id, cafe.id, cafeLate.id, may.id]);
@@ -787,10 +792,15 @@ describeDatabase(
         ['highest', [may.id, cafe.id, march.id, cafeLate.id]],
         ['lowest', [cafeLate.id, march.id, cafe.id, may.id]],
       ] as const) {
-        const amountPages = await collectPages(identity, spaceId, {
-          ...selection,
-          sort,
-        });
+        const amountPages = await collectPages(
+          identity,
+          spaceId,
+          {
+            ...selection,
+            sort,
+          },
+          4,
+        );
         expect(
           amountPages.flatMap((page) =>
             page.expenses.map((expense) => expense.id),
@@ -864,11 +874,16 @@ describeDatabase(
         ['highest', [equalAmount.id, cafe.id]],
         ['lowest', [cafe.id, equalAmount.id]],
       ] as const) {
-        const tiedPages = await collectPages(identity, spaceId, {
-          categoryId: categoryA,
-          sort,
-          pageSize: '1',
-        });
+        const tiedPages = await collectPages(
+          identity,
+          spaceId,
+          {
+            categoryId: categoryA,
+            sort,
+            pageSize: '1',
+          },
+          7,
+        );
         const ids = tiedPages.flatMap((page) =>
           page.expenses
             .filter((expense) => expense.amount === '20.00')
@@ -1146,6 +1161,7 @@ describeDatabase(
       identity: TestIdentity,
       spaceId: string,
       query: Record<string, string>,
+      expectedPages: number,
     ): Promise<ExpensePage[]> {
       const pages: ExpensePage[] = [];
       let cursor: string | null = null;

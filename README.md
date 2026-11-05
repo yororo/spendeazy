@@ -21,6 +21,6 @@ The API resolves the authenticated User, authorizes the requested Space, validat
 
 ## Local development and testing
 
-Start with [the local runbook](docs/local-testing.md): first-time setup, daily startup, manual checks, troubleshooting and reset. It uses PostgreSQL in Docker, the API in Nest watch mode and Expo development builds. The same instructions apply to humans and AI agents.
+Start with [the local runbook](docs/local-testing.md): first-time setup, daily startup, manual checks, troubleshooting and reset. It uses PostgreSQL in Docker, the API in Nest watch mode and Expo development builds. The same instructions apply to humans and AI agents. On a Windows laptop, the [mobile dev sandbox](docs/dev-sandbox.md) runs the Expo toolchain in a Dev Container and the Android emulator on the host.
 
 Install dependencies in the owning project. API unit/HTTP/PostgreSQL checks and mobile application, lint, type, and parser checks run independently. The separate [automated checks guide](docs/local-checks.md) documents existing software checks and isolated integration databases. Application tests, lint, type checks, and parser fixtures are software checks; native build/device review and the parser launch gate in issue [#138](https://github.com/yororo/spendeazy/issues/138) remain separate release evidence.

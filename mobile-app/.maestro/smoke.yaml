@@ -1,0 +1,15 @@
+# Cold-starts the installed development build, loads Metro through adb reverse,
+# and checks the signed-out sign-in screen. Requires a dev build on the emulator,
+# Metro on port 8081, and EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY in mobile-app/.env.local.
+# clearState drops the local Clerk session so the first screen is sign-in.
+appId: com.seyfsasy.spendeazymobile
+---
+- launchApp:
+    clearState: true
+    stopApp: true
+- openLink:
+    link: "spendeazymobile://?__expo_url=http%3A%2F%2F127.0.0.1%3A8081&__expo_disable_onboarding=1&__expo_disable_fab=1&__expo_disable_auto_launch=1"
+- extendedWaitUntil:
+    visible: "Tap to sign-in"
+    timeout: 120000
+- assertVisible: "Tap to sign-in"

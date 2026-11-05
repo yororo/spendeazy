@@ -20,7 +20,14 @@ const compiled = await build({
 });
 const module = { exports: {} };
 new Function('require', 'module', compiled.outputFiles[0].text)(name => {
-  if (name === 'expo-router') return { useRouter: () => ({ push: path => destinations.push(path) }) };
+  if (name === 'expo-router') return { useRouter: () => ({ push: path => destinations.push(path) }), usePathname: () => '/' };
+  if (name === 'react-native-reanimated') return {
+    __esModule: true,
+    default: { View: 'AnimatedView' },
+    useSharedValue: initial => ({ value: initial }),
+    useAnimatedStyle: factory => factory(),
+    withSpring: value => value,
+  };
   if (name === 'lucide-react-native') return new Proxy({}, { get: (_, icon) => icon });
   if (name === 'react-native') return { Pressable: 'Pressable', View: 'View', useWindowDimensions: () => ({ width: 390 }) };
   if (name === 'react-native-safe-area-context') return { useSafeAreaInsets: () => ({ bottom: 34 }) };

@@ -676,7 +676,7 @@ describeDatabase(
       }
     });
 
-    it('returns the same March 15 to May 10 totals on every page and rejects a changed cursor', async () => {
+    async function seedPagingFixture() {
       const identity = createIdentity('expense-pages');
       const userId = await provision(identity);
       const spaceId = await personalSpaceId(identity);
@@ -685,70 +685,29 @@ describeDatabase(
       const categoryB = (await createCategory(identity, spaceId, 'Category B'))
         .id;
       const other = createIdentity('expense-pages-other');
-      const otherUserId = await provision(other);
+      await provision(other);
       const otherSpaceId = await personalSpaceId(other);
       await database.getRepository(SpaceMembershipEntity).save({
         spaceId: otherSpaceId,
         userId,
         accessLevel: 'read',
       });
+      const save = (
+        categoryId: string,
+        date: string,
+        description: string,
+        amount: string,
+      ) =>
+        saveExpense(identity, spaceId, categoryId, date, description, amount);
 
-      const march = await saveExpense(
-        identity,
-        spaceId,
-        categoryA,
-        '2026-03-15',
-        'Market',
-        '10.00',
-      );
-      const cafe = await saveExpense(
-        identity,
-        spaceId,
-        categoryA,
-        '2026-04-01',
-        'Cafe',
-        '20.00',
-      );
-      const cafeLate = await saveExpense(
-        identity,
-        spaceId,
-        categoryA,
-        '2026-04-01',
-        'cafe late',
-        '5.25',
-      );
-      const may = await saveExpense(
-        identity,
-        spaceId,
-        categoryA,
-        '2026-05-10',
-        'Market run',
-        '100.00',
-      );
-      await saveExpense(
-        identity,
-        spaceId,
-        categoryA,
-        '2026-03-14',
-        'Early',
-        '1.00',
-      );
-      await saveExpense(
-        identity,
-        spaceId,
-        categoryA,
-        '2026-05-11',
-        'Late',
-        '7.00',
-      );
-      await saveExpense(
-        identity,
-        spaceId,
-        categoryB,
-        '2026-04-01',
-        'Market',
-        '50.00',
-      );
+      const march = await save(categoryA, '2026-03-15', 'Market', '10.00');
+      const cafe = await save(categoryA, '2026-04-01', 'Cafe', '20.00');
+      const cafeLate = await save(categoryA, '2026-04-01', 'cafe late', '5.25');
+      const may = await save(categoryA, '2026-05-10', 'Market run', '100.00');
+      // Outside the selected date range or category: must not affect results.
+      await save(categoryA, '2026-03-14', 'Early', '1.00');
+      await save(categoryA, '2026-05-11', 'Late', '7.00');
+      await save(categoryB, '2026-04-01', 'Market', '50.00');
 
       const selection = {
         fromDate: '2026-03-15',
@@ -757,141 +716,169 @@ describeDatabase(
         sort: 'newest',
         pageSize: '1',
       };
-      const pages = await collectPages(identity, spaceId, selection, 4);
-      expect(pages.map((page) => page.totalCount)).toEqual([
-        '4',
-        '4',
-        '4',
-        '4',
-      ]);
-      expect(pages.map((page) => page.totalAmount)).toEqual([
-        '135.25',
-        '135.25',
-        '135.25',
-        '135.25',
-      ]);
-      expect(
-        pages.flatMap((page) => page.expenses.map((expense) => expense.id)),
-      ).toEqual([may.id, cafeLate.id, cafe.id, march.id]);
-
-      const oldest = await collectPages(
+      // Four Expenses match the selection, so pageSize 1 yields four pages.
+      const matching = 4;
+      const matchingTotal = '135.25';
+      return {
         identity,
         spaceId,
-        {
-          ...selection,
-          sort: 'oldest',
-        },
-        4,
-      );
-      expect(
-        oldest.flatMap((page) => page.expenses.map((expense) => expense.id)),
-      ).toEqual([march.id, cafe.id, cafeLate.id, may.id]);
-      expect(oldest.every((page) => page.totalAmount === '135.25')).toBe(true);
-
-      for (const [sort, expected] of [
-        ['highest', [may.id, cafe.id, march.id, cafeLate.id]],
-        ['lowest', [cafeLate.id, march.id, cafe.id, may.id]],
-      ] as const) {
-        const amountPages = await collectPages(
-          identity,
-          spaceId,
-          {
-            ...selection,
-            sort,
-          },
-          4,
-        );
-        expect(
-          amountPages.flatMap((page) =>
-            page.expenses.map((expense) => expense.id),
-          ),
-        ).toEqual(expected);
-        expect(amountPages.every((page) => page.totalAmount === '135.25')).toBe(
-          true,
-        );
-      }
-
-      const widerPage = await listExpenses(identity, spaceId, {
-        ...selection,
-        pageSize: '2',
-        cursor: pages[0]?.nextCursor ?? '',
-      });
-      expect(widerPage.status).toBe(200);
-      expect(pageBody(widerPage).totalCount).toBe('4');
-      expect(pageBody(widerPage).totalAmount).toBe('135.25');
-
-      const searched = await listExpenses(identity, spaceId, {
-        ...selection,
-        description: 'market',
-        pageSize: '20',
-      });
-      expect(searched.status).toBe(200);
-      expect(pageBody(searched)).toMatchObject({
-        totalCount: '2',
-        totalAmount: '110.00',
-      });
-      expect(pageBody(searched).expenses.map((expense) => expense.id)).toEqual([
-        may.id,
-        march.id,
-      ]);
-
-      const cursor = pages[0]?.nextCursor;
-      expect(cursor).toEqual(expect.any(String));
-      const changedCategory = await listExpenses(identity, spaceId, {
-        ...selection,
-        categoryId: categoryB,
-        cursor: cursor ?? '',
-      });
-      expect(changedCategory.status).toBe(400);
-      expect(errorBody(changedCategory).error.details).toEqual([
-        {
-          field: '/cursor',
-          code: 'incompatible',
-          message: 'Cursor does not match the requested expense filters',
-        },
-      ]);
-      const changedSort = await listExpenses(identity, spaceId, {
-        ...selection,
-        sort: 'oldest',
-        cursor: cursor ?? '',
-      });
-      expect(changedSort.status).toBe(400);
-      const changedSpace = await listExpenses(identity, otherSpaceId, {
-        ...selection,
-        categoryId: categoryA,
-        cursor: cursor ?? '',
-      });
-      expect(changedSpace.status).toBe(400);
-      const equalAmount = await saveExpense(
-        identity,
-        spaceId,
+        otherSpaceId,
         categoryA,
-        '2026-01-01',
-        'Same amount',
-        '20.00',
-      );
-      for (const [sort, expected] of [
-        ['highest', [equalAmount.id, cafe.id]],
-        ['lowest', [cafe.id, equalAmount.id]],
-      ] as const) {
-        const tiedPages = await collectPages(
-          identity,
-          spaceId,
+        categoryB,
+        march,
+        cafe,
+        cafeLate,
+        may,
+        selection,
+        matching,
+        matchingTotal,
+      };
+    }
+
+    const idsOf = (pages: ExpensePage[]) =>
+      pages.flatMap((page) => page.expenses.map((expense) => expense.id));
+
+    describe('Expense paging', () => {
+      it('returns the same totals on every page, newest first', async () => {
+        const f = await seedPagingFixture();
+        const pages = await collectPages(
+          f.identity,
+          f.spaceId,
+          f.selection,
+          f.matching,
+        );
+        expect(pages).toHaveLength(f.matching);
+        expect(pages.map((page) => page.totalCount)).toEqual(
+          Array(f.matching).fill(String(f.matching)),
+        );
+        expect(pages.map((page) => page.totalAmount)).toEqual(
+          Array(f.matching).fill(f.matchingTotal),
+        );
+        expect(idsOf(pages)).toEqual([
+          f.may.id,
+          f.cafeLate.id,
+          f.cafe.id,
+          f.march.id,
+        ]);
+      });
+
+      it.each([
+        ['oldest', ['march', 'cafe', 'cafeLate', 'may']],
+        ['highest', ['may', 'cafe', 'march', 'cafeLate']],
+        ['lowest', ['cafeLate', 'march', 'cafe', 'may']],
+      ] as const)('orders by %s with stable totals', async (sort, order) => {
+        const f = await seedPagingFixture();
+        const pages = await collectPages(
+          f.identity,
+          f.spaceId,
+          { ...f.selection, sort },
+          f.matching,
+        );
+        expect(idsOf(pages)).toEqual(order.map((name) => f[name].id));
+        expect(
+          pages.every((page) => page.totalAmount === f.matchingTotal),
+        ).toBe(true);
+      });
+
+      it('accepts a cursor with a different page size and filters by description', async () => {
+        const f = await seedPagingFixture();
+        const first = await collectPages(
+          f.identity,
+          f.spaceId,
+          f.selection,
+          f.matching,
+        );
+        const wider = await listExpenses(f.identity, f.spaceId, {
+          ...f.selection,
+          pageSize: '2',
+          cursor: first[0]?.nextCursor ?? '',
+        });
+        expect(wider.status).toBe(200);
+        expect(pageBody(wider)).toMatchObject({
+          totalCount: String(f.matching),
+          totalAmount: f.matchingTotal,
+        });
+
+        const searched = await listExpenses(f.identity, f.spaceId, {
+          ...f.selection,
+          description: 'market',
+          pageSize: '20',
+        });
+        expect(searched.status).toBe(200);
+        expect(pageBody(searched)).toMatchObject({
+          totalCount: '2',
+          totalAmount: '110.00',
+        });
+        expect(idsOf([pageBody(searched)])).toEqual([f.may.id, f.march.id]);
+      });
+
+      it('rejects a cursor reused with a different category, sort or space', async () => {
+        const f = await seedPagingFixture();
+        const [firstPage] = await collectPages(
+          f.identity,
+          f.spaceId,
+          f.selection,
+          f.matching,
+        );
+        const cursor = firstPage?.nextCursor;
+        expect(cursor).toEqual(expect.any(String));
+
+        const changedCategory = await listExpenses(f.identity, f.spaceId, {
+          ...f.selection,
+          categoryId: f.categoryB,
+          cursor: cursor ?? '',
+        });
+        expect(changedCategory.status).toBe(400);
+        expect(errorBody(changedCategory).error.details).toEqual([
           {
-            categoryId: categoryA,
-            sort,
-            pageSize: '1',
+            field: '/cursor',
+            code: 'incompatible',
+            message: 'Cursor does not match the requested expense filters',
           },
-          7,
-        );
-        const ids = tiedPages.flatMap((page) =>
-          page.expenses
+        ]);
+        const changedSort = await listExpenses(f.identity, f.spaceId, {
+          ...f.selection,
+          sort: 'oldest',
+          cursor: cursor ?? '',
+        });
+        expect(changedSort.status).toBe(400);
+        const changedSpace = await listExpenses(f.identity, f.otherSpaceId, {
+          ...f.selection,
+          cursor: cursor ?? '',
+        });
+        expect(changedSpace.status).toBe(400);
+      });
+
+      it.each([
+        ['highest', ['equal', 'cafe']],
+        ['lowest', ['cafe', 'equal']],
+      ] as const)(
+        'breaks equal-amount ties deterministically when sorting by %s',
+        async (sort, order) => {
+          const f = await seedPagingFixture();
+          const equal = await saveExpense(
+            f.identity,
+            f.spaceId,
+            f.categoryA,
+            '2026-01-01',
+            'Same amount',
+            '20.00',
+          );
+          const byName = { equal, cafe: f.cafe };
+          // Category A holds the four selected Expenses, Early, Late and the tie.
+          const pages = await collectPages(
+            f.identity,
+            f.spaceId,
+            { categoryId: f.categoryA, sort, pageSize: '1' },
+            7,
+          );
+          const tied = pages
+            .flatMap((page) => page.expenses)
             .filter((expense) => expense.amount === '20.00')
-            .map((expense) => expense.id),
-        );
-        expect(ids).toEqual(expected);
-      }
-      expect(otherUserId).toEqual(expect.any(String));
+            .map((expense) => expense.id);
+          expect(tied).toEqual(order.map((name) => byName[name].id));
+        },
+      );
     });
 
     function http() {
@@ -1174,8 +1161,10 @@ describeDatabase(
         const page = pageBody(response);
         pages.push(page);
         cursor = page.nextCursor;
-        if (pages.length > 6) {
-          throw new Error('Expense pages did not end');
+        if (pages.length > expectedPages) {
+          throw new Error(
+            `Expected at most ${expectedPages} expense pages but got more`,
+          );
         }
       } while (cursor !== null);
       return pages;

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ElementRef, type ReactNode } from 'react';
-import { ArrowLeft, Bookmark, CalendarDays, Check, ChevronDown, ChevronRight, Info, CircleMinus, Pencil, CircleQuestionMark, X } from 'lucide-react-native';
+import { Bookmark, CalendarDays, Check, ChevronDown, ChevronRight, Info, CircleMinus, Pencil, CircleQuestionMark, TriangleAlert, X } from 'lucide-react-native';
 import { Alert, FlatList, KeyboardAvoidingView, Pressable, Switch, Text, useWindowDimensions, View } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
@@ -13,6 +13,7 @@ import { CanvasBackground } from '@/components/design-surface';
 import { BodyText, StackGap, SupportingText } from '@/components/screen';
 import { ScreenHeader } from '@/components/screen-header';
 import { TextField } from '@/components/text-field';
+import { space, typeScale } from '@/constants/theme';
 import { ExpenseFields } from '@/features/expenses/expense-fields';
 import { useAppTheme } from '@/navigation/app-theme';
 import type { useStatementImportReview } from './use-statement-import-review';
@@ -43,6 +44,10 @@ export function StatementImportReviewView({ controller: c, onBack, onDiscard }: 
   const list = useRef<FlatList>(null);
   const { width } = useWindowDimensions();
   const reducedMotion = useReducedMotion();
+  const transactionsProgress = useSharedValue(0);
+  const transactionsChevronStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${transactionsProgress.value * 90}deg` }],
+  }));
   const discarding = useRef(false);
   const cardX = useSharedValue(0);
   const cardIn = useSharedValue(1);
@@ -139,10 +144,9 @@ export function StatementImportReviewView({ controller: c, onBack, onDiscard }: 
       keyboardShouldPersistTaps="handled" contentInsetAdjustmentBehavior="never" automaticallyAdjustContentInsets={false}
       contentContainerStyle={{ paddingTop: insets.top + 14, paddingBottom: insets.bottom + 24, paddingHorizontal: 20, gap: 14 }}
       ListHeaderComponent={<StackGap>
-        <ScreenHeader title="Import" accessory={<View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <CompactAction label="Back · keep work" variant="icon" icon={<ArrowLeft size={22} color={palette.textPrimary} />} onPress={onBack} />
-          <CompactAction label="Close" variant="icon" icon={<X size={20} color={palette.textPrimary} />} onPress={close} />
-        </View>} />
+        <ScreenHeader title="Import" onBack={onBack} accessory={
+          <CompactAction label="Discard" accessibilityLabel="Discard import" variant="quiet" wrapLabel icon={<X size={20} color={palette.textPrimary} />} onPress={close} />
+        } />
         <View accessibilityLabel="Step 2 of 3, Update" style={{ flexDirection: 'row', gap: 8 }}>
           {['✓ Select file', 'Update', 'Confirm'].map((label, index) => <View key={label} style={{ flex: 1, gap: 7 }}>
             <View style={{ height: 3, borderRadius: 2, backgroundColor: index <= 1 ? palette.brandPrimary : palette.divider }} />
@@ -154,7 +158,10 @@ export function StatementImportReviewView({ controller: c, onBack, onDiscard }: 
           <Text style={{ fontSize: 12, fontFamily: fonts.regular, color: palette.textSecondary }}>{review.original.file.name}</Text>
           <Text style={{ fontSize: 12, fontFamily: fonts.regular, color: palette.textSecondary }}>{`${withThousandsSeparators(review.original.rows.length)} transactions`}</Text>
         </View>
-        {review.original.warnings.map(warning => <Text key={warning.code} style={{ color: palette.stateWarning, fontSize: 14, fontFamily: fonts.regular }}>{warningMessage(warning.code)}</Text>)}
+        {review.original.warnings.map(warning => <View key={warning.code} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
+          <TriangleAlert size={18} color={palette.stateWarning} accessible={false} />
+          <Text style={{ flex: 1, color: palette.stateWarning, fontSize: 14, fontFamily: fonts.regular }}>{warningMessage(warning.code)}</Text>
+        </View>)}
         {c.readOnly ? <SupportingText>This destination is read-only. Review remains available for inspection.</SupportingText> : null}
         <>
           {review.catalog.status !== 'ready' ? <SupportingText>{review.catalog.status === 'failed' ? 'Categories and Rules could not be loaded. Your review is retained. Retry to assign or continue.' : 'Loading Categories and Rules…'}</SupportingText> : null}
@@ -215,7 +222,7 @@ export function StatementImportReviewView({ controller: c, onBack, onDiscard }: 
                     <QueueAction label="Exclude" outlined accessibilityLabel="Exclude Transaction and abandon unapplied edits" icon={<CircleMinus size={14} color={palette.textSecondary} />} disabled={c.readOnly} onPress={() => c.send({ type: 'excluded', sourceRowId: editor.sourceRowId })} />
                     <QueueAction label="Skip for now →" accessibilityLabel="Skip for now and abandon unapplied edits" disabled={c.readOnly} onPress={() => c.send({ type: 'skipped' })} brand />
                   </View>
-                </> : selectedRow.inclusion === 'user-excluded' ? <SecondaryButton label="Restore Transaction" disabled={c.readOnly} onPress={() => c.send({ type: 'restored', sourceRowId: selectedRow.sourceRowId })} /> : <SupportingText>{`Excluded: ${source.classification.eligible ? 'Not included' : source.classification.reason}. Its original classification cannot be overridden here.`}</SupportingText>}
+                </> : selectedRow.inclusion === 'user-excluded' ? <SecondaryButton label="Restore Transaction" disabled={c.readOnly} onPress={() => c.send({ type: 'restored', sourceRowId: selectedRow.sourceRowId })} /> : <SupportingText>{`Excluded: ${source.classification.eligible ? 'Not included' : exclusionReason(source.classification.reason)}. Its original classification cannot be overridden here.`}</SupportingText>}
               </> : c.counts.unmapped ? <>
                 <SupportingText>{`${withThousandsSeparators(c.counts.unmapped)} skipped Transactions still need Categories.`}</SupportingText>
                 <PrimaryButton label="Review skipped" onPress={() => c.send({ type: 'skippedReviewed' })} />
@@ -229,13 +236,19 @@ export function StatementImportReviewView({ controller: c, onBack, onDiscard }: 
             {issue.sourceRowId ? <SecondaryButton label={`Review Transaction ${withThousandsSeparators(review.original.rows.findIndex(row => row.sourceRowId === issue.sourceRowId) + 1)}`} onPress={() => open(issue.sourceRowId!)} /> : null}
           </View>)}
           <Pressable accessibilityRole="button" accessibilityLabel={`Transactions, ${withThousandsSeparators(includedCount)} included, ${withThousandsSeparators(c.counts.excluded)} excluded`}
-            accessibilityState={{ expanded: transactionsExpanded }} onPress={() => setTransactionsExpanded(expanded => !expanded)}
+            accessibilityState={{ expanded: transactionsExpanded }} onPress={() => {
+              const expanded = !transactionsExpanded;
+              setTransactionsExpanded(expanded);
+              transactionsProgress.set(reducedMotion ? (expanded ? 1 : 0) : withSpring(expanded ? 1 : 0, { damping: 22, stiffness: 130 }));
+            }}
             style={{ minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <View style={{ flex: 1, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
               <Text accessibilityRole="header" style={{ fontSize: 15, fontFamily: fonts.semibold, color: palette.textPrimary }}>Transactions</Text>
               <Text style={{ fontSize: 12, fontFamily: fonts.regular, color: palette.textSecondary }}>{`${withThousandsSeparators(includedCount)} included · ${withThousandsSeparators(c.counts.excluded)} excluded`}</Text>
             </View>
-            {transactionsExpanded ? <ChevronDown size={18} color={palette.textSecondary} /> : <ChevronRight size={18} color={palette.textSecondary} />}
+            <Animated.View style={transactionsChevronStyle}>
+              <ChevronRight size={18} color={palette.textSecondary} />
+            </Animated.View>
           </Pressable>
           {transactionsExpanded ? <View style={{ flexDirection: 'row', gap: 6 }}>
             {(['unmapped', 'excluded', 'all'] as const).map(filter => <Pressable key={filter} accessibilityRole="button" accessibilityState={{ selected: review.ledgerFilter === filter }} onPress={() => c.send({ type: 'filterChanged', filter })}
@@ -250,12 +263,19 @@ export function StatementImportReviewView({ controller: c, onBack, onDiscard }: 
       renderItem={({ item }) => {
         const original = review.original.rows.find(row => row.sourceRowId === item.sourceRowId)!;
         const mapped = review.catalog.snapshot?.categories.find(category => category.id === item.values.categoryId);
-        return <Pressable accessibilityRole="button" accessibilityLabel={`${item.values.description || original.description}, ${item.inclusion !== 'included' ? 'Excluded' : validAssignment(review, item) ? mapped?.name : 'Unmapped'}. Open review.`}
+        const excluded = item.inclusion !== 'included';
+        const unmapped = !excluded && !validAssignment(review, item);
+        const categoryLabel = excluded ? (item.inclusion === 'locked-excluded' ? exclusionReason(original.classification.eligible ? 'unknown-direction' : original.classification.reason) : 'Excluded') : unmapped ? 'Unmapped' : mapped?.name;
+        const manuallyUpdated = item.assignment?.origin === 'manual' || item.inclusion === 'user-excluded';
+        return <Pressable accessibilityRole="button" accessibilityLabel={`${item.values.description || original.description}, ${categoryLabel}.${manuallyUpdated ? ' Manually updated.' : ''} Open review.`}
           onPress={() => open(item.sourceRowId)} style={{ minHeight: 64, paddingVertical: 12, paddingHorizontal: 8, borderRadius: item.sourceRowId === selectedId ? 12 : 0, backgroundColor: item.sourceRowId === selectedId ? palette.selectedSpace : 'transparent', borderBottomWidth: 1, borderColor: palette.divider, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
           {mapped ? <CategoryIconMark iconKey={mapped.iconKey} colorKey={mapped.colorKey} size={18} /> : <CircleQuestionMark size={18} color={palette.textSecondary} />}
           <View style={{ flex: 1, gap: 4 }}>
             <Text style={{ fontSize: 14, fontFamily: fonts.medium, color: palette.textPrimary }}>{item.values.description || original.description}</Text>
-            <Text style={{ fontSize: 11, fontFamily: fonts.regular, color: item.inclusion === 'included' && !validAssignment(review, item) ? palette.stateWarning : palette.textSecondary }}>{`${item.values.expenseDate || original.originalDate} · ${item.inclusion !== 'included' ? 'Excluded' : validAssignment(review, item) ? mapped?.name : 'Unmapped'}`}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.rowGap }}>
+              <Text style={{ flexShrink: 1, fontSize: 11, fontFamily: fonts.regular, color: unmapped ? palette.stateWarning : palette.textSecondary }}>{`${readableDate(item.values.expenseDate || original.originalDate)} · ${categoryLabel}`}</Text>
+              {manuallyUpdated ? <Pencil size={typeScale.metadata} color={palette.textSecondary} accessible={false} /> : null}
+            </View>
           </View>
           <View style={{ flexShrink: 1, alignItems: 'flex-end', gap: 4 }}>
             <Text style={{ fontSize: 15, fontFamily: fonts.medium, color: palette.textPrimary }}>{`PHP ${withThousandsSeparators(item.values.amount || original.originalAmount)}`}</Text>
@@ -265,14 +285,14 @@ export function StatementImportReviewView({ controller: c, onBack, onDiscard }: 
       }}
       ListEmptyComponent={transactionsExpanded ? <SupportingText>No Transactions in this filter.</SupportingText> : undefined}
       ListFooterComponent={<View style={{ paddingTop: 16, gap: 14 }}><PrimaryButton label="Continue" disabled={disabled || c.counts.unmapped > 0} onPress={c.continue} /></View>} />
-    <CenteredDialog title="Edit transaction" showClose headerAccessory={<View style={{ flexDirection: 'row' }}><Pressable ref={evidenceTrigger} accessibilityRole="button" accessibilityLabel="Original evidence" accessibilityState={{ expanded: showEvidence }} onPress={() => setShowEvidence(true)} style={{ minWidth: 48, minHeight: 48, alignItems: 'center', justifyContent: 'center' }}><Info size={20} color={palette.textSecondary} /></Pressable><CompactAction label="Exclude transaction" variant="icon" disabled={c.readOnly || selectedRow?.inclusion !== 'included'} icon={<CircleMinus size={20} color={palette.textSecondary} />} onPress={() => {
+    <CenteredDialog title={selectedRow && selectedRow.inclusion !== 'included' ? 'Excluded' : 'Edit transaction'} showClose headerAccessory={<View style={{ flexDirection: 'row' }}><Pressable ref={evidenceTrigger} accessibilityRole="button" accessibilityLabel="Original evidence" accessibilityState={{ expanded: showEvidence }} onPress={() => setShowEvidence(true)} style={{ minWidth: 48, minHeight: 48, alignItems: 'center', justifyContent: 'center' }}><Info size={20} color={palette.textSecondary} /></Pressable>{selectedRow?.inclusion === 'included' ? <CompactAction label="Exclude transaction" variant="icon" disabled={c.readOnly} icon={<CircleMinus size={20} color={palette.textSecondary} />} onPress={() => {
       if (c.readOnly || !selectedRow || selectedRow.inclusion !== 'included') return;
       c.send({ type: 'excluded', sourceRowId: selectedRow.sourceRowId });
       setShowEvidence(false);
       setModal(null);
-    }} /></View>} visible={review.inspectedSourceRowId ? modal !== 'categories' : modal === 'edit' && !!editor} onDismiss={dismissEditor} restoreFocusRef={editFocus}>
+    }} /> : null}</View>} visible={review.inspectedSourceRowId ? modal !== 'categories' : modal === 'edit' && !!editor} onDismiss={dismissEditor} restoreFocusRef={editFocus}>
       <Popover title="Original evidence" visible={showEvidence} onDismiss={() => setShowEvidence(false)} anchorRef={evidenceTrigger} showHeader={false}>
-        {source ? <View style={{ gap: 4 }}><SupportingText>{`Original evidence · ${source.originalDate} · ${withThousandsSeparators(source.originalAmount)}`}</SupportingText><BodyText>{source.description}</BodyText><SupportingText>{source.classification.eligible ? `Eligible ${source.classification.kind}` : `Excluded: ${source.classification.reason}`}</SupportingText></View> : null}
+        {source ? <View style={{ gap: 4 }}><SupportingText>{`Original evidence · ${readableDate(source.originalDate)} · ${withThousandsSeparators(source.originalAmount)}`}</SupportingText><BodyText>{source.description}</BodyText><SupportingText>{source.classification.eligible ? `Eligible ${source.classification.kind}` : `Excluded: ${exclusionReason(source.classification.reason)}`}</SupportingText></View> : null}
       </Popover>
       {editor ? <>
         <ExpenseFields nativeDatePicker compact disabled={disabled} draft={{ ...editor.values }} issues={{}} categoryLabel={category?.name ?? 'Choose Category'} onChange={c.patch} onOpenCategories={() => setModal('categories')} />
@@ -284,8 +304,8 @@ export function StatementImportReviewView({ controller: c, onBack, onDiscard }: 
         {!review.inspectedSourceRowId ? <PrimaryButton label="Save" disabled={disabled} onPress={() => { if (c.save()) setModal(null); }} /> : null}
       </> : source && selectedRow ? <>
         <BodyText>{source.description}</BodyText>
-        <SupportingText>{`${source.originalDate} · PHP ${withThousandsSeparators(source.originalAmount)}`}</SupportingText>
-        {selectedRow.inclusion === 'user-excluded' ? <SecondaryButton label="Restore Transaction" disabled={c.readOnly} onPress={() => c.send({ type: 'restored', sourceRowId: selectedRow.sourceRowId })} /> : <SupportingText>{source.classification.eligible ? 'Excluded' : source.classification.reason}</SupportingText>}
+        <SupportingText>{`${readableDate(source.originalDate)} · PHP ${withThousandsSeparators(source.originalAmount)}`}</SupportingText>
+        {selectedRow.inclusion === 'user-excluded' ? <SecondaryButton label="Restore" disabled={c.readOnly} onPress={() => c.send({ type: 'restored', sourceRowId: selectedRow.sourceRowId })} /> : <SupportingText>{exclusionReason(source.classification.eligible ? 'unknown-direction' : source.classification.reason)}</SupportingText>}
 
       </> : null}
     </CenteredDialog>
@@ -321,4 +341,11 @@ function warningMessage(code: string) {
     'missing-control': 'Some original statement controls are missing or unreadable.',
   };
   return messages[code] ?? code;
+}
+function exclusionReason(reason: string) {
+  const labels: Record<string, string> = {
+    payment: 'Payment', refund: 'Refund', credit: 'Credit', 'cash-in': 'Cash in',
+    'unknown-direction': 'Direction unclear', 'invalid-date': 'Invalid date', 'invalid-amount': 'Invalid amount',
+  };
+  return labels[reason] ?? 'Unclassified';
 }

@@ -32,7 +32,7 @@ export default function ImportStatementScreen() {
   }
   if (review.review && review.phase === 'review') {
     return <StatementImportReviewView controller={review} destination={controller.destination} onBack={() => router.back()}
-      onDiscard={() => { controller.discard(); router.back(); }} />;
+      onDiscard={() => { controller.discard(); }} />;
   }
   return <ImportSelection controller={controller} onBack={() => router.back()} onHistory={() => router.push('/(app)/statement-import-history')} />;
 }

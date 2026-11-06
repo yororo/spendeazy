@@ -34,8 +34,7 @@ export function StatementImportView({ controller: c, recentHistory, onHistory, o
   const discard = () => Alert.alert('Discard Statement Import?', 'This clears the living import work. You can then select again or switch Spaces.', [
     { text: 'Keep editing', style: 'cancel' }, { text: 'Discard', style: 'destructive', onPress: c.discard },
   ]);
-  return <Screen title="Import statement" onBack={onBack} headerAccessory={<CompactAction variant="icon" label="Import history" icon={<History size={20} color={palette.textPrimary} />} onPress={onHistory} />}>
-    <SupportingText>{`Destination: ${c.destination}`}</SupportingText>
+  return <Screen title="Import statement" onBack={onBack}>
     {c.readOnly ? <SupportingText>This Space is unavailable for new imports or is read-only. Retained extraction results remain available for inspection.</SupportingText> : null}
     <View style={{ flexDirection: 'row', gap: 8 }} accessibilityLabel="Step 1 of 3, Select file">
       {['1  Select file', '2  Update', '3  Confirm'].map((label, index) => <View key={label} style={{ flex: 1, gap: 7 }}>
@@ -73,7 +72,10 @@ export function StatementImportView({ controller: c, recentHistory, onHistory, o
       </StackGap> : null}
       {!running && state.phase !== 'idle' ? <SecondaryButton label="Discard" onPress={discard} /> : null}
     </DesignSurface>
-    <BodyText>Recent statements</BodyText>
+    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+      <BodyText>Recent statements</BodyText>
+      <CompactAction label="History" variant="quiet" icon={<History size={18} color={palette.textPrimary} />} onPress={onHistory} />
+    </View>
     {recentHistory}
   </Screen>;
 }

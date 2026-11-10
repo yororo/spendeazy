@@ -1,6 +1,6 @@
 # Spendeazy mobile
 
-Native Android/iPhone application built with Expo Router. Follow the [local runbook](../docs/local-testing.md) for installed development builds and device setup; Expo Go is not the acceptance target. [Coding standards](CODING_STANDARDS.md) describe feature/controller/adapter ownership. The [OpenAPI contract](../api/docs/openapi.yaml) owns shipped HTTP behavior.
+Native Android/iPhone application built with Expo Router. Follow the [local runbook](../docs/local-testing.md) for installed development builds and device setup; Expo Go is not the acceptance target. Windows Dev Container setup, the host emulator, and Maestro are in the [mobile dev sandbox](../docs/dev-sandbox.md). [Coding standards](CODING_STANDARDS.md) describe feature/controller/adapter ownership. The [OpenAPI contract](../api/docs/openapi.yaml) owns shipped HTTP behavior.
 
 Run `npm test`, `npm run statement-import:test`, `npm run lint` and `npm run typecheck` from this directory. Application tests include review/session lifecycle, confirmation serialization/controller and HTTP adapter parity checks. Parser fixtures use fictional data and establish no native device certification.
 

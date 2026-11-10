@@ -6,10 +6,12 @@ All commands are Bash. Every block starts with `# cwd:` (relative to the reposit
 
 ## Defaults
 
+These are defaults only; refer to .env or .env.local files for updated values.
+
 | Item | Value |
 | --- | --- |
-| API port | `4000` (`PORT` in `api/.env.local`) |
-| API URL from Android emulator | `http://10.0.2.2:4000` |
+| API port | `3000` (`PORT` in `api/.env.local`) |
+| API URL from Android emulator | `http://10.0.2.2:3000` |
 | Metro port | `8081` |
 | PostgreSQL | `127.0.0.1:55433`, database `spendeazy_disposable_manual` (root `compose.yaml`) |
 | Android emulator AVD | `Pixel_10` (prefer it; otherwise the first of `emulator -list-avds`) |
@@ -26,7 +28,12 @@ If you change a port, change every place that uses it (see [Alternative ports](#
 
 ## Daily startup
 
-Prerequisites: [first-time setup](#first-time-setup) done. Start from a clean session: stop old API, PostgreSQL, Metro and emulators first. Check that `api/.env.local` `DATABASE_URL` uses port `55433` and `mobile-app/.env.local` `EXPO_PUBLIC_API_BASE_URL` is `http://10.0.2.2:<API PORT>`.
+Complete [first-time setup](#first-time-setup) and stop old API, PostgreSQL, Metro and emulator sessions. For Android, run the preflight in Git Bash on Windows or Bash on Linux. It checks Docker, ADB, local settings and the API port before startup.
+
+```bash
+# cwd: .
+bash scripts/android-preflight.sh
+```
 
 ### 1. PostgreSQL
 
@@ -45,7 +52,7 @@ npm run migration:run
 npm run start:dev
 ```
 
-Continue only if migrations succeed. Verify: `curl -s -o /dev/null -w "%{http_code}" http://localhost:4000/health` prints `200`.
+Continue only if migrations succeed. Verify `curl -fsS http://127.0.0.1:3000/health` succeeds. Use your configured port if it differs.
 
 ### 3. Android emulator
 
@@ -160,7 +167,7 @@ Keep existing `.env.local` files when returning. Move an existing `api/.env` to 
 | `api/.env.local` | `GCASH_REFERENCE_HASH_KEY` | A second, independently generated key. Keep with the database |
 | `api/.env.local` | `CLERK_SECRET_KEY` | `sk_test_…` from the dedicated Clerk development instance |
 | `api/.env.local` | `CLERK_JWT_KEY` | That instance's RSA PEM public key; single-line form uses literal `\n` |
-| `mobile-app/.env.local` | `EXPO_PUBLIC_API_BASE_URL` | `http://10.0.2.2:4000` |
+| `mobile-app/.env.local` | `EXPO_PUBLIC_API_BASE_URL` | `http://10.0.2.2:3000` |
 | `mobile-app/.env.local` | `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` | `pk_test_…` from the **same** Clerk instance |
 | `mobile-app/.env.local` | `EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID` | Web-type Google OAuth client ID used by that Clerk instance (required by Clerk's native Google sign-in as the server/token audience; not a web app) |
 | `mobile-app/.env.local` | `EXPO_PUBLIC_CLERK_GOOGLE_ANDROID_CLIENT_ID` | Android client ID for the package above and the build's signing SHA-1 |
@@ -184,7 +191,7 @@ Copy values from the environment when already set; otherwise leave them empty an
 | `/health` works, private requests fail | Clerk keys must be from one instance; complete sign-in; see [API auth](../api/docs/LOCAL_TESTING.md) |
 | Google configuration/developer error | See [Google/Clerk setup](local-testing-auth.md) |
 | Sign-in stuck on "Signing in", no Google UI | Add the Google test account on the device, or register the build's debug SHA-1 on the Android OAuth client |
-| Device cannot reach API | Check `EXPO_PUBLIC_API_BASE_URL` port, the API terminal and firewall; try `adb reverse tcp:4000 tcp:4000` with URL `http://localhost:4000` |
+| Device cannot reach API | Check `EXPO_PUBLIC_API_BASE_URL` port, the API terminal and firewall; try `adb reverse tcp:3000 tcp:3000` with URL `http://localhost:3000` (use your configured port) |
 | App cannot reach Metro | `curl http://127.0.0.1:8081/status`; restart with `--localhost`, rerun `adb reverse` with Expo's port |
 | `unexpected end of stream on http://127.0.0.1:8081` | Metro is IPv6-only; restart with `NODE_OPTIONS=--dns-result-order=ipv4first`, rerun `adb reverse` |
 | Expo times out querying packages | Wait for `boot_completed` = `1`, retry. No dev build: `npx expo run:android --device` |
@@ -194,7 +201,7 @@ Copy values from the environment when already set; otherwise leave them empty an
 | Missing generated parser module | `npm run statement-import:prepare` in `mobile-app/`, then reload |
 | Old configuration | Unset stale exported env overrides; reload mobile, restart API |
 | Old stack still running | Stop it from its original checkout; the Compose project does not adopt or remove old runs |
-| `EACCES` binding API port (Windows) | Port is reserved; pick another `PORT` (e.g. `3307`) and update the mobile URL |
+| `EACCES` binding API port (Windows) | Run the Android preflight to check the port and find an available fallback |
 | Busy port | Stop only the instance you recognize, or use another port |
 
 ### Alternative ports

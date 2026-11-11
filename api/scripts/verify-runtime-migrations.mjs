@@ -12,6 +12,9 @@ const databaseUser = 'spendeazy_migration_test';
 const databasePassword = randomBytes(18).toString('hex');
 const databaseName = 'spendeazy_migration_test';
 const databaseUrl = `postgresql://${databaseUser}:${databasePassword}@${databaseContainerName}:5432/${databaseName}`;
+const buildSecrets = process.env.CODEX_PROXY_CERT
+  ? ['--secret', `id=proxy_ca,src=${process.env.CODEX_PROXY_CERT}`]
+  : [];
 
 let networkCreated = false;
 let databaseStarted = false;
@@ -42,7 +45,7 @@ try {
 
   await run(
     'docker',
-    ['build', '--tag', imageName, '--file', 'Dockerfile', '.'],
+    ['build', ...buildSecrets, '--tag', imageName, '--file', 'Dockerfile', '.'],
     { cwd: apiDirectory },
   );
   imageBuilt = true;

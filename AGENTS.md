@@ -21,7 +21,17 @@ Project is currently in **ACTIVE DEVELOPMENT** status which means requirements a
 
 When a document in one project describes the other, cite that project's stable published surface. Source paths and code samples stay in the owning project; implementation files move. Mobile documents describe API features by the exposed endpoints in the [OpenAPI contract](api/docs/openapi.yaml), the source of truth for shipped API behavior.
 
-## Cursor Cloud environment
+## Reusable Linux cloud validation
+
+For a new cloud checkout, follow [cloud setup](docs/local-testing-cloud.md): run
+`bash scripts/cloud/bootstrap.sh`, then `bash scripts/cloud/validate.sh`.
+These commands resolve the checkout location themselves and use ignored local
+tool/cache directories. Standard validation needs Docker and uses fresh disposable
+databases; it does not need Clerk/Google credentials or an Android device.
+Use the optional Android setup only for native work. Do not claim native UI or
+Google sign-in passed based on unit tests or bundle export.
+
+## Cursor Cloud environment (separate image)
 
 Node.js 24.11.1 is installed at `/usr/local/lib/nodejs`; prepend its `bin` to `PATH` if the shell selects another version. The Android SDK is at `/opt/android-sdk`; set `ANDROID_HOME` and `ANDROID_SDK_ROOT` accordingly. The `spendeazy` AVD uses a Google Play image. This host requires software emulation (no KVM); boot can take about ten minutes. Confirm `adb shell getprop sys.boot_completed` prints `1`. Use the same local runbook once Docker and the emulator are available; the emulator reaches the host API at `10.0.2.2`.
 

@@ -118,7 +118,7 @@ export function StatementImportDetailView({
                   {heading("Originally confirmed Expenses")}
                   <BodyText>
                     {confirmation
-                      ? `${confirmation.originalExpenseCount} Expenses · PHP ${confirmation.originalExpenseTotal}`
+                      ? `${confirmation.originalExpenseCount} Expenses · ₱${confirmation.originalExpenseTotal}`
                       : "Original confirmation result unavailable for this legacy import."}
                   </BodyText>
                   {confirmation ? (
@@ -127,7 +127,7 @@ export function StatementImportDetailView({
                 </DesignSurface>
                 <DesignSurface style={{ padding: 22, gap: 10 }}>
                   {heading("Current Expenses")}
-                  <BodyText>{`${d.currentExpenses.count} nondeleted Expenses · PHP ${d.currentExpenses.totalAmount}`}</BodyText>
+                  <BodyText>{`${d.currentExpenses.count} nondeleted Expenses · ₱${d.currentExpenses.totalAmount}`}</BodyText>
                   <SecondaryButton
                     label="Current"
                     onPress={() => onExpenses("active")}
@@ -156,7 +156,7 @@ export function StatementImportDetailView({
                         (control, index) => (
                           <BodyText
                             key={`${control.key}:${index}`}
-                          >{`${control.label}: ${control.amount === null ? "Unavailable / unparseable" : "PHP " + control.amount} · Original: ${control.originalText}`}</BodyText>
+                          >{`${control.label}: ${control.amount === null ? "Unavailable / unparseable" : "₱" + control.amount} · Original: ${control.originalText}`}</BodyText>
                         ),
                       )
                     )}
@@ -213,7 +213,7 @@ export function StatementImportDetailView({
               >{`${e.kind}: ${e.value ?? "Unavailable"}`}</SupportingText>
             ))}
             {row.confirmedValues ? (
-              <BodyText>{`Originally confirmed: ${row.confirmedValues.expenseDate} · ${row.confirmedValues.description} · PHP ${row.confirmedValues.amount} · ${c.categoryName(row.confirmedValues.categoryId)} (Category ${row.confirmedValues.categoryId})`}</BodyText>
+              <BodyText>{`Originally confirmed: ${row.confirmedValues.expenseDate} · ${row.confirmedValues.description} · ₱${row.confirmedValues.amount} · ${c.categoryName(row.confirmedValues.categoryId)} (Category ${row.confirmedValues.categoryId})`}</BodyText>
             ) : (
               <BodyText>{`Excluded: ${row.exclusion?.reason ?? "Unavailable"}${row.exclusion?.automatic ? " · Automatic" : ""}`}</BodyText>
             )}

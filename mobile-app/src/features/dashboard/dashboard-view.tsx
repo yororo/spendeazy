@@ -279,7 +279,7 @@ function DashboardSummary({
             gap: 3,
           }}
         >
-          <SupportingText>Budgeted</SupportingText>
+          <SupportingText>Planned</SupportingText>
           <Text
             style={{
               color: palette.textPrimary,

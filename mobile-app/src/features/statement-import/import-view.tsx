@@ -1,9 +1,10 @@
-import { Image } from 'expo-image';
+import { ProviderLogo } from './provider-identity';
 import { FileUp, History } from 'lucide-react-native';
 import { useState, type ReactNode } from 'react';
 import { ActivityIndicator, Alert, Text, TextInput, View } from 'react-native';
 import { CompactAction, PrimaryButton, SecondaryButton } from '@/components/buttons';
 import { DesignSurface } from '@/components/design-surface';
+import { providerLogoSize, space } from '@/constants/theme';
 import { BodyText, Screen, StackGap, SupportingText } from '@/components/screen';
 import { useAppTheme } from '@/navigation/app-theme';
 import type { ImportWarning } from './import-model';
@@ -37,17 +38,17 @@ export function StatementImportView({ controller: c, recentHistory, onHistory, o
   return <Screen title="Import statement" onBack={onBack}>
     {c.readOnly ? <SupportingText>This Space is unavailable for new imports or is read-only. Retained extraction results remain available for inspection.</SupportingText> : null}
     <View style={{ flexDirection: 'row', gap: 8 }} accessibilityLabel="Step 1 of 3, Select file">
-      {['1  Select file', '2  Update', '3  Confirm'].map((label, index) => <View key={label} style={{ flex: 1, gap: 7 }}>
+      {['Select file', 'Update', 'Confirm'].map((label, index) => <View key={label} style={{ flex: 1, gap: 7 }}>
         <View style={{ height: 3, borderRadius: 2, backgroundColor: index === 0 ? palette.brandPrimary : palette.divider }} />
         <Text style={{ fontFamily: index === 0 ? fonts.semibold : fonts.regular, fontSize: 12, color: index === 0 ? palette.brandPrimary : palette.textSecondary }}>{label}</Text>
       </View>)}
     </View>
     <DesignSurface style={{ paddingHorizontal: 20, paddingVertical: 40, gap: 22 }}>
       <View accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ alignSelf: 'center', width: 90, height: 110, borderRadius: 18, backgroundColor: palette.surfaceModal, alignItems: 'center', justifyContent: 'center', shadowColor: palette.shadow, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 1, shadowRadius: 8, elevation: 3, transform: [{ rotate: '-6deg' }] }}><FileUp size={44} color={palette.brandPrimary} /></View>
-      <View accessible accessibilityLabel="Supported providers: BDO AMEX, EastWest VISA, GCash E-Wallet" style={{ flexDirection: 'row', alignSelf: 'center', alignItems: 'center', gap: 16, marginBottom: 14 }}>
-        <Image source={require('../../../assets/providers/bdo.svg')} contentFit="contain" accessible={false} style={{ height: 18, aspectRatio: 415.4375 / 145.15625 }} />
-        <Image source={require('../../../assets/providers/eastwest.webp')} contentFit="contain" accessible={false} style={{ height: 18, aspectRatio: 330 / 66 }} />
-        <Image source={require('../../../assets/providers/gcash.svg')} contentFit="contain" accessible={false} style={{ height: 18, aspectRatio: 330 / 79 }} />
+      <View accessible accessibilityLabel="Supported providers: BDO AMEX, EastWest VISA, GCash E-Wallet" style={{ flexDirection: 'row', alignSelf: 'center', width: '100%', maxWidth: providerLogoSize.rowWidth, minHeight: providerLogoSize.rowHeight, alignItems: 'center', gap: space.cardGap, marginBottom: space.cardGap }}>
+        {(['bdo', 'eastwest', 'gcash'] as const).map(provider => <View key={provider} style={{ flex: 1, alignItems: 'center' }}>
+          <ProviderLogo provider={provider} presentation="supported" />
+        </View>)}
       </View>
       {c.canSelect ? <PrimaryButton label={state.phase === 'idle' ? 'Select PDF' : 'Select PDF again'} onPress={c.select} /> : null}
       {c.cleanup !== 'ready' ? <SupportingText>{c.cleanup === 'starting' ? 'Checking temporary-file cleanup…' : 'Temporary-file cleanup failed. Retry before selecting a PDF.'}</SupportingText> : null}

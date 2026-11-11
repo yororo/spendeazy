@@ -180,7 +180,7 @@ export function ExpenseDetail({
                   state.editor.latest ? (
                     <StackGap>
                       <SupportingText>
-                        {`Latest version · ${state.editor.latest.description} · ${state.editor.latest.amount} PHP · ${state.editor.latest.expenseDate} · ${state.editor.latest.categoryName}`}
+                        {`Latest version · ${state.editor.latest.description} · ₱${state.editor.latest.amount} · ${state.editor.latest.expenseDate} · ${state.editor.latest.categoryName}`}
                       </SupportingText>
                       <SecondaryButton
                         label="Continue with my changes"
@@ -221,7 +221,7 @@ export function ExpenseDetail({
                     {expense.description}
                   </Text>
                   <MoneyAmount amount={expense.amount} variant="total" />
-                  <SupportingText>PHP</SupportingText>
+                  <SupportingText>₱</SupportingText>
                 </View>
                 <View
                   style={{
@@ -475,7 +475,7 @@ function activityLabel(type: DetailActivity["type"]): string {
 function snapshotLabel(
   snapshot: ExpenseActivitySnapshot & { categoryName: string },
 ): string {
-  return `${snapshot.expenseDate} · ${snapshot.amount} PHP · ${snapshot.description} · ${snapshot.categoryName}`;
+  return `${snapshot.expenseDate} · ₱${snapshot.amount} · ${snapshot.description} · ${snapshot.categoryName}`;
 }
 
 function activityChanges(

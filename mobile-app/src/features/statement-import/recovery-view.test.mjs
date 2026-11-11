@@ -72,7 +72,7 @@ test('recovered provider identity and History acknowledgment do not require a li
   assert.deepEqual(tree.root.findByType('ProviderIdentity').props.account, account);
   assert.equal(tree.root.findByType('ProviderIdentity').props.showName, false);
   const text = tree.root.findAllByType('Text').map(n => n.props.children);
-  assert.ok(text.includes('PHP 1,032.00'));
+  assert.ok(text.includes('₱1,032.00'));
   assert.ok(text.includes('4 Expenses'));
   assert.equal(tree.root.findByType('SpaceStatus').props.spaceId, '7');
   assert.equal(tree.root.findByType('SpaceStatus').props.readOnly, true);

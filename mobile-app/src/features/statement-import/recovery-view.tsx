@@ -56,7 +56,7 @@ export function ImportRecoveryView({ controller: c, destination, writable, histo
         </View> : null}
         {c.message ? <SupportingText>{c.message}</SupportingText> : null}
         {c.result ? <View style={{ alignItems: 'center', gap: 4 }}>
-          <Text selectable accessibilityLabel={`Imported total, ${c.result.originalExpenseTotal} Philippine pesos`} style={{ alignSelf: 'stretch', textAlign: 'center', color: palette.textPrimary, fontFamily: fonts.semibold, fontSize: 42, letterSpacing: -2, fontVariant: ['tabular-nums'] }}>{`PHP ${displayMoneyAmount(c.result.originalExpenseTotal)}`}</Text>
+          <Text selectable accessibilityLabel={`Imported total, ${c.result.originalExpenseTotal} Philippine pesos`} style={{ alignSelf: 'stretch', textAlign: 'center', color: palette.textPrimary, fontFamily: fonts.semibold, fontSize: 42, letterSpacing: -2, fontVariant: ['tabular-nums'] }}>{`₱${displayMoneyAmount(c.result.originalExpenseTotal)}`}</Text>
           <Text style={{ textAlign: 'center', color: palette.textSecondary, fontFamily: fonts.regular, fontSize: 15 }}>{`${displayMoneyAmount(c.result.originalExpenseCount)} ${c.result.originalExpenseCount === '1' ? 'Expense' : 'Expenses'}`}</Text>
         </View> : null}
         <View style={{ alignSelf: 'center' }}><SpaceStatus readOnly spaceId={c.receipt?.spaceId} /></View>

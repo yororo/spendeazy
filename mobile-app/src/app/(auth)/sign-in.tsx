@@ -54,6 +54,7 @@ export default function SignInScreen() {
     });
     if (outcome === 'signed-in') {
       setPhase('success');
+      finish();
       return;
     }
     finish();
@@ -76,7 +77,7 @@ export default function SignInScreen() {
         justifyContent: 'center',
         gap: space.dialogGap * 2,
       }}>
-        <SignInBrandScene onPress={() => void signIn()} busy={phase === 'loading'} entering={phase === 'success'} onEntered={finish} />
+        <SignInBrandScene onPress={() => void signIn()} busy={phase === 'loading'} signedIn={phase === 'success'} />
           {failure ? (
             <Text accessibilityLiveRegion="polite" selectable style={{ color: palette.stateNegative, fontFamily: fonts.regular, fontSize: typeScale.body, textAlign: 'center' }}>
               {failure}

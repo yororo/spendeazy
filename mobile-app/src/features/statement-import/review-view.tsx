@@ -194,7 +194,7 @@ export function StatementImportReviewView({ controller: c, onBack, onDiscard }: 
                     {editor ? <View ref={editFocus}><QueueAction label="Edit" disabled={disabled} onPress={() => setModal('edit')} icon={<Pencil size={14} color={palette.textSecondary} />} /></View> : null}
                   </View>
                   <Text style={{ fontSize: 18, fontFamily: fonts.semibold, color: palette.textPrimary, textAlign: 'center' }}>{editor?.values.description || source.description}</Text>
-                  <Text style={{ marginVertical: 4, fontSize: 18, fontFamily: fonts.medium, color: palette.textPrimary, textAlign: 'center' }}>{`PHP ${withThousandsSeparators(editor?.values.amount || source.originalAmount)}`}</Text>
+                  <Text style={{ marginVertical: 4, fontSize: 18, fontFamily: fonts.medium, color: palette.textPrimary, textAlign: 'center' }}>{`₱${withThousandsSeparators(editor?.values.amount || source.originalAmount)}`}</Text>
                 </View>
                 {editor ? <>
                   <View style={{ gap: 7 }}>
@@ -278,7 +278,7 @@ export function StatementImportReviewView({ controller: c, onBack, onDiscard }: 
             </View>
           </View>
           <View style={{ flexShrink: 1, alignItems: 'flex-end', gap: 4 }}>
-            <Text style={{ fontSize: 15, fontFamily: fonts.medium, color: palette.textPrimary }}>{`PHP ${withThousandsSeparators(item.values.amount || original.originalAmount)}`}</Text>
+            <Text style={{ fontSize: 15, fontFamily: fonts.medium, color: palette.textPrimary }}>{`₱${withThousandsSeparators(item.values.amount || original.originalAmount)}`}</Text>
             {item.sourceRowId === selectedId ? <Text style={{ fontSize: 12, fontFamily: fonts.regular, color: palette.brandPrimary }}>Reviewing</Text> : null}
           </View>
         </Pressable>;
@@ -304,7 +304,7 @@ export function StatementImportReviewView({ controller: c, onBack, onDiscard }: 
         {!review.inspectedSourceRowId ? <PrimaryButton label="Save" disabled={disabled} onPress={() => { if (c.save()) setModal(null); }} /> : null}
       </> : source && selectedRow ? <>
         <BodyText>{source.description}</BodyText>
-        <SupportingText>{`${readableDate(source.originalDate)} · PHP ${withThousandsSeparators(source.originalAmount)}`}</SupportingText>
+        <SupportingText>{`${readableDate(source.originalDate)} · ₱${withThousandsSeparators(source.originalAmount)}`}</SupportingText>
         {selectedRow.inclusion === 'user-excluded' ? <SecondaryButton label="Restore" disabled={c.readOnly} onPress={() => c.send({ type: 'restored', sourceRowId: selectedRow.sourceRowId })} /> : <SupportingText>{exclusionReason(source.classification.eligible ? 'unknown-direction' : source.classification.reason)}</SupportingText>}
 
       </> : null}

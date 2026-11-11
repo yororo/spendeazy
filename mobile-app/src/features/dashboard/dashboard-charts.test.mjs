@@ -155,8 +155,8 @@ test('summary opens statements and import and shows concise budget wording', asy
   await act(async () => action(renderer, 'Import statement').props.onPress());
   assert.deepEqual(calls, ['history', 'import']);
   const text = renderer.root.findAllByType('Text').map(node => node.props.children).join(' ');
-  assert.match(text, /Budgeted/);
-  assert.doesNotMatch(text, /Planned|Based on recorded expenses|Highest spend|Imported/);
+  assert.match(text, /Planned/);
+  assert.doesNotMatch(text, /Budgeted|Based on recorded expenses|Highest spend|Imported/);
 });
 
 test('budget review keeps annual checks when selected period is empty and opens exact annual expenses', async (t) => {

@@ -7,6 +7,7 @@ import { useAppTheme } from '@/navigation/app-theme';
 
 export function PrimaryButton({
   label,
+  accessibilityLabel = label,
   icon: Icon,
   onPress,
   disabled = false,
@@ -15,6 +16,7 @@ export function PrimaryButton({
   tone = 'brand',
 }: {
   label: string;
+  accessibilityLabel?: string;
   icon?: LucideIcon;
   onPress: () => void;
   disabled?: boolean;
@@ -26,7 +28,7 @@ export function PrimaryButton({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={label}
+      accessibilityLabel={accessibilityLabel}
       accessibilityState={{ disabled: disabled || busy, busy }}
       disabled={disabled || busy}
       onPress={onPress}

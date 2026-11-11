@@ -183,8 +183,8 @@ test("original/current values, retained excluded rows and overlapping edited/del
   });
   const text = () => JSON.stringify(tree.toJSON());
   assert.match(text(), /Originally confirmed Expenses/);
-  assert.match(text(), /2 Expenses · PHP 300.00/);
-  assert.match(text(), /1 nondeleted Expenses · PHP 150.00/);
+  assert.match(text(), /2 Expenses · ₱300.00/);
+  assert.match(text(), /1 nondeleted Expenses · ₱150.00/);
   assert.match(text(), /Deleted user/);
   assert.match(text(), /read-only/);
   assert.match(text(), /Unavailable \/ unparseable/);

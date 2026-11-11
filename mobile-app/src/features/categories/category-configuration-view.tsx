@@ -150,7 +150,7 @@ export function CategoryConfigurationView({
                 <SupportingText>{`${state.latestConfiguration.category.name} · ${state.latestConfiguration.category.isActive ? 'Active' : 'Inactive'}`}</SupportingText>
                 <SupportingText>{`Icon: ${state.latestConfiguration.category.iconKey} · Color: ${state.latestConfiguration.category.colorKey}`}</SupportingText>
                 <SupportingText>
-                  {`Budget: ${latestConfigurationBudget.amount} PHP · ${latestConfigurationBudget.recurrence}`}
+                  {`Budget: ₱${latestConfigurationBudget.amount} · ${latestConfigurationBudget.recurrence}`}
                 </SupportingText>
                 <SupportingText>
                   {`Rules: ${state.latestConfiguration.rules.length
@@ -198,7 +198,7 @@ export function CategoryConfigurationView({
         </View>
         <View style={{ gap: space.fieldLabelGap }}>
           {sectionHeading('Budget')}
-          <TextField label="Budget amount (PHP)" showLabel={false} variant="budget" suffix="PHP" value={budget.amount} onChangeText={(amount) => onChange({ budget: { ...budget, amount } })} error={state.issues.budget} placeholder="0.00" keyboardType="decimal-pad" editable={editable} />
+          <TextField label="Budget amount (₱)" showLabel={false} variant="budget" suffix="₱" value={budget.amount} onChangeText={(amount) => onChange({ budget: { ...budget, amount } })} error={state.issues.budget} placeholder="0.00" keyboardType="decimal-pad" editable={editable} />
           <View style={{ flexDirection: 'row', gap: 4, padding: 5, borderRadius: radius.control, backgroundColor: palette.segmentedTrack }}>
             {(['monthly', 'yearly'] as const).map((recurrence) => <View key={recurrence} style={{ flex: 1 }}>
               <CompactAction variant="segmented" label={recurrence === 'monthly' ? 'Monthly' : 'Yearly'} selected={budget.recurrence === recurrence} disabled={!editable} onPress={() => onChange({ budget: { ...budget, recurrence } })} />

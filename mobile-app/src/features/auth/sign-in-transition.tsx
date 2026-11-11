@@ -6,7 +6,7 @@ const SignInTransitionContext = createContext({
   finish: () => {},
 });
 
-/** Keeps the sign-in route visible until its successful entrance animation finishes. */
+/** Keeps the sign-in route visible until the authentication workflow finishes. */
 export function SignInTransitionProvider({ children }: { children: ReactNode }) {
   const [holding, setHolding] = useState(false);
   const begin = useCallback(() => setHolding(true), []);

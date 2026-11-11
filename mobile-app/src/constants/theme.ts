@@ -76,7 +76,7 @@ export const palette = {
     divider: '#A6B1C826',
     addBorder: '#A7B1DC26',
     addShadow: '#00000040',
-    fieldBorder: '#A7B1DC26',
+    fieldBorder: '#75809E',
     editorField: '#22283DD9',
     importCard: '#22283D',
     importCardMiddle: '#34304D',
@@ -93,7 +93,7 @@ export const palette = {
     chartThreshold: '#D9AB7D',
     spendingMeter: '#A4AEFF',
     meterExcess: '#F3A594',
-    meterTrack: '#343B58',
+    meterTrack: '#75809E',
     scrim: '#06091399',
     add: '#6976E6',
     onAdd: '#FFFFFF',
@@ -149,6 +149,15 @@ export const controlSize = {
   navigation: 64,
   addAction: 64,
   minimumTarget: 48,
+} as const;
+
+// Optical sizing for the supported-provider row: compact symbols need more height
+// than wide wordmarks. Both appearances retain the same row footprint.
+export const providerLogoSize = {
+  rowWidth: 280,
+  rowHeight: 36,
+  light: { bdo: 64, eastwest: 88, gcash: 80 },
+  dark: { bdo: 64, eastwest: 88, gcash: 36 },
 } as const;
 
 export function paletteFor(scheme: ColorScheme): AppPalette {

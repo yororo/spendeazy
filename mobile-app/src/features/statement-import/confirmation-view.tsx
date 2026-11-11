@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { TriangleAlert } from 'lucide-react-native';
+import { List, TriangleAlert } from 'lucide-react-native';
 import { BackHandler, ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { PrimaryButton, SecondaryButton } from '@/components/buttons';
+import { CompactAction, PrimaryButton, SecondaryButton } from '@/components/buttons';
+import { space, typeScale } from '@/constants/theme';
 import { CenteredDialog } from '@/components/choice-sheet';
 import { CategoryIconMark } from '@/components/category-mark';
 import { CanvasBackground, DesignSurface } from '@/components/design-surface';
@@ -15,6 +16,7 @@ import { useAppTheme } from '@/navigation/app-theme';
 import { decimalAmount } from './values';
 import type { useImportConfirmation } from './use-import-confirmation';
 import { ProviderIdentity } from './provider-identity';
+import { confirmationWarnings } from './confirmation-warnings';
 
 function withThousandsSeparators(value: string | number) {
   return String(value).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
@@ -33,6 +35,7 @@ export function ImportConfirmationView({ controller: c, readOnly, onDiscard }: {
   const insets = useSafeAreaInsets();
   const { fontScale } = useWindowDimensions();
   const [closing, setClosing] = useState(false);
+  const [showMatches, setShowMatches] = useState(false);
   useEffect(() => {
     const handler = BackHandler.addEventListener('hardwareBackPress', () => { if (!c.locked) c.back(); return true; });
     return () => handler.remove();
@@ -57,7 +60,7 @@ export function ImportConfirmationView({ controller: c, readOnly, onDiscard }: {
     <ScrollView contentInsetAdjustmentBehavior="never" automaticallyAdjustContentInsets={false} contentContainerStyle={{ paddingTop: insets.top + 14, paddingBottom: insets.bottom + 24, paddingHorizontal: 20, gap: 22 }}>
       <ScreenHeader title="Import statement" />
       <View accessibilityLabel="Step 3 of 3, Confirm" style={{ flexDirection: 'row', gap: 8 }}>
-        {['Select', 'Update', 'Confirm'].map((label, index) => <View key={label} style={{ flex: 1, gap: 7 }}>
+        {['Select file', 'Update', 'Confirm'].map((label, index) => <View key={label} style={{ flex: 1, gap: 7 }}>
           <View style={{ height: 3, backgroundColor: index === 2 ? palette.brandPrimary : palette.divider }} />
           <Text style={{ fontSize: 12, fontFamily: fonts.medium, color: index === 2 ? palette.brandPrimary : palette.textSecondary }}>{label}</Text>
         </View>)}
@@ -87,24 +90,34 @@ export function ImportConfirmationView({ controller: c, readOnly, onDiscard }: {
           </Svg>
           </View>
           {centerTotal ? <View style={{ position: 'absolute', top: 0, left: 22, right: 22, bottom: 0, justifyContent: 'center', alignItems: 'center', gap: 6 }}>
-            <SupportingText>PHP</SupportingText>
-            <Text accessibilityLabel={`Reviewed import total, PHP ${total}`} style={{ color: palette.textPrimary, fontFamily: fonts.semibold, fontSize: 28 }}>{total}</Text>
+            <SupportingText>₱</SupportingText>
+            <Text accessibilityLabel={`Reviewed import total, ₱${total}`} style={{ color: palette.textPrimary, fontFamily: fonts.semibold, fontSize: 28 }}>{total}</Text>
             <SupportingText>to import</SupportingText>
           </View> : null}
         </View>
         {!centerTotal ? <View style={{ alignItems: 'center', gap: 6 }}>
-          <Text accessibilityRole="header" style={{ color: palette.textPrimary, fontFamily: fonts.semibold, fontSize: 34 }}>{`PHP ${total}`}</Text>
+          <Text accessibilityRole="header" style={{ color: palette.textPrimary, fontFamily: fonts.semibold, fontSize: 34 }}>{`₱${total}`}</Text>
           <SupportingText>Reviewed import total</SupportingText>
         </View> : null}
       </View>
       <View style={{ gap: 16 }}>
-        {summary.categories.map(({ category, total }) => <View key={category.id} accessible accessibilityLabel={`${category.name}, PHP ${formatAmount(total)}`} style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        {summary.categories.map(({ category, total }) => <View key={category.id} accessible accessibilityLabel={`${category.name}, ₱${formatAmount(total)}`} style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
           <CategoryIconMark iconKey={category.iconKey} colorKey={category.colorKey} />
-          <View style={{ flex: 1 }}><BodyText>{category.name}</BodyText></View><BodyText>{`PHP ${formatAmount(total)}`}</BodyText>
+          <View style={{ flex: 1 }}><BodyText>{category.name}</BodyText></View><BodyText>{`₱${formatAmount(total)}`}</BodyText>
         </View>)}
       </View>
       <View accessibilityLiveRegion="polite" style={{ gap: 12 }}>
-        {c.preview?.warnings.map(w => <Text key={w.id} style={{ color: palette.stateWarning, fontFamily: fonts.regular, fontSize: 15 }}>{`${w.message}${w.sourceRowIds.length ? ` (${withThousandsSeparators(w.sourceRowIds.length)} rows)` : ''}`}</Text>)}
+        {confirmationWarnings(c.preview?.warnings ?? []).map(w => <View key={w.id} style={{ gap: space.rowGap }}>
+          <Text style={{ color: palette.stateWarning, fontFamily: fonts.regular, fontSize: typeScale.body }}>{w.message}</Text>
+          {w.type === 'probable_duplicate' && w.sourceRowIds.length > 0 ? <>
+            <CompactAction label={showMatches ? 'Hide matches' : 'View matches'} variant="quiet"
+              icon={<List color={palette.stateWarning} size={typeScale.body} />} onPress={() => setShowMatches(value => !value)} />
+            {showMatches ? h.rows.filter(row => w.sourceRowIds.includes(row.sourceRowId)).map(row => <View key={row.sourceRowId} style={{ gap: space.rowGap }}>
+              <BodyText>{row.values.description}</BodyText>
+              <SupportingText>{`${readableDate(row.values.expenseDate)} · ₱${withThousandsSeparators(row.values.amount)}`}</SupportingText>
+            </View>) : null}
+          </> : null}
+        </View>)}
         {c.message ? <View accessibilityRole="alert" accessibilityLiveRegion="assertive" style={{ gap: 8 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <TriangleAlert size={22} color={palette.stateNegative} accessible={false} />

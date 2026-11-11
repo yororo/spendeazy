@@ -1,6 +1,6 @@
 # Reusable Linux cloud validation
 
-For a new cloud checkout, follow [cloud setup](../testing/local-testing-cloud.md): run
+For a new cloud checkout, follow [cloud setup](../testing/LOCAL_TESTING_CLOUD.md): run
 `bash scripts/cloud/bootstrap.sh`, then `bash scripts/cloud/validate.sh`.
 These commands resolve the checkout location themselves and use ignored local
 tool/cache directories. Standard validation needs Docker and uses fresh disposable

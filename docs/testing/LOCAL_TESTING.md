@@ -145,7 +145,7 @@ Run migrations and restart the API per Daily startup. Keep your API keys. Resett
 - Git, Node.js `24.11.1`, npm.
 - Docker with Linux containers and `docker compose`, running before database commands.
 - Android: [Expo environment setup](https://docs.expo.dev/get-started/set-up-your-environment/). Set `ANDROID_HOME`, put `platform-tools` on `PATH`, and use an emulator with a **Google Play** image (native Google sign-in needs Play services).
-- Physical iPhone: see [iPhone testing](local-testing-iphone.md).
+- Physical iPhone: see [iPhone testing](LOCAL_TESTING_IPHONE.md).
 
 ### 2. Install
 
@@ -179,7 +179,7 @@ Generate each key separately:
 node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
 ```
 
-Copy values from the environment when already set; otherwise leave them empty and follow the stop conditions. Only public identifiers go in `EXPO_PUBLIC_*`; secrets stay in `api/.env.local`. Without Clerk values `/health` works but authenticated requests fail. Finding the web client ID and the Android SHA-1: [Google/Clerk setup](local-testing-auth.md).
+Copy values from the environment when already set; otherwise leave them empty and follow the stop conditions. Only public identifiers go in `EXPO_PUBLIC_*`; secrets stay in `api/.env.local`. Without Clerk values `/health` works but authenticated requests fail. Finding the web client ID and the Android SHA-1: [Google/Clerk setup](LOCAL_TESTING_AUTH.md).
 
 ## Troubleshooting
 
@@ -189,7 +189,7 @@ Copy values from the environment when already set; otherwise leave them empty an
 | Database connection refused | Confirm Compose healthy and `DATABASE_URL` port `55433`; run API commands from `api/` |
 | Missing encryption/hash key | Set both independent 64-hex values in `api/.env.local` |
 | `/health` works, private requests fail | Clerk keys must be from one instance; complete sign-in; see [API auth](../../api/docs/LOCAL_TESTING.md) |
-| Google configuration/developer error | See [Google/Clerk setup](local-testing-auth.md) |
+| Google configuration/developer error | See [Google/Clerk setup](LOCAL_TESTING_AUTH.md) |
 | Sign-in stuck on "Signing in", no Google UI | Add the Google test account on the device, or register the build's debug SHA-1 on the Android OAuth client |
 | Device cannot reach API | Check `EXPO_PUBLIC_API_BASE_URL` port, the API terminal and firewall; try `adb reverse tcp:3000 tcp:3000` with URL `http://localhost:3000` (use your configured port) |
 | App cannot reach Metro | `curl http://127.0.0.1:8081/status`; restart with `--localhost`, rerun `adb reverse` with Expo's port |

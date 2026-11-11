@@ -8,9 +8,9 @@ Supplements [root guidance](../AGENTS.md). Paths below are relative to `api/`.
 | Module placement/dependencies | [Shape](ARCHITECTURE.md#shape), [feature modules](ARCHITECTURE.md#feature-modules), relevant [ADRs](docs/adr/) |
 | Authentication, authorization, request-wide behavior | [Request lifecycle](ARCHITECTURE.md#request-lifecycle) |
 | Persistence, atomic workflows, schema | [Persistence/transactions](ARCHITECTURE.md#persistence-and-transactions); for schema changes also [database design](docs/DATABASE_DESIGN.md) and `src/database/migrations/` |
-| Errors or operational logging | [Errors/contracts](ARCHITECTURE.md#errors-and-contracts), [safe logging policy and implementation](docs/exception-logging.md) |
+| Errors or operational logging | [Errors/contracts](ARCHITECTURE.md#errors-and-contracts), [safe logging policy and implementation](docs/EXCEPTION_LOGGING.md) |
 | HTTP contracts | [OpenAPI procedure](README.md#openapi-contract), the accepted [mobile contract](../docs/specifications/mobile-expense-domain-api.md), and affected mobile adapters when they exist |
-| Local setup/startup or manual device testing | [Local runbook](../docs/testing/local-testing.md); focused API authentication checks — [Clerk testing](docs/LOCAL_TESTING.md) |
+| Local setup/startup or manual device testing | [Local runbook](../docs/testing/LOCAL_TESTING.md); focused API authentication checks — [Clerk testing](docs/LOCAL_TESTING.md) |
 
 ## Validation
 
@@ -37,4 +37,4 @@ npm run openapi:generate
 npm run openapi:check
 ```
 
-The check fails if either artifact is missing or differs from deterministic regeneration. Root CI also runs it. Inspect affected paths and referenced schemas together; update contract tests and coordinate any mobile adapter change. Route compatibility describes the current Space-only Expense route surface and removed legacy aliases.
+The check fails if either artifact is missing or differs from deterministic regeneration. Root CI also runs it. Inspect affected paths and referenced schemas together; update contract tests and coordinate any mobile adapter change. Financial routes stay on the Space-only Expense surface, with Personal financial aliases and saved Transaction routes removed.

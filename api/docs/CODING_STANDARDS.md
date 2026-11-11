@@ -20,5 +20,5 @@ Apply to API code changes and reviews. Follow established local conventions for 
 
 - Follow the [application-error contract](../ARCHITECTURE.md#errors-and-contracts) for expected failures.
 - Catch only to handle, recover, enrich, or translate; otherwise propagate failures.
-- Use the existing `ExceptionReporter`/logger and [logging allowlist](exception-logging.md) for operational failures. Keep sensitive data out of both responses and logs; preserve single-record reporting.
+- Use the existing `ExceptionReporter`/logger and [logging allowlist](EXCEPTION_LOGGING.md) for operational failures. Keep sensitive data out of both responses and logs; preserve single-record reporting.
 - Add/update tests when observable behavior changes.

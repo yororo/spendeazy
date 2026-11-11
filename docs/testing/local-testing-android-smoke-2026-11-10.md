@@ -6,7 +6,7 @@ Spendeazy app sign-in, manual expense creation, and viewing the saved expense al
 
 ## What I ran
 
-1. Followed the [local testing runbook](local-testing.md) on Windows with Node `24.11.1`. Reused the installed npm dependencies, development APK, existing `.env.local` credentials, and the Compose data volume. The database container was stopped at the start of the run.
+1. Followed the [local testing runbook](LOCAL_TESTING.md) on Windows with Node `24.11.1`. Reused the installed npm dependencies, development APK, existing `.env.local` credentials, and the Compose data volume. The database container was stopped at the start of the run.
 2. Ran `docker compose up -d --wait`. PostgreSQL became healthy at `127.0.0.1:55433`. From `api/`, ran `npm run migration:run`, which reported no pending migrations, then `npm run start:dev`. After resolving a Windows port reservation, `http://127.0.0.1:4101/health` returned HTTP 200 with the database ready.
 3. Started `emulator -avd Pixel_10`. ADB identified `emulator-5554` as `Pixel_10`, `sys.boot_completed` returned `1`, and the device had Google Play services and the Spendeazy development build.
 4. Ran `npm run statement-import:prepare` in `mobile-app/`, started Expo with IPv4 preferred, and verified `packager-status:running` at `http://127.0.0.1:8081/status`. Restored the Metro reverse mapping, stopped the app process that Quick Boot restored, and pressed `a` in Expo to open the current bundle.

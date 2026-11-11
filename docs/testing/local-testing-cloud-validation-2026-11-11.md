@@ -1,6 +1,6 @@
 # Cloud validation setup — November 11, 2026
 
-Historical evidence from the initial environment setup. For the portable follow-up workflow, see [reusable cloud setup](local-testing-cloud.md).
+Historical evidence from the initial environment setup. For the portable follow-up workflow, see [reusable cloud setup](LOCAL_TESTING_CLOUD.md).
 
 Baseline: `8f3615a`, with an API lockfile repair adding the two missing optional transitive entries `@emnapi/core@1.11.3` and `@emnapi/runtime@1.11.3`. No application behavior was changed.
 
@@ -59,7 +59,7 @@ Stopped the local API, software emulator, and test PostgreSQL container. Removed
 
 ## Reusable setup follow-up
 
-Added the repository-owned workflow in `scripts/cloud/` and `docs/testing/local-testing-cloud.md`.
+Added the repository-owned workflow in `scripts/cloud/` and `docs/testing/LOCAL_TESTING_CLOUD.md`.
 Verified a cold bootstrap in a separate source copy with no dependencies or Node
 cache, a repeated bootstrap, and a second cold bootstrap in the working checkout.
 The final sequential validation in the separate copy passed release gates, API

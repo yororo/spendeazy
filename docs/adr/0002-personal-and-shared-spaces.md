@@ -44,4 +44,4 @@ All financial HTTP operations in the current API runtime resolve an authorized S
 
 ## Personal route compatibility lifecycle
 
-The lifecycle policy in this historical decision is superseded by the accepted [mobile Expense contract](../specifications/mobile-expense-domain-api.md), which intentionally replaces the current Transaction-oriented API and Personal financial aliases without an old-client compatibility window. [API route compatibility](../../api/docs/route-compatibility.md) now inventories only the current legacy runtime until that contract is implemented. No browser adapter inventory is maintained.
+The lifecycle policy in this historical decision is superseded by the accepted [mobile Expense contract](../specifications/mobile-expense-domain-api.md), which intentionally replaces the current Transaction-oriented API and Personal financial aliases without an old-client compatibility window. No browser adapter inventory is maintained.

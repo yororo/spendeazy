@@ -2,7 +2,7 @@
 
 This is the Linux x86_64 workflow for a fresh coding session. It recreates the
 validated toolchain from repository files instead of depending on a previous
-chat's workspace. The manual device workflow remains in [local-testing.md](local-testing.md).
+chat's workspace. The manual device workflow remains in [LOCAL_TESTING.md](LOCAL_TESTING.md).
 
 ## Saved environment configuration
 

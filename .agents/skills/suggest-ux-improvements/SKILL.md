@@ -9,7 +9,7 @@ Review the requested user interface/s for concrete improvements to the user's ex
 
 ## Scope and evidence
 
-Be creative, innovative, and unique when coming up with design/UX improvements! Challenge existing design. Follow the `mobile-app/design/ux-principles.md` as the guiding design philosophy. 
+Be creative, innovative, and unique when coming up with design/UX improvements! Challenge existing design. Follow the `mobile-app/design/UX_PRINCIPLES.md` as the guiding design philosophy. 
 
 If the checkout or required documents cannot be found, request their location rather than substitute generic design advice.
 

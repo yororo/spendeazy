@@ -73,11 +73,11 @@ Explicit migrations are the schema history. Entities are the runtime mapping. Sc
 
 Use the injected feature store when the work stays inside one persistence seam. A workflow that must commit several feature-owned stores together owns a narrow unit-of-work port. That port does not expose `EntityManager`. The TypeORM implementation builds every participating adapter from the same transaction-bound manager. Add a store to that port only for a real cross-feature workflow, and expose only the operations that workflow uses.
 
-Reviewed Statement Import uses this unit of work for atomic financial execution, with separate durable admission and recovery transactions. Each transaction checks the active actor. See [Statement Import persistence](docs/DATABASE_DESIGN.md#statement-imports) and the [OpenAPI contract](docs/openapi.yaml) for recovery and replay behavior, and [envelope evidence](docs/statement-import-envelope.md) for payload limits.
+Reviewed Statement Import uses this unit of work for atomic financial execution, with separate durable admission and recovery transactions. Each transaction checks the active actor. See [Statement Import persistence](docs/DATABASE_DESIGN.md#statement-imports) and the [OpenAPI contract](docs/openapi.yaml) for recovery and replay behavior. Confirmation bodies stay within the 1 MiB parser limit. A synthetic 1,000-row envelope fits; a 3,000-row envelope exceeds it for every provider and is unsupported as one confirmation. A smaller supported ledger, dropped evidence, truncation, chunking, or a raised limit needs a product decision.
 
 ## Errors and contracts
 
-Expected failures are application errors with stable codes. Application services raise them. `ApiExceptionFilter` owns HTTP status and the envelope. An infrastructure adapter may translate a database failure into an application error only when the business meaning is precise. Unrecognized database and programming failures stay internal. Logging follows [exception logging](docs/exception-logging.md).
+Expected failures are application errors with stable codes. Application services raise them. `ApiExceptionFilter` owns HTTP status and the envelope. An infrastructure adapter may translate a database failure into an application error only when the business meaning is precise. Unrecognized database and programming failures stay internal. Logging follows [exception logging](docs/EXCEPTION_LOGGING.md).
 
 DTO validation protects the transport boundary. Application services still validate invariants that must hold for every caller. Monetary amounts cross API and application boundaries as normalized decimal strings. Domain dates use `YYYY-MM-DD` where time of day has no meaning.
 

@@ -1,6 +1,6 @@
 # Google and Clerk setup for local testing
 
-Part of the [local runbook](local-testing.md). Commands are Bash.
+Part of the [local runbook](LOCAL_TESTING.md). Commands are Bash.
 
 ## Web client ID
 
@@ -23,4 +23,4 @@ cd android && ./gradlew signingReport
 
 - Web and Android client IDs in `mobile-app/.env.local` match the Clerk instance.
 - Android package and SHA-1 match the installed build.
-- iOS bundle ID and URL scheme match the installed build (see [iPhone testing](local-testing-iphone.md)).
+- iOS bundle ID and URL scheme match the installed build (see [iPhone testing](LOCAL_TESTING_IPHONE.md)).

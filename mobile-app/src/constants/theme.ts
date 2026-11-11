@@ -1,7 +1,7 @@
 import type { ColorScheme } from '@/navigation/appearance';
 
 /**
- * Declared and derived tokens from mobile-app/design/design-token.md.
+ * Declared and derived tokens from mobile-app/design/DESIGN_TOKEN.md.
  * Translucent surface fills also render when native glass is unavailable.
  */
 export const palette = {

@@ -49,7 +49,7 @@ function readEnv(file) {
   try {
     return parseEnv(readFileSync(file, 'utf8'));
   } catch {
-    fail(`Cannot read ${file}. Follow first-time setup in docs/testing/local-testing.md.`);
+    fail(`Cannot read ${file}. Follow first-time setup in docs/testing/LOCAL_TESTING.md.`);
     return {};
   }
 }
@@ -122,4 +122,4 @@ then
 fi
 
 if (( failed )); then exit 1; fi
-printf 'Android preflight passed. Continue with docs/testing/local-testing.md.\n'
+printf 'Android preflight passed. Continue with docs/testing/LOCAL_TESTING.md.\n'

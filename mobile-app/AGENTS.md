@@ -14,7 +14,7 @@ Expo changes between SDK releases. Before adding or changing Expo/EAS/React Nati
 
 - Use Expo Router. Routes live in `src/app/`; place reusable components and logic elsewhere.
 - If `ios/` and `android/` are absent, Expo generates them. Do not edit generated native projects by hand; use app config and config plugins.
-- Follow the [manual runbook](../docs/testing/local-testing.md) for parser asset preparation, Android builds, Expo reload/rebuild decisions and physical iPhone setup. Expo Go is not the native validation target.
+- Follow the [manual runbook](../docs/testing/LOCAL_TESTING.md) for parser asset preparation, Android builds, Expo reload/rebuild decisions and physical iPhone setup. Expo Go is not the native validation target.
 - Do not add browser scripts, web-specific platform files, `react-native-web`, or browser CI gates. The bundled parser's WebView is an internal native component, not a browser client.
 
 ## API and identity boundaries
@@ -29,9 +29,9 @@ PDF selection, unlocking, extraction, provider interpretation and Category Rule 
 
 ## Visual design
 
-The UX is **minimalist and simple: icons and short intuitive labels over text**. Read [ux-principles.md](design/ux-principles.md) before any UI or copy change, including animations.
+The UX is **minimalist and simple: icons and short intuitive labels over text**. Read [UX_PRINCIPLES.md](design/UX_PRINCIPLES.md) before any UI or copy change, including animations.
 
-For any change that designs the user interface (especially new elements, screens or components), treat [design-token.md](design/design-token.md) and the [mobile design source](design/mobile-design.pen) as the authoritative sources for visual values.
+For any change that designs the user interface (especially new elements, screens or components), treat [DESIGN_TOKEN.md](design/DESIGN_TOKEN.md) and the [mobile design source](design/mobile-design.pen) as the authoritative sources for visual values.
 
 ## Users
 

@@ -1,6 +1,6 @@
 # Focused API authentication checks
 
-For ordinary mobile testing, follow [the shared local runbook](../../docs/testing/local-testing.md). The app signs in with Google, obtains its Clerk session token and provisions the local User. No token helper or separate authentication startup is needed.
+For ordinary mobile testing, follow [the shared local runbook](../../docs/testing/LOCAL_TESTING.md). The app signs in with Google, obtains its Clerk session token and provisions the local User. No token helper or separate authentication startup is needed.
 
 Use this page only when calling private endpoints directly from Postman, Insomnia or another HTTP client. Start the API/database through the runbook, using the same dedicated Clerk development instance and identity as the app.
 

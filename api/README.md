@@ -4,7 +4,7 @@ NestJS REST backend for the native Spendeazy client. Private routes use `/api/v1
 
 ## Setup and run
 
-Follow the shared [local runbook](../docs/testing/local-testing.md) for first-time setup, daily PostgreSQL/API/mobile startup, device connectivity, shutdown and reset. Local development uses the root Compose database and host Nest watch mode. Configuration stays in ignored `api/.env.local`, loaded with Node's built-in environment-file support for API startup, migrations and seeds. Existing shell variables take precedence. Move an existing `api/.env` to `api/.env.local` when upgrading; `.env` is no longer loaded automatically.
+Follow the shared [local runbook](../docs/testing/LOCAL_TESTING.md) for first-time setup, daily PostgreSQL/API/mobile startup, device connectivity, shutdown and reset. Local development uses the root Compose database and host Nest watch mode. Configuration stays in ignored `api/.env.local`, loaded with Node's built-in environment-file support for API startup, migrations and seeds. Existing shell variables take precedence. Move an existing `api/.env` to `api/.env.local` when upgrading; `.env` is no longer loaded automatically.
 
 API settings:
 
@@ -21,7 +21,7 @@ Production uses `npm run build`, the compiled migration command and `npm run sta
 
 ### Development seed/reset
 
-`npm run db:seed -- --disposable-database spendeazy_disposable_<suffix>` loads deterministic fictional data. To drop and recreate that database before loading it, run `npm run db:recreate-seed -- --disposable-database spendeazy_disposable_<suffix>`. These synthetic fixtures do not populate the real Google identity's Personal Space. For an empty manual database use the runbook's [explicit reset](../docs/testing/local-testing.md#shutdown-and-reset). Both commands require `NODE_ENV` other than production, a loopback PostgreSQL host, and an exact database-name match between `DATABASE_URL` and `--disposable-database`. Recreate is destructive by design; it cannot target a shared, production, or non-disposable database.
+`npm run db:seed -- --disposable-database spendeazy_disposable_<suffix>` loads deterministic fictional data. To drop and recreate that database before loading it, run `npm run db:recreate-seed -- --disposable-database spendeazy_disposable_<suffix>`. These synthetic fixtures do not populate the real Google identity's Personal Space. For an empty manual database use the runbook's [explicit reset](../docs/testing/LOCAL_TESTING.md#shutdown-and-reset). Both commands require `NODE_ENV` other than production, a loopback PostgreSQL host, and an exact database-name match between `DATABASE_URL` and `--disposable-database`. Recreate is destructive by design; it cannot target a shared, production, or non-disposable database.
 
 ## Test
 

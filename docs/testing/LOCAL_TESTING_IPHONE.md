@@ -1,6 +1,6 @@
 # Physical iPhone testing
 
-Part of the [local runbook](local-testing.md). Requires an Expo account and Apple Developer membership. Commands are Bash.
+Part of the [local runbook](LOCAL_TESTING.md). Requires an Expo account and Apple Developer membership. Commands are Bash.
 
 From Windows, use EAS cloud builds; local iOS builds and the simulator need macOS and Xcode.
 

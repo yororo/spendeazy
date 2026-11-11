@@ -452,7 +452,7 @@ describe('Space Statement Import API routes', () => {
         expect(envelopeBytes(payload) < 1024 * 1024).toBe(blocks < 300);
         actualBytes.push(envelopeBytes(payload));
       }
-      // Keep the published measurement table honest when fixture shapes change.
+      // Keep these expected byte counts honest when fixture shapes change.
       expect(actualBytes).toEqual(measuredBytes[provider]);
     },
   );

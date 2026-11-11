@@ -1,6 +1,6 @@
 # Mobile design implementation guideline
 
-How to execute [ux-principles.md](ux-principles.md) visually. The principles decide *what* to show; this file decides *how it looks*. If they conflict, ask the user.
+How to execute [UX_PRINCIPLES.md](UX_PRINCIPLES.md) visually. The principles decide *what* to show; this file decides *how it looks*. If they conflict, ask the user.
 
 This file is generic. It holds rules, token roles and recipes only. Do not add per-screen, per-component or per-feature notes, node-ID maps, status/acceptance records or product copy here.
 

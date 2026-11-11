@@ -1,6 +1,6 @@
 # Focused API authentication checks
 
-For ordinary mobile testing, follow [the shared local runbook](../../docs/local-testing.md). The app signs in with Google, obtains its Clerk session token and provisions the local User. No token helper or separate authentication startup is needed.
+For ordinary mobile testing, follow [the shared local runbook](../../docs/testing/local-testing.md). The app signs in with Google, obtains its Clerk session token and provisions the local User. No token helper or separate authentication startup is needed.
 
 Use this page only when calling private endpoints directly from Postman, Insomnia or another HTTP client. Start the API/database through the runbook, using the same dedicated Clerk development instance and identity as the app.
 
@@ -31,7 +31,7 @@ Existing automated API suites use Clerk test doubles and isolated databases; see
 
 Use only dedicated disposable Clerk identities for acceptance. Create Personal data, active/archived Shared history and multiple sessions first. Confirm `DELETE /api/v1/users/me` returns 202 with `Location: /api/v1/users/me/deletion`. The initiating valid session can GET exactly pending/completed with `Cache-Control: no-store`; another session receives a cleanup error. A 401, sign-out or provider outage does not prove completion. Test doubles establish HTTP/database behavior, not Clerk's real session-removal semantics.
 
-The API starts the reconciler automatically. Stop/restart the API after acceptance to exercise durable recovery. During a provider outage Personal purge must still finish; fix configuration/connectivity rather than changing checkpoints. Inspect safe progress through a restricted database connection without selecting provider IDs, initiating session IDs, claim tokens, profile data or financial payloads:
+The API starts the reconciler automatically. Keep an API process running, or schedule `AccountDeletionReconciler` in scale-to-zero deployments so pending deletions continue without client requests. Stop/restart the API after acceptance to exercise durable recovery. During a provider outage Personal purge must still finish; fix configuration/connectivity rather than changing checkpoints. Inspect safe progress through a restricted database connection without selecting provider IDs, initiating session IDs, claim tokens, profile data or financial payloads:
 
 ```sql
 SELECT user_id, status, accepted_at, personal_data_purged_at,

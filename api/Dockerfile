@@ -3,7 +3,9 @@ FROM node:24.11.1-bookworm-slim AS build
 WORKDIR /app
 
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN --mount=type=secret,id=proxy_ca \
+    if [ -f /run/secrets/proxy_ca ]; then export NODE_EXTRA_CA_CERTS=/run/secrets/proxy_ca; fi; \
+    npm ci
 
 COPY nest-cli.json tsconfig.json tsconfig.build.json ./
 COPY src ./src

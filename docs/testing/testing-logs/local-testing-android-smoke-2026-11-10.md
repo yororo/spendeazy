@@ -1,6 +1,6 @@
 # Pixel_10 Android smoke test, November 10, 2026
 
-Ran on Windows machine.
+Ran on user's Windows machine.
 
 Spendeazy app sign-in, manual expense creation, and viewing the saved expense all passed on `Pixel_10` against the local API at commit `13a7603`. Google accepted the test account already registered on the emulator, so the app sign-in passed without a password prompt. This run did not exercise adding the Google account to a clean device or using `SPENDEAZY_TEST_EMAIL_PASSWORD`.
 

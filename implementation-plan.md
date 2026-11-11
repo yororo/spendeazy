@@ -23,7 +23,7 @@ Task 08 source inspection resolved the mapped nodes and declared variables throu
 
 ## Manual acceptance setup
 
-Follow [local testing](docs/local-testing.md) with the dedicated development API/database and installed development client. Use fictional data only. Compare corresponding light screens side by side in Pencil at 390 logical units; record expected differences from supplied data. Ordinary UI JavaScript changes use reload/Fast Refresh; no new native dependency is introduced by this redesign.
+Follow [local testing](docs/testing/local-testing.md) with the dedicated development API/database and installed development client. Use fictional data only. Compare corresponding light screens side by side in Pencil at 390 logical units; record expected differences from supplied data. Ordinary UI JavaScript changes use reload/Fast Refresh; no new native dependency is introduced by this redesign.
 
 Record one result per case/device combination. Leave unavailable combinations pending and identify the missing device/data/access. A running API or visible screen is not a workflow pass.
 

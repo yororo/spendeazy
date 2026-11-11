@@ -59,7 +59,7 @@ Stopped the local API, software emulator, and test PostgreSQL container. Removed
 
 ## Reusable setup follow-up
 
-Added the repository-owned workflow in `scripts/cloud/` and `docs/local-testing-cloud.md`.
+Added the repository-owned workflow in `scripts/cloud/` and `docs/testing/local-testing-cloud.md`.
 Verified a cold bootstrap in a separate source copy with no dependencies or Node
 cache, a repeated bootstrap, and a second cold bootstrap in the working checkout.
 The final sequential validation in the separate copy passed release gates, API

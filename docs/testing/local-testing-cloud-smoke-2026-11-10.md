@@ -5,8 +5,8 @@ Result: blocked before mobile launch. Sign-in, manual expense creation, and view
 ## Context
 
 - Checkout: `fd61883` (`feat: add confetti burst animation to celebrate successful actions in statement import review`).
-- Followed `docs/local-testing.md` and repository/mobile agent guidance.
-- After the initial checks, pulled `origin/main` by fast-forward to `8f3615a` at the user's request. The Windows report is now available at `docs/local-testing-android-smoke-2026-11-10.md`; it identifies the test account as `spendeazytestuser@gmail.com` and confirms that Windows reused existing credentials, a development APK, and a provisioned Google account.
+- Followed `docs/testing/local-testing.md` and repository/mobile agent guidance.
+- After the initial checks, pulled `origin/main` by fast-forward to `8f3615a` at the user's request. The Windows report is now available at `docs/testing/local-testing-android-smoke-2026-11-10.md`; it identifies the test account as `spendeazytestuser@gmail.com` and confirms that Windows reused existing credentials, a development APK, and a provisioned Google account.
 - Used the Cloud Environment runtime skill for environment, Docker, package, and networking checks.
 
 ## Verified

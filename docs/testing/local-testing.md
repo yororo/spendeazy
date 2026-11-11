@@ -136,7 +136,7 @@ docker compose down --volumes
 docker compose up -d --wait
 ```
 
-Run migrations and restart the API per Daily startup. Keep your API keys. Resetting PostgreSQL does not sign the device out of Clerk; sign out and in to provision a fresh User. Optional synthetic fixtures: [API seed/reset](../api/README.md#development-seedreset) (they do not populate the real Google identity's Personal Space).
+Run migrations and restart the API per Daily startup. Keep your API keys. Resetting PostgreSQL does not sign the device out of Clerk; sign out and in to provision a fresh User. Optional synthetic fixtures: [API seed/reset](../../api/README.md#development-seedreset) (they do not populate the real Google identity's Personal Space).
 
 ## First-time setup
 
@@ -188,7 +188,7 @@ Copy values from the environment when already set; otherwise leave them empty an
 | Docker unavailable / database unhealthy | Start Docker (Linux containers); `docker compose ps`, `docker compose logs postgres` |
 | Database connection refused | Confirm Compose healthy and `DATABASE_URL` port `55433`; run API commands from `api/` |
 | Missing encryption/hash key | Set both independent 64-hex values in `api/.env.local` |
-| `/health` works, private requests fail | Clerk keys must be from one instance; complete sign-in; see [API auth](../api/docs/LOCAL_TESTING.md) |
+| `/health` works, private requests fail | Clerk keys must be from one instance; complete sign-in; see [API auth](../../api/docs/LOCAL_TESTING.md) |
 | Google configuration/developer error | See [Google/Clerk setup](local-testing-auth.md) |
 | Sign-in stuck on "Signing in", no Google UI | Add the Google test account on the device, or register the build's debug SHA-1 on the Android OAuth client |
 | Device cannot reach API | Check `EXPO_PUBLIC_API_BASE_URL` port, the API terminal and firewall; try `adb reverse tcp:3000 tcp:3000` with URL `http://localhost:3000` (use your configured port) |

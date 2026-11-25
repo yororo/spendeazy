@@ -1,4 +1,4 @@
-export function dashboardExpenseFilterBelongsToSpace(
+export function homeExpenseFilterBelongsToSpace(
   sourceSpaceId: string | null,
   activeSpaceId: string | null,
 ): boolean {

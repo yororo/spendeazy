@@ -3,10 +3,10 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 
 import { SpaceStatus } from "@/components/space-status";
 import { ExpenseBrowse } from "@/features/expenses/browse-view";
-import { dashboardExpenseFilterBelongsToSpace } from "@/features/dashboard/dashboard-expense-navigation";
+import { homeExpenseFilterBelongsToSpace } from "@/features/home/home-expense-navigation";
 import { useExpenseBrowse } from "@/features/expenses/use-expense-browse";
 
-export default function DashboardExpensesScreen() {
+export default function HomeExpensesScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{
     sourceSpaceId?: string;
@@ -24,7 +24,7 @@ export default function DashboardExpensesScreen() {
 
   useEffect(() => {
     if (
-      !dashboardExpenseFilterBelongsToSpace(sourceSpaceId, spaceId) ||
+      !homeExpenseFilterBelongsToSpace(sourceSpaceId, spaceId) ||
       !isCalendarDate(fromDate) ||
       !isCalendarDate(toDate)
     )
@@ -44,7 +44,7 @@ export default function DashboardExpensesScreen() {
     <ExpenseBrowse
       controller={controller}
       spaceStatus={<SpaceStatus />}
-      onBackToDashboard={() => router.back()}
+      onBackToHome={() => router.back()}
       onOpenExpense={(expenseId) =>
         router.push({ pathname: "/expense/[expenseId]", params: { expenseId } })
       }

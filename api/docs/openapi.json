@@ -2342,9 +2342,9 @@
         ]
       }
     },
-    "/api/v1/users/me/spaces/{spaceId}/reporting/dashboard": {
+    "/api/v1/users/me/spaces/{spaceId}/reporting/home": {
       "get": {
-        "operationId": "SpaceDashboardReport_getDashboardReport",
+        "operationId": "SpaceHomeReport_getHomeReport",
         "parameters": [
           {
             "name": "spaceId",
@@ -2361,7 +2361,7 @@
             "name": "view",
             "required": false,
             "in": "query",
-            "description": "Dashboard period. Defaults to monthly.",
+            "description": "Home period. Defaults to monthly.",
             "schema": {
               "enum": [
                 "monthly",
@@ -2425,11 +2425,11 @@
         ],
         "responses": {
           "200": {
-            "description": "Dashboard report.",
+            "description": "Home report.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DashboardReportResponseDto"
+                  "$ref": "#/components/schemas/HomeReportResponseDto"
                 }
               }
             }
@@ -2453,9 +2453,9 @@
             "$ref": "#/components/responses/InternalError"
           }
         },
-        "summary": "Get the Monthly or Yearly Dashboard report for a Space.",
+        "summary": "Get the Monthly or Yearly Home report for a Space.",
         "tags": [
-          "Dashboard reporting"
+          "Home reporting"
         ]
       }
     },
@@ -3294,7 +3294,7 @@
       "description": "Calendar-period spending summaries for a Space."
     },
     {
-      "name": "Dashboard reporting",
+      "name": "Home reporting",
       "description": "Monthly and Yearly actual spending, current Budget checks and import confirmation counts for a Space."
     }
   ],
@@ -5364,7 +5364,7 @@
           "occurredAt"
         ]
       },
-      "DashboardRangeDto": {
+      "HomeRangeDto": {
         "type": "object",
         "properties": {
           "view": {
@@ -5419,7 +5419,7 @@
           "asOf"
         ]
       },
-      "DashboardExactValueDto": {
+      "HomeExactValueDto": {
         "type": "object",
         "properties": {
           "numerator": {
@@ -5437,11 +5437,11 @@
           "denominator"
         ]
       },
-      "DashboardValueWithExactDto": {
+      "HomeValueWithExactDto": {
         "type": "object",
         "properties": {
           "exact": {
-            "$ref": "#/components/schemas/DashboardExactValueDto"
+            "$ref": "#/components/schemas/HomeExactValueDto"
           },
           "amount": {
             "type": "string",
@@ -5454,11 +5454,11 @@
           "amount"
         ]
       },
-      "DashboardPlanDto": {
+      "HomePlanDto": {
         "type": "object",
         "properties": {
           "exact": {
-            "$ref": "#/components/schemas/DashboardExactValueDto"
+            "$ref": "#/components/schemas/HomeExactValueDto"
           },
           "amount": {
             "type": "string",
@@ -5469,10 +5469,10 @@
             "example": 6
           },
           "monthlyEquivalent": {
-            "$ref": "#/components/schemas/DashboardValueWithExactDto"
+            "$ref": "#/components/schemas/HomeValueWithExactDto"
           },
           "annualEquivalent": {
-            "$ref": "#/components/schemas/DashboardValueWithExactDto"
+            "$ref": "#/components/schemas/HomeValueWithExactDto"
           }
         },
         "additionalProperties": false,
@@ -5484,7 +5484,7 @@
           "annualEquivalent"
         ]
       },
-      "DashboardComparisonDto": {
+      "HomeComparisonDto": {
         "type": "object",
         "properties": {
           "direction": {
@@ -5497,14 +5497,14 @@
             ]
           },
           "difference": {
-            "$ref": "#/components/schemas/DashboardValueWithExactDto"
+            "$ref": "#/components/schemas/HomeValueWithExactDto"
           },
           "percentage": {
             "nullable": true,
             "type": "object",
             "allOf": [
               {
-                "$ref": "#/components/schemas/DashboardValueWithExactDto"
+                "$ref": "#/components/schemas/HomeValueWithExactDto"
               }
             ]
           }
@@ -5516,7 +5516,7 @@
           "percentage"
         ]
       },
-      "DashboardExpenseFilterDto": {
+      "HomeExpenseFilterDto": {
         "type": "object",
         "properties": {
           "fromDate": {
@@ -5540,7 +5540,7 @@
           "toDate"
         ]
       },
-      "DashboardHighestCategoryDto": {
+      "HomeHighestCategoryDto": {
         "type": "object",
         "properties": {
           "categoryId": {
@@ -5554,7 +5554,7 @@
             "example": "6400.00"
           },
           "expenseFilter": {
-            "$ref": "#/components/schemas/DashboardExpenseFilterDto"
+            "$ref": "#/components/schemas/HomeExpenseFilterDto"
           }
         },
         "additionalProperties": false,
@@ -5565,7 +5565,7 @@
           "expenseFilter"
         ]
       },
-      "DashboardDateFilterDto": {
+      "HomeDateFilterDto": {
         "type": "object",
         "properties": {
           "fromDate": {
@@ -5585,7 +5585,7 @@
           "toDate"
         ]
       },
-      "DashboardImportSummaryDto": {
+      "HomeImportSummaryDto": {
         "type": "object",
         "properties": {
           "count": {
@@ -5598,7 +5598,7 @@
             "nullable": true
           },
           "filter": {
-            "$ref": "#/components/schemas/DashboardDateFilterDto"
+            "$ref": "#/components/schemas/HomeDateFilterDto"
           }
         },
         "additionalProperties": false,
@@ -5608,7 +5608,7 @@
           "filter"
         ]
       },
-      "DashboardSummaryDto": {
+      "HomeSummaryDto": {
         "type": "object",
         "properties": {
           "actualAmount": {
@@ -5620,22 +5620,22 @@
             "example": "11"
           },
           "planned": {
-            "$ref": "#/components/schemas/DashboardPlanDto"
+            "$ref": "#/components/schemas/HomePlanDto"
           },
           "comparison": {
-            "$ref": "#/components/schemas/DashboardComparisonDto"
+            "$ref": "#/components/schemas/HomeComparisonDto"
           },
           "highestCategory": {
             "nullable": true,
             "type": "object",
             "allOf": [
               {
-                "$ref": "#/components/schemas/DashboardHighestCategoryDto"
+                "$ref": "#/components/schemas/HomeHighestCategoryDto"
               }
             ]
           },
           "statementImports": {
-            "$ref": "#/components/schemas/DashboardImportSummaryDto"
+            "$ref": "#/components/schemas/HomeImportSummaryDto"
           }
         },
         "additionalProperties": false,
@@ -5648,7 +5648,7 @@
           "statementImports"
         ]
       },
-      "DashboardMonthlyExpenseDto": {
+      "HomeMonthlyExpenseDto": {
         "type": "object",
         "properties": {
           "month": {
@@ -5675,7 +5675,7 @@
             "example": "1"
           },
           "expenseFilter": {
-            "$ref": "#/components/schemas/DashboardExpenseFilterDto"
+            "$ref": "#/components/schemas/HomeExpenseFilterDto"
           }
         },
         "additionalProperties": false,
@@ -5689,7 +5689,7 @@
           "expenseFilter"
         ]
       },
-      "DashboardBudgetContextDto": {
+      "HomeBudgetContextDto": {
         "type": "object",
         "properties": {
           "period": {
@@ -5710,7 +5710,7 @@
           "amount"
         ]
       },
-      "DashboardCategoryMonthDto": {
+      "HomeCategoryMonthDto": {
         "type": "object",
         "properties": {
           "month": {
@@ -5741,7 +5741,7 @@
             "nullable": true
           },
           "expenseFilter": {
-            "$ref": "#/components/schemas/DashboardExpenseFilterDto"
+            "$ref": "#/components/schemas/HomeExpenseFilterDto"
           }
         },
         "additionalProperties": false,
@@ -5755,7 +5755,7 @@
           "expenseFilter"
         ]
       },
-      "DashboardCategoryExpenseDto": {
+      "HomeCategoryExpenseDto": {
         "type": "object",
         "properties": {
           "categoryId": {
@@ -5786,14 +5786,14 @@
             "type": "object",
             "allOf": [
               {
-                "$ref": "#/components/schemas/DashboardBudgetContextDto"
+                "$ref": "#/components/schemas/HomeBudgetContextDto"
               }
             ]
           },
           "months": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/DashboardCategoryMonthDto"
+              "$ref": "#/components/schemas/HomeCategoryMonthDto"
             }
           }
         },
@@ -5810,7 +5810,7 @@
           "months"
         ]
       },
-      "DashboardMonthlyBudgetCheckDto": {
+      "HomeMonthlyBudgetCheckDto": {
         "type": "object",
         "properties": {
           "categoryId": {
@@ -5833,7 +5833,7 @@
             "type": "object",
             "allOf": [
               {
-                "$ref": "#/components/schemas/DashboardExpenseFilterDto"
+                "$ref": "#/components/schemas/HomeExpenseFilterDto"
               }
             ]
           }
@@ -5848,7 +5848,7 @@
           "expenseFilter"
         ]
       },
-      "DashboardYearlyBudgetCheckDto": {
+      "HomeYearlyBudgetCheckDto": {
         "type": "object",
         "properties": {
           "categoryId": {
@@ -5885,7 +5885,7 @@
             "format": "date"
           },
           "expenseFilter": {
-            "$ref": "#/components/schemas/DashboardExpenseFilterDto"
+            "$ref": "#/components/schemas/HomeExpenseFilterDto"
           }
         },
         "additionalProperties": false,
@@ -5901,19 +5901,19 @@
           "expenseFilter"
         ]
       },
-      "DashboardBudgetChecksDto": {
+      "HomeBudgetChecksDto": {
         "type": "object",
         "properties": {
           "monthly": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/DashboardMonthlyBudgetCheckDto"
+              "$ref": "#/components/schemas/HomeMonthlyBudgetCheckDto"
             }
           },
           "yearly": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/DashboardYearlyBudgetCheckDto"
+              "$ref": "#/components/schemas/HomeYearlyBudgetCheckDto"
             }
           }
         },
@@ -5923,29 +5923,29 @@
           "yearly"
         ]
       },
-      "DashboardReportResponseDto": {
+      "HomeReportResponseDto": {
         "type": "object",
         "properties": {
           "range": {
-            "$ref": "#/components/schemas/DashboardRangeDto"
+            "$ref": "#/components/schemas/HomeRangeDto"
           },
           "summary": {
-            "$ref": "#/components/schemas/DashboardSummaryDto"
+            "$ref": "#/components/schemas/HomeSummaryDto"
           },
           "monthlyExpenses": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/DashboardMonthlyExpenseDto"
+              "$ref": "#/components/schemas/HomeMonthlyExpenseDto"
             }
           },
           "categoryExpenses": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/DashboardCategoryExpenseDto"
+              "$ref": "#/components/schemas/HomeCategoryExpenseDto"
             }
           },
           "budgetChecks": {
-            "$ref": "#/components/schemas/DashboardBudgetChecksDto"
+            "$ref": "#/components/schemas/HomeBudgetChecksDto"
           }
         },
         "additionalProperties": false,

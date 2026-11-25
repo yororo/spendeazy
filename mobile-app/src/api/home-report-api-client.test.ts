@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
-  createDashboardReportApiClient,
-  readDashboardReport,
-} from "./dashboard-report-api-client.ts";
+  createHomeReportApiClient,
+  readHomeReport,
+} from "./home-report-api-client.ts";
 import { requestFailure } from "./request-failure.ts";
 
 const validReport = {
@@ -67,8 +67,8 @@ const validReport = {
   budgetChecks: { monthly: [], yearly: [] },
 };
 
-test("Dashboard adapter sends repeated chart filters and decodes exact report values", async (t) => {
-  const client = createDashboardReportApiClient({
+test("Home adapter sends repeated chart filters and decodes exact report values", async (t) => {
+  const client = createHomeReportApiClient({
     baseUrl: "https://example.invalid",
     getAccessToken: async () => "token",
   });
@@ -78,7 +78,7 @@ test("Dashboard adapter sends repeated chart filters and decodes exact report va
     return Response.json(validReport);
   });
 
-  const report = await client.getDashboardReport("42", {
+  const report = await client.getHomeReport("42", {
     view: "monthly",
     endMonth: "2026-06",
     months: 3,
@@ -87,14 +87,14 @@ test("Dashboard adapter sends repeated chart filters and decodes exact report va
 
   assert.equal(
     requestUrl,
-    "https://example.invalid/api/v1/users/me/spaces/42/reporting/dashboard?view=monthly&months=3&endMonth=2026-06&chartCategoryId=8&chartCategoryId=9",
+    "https://example.invalid/api/v1/users/me/spaces/42/reporting/home?view=monthly&months=3&endMonth=2026-06&chartCategoryId=8&chartCategoryId=9",
   );
   assert.equal(report.summary.planned.exact.numerator, "12000");
   assert.equal(report.summary.comparison.percentage?.amount, "4.2");
   assert.equal(report.summary.highestCategory?.expenseFilter.categoryId, "8");
 });
 
-test("Dashboard adapter rejects malformed exact values and missing chart points", () => {
+test("Home adapter rejects malformed exact values and missing chart points", () => {
   for (const payload of [
     {
       ...validReport,
@@ -109,7 +109,7 @@ test("Dashboard adapter rejects malformed exact values and missing chart points"
     { ...validReport, monthlyExpenses: null },
   ]) {
     assert.throws(
-      () => readDashboardReport(payload),
+      () => readHomeReport(payload),
       (cause) => requestFailure(cause) === "invalid-response",
     );
   }

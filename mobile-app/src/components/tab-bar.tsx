@@ -1,6 +1,6 @@
 import { usePathname, useRouter } from 'expo-router';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
-import { ArrowLeftRight, LayoutDashboard, PieChart, Plus, RotateCcw, UserRound } from 'lucide-react-native';
+import { ArrowLeftRight, House, PieChart, Plus, RotateCcw, UserRound } from 'lucide-react-native';
 import { Pressable, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -13,7 +13,7 @@ import { session } from '@/application/session-runtime';
 const spring = { damping: 14, stiffness: 260, mass: 0.7 };
 
 const tabs = [
-  { name: 'index', label: 'Dashboard', Icon: LayoutDashboard },
+  { name: 'index', label: 'Home', Icon: House },
   { name: 'expenses', label: 'Expenses', Icon: ArrowLeftRight },
   { name: 'budget', label: 'Budget', Icon: PieChart },
   { name: 'profile', label: 'Profile', Icon: UserRound },

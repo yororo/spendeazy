@@ -9,23 +9,23 @@ import {
 import { AppState } from "react-native";
 
 import {
-  createDashboardReportApiClient,
-  type DashboardReport,
-  type DashboardView,
-} from "@/api/dashboard-report-api-client";
+  createHomeReportApiClient,
+  type HomeReport,
+  type HomeView,
+} from "@/api/home-report-api-client";
 import { useAuthorizedClient } from "@/application/authorized-client";
 import { createSessionResource } from "@/application/session-resource";
 import { session } from "@/application/session-runtime";
 import { useSpaces } from "@/application/spaces/provider";
 import { useSpaceCategories } from "@/features/expenses/use-space-categories";
 import { updateExpenseBrowse } from "@/features/expenses/browse-state";
-import { isSelectableYear, manilaDate } from "./dashboard-format";
-import { retainCategoryMarkers } from "./dashboard-category-identity";
-import { rankChartCategories } from "./dashboard-category-ranking";
+import { isSelectableYear, manilaDate } from "./home-format";
+import { retainCategoryMarkers } from "./home-category-identity";
+import { rankChartCategories } from "./home-category-ranking";
 
 const EMPTY_CATEGORY_SELECTION: string[] = [];
 
-export function useDashboardReport() {
+export function useHomeReport() {
   const { active, loading: spacesLoading, error: spacesError, refresh: refreshSpaces } = useSpaces();
   const activeSpaceId = active?.id ?? null;
   const authorized = useAuthorizedClient();
@@ -33,7 +33,7 @@ export function useDashboardReport() {
   const scopeKey = JSON.stringify([authorized.scope, activeSpaceId]);
   const initialSelection = {
     scopeKey,
-    view: "monthly" as DashboardView,
+    view: "monthly" as HomeView,
     months: 1 as 1 | 3 | 6 | 12,
     year: null as string | null,
     yearToDate: false,
@@ -63,7 +63,7 @@ export function useDashboardReport() {
   );
   const resource = useMemo(
     () =>
-      createSessionResource<DashboardReport>(
+      createSessionResource<HomeReport>(
         session,
         authorized.scope,
         queryKey,
@@ -76,19 +76,19 @@ export function useDashboardReport() {
     resource.snapshot,
   );
   const api = useMemo(
-    () => createDashboardReportApiClient(authorized),
+    () => createHomeReportApiClient(authorized),
     [authorized],
   );
 
   useEffect(() => {
     if (!activeSpaceId || !authorized.isCurrent()) return;
-    void resource.load(() => api.getDashboardReport(activeSpaceId, query));
+    void resource.load(() => api.getHomeReport(activeSpaceId, query));
     return resource.cancel;
   }, [activeSpaceId, api, authorized, query, resource]);
 
   const refresh = useCallback(() => {
     if (!activeSpaceId || !authorized.isCurrent()) return;
-    void resource.load(() => api.getDashboardReport(activeSpaceId, query));
+    void resource.load(() => api.getHomeReport(activeSpaceId, query));
   }, [activeSpaceId, api, authorized, query, resource]);
 
   useEffect(() => {
@@ -176,7 +176,7 @@ export function useDashboardReport() {
     setSelection((current) => ({ ...current, year: report.range.fromDate.slice(0, 4) }));
   }
   const selectView = useCallback(
-    (next: DashboardView) => {
+    (next: HomeView) => {
       if (!activeSpaceId || !authorized.isCurrent() || next === view) return;
       setSelection((current) => ({
         ...current,

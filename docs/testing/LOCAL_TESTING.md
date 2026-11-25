@@ -34,7 +34,7 @@ If you change a port, update every setting that uses it. See [Alternative ports]
 Stop and ask the user when any of these conditions applies:
 
 - Clerk or Google values are missing from both the configuration files and the environment. Never invent these values.
-- The device shows a credential, consent, or multifactor authentication (MFA) prompt but there is no supplied credentials to be used for testing. Report the prompt. Do not report a successful Dashboard check.
+- The device shows a credential, consent, or multifactor authentication (MFA) prompt but there is no supplied credentials to be used for testing. Report the prompt. Do not report a successful Home check.
 - A port serves an instance you do not recognize. Do not stop unrelated processes that use ports.
 
 ## Daily startup
@@ -123,11 +123,11 @@ This command builds and installs the app. It also starts Metro. Expo Go cannot r
 `expo run:android` may rewrite the `android` and `ios` scripts in `package.json`. Restore these scripts unless you intend the change.
 `npm run android` and `npm run ios` only open an installed build.
 
-Startup is complete when you can use the sign-in screen or Dashboard.
+Startup is complete when you can use the sign-in screen or Home.
 A slow emulator can show a blank development client with a visible gear or a system "not responding" dialog.
 These states are normal. If the dialog appears, choose **Wait**.
 
-Dashboard requires the Google test account to be signed in on the device.
+Home requires the Google test account to be signed in on the device.
 
 ## After a change
 

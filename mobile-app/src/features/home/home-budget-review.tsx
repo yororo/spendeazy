@@ -1,7 +1,7 @@
 import { createContext, useContext, useRef, useState, type ElementRef, type ReactNode } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { CalendarDays, CalendarRange, ChevronDown, ChevronRight, Info } from 'lucide-react-native';
-import type { DashboardExpenseFilter, DashboardReport } from '@/api/dashboard-report-api-client';
+import type { HomeExpenseFilter, HomeReport } from '@/api/home-report-api-client';
 import type { SpaceCategory } from '@/api/categories-api-client';
 import { CompactAction } from '@/components/buttons';
 import { CategoryIconMark } from '@/components/category-mark';
@@ -11,12 +11,12 @@ import { Popover } from '@/components/popover';
 import { BodyText } from '@/components/screen';
 import { controlSize, radius, space, typeScale } from '@/constants/theme';
 import { useAppTheme } from '@/navigation/app-theme';
-import { compareMoney, formatPhp, labelMonth, meterSegments } from './dashboard-format';
-import { budgetBalance, categoryBudgetDetail, rankReviewCategories } from './dashboard-review-rules';
+import { compareMoney, formatPhp, labelMonth, meterSegments } from './home-format';
+import { budgetBalance, categoryBudgetDetail, rankReviewCategories } from './home-review-rules';
 
 type Props = {
-  report: DashboardReport;
-  onOpenExpenses: (filter: DashboardExpenseFilter) => void;
+  report: HomeReport;
+  onOpenExpenses: (filter: HomeExpenseFilter) => void;
   onOpenBudgetCategory: (id: string) => void;
   embedded?: boolean;
 };
@@ -83,7 +83,7 @@ function DetailAction({ label, onPress }: { label: string; onPress: () => void }
   return <CompactAction label={label} variant="quiet" onPress={() => { dismiss(); onPress(); }} />;
 }
 
-type ReviewMonth = DashboardReport['categoryExpenses'][number]['months'][number];
+type ReviewMonth = HomeReport['categoryExpenses'][number]['months'][number];
 function MonthRow({ month, onOpenExpenses }: { month: ReviewMonth; onOpenExpenses: Props['onOpenExpenses'] }) {
   const { palette } = useAppTheme();
   const dismiss = useContext(Dismiss);

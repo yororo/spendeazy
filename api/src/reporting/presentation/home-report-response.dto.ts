@@ -9,7 +9,7 @@ type ApiSchemaOptionsWithAdditionalProperties = {
 @ApiSchema({
   additionalProperties: false,
 } as ApiSchemaOptionsWithAdditionalProperties)
-export class DashboardExactValueDto {
+export class HomeExactValueDto {
   @ApiProperty({ type: String, example: '25' })
   numerator!: string;
 
@@ -20,9 +20,9 @@ export class DashboardExactValueDto {
 @ApiSchema({
   additionalProperties: false,
 } as ApiSchemaOptionsWithAdditionalProperties)
-export class DashboardValueWithExactDto {
-  @ApiProperty({ type: DashboardExactValueDto })
-  exact!: DashboardExactValueDto;
+export class HomeValueWithExactDto {
+  @ApiProperty({ type: HomeExactValueDto })
+  exact!: HomeExactValueDto;
 
   @ApiProperty({ type: String, example: '4.2' })
   amount!: string;
@@ -31,7 +31,7 @@ export class DashboardValueWithExactDto {
 @ApiSchema({
   additionalProperties: false,
 } as ApiSchemaOptionsWithAdditionalProperties)
-export class DashboardExpenseFilterDto {
+export class HomeExpenseFilterDto {
   @ApiProperty({ type: String, format: 'date', example: '2026-01-01' })
   fromDate!: string;
 
@@ -45,7 +45,7 @@ export class DashboardExpenseFilterDto {
 @ApiSchema({
   additionalProperties: false,
 } as ApiSchemaOptionsWithAdditionalProperties)
-export class DashboardDateFilterDto {
+export class HomeDateFilterDto {
   @ApiProperty({ type: String, format: 'date', example: '2026-01-01' })
   fromDate!: string;
 
@@ -56,7 +56,7 @@ export class DashboardDateFilterDto {
 @ApiSchema({
   additionalProperties: false,
 } as ApiSchemaOptionsWithAdditionalProperties)
-export class DashboardBudgetContextDto {
+export class HomeBudgetContextDto {
   @ApiProperty({ enum: ['monthly', 'yearly'] })
   period!: 'monthly' | 'yearly';
 
@@ -67,7 +67,7 @@ export class DashboardBudgetContextDto {
 @ApiSchema({
   additionalProperties: false,
 } as ApiSchemaOptionsWithAdditionalProperties)
-export class DashboardRangeDto {
+export class HomeRangeDto {
   @ApiProperty({ enum: ['monthly', 'yearly'] })
   view!: 'monthly' | 'yearly';
   @ApiProperty({ type: String, format: 'date' })
@@ -91,75 +91,75 @@ export class DashboardRangeDto {
 @ApiSchema({
   additionalProperties: false,
 } as ApiSchemaOptionsWithAdditionalProperties)
-export class DashboardPlanDto extends DashboardValueWithExactDto {
+export class HomePlanDto extends HomeValueWithExactDto {
   @ApiProperty({ type: Number, example: 6 })
   months!: number;
-  @ApiProperty({ type: DashboardValueWithExactDto })
-  monthlyEquivalent!: DashboardValueWithExactDto;
-  @ApiProperty({ type: DashboardValueWithExactDto })
-  annualEquivalent!: DashboardValueWithExactDto;
+  @ApiProperty({ type: HomeValueWithExactDto })
+  monthlyEquivalent!: HomeValueWithExactDto;
+  @ApiProperty({ type: HomeValueWithExactDto })
+  annualEquivalent!: HomeValueWithExactDto;
 }
 
 @ApiSchema({
   additionalProperties: false,
 } as ApiSchemaOptionsWithAdditionalProperties)
-export class DashboardHighestCategoryDto {
+export class HomeHighestCategoryDto {
   @ApiProperty({ type: String })
   categoryId!: string;
   @ApiProperty({ type: String })
   name!: string;
   @ApiProperty({ type: String, example: '6400.00' })
   amount!: string;
-  @ApiProperty({ type: DashboardExpenseFilterDto })
-  expenseFilter!: DashboardExpenseFilterDto;
+  @ApiProperty({ type: HomeExpenseFilterDto })
+  expenseFilter!: HomeExpenseFilterDto;
 }
 
 @ApiSchema({
   additionalProperties: false,
 } as ApiSchemaOptionsWithAdditionalProperties)
-export class DashboardImportSummaryDto {
+export class HomeImportSummaryDto {
   @ApiProperty({ type: String, example: '2' })
   count!: string;
   @ApiProperty({ type: String, format: 'date-time', nullable: true })
   latestConfirmedAt!: string | null;
-  @ApiProperty({ type: DashboardDateFilterDto })
-  filter!: DashboardDateFilterDto;
+  @ApiProperty({ type: HomeDateFilterDto })
+  filter!: HomeDateFilterDto;
 }
 
 @ApiSchema({
   additionalProperties: false,
 } as ApiSchemaOptionsWithAdditionalProperties)
-export class DashboardComparisonDto {
+export class HomeComparisonDto {
   @ApiProperty({ enum: ['above_plan', 'below_plan', 'equal_plan', 'no_plan'] })
   direction!: 'above_plan' | 'below_plan' | 'equal_plan' | 'no_plan';
-  @ApiProperty({ type: DashboardValueWithExactDto })
-  difference!: DashboardValueWithExactDto;
-  @ApiProperty({ type: DashboardValueWithExactDto, nullable: true })
-  percentage!: DashboardValueWithExactDto | null;
+  @ApiProperty({ type: HomeValueWithExactDto })
+  difference!: HomeValueWithExactDto;
+  @ApiProperty({ type: HomeValueWithExactDto, nullable: true })
+  percentage!: HomeValueWithExactDto | null;
 }
 
 @ApiSchema({
   additionalProperties: false,
 } as ApiSchemaOptionsWithAdditionalProperties)
-export class DashboardSummaryDto {
+export class HomeSummaryDto {
   @ApiProperty({ type: String, example: '12500.00' })
   actualAmount!: string;
   @ApiProperty({ type: String, example: '11' })
   expenseCount!: string;
-  @ApiProperty({ type: DashboardPlanDto })
-  planned!: DashboardPlanDto;
-  @ApiProperty({ type: DashboardComparisonDto })
-  comparison!: DashboardComparisonDto;
-  @ApiProperty({ type: DashboardHighestCategoryDto, nullable: true })
-  highestCategory!: DashboardHighestCategoryDto | null;
-  @ApiProperty({ type: DashboardImportSummaryDto })
-  statementImports!: DashboardImportSummaryDto;
+  @ApiProperty({ type: HomePlanDto })
+  planned!: HomePlanDto;
+  @ApiProperty({ type: HomeComparisonDto })
+  comparison!: HomeComparisonDto;
+  @ApiProperty({ type: HomeHighestCategoryDto, nullable: true })
+  highestCategory!: HomeHighestCategoryDto | null;
+  @ApiProperty({ type: HomeImportSummaryDto })
+  statementImports!: HomeImportSummaryDto;
 }
 
 @ApiSchema({
   additionalProperties: false,
 } as ApiSchemaOptionsWithAdditionalProperties)
-export class DashboardMonthlyExpenseDto {
+export class HomeMonthlyExpenseDto {
   @ApiProperty({ type: String, example: '2026-06' })
   month!: string;
   @ApiProperty({ type: String, format: 'date' })
@@ -172,14 +172,14 @@ export class DashboardMonthlyExpenseDto {
   actualAmount!: string;
   @ApiProperty({ type: String, example: '1' })
   expenseCount!: string;
-  @ApiProperty({ type: DashboardExpenseFilterDto })
-  expenseFilter!: DashboardExpenseFilterDto;
+  @ApiProperty({ type: HomeExpenseFilterDto })
+  expenseFilter!: HomeExpenseFilterDto;
 }
 
 @ApiSchema({
   additionalProperties: false,
 } as ApiSchemaOptionsWithAdditionalProperties)
-export class DashboardCategoryMonthDto {
+export class HomeCategoryMonthDto {
   @ApiProperty({ type: String })
   month!: string;
   @ApiProperty({ type: String })
@@ -195,14 +195,14 @@ export class DashboardCategoryMonthDto {
   monthlyBudgetAmount!: string | null;
   @ApiProperty({ type: String, nullable: true })
   annualBudgetAmount!: string | null;
-  @ApiProperty({ type: DashboardExpenseFilterDto })
-  expenseFilter!: DashboardExpenseFilterDto;
+  @ApiProperty({ type: HomeExpenseFilterDto })
+  expenseFilter!: HomeExpenseFilterDto;
 }
 
 @ApiSchema({
   additionalProperties: false,
 } as ApiSchemaOptionsWithAdditionalProperties)
-export class DashboardCategoryExpenseDto {
+export class HomeCategoryExpenseDto {
   @ApiProperty({ type: String })
   categoryId!: string;
   @ApiProperty({ type: String })
@@ -218,20 +218,20 @@ export class DashboardCategoryExpenseDto {
   @ApiProperty({ type: String })
   expenseCount!: string;
   @ApiProperty({
-    type: DashboardBudgetContextDto,
+    type: HomeBudgetContextDto,
     nullable: true,
     description:
       'Current Budget configuration. Yearly amounts are annual context.',
   })
-  budget!: DashboardBudgetContextDto | null;
-  @ApiProperty({ type: DashboardCategoryMonthDto, isArray: true })
-  months!: readonly DashboardCategoryMonthDto[];
+  budget!: HomeBudgetContextDto | null;
+  @ApiProperty({ type: HomeCategoryMonthDto, isArray: true })
+  months!: readonly HomeCategoryMonthDto[];
 }
 
 @ApiSchema({
   additionalProperties: false,
 } as ApiSchemaOptionsWithAdditionalProperties)
-export class DashboardMonthlyBudgetCheckDto {
+export class HomeMonthlyBudgetCheckDto {
   @ApiProperty({ type: String })
   categoryId!: string;
   @ApiProperty({ type: String })
@@ -242,14 +242,14 @@ export class DashboardMonthlyBudgetCheckDto {
   overBudgetMonths!: number;
   @ApiProperty({ type: Number })
   eligibleMonths!: number;
-  @ApiProperty({ type: DashboardExpenseFilterDto, nullable: true })
-  expenseFilter!: DashboardExpenseFilterDto | null;
+  @ApiProperty({ type: HomeExpenseFilterDto, nullable: true })
+  expenseFilter!: HomeExpenseFilterDto | null;
 }
 
 @ApiSchema({
   additionalProperties: false,
 } as ApiSchemaOptionsWithAdditionalProperties)
-export class DashboardYearlyBudgetCheckDto {
+export class HomeYearlyBudgetCheckDto {
   @ApiProperty({ type: String })
   categoryId!: string;
   @ApiProperty({ type: String })
@@ -266,32 +266,32 @@ export class DashboardYearlyBudgetCheckDto {
   usageFromDate!: string;
   @ApiProperty({ type: String, format: 'date' })
   usageToDate!: string;
-  @ApiProperty({ type: DashboardExpenseFilterDto })
-  expenseFilter!: DashboardExpenseFilterDto;
+  @ApiProperty({ type: HomeExpenseFilterDto })
+  expenseFilter!: HomeExpenseFilterDto;
 }
 
 @ApiSchema({
   additionalProperties: false,
 } as ApiSchemaOptionsWithAdditionalProperties)
-export class DashboardBudgetChecksDto {
-  @ApiProperty({ type: DashboardMonthlyBudgetCheckDto, isArray: true })
-  monthly!: readonly DashboardMonthlyBudgetCheckDto[];
-  @ApiProperty({ type: DashboardYearlyBudgetCheckDto, isArray: true })
-  yearly!: readonly DashboardYearlyBudgetCheckDto[];
+export class HomeBudgetChecksDto {
+  @ApiProperty({ type: HomeMonthlyBudgetCheckDto, isArray: true })
+  monthly!: readonly HomeMonthlyBudgetCheckDto[];
+  @ApiProperty({ type: HomeYearlyBudgetCheckDto, isArray: true })
+  yearly!: readonly HomeYearlyBudgetCheckDto[];
 }
 
 @ApiSchema({
   additionalProperties: false,
 } as ApiSchemaOptionsWithAdditionalProperties)
-export class DashboardReportResponseDto {
-  @ApiProperty({ type: DashboardRangeDto })
-  range!: DashboardRangeDto;
-  @ApiProperty({ type: DashboardSummaryDto })
-  summary!: DashboardSummaryDto;
-  @ApiProperty({ type: DashboardMonthlyExpenseDto, isArray: true })
-  monthlyExpenses!: readonly DashboardMonthlyExpenseDto[];
-  @ApiProperty({ type: DashboardCategoryExpenseDto, isArray: true })
-  categoryExpenses!: readonly DashboardCategoryExpenseDto[];
-  @ApiProperty({ type: DashboardBudgetChecksDto })
-  budgetChecks!: DashboardBudgetChecksDto;
+export class HomeReportResponseDto {
+  @ApiProperty({ type: HomeRangeDto })
+  range!: HomeRangeDto;
+  @ApiProperty({ type: HomeSummaryDto })
+  summary!: HomeSummaryDto;
+  @ApiProperty({ type: HomeMonthlyExpenseDto, isArray: true })
+  monthlyExpenses!: readonly HomeMonthlyExpenseDto[];
+  @ApiProperty({ type: HomeCategoryExpenseDto, isArray: true })
+  categoryExpenses!: readonly HomeCategoryExpenseDto[];
+  @ApiProperty({ type: HomeBudgetChecksDto })
+  budgetChecks!: HomeBudgetChecksDto;
 }

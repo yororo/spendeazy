@@ -6,14 +6,14 @@ import {
   useSessionSnapshot,
 } from "@/application/session-runtime";
 import { SpaceStatus } from "@/components/space-status";
-import { DashboardView } from "@/features/dashboard/dashboard-view";
-import { useDashboardReport } from "@/features/dashboard/use-dashboard-report";
-import type { DashboardExpenseFilter } from "@/api/dashboard-report-api-client";
+import { HomeView } from "@/features/home/home-view";
+import { useHomeReport } from "@/features/home/use-home-report";
+import type { HomeExpenseFilter } from "@/api/home-report-api-client";
 import { useSpaces } from "@/application/spaces/provider";
 
-export default function DashboardScreen() {
+export default function HomeScreen() {
   const router = useRouter();
-  const controller = useDashboardReport();
+  const controller = useHomeReport();
   const session = useSessionSnapshot();
   const { active } = useSpaces();
   const refresh = useRef(controller.refresh);
@@ -24,10 +24,10 @@ export default function DashboardScreen() {
     hasFocused.current = true;
   }, []));
 
-  function openExpenses(filter: DashboardExpenseFilter) {
+  function openExpenses(filter: HomeExpenseFilter) {
     if (!active?.id) return;
     router.push({
-      pathname: "/dashboard-expenses",
+      pathname: "/home-expenses",
       params: {
         sourceSpaceId: active.id,
         fromDate: filter.fromDate,
@@ -38,7 +38,7 @@ export default function DashboardScreen() {
   }
 
   return (
-    <DashboardView
+    <HomeView
       key={controller.scopeKey}
       controller={controller}
       spaceStatus={<SpaceStatus />}

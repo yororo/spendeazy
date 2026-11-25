@@ -7,9 +7,9 @@ import {
 } from "react-native";
 import type { ElementRef, ReactNode } from "react";
 import type {
-  DashboardExpenseFilter,
-  DashboardReport,
-} from "@/api/dashboard-report-api-client";
+  HomeExpenseFilter,
+  HomeReport,
+} from "@/api/home-report-api-client";
 import { CompactAction, SecondaryButton } from "@/components/buttons";
 import { CalendarDays, ChartLine, Check, ChevronDown, ExternalLink, Eye, EyeOff, FileUp, History, Info, List } from "lucide-react-native";
 import { ChoiceSheet } from "@/components/choice-sheet";
@@ -20,21 +20,21 @@ import { CATEGORY_COLOR_VALUES } from "@/features/categories/category-catalog";
 import { useAppTheme } from "@/navigation/app-theme";
 import {
   meterSegments,
-  dashboardPeriodLabel,
+  homePeriodLabel,
   compareMoney,
   formatPhp,
   labelMonth,
-} from "./dashboard-format";
+} from "./home-format";
 import { DesignSurface } from "@/components/design-surface";
 import { CategoryMarker } from "./category-marker";
-import { MonthlyBars, CategoryLines, type ChartTrigger } from "./dashboard-charts";
+import { MonthlyBars, CategoryLines, type ChartTrigger } from "./home-charts";
 import { CategoryTrendDetails } from "./category-trend-details";
-import type { useDashboardReport } from "./use-dashboard-report";
-import { BudgetReview, CategoryReview } from './dashboard-budget-review';
+import type { useHomeReport } from "./use-home-report";
+import { BudgetReview, CategoryReview } from './home-budget-review';
 import { SkeletonBlock, SkeletonRegion } from '@/components/skeleton';
 const reportSectionGap = 26;
-type DashboardController = ReturnType<typeof useDashboardReport>;
-export function DashboardView({
+type HomeController = ReturnType<typeof useHomeReport>;
+export function HomeView({
   controller,
   spaceStatus,
   recoveryMessage,
@@ -44,11 +44,11 @@ export function DashboardView({
   onOpenImportHistory,
   onImport,
 }: {
-  controller: DashboardController;
+  controller: HomeController;
   spaceStatus: ReactNode;
   recoveryMessage?: string | null;
   onDismissRecovery?: () => void;
-  onOpenExpenses: (filter: DashboardExpenseFilter) => void;
+  onOpenExpenses: (filter: HomeExpenseFilter) => void;
   onOpenBudgetCategory: (categoryId: string) => void;
   onOpenImportHistory: () => void;
   onImport?: () => void;
@@ -76,7 +76,7 @@ export function DashboardView({
   ];
   return (
     <Screen
-      title="Dashboard"
+      title="Home"
       refreshing={controller.refreshing}
       onRefresh={controller.refresh}
       headerAccessory={spaceStatus}
@@ -110,7 +110,7 @@ export function DashboardView({
             justifyContent: "flex-start", marginBottom: space.cardGap - reportSectionGap,
           }}
         >
-          <MonthRangePicker resolvedLabel={report ? dashboardPeriodLabel(report) : undefined} months={controller.view === "yearly" ? "ytd" : controller.months} onSelect={(period) => {
+          <MonthRangePicker resolvedLabel={report ? homePeriodLabel(report) : undefined} months={controller.view === "yearly" ? "ytd" : controller.months} onSelect={(period) => {
             if (period === "ytd") controller.selectYearToDate();
             else { controller.selectMonths(period); controller.selectView("monthly"); }
           }} />
@@ -136,12 +136,12 @@ export function DashboardView({
           </View>
         ) : null}
         {controller.loading && !report ? (
-          <SkeletonRegion label="Loading Dashboard">{["Summary", "Budget checks", "Category spending"].map((title, index) => <ChartCard key={title} title={title}><SkeletonBlock width="60%" height={24} /><SkeletonBlock height={index > 1 ? 180 : 72} /><SkeletonBlock width="45%" /></ChartCard>)}</SkeletonRegion>
+          <SkeletonRegion label="Loading Home">{["Summary", "Budget checks", "Category spending"].map((title, index) => <ChartCard key={title} title={title}><SkeletonBlock width="60%" height={24} /><SkeletonBlock height={index > 1 ? 180 : 72} /><SkeletonBlock width="45%" /></ChartCard>)}</SkeletonRegion>
         ) : null}
 
         {report ? (
           <>
-            <DashboardSummary
+            <HomeSummary
               report={report}
               onOpenExpenses={onOpenExpenses}
               onOpenImportHistory={onOpenImportHistory}
@@ -168,9 +168,9 @@ export function DashboardView({
   );
 }
 function CategorySpending({ controller, categories, onOpenExpenses, onOpenBudgetCategory }: {
-  controller: DashboardController;
+  controller: HomeController;
   categories: Parameters<typeof CategoryChart>[0]["categories"];
-  onOpenExpenses: (filter: DashboardExpenseFilter) => void;
+  onOpenExpenses: (filter: HomeExpenseFilter) => void;
   onOpenBudgetCategory: (categoryId: string) => void;
 }) {
   const { palette } = useAppTheme();
@@ -179,9 +179,9 @@ function CategorySpending({ controller, categories, onOpenExpenses, onOpenBudget
   if (!report) return null;
   const multipleMonths = report.monthlyExpenses.length > 1;
   return <ChartCard title="Category spending" accessory={
-    <DashboardInfo label="About Category spending">
+    <HomeInfo label="About Category spending">
       Recorded expenses combine statements and cash entries. Totals include all categories; chart selections apply only to Trends. Comparisons use current budgets. Low spending can reflect missing statements. Annual budgets retain their calendar-year limits in Budget checks; no monthly cap is plotted.
-    </DashboardInfo>
+    </HomeInfo>
   }>
     {multipleMonths ? <View style={{ flexDirection: "row", backgroundColor: palette.segmentedTrack, borderRadius: radius.control, padding: space.rowGap, gap: space.rowGap }}>
       {(["trends", "totals"] as const).map((option) => <View key={option} style={{ flex: 1 }}>
@@ -203,14 +203,14 @@ function CategorySpending({ controller, categories, onOpenExpenses, onOpenBudget
     /> : <CategoryReview embedded report={report} onOpenExpenses={onOpenExpenses} onOpenBudgetCategory={onOpenBudgetCategory} />}
   </ChartCard>;
 }
-function DashboardSummary({
+function HomeSummary({
   report,
   onOpenExpenses,
   onOpenImportHistory,
   onImport,
 }: {
-  report: DashboardReport;
-  onOpenExpenses: (filter: DashboardExpenseFilter) => void;
+  report: HomeReport;
+  onOpenExpenses: (filter: HomeExpenseFilter) => void;
   onOpenImportHistory: () => void;
   onImport?: () => void;
 }) {
@@ -348,8 +348,8 @@ function MonthlyChart({
   report,
   onOpenExpenses,
 }: {
-  report: DashboardReport;
-  onOpenExpenses: (filter: DashboardExpenseFilter) => void;
+  report: HomeReport;
+  onOpenExpenses: (filter: HomeExpenseFilter) => void;
 }) {
   const { palette, fonts } = useAppTheme();
   const [showValues, setShowValues] = useState(false);
@@ -434,7 +434,7 @@ function CategoryChart({
   onOpenExpenses,
 }: {
   embedded?: boolean;
-  report: DashboardReport;
+  report: HomeReport;
   categories: readonly {
     id: string;
     name: string;
@@ -446,7 +446,7 @@ function CategoryChart({
   categoriesLoading: boolean;
   onToggleCategory: (categoryId: string) => void;
   onClearCategories: () => void;
-  onOpenExpenses: (filter: DashboardExpenseFilter) => void;
+  onOpenExpenses: (filter: HomeExpenseFilter) => void;
 }) {
   const { palette, fonts } = useAppTheme();
   const [showValues, setShowValues] = useState(false);
@@ -479,7 +479,7 @@ function CategoryChart({
       compareMoney(right.actualAmount, left.actualAmount) ||
       left.name.localeCompare(right.name),
   );
-  const colorFor = (point: DashboardReport["categoryExpenses"][number]) => {
+  const colorFor = (point: HomeReport["categoryExpenses"][number]) => {
     const colorKey =
       categories.find((category) => category.id === point.categoryId)
         ?.colorKey ?? point.colorKey;
@@ -490,9 +490,9 @@ function CategoryChart({
   };
   return (
     <ChartCard embedded={embedded} title="Category spending" accessory={
-      <DashboardInfo label="About Category spending">
+      <HomeInfo label="About Category spending">
         Annual Budgets retain their calendar-year limits; no monthly cap is plotted.
-      </DashboardInfo>
+      </HomeInfo>
     }>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
         {visibleChips.map((category) => (
@@ -713,7 +713,7 @@ function ValueAction({
     </Pressable>
   );
 }
-function DashboardInfo({ label, children }: { label: string; children: string }) {
+function HomeInfo({ label, children }: { label: string; children: string }) {
   const { palette } = useAppTheme();
   const [open, setOpen] = useState(false);
   const trigger = useRef<ElementRef<typeof View>>(null);
@@ -795,7 +795,7 @@ function MonthRangePicker({ months, onSelect, resolvedLabel }: {
         ref={trigger}
         accessibilityRole="button"
         accessibilityLabel={"Choose period, " + label}
-        accessibilityHint="Filters all dashboard reports by date"
+        accessibilityHint="Filters all home reports by date"
         accessibilityState={{ expanded: open }}
         onPress={() => setOpen(true)}
         style={({ pressed }) => ({

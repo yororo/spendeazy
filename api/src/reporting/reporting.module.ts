@@ -1,12 +1,12 @@
 import { DynamicModule, Module } from '@nestjs/common';
 import { MANILA_CLOCK, systemManilaClock } from '../http/manila-clock';
 import { SpacesModule } from '../spaces/spaces.module';
-import { DashboardReportService } from './application/dashboard-report.service';
-import { DASHBOARD_REPORT_STORE } from './application/dashboard-report-store';
-import { TypeOrmDashboardReportStore } from './infrastructure/typeorm-dashboard-report-store';
-import { SpaceDashboardReportController } from './presentation/space-dashboard-report.controller';
+import { HomeReportService } from './application/home-report.service';
+import { HOME_REPORT_STORE } from './application/home-report-store';
+import { TypeOrmHomeReportStore } from './infrastructure/typeorm-home-report-store';
+import { SpaceHomeReportController } from './presentation/space-home-report.controller';
 
-const controllers = [SpaceDashboardReportController];
+const controllers = [SpaceHomeReportController];
 
 @Module({})
 export class ReportingModule {
@@ -21,8 +21,8 @@ export class ReportingModule {
         imports: [SpacesModule.register(false, options)],
         controllers,
         providers: [
-          { provide: DASHBOARD_REPORT_STORE, useValue: {} },
-          { provide: DashboardReportService, useValue: {} },
+          { provide: HOME_REPORT_STORE, useValue: {} },
+          { provide: HomeReportService, useValue: {} },
         ],
       };
     }
@@ -31,13 +31,13 @@ export class ReportingModule {
       imports: [SpacesModule.register(true, options)],
       controllers,
       providers: [
-        TypeOrmDashboardReportStore,
+        TypeOrmHomeReportStore,
         { provide: MANILA_CLOCK, useValue: systemManilaClock },
         {
-          provide: DASHBOARD_REPORT_STORE,
-          useExisting: TypeOrmDashboardReportStore,
+          provide: HOME_REPORT_STORE,
+          useExisting: TypeOrmHomeReportStore,
         },
-        DashboardReportService,
+        HomeReportService,
       ],
     };
   }

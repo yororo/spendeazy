@@ -7,7 +7,7 @@ import {
   routeHistoryFilters,
 } from "./history-workflow.ts";
 import {
-  dashboardHistoryTarget,
+  homeHistoryTarget,
   importDetailPath,
 } from "./history-navigation.ts";
 import type { StatementImportHistoryPage } from "../../api/statement-import-history-api-client.ts";
@@ -163,7 +163,7 @@ test("invalid filters do not fetch; route filters require exact source Space and
     ALL_DATES,
   );
   const filter = { fromDate: "2026-08-13", toDate: "2026-09-12" };
-  const target = dashboardHistoryTarget("7", filter);
+  const target = homeHistoryTarget("7", filter);
   assert.deepEqual(target.params, { sourceSpaceId: "7", ...filter });
   assert.deepEqual(routeHistoryFilters(target.params, "7"), filter);
   assert.equal(

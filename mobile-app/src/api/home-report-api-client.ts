@@ -4,19 +4,19 @@ import {
 } from "./authorized-request.ts";
 import { decodeApiResponse } from "./request-failure.ts";
 
-export type DashboardView = "monthly" | "yearly";
-export type DashboardBudgetStatus = "normal" | "nearing" | "at_limit" | "over";
-export type DashboardExact = { numerator: string; denominator: string };
-export type DashboardValue = { exact: DashboardExact; amount: string };
-export type DashboardExpenseFilter = {
+export type HomeView = "monthly" | "yearly";
+export type HomeBudgetStatus = "normal" | "nearing" | "at_limit" | "over";
+export type HomeExact = { numerator: string; denominator: string };
+export type HomeValue = { exact: HomeExact; amount: string };
+export type HomeExpenseFilter = {
   fromDate: string;
   toDate: string;
   categoryId?: string;
 };
 
-export type DashboardReport = {
+export type HomeReport = {
   range: {
-    view: DashboardView;
+    view: HomeView;
     fromDate: string;
     toDate: string;
     today: string;
@@ -29,21 +29,21 @@ export type DashboardReport = {
   summary: {
     actualAmount: string;
     expenseCount: string;
-    planned: DashboardValue & {
+    planned: HomeValue & {
       months: number;
-      monthlyEquivalent: DashboardValue;
-      annualEquivalent: DashboardValue;
+      monthlyEquivalent: HomeValue;
+      annualEquivalent: HomeValue;
     };
     comparison: {
       direction: "above_plan" | "below_plan" | "equal_plan" | "no_plan";
-      difference: DashboardValue;
-      percentage: DashboardValue | null;
+      difference: HomeValue;
+      percentage: HomeValue | null;
     };
     highestCategory: {
       categoryId: string;
       name: string;
       amount: string;
-      expenseFilter: DashboardExpenseFilter;
+      expenseFilter: HomeExpenseFilter;
     } | null;
     statementImports: {
       count: string;
@@ -58,7 +58,7 @@ export type DashboardReport = {
     inProgress: boolean;
     actualAmount: string;
     expenseCount: string;
-    expenseFilter: DashboardExpenseFilter;
+    expenseFilter: HomeExpenseFilter;
   }[];
   categoryExpenses: {
     categoryId: string;
@@ -68,15 +68,15 @@ export type DashboardReport = {
     colorKey: string | null;
     actualAmount: string;
     expenseCount: string;
-    budget: { period: DashboardView; amount: string } | null;
+    budget: { period: HomeView; amount: string } | null;
     months: {
       month: string;
       actualAmount: string;
       expenseCount: string;
-      budgetStatus: DashboardBudgetStatus | null;
+      budgetStatus: HomeBudgetStatus | null;
       monthlyBudgetAmount: string | null;
       annualBudgetAmount: string | null;
-      expenseFilter: DashboardExpenseFilter;
+      expenseFilter: HomeExpenseFilter;
     }[];
   }[];
   budgetChecks: {
@@ -86,7 +86,7 @@ export type DashboardReport = {
       budgetAmount: string;
       overBudgetMonths: number;
       eligibleMonths: number;
-      expenseFilter: DashboardExpenseFilter | null;
+      expenseFilter: HomeExpenseFilter | null;
     }[];
     yearly: {
       categoryId: string;
@@ -94,30 +94,30 @@ export type DashboardReport = {
       year: string;
       actualAmount: string;
       limitAmount: string;
-      status: DashboardBudgetStatus;
+      status: HomeBudgetStatus;
       usageFromDate: string;
       usageToDate: string;
-      expenseFilter: DashboardExpenseFilter;
+      expenseFilter: HomeExpenseFilter;
     }[];
   };
 };
 
-export type DashboardReportQuery = {
-  view: DashboardView;
+export type HomeReportQuery = {
+  view: HomeView;
   endMonth?: string;
   months?: 1 | 3 | 6 | 12;
   year?: string;
   chartCategoryIds?: readonly string[];
 };
 
-export function createDashboardReportApiClient(
+export function createHomeReportApiClient(
   options: AuthorizedRequestOptions,
 ) {
   return {
-    async getDashboardReport(
+    async getHomeReport(
       spaceId: string,
-      query: DashboardReportQuery,
-    ): Promise<DashboardReport> {
+      query: HomeReportQuery,
+    ): Promise<HomeReport> {
       const params = new URLSearchParams({ view: query.view });
       if (query.months !== undefined) params.set("months", String(query.months));
       if (query.endMonth !== undefined) params.set("endMonth", query.endMonth);
@@ -127,14 +127,14 @@ export function createDashboardReportApiClient(
       }
       const payload = await authorizedRequest<unknown>(
         options,
-        `/api/v1/users/me/spaces/${encodeURIComponent(spaceId)}/reporting/dashboard?${params.toString()}`,
+        `/api/v1/users/me/spaces/${encodeURIComponent(spaceId)}/reporting/home?${params.toString()}`,
       );
-      return decodeApiResponse(() => readDashboardReport(payload));
+      return decodeApiResponse(() => readHomeReport(payload));
     },
   };
 }
 
-export function readDashboardReport(value: unknown): DashboardReport {
+export function readHomeReport(value: unknown): HomeReport {
   return decodeApiResponse(() => {
     const root = readObject(value);
     const range = readObject(root.range);
@@ -192,7 +192,7 @@ export function readDashboardReport(value: unknown): DashboardReport {
         },
         comparison: {
           direction:
-            comparison.direction as DashboardReport["summary"]["comparison"]["direction"],
+            comparison.direction as HomeReport["summary"]["comparison"]["direction"],
           difference: readValue(comparison.difference),
           percentage:
             comparison.percentage === null
@@ -221,7 +221,7 @@ export function readDashboardReport(value: unknown): DashboardReport {
 
 function readMonthlyExpense(
   value: unknown,
-): DashboardReport["monthlyExpenses"][number] {
+): HomeReport["monthlyExpenses"][number] {
   const item = readObject(value);
   return {
     month: readMonth(item.month),
@@ -236,10 +236,10 @@ function readMonthlyExpense(
 
 function readCategoryExpense(
   value: unknown,
-): DashboardReport["categoryExpenses"][number] {
+): HomeReport["categoryExpenses"][number] {
   const item = readObject(value);
   if (!Array.isArray(item.months)) throw invalid();
-  let budget: DashboardReport["categoryExpenses"][number]["budget"] = null;
+  let budget: HomeReport["categoryExpenses"][number]["budget"] = null;
   if (item.budget !== null) {
     const value = readObject(item.budget);
     if (!(value.period === "monthly" || value.period === "yearly"))
@@ -263,7 +263,7 @@ function readCategoryExpense(
         month: readMonth(month.month),
         actualAmount: readMoney(month.actualAmount),
         expenseCount: readCount(month.expenseCount),
-        budgetStatus: status as DashboardBudgetStatus | null,
+        budgetStatus: status as HomeBudgetStatus | null,
         monthlyBudgetAmount:
           month.monthlyBudgetAmount === null
             ? null
@@ -280,7 +280,7 @@ function readCategoryExpense(
 
 function readMonthlyCheck(
   value: unknown,
-): DashboardReport["budgetChecks"]["monthly"][number] {
+): HomeReport["budgetChecks"]["monthly"][number] {
   const item = readObject(value);
   return {
     categoryId: readId(item.categoryId),
@@ -297,7 +297,7 @@ function readMonthlyCheck(
 
 function readYearlyCheck(
   value: unknown,
-): DashboardReport["budgetChecks"]["yearly"][number] {
+): HomeReport["budgetChecks"]["yearly"][number] {
   const item = readObject(value);
   if (!isBudgetStatus(item.status)) throw invalid();
   return {
@@ -315,7 +315,7 @@ function readYearlyCheck(
 
 function readHighestCategory(
   value: unknown,
-): DashboardReport["summary"]["highestCategory"] {
+): HomeReport["summary"]["highestCategory"] {
   const item = readObject(value);
   return {
     categoryId: readId(item.categoryId),
@@ -325,7 +325,7 @@ function readHighestCategory(
   };
 }
 
-function readExpenseFilter(value: unknown): DashboardExpenseFilter {
+function readExpenseFilter(value: unknown): HomeExpenseFilter {
   const item = readObject(value);
   return {
     fromDate: readDate(item.fromDate),
@@ -341,7 +341,7 @@ function readDateFilter(value: unknown): { fromDate: string; toDate: string } {
   return { fromDate: readDate(item.fromDate), toDate: readDate(item.toDate) };
 }
 
-function readValue(value: unknown): DashboardValue {
+function readValue(value: unknown): HomeValue {
   const item = readObject(value);
   const exact = readObject(item.exact);
   return {
@@ -431,7 +431,7 @@ function readNullableString(value: unknown): string | null {
   throw invalid();
 }
 
-function isBudgetStatus(value: unknown): value is DashboardBudgetStatus {
+function isBudgetStatus(value: unknown): value is HomeBudgetStatus {
   return (
     value === "normal" ||
     value === "nearing" ||
@@ -441,5 +441,5 @@ function isBudgetStatus(value: unknown): value is DashboardBudgetStatus {
 }
 
 function invalid(): Error {
-  return new Error("Invalid Dashboard report response");
+  return new Error("Invalid Home report response");
 }

@@ -15,13 +15,13 @@ import { ApiStandardErrorResponses } from '../../http/api-error.dto';
 import { POSITIVE_INTEGER_ID_PATTERN } from '../../http/validation-patterns';
 import { SpaceAccessService } from '../../spaces/application/space-access.service';
 import { SpaceParamsDto } from '../../spaces/presentation/space.dto';
-import { DashboardReportService } from '../application/dashboard-report.service';
-import { DashboardReportQueryDto } from './dashboard-report-query.dto';
-import { DashboardReportResponseDto } from './dashboard-report-response.dto';
+import { HomeReportService } from '../application/home-report.service';
+import { HomeReportQueryDto } from './home-report-query.dto';
+import { HomeReportResponseDto } from './home-report-response.dto';
 
-@Controller('users/me/spaces/:spaceId/reporting/dashboard')
-@ApiTags('Dashboard reporting')
-@ApiExtraModels(DashboardReportResponseDto)
+@Controller('users/me/spaces/:spaceId/reporting/home')
+@ApiTags('Home reporting')
+@ApiExtraModels(HomeReportResponseDto)
 @ApiParam({
   name: 'spaceId',
   description: 'Positive bigint Space identifier encoded as a string.',
@@ -31,15 +31,15 @@ import { DashboardReportResponseDto } from './dashboard-report-response.dto';
     example: '7',
   },
 })
-export class SpaceDashboardReportController {
+export class SpaceHomeReportController {
   constructor(
-    private readonly dashboardReportService: DashboardReportService,
+    private readonly homeReportService: HomeReportService,
     private readonly spaceAccessService: SpaceAccessService,
   ) {}
 
   @Get()
   @ApiOperation({
-    summary: 'Get the Monthly or Yearly Dashboard report for a Space.',
+    summary: 'Get the Monthly or Yearly Home report for a Space.',
   })
   @ApiQuery({ name: 'view', required: false, enum: ['monthly', 'yearly'] })
   @ApiQuery({
@@ -70,8 +70,8 @@ export class SpaceDashboardReportController {
   })
   @ApiResponse({
     status: HttpStatus.OK,
-    description: 'Dashboard report.',
-    type: DashboardReportResponseDto,
+    description: 'Home report.',
+    type: HomeReportResponseDto,
   })
   @ApiStandardErrorResponses(
     'UnauthenticatedError',
@@ -81,16 +81,13 @@ export class SpaceDashboardReportController {
     'NotAcceptableError',
     'InternalError',
   )
-  async getDashboardReport(
+  async getHomeReport(
     @Req() request: AuthenticatedRequest,
     @Param() params: SpaceParamsDto,
-    @Query() query: DashboardReportQueryDto,
-  ): Promise<DashboardReportResponseDto> {
+    @Query() query: HomeReportQueryDto,
+  ): Promise<HomeReportResponseDto> {
     const userId = requireAuthenticatedUserId(request);
     await this.spaceAccessService.requireReadAccess(userId, params.spaceId);
-    return this.dashboardReportService.getDashboardReportInSpace(
-      params.spaceId,
-      query,
-    );
+    return this.homeReportService.getHomeReportInSpace(params.spaceId, query);
   }
 }

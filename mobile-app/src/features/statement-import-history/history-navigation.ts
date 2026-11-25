@@ -4,7 +4,7 @@ export function importDetailPath(
 ): string {
   return `/statement-import/${encodeURIComponent(statementImportId)}?sourceSpaceId=${encodeURIComponent(sourceSpaceId)}`;
 }
-export function dashboardHistoryTarget(
+export function homeHistoryTarget(
   sourceSpaceId: string,
   filter: { fromDate: string; toDate: string },
 ) {

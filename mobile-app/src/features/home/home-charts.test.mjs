@@ -12,7 +12,7 @@ const require = createRequire(import.meta.url);
 // Exercise the real view/chart interactions, replacing only native rendering.
 const compiled = await build({
   stdin: {
-    contents: `${await readFile(new URL('./dashboard-view.tsx', import.meta.url), 'utf8')}\nexport { MonthlyChart, CategoryChart, MonthRangePicker, DashboardSummary, BudgetReview, CategoryReview };`,
+    contents: `${await readFile(new URL('./home-view.tsx', import.meta.url), 'utf8')}\nexport { MonthlyChart, CategoryChart, MonthRangePicker, HomeSummary, BudgetReview, CategoryReview };`,
     resolveDir: fileURLToPath(new URL('./', import.meta.url)), loader: 'tsx',
   },
   bundle: true, write: false, platform: 'node', format: 'cjs', packages: 'external', jsx: 'automatic',
@@ -47,7 +47,7 @@ new Function('require', 'module', compiled.outputFiles[0].text)((name) => {
   if (name === '@/features/categories/category-catalog') return { CATEGORY_COLOR_VALUES: {} };
   return require(name);
 }, compiledModule);
-const { DashboardView, MonthlyChart, CategoryChart, MonthRangePicker, DashboardSummary, BudgetReview, CategoryReview } = compiledModule.exports;
+const { HomeView, MonthlyChart, CategoryChart, MonthRangePicker, HomeSummary, BudgetReview, CategoryReview } = compiledModule.exports;
 
 function fixture() {
   const point = (month, toDate, actualAmount) => ({
@@ -150,7 +150,7 @@ function reviewFixture() {
 
 test('summary opens statements and import and shows concise budget wording', async (t) => {
   const calls = [];
-  const renderer = await render(t, DashboardSummary, { report: reviewFixture(), onOpenExpenses() {}, onOpenImportHistory: () => calls.push('history'), onImport: () => calls.push('import') });
+  const renderer = await render(t, HomeSummary, { report: reviewFixture(), onOpenExpenses() {}, onOpenImportHistory: () => calls.push('history'), onImport: () => calls.push('import') });
   await act(async () => action(renderer, 'Statements').props.onPress());
   await act(async () => action(renderer, 'Import statement').props.onPress());
   assert.deepEqual(calls, ['history', 'import']);
@@ -186,19 +186,19 @@ test('category review reveals low spending through More and opens budget without
 });
 
 
-test('dashboard shows resolved months and omits charts for a single month or an empty report', async (t) => {
+test('home shows resolved months and omits charts for a single month or an empty report', async (t) => {
   const report = reviewFixture();
   report.monthlyExpenses = [report.monthlyExpenses[1]];
   report.range.fromDate = '2026-10-01'; report.range.toDate = '2026-10-31';
   const controller = { report, categories: [], chartCategoryIds: [], categoryMarkers: {}, months: 1, view: 'monthly', refresh() {} };
-  const renderer = await render(t, DashboardView, { controller, spaceStatus: null, onOpenExpenses() {}, onOpenBudgetCategory() {}, onOpenImportHistory() {} });
+  const renderer = await render(t, HomeView, { controller, spaceStatus: null, onOpenExpenses() {}, onOpenBudgetCategory() {}, onOpenImportHistory() {} });
   assert.ok(target(renderer, 'Choose period, Oct 2026'));
   assert.equal(renderer.root.findAllByType('Svg').length, 0);
   assert.equal(action(renderer, 'Totals'), undefined);
   assert.equal(action(renderer, 'Trends'), undefined);
   assert.ok(renderer.root.findAllByType('Text').some(node => node.props.children === 'Category spending'));
   const empty = { ...report, summary: { ...report.summary, expenseCount: '0' } };
-  await act(async () => renderer.update(React.createElement(DashboardView, { controller: { ...controller, report: empty }, spaceStatus: null, onOpenExpenses() {}, onOpenBudgetCategory() {}, onOpenImportHistory() {} })));
+  await act(async () => renderer.update(React.createElement(HomeView, { controller: { ...controller, report: empty }, spaceStatus: null, onOpenExpenses() {}, onOpenBudgetCategory() {}, onOpenImportHistory() {} })));
   assert.equal(renderer.root.findAllByType('Text').some(node => node.props.children === 'Category spending'), false);
   assert.ok(target(renderer, 'Insurance · 2026,'));
 });
@@ -208,7 +208,7 @@ test('category spending starts with Trends before monthly spending and switches 
   const report = reviewFixture();
   const controller = { report, categoryReport: { ...report, categoryExpenses: [report.categoryExpenses[0]] }, categories: [], chartCategoryIds: ['1'], categoryMarkers: { '1': 0, '2': 1 }, months: 12, view: 'monthly', refresh() {} };
   const budgets = [];
-  const renderer = await render(t, DashboardView, { controller, spaceStatus: null, onOpenExpenses() {}, onOpenBudgetCategory: id => budgets.push(id), onOpenImportHistory() {} });
+  const renderer = await render(t, HomeView, { controller, spaceStatus: null, onOpenExpenses() {}, onOpenBudgetCategory: id => budgets.push(id), onOpenImportHistory() {} });
   const headings = () => renderer.root.findAllByType('Text').filter(node => node.props.accessibilityRole === 'header').map(node => node.props.children);
   assert.equal(headings().filter(title => title === 'Category spending').length, 1);
   assert.ok(headings().indexOf('Category spending') < headings().indexOf('Monthly spending'));

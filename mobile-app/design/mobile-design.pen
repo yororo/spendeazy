@@ -241,7 +241,7 @@
             {
               "type": "frame",
               "id": "vvkKt",
-              "name": "Dashboard heading",
+              "name": "Home heading",
               "width": "fill_container",
               "gap": 16,
               "justifyContent": "space_between",
@@ -250,11 +250,11 @@
                 {
                   "type": "text",
                   "id": "ZhdzI",
-                  "name": "Dashboard",
+                  "name": "Home",
                   "fill": "$text-primary",
                   "textGrowth": "fixed-width",
                   "width": "fill_container",
-                  "content": "Dashboard",
+                  "content": "Home",
                   "fontFamily": "$font-ui",
                   "fontSize": "$type-page-title",
                   "fontWeight": "600",
@@ -409,7 +409,7 @@
                   "type": "frame",
                   "id": "XUiDy",
                   "name": "Month range dropdown",
-                  "context": "Tap to choose Past 1 month, Past 3 months, or Past 6 months. Past 6 months selected. Refresh all dashboard data.",
+                  "context": "Tap to choose Past 1 month, Past 3 months, or Past 6 months. Past 6 months selected. Refresh all home data.",
                   "height": 44,
                   "gap": 6,
                   "padding": [
@@ -2644,7 +2644,7 @@
                 {
                   "type": "frame",
                   "id": "y7GYIH",
-                  "name": "Dashboard",
+                  "name": "Home",
                   "width": "fill_container",
                   "height": "fill_container",
                   "fill": {
@@ -2686,10 +2686,10 @@
                     {
                       "type": "icon",
                       "id": "H6TsuF",
-                      "name": "Dashboard icon",
+                      "name": "Home icon",
                       "width": 22,
                       "height": 22,
-                      "icon": "layout-dashboard",
+                      "icon": "house",
                       "library": "lucide",
                       "fill": "$brand-primary"
                     }
@@ -4184,7 +4184,7 @@
                     {
                       "type": "frame",
                       "id": "W1jePe",
-                      "name": "Dashboard",
+                      "name": "Home",
                       "width": "fill_container",
                       "height": "fill_container",
                       "fill": "#FFFFFF00",
@@ -4204,10 +4204,10 @@
                         {
                           "type": "icon",
                           "id": "Gt0nd",
-                          "name": "Dashboard icon",
+                          "name": "Home icon",
                           "width": 22,
                           "height": 22,
-                          "icon": "layout-dashboard",
+                          "icon": "house",
                           "library": "lucide",
                           "fill": "$text-secondary"
                         }
@@ -6141,7 +6141,7 @@
                     {
                       "type": "frame",
                       "id": "b02df",
-                      "name": "Dashboard",
+                      "name": "Home",
                       "width": "fill_container",
                       "height": "fill_container",
                       "fill": "#FFFFFF00",
@@ -6161,10 +6161,10 @@
                         {
                           "type": "icon",
                           "id": "Ao65e",
-                          "name": "Dashboard icon",
+                          "name": "Home icon",
                           "width": 22,
                           "height": 22,
-                          "icon": "layout-dashboard",
+                          "icon": "house",
                           "library": "lucide",
                           "fill": "$text-secondary"
                         }
@@ -7442,7 +7442,7 @@
                     {
                       "type": "frame",
                       "id": "G1YFv",
-                      "name": "Dashboard",
+                      "name": "Home",
                       "width": "fill_container",
                       "height": "fill_container",
                       "fill": "#FFFFFF00",
@@ -7462,10 +7462,10 @@
                         {
                           "type": "icon",
                           "id": "AwLG6",
-                          "name": "Dashboard icon",
+                          "name": "Home icon",
                           "width": 22,
                           "height": 22,
-                          "icon": "layout-dashboard",
+                          "icon": "house",
                           "library": "lucide",
                           "fill": "$text-secondary"
                         }
@@ -7856,7 +7856,7 @@
             {
               "type": "frame",
               "id": "J8T3Om",
-              "name": "Dashboard heading",
+              "name": "Home heading",
               "width": "fill_container",
               "gap": 16,
               "justifyContent": "space_between",
@@ -9094,7 +9094,7 @@
                     {
                       "type": "frame",
                       "id": "A0GzQI",
-                      "name": "Dashboard",
+                      "name": "Home",
                       "width": "fill_container",
                       "height": "fill_container",
                       "fill": "#FFFFFF00",
@@ -9107,10 +9107,10 @@
                         {
                           "type": "icon",
                           "id": "b5DoY",
-                          "name": "Dashboard icon",
+                          "name": "Home icon",
                           "width": 22,
                           "height": 22,
-                          "icon": "layout-dashboard",
+                          "icon": "house",
                           "library": "lucide",
                           "fill": "$text-secondary"
                         }
@@ -9489,7 +9489,7 @@
             {
               "type": "frame",
               "id": "qIzhy",
-              "name": "Dashboard heading",
+              "name": "Home heading",
               "width": "fill_container",
               "gap": 16,
               "justifyContent": "space_between",
@@ -10727,7 +10727,7 @@
                     {
                       "type": "frame",
                       "id": "IIytR",
-                      "name": "Dashboard",
+                      "name": "Home",
                       "width": "fill_container",
                       "height": "fill_container",
                       "fill": "#FFFFFF00",
@@ -10740,10 +10740,10 @@
                         {
                           "type": "icon",
                           "id": "I9Kgdj",
-                          "name": "Dashboard icon",
+                          "name": "Home icon",
                           "width": 22,
                           "height": 22,
-                          "icon": "layout-dashboard",
+                          "icon": "house",
                           "library": "lucide",
                           "fill": "$text-secondary"
                         }
@@ -11431,7 +11431,7 @@
             {
               "type": "frame",
               "id": "K0lb4e",
-              "name": "Dashboard heading",
+              "name": "Home heading",
               "width": "fill_container",
               "gap": 16,
               "justifyContent": "space_between",
@@ -12410,7 +12410,7 @@
                     {
                       "type": "frame",
                       "id": "u2WpOI",
-                      "name": "Dashboard",
+                      "name": "Home",
                       "width": "fill_container",
                       "height": "fill_container",
                       "fill": "#FFFFFF00",
@@ -12423,10 +12423,10 @@
                         {
                           "type": "icon",
                           "id": "GQOvU",
-                          "name": "Dashboard icon",
+                          "name": "Home icon",
                           "width": 22,
                           "height": 22,
-                          "icon": "layout-dashboard",
+                          "icon": "house",
                           "library": "lucide",
                           "fill": "$text-secondary"
                         }
@@ -12807,7 +12807,7 @@
             {
               "type": "frame",
               "id": "RYg7E",
-              "name": "Dashboard heading",
+              "name": "Home heading",
               "width": "fill_container",
               "gap": 16,
               "justifyContent": "space_between",
@@ -13535,7 +13535,7 @@
                     {
                       "type": "frame",
                       "id": "U2GuQX",
-                      "name": "Dashboard",
+                      "name": "Home",
                       "width": "fill_container",
                       "height": "fill_container",
                       "fill": "#FFFFFF00",
@@ -13548,10 +13548,10 @@
                         {
                           "type": "icon",
                           "id": "cS0ff",
-                          "name": "Dashboard icon",
+                          "name": "Home icon",
                           "width": 22,
                           "height": 22,
-                          "icon": "layout-dashboard",
+                          "icon": "house",
                           "library": "lucide",
                           "fill": "$text-secondary"
                         }
@@ -13932,7 +13932,7 @@
             {
               "type": "frame",
               "id": "q392Lr",
-              "name": "Dashboard heading",
+              "name": "Home heading",
               "width": "fill_container",
               "gap": 16,
               "justifyContent": "space_between",
@@ -14563,7 +14563,7 @@
                     {
                       "type": "frame",
                       "id": "ArbOL",
-                      "name": "Dashboard",
+                      "name": "Home",
                       "width": "fill_container",
                       "height": "fill_container",
                       "fill": "#FFFFFF00",
@@ -14576,10 +14576,10 @@
                         {
                           "type": "icon",
                           "id": "DNcvi",
-                          "name": "Dashboard icon",
+                          "name": "Home icon",
                           "width": 22,
                           "height": 22,
-                          "icon": "layout-dashboard",
+                          "icon": "house",
                           "library": "lucide",
                           "fill": "$text-secondary"
                         }
@@ -15429,7 +15429,7 @@
                 {
                   "type": "frame",
                   "id": "BHoYi",
-                  "name": "Dashboard",
+                  "name": "Home",
                   "width": "fill_container",
                   "height": "fill_container",
                   "fill": "#FFFFFF00",
@@ -15449,10 +15449,10 @@
                     {
                       "type": "icon",
                       "id": "jCtwu",
-                      "name": "Dashboard icon",
+                      "name": "Home icon",
                       "width": 22,
                       "height": 22,
-                      "icon": "layout-dashboard",
+                      "icon": "house",
                       "library": "lucide",
                       "fill": "$text-secondary"
                     }
@@ -15833,7 +15833,7 @@
         {
           "type": "frame",
           "id": "qQgO4",
-          "name": "Dashboard heading",
+          "name": "Home heading",
           "width": "fill_container",
           "gap": 16,
           "justifyContent": "space_between",
@@ -17071,7 +17071,7 @@
                 {
                   "type": "frame",
                   "id": "Xedvk",
-                  "name": "Dashboard",
+                  "name": "Home",
                   "width": "fill_container",
                   "height": "fill_container",
                   "fill": "#FFFFFF00",
@@ -17084,10 +17084,10 @@
                     {
                       "type": "icon",
                       "id": "L5xLMS",
-                      "name": "Dashboard icon",
+                      "name": "Home icon",
                       "width": 22,
                       "height": 22,
-                      "icon": "layout-dashboard",
+                      "icon": "house",
                       "library": "lucide",
                       "fill": "$text-secondary"
                     }
@@ -17632,7 +17632,7 @@
         {
           "type": "frame",
           "id": "OlB8E",
-          "name": "Dashboard heading",
+          "name": "Home heading",
           "width": "fill_container",
           "gap": 16,
           "justifyContent": "space_between",
@@ -18870,7 +18870,7 @@
                 {
                   "type": "frame",
                   "id": "Gdo4J",
-                  "name": "Dashboard",
+                  "name": "Home",
                   "width": "fill_container",
                   "height": "fill_container",
                   "fill": "#FFFFFF00",
@@ -18883,10 +18883,10 @@
                     {
                       "type": "icon",
                       "id": "v8CXu",
-                      "name": "Dashboard icon",
+                      "name": "Home icon",
                       "width": 22,
                       "height": 22,
-                      "icon": "layout-dashboard",
+                      "icon": "house",
                       "library": "lucide",
                       "fill": "$text-secondary"
                     }
@@ -19214,7 +19214,7 @@
       "id": "Dc5NS",
       "x": 4483,
       "y": 3897,
-      "name": "Dashboard Screens",
+      "name": "Home Screens",
       "clip": true,
       "width": 1307,
       "height": 1949,
@@ -19226,7 +19226,7 @@
           "id": "MONtk",
           "x": 131,
           "y": 119,
-          "name": "Dashboard / Monthly",
+          "name": "Home / Monthly",
           "clip": true,
           "width": 390,
           "fill": [
@@ -19461,7 +19461,7 @@
                 {
                   "type": "frame",
                   "id": "n3xT0r",
-                  "name": "Dashboard heading",
+                  "name": "Home heading",
                   "width": "fill_container",
                   "gap": 16,
                   "justifyContent": "space_between",
@@ -19470,11 +19470,11 @@
                     {
                       "type": "text",
                       "id": "hgxnH",
-                      "name": "Dashboard",
+                      "name": "Home",
                       "fill": "$text-primary",
                       "textGrowth": "fixed-width",
                       "width": "fill_container",
-                      "content": "Dashboard",
+                      "content": "Home",
                       "fontFamily": "$font-ui",
                       "fontSize": "$type-page-title",
                       "fontWeight": "600",
@@ -19629,7 +19629,7 @@
                       "type": "frame",
                       "id": "U1f8V",
                       "name": "Month range dropdown",
-                      "context": "Tap to choose Past 1 month, Past 3 months, or Past 6 months. Past 6 months selected. Refresh all dashboard data.",
+                      "context": "Tap to choose Past 1 month, Past 3 months, or Past 6 months. Past 6 months selected. Refresh all home data.",
                       "height": 44,
                       "gap": 6,
                       "padding": [
@@ -20678,7 +20678,7 @@
                                           "type": "frame",
                                           "id": "M6Njs",
                                           "name": "Jan total spending · $2180",
-                                          "context": "Jan total spending · $2180. Tap or keyboard-select to show the exact monthly total and category breakdown in a detail popover; dashboard remains chart-only.",
+                                          "context": "Jan total spending · $2180. Tap or keyboard-select to show the exact monthly total and category breakdown in a detail popover; home remains chart-only.",
                                           "clip": true,
                                           "width": 25,
                                           "height": 79.93333333333334,
@@ -20725,7 +20725,7 @@
                                           "type": "frame",
                                           "id": "jYh6g",
                                           "name": "Feb total spending · $2400",
-                                          "context": "Feb total spending · $2400. Tap or keyboard-select to show the exact monthly total and category breakdown in a detail popover; dashboard remains chart-only.",
+                                          "context": "Feb total spending · $2400. Tap or keyboard-select to show the exact monthly total and category breakdown in a detail popover; home remains chart-only.",
                                           "clip": true,
                                           "width": 25,
                                           "height": 88,
@@ -20772,7 +20772,7 @@
                                           "type": "frame",
                                           "id": "rCNKJ",
                                           "name": "Mar total spending · $1980",
-                                          "context": "Mar total spending · $1980. Tap or keyboard-select to show the exact monthly total and category breakdown in a detail popover; dashboard remains chart-only.",
+                                          "context": "Mar total spending · $1980. Tap or keyboard-select to show the exact monthly total and category breakdown in a detail popover; home remains chart-only.",
                                           "clip": true,
                                           "width": 25,
                                           "height": 72.60000000000001,
@@ -20819,7 +20819,7 @@
                                           "type": "frame",
                                           "id": "Yxd9c",
                                           "name": "Apr total spending · $2800",
-                                          "context": "Apr total spending · $2800. Tap or keyboard-select to show the exact monthly total and category breakdown in a detail popover; dashboard remains chart-only.",
+                                          "context": "Apr total spending · $2800. Tap or keyboard-select to show the exact monthly total and category breakdown in a detail popover; home remains chart-only.",
                                           "clip": true,
                                           "width": 25,
                                           "height": 102.66666666666667,
@@ -20866,7 +20866,7 @@
                                           "type": "frame",
                                           "id": "i5xOXd",
                                           "name": "May total spending · $2300",
-                                          "context": "May total spending · $2300. Tap or keyboard-select to show the exact monthly total and category breakdown in a detail popover; dashboard remains chart-only.",
+                                          "context": "May total spending · $2300. Tap or keyboard-select to show the exact monthly total and category breakdown in a detail popover; home remains chart-only.",
                                           "clip": true,
                                           "width": 25,
                                           "height": 84.33333333333334,
@@ -20914,7 +20914,7 @@
                                           "type": "frame",
                                           "id": "lxEn0",
                                           "name": "Jun total spending · $2460",
-                                          "context": "Jun total spending · $2460. Tap or keyboard-select to show the exact monthly total and category breakdown in a detail popover; dashboard remains chart-only.",
+                                          "context": "Jun total spending · $2460. Tap or keyboard-select to show the exact monthly total and category breakdown in a detail popover; home remains chart-only.",
                                           "clip": true,
                                           "width": 25,
                                           "height": 90.19999999999999,
@@ -21924,7 +21924,7 @@
                     {
                       "type": "frame",
                       "id": "hjfBA",
-                      "name": "Dashboard",
+                      "name": "Home",
                       "width": "fill_container",
                       "height": "fill_container",
                       "fill": {
@@ -21966,10 +21966,10 @@
                         {
                           "type": "icon",
                           "id": "aFzm9",
-                          "name": "Dashboard icon",
+                          "name": "Home icon",
                           "width": 22,
                           "height": 22,
-                          "icon": "layout-dashboard",
+                          "icon": "house",
                           "library": "lucide",
                           "fill": "$brand-primary"
                         }
@@ -22129,7 +22129,7 @@
           "id": "VvvB3",
           "x": 752,
           "y": 119,
-          "name": "Dashboard / Yearly · YTD",
+          "name": "Home / Yearly · YTD",
           "clip": true,
           "width": 390,
           "fill": [
@@ -22364,7 +22364,7 @@
                 {
                   "type": "frame",
                   "id": "v38ww",
-                  "name": "Dashboard heading",
+                  "name": "Home heading",
                   "width": "fill_container",
                   "gap": 16,
                   "justifyContent": "space_between",
@@ -22373,11 +22373,11 @@
                     {
                       "type": "text",
                       "id": "zLyiX",
-                      "name": "Dashboard",
+                      "name": "Home",
                       "fill": "$text-primary",
                       "textGrowth": "fixed-width",
                       "width": "fill_container",
-                      "content": "Dashboard",
+                      "content": "Home",
                       "fontFamily": "$font-ui",
                       "fontSize": "$type-page-title",
                       "fontWeight": "600",
@@ -23901,7 +23901,7 @@
                                           "type": "frame",
                                           "id": "gDTBZ",
                                           "name": "Jan total spending · $2180",
-                                          "context": "Jan total spending · $2180. Tap or keyboard-select to show the exact monthly total and category breakdown in a detail popover; dashboard remains chart-only.",
+                                          "context": "Jan total spending · $2180. Tap or keyboard-select to show the exact monthly total and category breakdown in a detail popover; home remains chart-only.",
                                           "clip": true,
                                           "width": 25,
                                           "height": 59.95,
@@ -23948,7 +23948,7 @@
                                           "type": "frame",
                                           "id": "KmrvK",
                                           "name": "Feb total spending · $3000",
-                                          "context": "Feb total spending · $3000. Tap or keyboard-select to show the exact monthly total and category breakdown in a detail popover; dashboard remains chart-only.",
+                                          "context": "Feb total spending · $3000. Tap or keyboard-select to show the exact monthly total and category breakdown in a detail popover; home remains chart-only.",
                                           "clip": true,
                                           "width": 25,
                                           "height": 82.5,
@@ -23995,7 +23995,7 @@
                                           "type": "frame",
                                           "id": "emzmx",
                                           "name": "Mar total spending · $1980",
-                                          "context": "Mar total spending · $1980. Tap or keyboard-select to show the exact monthly total and category breakdown in a detail popover; dashboard remains chart-only.",
+                                          "context": "Mar total spending · $1980. Tap or keyboard-select to show the exact monthly total and category breakdown in a detail popover; home remains chart-only.",
                                           "clip": true,
                                           "width": 25,
                                           "height": 54.45,
@@ -24042,7 +24042,7 @@
                                           "type": "frame",
                                           "id": "JogwL",
                                           "name": "Apr total spending · $3700",
-                                          "context": "Apr total spending · $3700. Tap or keyboard-select to show the exact monthly total and category breakdown in a detail popover; dashboard remains chart-only.",
+                                          "context": "Apr total spending · $3700. Tap or keyboard-select to show the exact monthly total and category breakdown in a detail popover; home remains chart-only.",
                                           "clip": true,
                                           "width": 25,
                                           "height": 101.75,
@@ -24089,7 +24089,7 @@
                                           "type": "frame",
                                           "id": "DTpln",
                                           "name": "May total spending · $2300",
-                                          "context": "May total spending · $2300. Tap or keyboard-select to show the exact monthly total and category breakdown in a detail popover; dashboard remains chart-only.",
+                                          "context": "May total spending · $2300. Tap or keyboard-select to show the exact monthly total and category breakdown in a detail popover; home remains chart-only.",
                                           "clip": true,
                                           "width": 25,
                                           "height": 63.24999999999999,
@@ -24137,7 +24137,7 @@
                                           "type": "frame",
                                           "id": "J9S2xw",
                                           "name": "Jun total spending · $2460",
-                                          "context": "Jun total spending · $2460. Tap or keyboard-select to show the exact monthly total and category breakdown in a detail popover; dashboard remains chart-only.",
+                                          "context": "Jun total spending · $2460. Tap or keyboard-select to show the exact monthly total and category breakdown in a detail popover; home remains chart-only.",
                                           "clip": true,
                                           "width": 25,
                                           "height": 67.65,
@@ -25147,7 +25147,7 @@
                     {
                       "type": "frame",
                       "id": "n6KSxv",
-                      "name": "Dashboard",
+                      "name": "Home",
                       "width": "fill_container",
                       "height": "fill_container",
                       "fill": {
@@ -25189,10 +25189,10 @@
                         {
                           "type": "icon",
                           "id": "OMsTa",
-                          "name": "Dashboard icon",
+                          "name": "Home icon",
                           "width": 22,
                           "height": 22,
-                          "icon": "layout-dashboard",
+                          "icon": "house",
                           "library": "lucide",
                           "fill": "$brand-primary"
                         }

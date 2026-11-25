@@ -1565,9 +1565,9 @@ paths:
       summary: Delete an Expense in an authorized Space.
       tags:
         - Expenses
-  /api/v1/users/me/spaces/{spaceId}/reporting/dashboard:
+  /api/v1/users/me/spaces/{spaceId}/reporting/home:
     get:
-      operationId: SpaceDashboardReport_getDashboardReport
+      operationId: SpaceHomeReport_getHomeReport
       parameters:
         - name: spaceId
           required: true
@@ -1580,7 +1580,7 @@ paths:
         - name: view
           required: false
           in: query
-          description: Dashboard period. Defaults to monthly.
+          description: Home period. Defaults to monthly.
           schema:
             enum:
               - monthly
@@ -1625,11 +1625,11 @@ paths:
               pattern: ^[1-9]\d*$
       responses:
         '200':
-          description: Dashboard report.
+          description: Home report.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DashboardReportResponseDto'
+                $ref: '#/components/schemas/HomeReportResponseDto'
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -1642,9 +1642,9 @@ paths:
           $ref: '#/components/responses/NotAcceptableError'
         '500':
           $ref: '#/components/responses/InternalError'
-      summary: Get the Monthly or Yearly Dashboard report for a Space.
+      summary: Get the Monthly or Yearly Home report for a Space.
       tags:
-        - Dashboard reporting
+        - Home reporting
   /api/v1/users/me/spaces/{spaceId}/statement-imports/{statementImportId}:
     get:
       operationId: SpaceStatementImports_getStatementImport
@@ -2182,7 +2182,7 @@ tags:
     description: Reviewed import commits and history in a Space.
   - name: Category summaries
     description: Calendar-period spending summaries for a Space.
-  - name: Dashboard reporting
+  - name: Home reporting
     description: Monthly and Yearly actual spending, current Budget checks and import confirmation counts for a Space.
 servers:
   - url: /
@@ -3826,7 +3826,7 @@ components:
         - type
         - actorUserId
         - occurredAt
-    DashboardRangeDto:
+    HomeRangeDto:
       type: object
       properties:
         view:
@@ -3868,7 +3868,7 @@ components:
         - configurationBasis
         - inProgress
         - asOf
-    DashboardExactValueDto:
+    HomeExactValueDto:
       type: object
       properties:
         numerator:
@@ -3881,11 +3881,11 @@ components:
       required:
         - numerator
         - denominator
-    DashboardValueWithExactDto:
+    HomeValueWithExactDto:
       type: object
       properties:
         exact:
-          $ref: '#/components/schemas/DashboardExactValueDto'
+          $ref: '#/components/schemas/HomeExactValueDto'
         amount:
           type: string
           example: '4.2'
@@ -3893,11 +3893,11 @@ components:
       required:
         - exact
         - amount
-    DashboardPlanDto:
+    HomePlanDto:
       type: object
       properties:
         exact:
-          $ref: '#/components/schemas/DashboardExactValueDto'
+          $ref: '#/components/schemas/HomeExactValueDto'
         amount:
           type: string
           example: '4.2'
@@ -3905,9 +3905,9 @@ components:
           type: number
           example: 6
         monthlyEquivalent:
-          $ref: '#/components/schemas/DashboardValueWithExactDto'
+          $ref: '#/components/schemas/HomeValueWithExactDto'
         annualEquivalent:
-          $ref: '#/components/schemas/DashboardValueWithExactDto'
+          $ref: '#/components/schemas/HomeValueWithExactDto'
       additionalProperties: false
       required:
         - exact
@@ -3915,7 +3915,7 @@ components:
         - months
         - monthlyEquivalent
         - annualEquivalent
-    DashboardComparisonDto:
+    HomeComparisonDto:
       type: object
       properties:
         direction:
@@ -3926,18 +3926,18 @@ components:
             - equal_plan
             - no_plan
         difference:
-          $ref: '#/components/schemas/DashboardValueWithExactDto'
+          $ref: '#/components/schemas/HomeValueWithExactDto'
         percentage:
           nullable: true
           type: object
           allOf:
-            - $ref: '#/components/schemas/DashboardValueWithExactDto'
+            - $ref: '#/components/schemas/HomeValueWithExactDto'
       additionalProperties: false
       required:
         - direction
         - difference
         - percentage
-    DashboardExpenseFilterDto:
+    HomeExpenseFilterDto:
       type: object
       properties:
         fromDate:
@@ -3955,7 +3955,7 @@ components:
       required:
         - fromDate
         - toDate
-    DashboardHighestCategoryDto:
+    HomeHighestCategoryDto:
       type: object
       properties:
         categoryId:
@@ -3966,14 +3966,14 @@ components:
           type: string
           example: '6400.00'
         expenseFilter:
-          $ref: '#/components/schemas/DashboardExpenseFilterDto'
+          $ref: '#/components/schemas/HomeExpenseFilterDto'
       additionalProperties: false
       required:
         - categoryId
         - name
         - amount
         - expenseFilter
-    DashboardDateFilterDto:
+    HomeDateFilterDto:
       type: object
       properties:
         fromDate:
@@ -3988,7 +3988,7 @@ components:
       required:
         - fromDate
         - toDate
-    DashboardImportSummaryDto:
+    HomeImportSummaryDto:
       type: object
       properties:
         count:
@@ -3999,13 +3999,13 @@ components:
           format: date-time
           nullable: true
         filter:
-          $ref: '#/components/schemas/DashboardDateFilterDto'
+          $ref: '#/components/schemas/HomeDateFilterDto'
       additionalProperties: false
       required:
         - count
         - latestConfirmedAt
         - filter
-    DashboardSummaryDto:
+    HomeSummaryDto:
       type: object
       properties:
         actualAmount:
@@ -4015,16 +4015,16 @@ components:
           type: string
           example: '11'
         planned:
-          $ref: '#/components/schemas/DashboardPlanDto'
+          $ref: '#/components/schemas/HomePlanDto'
         comparison:
-          $ref: '#/components/schemas/DashboardComparisonDto'
+          $ref: '#/components/schemas/HomeComparisonDto'
         highestCategory:
           nullable: true
           type: object
           allOf:
-            - $ref: '#/components/schemas/DashboardHighestCategoryDto'
+            - $ref: '#/components/schemas/HomeHighestCategoryDto'
         statementImports:
-          $ref: '#/components/schemas/DashboardImportSummaryDto'
+          $ref: '#/components/schemas/HomeImportSummaryDto'
       additionalProperties: false
       required:
         - actualAmount
@@ -4033,7 +4033,7 @@ components:
         - comparison
         - highestCategory
         - statementImports
-    DashboardMonthlyExpenseDto:
+    HomeMonthlyExpenseDto:
       type: object
       properties:
         month:
@@ -4054,7 +4054,7 @@ components:
           type: string
           example: '1'
         expenseFilter:
-          $ref: '#/components/schemas/DashboardExpenseFilterDto'
+          $ref: '#/components/schemas/HomeExpenseFilterDto'
       additionalProperties: false
       required:
         - month
@@ -4064,7 +4064,7 @@ components:
         - actualAmount
         - expenseCount
         - expenseFilter
-    DashboardBudgetContextDto:
+    HomeBudgetContextDto:
       type: object
       properties:
         period:
@@ -4079,7 +4079,7 @@ components:
       required:
         - period
         - amount
-    DashboardCategoryMonthDto:
+    HomeCategoryMonthDto:
       type: object
       properties:
         month:
@@ -4103,7 +4103,7 @@ components:
           type: string
           nullable: true
         expenseFilter:
-          $ref: '#/components/schemas/DashboardExpenseFilterDto'
+          $ref: '#/components/schemas/HomeExpenseFilterDto'
       additionalProperties: false
       required:
         - month
@@ -4113,7 +4113,7 @@ components:
         - monthlyBudgetAmount
         - annualBudgetAmount
         - expenseFilter
-    DashboardCategoryExpenseDto:
+    HomeCategoryExpenseDto:
       type: object
       properties:
         categoryId:
@@ -4136,11 +4136,11 @@ components:
           description: Current Budget configuration. Yearly amounts are annual context.
           type: object
           allOf:
-            - $ref: '#/components/schemas/DashboardBudgetContextDto'
+            - $ref: '#/components/schemas/HomeBudgetContextDto'
         months:
           type: array
           items:
-            $ref: '#/components/schemas/DashboardCategoryMonthDto'
+            $ref: '#/components/schemas/HomeCategoryMonthDto'
       additionalProperties: false
       required:
         - categoryId
@@ -4152,7 +4152,7 @@ components:
         - expenseCount
         - budget
         - months
-    DashboardMonthlyBudgetCheckDto:
+    HomeMonthlyBudgetCheckDto:
       type: object
       properties:
         categoryId:
@@ -4169,7 +4169,7 @@ components:
           nullable: true
           type: object
           allOf:
-            - $ref: '#/components/schemas/DashboardExpenseFilterDto'
+            - $ref: '#/components/schemas/HomeExpenseFilterDto'
       additionalProperties: false
       required:
         - categoryId
@@ -4178,7 +4178,7 @@ components:
         - overBudgetMonths
         - eligibleMonths
         - expenseFilter
-    DashboardYearlyBudgetCheckDto:
+    HomeYearlyBudgetCheckDto:
       type: object
       properties:
         categoryId:
@@ -4206,7 +4206,7 @@ components:
           type: string
           format: date
         expenseFilter:
-          $ref: '#/components/schemas/DashboardExpenseFilterDto'
+          $ref: '#/components/schemas/HomeExpenseFilterDto'
       additionalProperties: false
       required:
         - categoryId
@@ -4218,38 +4218,38 @@ components:
         - usageFromDate
         - usageToDate
         - expenseFilter
-    DashboardBudgetChecksDto:
+    HomeBudgetChecksDto:
       type: object
       properties:
         monthly:
           type: array
           items:
-            $ref: '#/components/schemas/DashboardMonthlyBudgetCheckDto'
+            $ref: '#/components/schemas/HomeMonthlyBudgetCheckDto'
         yearly:
           type: array
           items:
-            $ref: '#/components/schemas/DashboardYearlyBudgetCheckDto'
+            $ref: '#/components/schemas/HomeYearlyBudgetCheckDto'
       additionalProperties: false
       required:
         - monthly
         - yearly
-    DashboardReportResponseDto:
+    HomeReportResponseDto:
       type: object
       properties:
         range:
-          $ref: '#/components/schemas/DashboardRangeDto'
+          $ref: '#/components/schemas/HomeRangeDto'
         summary:
-          $ref: '#/components/schemas/DashboardSummaryDto'
+          $ref: '#/components/schemas/HomeSummaryDto'
         monthlyExpenses:
           type: array
           items:
-            $ref: '#/components/schemas/DashboardMonthlyExpenseDto'
+            $ref: '#/components/schemas/HomeMonthlyExpenseDto'
         categoryExpenses:
           type: array
           items:
-            $ref: '#/components/schemas/DashboardCategoryExpenseDto'
+            $ref: '#/components/schemas/HomeCategoryExpenseDto'
         budgetChecks:
-          $ref: '#/components/schemas/DashboardBudgetChecksDto'
+          $ref: '#/components/schemas/HomeBudgetChecksDto'
       additionalProperties: false
       required:
         - range

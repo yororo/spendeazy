@@ -2,7 +2,7 @@ import { useRef, useState, type ReactNode, type RefObject, type ElementRef } fro
 import { Pressable, ScrollView, Text, View, useWindowDimensions } from "react-native";
 import Svg, { G, Line, Polyline, Rect } from "react-native-svg";
 import { CategoryPoint } from "./category-marker";
-import type { DashboardReport } from "@/api/dashboard-report-api-client";
+import type { HomeReport } from "@/api/home-report-api-client";
 import { useAppTheme } from "@/navigation/app-theme";
 import { controlSize, space, typeScale } from "@/constants/theme";
 import {
@@ -10,8 +10,8 @@ import {
   compareMoney,
   formatPhp,
   labelMonth,
-} from "./dashboard-format";
-type CategorySeries = DashboardReport["categoryExpenses"][number];
+} from "./home-format";
+type CategorySeries = HomeReport["categoryExpenses"][number];
 const plotHeight = 140;
 export type ChartTrigger = RefObject<ElementRef<typeof View> | null>;
 type MonthSelection = (month: string, trigger: ChartTrigger) => void;
@@ -156,7 +156,7 @@ function Plot({
     </View>
   );
 }
-export function MonthlyBars({ report, onSelectMonth }: { report: DashboardReport; onSelectMonth: MonthSelection }) {
+export function MonthlyBars({ report, onSelectMonth }: { report: HomeReport; onSelectMonth: MonthSelection }) {
   const { palette } = useAppTheme();
   const plan = report.summary.planned.monthlyEquivalent.amount;
   const maximum = maximumAmount([
@@ -214,7 +214,7 @@ export function CategoryLines({
   markerIndexFor,
   onSelectMonth,
 }: {
-  report: DashboardReport;
+  report: HomeReport;
   showMonthlyLimits?: boolean;
   selectedMonth?: string;
   colorFor: (category: CategorySeries) => string;

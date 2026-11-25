@@ -1,7 +1,7 @@
-import type { DashboardReport } from '@/api/dashboard-report-api-client';
-import { compareMoney, formatPhp } from './dashboard-format.ts';
+import type { HomeReport } from '@/api/home-report-api-client';
+import { compareMoney, formatPhp } from './home-format.ts';
 
-type Category = DashboardReport['categoryExpenses'][number];
+type Category = HomeReport['categoryExpenses'][number];
 function cents(value: string) { return BigInt(value.replace('.', '')); }
 function decimal(value: bigint) { return `${value / 100n}.${String(value % 100n).padStart(2, '0')}`; }
 

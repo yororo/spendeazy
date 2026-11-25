@@ -1,17 +1,17 @@
 import { useState } from 'react';
 import { ChevronRight, Info } from 'lucide-react-native';
 import { Pressable, Text, View } from 'react-native';
-import type { DashboardExpenseFilter, DashboardReport } from '@/api/dashboard-report-api-client';
+import type { HomeExpenseFilter, HomeReport } from '@/api/home-report-api-client';
 import { ChoiceSheet } from '@/components/choice-sheet';
 import { CategoryIconMark } from '@/components/category-mark';
 import type { CategoryColorKey, CategoryIconKey } from '@/api/categories-api-client';
 import { controlSize, space, typeScale } from '@/constants/theme';
 import { useAppTheme } from '@/navigation/app-theme';
 import { CategoryMarker } from './category-marker';
-import type { ChartTrigger } from './dashboard-charts';
-import { formatPhp, labelMonth } from './dashboard-format';
+import type { ChartTrigger } from './home-charts';
+import { formatPhp, labelMonth } from './home-format';
 
-type Category = DashboardReport['categoryExpenses'][number];
+type Category = HomeReport['categoryExpenses'][number];
 
 function readableDate(date: string) {
   return new Intl.DateTimeFormat('en-PH', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
@@ -19,14 +19,14 @@ function readableDate(date: string) {
 }
 
 export function CategoryTrendDetails({ report, month, categories, categoryMarkers, colorFor, restoreFocusRef, onDismiss, onOpenExpenses }: {
-  report: DashboardReport;
+  report: HomeReport;
   month?: string;
   categories: readonly Category[];
   categoryMarkers: Readonly<Record<string, number>>;
   colorFor: (category: Category) => string;
   restoreFocusRef: ChartTrigger;
   onDismiss: () => void;
-  onOpenExpenses: (filter: DashboardExpenseFilter) => void;
+  onOpenExpenses: (filter: HomeExpenseFilter) => void;
 }) {
   const { palette } = useAppTheme();
   const [expandedMonth, setExpandedMonth] = useState<string>();

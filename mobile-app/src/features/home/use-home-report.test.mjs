@@ -11,7 +11,7 @@ const require = createRequire(import.meta.url);
 let harness;
 const compiled = await build({
   stdin: {
-    contents: "export { useDashboardReport } from './use-dashboard-report'; export { readExpenseBrowse, updateExpenseBrowse, clearExpenseBrowse } from '../expenses/browse-state';",
+    contents: "export { useHomeReport } from './use-home-report'; export { readExpenseBrowse, updateExpenseBrowse, clearExpenseBrowse } from '../expenses/browse-state';",
     resolveDir: fileURLToPath(new URL('./', import.meta.url)),
     loader: 'ts',
   },
@@ -21,11 +21,11 @@ const compiled = await build({
   format: 'cjs',
   packages: 'external',
   plugins: [{
-    name: 'dashboard-hooks',
+    name: 'home-hooks',
     setup(builder) {
       for (const name of [
         'react-native',
-        '@/api/dashboard-report-api-client',
+        '@/api/home-report-api-client',
         '@/application/authorized-client',
         '@/application/session-runtime',
         '@/application/spaces/provider',
@@ -47,8 +47,8 @@ new Function('require', 'module', compiled.outputFiles[0].text)((name) => {
           return { remove() { if (harness.onAppState === listener) harness.onAppState = null; } };
         },
       } };
-    case '@/api/dashboard-report-api-client':
-      return { createDashboardReportApiClient: () => harness.api };
+    case '@/api/home-report-api-client':
+      return { createHomeReportApiClient: () => harness.api };
     case '@/application/authorized-client':
       return { useAuthorizedClient: () => harness.authorized };
     case '@/application/session-runtime':
@@ -61,7 +61,7 @@ new Function('require', 'module', compiled.outputFiles[0].text)((name) => {
       return require(name);
   }
 }, compiledModule);
-const { useDashboardReport } = compiledModule.exports;
+const { useHomeReport } = compiledModule.exports;
 const { readExpenseBrowse, updateExpenseBrowse, clearExpenseBrowse } = compiledModule.exports;
 
 function category(categoryId, overrides = {}) {
@@ -83,12 +83,12 @@ async function mountController(t) {
   harness = {
     active: { id: '10' },
     authorized: { scope: { generation: 1, userId: 'user-a', spaceId: '10' }, isCurrent: () => true },
-    api: { getDashboardReport(spaceId, query) {
+    api: { getHomeReport(spaceId, query) {
       return new Promise((resolve) => requests.push({ spaceId, query, resolve }));
     } },
   };
   let controller;
-  function Consumer() { controller = useDashboardReport(); return null; }
+  function Consumer() { controller = useHomeReport(); return null; }
   let renderer;
   await act(async () => { renderer = create(React.createElement(Consumer)); });
   t.after(async () => { await act(async () => renderer.unmount()); });
@@ -100,7 +100,7 @@ async function mountController(t) {
   };
 }
 
-test('dashboard periods carry over to Browse while preserving other filters and independent date edits', async (t) => {
+test('home periods carry over to Browse while preserving other filters and independent date edits', async (t) => {
   const screen = await mountController(t);
   updateExpenseBrowse('10', { categoryId: '2', description: 'Coffee', sort: 'highest' });
   await screen.resolve();
@@ -248,13 +248,13 @@ test('Category filters update only chart data, retain the report, and survive re
   harness = {
     active: { id: '10' },
     authorized: { scope: {}, isCurrent: () => true },
-    api: { getDashboardReport(spaceId, query) {
+    api: { getHomeReport(spaceId, query) {
       return new Promise((resolve) => requests.push({ spaceId, query, resolve }));
     } },
   };
   let controller;
   function Consumer() {
-    controller = useDashboardReport();
+    controller = useHomeReport();
     return null;
   }
   let renderer;

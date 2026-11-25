@@ -62,7 +62,7 @@ _Avoid_: Budget history, bank activity
 An Expense removed from active lists and spending totals but retained with its Activity and original provenance for inspection. It cannot be restored at launch.
 _Avoid_: Excluded Transaction, erased Expense
 
-**Dashboard**:
+**Home**:
 The overview of a Space's actual Expenses, planning equivalents, Budget checks and successful Statement Imports for the selected Reporting Period.
 _Avoid_: Spending Overview, Overview page
 

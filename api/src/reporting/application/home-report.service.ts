@@ -7,18 +7,18 @@ import {
 import {
   endOfMonth,
   normalizeChartCategoryIds,
-  resolveDashboardRange,
-  type DashboardReportInput,
-  type ResolvedDashboardRange,
-} from './dashboard-report-input';
+  resolveHomeRange,
+  type HomeReportInput,
+  type ResolvedHomeRange,
+} from './home-report-input';
 import {
-  DASHBOARD_REPORT_STORE,
-  type DashboardReportCategory,
-  type DashboardReportData,
-  type DashboardReportExpense,
-  type DashboardReportStore,
-} from './dashboard-report-store';
-import { MONTHS_PER_YEAR } from './dashboard-report-constants';
+  HOME_REPORT_STORE,
+  type HomeReportCategory,
+  type HomeReportData,
+  type HomeReportExpense,
+  type HomeReportStore,
+} from './home-report-store';
+import { MONTHS_PER_YEAR } from './home-report-constants';
 
 type Rational = { numerator: bigint; denominator: bigint };
 type ValueWithExact = { exact: ExactValue; amount: string };
@@ -30,7 +30,7 @@ const CENTS_PER_PESO = 100n;
 const PERCENTAGE_SCALE = 100n;
 const NEARING_BUDGET_PERCENTAGE = 80n;
 
-export interface DashboardReportResponse {
+export interface HomeReportResponse {
   readonly range: {
     readonly view: 'monthly' | 'yearly';
     readonly fromDate: string;
@@ -123,21 +123,21 @@ export interface DashboardReportResponse {
 }
 
 @Injectable()
-export class DashboardReportService {
+export class HomeReportService {
   constructor(
-    @Inject(DASHBOARD_REPORT_STORE)
-    private readonly reportStore: DashboardReportStore,
+    @Inject(HOME_REPORT_STORE)
+    private readonly reportStore: HomeReportStore,
     @Optional()
     @Inject(MANILA_CLOCK)
     private readonly clock: ManilaClock = systemManilaClock,
   ) {}
 
-  async getDashboardReportInSpace(
+  async getHomeReportInSpace(
     spaceId: string,
-    input: DashboardReportInput,
-  ): Promise<DashboardReportResponse> {
+    input: HomeReportInput,
+  ): Promise<HomeReportResponse> {
     const asOf = this.clock();
-    const range = resolveDashboardRange(input, asOf);
+    const range = resolveHomeRange(input, asOf);
     const chartCategoryIds =
       normalizeChartCategoryIds(input.chartCategoryId) ?? [];
     const reportFromYear = `${range.years[0]}-01-01`;
@@ -147,23 +147,23 @@ export class DashboardReportService {
       )
       .sort()
       .at(-1)!;
-    const data = await this.reportStore.readDashboardReport({
+    const data = await this.reportStore.readHomeReport({
       spaceId,
       expenseFromDate: reportFromYear,
       expenseToDate: reportToYear,
       importFromDate: manilaMidnight(range.fromDate),
       importToDateExclusive: manilaMidnight(addDays(range.toDate, 1)),
     });
-    return projectDashboardReport(data, range, chartCategoryIds, asOf);
+    return projectHomeReport(data, range, chartCategoryIds, asOf);
   }
 }
 
-function projectDashboardReport(
-  data: DashboardReportData,
-  range: ResolvedDashboardRange,
+function projectHomeReport(
+  data: HomeReportData,
+  range: ResolvedHomeRange,
   chartCategoryIds: readonly string[],
   asOf: Date,
-): DashboardReportResponse {
+): HomeReportResponse {
   const categoriesById = new Map(
     data.categories.map((category) => [category.categoryId, category]),
   );
@@ -306,11 +306,11 @@ function projectDashboardReport(
 }
 
 function projectCategory(
-  category: DashboardReportCategory,
-  range: ResolvedDashboardRange,
+  category: HomeReportCategory,
+  range: ResolvedHomeRange,
   categoryTotals: Map<string, Aggregate>,
   monthlyCategoryTotals: Map<string, Aggregate>,
-): DashboardReportResponse['categoryExpenses'][number] {
+): HomeReportResponse['categoryExpenses'][number] {
   const total = categoryTotals.get(category.categoryId) ?? emptyAggregate();
   const hasCurrentBudget = category.isActive && category.budgetAmount !== null;
   return {
@@ -368,10 +368,10 @@ function projectCategory(
 }
 
 function projectMonthlyBudgetChecks(
-  categories: readonly DashboardReportCategory[],
-  range: ResolvedDashboardRange,
+  categories: readonly HomeReportCategory[],
+  range: ResolvedHomeRange,
   monthlyCategoryTotals: Map<string, Aggregate>,
-): DashboardReportResponse['budgetChecks']['monthly'] {
+): HomeReportResponse['budgetChecks']['monthly'] {
   const eligibleMonths = range.months.filter(
     (month) => !(range.inProgress && month === range.today.slice(0, 7)),
   );
@@ -406,10 +406,10 @@ function projectMonthlyBudgetChecks(
 }
 
 function projectYearlyBudgetChecks(
-  categories: readonly DashboardReportCategory[],
-  range: ResolvedDashboardRange,
-  expenses: readonly DashboardReportExpense[],
-): DashboardReportResponse['budgetChecks']['yearly'] {
+  categories: readonly HomeReportCategory[],
+  range: ResolvedHomeRange,
+  expenses: readonly HomeReportExpense[],
+): HomeReportResponse['budgetChecks']['yearly'] {
   const yearlyCategories = categories.filter(
     (category) =>
       category.isActive &&
@@ -457,7 +457,7 @@ interface Aggregate {
 }
 
 function aggregateExpensesByMonth(
-  expenses: readonly DashboardReportExpense[],
+  expenses: readonly HomeReportExpense[],
 ): Map<string, Aggregate> {
   const result = new Map<string, Aggregate>();
   for (const expense of expenses) {
@@ -467,7 +467,7 @@ function aggregateExpensesByMonth(
 }
 
 function aggregateExpensesByCategory(
-  expenses: readonly DashboardReportExpense[],
+  expenses: readonly HomeReportExpense[],
 ): Map<string, Aggregate> {
   const result = new Map<string, Aggregate>();
   for (const expense of expenses)
@@ -478,7 +478,7 @@ function aggregateExpensesByCategory(
 function addAggregate(
   result: Map<string, Aggregate>,
   key: string,
-  expense: DashboardReportExpense,
+  expense: HomeReportExpense,
 ): void {
   const aggregate = result.get(key) ?? emptyAggregate();
   aggregate.cents += moneyToCents(expense.amount);
@@ -486,16 +486,14 @@ function addAggregate(
   result.set(key, aggregate);
 }
 
-function sumExpenseCents(expenses: readonly DashboardReportExpense[]): bigint {
+function sumExpenseCents(expenses: readonly HomeReportExpense[]): bigint {
   return expenses.reduce(
     (total, expense) => total + moneyToCents(expense.amount),
     0n,
   );
 }
 
-function getMonthlyPlan(
-  categories: readonly DashboardReportCategory[],
-): Rational {
+function getMonthlyPlan(categories: readonly HomeReportCategory[]): Rational {
   return categories
     .filter((category) => category.isActive && category.budgetAmount !== null)
     .reduce<Rational>(
@@ -524,8 +522,8 @@ function getBudgetStatus(
 }
 
 function compareCategories(
-  left: DashboardReportCategory | undefined,
-  right: DashboardReportCategory | undefined,
+  left: HomeReportCategory | undefined,
+  right: HomeReportCategory | undefined,
 ): number {
   const leftName = left?.name.toLocaleLowerCase('en') ?? '';
   const rightName = right?.name.toLocaleLowerCase('en') ?? '';
@@ -540,7 +538,7 @@ function monthAndCategory(month: string, categoryId: string): string {
 }
 
 function aggregateExpensesByMonthAndCategory(
-  expenses: readonly DashboardReportExpense[],
+  expenses: readonly HomeReportExpense[],
 ): Map<string, Aggregate> {
   const result = new Map<string, Aggregate>();
   for (const expense of expenses) {

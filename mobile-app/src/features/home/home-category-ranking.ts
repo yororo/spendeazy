@@ -1,8 +1,8 @@
-import type { DashboardReport } from '@/api/dashboard-report-api-client';
-import { compareMoney } from './dashboard-format.ts';
+import type { HomeReport } from '@/api/home-report-api-client';
+import { compareMoney } from './home-format.ts';
 
 // Monthly overruns count individually; annual budgets use calendar-year usage.
-export function rankChartCategories(report: DashboardReport) {
+export function rankChartCategories(report: HomeReport) {
   const cents = (amount: string) => BigInt(amount.replace('.', ''));
   const positive = (amount: bigint) => amount > 0n ? amount : 0n;
   const ranked = report.categoryExpenses.map((category) => {

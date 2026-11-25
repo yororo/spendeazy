@@ -17,11 +17,11 @@ import {
 } from '../src/authentication/authentication';
 import { MANILA_CLOCK } from '../src/http/manila-clock';
 import { createAppModule } from '../src/app.module';
-import type { DashboardReportResponse } from '../src/reporting/application/dashboard-report.service';
+import type { HomeReportResponse } from '../src/reporting/application/home-report.service';
 import {
-  DASHBOARD_REPORT_STORE,
-  type DashboardReportStore,
-} from '../src/reporting/application/dashboard-report-store';
+  HOME_REPORT_STORE,
+  type HomeReportStore,
+} from '../src/reporting/application/home-report-store';
 import { configureApp } from '../src/bootstrap';
 import type { AppConfig } from '../src/config/app-config';
 import { BudgetEntity } from '../src/database/entities/budget.entity';
@@ -32,12 +32,12 @@ import { SpaceMembershipEntity } from '../src/database/entities/space-membership
 import { StatementImportEntity } from '../src/database/entities/statement-import.entity';
 import { UserEntity } from '../src/database/entities/user.entity';
 
-const databaseUrl = process.env.TEST_DASHBOARD_REPORTING_DATABASE_URL;
+const databaseUrl = process.env.TEST_HOME_REPORTING_DATABASE_URL;
 const describeDatabase = databaseUrl ? describe : describe.skip;
 const FIXED_NOW = new Date('2026-07-03T00:30:00.000+08:00');
 
 describeDatabase(
-  'Dashboard reporting over authenticated HTTP with PostgreSQL',
+  'Home reporting over authenticated HTTP with PostgreSQL',
   () => {
     let application: INestApplication;
     let database: DataSource;
@@ -207,8 +207,8 @@ describeDatabase(
       });
 
       const reportData = await application
-        .get<DashboardReportStore>(DASHBOARD_REPORT_STORE)
-        .readDashboardReport({
+        .get<HomeReportStore>(HOME_REPORT_STORE)
+        .readHomeReport({
           spaceId: fixture.spaceId,
           expenseFromDate: '2026-01-01',
           expenseToDate: '2026-07-03',
@@ -222,12 +222,12 @@ describeDatabase(
       });
 
       const response = await http()
-        .get(`/api/v1/users/me/spaces/${fixture.spaceId}/reporting/dashboard`)
+        .get(`/api/v1/users/me/spaces/${fixture.spaceId}/reporting/home`)
         .query({ view: 'monthly', months: '6', endMonth: '2026-06' })
         .set(...authorization(fixture.identity));
 
       expect(response.status).toBe(200);
-      const body = response.body as DashboardReportResponse;
+      const body = response.body as HomeReportResponse;
       expect(body).toMatchObject({
         range: {
           view: 'monthly',
@@ -308,11 +308,11 @@ describeDatabase(
 
       for (const months of [undefined, '1', '3', '6']) {
         const windowResponse = await http()
-          .get(`/api/v1/users/me/spaces/${fixture.spaceId}/reporting/dashboard`)
+          .get(`/api/v1/users/me/spaces/${fixture.spaceId}/reporting/home`)
           .query(months === undefined ? {} : { months })
           .set(...authorization(fixture.identity));
         expect(windowResponse.status).toBe(200);
-        const window = windowResponse.body as DashboardReportResponse;
+        const window = windowResponse.body as HomeReportResponse;
         const count = Number(months ?? '1');
         expect(window.monthlyExpenses).toHaveLength(count);
         expect(window.summary.planned.months).toBe(count);
@@ -321,7 +321,7 @@ describeDatabase(
       }
 
       const filteredChart = await http()
-        .get(`/api/v1/users/me/spaces/${fixture.spaceId}/reporting/dashboard`)
+        .get(`/api/v1/users/me/spaces/${fixture.spaceId}/reporting/home`)
         .query({
           view: 'monthly',
           months: '6',
@@ -330,7 +330,7 @@ describeDatabase(
         })
         .set(...authorization(fixture.identity));
       expect(filteredChart.status).toBe(200);
-      const filteredBody = filteredChart.body as DashboardReportResponse;
+      const filteredBody = filteredChart.body as HomeReportResponse;
       expect(filteredBody.summary.actualAmount).toBe('12500.00');
       expect(filteredBody.summary.planned.amount).toBe('12000.00');
       expect(filteredBody.monthlyExpenses).toHaveLength(6);
@@ -342,11 +342,11 @@ describeDatabase(
       );
 
       const yearly = await http()
-        .get(`/api/v1/users/me/spaces/${fixture.spaceId}/reporting/dashboard`)
+        .get(`/api/v1/users/me/spaces/${fixture.spaceId}/reporting/home`)
         .query({ view: 'yearly', year: '2026' })
         .set(...authorization(fixture.identity));
       expect(yearly.status).toBe(200);
-      const yearlyBody = yearly.body as DashboardReportResponse;
+      const yearlyBody = yearly.body as HomeReportResponse;
       expect(yearlyBody.range).toMatchObject({
         fromDate: '2026-01-01',
         toDate: '2026-07-03',
@@ -748,7 +748,7 @@ describeDatabase(
         .expect(400);
     });
 
-    it('traverses confirmation history in ID order within Dashboard Manila dates and rejects changed-filter cursors', async () => {
+    it('traverses confirmation history in ID order within Home Manila dates and rejects changed-filter cursors', async () => {
       const fixture = await createFixture('history-period');
       const other = await createFixture('history-foreign');
       now = new Date('2026-12-31T16:00:00.000Z');
@@ -926,14 +926,14 @@ describeDatabase(
     });
 
     function reportPath(fixture: { spaceId: string }) {
-      return `/api/v1/users/me/spaces/${fixture.spaceId}/reporting/dashboard`;
+      return `/api/v1/users/me/spaces/${fixture.spaceId}/reporting/home`;
     }
 
     async function yearlyReport(
       fixture: { spaceId: string; identity: TestIdentity },
       year: string,
       chartCategoryId?: string,
-    ): Promise<DashboardReportResponse> {
+    ): Promise<HomeReportResponse> {
       const response = await http()
         .get(reportPath(fixture))
         .query({
@@ -943,7 +943,7 @@ describeDatabase(
         })
         .set(...authorization(fixture.identity))
         .expect(200);
-      return response.body as DashboardReportResponse;
+      return response.body as HomeReportResponse;
     }
 
     async function createFixture(label: string) {
@@ -1008,7 +1008,7 @@ describeDatabase(
         statementImportId: options.statementImportId ?? null,
         sourceRowId: options.sourceRowId ?? null,
         expenseDate,
-        description: 'Dashboard report fixture',
+        description: 'Home report fixture',
         amount,
         importFingerprint: null,
         referenceHash: null,

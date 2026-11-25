@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import type { DashboardReport } from '../../api/dashboard-report-api-client.ts';
-import { budgetBalance, categoryBudgetDetail, rankReviewCategories } from './dashboard-review-rules.ts';
+import type { HomeReport } from '../../api/home-report-api-client.ts';
+import { budgetBalance, categoryBudgetDetail, rankReviewCategories } from './home-review-rules.ts';
 
-const category = (id: string, actual: string, monthly: string | null, annual: string | null = null): DashboardReport['categoryExpenses'][number] => ({
+const category = (id: string, actual: string, monthly: string | null, annual: string | null = null): HomeReport['categoryExpenses'][number] => ({
   categoryId: id, name: id, actualAmount: actual, expenseCount: '1', isActive: true, iconKey: 'car', colorKey: 'violet',
   budget: annual ? { period: 'yearly', amount: annual } : monthly ? { period: 'monthly', amount: monthly } : null,
   months: [{ month: '2026-10', actualAmount: actual, expenseCount: '1', budgetStatus: null, monthlyBudgetAmount: monthly, annualBudgetAmount: annual, expenseFilter: { fromDate: '2026-10-01', toDate: '2026-10-31', categoryId: id } }],

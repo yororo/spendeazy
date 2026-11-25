@@ -1,20 +1,20 @@
-import { DashboardReportService } from './dashboard-report.service';
+import { HomeReportService } from './home-report.service';
 import type {
-  DashboardReportData,
-  DashboardReportQuery,
-  DashboardReportStore,
-} from './dashboard-report-store';
+  HomeReportData,
+  HomeReportQuery,
+  HomeReportStore,
+} from './home-report-store';
 
 const NOW = new Date('2026-07-03T00:30:00.000+08:00');
 
-describe('DashboardReportService', () => {
-  let query: DashboardReportQuery | undefined;
-  let service: DashboardReportService;
+describe('HomeReportService', () => {
+  let query: HomeReportQuery | undefined;
+  let service: HomeReportService;
 
   beforeEach(() => {
     query = undefined;
-    const store: DashboardReportStore = {
-      readDashboardReport: (value) => {
+    const store: HomeReportStore = {
+      readHomeReport: (value) => {
         query = value;
         const data = makeData();
         return Promise.resolve({
@@ -27,11 +27,11 @@ describe('DashboardReportService', () => {
         });
       },
     };
-    service = new DashboardReportService(store, () => new Date(NOW));
+    service = new HomeReportService(store, () => new Date(NOW));
   });
 
   it('returns a six-month range with unrounded mixed-period planning and current-year checks', async () => {
-    const report = await service.getDashboardReportInSpace('7', {
+    const report = await service.getHomeReportInSpace('7', {
       view: 'monthly',
       months: '6',
       endMonth: '2026-06',
@@ -105,7 +105,7 @@ describe('DashboardReportService', () => {
   });
 
   it('uses today for the selected current month and excludes it from completed-month checks', async () => {
-    const report = await service.getDashboardReportInSpace('7', {
+    const report = await service.getHomeReportInSpace('7', {
       view: 'monthly',
       months: '6',
       endMonth: '2026-07',
@@ -126,7 +126,7 @@ describe('DashboardReportService', () => {
   });
 
   it('uses started months for the current year and keeps chart filters away from summaries', async () => {
-    const report = await service.getDashboardReportInSpace('7', {
+    const report = await service.getHomeReportInSpace('7', {
       view: 'yearly',
       year: '2026',
       chartCategoryId: ['2'],
@@ -150,7 +150,7 @@ describe('DashboardReportService', () => {
   });
 
   it('returns separate yearly checks for every calendar year represented by a Monthly window', async () => {
-    const report = await service.getDashboardReportInSpace('7', {
+    const report = await service.getHomeReportInSpace('7', {
       view: 'monthly',
       months: '6',
       endMonth: '2026-02',
@@ -170,7 +170,7 @@ describe('DashboardReportService', () => {
   });
 
   it('uses all twelve months and the full date range for a past Yearly view', async () => {
-    const report = await service.getDashboardReportInSpace('7', {
+    const report = await service.getHomeReportInSpace('7', {
       view: 'yearly',
       year: '2025',
     });
@@ -188,7 +188,7 @@ describe('DashboardReportService', () => {
 
   it('rejects future end months', async () => {
     await expect(
-      service.getDashboardReportInSpace('7', {
+      service.getHomeReportInSpace('7', {
         view: 'monthly',
         months: '6',
         endMonth: '2026-08',
@@ -203,7 +203,7 @@ describe('DashboardReportService', () => {
 
   it('rejects future years', async () => {
     await expect(
-      service.getDashboardReportInSpace('7', {
+      service.getHomeReportInSpace('7', {
         view: 'yearly',
         year: '2027',
       }),
@@ -216,17 +216,17 @@ describe('DashboardReportService', () => {
   });
 
   it('handles empty no-plan reports and picks the alphabetical Category on ties', async () => {
-    const emptyData: DashboardReportData = {
+    const emptyData: HomeReportData = {
       categories: [],
       expenses: [],
       imports: [],
     };
-    service = new DashboardReportService(
-      { readDashboardReport: () => Promise.resolve(emptyData) },
+    service = new HomeReportService(
+      { readHomeReport: () => Promise.resolve(emptyData) },
       () => new Date(NOW),
     );
 
-    const empty = await service.getDashboardReportInSpace('7', { months: '6' });
+    const empty = await service.getHomeReportInSpace('7', { months: '6' });
     expect(empty.summary).toMatchObject({
       actualAmount: '0.00',
       expenseCount: '0',
@@ -245,7 +245,7 @@ describe('DashboardReportService', () => {
       ),
     ).toBe(true);
 
-    const tiedData: DashboardReportData = {
+    const tiedData: HomeReportData = {
       categories: [
         {
           categoryId: '9',
@@ -294,12 +294,12 @@ describe('DashboardReportService', () => {
       ],
       imports: [],
     };
-    service = new DashboardReportService(
-      { readDashboardReport: () => Promise.resolve(tiedData) },
+    service = new HomeReportService(
+      { readHomeReport: () => Promise.resolve(tiedData) },
       () => new Date(NOW),
     );
 
-    const tied = await service.getDashboardReportInSpace('7', { months: '6' });
+    const tied = await service.getHomeReportInSpace('7', { months: '6' });
     expect(tied.summary.highestCategory).toMatchObject({
       categoryId: '2',
       name: 'Alpha',
@@ -308,7 +308,7 @@ describe('DashboardReportService', () => {
   });
 
   it('defaults Monthly view to one complete month', async () => {
-    const report = await service.getDashboardReportInSpace('7', {});
+    const report = await service.getHomeReportInSpace('7', {});
     expect(report.monthlyExpenses).toHaveLength(1);
     expect(report.summary.planned.months).toBe(1);
     expect(report.range).toMatchObject({
@@ -321,7 +321,7 @@ describe('DashboardReportService', () => {
   it.each(['1', '3', '6', '12'])(
     'uses %s complete months for totals and planning',
     async (months) => {
-      const report = await service.getDashboardReportInSpace('7', { months });
+      const report = await service.getHomeReportInSpace('7', { months });
       expect(report.monthlyExpenses).toHaveLength(Number(months));
       expect(report.summary.planned.months).toBe(Number(months));
       expect(report.budgetChecks.monthly[0].eligibleMonths).toBe(
@@ -340,28 +340,28 @@ describe('DashboardReportService', () => {
     'rejects unsupported month count %s',
     async (months) => {
       await expect(
-        service.getDashboardReportInSpace('7', { months }),
+        service.getHomeReportInSpace('7', { months }),
       ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
     },
   );
 
   it('rejects month counts for Yearly reports', async () => {
     await expect(
-      service.getDashboardReportInSpace('7', { view: 'yearly', months: '3' }),
+      service.getHomeReportInSpace('7', { view: 'yearly', months: '3' }),
     ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
   });
 
   it('keeps a sole annual Budget exact before rounding its monthly equivalent', async () => {
-    const data: DashboardReportData = {
+    const data: HomeReportData = {
       categories: [makeData().categories[1]],
       expenses: [],
       imports: [],
     };
-    service = new DashboardReportService(
-      { readDashboardReport: () => Promise.resolve(data) },
+    service = new HomeReportService(
+      { readHomeReport: () => Promise.resolve(data) },
       () => new Date(NOW),
     );
-    const report = await service.getDashboardReportInSpace('7', {
+    const report = await service.getHomeReportInSpace('7', {
       view: 'yearly',
       year: '2025',
     });
@@ -388,7 +388,7 @@ describe('DashboardReportService', () => {
   ])(
     'uses exact thresholds for %s against 400.00 (%s)',
     async (amount, status, breaches) => {
-      const data: DashboardReportData = {
+      const data: HomeReportData = {
         categories: makeData()
           .categories.slice(0, 2)
           .map((category) => ({ ...category, budgetAmount: '400.00' })),
@@ -399,11 +399,11 @@ describe('DashboardReportService', () => {
         })),
         imports: [],
       };
-      service = new DashboardReportService(
-        { readDashboardReport: () => Promise.resolve(data) },
+      service = new HomeReportService(
+        { readHomeReport: () => Promise.resolve(data) },
         () => new Date(NOW),
       );
-      const report = await service.getDashboardReportInSpace('7', {
+      const report = await service.getHomeReportInSpace('7', {
         view: 'yearly',
         year: '2026',
       });
@@ -422,9 +422,9 @@ describe('DashboardReportService', () => {
 
   it('changes completed-month eligibility and store bounds at the exact Manila New Year instant', async () => {
     let now = new Date('2026-12-31T15:59:59.999Z');
-    service = new DashboardReportService(
+    service = new HomeReportService(
       {
-        readDashboardReport: (value) => {
+        readHomeReport: (value) => {
           query = value;
           return Promise.resolve({
             categories: [makeData().categories[0]],
@@ -435,16 +435,16 @@ describe('DashboardReportService', () => {
       },
       () => new Date(now),
     );
-    const before = await service.getDashboardReportInSpace('7', {
+    const before = await service.getHomeReportInSpace('7', {
       view: 'yearly',
       year: '2026',
     });
     expect(before.budgetChecks.monthly[0].eligibleMonths).toBe(11);
     await expect(
-      service.getDashboardReportInSpace('7', { view: 'yearly', year: '2027' }),
+      service.getHomeReportInSpace('7', { view: 'yearly', year: '2027' }),
     ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
     now = new Date('2026-12-31T16:00:00.000Z');
-    const january = await service.getDashboardReportInSpace('7', {
+    const january = await service.getHomeReportInSpace('7', {
       view: 'yearly',
       year: '2027',
     });
@@ -464,7 +464,7 @@ describe('DashboardReportService', () => {
       eligibleMonths: 0,
       expenseFilter: null,
     });
-    const past = await service.getDashboardReportInSpace('7', {
+    const past = await service.getHomeReportInSpace('7', {
       view: 'yearly',
       year: '2026',
     });
@@ -474,7 +474,7 @@ describe('DashboardReportService', () => {
   });
 });
 
-function makeData(): DashboardReportData {
+function makeData(): HomeReportData {
   return {
     categories: [
       {

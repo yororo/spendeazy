@@ -1,6 +1,6 @@
 # Statement Import history and detail
 
-History uses confirmation dates in Asia/Manila. Dashboard passes the exact filter returned with its displayed import count; View all starts with all dates. Pushing detail retains the history selection, loaded pages and scroll position.
+History uses confirmation dates in Asia/Manila. Home passes the exact filter returned with its displayed import count; View all starts with all dates. Pushing detail retains the history selection, loaded pages and scroll position.
 
 Committed detail requires both the import ID and its source Space. A Space or session change invalidates pending reads. Focus refreshes financial projections, Category labels and Space membership. Failed catalog/member loads display unavailable labels; absent members after a successful load display Deleted user.
 

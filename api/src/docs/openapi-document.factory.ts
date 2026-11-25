@@ -87,7 +87,7 @@ function createDocumentConfig(): Omit<OpenAPIObject, 'paths'> {
       'Calendar-period spending summaries for a Space.',
     )
     .addTag(
-      'Dashboard reporting',
+      'Home reporting',
       'Monthly and Yearly actual spending, current Budget checks and import confirmation counts for a Space.',
     )
     .addBearerAuth(

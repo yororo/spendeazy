@@ -9,7 +9,7 @@ export default function TabsLayout() {
       tabBar={(props) => (
         <SpendeazyTabBar state={props.state} navigateToTab={props.navigateToTab} />
       )}>
-      <Tabs.Screen name="index" options={{ title: 'Dashboard' }} />
+      <Tabs.Screen name="index" options={{ title: 'Home' }} />
       <Tabs.Screen name="expenses" options={{ title: 'Expenses' }} />
       <Tabs.Screen name="budget" options={{ title: 'Budget' }} />
       <Tabs.Screen name="profile" options={{ title: 'Profile' }} />

@@ -4,11 +4,11 @@ import {
 } from '../../errors/application-error';
 import { daysInMonth } from '../../http/domain-date';
 import { todayInManila } from '../../http/manila-clock';
-import { MONTHS_PER_YEAR } from './dashboard-report-constants';
+import { MONTHS_PER_YEAR } from './home-report-constants';
 
-export type DashboardView = 'monthly' | 'yearly';
+export type HomeView = 'monthly' | 'yearly';
 
-export interface DashboardReportInput {
+export interface HomeReportInput {
   readonly view?: unknown;
   readonly endMonth?: unknown;
   readonly months?: unknown;
@@ -16,8 +16,8 @@ export interface DashboardReportInput {
   readonly chartCategoryId?: unknown;
 }
 
-export interface ResolvedDashboardRange {
-  readonly view: DashboardView;
+export interface ResolvedHomeRange {
+  readonly view: HomeView;
   readonly fromDate: string;
   readonly toDate: string;
   readonly today: string;
@@ -30,10 +30,10 @@ const MONTH_VALUE_PATTERN = /^(\d{4})-(0[1-9]|1[0-2])$/u;
 const YEAR_VALUE_PATTERN = /^\d{4}$/u;
 const CATEGORY_ID_PATTERN = /^[1-9]\d*$/u;
 
-export function resolveDashboardRange(
-  input: DashboardReportInput,
+export function resolveHomeRange(
+  input: HomeReportInput,
   now: Date,
-): ResolvedDashboardRange {
+): ResolvedHomeRange {
   const today = todayInManila(now);
   const todayYear = today.slice(0, 4);
   const todayMonth = today.slice(0, 7);
@@ -62,7 +62,7 @@ export function resolveDashboardRange(
       details.push({
         field: '/year',
         code: 'not_allowed',
-        message: 'Monthly dashboard views do not accept year',
+        message: 'Monthly home views do not accept year',
       });
     }
     const monthsInput = input.months === undefined ? '1' : input.months;
@@ -92,7 +92,7 @@ export function resolveDashboardRange(
       });
     }
 
-    if (details.length > 0) throw new DashboardReportValidationError(details);
+    if (details.length > 0) throw new HomeReportValidationError(details);
 
     const monthCount = Number(monthsInput);
     const normalizedEndMonth = endMonth as string;
@@ -122,14 +122,14 @@ export function resolveDashboardRange(
     details.push({
       field: '/months',
       code: 'not_allowed',
-      message: 'Yearly dashboard views do not accept months',
+      message: 'Yearly home views do not accept months',
     });
   }
   if (input.endMonth !== undefined) {
     details.push({
       field: '/endMonth',
       code: 'not_allowed',
-      message: 'Yearly dashboard views do not accept endMonth',
+      message: 'Yearly home views do not accept endMonth',
     });
   }
   const year = input.year === undefined ? todayYear : input.year;
@@ -147,7 +147,7 @@ export function resolveDashboardRange(
     });
   }
 
-  if (details.length > 0) throw new DashboardReportValidationError(details);
+  if (details.length > 0) throw new HomeReportValidationError(details);
 
   const normalizedYear = year as string;
   const currentYearSelected = normalizedYear === todayYear;
@@ -209,7 +209,7 @@ function shiftMonth(
   };
 }
 
-export class DashboardReportValidationError extends ApplicationError {
+export class HomeReportValidationError extends ApplicationError {
   constructor(details: ErrorDetail[]) {
     super('VALIDATION_FAILED', 'The request contains invalid fields.', details);
   }

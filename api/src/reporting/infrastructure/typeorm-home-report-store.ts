@@ -7,21 +7,19 @@ import { CategoryEntity } from '../../database/entities/category.entity';
 import { ExpenseEntity } from '../../database/entities/expense.entity';
 import { StatementImportEntity } from '../../database/entities/statement-import.entity';
 import type {
-  DashboardReportCategory,
-  DashboardReportData,
-  DashboardReportExpense,
-  DashboardReportImport,
-  DashboardReportQuery,
-  DashboardReportStore,
-} from '../application/dashboard-report-store';
+  HomeReportCategory,
+  HomeReportData,
+  HomeReportExpense,
+  HomeReportImport,
+  HomeReportQuery,
+  HomeReportStore,
+} from '../application/home-report-store';
 
 @Injectable()
-export class TypeOrmDashboardReportStore implements DashboardReportStore {
+export class TypeOrmHomeReportStore implements HomeReportStore {
   constructor(@InjectDataSource() private readonly dataSource: DataSource) {}
 
-  readDashboardReport(
-    query: DashboardReportQuery,
-  ): Promise<DashboardReportData> {
+  readHomeReport(query: HomeReportQuery): Promise<HomeReportData> {
     return scopedTransaction(
       this.dataSource,
       'REPEATABLE READ',
@@ -38,7 +36,7 @@ export class TypeOrmDashboardReportStore implements DashboardReportStore {
 async function readCategories(
   manager: EntityManager,
   spaceId: string,
-): Promise<DashboardReportCategory[]> {
+): Promise<HomeReportCategory[]> {
   const rows = await manager
     .getRepository(CategoryEntity)
     .createQueryBuilder('category')
@@ -53,14 +51,14 @@ async function readCategories(
     .addSelect('budget.period', 'budgetPeriod')
     .orderBy('category.name', 'ASC')
     .addOrderBy('category.id', 'ASC')
-    .getRawMany<DashboardReportCategory>();
+    .getRawMany<HomeReportCategory>();
   return rows;
 }
 
 async function readExpenses(
   manager: EntityManager,
-  query: DashboardReportQuery,
-): Promise<DashboardReportExpense[]> {
+  query: HomeReportQuery,
+): Promise<HomeReportExpense[]> {
   return manager
     .getRepository(ExpenseEntity)
     .createQueryBuilder('expense')
@@ -75,13 +73,13 @@ async function readExpenses(
     .addSelect('expense.amount', 'amount')
     .orderBy('expense.expenseDate', 'ASC')
     .addOrderBy('expense.id', 'ASC')
-    .getRawMany<DashboardReportExpense>();
+    .getRawMany<HomeReportExpense>();
 }
 
 async function readImports(
   manager: EntityManager,
-  query: DashboardReportQuery,
-): Promise<DashboardReportImport[]> {
+  query: HomeReportQuery,
+): Promise<HomeReportImport[]> {
   const rows = await manager
     .getRepository(StatementImportEntity)
     .createQueryBuilder('statementImport')

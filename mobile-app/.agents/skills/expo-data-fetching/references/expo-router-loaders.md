@@ -192,7 +192,7 @@ export const loader: LoaderFunction<{ results: any[]; query: string }> = async (
 Loaders run on the server, so you can access secrets and server-only resources directly:
 
 ```tsx
-// app/dashboard.tsx
+// app/home.tsx
 import { type LoaderFunction } from "expo-server";
 
 export const loader: LoaderFunction<{ balance: any; isAuthenticated: boolean }> = async (

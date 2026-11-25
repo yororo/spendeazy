@@ -1,7 +1,7 @@
 import { ApiPropertyOptional, ApiSchema } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import { IsArray, IsIn, IsOptional, IsString, Matches } from 'class-validator';
-import type { DashboardView } from '../application/dashboard-report-input';
+import type { HomeView } from '../application/home-report-input';
 
 type ApiSchemaOptionsWithAdditionalProperties = {
   name?: string;
@@ -12,16 +12,16 @@ type ApiSchemaOptionsWithAdditionalProperties = {
 @ApiSchema({
   additionalProperties: false,
 } as ApiSchemaOptionsWithAdditionalProperties)
-export class DashboardReportQueryDto {
+export class HomeReportQueryDto {
   @IsOptional()
   @IsString()
   @IsIn(['monthly', 'yearly'])
   @ApiPropertyOptional({
-    description: 'Dashboard period. Defaults to monthly.',
+    description: 'Home period. Defaults to monthly.',
     enum: ['monthly', 'yearly'],
     example: 'monthly',
   })
-  view?: DashboardView;
+  view?: HomeView;
 
   @IsOptional()
   @IsString()

@@ -46,6 +46,9 @@ test('a retained receipt keeps browsing tabs visible and replaces Add with recov
   const navigated = [];
   let tree;
   await act(async () => { tree = create(React.createElement(module.exports.SpendeazyTabBar, { state, navigateToTab: key => navigated.push(key) })); });
+  const home = tree.root.findByProps({ accessibilityLabel: 'Home', accessibilityRole: 'tab' });
+  assert.deepEqual(home.props.accessibilityState, { selected: true });
+  assert.equal(home.findAllByType('House').length, 1);
   const action = label => tree.root.findByProps({ accessibilityLabel: label, accessibilityRole: 'button' });
   await act(async () => action('Add').props.onPress());
   assert.equal(destinations.at(-1), '/add');

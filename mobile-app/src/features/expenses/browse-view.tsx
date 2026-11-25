@@ -37,14 +37,14 @@ export function ExpenseBrowse({
   controller,
   onOpenExpense,
   onOpenOtherList,
-  onBackToDashboard,
+  onBackToHome,
   spaceStatus,
   scopeLabel,
 }: {
   controller: ReturnType<typeof useExpenseBrowse>;
   onOpenExpense: (expenseId: string) => void;
   onOpenOtherList?: () => void;
-  onBackToDashboard?: () => void;
+  onBackToHome?: () => void;
   spaceStatus: ReactNode;
   scopeLabel?: string;
 }) {
@@ -188,7 +188,7 @@ export function ExpenseBrowse({
           ListHeaderComponent={
             <StackGap>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.fieldLabelGap }}>
-                {onBackToDashboard || (deletedOnly && onOpenOtherList) ? <CompactAction variant="icon" label="Back" icon={<ChevronLeft size={22} color={palette.textPrimary} />} onPress={onBackToDashboard ?? onOpenOtherList!} /> : null}
+                {onBackToHome || (deletedOnly && onOpenOtherList) ? <CompactAction variant="icon" label="Back" icon={<ChevronLeft size={22} color={palette.textPrimary} />} onPress={onBackToHome ?? onOpenOtherList!} /> : null}
                 <View style={{ flex: 1 }}><ScreenHeader title={deletedOnly ? "Deleted Expenses" : "Expenses"} accessory={spaceStatus} /></View>
               </View>
               {scopeLabel ? <SupportingText>{scopeLabel}</SupportingText> : null}

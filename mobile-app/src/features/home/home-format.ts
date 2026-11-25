@@ -1,4 +1,4 @@
-import type { DashboardReport } from "@/api/dashboard-report-api-client";
+import type { HomeReport } from "@/api/home-report-api-client";
 import { displayMoneyAmount } from '../../navigation/money-amount.ts';
 
 const monthName = new Intl.DateTimeFormat("en-PH", {
@@ -8,14 +8,14 @@ const monthName = new Intl.DateTimeFormat("en-PH", {
 
 export function formatPhp(amount: string): string {
   const match = /^(-?)(\d+)(?:\.(\d{2}))?$/u.exec(amount);
-  if (!match) throw new Error("Dashboard money values must be exact decimals");
+  if (!match) throw new Error("Home money values must be exact decimals");
   const fraction = match[3] ?? "00";
   // Native Intl implementations may reject BigInt; keep exact monetary digits as strings.
   const whole = match[2].replace(/^0+(?=\d)/u, '');
   return `${match[1] === "-" ? "-" : ""}₱${displayMoneyAmount(whole)}.${fraction}`;
 }
 
-export function dashboardPeriodLabel(report: DashboardReport): string {
+export function homePeriodLabel(report: HomeReport): string {
   if (report.range.view === "yearly") {
     const year = report.range.fromDate.slice(0, 4);
     return report.range.inProgress ? `${year} · YTD` : year;
@@ -69,7 +69,7 @@ export function barHeightPercent(amount: string, maximum: string): number {
 
 function moneyToCents(value: string): bigint {
   const match = /^(-?)(\d+)(?:\.(\d{2}))?$/u.exec(value);
-  if (!match) throw new Error("Dashboard money values must be exact decimals");
+  if (!match) throw new Error("Home money values must be exact decimals");
   const cents = BigInt(match[2]) * 100n + BigInt(match[3] ?? "00");
   return match[1] === "-" ? -cents : cents;
 }

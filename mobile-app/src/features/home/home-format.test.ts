@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { annualUsageText, meterSegments } from './dashboard-format.ts';
+import { annualUsageText, meterSegments } from './home-format.ts';
 
 test('PHP formatting works when native Intl rejects BigInt and preserves exact digits', async () => {
   const descriptor = Object.getOwnPropertyDescriptor(Intl.NumberFormat.prototype, 'format')!;
@@ -16,7 +16,7 @@ test('PHP formatting works when native Intl rejects BigInt and preserves exact d
   });
   try {
     // Load a fresh formatter under the native-runtime restriction, not Node's cached instance.
-    const moduleUrl = new URL('./dashboard-format.ts?native-intl-regression', import.meta.url).href;
+    const moduleUrl = new URL('./home-format.ts?native-intl-regression', import.meta.url).href;
     const { formatPhp } = await import(moduleUrl);
     assert.equal(formatPhp('30000.01'), '₱30,000.01');
     assert.equal(formatPhp('9007199254740993.01'), '₱9,007,199,254,740,993.01');
